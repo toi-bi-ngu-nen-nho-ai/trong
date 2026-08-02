@@ -111,9 +111,14 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-8 0l1 12a1 1 0 001 1h6a1 1 0 001-1l1-12" />
     </svg>
   ),
+  // Thư mục mở, dấu thập y tế ở giữa thân — dùng cho "Đồng bộ dữ liệu" (kho dữ liệu y tế).
+  // Nắp thư mục: cạnh trái + đỉnh đi lên rồi gãy chéo xuống tại chỗ "tai" bẻ góc, rồi kẻ ngang.
+  // Thân thư mục là hình thang nghiêng (đáy trước chúc xuống thấp hơn, đúng dáng "thư mục mở").
   download: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-4 h-4">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+      <path d="M3.4 18.4V6.8A2 2 0 015.4 4.8h4.2a2 2 0 011.5.7l1.6 1.8a2 2 0 001.5.7h4.4" />
+      <path d="M3.4 18.4L6.9 9.9h13.7l-3.5 8.5H3.4z" />
+      <path d="M11.4 11.6H13.7V13.5H15.6V15.5H13.7V17.4H11.4V15.5H9.5V13.5H11.4Z" strokeLinejoin="round" />
     </svg>
   ),
   upload: () => (
@@ -266,7 +271,7 @@ const icons = {
   // Hồ sơ y tế: trang giấy góc gấp TRÁI-trên (khác icon "doc" gấp phải), ba góc còn lại bo tròn,
   // giữa trang là dấu thập y tế dạng khối đặc (không phải nét mảnh) — dùng cho "Tạo bài mới".
   docCross: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
       <path d="M5 7L9 3H16.6A2.4 2.4 0 0119 5.4V18.6A2.4 2.4 0 0116.6 21H7.4A2.4 2.4 0 015 18.6V7Z" />
       <path d="M5 7H8" opacity={0.6} />
       <path d="M10.3 9H13.7V11.3H16V14.7H13.7V17H10.3V14.7H8V11.3H10.3Z" strokeLinejoin="round" />
