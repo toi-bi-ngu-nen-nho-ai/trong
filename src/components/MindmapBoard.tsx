@@ -1808,6 +1808,17 @@ export function MindmapBoard({
     }
   }
 
+  // Dọn "ngón ma" còn sót lại trong pointers.current — xảy ra khi một ngón trước đó KHÔNG BAO GIỜ báo
+  // pointerup/pointercancel (ví dụ trên iPhone Safari: vừa chạm để tạo ghi chú thì bàn phím ảo bật
+  // lên ngay, đổi cả layout giữa lúc ngón vẫn còn trên mặt kính — Safari đôi khi bỏ luôn sự kiện nhấc
+  // tay của ngón đó). Ngón thật MỚI luôn báo `isPrimary: true` nếu nó là ngón ĐẦU của một cử chỉ mới;
+  // nếu điều đó đúng mà `pointers.current` vẫn còn mục cũ, mục cũ chắc chắn là rác — không dọn thì mọi
+  // lần chạm một ngón về sau đều bị hiểu lầm thành "ngón thứ hai" (vào thẳng nhánh phóng-thu), tức là
+  // chỉ zoom được, không bao giờ kéo được thẻ hay kéo được bảng nữa cho tới khi tải lại trang.
+  function reapStalePointers(e: ReactPointerEvent) {
+    if (e.isPrimary && pointers.current.size > 0) pointers.current.clear()
+  }
+
   function startPinch() {
     const [a, b] = Array.from(pointers.current.values())
     const rect = surfaceRect()
@@ -1828,6 +1839,7 @@ export function MindmapBoard({
 
   function handleSurfacePointerDown(e: ReactPointerEvent) {
     stopAnim()
+    reapStalePointers(e)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     capture(e)
 
@@ -1938,6 +1950,7 @@ export function MindmapBoard({
   function handleNodePointerDown(e: ReactPointerEvent, node: MindNode) {
     // Công cụ vẽ/tẩy: để sự kiện chạy tiếp xuống mặt bảng để vẽ đè lên cả ghi chú.
     if (tool === "pen" || tool === "highlighter" || tool === "eraser" || tool === "shape") return
+    reapStalePointers(e)
     if (pointers.current.size >= 1) {
       // Đã có một ngón trên bảng → ngón này là ngón thứ hai: phóng-thu, không kéo thẻ.
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -2005,6 +2018,7 @@ export function MindmapBoard({
 
   function handleImagePointerDown(e: ReactPointerEvent, image: MindImage) {
     if (tool === "pen" || tool === "highlighter" || tool === "eraser" || tool === "shape") return
+    reapStalePointers(e)
     if (pointers.current.size >= 1) {
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
       capture(e)
@@ -2036,6 +2050,7 @@ export function MindmapBoard({
   function handleResizePointerDown(e: ReactPointerEvent, image: MindImage) {
     e.stopPropagation()
     stopAnim()
+    reapStalePointers(e)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     capture(e)
     const el = worldRef.current?.querySelector(`[data-image-id="${image.id}"]`)
