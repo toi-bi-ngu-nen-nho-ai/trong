@@ -127,8 +127,8 @@ const icons = {
   // Vì khe cửa là một notch lõm ngay trong đường viền (không phải lỗ khoét kín), nó tự động để lộ
   // nền phía sau khi path được tô đầy — không cần mẹo đổi stroke cửa trùng màu var(--c-nav-active-bg)
   // như bản cũ, nên hình không còn bị vỡ khi nền pill đổi theo theme sáng/tối.
-  home: (active: boolean) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-6 h-6">
+  home: (active: boolean, className = "w-6 h-6") => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className={className}>
       <path
         d="M12 3.4L20.6 10.6V20.3H14.6V14.5H9.4V20.3H3.4V10.6Z"
         fill={active ? "currentColor" : "none"}
@@ -261,6 +261,15 @@ const icons = {
       <path d="M6.6 3.4h6.9l4.9 4.9v11.5a1.8 1.8 0 01-1.8 1.8H6.6a1.8 1.8 0 01-1.8-1.8V5.2a1.8 1.8 0 011.8-1.8z" />
       <path d="M13.2 3.5v3.4a1.5 1.5 0 001.5 1.5h3.4" />
       <path d="M8.2 13h7.6M8.2 16.6h5" opacity={0.6} />
+    </svg>
+  ),
+  // Hồ sơ y tế: trang giấy góc gấp TRÁI-trên (khác icon "doc" gấp phải), ba góc còn lại bo tròn,
+  // giữa trang là dấu thập y tế dạng khối đặc (không phải nét mảnh) — dùng cho "Tạo bài mới".
+  docCross: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M5 7L9 3H16.6A2.4 2.4 0 0119 5.4V18.6A2.4 2.4 0 0116.6 21H7.4A2.4 2.4 0 015 18.6V7Z" />
+      <path d="M5 7H8" opacity={0.6} />
+      <path d="M10.3 9H13.7V11.3H16V14.7H13.7V17H10.3V14.7H8V11.3H10.3Z" strokeLinejoin="round" />
     </svg>
   ),
   chevronDown: () => (
@@ -959,7 +968,7 @@ function HomeScreen({
           xem FloatingTopBar trong App shell. Không có nó thì chữ chui xuống dưới cụm nút đó. */}
       <div className="px-5 pt-2 pb-4 flex items-center gap-3" style={{ paddingRight: 180 }}>
         <span className="flex-none" style={{ color: "var(--c-primary)" }}>
-          {icons.notebookT("w-10 h-10")}
+          {icons.home(true, "w-10 h-10")}
         </span>
         <span className="text-[22px] font-bold text-slate-900 leading-none">DrTrong</span>
       </div>
@@ -1014,7 +1023,7 @@ function HomeScreen({
             className="flex-none w-9 h-9 rounded-full flex items-center justify-center"
             style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
           >
-            {icons.plus()}
+            {icons.docCross()}
           </div>
           <div>
             <p className="font-bold text-slate-900 text-[15px] leading-snug">Tạo bài mới</p>
