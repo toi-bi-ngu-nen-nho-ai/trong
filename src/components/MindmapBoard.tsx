@@ -64,6 +64,7 @@ import {
   strokeMostlyInside,
   strokeOutline,
   strokePath,
+  type Box,
   type ShapeKind,
 } from "../lib/mindmapGeometry"
 import {
@@ -466,6 +467,10 @@ export function MindmapBoard({
   const [menuOpen, setMenuOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
+  // Đang hỏi lại trước khi xoá một đường nối — xoá nhầm mất công gõ lại nhãn "quan hệ"/"phác đồ", nên
+  // hỏi trước dù đã có hoàn tác (hoàn tác chỉ cứu được nếu người dùng NHỚ RA ngay, còn đang bận việc
+  // khác thì không).
+  const [confirmDeleteEdge, setConfirmDeleteEdge] = useState<{ from: string; to: string; kind?: "relationship" | "algorithm" } | null>(null)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   // Thẻ/ảnh vừa được tạo — chạy hiệu ứng bung ra một nhịp rồi thôi.
@@ -1528,6 +1533,18 @@ export function MindmapBoard({
 
   // ─── Đường nối: cập nhật trực tiếp khi đang kéo thẻ ───────────────────────
 
+  // Góc xoay cho chữ nhãn CHẠY DỌC theo chiều dài đường nối. Tiếp tuyến ở đúng giữa một cung bậc hai
+  // luôn bằng đúng hướng nối thẳng từ điểm đầu tới điểm cuối (tính chất toán học của bezier bậc hai,
+  // không phụ thuộc điểm điều khiển cong bao nhiêu) — nên chỉ cần góc giữa hai TÂM thẻ, không cần tính
+  // lại điểm điều khiển của cung. Gập góc về trong khoảng [-90°, 90°] để chữ luôn đọc xuôi, không lộn
+  // ngược khi đường nối chạy từ phải sang trái.
+  function edgeLabelAngle(a: Box, b: Box): number {
+    const deg = (Math.atan2(b.y + b.h / 2 - (a.y + a.h / 2), b.x + b.w / 2 - (a.x + a.w / 2)) * 180) / Math.PI
+    if (deg > 90) return deg - 180
+    if (deg < -90) return deg + 180
+    return deg
+  }
+
   // Vẽ lại (chỉ trên DOM, không đụng state) mọi đường nối chạm vào tập thẻ đang kéo — dùng chung cho
   // kéo một thẻ (kèm nhánh con), kéo cả nhóm đang khoanh, v.v. Nhận CẢ TẬP một lần thay vì gọi lặp lại
   // cho từng id: một đường nối có CẢ HAI đầu cùng nằm trong tập đang kéo (nối hai thẻ trong cùng một
@@ -1557,7 +1574,9 @@ export function MindmapBoard({
       const key = edgeKey(e)
       layer.querySelector(`[data-edge="${key}"]`)?.setAttribute("d", g.d)
       layer.querySelector(`[data-edge-head="${key}"]`)?.setAttribute("d", g.head)
-      layer.querySelector(`[data-edge-label="${key}"]`)?.setAttribute("transform", `translate(${g.mid.x} ${g.mid.y})`)
+      layer
+        .querySelector(`[data-edge-label="${key}"]`)
+        ?.setAttribute("transform", `translate(${g.mid.x} ${g.mid.y}) rotate(${edgeLabelAngle(boxA, boxB)})`)
     })
   }
 
@@ -2548,6 +2567,33 @@ export function MindmapBoard({
     tickHaptic()
   }
 
+  // Chữ nhãn chạy dọc theo đường nối (xem edgeLabelAngle) — nhánh ngắn hơn chữ sẽ làm chữ tràn ra khỏi
+  // hai đầu, đè lên thẳng hai thẻ. Đẩy CẢ NHÁNH bên dưới thẻ đích ra xa thêm đúng phần còn thiếu, giữ
+  // nguyên hướng đang nối — cùng cách "kéo thẻ thì nhánh con đi theo" mà việc kéo tay vẫn làm.
+  function ensureEdgeLength(from: string, to: string, label: string) {
+    const a = nodes.find((n) => n.id === from)
+    const b = nodes.find((n) => n.id === to)
+    if (!a || !b) return
+    const aBox = nodeBox(a, sizeOf(a.id))
+    const bBox = nodeBox(b, sizeOf(b.id))
+    const acx = aBox.x + aBox.w / 2
+    const acy = aBox.y + aBox.h / 2
+    const bcx = bBox.x + bBox.w / 2
+    const bcy = bBox.y + bBox.h / 2
+    const dist = Math.hypot(bcx - acx, bcy - acy)
+    // Ước lượng bề rộng chữ (10.5px, đậm) + khoảng đệm hai đầu cho mép thẻ — cùng công thức đã dùng
+    // trước đây cho khung nhãn dạng viên thuốc, nay dùng để biết "còn thiếu bao nhiêu" thôi.
+    const minDist = label.length * 6.8 + 16 + 100
+    if (dist < 1 || dist >= minDist) return
+    const extra = minDist - dist
+    const ux = (bcx - acx) / dist
+    const uy = (bcy - acy) / dist
+    const dx = Math.round(acx + ux * (dist + extra) - bBox.w / 2) - b.x
+    const dy = Math.round(acy + uy * (dist + extra) - bBox.h / 2) - b.y
+    const moveIds = new Set([to, ...descendantsOf(to, childrenMap(edges))])
+    updateNodes((ns) => ns.map((n) => (moveIds.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n)))
+  }
+
   // Lưu nhãn + loại của đường nối đang sửa — chữ để trống thì XOÁ hẳn field `label` (không lưu chuỗi
   // rỗng), để đường nối không nhãn quay lại đúng như trước khi có tính năng này. Tương tự, loại
   // "relationship" (mặc định) XOÁ hẳn field `kind` thay vì lưu chuỗi — dữ liệu cũ và đường nối
@@ -2566,6 +2612,7 @@ export function MindmapBoard({
         return next
       }),
     )
+    if (trimmed) ensureEdgeLength(from, to, trimmed)
     setEditingEdgeLabel(null)
   }
 
@@ -2578,7 +2625,10 @@ export function MindmapBoard({
     }
     if (sel?.kind === "node") deleteNode(sel.id)
     else if (sel?.kind === "image") deleteImage(sel.id)
-    else if (sel?.kind === "edge") deleteEdge(sel.from, sel.to)
+    else if (sel?.kind === "edge") {
+      const cur = edges.find((ed) => ed.from === sel.from && ed.to === sel.to)
+      setConfirmDeleteEdge({ from: sel.from, to: sel.to, kind: cur?.kind })
+    }
   }
 
   function selectAll() {
@@ -2640,6 +2690,7 @@ export function MindmapBoard({
         // mọi hộp thoại lồng nhau khác.
         if (pickLink) setPickLink(false)
         else if (confirmClear) setConfirmClear(false)
+        else if (confirmDeleteEdge) setConfirmDeleteEdge(null)
         else if (menuOpen || addOpen) {
           setMenuOpen(false)
           setAddOpen(false)
@@ -2651,7 +2702,7 @@ export function MindmapBoard({
         return
       }
       // Đang mở hộp thoại phủ lên bảng thì mọi phím khác không được đụng tới bảng phía dưới.
-      if (pickLink || confirmClear) return
+      if (pickLink || confirmClear || confirmDeleteEdge) return
       if (e.key === "Delete" || e.key === "Backspace") {
         if (sel || selGroup) {
           e.preventDefault()
@@ -3164,10 +3215,15 @@ export function MindmapBoard({
                       // Không gắn onPointerDown — chạm trúng đường nối đã tính bằng khoảng cách toán
                       // học tới đường cong (edgeAtPoint) trên toàn mặt bảng, không qua sự kiện DOM của
                       // riêng path này. Sửa nhãn thì chọn đường nối rồi bấm bút chì trên thanh nổi.
-                      <g data-edge-label={key} transform={`translate(${g.mid.x} ${g.mid.y})`} style={{ pointerEvents: "none" }}>
+                      <g
+                        data-edge-label={key}
+                        transform={`translate(${g.mid.x} ${g.mid.y}) rotate(${edgeLabelAngle(a, b)})`}
+                        style={{ pointerEvents: "none" }}
+                      >
                         {/* Chữ trần (không khung/nền) — giống đúng kiểu "Chữ trần" của thẻ ghi chú,
-                            đặt PHÍA TRÊN đường nối (y âm) thay vì đè lên giữa đường, để không che mất
-                            nét đứt/liền của đường nối ngay dưới nó. */}
+                            CHẠY DỌC theo chiều dài đường nối (xoay theo edgeLabelAngle) và nằm PHÍA TRÊN
+                            đường nối (y âm) thay vì đè lên giữa đường, để không che mất nét đứt/liền
+                            ngay dưới nó. */}
                         <text
                           x={0}
                           y={-7}
@@ -3686,7 +3742,10 @@ export function MindmapBoard({
                     hint="Bỏ đường nối này"
                     tone="dark"
                     size={38}
-                    onClick={() => deleteEdge(sel.from, sel.to)}
+                    onClick={() => {
+                      const cur = edges.find((ed) => ed.from === sel.from && ed.to === sel.to)
+                      setConfirmDeleteEdge({ from: sel.from, to: sel.to, kind: cur?.kind })
+                    }}
                   />
                 </>
               )}
@@ -4443,6 +4502,49 @@ export function MindmapBoard({
                 style={{ background: "#dc2626" }}
               >
                 Xoá hết
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteEdge && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
+          style={{ background: "rgba(15,23,42,.42)" }}
+          onPointerDown={() => setConfirmDeleteEdge(null)}
+        >
+          <div
+            className="mind-pop w-full max-w-[300px] rounded-3xl p-5"
+            style={{ background: "#fff", boxShadow: "0 20px 50px rgba(15,23,42,.3)" }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <p className="text-base font-bold text-slate-900 mb-1.5">
+              Bạn thật sự muốn xoá {confirmDeleteEdge.kind === "algorithm" ? "bước phác đồ" : "quan hệ"} này?
+            </p>
+            <p className="text-[12.5px] text-slate-500 leading-relaxed mb-4">
+              Đường nối {confirmDeleteEdge.kind === "algorithm" ? "và bước phác đồ" : "và nhãn quan hệ"} sẽ bị xoá.
+              Vẫn lấy lại được bằng nút hoàn tác ngay sau đó.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteEdge(null)}
+                className="mind-btn flex-1 h-11 rounded-2xl text-sm font-semibold"
+                style={{ background: "#f1f5f9", color: "#475569" }}
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteEdge(confirmDeleteEdge.from, confirmDeleteEdge.to)
+                  setConfirmDeleteEdge(null)
+                }}
+                className="mind-btn flex-1 h-11 rounded-2xl text-sm font-semibold text-white"
+                style={{ background: "#dc2626" }}
+              >
+                Xoá
               </button>
             </div>
           </div>
