@@ -1,0 +1,660 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  /* ─── Vùng an toàn của máy (tai thỏ / Dynamic Island ở trên, thanh gạt Home ở dưới) ───────────
+     Gom về hai biến để mọi nơi dùng chung MỘT nguồn, và để kiểm thử được: mở DevTools gán
+     `--safe-bottom: 34px` là mô phỏng đúng iPhone có thanh gạt mà không cần máy thật.
+     Chỉ có giá trị khác 0 khi thẻ meta viewport có `viewport-fit=cover` (đã có trong index.html)
+     VÀ app chạy toàn màn hình (Safari thường trả 0 vì thanh công cụ đã chiếm chỗ đó). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Chiều cao phần bấm được của thanh điều hướng dưới (chưa tính vùng thanh gạt Home).
+     52px + 34px vùng thanh gạt trên iPhone ≈ 86px, ngang tầm thanh tab của app iOS thường (83px). */
+  --nav-body-h: 52px;
+  /* Khoảng chừa dưới đáy các thanh dính đáy (thanh nav dưới, thanh nút "Lưu" ở màn soạn bài).
+     PHẢI bằng đúng vùng thanh gạt Home, không được để 0.
+     Trước đây để 0 với lý do "cho nội dung xuống sát cạnh máy". Trên iPhone X chạy toàn màn hình
+     điều đó tạo ra đúng cái lỗi ngược lại: thân thanh nav cao 52px kết thúc TRƯỚC vạch thanh gạt,
+     34px còn lại lộ nền trang phía sau — thành một dải tối hõm sâu ngay dưới thanh nav. Cho thanh
+     tự phủ nốt 34px đó thì dải kia trở thành phần thân của thanh, không còn khoảng trống nào. */
+  --nav-pad-bottom: var(--safe-bottom);
+
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #f8fafc;
+  --card-foreground: #0f172a;
+  --primary: #0050B3;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #475569;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e8007d;
+  --accent-foreground: #ffffff;
+  --border: #e2e8f0;
+  --ring: #0050B3;
+  --radius: 10px;
+}
+
+/* ─── Bảng màu theo chủ đề sáng/tối ───────────────────────────────────────────
+   Vì sao cần chế độ tối: đây là app trực đêm. Buồng bệnh tắt đèn lúc 2 giờ sáng mà mở ra một màn
+   hình trắng toàn phần thì vừa chói mắt người dùng, vừa đánh thức bệnh nhân — và sau đó mắt mất
+   vài chục giây mới đọc lại được monitor.
+
+   Cách làm: MỌI màu của app đọc từ các biến --c-* dưới đây, không có mã màu cứng nào nằm rải rác
+   trong mã nguồn nữa. Nhờ vậy đổi chủ đề chỉ là đổi giá trị biến, không phải sửa hàng trăm chỗ.
+   Riêng các màu do người dùng tự chọn cho node Sơ đồ tư duy KHÔNG nằm ở đây — đó là lựa chọn của
+   họ, không phải màu giao diện.
+
+   Nguyên tắc chọn màu bản tối: giữ nguyên Ý NGHĨA (đỏ = nguy hiểm, vàng = cảnh báo, xanh dương =
+   thông tin), chỉ đảo độ sáng. Các nền "soft" trở thành nền tối pha sắc, chữ trở thành sắc nhạt —
+   để độ tương phản chữ/nền vẫn đạt ngưỡng đọc được (WCAG AA) ở cả hai bản. */
+:root {
+  color-scheme: light;
+
+  --c-surface: #ffffff;
+  --c-surface-alt: #f8fafc;
+  --c-page: #fcfdff;
+  --c-line-soft: #f1f5f9;
+  --c-line: #e2e8f0;
+  --c-line-strong: #cbd5e1;
+
+  --c-text: #0f172a;
+  --c-text-2: #334155;
+  --c-text-soft: #475569;
+  --c-text-muted: #64748b;
+  --c-muted: #94a3b8;
+  --c-faint: #cbd5e1;
+
+  --c-primary: #0050b3;
+  --c-primary-strong: #1d4ed8;
+  --c-primary-deep: #1e40af;
+  --c-primary-soft: #eff6ff;
+  --c-primary-line: #dbeafe;
+  --c-primary-line-2: #bfdbfe;
+
+  /* Xanh mòng két đậm hơn một bậc so với #0d9488 cũ. Lý do là tương phản, không phải thẩm mỹ:
+     accent vừa làm NỀN đặc (chip dung môi, nút "Thêm vào danh sách đang dùng") vừa làm CHỮ trên
+     nền accent-soft. Ở mức #0d9488 thì chữ trắng trên nền accent chỉ đạt 3,74:1 và accent làm chữ
+     chỉ đạt 3,59:1 — cả hai đều trượt ngưỡng AA 4,5:1. Ở #0f766e cả hai lên 5,5 và 5,3:1. */
+  --c-accent: #0f766e;
+  --c-accent-deep: #115e59;
+  --c-accent-soft: #f0fdfa;
+  --c-accent-line: #99f6e4;
+
+  --c-danger-icon: #dc2626;
+  --c-danger: #b91c1c;
+  --c-danger-deep: #991b1b;
+  --c-danger-soft: #fef2f2;
+  --c-danger-soft-2: #fee2e2;
+  --c-danger-line: #fecaca;
+  --c-danger-line-2: #fca5a5;
+
+  --c-warn-icon: #d97706;
+  --c-warn: #92400e;
+  --c-warn-2: #b45309;
+  --c-warn-3: #a16207;
+  --c-warn-soft: #fffbeb;
+  --c-warn-line: #fde68a;
+  --c-warn-line-2: #fcd34d;
+  --c-warn-line-3: #fef08a;
+
+  --c-orange: #c2410c;
+  --c-orange-soft: #fff7ed;
+  --c-orange-line: #fdba74;
+
+  --c-green: #16a34a;
+  --c-green-deep: #15803d;
+  --c-green-soft: #f0fdf4;
+  --c-green-line: #bbf7d0;
+
+  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm). */
+  --c-scrim: rgba(15, 23, 42, 0.45);
+  --c-shadow: rgba(15, 23, 42, 0.1);
+
+  /* ─── Thanh điều hướng dưới & các phần tử NỔI ───────────────────────────────
+     Tách riêng khỏi bảng màu chung vì đây là những chỗ trước đây viết mã màu cứng
+     (rgba(248,250,252,.94) cho thanh nav, #e0edff cho viên nền icon đang chọn,
+     rgba(255,255,255,.92) cho nút chọn chuyên khoa). Ở bản tối chúng vẫn trắng tinh —
+     đó chính là mảng chói nhất màn hình và là lý do "nền tối quá tệ".
+     `--c-fog` để dạng ba số R,G,B vì nó được nhét vào trong rgba() với nhiều mức trong suốt
+     khác nhau (lớp mờ sau dải chọn chuyên khoa). */
+  /* Màu CHỮ đặt trên một mảng nền màu đặc (chip đang chọn, nút chính, tab đang mở).
+     Ở bản sáng các nền đó là màu đậm nên chữ trắng; ở bản tối chúng bị đảo thành màu SÁNG
+     (primary #6aa9ff, accent #3ecfbd, danger #ff8585) — lúc đó chữ trắng chỉ còn tương phản
+     2,4:1, tức là trượt xa ngưỡng AA. Đổi thành mực gần đen thì mọi nền nói trên đều đạt >= 7:1. */
+  --c-on-bright: #ffffff;
+
+  --c-nav-bg: rgba(248, 250, 252, 0.94);
+  --c-nav-border: #e6ebf2;
+  --c-nav-active-bg: #e0edff;
+  --c-float-bg: rgba(255, 255, 255, 0.92);
+  --c-fog: 255, 255, 255;
+}
+
+/* Bản tối. Áp dụng theo cài đặt hệ điều hành, nhưng nút chọn chủ đề trong app (data-theme) luôn
+   được ưu tiên hơn — người trực đêm hay để máy ở chế độ sáng vì mọi app khác, chỉ riêng app này
+   cần tối. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --c-surface: #161d2b;
+    --c-surface-alt: #1b2333;
+    --c-page: #0e1420;
+    --c-line-soft: #222c3d;
+    --c-line: #2b3648;
+    --c-line-strong: #3a465b;
+
+    --c-text: #e8edf5;
+    --c-text-2: #d3dbe7;
+    --c-text-soft: #b3bece;
+    --c-text-muted: #94a1b5;
+    --c-muted: #7d8a9e;
+    --c-faint: #4a5668;
+
+    --c-primary: #6aa9ff;
+    --c-primary-strong: #8cbcff;
+    --c-primary-deep: #a9cdff;
+    --c-primary-soft: #16243c;
+    --c-primary-line: #24385a;
+    --c-primary-line-2: #2f4a75;
+
+    --c-accent: #3ecfbd;
+    --c-accent-deep: #6fe0d1;
+    --c-accent-soft: #102b2a;
+    --c-accent-line: #1f4a46;
+
+    --c-danger-icon: #ff6b6b;
+    --c-danger: #ff8585;
+    --c-danger-deep: #ffa3a3;
+    --c-danger-soft: #2c1618;
+    --c-danger-soft-2: #3a1b1e;
+    --c-danger-line: #5a2427;
+    --c-danger-line-2: #7a2f33;
+
+    --c-warn-icon: #f0b429;
+    --c-warn: #f5c86b;
+    --c-warn-2: #f0b429;
+    --c-warn-3: #dcae55;
+    --c-warn-soft: #2a2113;
+    --c-warn-line: #4d3c19;
+    --c-warn-line-2: #6b5320;
+    --c-warn-line-3: #7d6224;
+
+    --c-orange: #ffa76b;
+    --c-orange-soft: #2e1d12;
+    --c-orange-line: #5c3820;
+
+    --c-green: #4ade80;
+    --c-green-deep: #86efac;
+    --c-green-soft: #122a1b;
+    --c-green-line: #1f4b2f;
+
+    --c-scrim: rgba(3, 7, 15, 0.62);
+    --c-shadow: rgba(0, 0, 0, 0.45);
+
+    /* Thanh nav ở bản tối: SÁNG HƠN nền trang một bậc (không tối hơn) để vẫn đọc ra là một thanh
+       nổi lên phía trước, nhưng vẫn nằm hẳn trong dải tối — không còn là mảng trắng chói. */
+    --c-on-bright: #08111f;
+
+    --c-nav-bg: rgba(26, 34, 50, 0.94);
+    --c-nav-border: #2b3648;
+    --c-nav-active-bg: #21304d;
+    --c-float-bg: rgba(30, 39, 56, 0.94);
+    --c-fog: 18, 25, 38;
+  }
+}
+
+/* Người dùng chọn tay "Tối" — thắng cả cài đặt hệ điều hành. Giữ CÙNG bộ giá trị với khối trên;
+   tách ra vì @media không lồng được điều kiện thuộc tính theo cả hai chiều. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-surface: #161d2b;
+  --c-surface-alt: #1b2333;
+  --c-page: #0e1420;
+  --c-line-soft: #222c3d;
+  --c-line: #2b3648;
+  --c-line-strong: #3a465b;
+
+  --c-text: #e8edf5;
+  --c-text-2: #d3dbe7;
+  --c-text-soft: #b3bece;
+  --c-text-muted: #94a1b5;
+  --c-muted: #7d8a9e;
+  --c-faint: #4a5668;
+
+  --c-primary: #6aa9ff;
+  --c-primary-strong: #8cbcff;
+  --c-primary-deep: #a9cdff;
+  --c-primary-soft: #16243c;
+  --c-primary-line: #24385a;
+  --c-primary-line-2: #2f4a75;
+
+  --c-accent: #3ecfbd;
+  --c-accent-deep: #6fe0d1;
+  --c-accent-soft: #102b2a;
+  --c-accent-line: #1f4a46;
+
+  --c-danger-icon: #ff6b6b;
+  --c-danger: #ff8585;
+  --c-danger-deep: #ffa3a3;
+  --c-danger-soft: #2c1618;
+  --c-danger-soft-2: #3a1b1e;
+  --c-danger-line: #5a2427;
+  --c-danger-line-2: #7a2f33;
+
+  --c-warn-icon: #f0b429;
+  --c-warn: #f5c86b;
+  --c-warn-2: #f0b429;
+  --c-warn-3: #dcae55;
+  --c-warn-soft: #2a2113;
+  --c-warn-line: #4d3c19;
+  --c-warn-line-2: #6b5320;
+  --c-warn-line-3: #7d6224;
+
+  --c-orange: #ffa76b;
+  --c-orange-soft: #2e1d12;
+  --c-orange-line: #5c3820;
+
+  --c-green: #4ade80;
+  --c-green-deep: #86efac;
+  --c-green-soft: #122a1b;
+  --c-green-line: #1f4b2f;
+
+  --c-scrim: rgba(3, 7, 15, 0.62);
+  --c-shadow: rgba(0, 0, 0, 0.45);
+
+  --c-on-bright: #08111f;
+
+  --c-nav-bg: rgba(26, 34, 50, 0.94);
+  --c-nav-border: #2b3648;
+  --c-nav-active-bg: #21304d;
+  --c-float-bg: rgba(30, 39, 56, 0.94);
+  --c-fog: 18, 25, 38;
+}
+
+/* Bảng slate của Tailwind được trỏ về cùng bộ biến trên. Nhờ khối này, ~280 chỗ đang viết
+   `text-slate-400`, `text-slate-900`... tự đảo màu theo chủ đề mà không phải sửa từng chỗ.
+   `text-white` CỐ Ý không đụng tới: nó là chữ nằm trên nút màu đặc, phải trắng ở cả hai bản. */
+@theme {
+  --color-slate-300: var(--c-faint);
+  --color-slate-400: var(--c-muted);
+  --color-slate-500: var(--c-text-muted);
+  --color-slate-600: var(--c-text-soft);
+  --color-slate-700: var(--c-text-soft);
+  --color-slate-800: var(--c-text-2);
+  --color-slate-900: var(--c-text);
+  --color-slate-100: var(--c-line-soft);
+  --color-slate-200: var(--c-line);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Lớp bảo hiểm cuối cùng cho dải hõm dưới thanh nav trên iPhone chạy toàn màn hình.
+     `body` được ghim bằng `position: fixed; inset: 0`; nếu vì bất kỳ lý do gì (iOS đổi cách tính
+     khung nhìn khi bàn phím đóng/mở, thanh gạt Home hiện/ẩn) mà khung của body không phủ hết chiều
+     cao vật lý, phần thừa ra sẽ để lộ nền của THẺ HTML này. Trước đây nó mang màu nền trang, tối
+     hơn hẳn thanh nav, nên lộ ra thành một rãnh tối rõ mồn một. Cho nó mang đúng màu thanh nav thì
+     dù có lộ, mắt vẫn đọc đó là phần thân thanh nav kéo dài — không còn khoảng trống nào. */
+  background: var(--c-nav-bg);
+}
+
+/* Ghim body ĐÚNG BẰNG KHUNG NHÌN bằng inset: 0 thay vì tính chiều cao bằng 100dvh.
+   Lý do (lỗi nặng khi cài ra màn hình chính iPhone): ở chế độ toàn màn hình, iOS tính 100dvh
+   không khớp chiều cao thật của máy, làm cả app bị hụt một khoảng ở đáy — thanh điều hướng dưới
+   không xuống được tới cạnh dưới, để lộ một dải trắng và không danh sách nào chạm được đáy màn
+   hình. `position: fixed; inset: 0` lấy thẳng kích thước khung nhìn nên không bao giờ lệch.
+   (Cũng bỏ luôn `position: fixed` trên thẻ html — thừa, và là kiểu dùng dễ sinh lỗi lạ trên
+   WebKit.) */
+body {
+  position: fixed;
+  inset: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
+     lộ nền trắng ở mọi khe hở giữa các thẻ. */
+  background: var(--c-page);
+  color: var(--c-text);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Khoảng thở ở cuối danh sách trong các màn hình CÓ thanh nav dưới. Thanh nav chiếm một hàng
+   riêng chứ KHÔNG phủ đè lên nội dung — cho nội dung chạy chìm xuống dưới thanh nav trông như
+   thẻ bị cắt cụt giữa chừng, dễ tưởng lỗi hiển thị. Đặt ở đây (2 lớp class) để đè lên các lớp
+   pb-* của Tailwind trên cùng thẻ đó, cho mọi tab có cùng một khoảng cuối.
+   Loại trừ overflow-x-auto: đó là các hàng chip cuộn NGANG, không phải danh sách dọc. */
+.has-nav .scroll-ios:not(.overflow-x-auto) {
+  padding-bottom: 16px;
+}
+
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+.scroll-ios {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+input[type="search"]::-webkit-search-cancel-button { display: none; }
+input:focus { outline: none; }
+
+/* iOS Safari tự động zoom khi focus vào input có font-size < 16px — ép tối thiểu 16px để tránh lỗi phóng to màn hình */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
+.screen-transition {
+  animation: fadeSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in { animation: fadeIn 0.18s ease; }
+
+/* Bánh xe chọn chuyên khoa bung ra từ chính cái nút vừa bấm (góc trên phải của bảng) — có điểm
+   xuất phát rõ ràng thay vì hiện đột ngột giữa màn hình. */
+@keyframes pickerPop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.picker-pop {
+  animation: pickerPop 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transform-origin: top right;
+}
+
+/* Dải xác nhận ngắn hiện lên sau khi lưu/xoá/nhập dữ liệu. Trước đây bấm "Lưu" là màn hình đổi
+   luôn, không có gì cho biết việc lưu đã xong — vừa thiếu chắc chắn vừa mất cảm giác "xong việc". */
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 14px) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+.toast-in {
+  animation: toastIn 0.28s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+@keyframes pulseGlow {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.pulse-glow { animation: pulseGlow 0.7s ease-out; }
+
+@keyframes pulseScale {
+  0% { transform: scale(0.8); }
+  55% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.pulse-scale { animation: pulseScale 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ─── Bảng Sơ đồ tư duy ───────────────────────────────────────────────────────
+   Bảng vẽ là màn hình bấm nút liên tục nhất trong app (đổi bút, đổi màu, chọn thẻ), nên mọi nút ở
+   đây có cùng một phản hồi chạm: thu nhẹ và đổi màu trong 0.16s. Trước đây nút không có phản hồi
+   nào — bấm mà không biết máy đã nhận chưa. */
+.mind-btn {
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1),
+    background-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.mind-btn:active {
+  transform: scale(0.9);
+}
+
+/* Bảng nhỏ bung ra từ nút vừa bấm (menu "…", thanh nút trên thẻ đang chọn, hộp hỏi lại) */
+@keyframes mindPop {
+  from { opacity: 0; transform: var(--pop-from, translateY(-4px) scale(0.94)); }
+  to   { opacity: 1; transform: var(--pop-to, translateY(0) scale(1)); }
+}
+
+.mind-pop {
+  animation: mindPop 0.2s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+/* Hàng công cụ phụ (màu mực, cỡ nét) trượt xuống khi chọn bút */
+@keyframes mindRowIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mind-row {
+  animation: mindRowIn 0.2s cubic-bezier(0.25, 0.9, 0.35, 1);
+}
+
+/* Ô sửa ghi chú trượt lên từ đáy */
+@keyframes mindSheetUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mind-sheet {
+  animation: mindSheetUp 0.24s cubic-bezier(0.22, 1.1, 0.36, 1);
+}
+
+/* Hai nút "Ghi chú" / "Ảnh" bung lên từ nút ＋, lệch nhau một nhịp cho ra chuyển động có lớp */
+@keyframes mindFabIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mind-fab-item {
+  animation: mindFabIn 0.22s cubic-bezier(0.34, 1.45, 0.64, 1) backwards;
+}
+
+/* Thẻ ghi chú / ảnh vừa được tạo: bung ra một nhịp có độ nảy, để mắt bắt được ngay "cái vừa thêm là
+   cái này" thay vì thấy nó xuất hiện đột ngột giữa những thẻ cũ. */
+@keyframes mindBorn {
+  0%   { opacity: 0; transform: scale(0.72); }
+  55%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.mind-born {
+  animation: mindBorn 0.42s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+
+/* Đường nối vừa tạo: tô dần từ thẻ nguồn sang thẻ đích. 400 là số lớn hơn chiều dài mọi cung nối
+   thường gặp nên nét nào cũng chạy hết trong đúng thời gian đó. */
+@keyframes mindEdgeDraw {
+  from { stroke-dashoffset: 400; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.mind-edge-draw {
+  stroke-dasharray: 400;
+  animation: mindEdgeDraw 0.42s cubic-bezier(0.25, 0.9, 0.35, 1) forwards;
+}
+
+/* Thẻ vừa được ô tìm nhảy tới: nảy nhẹ hai nhịp. Bảng là canvas vô hạn nên sau một cú bay ngang qua
+   khoảng giấy trắng, mắt cần một cái vẫy tay để biết "thẻ mình tìm là cái này" — chỉ dừng khung nhìn
+   lại thôi thì thẻ đích lẫn vào những thẻ chung quanh. */
+@keyframes mindFound {
+  0%, 100% { transform: scale(1); }
+  30%      { transform: scale(1.1); }
+  65%      { transform: scale(0.97); }
+}
+
+.mind-found {
+  animation: mindFound 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) 2;
+}
+
+/* Con trượt sáng chạy theo công cụ đang chọn trong thanh công cụ */
+.mind-tool-slider {
+  transition: transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1), width 0.2s ease;
+}
+
+/* Người bật "Giảm chuyển động" ở hệ điều hành thường vì lý do sức khoẻ (rối loạn tiền đình, dễ say
+   chuyển động…) — bảng vẽ có nhiều hoạt ảnh hơn hẳn phần còn lại của app (thẻ bung ra, đường nối tô
+   dần, con trượt chạy, thẻ nảy khi tìm thấy…) nên đáng để tắt riêng. Đổi sang mờ/hiện gần như tức
+   thời thay vì tắt hẳn animation: người dùng vẫn cần biết "vừa có gì đó xảy ra" (thẻ vừa được tạo,
+   vừa tìm thấy), chỉ là không cần chuyển động thị giác để biết điều đó. */
+@media (prefers-reduced-motion: reduce) {
+  /* KHÔNG gồm .mind-btn: cái nảy nhẹ 0.9 lúc bấm là phản hồi xác nhận đã chạm, không phải chuyển
+     động trang trí — bỏ nó đi thì vi phạm chính yêu cầu "phải có phản hồi khi chạm" (đổi lại là thứ
+     người dùng cần, dù có giảm chuyển động hay không). */
+  .mind-pop,
+  .mind-row,
+  .mind-sheet,
+  .mind-fab-item,
+  .mind-born,
+  .mind-found,
+  .mind-tool-slider,
+  .fade-in,
+  .toast-in {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+  .mind-edge-draw {
+    animation: none !important;
+    stroke-dasharray: none !important;
+  }
+}
+
+/* Vòng focus khi điều hướng bằng bàn phím (Tab) trong bảng Sơ đồ tư duy — bảng này có phím tắt thật
+   (xem MindmapBoard.tsx), nên nút và ô nhập ở đây cần một dấu focus nhìn thấy được, không chỉ dựa
+   vào con trỏ chuột/ngón tay. `:focus-visible` (không phải `:focus`) để không hiện vòng này khi
+   CHẠM/BẤM CHUỘT — chỉ hiện khi thật sự dùng Tab, giống hành vi mặc định của trình duyệt. */
+.mind-btn:focus-visible {
+  outline: 2px solid var(--ring, #0050B3);
+  outline-offset: 2px;
+}
+
+/* Input/textarea trong bảng: CSS toàn app tắt outline mặc định của input (index.css, quy tắc
+   `input:focus`) mà không thay bằng gì khác, nên riêng trong bảng vẽ — nơi giờ điều hướng được bằng
+   phím — phải tự vẽ lại một vòng focus rõ ràng. */
+.mind-input:focus-visible {
+  outline: 2px solid var(--ring, #0050B3);
+  outline-offset: 1px;
+}
+
+.term-highlight {
+  border-bottom: 1.5px dotted #0050B3;
+  color: #0050B3;
+  cursor: pointer;
+}
+
+.card-press:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
+
+/* ─── Ô nhập: 16px, không nhỏ hơn ─────────────────────────────────────────────
+   Hai lý do, cùng một con số:
+   1. Safari trên iOS TỰ PHÓNG TO trang khi người dùng chạm vào ô nhập có cỡ chữ dưới 16px. Cách
+      chặn thường thấy là `maximum-scale=1` trong thẻ viewport — nhưng nó chặn luôn cả việc người
+      dùng chủ động phóng to (vi phạm WCAG 1.4.4). Đặt 16px là cách sửa đúng gốc: không còn tự
+      phóng, mà vẫn phóng tay được.
+   2. Con số vừa gõ vào (cân nặng, liều, nồng độ) là chữ QUAN TRỌNG NHẤT trên màn hình về mặt an
+      toàn — nó không có lý do gì để nhỏ hơn phần chữ mô tả xung quanh. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+/* ─── Màn Dùng thuốc ──────────────────────────────────────────────────────────
+   Ba hoạt ảnh, mỗi cái trả lời một câu hỏi cụ thể của người đang dùng — không cái nào để trang trí:
+   1. .dose-press  — "máy đã nhận cú chạm chưa?"
+   2. .pop-value   — "con số vừa đổi, đừng đọc nhầm số cũ"
+   3. .flash-ok    — "thao tác vừa rồi đã xong"
+   Tất cả chỉ chạm vào transform/opacity nên không gây dồn lại bố cục (CLS). */
+.dose-press {
+  transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.dose-press:active {
+  transform: scale(0.96);
+}
+
+/* Ô kết quả nảy một nhịp mỗi khi con số đổi. Ở ICU người dùng gõ liều rồi nhìn sang chỗ khác rồi
+   nhìn lại — cái nảy này là dấu hiệu "số bạn đang nhìn là số MỚI", tránh đọc lại con số cũ. */
+@keyframes popValue {
+  0%   { transform: scale(0.96); opacity: 0.55; }
+  60%  { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.pop-value {
+  animation: popValue 0.24s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+/* Dải xác nhận xanh sau khi ghim thuốc / lưu nhật ký / lưu công thức khoa. */
+@keyframes flashOk {
+  0%   { opacity: 0; transform: translateY(4px); }
+  12%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.flash-ok {
+  animation: flashOk 1.8s ease-out forwards;
+}
+
+/* Chip/thẻ trong danh sách hiện lần lượt, lệch nhau một nhịp ngắn — mắt bắt được thứ tự thay vì
+   thấy cả mảng bật ra cùng lúc. Độ trễ đặt qua biến --i ngay tại chỗ dùng. */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.rise-in {
+  animation: riseIn 0.22s cubic-bezier(0.25, 0.9, 0.35, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Giữ .dose-press như .mind-btn: cái thu nhẹ lúc bấm là phản hồi chạm, không phải trang trí. */
+  .pop-value,
+  .flash-ok,
+  .rise-in {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transform: none !important;
+  }
+}
+
+.nav-press {
+  transition: transform 0.14s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* Thu nhẹ thôi: mức 0.9 trước đây làm cả mục nhảy giật mỗi lần chạm, trong khi vùng chạm giờ đã
+   rộng bằng 1/5 màn hình nên chỉ cần một phản hồi kín đáo là đủ. */
+.nav-press:active {
+  transform: scale(0.94);
+}

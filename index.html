@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- KHÔNG đặt maximum-scale/user-scalable=no: chặn phóng to là vi phạm WCAG 1.4.4, và với một
+         app tra liều thì đó còn là vấn đề an toàn — người đeo kính lão trực đêm phải phóng to được
+         con số tốc độ bơm. Nguyên nhân gốc khiến người ta hay chặn zoom (iOS tự phóng khi chạm ô
+         nhập) đã được xử lý bằng cách để cỡ chữ ô nhập ≥ 16px, xem index.css. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Bác sĩ Trọng — Sổ tay lâm sàng</title>
+    <meta name="description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0050B3" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bác sĩ Trọng" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Open Graph / link preview (iMessage, Zalo, Facebook...) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Bác sĩ Trọng" />
+    <meta property="og:title" content="Bác sĩ Trọng — Sổ tay lâm sàng" />
+    <meta property="og:description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
+    <meta property="og:image" content="/icon-192.png" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Bác sĩ Trọng — Sổ tay lâm sàng" />
+    <meta name="twitter:description" content="Thư viện kiến thức lâm sàng cá nhân cho bác sĩ và sinh viên y khoa." />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
