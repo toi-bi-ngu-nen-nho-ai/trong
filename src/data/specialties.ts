@@ -14,9 +14,8 @@ export const SPECIALTIES: Specialty[] = [
   { id: "neurology", name: "Thần kinh", color: "#7c3aed" },
   { id: "hematology", name: "Huyết học", color: "#be185d" },
   { id: "infectious", name: "Truyền nhiễm", color: "#0d9488" },
-  { id: "emergency", name: "Hồi sức - Cấp cứu", color: "#ef4444" },
-  { id: "pathophysiology", name: "Sinh lý - Sinh lý bệnh", color: "#475569" },
-  { id: "pharmacology", name: "Dược lý", color: "#0f766e" },
+  { id: "emergency", name: "Cấp cứu", color: "#ef4444" },
+  { id: "pathophysiology", name: "Sinh lý (bệnh)", color: "#475569" },
 ]
 
 export const PICKER_ITEMS: Specialty[] = [
