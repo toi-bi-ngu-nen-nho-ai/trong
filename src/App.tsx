@@ -122,25 +122,19 @@ const icons = {
     </svg>
   ),
   // Trang chủ và Thư viện: khi đang ở tab đó thì icon được TÔ ĐẦY, giống Dùng thuốc / Mindmap /
-  // FlashCard. Trước đây hai icon này chỉ dày nét thêm một chút (1.7 → 2.1) nên đứng cạnh ba icon
-  // tô đầy kia trông như chưa được chọn. Hình vẽ cũng phải vẽ lại theo: đường viền cũ là một nét
-  // liền vòng vèo cả mái, thân, cửa — tô đầy nét đó ra một khối đen nhoè, không ra hình cái nhà.
-  // Nay tách thành mái (chỉ nét) + thân (tô được) + cửa (đổi sang màu trắng khi thân đã tô).
+  // FlashCard. Hình nhà vẽ theo đúng form mẫu (mái nhọn liền tường, cửa là khe lõm cắt từ đáy
+  // lên) — gộp mái + thân + cửa thành MỘT path khép kín duy nhất thay vì 3 path rời như trước.
+  // Vì khe cửa là một notch lõm ngay trong đường viền (không phải lỗ khoét kín), nó tự động để lộ
+  // nền phía sau khi path được tô đầy — không cần mẹo đổi stroke cửa trùng màu var(--c-nav-active-bg)
+  // như bản cũ, nên hình không còn bị vỡ khi nền pill đổi theo theme sáng/tối.
   home: (active: boolean) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-6 h-6">
       <path
-        d="M6.2 10.2v9a1.3 1.3 0 001.3 1.3h9a1.3 1.3 0 001.3-1.3v-9"
+        d="M12 3.4L20.6 10.6V20.3H14.6V14.5H9.4V20.3H3.4V10.6Z"
         fill={active ? "currentColor" : "none"}
         strokeLinecap="round"
         strokeLinejoin="round"
         style={{ transition: "fill 0.18s ease" }}
-      />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.4 11.4L12 3.6l8.6 7.8" />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M10 20.5v-4.2a2 2 0 014 0v4.2"
-        stroke={active ? "var(--c-nav-active-bg)" : "currentColor"}
       />
     </svg>
   ),
