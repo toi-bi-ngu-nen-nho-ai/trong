@@ -492,6 +492,9 @@ export function MindmapBoard({
   const [colorsForId, setColorsForId] = useState<string | null>(null)
   // Bật thì mọi lần chọn màu áp cho cả nhánh bên dưới thẻ, không chỉ riêng thẻ đó.
   const [applyToBranch, setApplyToBranch] = useState(false)
+  // Rỗng = không lọc, hiện hết. Có màu nào trong đây thì CHỈ những màu đó giữ độ đậm bình thường, thẻ
+  // màu khác mờ đi — xem cách dùng ở chỗ vẽ thẻ ghi chú (dimmed) và menu "…" (mục "Lọc theo màu").
+  const [colorFilter, setColorFilter] = useState<Set<string>>(new Set())
   // Kích thước thật của từng thẻ ghi chú, đo bằng ResizeObserver. Cần đo (không tính nhẩm) vì thẻ tự
   // giãn theo độ dài chữ — đường nối phải cắm đúng vào mép thẻ, và ảnh xuất ra phải khớp với bảng.
   const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>({})
@@ -814,7 +817,39 @@ export function MindmapBoard({
   // trong lúc còn đang kéo/phóng.
   function saveViewSoon() {
     if (viewSaveTimer.current) clearTimeout(viewSaveTimer.current)
-    viewSaveTimer.current = setTimeout(() => writeView(view.current), 500)
+    viewSaveTimer.current = setTimeout(() => {
+      writeView(view.current)
+      settleView()
+    }, 500)
+  }
+
+  // "Cao su" khi vẩy/kéo ra quá xa nội dung: sau khi bảng ĐÃ DỪNG (đà trôi hết, hoặc 500ms không pan
+  // tiếp — cùng nhịp với saveViewSoon), nếu tâm khung nhìn đã trôi ra khỏi vùng nội dung (nới rộng
+  // thêm đúng một màn hình mỗi phía, để vẫn thoải mái xem quanh mép) thì kéo nhẹ về lại. KHÔNG chặn
+  // trong lúc còn đang kéo/trôi — chặn giữa chừng sẽ làm bảng "dính khựng" ở biên, cảm giác như liệt
+  // chứ không phải cao su thật. Chỉ hiệu lực khi bảng có nội dung: bảng trống thì đi đâu cũng được.
+  function settleView() {
+    // Còn một animation khác đang chạy (đà trôi chưa dứt, hoặc đang "vừa khung"...) — bỏ qua lần
+    // này, ĐỪNG cắt ngang nó. Animation nào cũng tự gọi lại saveViewSoon() lúc xong (showZoom() và
+    // nhánh dừng của startInertia đều làm vậy), nên lượt kiểm tra biên kế tiếp sẽ tự đến sau đó.
+    if (anim.current) return
+    const bounds = contentBounds(visibleData, sizesRef.current)
+    if (!bounds) return
+    const rect = surfaceRect()
+    const { zoom } = view.current
+    const vw = rect.width / zoom
+    const vh = rect.height / zoom
+    const overpan = Math.max(vw, vh, 200)
+    const halfW = bounds.w / 2 + overpan
+    const halfH = bounds.h / 2 + overpan
+    const cbx = bounds.x + bounds.w / 2
+    const cby = bounds.y + bounds.h / 2
+    const vcx = -view.current.x / zoom + vw / 2
+    const vcy = -view.current.y / zoom + vh / 2
+    const ncx = Math.max(cbx - halfW, Math.min(cbx + halfW, vcx))
+    const ncy = Math.max(cby - halfH, Math.min(cby + halfH, vcy))
+    if (Math.abs(ncx - vcx) < 0.5 && Math.abs(ncy - vcy) < 0.5) return
+    animateView({ x: -(ncx - vw / 2) * zoom, y: -(ncy - vh / 2) * zoom, zoom }, 320)
   }
 
   // Trong khung nhìn hiện tại có nhìn thấy chút nội dung nào không? Dùng khi mở bảng: khung nhìn đã
@@ -1234,6 +1269,46 @@ export function MindmapBoard({
     tickHaptic()
     setTimeout(() => setSliding(false), 420)
     flashToast(`Đã xếp lại ${moves.size} thẻ trong nhánh này`)
+  }
+
+  // Xếp lại MỌI nhánh trên bảng cùng lúc — chạy layoutSubtree cho từng "thẻ gốc" (thẻ không có thẻ
+  // cha nào, tức không phải đích của đường nối nào). Mỗi thẻ gốc vẫn đứng yên tại chỗ như tidyBranches
+  // vẫn làm — chỉ dọn phần CÀNH lộn xộn bên dưới, không xếp lại vị trí các cây so với nhau (xếp lại cả
+  // vị trí cây là việc khác hẳn: người dùng đã tự tay đặt các cây đó ở đâu là có chủ ý, không nên tự
+  // dịch chúng đi chỗ khác).
+  function tidyAll() {
+    const hasParent = new Set(edges.map((e) => e.to))
+    const roots = nodes.filter((n) => !hasParent.has(n.id))
+    const moves = new Map<string, { x: number; y: number }>()
+    roots.forEach((r) => {
+      layoutSubtree(r.id, nodes, edges, sizesRef.current).forEach((v, k) => moves.set(k, v))
+    })
+    if (moves.size === 0) {
+      flashToast("Bảng chưa có nhánh nào để xếp lại.")
+      return
+    }
+    pushUndo()
+    setSliding(true)
+    updateNodes((ns) => ns.map((n) => (moves.has(n.id) ? { ...n, ...moves.get(n.id)! } : n)))
+    setSel(null)
+    tickHaptic()
+    setTimeout(() => setSliding(false), 420)
+    flashToast(`Đã xếp lại ${moves.size} thẻ trên toàn bảng`)
+  }
+
+  function toggleColorFilter(c: string) {
+    setColorFilter((prev) => {
+      const next = new Set(prev)
+      if (next.has(c)) next.delete(c)
+      else next.add(c)
+      return next
+    })
+    tickHaptic()
+  }
+
+  function clearColorFilter() {
+    setColorFilter(new Set())
+    tickHaptic()
   }
 
   // Gấp / mở nhánh con. Gấp xong thì bỏ luôn nhóm đang khoanh và ô sửa chữ nếu chúng trỏ vào thứ vừa
@@ -2712,15 +2787,25 @@ export function MindmapBoard({
           >
             <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} />
             <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} />
-            <IconBtn
-              icon={mi.more}
-              hint="Thêm lựa chọn"
-              active={menuOpen}
-              onClick={() => {
-                setMenuOpen((v) => !v)
-                setAddOpen(false)
-              }}
-            />
+            <span className="relative inline-flex">
+              <IconBtn
+                icon={mi.more}
+                hint="Thêm lựa chọn"
+                active={menuOpen}
+                onClick={() => {
+                  setMenuOpen((v) => !v)
+                  setAddOpen(false)
+                }}
+              />
+              {/* Chấm nhỏ báo "đang lọc màu" — không có nó, thẻ mờ đi trên bảng rất dễ bị hiểu lầm là
+                  lỗi hiển thị chứ không phải một bộ lọc đang bật, vì nút mở ra bộ lọc lại đang đóng. */}
+              {colorFilter.size > 0 && (
+                <span
+                  className="absolute rounded-full pointer-events-none"
+                  style={{ top: 3, right: 3, width: 7, height: 7, background: "#e8007d", border: "1.5px solid #fff" }}
+                />
+              )}
+            </span>
           </div>
         </div>
 
@@ -2870,6 +2955,43 @@ export function MindmapBoard({
 
             <div className="h-px my-2" style={{ background: "#e2e8f0" }} />
 
+            <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Lọc theo màu</p>
+              {colorFilter.size > 0 && (
+                <button type="button" onClick={clearColorFilter} className="mind-btn text-[10.5px] font-bold" style={{ color: "#0050B3" }}>
+                  Xem tất cả
+                </button>
+              )}
+            </div>
+            {/* Bật một hay nhiều màu để CHỈ nổi bật đúng nhóm thẻ đó — các thẻ màu khác mờ đi (vẫn bấm
+                được như thường) chứ không biến mất, để sơ đồ nhiều màu (triệu chứng/cận lâm sàng/điều
+                trị...) lọc ra được đúng một tầng ý mà không phải xoá hay gấp bớt nội dung khác. */}
+            <div className="grid grid-cols-5 gap-1 px-0.5 pb-1">
+              {NODE_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleColorFilter(c)}
+                  aria-label={`Lọc màu: ${colorName(c)}`}
+                  title={colorName(c)}
+                  aria-pressed={colorFilter.has(c)}
+                  className="mind-btn flex items-center justify-center rounded-lg py-1"
+                >
+                  <span
+                    className="rounded-full block"
+                    style={{
+                      width: 18,
+                      height: 18,
+                      background: c,
+                      boxShadow: colorFilter.has(c) ? "0 0 0 2px rgba(15,23,42,.85), 0 0 0 4px #fff" : "0 1px 3px rgba(15,23,42,.2)",
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            <div className="h-px my-2" style={{ background: "#e2e8f0" }} />
+
             <button
               type="button"
               onClick={exportPng}
@@ -2891,6 +3013,18 @@ export function MindmapBoard({
             >
               {mi.fit("w-[18px] h-[18px]")}
               Thu cả bảng vừa khung
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                tidyAll()
+              }}
+              className="mind-btn w-full flex items-center gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
+              style={{ color: "#334155" }}
+            >
+              {mi.tidy("w-[18px] h-[18px]")}
+              Sắp lại toàn bộ bảng
             </button>
             <button
               type="button"
@@ -3010,17 +3144,20 @@ export function MindmapBoard({
                       // học tới đường cong (edgeAtPoint) trên toàn mặt bảng, không qua sự kiện DOM của
                       // riêng path này. Sửa nhãn thì chọn đường nối rồi bấm bút chì trên thanh nổi.
                       <g data-edge-label={key} transform={`translate(${g.mid.x} ${g.mid.y})`} style={{ pointerEvents: "none" }}>
-                        <rect
-                          x={-(e.label.length * 3.3 + 7)}
-                          y={-9}
-                          width={e.label.length * 6.6 + 14}
-                          height={18}
-                          rx={9}
-                          fill="#fff"
-                          stroke={col}
-                          strokeWidth={1.2}
-                        />
-                        <text x={0} y={3.5} textAnchor="middle" fontSize={10.5} fontWeight={600} fill={col}>
+                        {/* Chữ trần (không khung/nền) — giống đúng kiểu "Chữ trần" của thẻ ghi chú,
+                            đặt PHÍA TRÊN đường nối (y âm) thay vì đè lên giữa đường, để không che mất
+                            nét đứt/liền của đường nối ngay dưới nó. */}
+                        <text
+                          x={0}
+                          y={-7}
+                          textAnchor="middle"
+                          fontSize={10.5}
+                          fontWeight={600}
+                          fill={col}
+                          paintOrder="stroke"
+                          stroke={PAPER_BG}
+                          strokeWidth={3}
+                        >
                           {e.label}
                         </text>
                       </g>
@@ -3098,6 +3235,7 @@ export function MindmapBoard({
             const inGroup = selGroup?.nodes.includes(n.id) ?? false
             const matched = findMatchIds?.has(n.id) ?? false
             const linked = n.link ? resolveLink(n.link) : null
+            const dimmed = colorFilter.size > 0 && !colorFilter.has(n.color)
             return (
               <div
                 key={n.id}
@@ -3143,8 +3281,11 @@ export function MindmapBoard({
                   // `sliding`: chỉ bật lúc bấm "xếp lại nhánh" để thấy thẻ trượt về chỗ mới. Ngoài lúc
                   // đó KHÔNG được bật, nếu không mỗi lần kéo thả tay thẻ sẽ chạy đuổi theo một nhịp.
                   transition: sliding
-                    ? "left .38s cubic-bezier(.22,1,.36,1), top .38s cubic-bezier(.22,1,.36,1), box-shadow .16s ease"
-                    : "box-shadow .16s ease",
+                    ? "left .38s cubic-bezier(.22,1,.36,1), top .38s cubic-bezier(.22,1,.36,1), box-shadow .16s ease, opacity .15s ease"
+                    : "box-shadow .16s ease, opacity .15s ease",
+                  // "Lọc theo màu" (menu …): mờ thẻ không thuộc màu đang lọc, vẫn bấm được như thường —
+                  // đây là lọc để NHÌN, không phải ẩn nội dung.
+                  opacity: dimmed ? 0.22 : 1,
                   willChange: "transform",
                 }}
               >
