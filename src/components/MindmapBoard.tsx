@@ -27,6 +27,7 @@
 import {
   memo,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -128,6 +129,14 @@ const PAPER_STORAGE_KEY = "drtrong:mindmap-paper"
 // vào tab Sơ đồ tư duy là khung nhìn về lại góc trên trái: bảng vẽ ở xa gốc thì mở ra thấy giấy
 // trắng, phải tự mò tìm lại chỗ mình vừa vẽ.
 const VIEW_STORAGE_KEY = "drtrong:mindmap-view"
+// Đã xem qua hướng dẫn cử chỉ lần đầu hay chưa — hỏi MỘT LẦN cho cả mọi bảng, vì cử chỉ giống nhau ở
+// mọi bảng (không phải đặc điểm riêng của bảng nào).
+const COACH_STORAGE_KEY = "drtrong:mindmap-coach-seen"
+// Khung radar góc trên phải — thu nhỏ CẢ VÙNG có nội dung để biết đang xem ở đâu so với tổng thể,
+// và chạm/kéo trong khung này để nhảy tới đó ngay, không phải kéo bảng thật mò dần.
+const MM_W = 116
+const MM_H = 82
+const MM_PAD = 6
 // Bước lưới để hít (snap) khi kéo thẻ — trùng bước ô của giấy kẻ nên thẻ nằm đúng vào ô.
 const SNAP_STEP = PAPER_STEP
 // Ngưỡng hít, tính theo pixel MÀN HÌNH: kéo tới gần mốc chừng này thì thẻ tự dính vào mốc.
@@ -294,6 +303,22 @@ function readPaper(): PaperKind {
     return PAPER_ORDER.includes(v as PaperKind) ? (v as PaperKind) : "grid"
   } catch {
     return "grid"
+  }
+}
+
+function readCoachSeen(): boolean {
+  try {
+    return localStorage.getItem(COACH_STORAGE_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+function writeCoachSeen(): void {
+  try {
+    localStorage.setItem(COACH_STORAGE_KEY, "1")
+  } catch {
+    // Không ghi được thì hướng dẫn sẽ hiện lại lần sau — không sao, không mất nội dung bảng.
   }
 }
 
@@ -470,8 +495,13 @@ export function MindmapBoard({
   // Kích thước thật của từng thẻ ghi chú, đo bằng ResizeObserver. Cần đo (không tính nhẩm) vì thẻ tự
   // giãn theo độ dài chữ — đường nối phải cắm đúng vào mép thẻ, và ảnh xuất ra phải khớp với bảng.
   const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>({})
+  // Hướng dẫn cử chỉ hiện MỘT LẦN cho người dùng mới — xem readCoachSeen(). null lúc đầu (chưa biết,
+  // tránh chớp hiện rồi tắt ngay trước khi đọc xong localStorage), rồi chốt true/false ngay sau đó.
+  const [showCoach, setShowCoach] = useState<boolean | null>(null)
 
   const surfaceRef = useRef<HTMLDivElement>(null)
+  const minimapPanelRef = useRef<HTMLDivElement>(null)
+  const minimapViewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const draftPathRef = useRef<SVGPathElement>(null)
   const edgeLayerRef = useRef<SVGGElement>(null)
@@ -515,6 +545,11 @@ export function MindmapBoard({
   // null nếu ngón tay không đang ở trên một thẻ nào có thể nhận làm cha. Chỉ có ý nghĩa trong lúc
   // act.kind === "drag" && act.target === "node".
   const dropTargetId = useRef<string | null>(null)
+  // Cách quy đổi toạ độ bảng ↔ điểm ảnh trong khung radar hiện tại — đọc lại mỗi khung hình lúc kéo
+  // bảng (applyView) để vẽ khung khung nhìn, nên phải là ref (không phải state) để không trễ một nhịp
+  // React. null nghĩa là bảng trống, không có gì để vẽ radar.
+  const mmMapRef = useRef<{ x: number; y: number; scale: number; offX: number; offY: number } | null>(null)
+  const mmDragging = useRef(false)
 
   const action = useRef<
     | { kind: "none" }
@@ -587,6 +622,89 @@ export function MindmapBoard({
       s.style.backgroundSize = bg.backgroundSize
       s.style.backgroundPosition = `${x}px ${y}px`
     }
+    drawMinimapViewport()
+  }
+
+  // Khung trắng nhỏ trong radar thể hiện đúng phần bảng đang nhìn thấy — vẽ lại mỗi lần pan/zoom đổi.
+  // Đặt ngoài applyView() làm hàm riêng để useEffect theo dõi vùng radar cũng gọi lại được, không phải
+  // đợi người dùng pan/zoom thêm một cái mới thấy khung cập nhật đúng chỗ.
+  function drawMinimapViewport() {
+    const map = mmMapRef.current
+    const el = minimapViewportRef.current
+    if (!map || !el) return
+    const rect = surfaceRect()
+    const { x, y, zoom } = view.current
+    const bx0 = -x / zoom
+    const by0 = -y / zoom
+    const bw = rect.width / zoom
+    const bh = rect.height / zoom
+    el.style.left = `${map.offX + (bx0 - map.x) * map.scale}px`
+    el.style.top = `${map.offY + (by0 - map.y) * map.scale}px`
+    el.style.width = `${Math.max(4, bw * map.scale)}px`
+    el.style.height = `${Math.max(4, bh * map.scale)}px`
+  }
+
+  // Cách quy đổi toạ độ bảng ↔ điểm ảnh trong radar — vùng quy đổi là khung nội dung (thẻ + ảnh + nét
+  // vẽ) nới rộng thêm biên mỗi phía, để các thẻ ở sát mép không dính luôn vào viền radar. Tính lại chỉ
+  // khi nội dung thật sự đổi (không phải mỗi khung hình pan/zoom) — kéo/phóng chỉ cần vẽ lại KHUNG
+  // NHÌN (drawMinimapViewport trong applyView), không cần tính lại toàn bộ cách quy đổi này.
+  const mmMap = useMemo(() => {
+    const cb = contentBounds({ nodes, edges, strokes, images }, sizes)
+    if (!cb) return null
+    const margin = Math.max(cb.w, cb.h, 200) * 0.18
+    const rx = cb.x - margin
+    const ry = cb.y - margin
+    const rw = cb.w + margin * 2
+    const rh = cb.h + margin * 2
+    const drawW = MM_W - MM_PAD * 2
+    const drawH = MM_H - MM_PAD * 2
+    const scale = Math.min(drawW / rw, drawH / rh)
+    return { x: rx, y: ry, scale, offX: MM_PAD + (drawW - rw * scale) / 2, offY: MM_PAD + (drawH - rh * scale) / 2 }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, images, strokes, sizes])
+
+  useEffect(() => {
+    mmMapRef.current = mmMap
+    drawMinimapViewport()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mmMap])
+
+  // Chạm hoặc kéo trong radar → nhảy thẳng khung nhìn tới đúng chỗ đó, giữ mức phóng hiện tại. Không
+  // animateView (mượt nhưng có nhịp trễ ~200ms): kéo trong radar cần bảng dính NGAY theo ngón tay,
+  // giống kéo trên bản đồ thật, animation ở đây sẽ làm ngón tay "chạy trước" khung nhìn.
+  function jumpFromMinimap(clientX: number, clientY: number) {
+    const map = mmMapRef.current
+    const panel = minimapPanelRef.current
+    if (!map || !panel) return
+    const r = panel.getBoundingClientRect()
+    const bx = map.x + (clientX - r.left - map.offX) / map.scale
+    const by = map.y + (clientY - r.top - map.offY) / map.scale
+    const rect = surfaceRect()
+    const { zoom } = view.current
+    view.current = { x: rect.width / 2 - bx * zoom, y: rect.height / 2 - by * zoom, zoom }
+    applyView()
+  }
+
+  function handleMinimapPointerDown(e: ReactPointerEvent) {
+    e.stopPropagation()
+    stopAnim()
+    mmDragging.current = true
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    jumpFromMinimap(e.clientX, e.clientY)
+    tickHaptic()
+  }
+
+  function handleMinimapPointerMove(e: ReactPointerEvent) {
+    if (!mmDragging.current) return
+    e.stopPropagation()
+    jumpFromMinimap(e.clientX, e.clientY)
+  }
+
+  function handleMinimapPointerUp(e: ReactPointerEvent) {
+    if (!mmDragging.current) return
+    e.stopPropagation()
+    mmDragging.current = false
+    saveViewSoon()
   }
 
   useEffect(() => {
@@ -620,6 +738,7 @@ export function MindmapBoard({
   useEffect(() => {
     if (loading || viewRestored.current) return
     viewRestored.current = true
+    setShowCoach(!readCoachSeen())
     const saved = readView()
     if (saved) {
       view.current = { ...saved }
@@ -805,6 +924,11 @@ export function MindmapBoard({
     setToast(msg)
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => setToast(null), 2000)
+  }
+
+  function dismissCoach() {
+    setShowCoach(false)
+    writeCoachSeen()
   }
 
   // ─── Đo kích thước thẻ ghi chú ─────────────────────────────────────────────
@@ -2618,7 +2742,7 @@ export function MindmapBoard({
                       icon={s.icon}
                       hint={s.hint}
                       active={shapeKind === s.id}
-                      size={32}
+                      size={36}
                       onClick={() => {
                         setShapeKind(s.id)
                         tickHaptic()
@@ -3203,14 +3327,14 @@ export function MindmapBoard({
                   icon={mi.trash}
                   hint="Xoá phần đã chọn"
                   tone="dark"
-                  size={34}
+                  size={38}
                   onClick={() => deleteGroup(selGroup)}
                 />
                 <IconBtn
                   icon={mi.close}
                   hint="Bỏ chọn"
                   tone="dark"
-                  size={34}
+                  size={38}
                   onClick={() => setSelGroup(null)}
                 />
               </div>
@@ -3241,14 +3365,14 @@ export function MindmapBoard({
             >
               {selNode && colorsForId !== selNode.id && (
                 <>
-                  <IconBtn icon={mi.pencil} hint="Sửa nội dung" tone="dark" size={34} onClick={() => openEditor(selNode)} />
-                  <IconBtn icon={mi.branch} hint="Thêm nhánh con" tone="dark" size={34} onClick={() => addBranch(selNode)} />
+                  <IconBtn icon={mi.pencil} hint="Sửa nội dung" tone="dark" size={38} onClick={() => openEditor(selNode)} />
+                  <IconBtn icon={mi.branch} hint="Thêm nhánh con" tone="dark" size={38} onClick={() => addBranch(selNode)} />
                   {selNodeHasChildren && !selNode.collapsed && (
                     <IconBtn
                       icon={mi.tidy}
                       hint="Xếp lại cả nhánh cho gọn"
                       tone="dark"
-                      size={34}
+                      size={38}
                       onClick={() => tidyBranches(selNode)}
                     />
                   )}
@@ -3257,7 +3381,7 @@ export function MindmapBoard({
                       icon={selNode.collapsed ? mi.expand : mi.collapse}
                       hint={selNode.collapsed ? "Mở lại nhánh con" : "Gấp nhánh con lại"}
                       tone="dark"
-                      size={34}
+                      size={38}
                       onClick={() => toggleCollapse(selNode)}
                     />
                   )}
@@ -3265,7 +3389,7 @@ export function MindmapBoard({
                     icon={mi.palette}
                     hint="Đổi màu thẻ"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => {
                       setColorsForId(selNode.id)
                       tickHaptic()
@@ -3275,19 +3399,19 @@ export function MindmapBoard({
                     icon={mi.link}
                     hint="Nối sang thẻ khác"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => {
                       setTool("link")
                       setLinkFrom(selNode.id)
                       setSel(null)
                     }}
                   />
-                  <IconBtn icon={mi.copy} hint="Nhân đôi" tone="dark" size={34} onClick={() => duplicateNode(selNode)} />
+                  <IconBtn icon={mi.copy} hint="Nhân đôi" tone="dark" size={38} onClick={() => duplicateNode(selNode)} />
                   {/* Vạch ngăn trước nút xoá — xem lý do ở thanh nút của nhóm đang khoanh chọn bên
                       trên. Ở đây còn quan trọng hơn: nút liền trước là "Nhân đôi", bấm nhiều lần liên
                       tiếp khi đang nhân bản ý tưởng, trượt tay là xoá luôn thẻ gốc. */}
                   <span className="flex-none w-px self-stretch my-1.5" style={{ background: "rgba(255,255,255,.18)" }} />
-                  <IconBtn icon={mi.trash} hint="Xoá ghi chú" tone="dark" size={34} onClick={() => deleteNode(selNode.id)} />
+                  <IconBtn icon={mi.trash} hint="Xoá ghi chú" tone="dark" size={38} onClick={() => deleteNode(selNode.id)} />
                 </>
               )}
 
@@ -3297,7 +3421,7 @@ export function MindmapBoard({
                     icon={mi.chevronLeft}
                     hint="Quay lại"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => setColorsForId(null)}
                   />
                   {/* Nút bật/tắt "áp cho cả nhánh", đứng NGAY TRƯỚC hàng màu để thấy rõ nó đổi ý
@@ -3307,7 +3431,7 @@ export function MindmapBoard({
                       icon={mi.branch}
                       hint={applyToBranch ? "Đang áp màu cho cả nhánh — chạm để tắt" : "Áp màu cho cả nhánh bên dưới"}
                       tone="dark"
-                      size={34}
+                      size={38}
                       active={applyToBranch}
                       onClick={() => {
                         setApplyToBranch((v) => !v)
@@ -3351,7 +3475,7 @@ export function MindmapBoard({
                     icon={mi.copy}
                     hint="Nhân đôi ảnh"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => {
                       const id = newId("im")
                       pushUndo()
@@ -3364,7 +3488,7 @@ export function MindmapBoard({
                     icon={mi.fit}
                     hint="Đưa ảnh lên trên cùng"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => {
                       pushUndo()
                       updateImages((ims) => [...ims.filter((i) => i.id !== selImage.id), selImage])
@@ -3372,7 +3496,7 @@ export function MindmapBoard({
                     }}
                   />
                   <span className="flex-none w-px self-stretch my-1.5" style={{ background: "rgba(255,255,255,.18)" }} />
-                  <IconBtn icon={mi.trash} hint="Xoá ảnh" tone="dark" size={34} onClick={() => deleteImage(selImage.id)} />
+                  <IconBtn icon={mi.trash} hint="Xoá ảnh" tone="dark" size={38} onClick={() => deleteImage(selImage.id)} />
                 </>
               )}
 
@@ -3382,7 +3506,7 @@ export function MindmapBoard({
                     icon={mi.pencil}
                     hint="Đặt nhãn và loại đường nối (quan hệ / phác đồ)"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => {
                       const cur = edges.find((ed) => ed.from === sel.from && ed.to === sel.to)
                       setEditingEdgeLabel({ from: sel.from, to: sel.to, text: cur?.label ?? "", kind: cur?.kind ?? "relationship" })
@@ -3392,7 +3516,7 @@ export function MindmapBoard({
                     icon={mi.trash}
                     hint="Bỏ đường nối này"
                     tone="dark"
-                    size={34}
+                    size={38}
                     onClick={() => deleteEdge(sel.from, sel.to)}
                   />
                 </>
@@ -3413,6 +3537,76 @@ export function MindmapBoard({
           className="absolute left-0 right-0 pointer-events-none"
           style={{ display: "none", height: 1, background: "rgba(232,0,125,.75)" }}
         />
+
+        {/* Radar góc trên phải — thu nhỏ toàn bộ nội dung để biết đang xem ở đâu, chạm/kéo để nhảy tới
+            đó ngay. Ẩn khi bảng trống (mmMap null: chưa có gì để làm radar) hoặc lúc đang gõ tìm kiếm
+            (ô tìm cũng neo gần góc này trên máy hẹp, hai thứ đè lên nhau thì rối hơn là giúp). */}
+        {mmMap && !findOpen && (
+          <div
+            ref={minimapPanelRef}
+            onPointerDown={handleMinimapPointerDown}
+            onPointerMove={handleMinimapPointerMove}
+            onPointerUp={handleMinimapPointerUp}
+            onPointerCancel={handleMinimapPointerUp}
+            title="Chạm hoặc kéo để nhảy tới chỗ đó"
+            className="mind-pop absolute right-3 top-3 rounded-xl border overflow-hidden z-10"
+            style={{
+              width: MM_W,
+              height: MM_H,
+              borderColor: "#e2e8f0",
+              background: "rgba(248,250,252,.92)",
+              backdropFilter: "blur(6px)",
+              touchAction: "none",
+              cursor: "crosshair",
+            }}
+          >
+            {images.map((im) => {
+              const lx = mmMap.offX + (im.x - mmMap.x) * mmMap.scale
+              const ly = mmMap.offY + (im.y - mmMap.y) * mmMap.scale
+              return (
+                <div
+                  key={im.id}
+                  className="absolute rounded-[2px]"
+                  style={{
+                    left: lx,
+                    top: ly,
+                    width: Math.max(2, im.w * mmMap.scale),
+                    height: Math.max(2, im.h * mmMap.scale),
+                    background: "#cbd5e1",
+                  }}
+                />
+              )
+            })}
+            {visibleNodes.map((n) => {
+              const box = nodeBox(n, sizeOf(n.id))
+              const cx = box.x + box.w / 2
+              const cy = box.y + box.h / 2
+              const lx = mmMap.offX + (cx - mmMap.x) * mmMap.scale
+              const ly = mmMap.offY + (cy - mmMap.y) * mmMap.scale
+              return (
+                <span
+                  key={n.id}
+                  className="absolute rounded-full"
+                  style={{
+                    left: lx,
+                    top: ly,
+                    width: 5,
+                    height: 5,
+                    transform: "translate(-50%, -50%)",
+                    background: n.color || "#0050B3",
+                  }}
+                />
+              )
+            })}
+            {/* Khung trắng = phần bảng đang thấy trên màn hình. Vị trí/cỡ do drawMinimapViewport() ghi
+                trực tiếp — không qua state, để theo kịp pan/zoom ở tần suất một khung hình mỗi lần. */}
+            <div
+              ref={minimapViewportRef}
+              className="absolute rounded-[3px] pointer-events-none"
+              style={{ border: "1.5px solid #0050B3", boxShadow: "0 0 0 1px rgba(255,255,255,.7)" }}
+            />
+          </div>
+        )}
 
         {/* ─── Nút nổi trên mặt bảng ───────────────────────────────────── */}
 
@@ -3464,18 +3658,18 @@ export function MindmapBoard({
             <IconBtn
               icon={mi.chevronUp}
               hint="Thẻ khớp trước đó"
-              size={32}
+              size={36}
               disabled={findMatches.length === 0}
               onClick={() => jumpToMatch(-1)}
             />
             <IconBtn
               icon={mi.chevronDown}
               hint="Thẻ khớp tiếp theo"
-              size={32}
+              size={36}
               disabled={findMatches.length === 0}
               onClick={() => jumpToMatch(1)}
             />
-            <IconBtn icon={mi.close} hint="Đóng ô tìm" size={32} onClick={closeFind} />
+            <IconBtn icon={mi.close} hint="Đóng ô tìm" size={36} onClick={closeFind} />
           </div>
         )}
 
@@ -3485,7 +3679,7 @@ export function MindmapBoard({
             className="flex items-center rounded-2xl border p-0.5"
             style={{ borderColor: "#e2e8f0", background: "rgba(255,255,255,.94)", backdropFilter: "blur(6px)" }}
           >
-            <IconBtn icon={mi.minus} hint="Thu nhỏ" size={32} onClick={() => zoomAround(view.current.zoom / 1.35)} />
+            <IconBtn icon={mi.minus} hint="Thu nhỏ" size={36} onClick={() => zoomAround(view.current.zoom / 1.35)} />
             <button
               type="button"
               onClick={() => animateView({ x: view.current.x, y: view.current.y, zoom: 1 })}
@@ -3495,7 +3689,7 @@ export function MindmapBoard({
             >
               {zoomPct}%
             </button>
-            <IconBtn icon={mi.plus} hint="Phóng to" size={32} onClick={() => zoomAround(view.current.zoom * 1.35)} />
+            <IconBtn icon={mi.plus} hint="Phóng to" size={36} onClick={() => zoomAround(view.current.zoom * 1.35)} />
           </div>
           <button
             type="button"
@@ -4082,6 +4276,52 @@ export function MindmapBoard({
                 Xoá hết
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hướng dẫn cử chỉ lần đầu — hiện đúng MỘT LẦN (xem readCoachSeen/COACH_STORAGE_KEY). Che cả
+          màn hình (kể cả thanh công cụ) vì các cử chỉ nói tới đều xảy ra trên mặt bảng — để hở thanh
+          công cụ thì người dùng bấm ngay vào đó, đóng hộp thoại nửa vời mà không đọc hết. */}
+      {showCoach && !loading && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
+          style={{ background: "rgba(15,23,42,.5)" }}
+          onPointerDown={dismissCoach}
+        >
+          <div
+            className="mind-pop w-full max-w-[320px] rounded-3xl p-5"
+            style={{ background: "#fff", boxShadow: "0 20px 50px rgba(15,23,42,.3)" }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <p className="text-base font-bold text-slate-900 mb-3">4 cách chạm hay dùng nhất</p>
+            <ul className="space-y-2.5 mb-4">
+              {[
+                ["Giữ ngón trên chỗ trống", "Tạo ghi chú ngay tại đó"],
+                ["Hai ngón trên bảng", "Luôn là phóng to/thu nhỏ và di chuyển bảng"],
+                ["Kéo một thẻ chồng lên thẻ khác", "Nối làm nhánh con của thẻ đó"],
+                ["Chạm hai lần nhanh vào chỗ trống", "Phóng to gấp đôi, chạm lại để về 100%"],
+              ].map(([title, detail]) => (
+                <li key={title} className="flex gap-2.5">
+                  <span
+                    className="flex-none rounded-full mt-0.5"
+                    style={{ width: 6, height: 6, marginTop: 7, background: "#0050B3" }}
+                  />
+                  <span className="text-[13px] leading-snug">
+                    <span className="font-semibold text-slate-800">{title}</span>
+                    <span className="text-slate-500"> — {detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={dismissCoach}
+              className="mind-btn w-full h-11 rounded-2xl text-sm font-semibold text-white"
+              style={{ background: "#0050B3" }}
+            >
+              Đã hiểu
+            </button>
           </div>
         </div>
       )}
