@@ -143,23 +143,35 @@ const icons = {
       />
     </svg>
   ),
+  // Thư viện: 3 gáy sách đứng cạnh nhau, cuốn ngoài cùng bên phải nghiêng dựa vào 2 cuốn kia —
+  // đúng dáng ảnh mẫu, thay cho 2 "cánh" bo cong đối xứng của bản cũ (nhìn không ra hình cuốn sách).
+  // Mỗi gáy có 2 cặp vạch ngang (nhãn sách); khi active, thân gáy tô đặc còn các vạch đổi sang màu
+  // nền pill (var(--c-nav-active-bg)) để đọc như đường khắc chìm trên khối đã tô, không bị nhoè mất.
   library: (active: boolean) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-6 h-6">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="w-6 h-6">
+      <rect x="3.6" y="6.2" width="4.4" height="12.6" rx="1.3" fill={active ? "currentColor" : "none"} style={{ transition: "fill 0.18s ease" }} />
       <path
-        d="M11.2 6.9C10.1 6.1 8.6 5.6 7 5.6c-1.5 0-2.9.4-3.9 1v11.6c1-.6 2.4-1 3.9-1 1.6 0 3.1.5 4.2 1.3"
-        fill={active ? "currentColor" : "none"}
         strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ transition: "fill 0.18s ease" }}
+        strokeWidth={1.3}
+        d="M4.9 9.9h1.8M4.9 11.1h1.8M4.9 15h1.8M4.9 16.2h1.8"
+        stroke={active ? "var(--c-nav-active-bg)" : "currentColor"}
       />
+      <rect x="8.5" y="6.2" width="4.4" height="12.6" rx="1.3" fill={active ? "currentColor" : "none"} style={{ transition: "fill 0.18s ease" }} />
       <path
-        d="M12.8 6.9c1.1-.8 2.6-1.3 4.2-1.3 1.5 0 2.9.4 3.9 1v11.6c-1-.6-2.4-1-3.9-1-1.6 0-3.1.5-4.2 1.3"
-        fill={active ? "currentColor" : "none"}
         strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ transition: "fill 0.18s ease" }}
+        strokeWidth={1.3}
+        d="M9.8 9.9h1.8M9.8 11.1h1.8M9.8 15h1.8M9.8 16.2h1.8"
+        stroke={active ? "var(--c-nav-active-bg)" : "currentColor"}
       />
-      <path strokeLinecap="round" d="M12 7.4v11.2" stroke={active ? "var(--c-nav-active-bg)" : "currentColor"} />
+      <g transform="rotate(12 13.5 19)">
+        <rect x="13.2" y="6.4" width="4.4" height="12.6" rx="1.3" fill={active ? "currentColor" : "none"} style={{ transition: "fill 0.18s ease" }} />
+        <path
+          strokeLinecap="round"
+          strokeWidth={1.3}
+          d="M14.5 10.1h1.8M14.5 11.3h1.8M14.5 15.2h1.8M14.5 16.4h1.8"
+          stroke={active ? "var(--c-nav-active-bg)" : "currentColor"}
+        />
+      </g>
     </svg>
   ),
   search: (active: boolean) => (
@@ -330,12 +342,28 @@ const icons = {
       <path d="M14.4 14.8h1.4M8.2 14.8h3.8M8.2 17.6h5" opacity={0.6} />
     </svg>
   ),
+  // Mindmap: đầu người nhìn nghiêng (có gờ cằm), bên trong là mạng nút toả tia từ 1 nút trung tâm
+  // ra 5 nút xung quanh — đúng dáng ảnh mẫu, thay cho 3 chấm + 2 nét chéo trừu tượng của bản cũ.
+  // Khi active: phần đầu tô đặc; các nút + đường nối đổi sang màu nền pill (var(--c-nav-active-bg))
+  // để đọc như mạng lưới khắc chìm trong khối đã tô, không lẫn vào màu tô.
   mindmap: (active: boolean) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-6 h-6">
-      <circle cx="5" cy="12" r="2.3" fill={active ? "currentColor" : "none"} strokeWidth={1.7} style={{ transition: "fill 0.18s ease" }} />
-      <circle cx="18" cy="6" r="2.3" fill={active ? "currentColor" : "none"} strokeWidth={1.7} style={{ transition: "fill 0.18s ease" }} />
-      <circle cx="18" cy="18" r="2.3" fill={active ? "currentColor" : "none"} strokeWidth={1.7} style={{ transition: "fill 0.18s ease" }} />
-      <path strokeLinecap="round" strokeWidth={active ? 2 : 1.7} d="M7.2 11l8.6-3.8M7.2 13l8.6 3.8" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
+      <path
+        d="M12 3.3C15.6 3.3 18.4 6.3 18.4 10.4V15.3C18.4 17.6 16.7 19.2 14.3 19.2H9.3V17.4H7.7V15.1H8.9C7.2 13.2 6.9 10.4 8.3 7.9C9.4 5.9 10.6 3.3 12 3.3Z"
+        fill={active ? "currentColor" : "none"}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ transition: "fill 0.18s ease" }}
+      />
+      <g stroke={active ? "var(--c-nav-active-bg)" : "currentColor"} strokeWidth={1.3} style={{ transition: "stroke 0.18s ease" }}>
+        <path d="M12.3 12.2L12.3 8.3M12.3 12.2L9.6 10.5M12.3 12.2L15 10.3M12.3 12.2L9.9 14.6M12.3 12.2L14.7 14.7" />
+        <circle cx="12.3" cy="8.3" r="0.95" fill={active ? "var(--c-nav-active-bg)" : "none"} />
+        <circle cx="9.6" cy="10.5" r="0.95" fill={active ? "var(--c-nav-active-bg)" : "none"} />
+        <circle cx="15" cy="10.3" r="0.95" fill={active ? "var(--c-nav-active-bg)" : "none"} />
+        <circle cx="9.9" cy="14.6" r="0.95" fill={active ? "var(--c-nav-active-bg)" : "none"} />
+        <circle cx="14.7" cy="14.7" r="0.95" fill={active ? "var(--c-nav-active-bg)" : "none"} />
+        <circle cx="12.3" cy="12.2" r="1.15" fill={active ? "var(--c-nav-active-bg)" : "none"} />
+      </g>
     </svg>
   ),
   minus: () => (

@@ -32,12 +32,9 @@ const SPECIALTY_ICONS: Record<string, (cls: string) => React.ReactElement> = {
     svg(
       cls,
       <>
-        <path d="M3.6 11.4L12 3.8l8.4 7.6" />
-        <path d="M6.2 10.2v8.6a1.4 1.4 0 001.4 1.4h8.8a1.4 1.4 0 001.4-1.4v-8.6" />
-        <path d="M10.2 20.2v-4a1.8 1.8 0 013.6 0v4" />
+        <path d="M12 3.6L20.6 10.6V19.6H14.6V13.8H9.4V19.6H3.4V10.6Z" />
       </>,
     ),
-
   // Tim mạch — trái tim kèm một nhịp điện tim bên trong
   cardiology: (cls) =>
     svg(
