@@ -1952,6 +1952,12 @@ export function MindmapBoard({
     capture(e)
     setMenuOpen(false)
     setAddOpen(false)
+    // Thẻ vừa tạo còn đang chạy hoạt ảnh "bung ra" (class mind-born, 0.42s — xem markBorn/index.css):
+    // animation CSS đó điều khiển `transform` của CHÍNH thẻ này, cùng thuộc tính mà việc kéo cũng ghi
+    // vào (act.el.style.transform bên dưới). Animation CSS luôn thắng style ghi trực tiếp trong lúc
+    // nó còn chạy, nên kéo thẻ ngay sau khi tạo (chưa hết 0.42s) sẽ thấy thẻ "đứng im" dưới tay, dù dữ
+    // liệu vẫn nhận đúng khi thả tay ra — tắt animation NGAY khi bắt đầu kéo để nhường quyền lại.
+    if (bornId === node.id) setBornId(null)
 
     if (tool === "link") {
       action.current = { kind: "linkdrag", from: node.id, moved: false }
@@ -3278,6 +3284,13 @@ export function MindmapBoard({
                   // Công cụ vẽ: cho ngón tay xuyên qua ghi chú để vẽ đè lên được.
                   pointerEvents: drawTool || tool === "eraser" ? "none" : "auto",
                   touchAction: "none",
+                  // Khai báo LẠI ngay trên chính thẻ, không dựa vào kế thừa từ mặt bảng — Safari trên
+                  // iPhone không luôn tôn trọng user-select thừa qua một tổ tiên có transform (worldRef
+                  // phóng-thu cả bảng), nên chạm giữ vào thẻ mới tạo đôi khi bị hiểu thành "chọn văn
+                  // bản" (hiện kính lúp/marker chọn chữ) thay vì bắt đầu kéo — thẻ trông như đứng im.
+                  WebkitUserSelect: "none",
+                  userSelect: "none",
+                  WebkitTouchCallout: "none",
                   // `sliding`: chỉ bật lúc bấm "xếp lại nhánh" để thấy thẻ trượt về chỗ mới. Ngoài lúc
                   // đó KHÔNG được bật, nếu không mỗi lần kéo thả tay thẻ sẽ chạy đuổi theo một nhịp.
                   transition: sliding
