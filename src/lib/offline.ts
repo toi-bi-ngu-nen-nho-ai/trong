@@ -6,7 +6,28 @@
 // cài app và luôn chạy từ cache có thể dùng bảng liều CŨ nhiều tuần mà không biết. Với app tra liều
 // thì đó là rủi ro thật, nên khi có bản mới phải nói ra chứ không im lặng chờ tới lần mở sau.
 
+import { useEffect, useState } from "react"
+
 export const SW_UPDATE_EVENT = "drtrong:sw-update"
+
+// ─── Tín hiệu online/offline ──────────────────────────────────────────────────
+// sw.js cache toàn bộ app để chạy offline, nhưng trước đây không có gì cho người dùng biết đang
+// xem dữ liệu mạng thật hay dữ liệu đã lưu sẵn trên máy. Với app tra liều, "tôi có đang online
+// không" là thông tin cần biết chắc chắn, không phải tiểu tiết — xem OfflineBar trong App.tsx.
+export function useOnlineStatus(): boolean {
+  const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine))
+  useEffect(() => {
+    const onOnline = () => setOnline(true)
+    const onOffline = () => setOnline(false)
+    window.addEventListener("online", onOnline)
+    window.addEventListener("offline", onOffline)
+    return () => {
+      window.removeEventListener("online", onOnline)
+      window.removeEventListener("offline", onOffline)
+    }
+  }, [])
+  return online
+}
 
 let waitingWorker: ServiceWorker | null = null
 

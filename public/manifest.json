@@ -2,21 +2,41 @@
   "name": "Bác sĩ Trọng",
   "short_name": "BS Trọng",
   "description": "Thư viện kiến thức lâm sàng cá nhân cho bác sĩ và sinh viên y khoa",
+  "lang": "vi",
+  "categories": ["medical", "education"],
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#0050B3",
-  "orientation": "portrait",
+  "theme_color": "#0f766e",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dùng thuốc",
+      "short_name": "Dùng thuốc",
+      "description": "Vào thẳng bảng pha thuốc, không qua Trang chủ",
+      "url": "/?screen=mixing",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mindmap",
+      "short_name": "Mindmap",
+      "description": "Vào thẳng bảng sơ đồ tư duy",
+      "url": "/?screen=mindmap",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

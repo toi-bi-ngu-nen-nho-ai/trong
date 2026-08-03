@@ -403,7 +403,9 @@ export function BlockEditor({
                         : { background: "#fff", borderColor: "#e2e8f0", color: linkTargets.length === 0 ? "#cbd5e1" : "#334155" }
                     }
                   >
-                    🔗
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 15l6-6m-5-2l1.5-1.5a3.54 3.54 0 015 5L15 12M9 12l-1.5 1.5a3.54 3.54 0 105 5L14 17" />
+                    </svg>
                   </button>
                 </div>
               )}
