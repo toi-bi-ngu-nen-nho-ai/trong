@@ -69,43 +69,6 @@ export const COMPAT_KEYS = {
   pipTazo: "pipTazo",
 } as const
 
-// Tên hiển thị khi thuốc bên kia của cặp chưa nằm trong bảng "Đang truyền" (dùng cho phần tra cứu
-// thủ công một cặp bất kỳ).
-export const COMPAT_KEY_LABELS: Record<string, string> = {
-  noradrenaline: "Noradrenaline",
-  adrenaline: "Adrenaline",
-  dobutamine: "Dobutamine",
-  dopamine: "Dopamine",
-  vasopressin: "Vasopressin",
-  phenylephrine: "Phenylephrine",
-  milrinone: "Milrinone",
-  nitroglycerin: "Nitroglycerin",
-  nitroprusside: "Nitroprusside",
-  nicardipine: "Nicardipine",
-  amiodarone: "Amiodarone",
-  esmolol: "Esmolol",
-  lidocaine: "Lidocaine",
-  adenosine: "Adenosine",
-  insulin: "Insulin truyền TM",
-  magnesium: "Magie sulfat",
-  potassium: "Kali clorid",
-  calcium: "Calci (gluconat/clorid)",
-  bicarbonate: "Natri bicarbonat",
-  furosemide: "Furosemide",
-  phenytoin: "Phenytoin",
-  propofol: "Propofol",
-  midazolam: "Midazolam",
-  pantoprazole: "Pantoprazole",
-  heparin: "Heparin",
-  vancomycin: "Vancomycin",
-  aminoglycoside: "Aminoglycosid (amikacin/gentamicin)",
-  fluoroquinolone: "Fluoroquinolon (cipro/levofloxacin)",
-  macrolide: "Macrolid (azithromycin)",
-  ceftriaxone: "Ceftriaxone",
-  ampicillin: "Ampicillin",
-  pipTazo: "Piperacillin-Tazobactam",
-}
-
 const K = COMPAT_KEYS
 
 // Chạy chung một nòng (Y-site) — chỉ liệt kê các cặp KHÔNG dùng chung được hoặc cần thận trọng.

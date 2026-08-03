@@ -21,7 +21,7 @@ import {
   type PatientVitals,
   type RrtMode,
 } from "./lib/patient"
-import { SEVERITY_STYLE, checkAge, checkHeight, checkInfusionDose, checkWeight, type DoseCheck, type WeightCheck } from "./lib/doseSafety"
+import { SEVERITY_STYLE, checkAge, checkHeight, checkInfusionDose, checkWeight, type DoseCheck } from "./lib/doseSafety"
 import {
   CONC_OK,
   DEFAULT_DROP_FACTOR,
@@ -561,6 +561,23 @@ const icons = {
 // thành dấu chấm ngay khi nhập, để họ gõ được số thập phân bình thường mà không cần đổi bàn phím.
 function normalizeDecimalInput(value: string): string {
   return value.replace(/,/g, ".")
+}
+
+// parseFloat("70abc") = 70 và parseFloat("1.2.9") = 1.2 — JS âm thầm cắt phần rác sau con số đầu
+// tiên, nên gõ nhầm/dán nhầm dữ liệu vào ô cân nặng/tuổi/creatinin vẫn ra một con số "hợp lệ" mà
+// không có dấu hiệu nào cho biết chuỗi gốc có ký tự lạ. Chỉ chấp nhận chuỗi số THUẦN (không phần
+// đuôi/ký tự chen giữa) — non-null nghĩa là parse được sạch, không có nghĩa là giá trị hợp lý (đó
+// là việc của checkWeight/checkAge/checkHeight).
+function parseStrictNumber(raw: string): number | null {
+  const s = raw.trim()
+  if (!/^\d+(\.\d+)?$/.test(s)) return null
+  const v = parseFloat(s)
+  return Number.isFinite(v) ? v : null
+}
+
+// Ô nhập không rỗng nhưng không parse sạch được thành số — để phân biệt với "chưa nhập gì".
+function hasInvalidNumericInput(raw: string): boolean {
+  return raw.trim() !== "" && parseStrictNumber(raw) == null
 }
 
 // Chuyển tên bệnh lý tiếng Việt (có dấu) thành chuỗi ASCII gọn để làm phần id — dùng khi
@@ -4575,6 +4592,14 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   const heightWarn = checkHeight(heightCm)
   const ageWarn = checkAge(ageYears)
 
+  // "70abc" hay "1.2.9" vẫn còn NGUYÊN trong ô nhập (không tự sửa), nhưng abwKg/heightCm/ageYears
+  // ở trên giờ trả về null cho các chuỗi này (parseStrictNumber) — nói rõ ra đây, kẻo trông như ô
+  // trống bình thường trong khi thực ra người dùng đã gõ/dán một thứ gì đó vào.
+  const weightInvalid = hasInvalidNumericInput(patient.weight)
+  const heightInvalid = hasInvalidNumericInput(patient.height)
+  const ageInvalid = hasInvalidNumericInput(patient.age)
+  const scrInvalid = hasInvalidNumericInput(patient.scr)
+
   // Cân nặng dùng để ước tính CrCl: ABW nếu bình thường/thiếu cân, AdjBW nếu béo phì (ABW > 130% IBW).
   const crclWeight = useMemo(
     () => resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted"),
@@ -4583,8 +4608,8 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
 
   function switchScrUnit(next: "mgdl" | "umol") {
     if (next === patient.scrUnit) return
-    const s = parseFloat(patient.scr)
-    if (!isNaN(s)) {
+    const s = parseStrictNumber(patient.scr)
+    if (s != null) {
       const converted = next === "umol" ? s * SCR_UMOL_PER_MGDL : s / SCR_UMOL_PER_MGDL
       setPatientField("scr", (Math.round(converted * 100) / 100).toString())
     }
@@ -4659,10 +4684,16 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               </div>
             </PatientField>
           </div>
-          {ageWarn && ageWarn.severity !== "ok" && (
+          {ageInvalid ? (
             <div className="mb-2">
-              <InputWarning text={ageWarn.message} level={ageWarn.severity} />
+              <InputWarning text={`Tuổi "${patient.age.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP, không tính CrCl từ đây.`} level="implausible" />
             </div>
+          ) : (
+            ageWarn && ageWarn.severity !== "ok" && (
+              <div className="mb-2">
+                <InputWarning text={ageWarn.message} level={ageWarn.severity} />
+              </div>
+            )
           )}
 
           <div className="grid grid-cols-2 gap-2 mb-2">
@@ -4674,11 +4705,25 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             </PatientField>
           </div>
           {/* Cân nặng và chiều cao có thể cùng lúc đều cảnh báo (vd trẻ em nhẹ cân, thấp) — xếp mỗi
-              cảnh báo một dòng riêng, đủ rộng để đọc trọn câu thay vì bị bóp trong nửa cột. */}
-          {[weightWarn, heightWarn]
-            .filter((w): w is WeightCheck & { severity: "check" | "implausible" } => w != null && w.severity !== "ok")
-            .map((w, i) => (
-              <div key={i} className="mb-2">
+              cảnh báo một dòng riêng, đủ rộng để đọc trọn câu thay vì bị bóp trong nửa cột. Ký tự lạ
+              (vd "70abc") ưu tiên hiện trước cảnh báo độ lớn, vì lúc đó con số còn chưa xác định được. */}
+          {(
+            [
+              weightInvalid
+                ? { key: "w", message: `Cân nặng "${patient.weight.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
+                : weightWarn && weightWarn.severity !== "ok"
+                  ? { key: "w", message: weightWarn.message, severity: weightWarn.severity }
+                  : null,
+              heightInvalid
+                ? { key: "h", message: `Chiều cao "${patient.height.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
+                : heightWarn && heightWarn.severity !== "ok"
+                  ? { key: "h", message: heightWarn.message, severity: heightWarn.severity }
+                  : null,
+            ] as ({ key: string; message: string; severity: "check" | "implausible" } | null)[]
+          )
+            .filter((w): w is { key: string; message: string; severity: "check" | "implausible" } => w != null)
+            .map((w) => (
+              <div key={w.key} className="mb-2">
                 <InputWarning text={w.message} level={w.severity} />
               </div>
             ))}
@@ -4705,6 +4750,11 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 </div>
               </div>
             </PatientField>
+            {scrInvalid && (
+              <div className="mt-2">
+                <InputWarning text={`Creatinin "${patient.scr.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP, không tính CrCl từ đây.`} level="implausible" />
+              </div>
+            )}
 
           {/* Kết quả CrCl gói trong MỘT dải thay vì con số lớn + hai đoạn chú thích rời như trước.
               mt-3 để tách hẳn khỏi ô Creatinin phía trên — trước đây dính sát nhau vì cả hai chỉ có
@@ -4794,8 +4844,8 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 />
               </PatientField>
               <p className={`${T.meta} mt-1`} style={{ color: C.muted }}>
-                {abwKg != null && parseFloat(patient.crrtFlowLPerH) > 0
-                  ? `Tương đương ${((parseFloat(patient.crrtFlowLPerH) * 1000) / abwKg).toFixed(0)} mL/kg/giờ — so với điều kiện Qeff ghi trong liều CRRT của từng thuốc.`
+                {abwKg != null && (parseStrictNumber(patient.crrtFlowLPerH) ?? 0) > 0
+                  ? `Tương đương ${(((parseStrictNumber(patient.crrtFlowLPerH) as number) * 1000) / abwKg).toFixed(0)} mL/kg/giờ — so với điều kiện Qeff ghi trong liều CRRT của từng thuốc.`
                   : "Cộng tốc độ dịch lọc và tốc độ siêu lọc — liều kháng sinh trong CRRT thay đổi theo con số này."}
               </p>
             </div>
@@ -5756,6 +5806,11 @@ function AntibioticDoseCard({
     () => resolveDosingWeight(abwKg, heightCm, patient.sex, drug.doseWeightBasis ?? "actual"),
     [abwKg, heightCm, patient.sex, drug.doseWeightBasis],
   )
+  // Cân nặng gõ nhầm (vd 5000 kg) đã bị checkWeight() gắn cờ "implausible" ở khung Bệnh nhân, nhưng
+  // trước đây cờ đó không truyền xuống đây — app vẫn nhân 20–25 mg/kg × 5000 kg ra một liều Vancomycin
+  // trông chắc chắn (100–125 g). Chặn NGAY TẠI NGUỒN (doseTargetMg) để mọi chỗ đọc từ nó (perKgDoses,
+  // autoUsage/bảng pha) đều không tính ra số khi cân nặng vô lý, thay vì phải nhớ chặn từng chỗ hiển thị.
+  const weightImplausible = checkWeight(dosingWeight.used)?.severity === "implausible"
   // Nhân sẵn liều mg/kg: app đã có cân nặng và đã có chuỗi "15–20 mg/kg mỗi 8–12h" thì không có lý
   // do gì bắt người dùng tự nhẩm — đó đúng là chỗ dễ sai nhất lúc 2 giờ sáng.
   const perKgDoses = useMemo(() => findPerKgDoses(tier.dose), [tier.dose])
@@ -5809,12 +5864,15 @@ function AntibioticDoseCard({
     if (notComputableDose) return null
     const perKg = perKgDoses[0]
     if (perKg && dosingWeight.used != null) {
+      // Cân nặng bất thường (vd 5000 kg gõ nhầm) → không nhân ra một con số trông chắc chắn, xem
+      // weightImplausible ở trên.
+      if (weightImplausible) return null
       return { low: perKg.low * dosingWeight.used, high: perKg.high != null ? perKg.high * dosingWeight.used : null, unit: perKg.unit }
     }
     if (perKg) return null // liều mg/kg mà chưa có cân nặng thì không đoán được
     const fixed = findFixedDose(tier.dose)
     return fixed ? { low: fixed.amount, high: null, unit: fixed.unit } : null
-  }, [notComputableDose, perKgDoses, dosingWeight.used, tier.dose])
+  }, [notComputableDose, perKgDoses, dosingWeight.used, weightImplausible, tier.dose])
   const autoUsage = useMemo(() => {
     if (!mixCfg || !doseTargetMg) return null
     if (mixCfg.vialForm === "fixed") {
@@ -5991,7 +6049,7 @@ function AntibioticDoseCard({
             <>
               <p className="text-[13px] font-bold leading-[1.45] mt-1" style={{ color: "var(--c-danger-deep)" }}>{rrtDoseText}</p>
               {/* Liều CRRT là con số CÓ ĐIỀU KIỆN — thiếu Qeff thì chưa đọc được nó thuộc cột nào */}
-              {needsCrrtFlow(patient.rrt) && !(parseFloat(patient.crrtFlowLPerH) > 0) && (
+              {needsCrrtFlow(patient.rrt) && !((parseStrictNumber(patient.crrtFlowLPerH) ?? 0) > 0) && (
                 <button onClick={openPatientPanel} className="text-[11px] font-bold underline text-left leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
                   Chưa nhập tốc độ dịch thải (Qeff) — nhập ở khung "Bệnh nhân hiện tại" để biết khuyến cáo trên ứng với mức lọc nào.
                 </button>
@@ -6043,8 +6101,26 @@ function AntibioticDoseCard({
 
       {/* Nhân sẵn mg/kg × cân nặng — phần trước đây bắt người dùng tự nhẩm */}
       {perKgDoses.length > 0 && (
-        <div className="mt-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-accent-soft)", border: "1px solid var(--c-accent-line)" }}>
-          {dosingWeight.used != null ? (
+        <div
+          className="mt-1.5 px-2.5 py-2 rounded-xl"
+          style={
+            weightImplausible
+              ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
+              : { background: "var(--c-accent-soft)", border: "1px solid var(--c-accent-line)" }
+          }
+        >
+          {weightImplausible ? (
+            <>
+              {/* CHẶN hẳn con số nhân sẵn — cân nặng cỡ này gần như chắc chắn gõ nhầm, không được
+                  in ra một liều gam trông chắc chắn rồi để bác sĩ tự tin dùng luôn lúc gấp. */}
+              <p className="text-[11px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
+                Không tính liều mg/kg: {checkWeight(dosingWeight.used)?.message}
+              </p>
+              <button onClick={openPatientPanel} className="text-[11px] font-bold underline text-left leading-[1.45] mt-0.5" style={{ color: "var(--c-danger)" }}>
+                Sửa lại cân nặng ở khung "Bệnh nhân hiện tại"
+              </button>
+            </>
+          ) : dosingWeight.used != null ? (
             <>
               {perKgDoses.map((d, i) => (
                 <p key={i} className="text-[11px] leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
@@ -6447,24 +6523,29 @@ function BolusList({
     [abwKg, heightCm, patient.sex, doseWeightBasis],
   )
   const weightKg = dosingWeight.used
+  // Liều nạp/bolus nhân trực tiếp mg/kg × cân nặng, giống hệt bảng liều mg/kg — cân nặng gõ nhầm
+  // (vd 5000 kg) phải chặn ở đây luôn, không chỉ ở khung "Bệnh nhân hiện tại".
+  const weightWarn = checkWeight(weightKg)
+  const weightImplausible = weightWarn?.severity === "implausible"
   const list = boluses ?? []
   if (list.length === 0) return null
 
-  function describe(b: BolusDose): { text: string; needWeight: boolean; perKgText: string | null } {
+  function describe(b: BolusDose): { text: string; needWeight: boolean; blocked: boolean; perKgText: string | null } {
     if (b.perKgLow != null) {
       const perKgText = b.perKgHigh != null ? `${b.perKgLow}–${b.perKgHigh} ${b.unit}/kg` : `${b.perKgLow} ${b.unit}/kg`
-      if (weightKg == null) return { text: "—", needWeight: true, perKgText }
+      if (weightKg == null) return { text: "—", needWeight: true, blocked: false, perKgText }
+      if (weightImplausible) return { text: "—", needWeight: false, blocked: true, perKgText }
       const lo = b.perKgLow * weightKg
       const hi = b.perKgHigh != null ? b.perKgHigh * weightKg : null
       const base = hi != null ? `${formatMass(lo, b.unit)} – ${formatMass(hi, b.unit)}` : formatMass(lo, b.unit)
       const withCap = b.maxSingle != null && (hi ?? lo) > b.maxSingle ? `${base} — nhưng không vượt quá ${formatMass(b.maxSingle, b.unit)}` : base
-      return { text: withCap, needWeight: false, perKgText }
+      return { text: withCap, needWeight: false, blocked: false, perKgText }
     }
     if (b.fixedLow != null) {
       const base = b.fixedHigh != null ? `${formatMass(b.fixedLow, b.unit)} – ${formatMass(b.fixedHigh, b.unit)}` : formatMass(b.fixedLow, b.unit)
-      return { text: base, needWeight: false, perKgText: null }
+      return { text: base, needWeight: false, blocked: false, perKgText: null }
     }
-    return { text: "—", needWeight: false, perKgText: null }
+    return { text: "—", needWeight: false, blocked: false, perKgText: null }
   }
 
   // Tiêu đề mục do khối gấp/mở ở ngoài lo, ở đây chỉ vẽ danh sách.
@@ -6473,19 +6554,36 @@ function BolusList({
       {list.map((b, i) => {
         const info = describe(b)
         return (
-          <div key={i} className="px-3 py-2.5 rounded-xl mb-1.5" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-            <p className="text-[11px] font-bold leading-[1.45]" style={{ color: "var(--c-warn)" }}>{b.label}</p>
-            {info.perKgText && <p className="text-[11px]" style={{ color: "var(--c-warn-3)" }}>Theo cân nặng: {info.perKgText}</p>}
+          <div
+            key={i}
+            className="px-3 py-2.5 rounded-xl mb-1.5"
+            style={
+              info.blocked
+                ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
+                : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }
+            }
+          >
+            <p className="text-[11px] font-bold leading-[1.45]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn)" }}>{b.label}</p>
+            {info.perKgText && <p className="text-[11px]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn-3)" }}>Theo cân nặng: {info.perKgText}</p>}
             {info.needWeight ? (
               <button onClick={openPatientPanel} className="text-[11px] font-bold underline mt-0.5" style={{ color: "var(--c-warn-2)" }}>
                 Nhập cân nặng ở khung "Bệnh nhân hiện tại" để tính ra số mg
               </button>
+            ) : info.blocked ? (
+              <>
+                <p className="text-[11px] font-bold leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
+                  Không tính liều nạp: {weightWarn?.message}
+                </p>
+                <button onClick={openPatientPanel} className="text-[11px] font-bold underline mt-0.5" style={{ color: "var(--c-danger)" }}>
+                  Sửa lại cân nặng ở khung "Bệnh nhân hiện tại"
+                </button>
+              </>
             ) : (
               <p className={`${T.title} ${NUM} mt-0.5`} style={{ color: C.warn }}>{info.text}</p>
             )}
             {b.over && <p className="text-[11px] leading-[1.45]" style={{ color: "var(--c-warn-3)" }}>Cách dùng: {b.over}</p>}
             {b.note && <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-warn-3)" }}>{b.note}</p>}
-            {!info.needWeight && (
+            {!info.needWeight && !info.blocked && (
               <button
                 onClick={() => {
                   logCalc({
@@ -8074,24 +8172,26 @@ function DungThuocScreen({
   const [wardRecipes, setWardRecipes] = useState<Record<string, WardRecipe[]>>(loadWardRecipes)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
+  // parseStrictNumber (không phải parseFloat) — "70abc"/"1.2.9" phải thành CHƯA NHẬP, không được
+  // âm thầm rớt xuống 70/1.2 rồi chạy thẳng vào CrCl và liều mg/kg như một số sạch.
   const abwKg = useMemo(() => {
-    const v = parseFloat(patient.weight)
-    return isNaN(v) || v <= 0 ? null : v
+    const v = parseStrictNumber(patient.weight)
+    return v == null || v <= 0 ? null : v
   }, [patient.weight])
   const heightCm = useMemo(() => {
-    const v = parseFloat(patient.height)
-    return isNaN(v) || v <= 0 ? null : v
+    const v = parseStrictNumber(patient.height)
+    return v == null || v <= 0 ? null : v
   }, [patient.height])
   const ageYears = useMemo(() => {
-    const v = parseFloat(patient.age)
-    return isNaN(v) || v <= 0 ? null : v
+    const v = parseStrictNumber(patient.age)
+    return v == null || v <= 0 ? null : v
   }, [patient.age])
 
   // CrCl dùng cân nặng hiệu chỉnh khi béo phì, theo cùng quy tắc áp dụng cho liều thuốc.
   const crcl = useMemo(() => {
     const w = resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted").used
-    const s = parseFloat(patient.scr)
-    if (ageYears == null || w == null || isNaN(s) || s <= 0) return null
+    const s = parseStrictNumber(patient.scr)
+    if (ageYears == null || w == null || s == null || s <= 0) return null
     return estimateCrCl(ageYears, w, scrToMgDl(s, patient.scrUnit), patient.sex)
   }, [abwKg, heightCm, ageYears, patient.scr, patient.scrUnit, patient.sex])
   const crclUsable = crclReliability(patient) === "ok"
