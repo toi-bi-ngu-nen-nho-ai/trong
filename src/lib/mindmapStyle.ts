@@ -91,10 +91,11 @@ export const EDGE_COLOR = "#94a3b8"
 // theo màu thẻ con — khác hẳn dây "Quan hệ" (mặc định, xem edgeColor bên dưới). Lý do: một luồng
 // xử lý/phác đồ thường đi QUA nhiều thẻ khác màu nhau (mỗi thẻ một bước, có thể đã gắn màu theo chủ
 // đề riêng); nếu vẫn ăn theo màu thẻ thì luồng bị đứt đoạn thị giác thành nhiều màu, không còn đọc
-// được là MỘT chuỗi bước duy nhất. Dùng lại đúng màu xanh "#0050B3" mà cả app đã dùng cho mọi hành
+// được là MỘT chuỗi bước duy nhất. Dùng lại đúng màu chủ đạo mà cả app đã dùng cho mọi hành
 // động mang tính CẤU TRÚC/HỆ THỐNG khác (đường kéo-nối, viền thẻ đang chọn) — giữ ngôn ngữ màu nhất
-// quán: xanh = có cấu trúc/hệ thống, không phải màu trang trí theo nhánh.
-export const ALGORITHM_EDGE_COLOR = "#0050B3"
+// quán: xanh mòng két = có cấu trúc/hệ thống, không phải màu trang trí theo nhánh. Dùng biến
+// --c-primary (không phải hex cứng) để tự đổi theo sáng/tối như mọi chỗ khác dùng màu chủ đạo.
+export const ALGORITHM_EDGE_COLOR = "var(--c-primary)"
 
 // Đường nối ăn theo MÀU CỦA THẺ CON, pha về phía xám trung tính (đúng màu nền của EDGE_COLOR) thay vì
 // pha trắng.

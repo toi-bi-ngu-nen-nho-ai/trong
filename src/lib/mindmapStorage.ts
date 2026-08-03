@@ -21,7 +21,7 @@ interface MindmapRecord extends MindmapData {
 }
 
 export const DEFAULT_MINDMAP: MindmapData = {
-  nodes: [{ id: "n1", x: 150, y: 170, text: "Chủ đề trung tâm", color: "#0050B3", style: "solid", size: "lg" }],
+  nodes: [{ id: "n1", x: 150, y: 170, text: "Chủ đề trung tâm", color: "var(--c-primary)", style: "solid", size: "lg" }],
   edges: [],
   strokes: [],
   images: [],

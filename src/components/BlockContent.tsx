@@ -44,7 +44,7 @@ function InlineText({ text, onOpenLink }: { text: string; onOpenLink?: (target: 
                 type="button"
                 onClick={() => onOpenLink?.(tok.target)}
                 className="font-semibold underline decoration-dotted underline-offset-2"
-                style={{ color: "#0050B3" }}
+                style={{ color: "var(--c-primary)" }}
               >
                 {tok.text}
               </button>
@@ -112,7 +112,7 @@ export function BlockContent({
               <div key={block.id} className="flex gap-2.5 mt-1.5">
                 <span
                   className="flex-none mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold"
-                  style={{ background: "#eff6ff", color: "#0050B3" }}
+                  style={{ background: "#eff6ff", color: "var(--c-primary)" }}
                 >
                   {numbers[idx]}
                 </span>
@@ -124,7 +124,7 @@ export function BlockContent({
               <blockquote
                 key={block.id}
                 className="mt-3 pl-3 border-l-2 text-[14px] text-slate-600 italic leading-relaxed whitespace-pre-wrap"
-                style={{ borderColor: "#0050B3" }}
+                style={{ borderColor: "var(--c-primary)" }}
               >
                 {inline}
               </blockquote>

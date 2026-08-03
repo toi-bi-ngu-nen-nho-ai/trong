@@ -30,7 +30,7 @@ export function applyTheme(mode: ThemeMode): void {
   // cập nhật thì bản tối vẫn còn một dải xanh sáng chạy ngang đỉnh màn hình.
   const dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)
   const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute("content", dark ? "#0e1420" : "#0050B3")
+  if (meta) meta.setAttribute("content", dark ? "#0e1420" : "#0f766e")
 }
 
 export function saveTheme(mode: ThemeMode): void {

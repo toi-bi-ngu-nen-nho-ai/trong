@@ -12,7 +12,7 @@ import { deleteMindmap, hasLegacyMindmap } from "./mindmapStorage"
 // cần thao tác gì thêm. Máy hoàn toàn mới thì tạo một bảng trống "Bảng đầu tiên".
 
 const ACTIVE_BOARD_KEY = "drtrong:activeBoardId"
-export const DEFAULT_BOARD_COLOR = "#0050B3"
+export const DEFAULT_BOARD_COLOR = "var(--c-primary)"
 
 function makeBoardId(): string {
   return `b${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`

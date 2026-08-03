@@ -25,7 +25,7 @@
   --foreground: #0f172a;
   --card: #f8fafc;
   --card-foreground: #0f172a;
-  --primary: #0050B3;
+  --primary: #0f766e;
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #475569;
@@ -34,7 +34,7 @@
   --accent: #e8007d;
   --accent-foreground: #ffffff;
   --border: #e2e8f0;
-  --ring: #0050B3;
+  --ring: #0f766e;
   --radius: 10px;
 }
 
@@ -68,12 +68,18 @@
   --c-muted: #94a3b8;
   --c-faint: #cbd5e1;
 
-  --c-primary: #0050b3;
-  --c-primary-strong: #1d4ed8;
-  --c-primary-deep: #1e40af;
-  --c-primary-soft: #eff6ff;
-  --c-primary-line: #dbeafe;
-  --c-primary-line-2: #bfdbfe;
+  /* Chủ đạo đổi từ xanh dương (#0050b3 cũ) sang xanh mòng két — cùng sắc với accent bên dưới, dùng
+     lại đúng giá trị đã được đo tương phản kỹ (xem ghi chú accent): chữ trắng trên nền primary đạt
+     5,5:1, primary làm chữ/icon trên nền sáng đạt 5,3:1 — cả hai vượt ngưỡng AA 4,5:1. `--c-primary-rgb`
+     theo đúng khuôn `--c-fog` bên dưới: bộ ba R,G,B để nhét vào rgba() cho các đổ bóng/viền mờ ăn
+     theo chủ đạo, tự đổi theo sáng/tối như mọi biến --c-* khác. */
+  --c-primary: #0f766e;
+  --c-primary-strong: #115e59;
+  --c-primary-deep: #134e4a;
+  --c-primary-soft: #f0fdfa;
+  --c-primary-line: #99f6e4;
+  --c-primary-line-2: #5eead4;
+  --c-primary-rgb: 15, 118, 110;
 
   /* Xanh mòng két đậm hơn một bậc so với #0d9488 cũ. Lý do là tương phản, không phải thẩm mỹ:
      accent vừa làm NỀN đặc (chip dung môi, nút "Thêm vào danh sách đang dùng") vừa làm CHỮ trên
@@ -155,12 +161,13 @@
     --c-muted: #7d8a9e;
     --c-faint: #4a5668;
 
-    --c-primary: #6aa9ff;
-    --c-primary-strong: #8cbcff;
-    --c-primary-deep: #a9cdff;
-    --c-primary-soft: #16243c;
-    --c-primary-line: #24385a;
-    --c-primary-line-2: #2f4a75;
+    --c-primary: #3ecfbd;
+    --c-primary-strong: #6fe0d1;
+    --c-primary-deep: #94ede0;
+    --c-primary-soft: #102b2a;
+    --c-primary-line: #1f4a46;
+    --c-primary-line-2: #2b625c;
+    --c-primary-rgb: 62, 207, 189;
 
     --c-accent: #3ecfbd;
     --c-accent-deep: #6fe0d1;
@@ -227,12 +234,13 @@
   --c-muted: #7d8a9e;
   --c-faint: #4a5668;
 
-  --c-primary: #6aa9ff;
-  --c-primary-strong: #8cbcff;
-  --c-primary-deep: #a9cdff;
-  --c-primary-soft: #16243c;
-  --c-primary-line: #24385a;
-  --c-primary-line-2: #2f4a75;
+  --c-primary: #3ecfbd;
+  --c-primary-strong: #6fe0d1;
+  --c-primary-deep: #94ede0;
+  --c-primary-soft: #102b2a;
+  --c-primary-line: #1f4a46;
+  --c-primary-line-2: #2b625c;
+  --c-primary-rgb: 62, 207, 189;
 
   --c-accent: #3ecfbd;
   --c-accent-deep: #6fe0d1;
@@ -551,7 +559,7 @@ input, select, textarea {
    vào con trỏ chuột/ngón tay. `:focus-visible` (không phải `:focus`) để không hiện vòng này khi
    CHẠM/BẤM CHUỘT — chỉ hiện khi thật sự dùng Tab, giống hành vi mặc định của trình duyệt. */
 .mind-btn:focus-visible {
-  outline: 2px solid var(--ring, #0050B3);
+  outline: 2px solid var(--ring, #0f766e);
   outline-offset: 2px;
 }
 
@@ -559,13 +567,13 @@ input, select, textarea {
    `input:focus`) mà không thay bằng gì khác, nên riêng trong bảng vẽ — nơi giờ điều hướng được bằng
    phím — phải tự vẽ lại một vòng focus rõ ràng. */
 .mind-input:focus-visible {
-  outline: 2px solid var(--ring, #0050B3);
+  outline: 2px solid var(--ring, #0f766e);
   outline-offset: 1px;
 }
 
 .term-highlight {
-  border-bottom: 1.5px dotted #0050B3;
-  color: #0050B3;
+  border-bottom: 1.5px dotted var(--c-primary);
+  color: var(--c-primary);
   cursor: pointer;
 }
 

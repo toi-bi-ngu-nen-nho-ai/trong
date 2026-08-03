@@ -270,7 +270,7 @@ export function BlockEditor({
                 <div
                   onClick={() => setActiveId(block.id)}
                   className="rounded-xl overflow-hidden border"
-                  style={{ borderColor: isActive ? "#0050B3" : "#e2e8f0" }}
+                  style={{ borderColor: isActive ? "var(--c-primary)" : "#e2e8f0" }}
                 >
                   <img src={block.dataUrl} alt="" className="w-full block" />
                   <input
@@ -290,7 +290,7 @@ export function BlockEditor({
                   {block.type === "numbered" && (
                     <span
                       className="flex-none mt-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold"
-                      style={{ background: "#eff6ff", color: "#0050B3" }}
+                      style={{ background: "#eff6ff", color: "var(--c-primary)" }}
                     >
                       {blocks.slice(0, index + 1).reduceRight((acc, b, i) => {
                         // Đếm ngược tới khi gặp dòng khác loại — cùng cách tính số như lúc hiển thị.
@@ -310,7 +310,7 @@ export function BlockEditor({
                     }
                     style={
                       block.type === "quote"
-                        ? { borderColor: "#0050B3" }
+                        ? { borderColor: "var(--c-primary)" }
                         : block.type === "callout"
                           ? { background: "#eff6ff", border: "1px solid #bfdbfe" }
                           : undefined
@@ -358,7 +358,7 @@ export function BlockEditor({
                       className="w-8 h-8 rounded-lg text-xs font-bold border flex items-center justify-center"
                       style={
                         block.type === t.id
-                          ? { background: "#0050B3", borderColor: "#0050B3", color: "#fff" }
+                          ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "#fff" }
                           : { background: "#fff", borderColor: "#e2e8f0", color: "#475569" }
                       }
                     >
@@ -399,7 +399,7 @@ export function BlockEditor({
                     className="w-8 h-8 rounded-lg text-[13px] border flex items-center justify-center"
                     style={
                       linkPickerFor === block.id
-                        ? { background: "#0050B3", borderColor: "#0050B3", color: "#fff" }
+                        ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "#fff" }
                         : { background: "#fff", borderColor: "#e2e8f0", color: linkTargets.length === 0 ? "#cbd5e1" : "#334155" }
                     }
                   >
@@ -430,7 +430,7 @@ export function BlockEditor({
                           className="w-full text-left px-3 py-2 border-b last:border-0 flex items-center gap-2"
                           style={{ borderColor: "#f1f5f9" }}
                         >
-                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full flex-none" style={{ background: "#eff6ff", color: "#0050B3" }}>
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full flex-none" style={{ background: "#eff6ff", color: "var(--c-primary)" }}>
                             {t.group}
                           </span>
                           <span className="text-xs text-slate-700 truncate">{t.label}</span>
@@ -452,7 +452,7 @@ export function BlockEditor({
                     onClick={() => requestImageAt(index + 1)}
                     disabled={busy}
                     className="h-8 px-2.5 rounded-lg text-[11px] font-semibold border flex items-center gap-1"
-                    style={{ background: "#eff6ff", borderColor: "#dbeafe", color: "#0050B3" }}
+                    style={{ background: "#eff6ff", borderColor: "#dbeafe", color: "var(--c-primary)" }}
                   >
                     {busy ? "Đang xử lý…" : "＋ Ảnh"}
                   </button>
@@ -513,7 +513,7 @@ export function BlockEditor({
             onClick={() => requestImageAt(blocks.length)}
             disabled={busy}
             className="flex-1 py-2 rounded-xl text-[11px] font-semibold border"
-            style={{ background: "#eff6ff", borderColor: "#dbeafe", color: "#0050B3" }}
+            style={{ background: "#eff6ff", borderColor: "#dbeafe", color: "var(--c-primary)" }}
           >
             {busy ? "Đang xử lý ảnh…" : "＋ Ảnh ở cuối"}
           </button>
