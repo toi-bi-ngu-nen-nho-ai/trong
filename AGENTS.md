@@ -19,3 +19,7 @@ A Vite development server is **always running** on `$PORT` (default 8443). You d
 ## Styling
 
 This project uses **Tailwind CSS v4** for styling. Use Tailwind utility classes directly in JSX. Tailwind is loaded via the Vite plugin — no PostCSS config needed.
+
+## Git workflow
+
+The user has authorized automatic `git push` to `origin main` without asking for confirmation each time, standing from 2026-08-04. Push after finishing a coherent chunk of work (a completed task or feature that builds/type-checks cleanly) — not after every single file edit. Still follow normal commit hygiene: stage only relevant files, write a clear commit message, never force-push, never push if the build/type-check is broken.
