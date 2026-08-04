@@ -165,4 +165,50 @@ export const ELECTROLYTES: InfusionDrug[] = [
       },
     ],
   },
+  {
+    // Khoá `bicarbonate` đã có trong bảng tương hợp từ đầu (cặp calci × bicarbonat là một trong
+    // những cặp kết tủa kinh điển nhất) nhưng chưa từng có thuốc nào mang nó — nghĩa là luật đó
+    // không bao giờ chạy được. Bản ghi này nối lại chỗ đứt đó.
+    id: "sodium-bicarbonate",
+    name: "Natri Bicarbonat 8,4%",
+    route: "Tiêm/truyền tĩnh mạch (IV) — ưu tiên tĩnh mạch trung tâm khi dùng dung dịch 8,4%",
+    preparation:
+      "Dung dịch 8,4% có 1 mEq/mL (1 mmol Na và 1 mmol HCO3 trong mỗi mL). Ống 50 mL = 50 mEq. Truyền chậm; nếu dùng đường ngoại biên thì pha loãng xuống 1,4% (đẳng trương) bằng cách pha 50 mL dung dịch 8,4% vào 250 mL Glucose 5%.",
+    doseRange:
+      "Toan chuyển hoá nặng: 1–2 mEq/kg truyền chậm, sau đó chỉnh theo khí máu. Tăng kali máu cấp: 50 mEq truyền trong 5 phút. Ngộ độc thuốc chống trầm cảm ba vòng có QRS giãn: 1–2 mEq/kg bolus, lặp lại tới khi QRS hẹp lại.",
+    note:
+      "Chỉ định KHÔNG phải là mọi trường hợp toan máu. Trong toan chuyển hoá do tăng lactat hoặc nhiễm toan ceton, bicarbonat không cải thiện kết cục và có thể gây hại — chỉ cân nhắc khi pH rất thấp (thường < 7,1) hoặc có toan chuyển hoá mất bicarbonat thật sự (tiêu chảy, toan ống thận). Ngược lại, trong ngộ độc thuốc chẹn kênh natri (chống trầm cảm ba vòng) thì đây là thuốc điều trị đặc hiệu.",
+    warnings: [
+      {
+        text:
+          "Dung dịch KIỀM MẠNH — phân huỷ catecholamin và kết tủa với calci, giãn cơ, phenytoin tại Y-site. Dùng nòng riêng và tráng dây bằng NaCl 0,9% trước/sau, nếu không sẽ mất vận mạch hoặc mất giãn cơ giữa chừng.",
+        severity: "cao",
+      },
+      {
+        text:
+          "Gây HẠ KALI và hạ calci ion hoá (đẩy kali vào tế bào, tăng gắn calci với albumin) — theo dõi kali và calci ion hoá; có thể làm nặng thêm co giật do hạ calci.",
+        severity: "cao",
+      },
+      { text: "Thoát mạch dung dịch 8,4% gây hoại tử mô — ưu tiên tĩnh mạch trung tâm, hoặc pha loãng xuống 1,4% khi dùng ngoại biên.", severity: "cao" },
+      { text: "Quá tải natri và tăng CO2 máu — ở bệnh nhân không tăng được thông khí, bicarbonat làm toan hô hấp nặng thêm.", severity: "trung bình" },
+    ],
+    compatKey: COMPAT_KEYS.bicarbonate,
+    boluses: [
+      {
+        label: "Toan chuyển hoá nặng / ngộ độc thuốc chẹn kênh natri",
+        unit: "mEq",
+        perKgLow: 1,
+        perKgHigh: 2,
+        over: "Truyền tĩnh mạch chậm; trong ngộ độc có QRS giãn thì bolus nhanh hơn và lặp lại cho tới khi QRS hẹp lại.",
+        note: "1 mEq = 1 mL dung dịch 8,4%. Kiểm tra lại khí máu sau mỗi liều thay vì truyền tiếp theo quán tính.",
+      },
+      {
+        label: "Tăng kali máu cấp",
+        unit: "mEq",
+        fixedLow: 50,
+        over: "Truyền tĩnh mạch trong 5 phút.",
+        note: "Chỉ có tác dụng đáng kể khi bệnh nhân có toan chuyển hoá kèm theo; không thay thế được calci trong việc ổn định màng cơ tim.",
+      },
+    ],
+  },
 ]

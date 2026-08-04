@@ -8,6 +8,8 @@
 // liệu mới. Nhờ vậy mọi kháng sinh dựng sẵn VÀ mọi mục người dùng tự nhập đều được tính ngay, kể cả
 // liều riêng theo bệnh lý (IndicationDose.tiers) vốn cũng chỉ là chuỗi chữ.
 
+import type { DoseCap } from "../data/types"
+
 // Đơn vị lượng thuốc chấp nhận được ở dạng "…/kg". "đơn vị"/"UI" giữ nguyên, không quy đổi.
 const MASS_UNITS = ["mg", "mcg", "g", "đơn vị", "UI"] as const
 
@@ -65,6 +67,74 @@ export function computePerKgText(dose: PerKgDose, weightKg: number | null): stri
   if (dose.high == null) return formatMass(lo, dose.unit)
   const hi = dose.high * weightKg
   return `${formatMass(lo, dose.unit)} – ${formatMass(hi, dose.unit)}`
+}
+
+// ─── Trần liều một lần dùng ───────────────────────────────────────────────────
+// Phép nhân mg/kg × cân nặng không có điểm dừng tự nhiên: 25 mg/kg × 140 kg = 3.500 mg Vancomycin,
+// một con số trông hợp lý nhưng vượt xa trần 2–3 g của mọi khuyến cáo. `DoseCap` khai trên từng
+// thuốc (Antibiotic.maxSingleDose) là mốc dừng đó — xem ghi chú trong data/types.ts.
+//
+// Quy tắc: KHÔNG im lặng cắt số. App vẫn cho thấy con số tính thô (để người dùng đối chiếu được với
+// phép nhẩm của chính mình) nhưng nói rõ liều thực dùng bị trần chặn ở đâu và vì sao — cắt số mà
+// không nói gì thì lần sau người dùng nhẩm tay lại ra số khác app, và họ sẽ tin phép nhẩm.
+
+export interface CappedDose {
+  // Liều sau khi đã áp trần — đây là con số được dùng để tính "Cách dùng"/số mL phải rút.
+  low: number
+  high: number | null
+  unit: string
+  // Liều tính thô trước khi áp trần, chỉ để hiển thị đối chiếu.
+  rawLow: number
+  rawHigh: number | null
+  // Trần đã thực sự cắt vào khoảng liều này hay không.
+  capped: boolean
+  cap: DoseCap | null
+}
+
+// Áp trần lên một khoảng liều đã nhân ra đơn vị tuyệt đối. Trần khai bằng đơn vị khác họ (vd trần
+// "g" cho liều tính bằng "mg") vẫn quy đổi được; khác họ hoàn toàn (vd trần "mg" cho liều "đơn vị")
+// thì BỎ QUA trần thay vì quy đổi bừa — một hệ số bịa ra ở đây còn nguy hiểm hơn là không có trần.
+export function applyDoseCap(
+  low: number,
+  high: number | null,
+  unit: string,
+  cap: DoseCap | null | undefined,
+): CappedDose {
+  const base: CappedDose = { low, high, unit, rawLow: low, rawHigh: high, capped: false, cap: null }
+  if (cap == null || !(cap.amount > 0)) return base
+  const capInDoseUnit = convertMass(cap.amount, cap.unit, unit)
+  if (capInDoseUnit == null) return base
+  const capped = (high ?? low) > capInDoseUnit + 1e-9
+  if (!capped) return { ...base, cap }
+  return {
+    low: Math.min(low, capInDoseUnit),
+    high: high != null ? Math.min(high, capInDoseUnit) : null,
+    unit,
+    rawLow: low,
+    rawHigh: high,
+    capped: true,
+    cap,
+  }
+}
+
+// Quy đổi khối lượng giữa mcg/mg/g. Trả về null khi một trong hai đơn vị không thuộc họ này
+// ("đơn vị"/"UI" chỉ so được với chính nó).
+const MASS_IN_MCG: Record<string, number> = { mcg: 1, mg: 1000, g: 1_000_000 }
+
+function convertMass(value: number, from: string, to: string): number | null {
+  if (from === to) return value
+  const a = MASS_IN_MCG[from]
+  const b = MASS_IN_MCG[to]
+  if (a == null || b == null) return null
+  return (value * a) / b
+}
+
+// Câu giải thích hiện cạnh liều khi trần đã cắt. Luôn nói cả con số thô lẫn con số sau trần.
+export function describeDoseCap(d: CappedDose): string | null {
+  if (!d.capped || d.cap == null) return null
+  const raw = d.rawHigh != null ? `${formatMass(d.rawLow, d.unit)} – ${formatMass(d.rawHigh, d.unit)}` : formatMass(d.rawLow, d.unit)
+  const capText = formatMass(d.cap.amount, d.cap.unit)
+  return `Nhân theo cân nặng ra ${raw}, vượt trần một lần dùng ${capText}${d.cap.note ? ` (${d.cap.note})` : ""}. Liều dùng lấy tối đa ${capText}.`
 }
 
 // Bắt liều TUYỆT ĐỐI (không theo cân nặng) đứng đầu chuỗi, vd "500 mg mỗi 48 giờ" → 500 mg,

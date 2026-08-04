@@ -201,6 +201,23 @@ export interface Antibiotic extends SourceInfo {
   // Liều nạp — vd Vancomycin cần liều nạp 25–30 mg/kg trước khi vào liều duy trì theo CrCl.
   // Cùng kiểu BolusDose với InfusionDrug.boluses (xem bên dưới), dùng chung component hiển thị/sửa.
   boluses?: BolusDose[]
+  // Trần liều MỘT LẦN DÙNG. Xem ghi chú của DoseCap ngay bên dưới.
+  maxSingleDose?: DoseCap
+}
+
+// ─── Trần liều một lần dùng ───────────────────────────────────────────────────
+// Vì sao phải có: liều kháng sinh trong app viết dạng chuỗi "15–20 mg/kg mỗi 8–12h", và app nhân
+// thẳng con số đó với cân nặng (xem lib/perKgDose.ts). Phép nhân đó KHÔNG có điểm dừng — bệnh nhân
+// 140 kg cho ra "liều nạp Vancomycin 3.500 mg" trông hoàn toàn hợp lý trong khi mọi khuyến cáo đều
+// chặn ở 2–3 g. Bên thuốc truyền đã có doseAbsMax canh việc này rất kỹ; bên kháng sinh — nhóm dùng
+// nhiều hơn hẳn — thì trước đây không có lớp canh nào.
+//
+// `amount` tính theo `unit` (cùng họ đơn vị với liều: mg/g/mcg/đơn vị). `note` nói RÕ trần này từ
+// đâu ra, vì một con số chặn mà không giải thích thì người dùng chỉ học cách bấm bỏ qua.
+export interface DoseCap {
+  amount: number
+  unit: string
+  note?: string
 }
 
 // Danh mục bệnh lý — mỗi bệnh tham chiếu tới các kháng sinh phù hợp qua `antibiotics` (id, theo thứ tự ưu tiên).

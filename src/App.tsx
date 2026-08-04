@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticWarning, DiseaseEntry, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, MindNode, MindEdge, MindImage, MindStroke, MindmapData, MindBoard, SourceInfo } from "./data/types"
-import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, INOTROPES, VASOACTIVES, VASODILATORS, ANTIARRHYTHMICS, ELECTROLYTES, ECG_LESSONS } from "./data"
+import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
+import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
 import { useIdbCollection } from "./lib/useIdbCollection"
@@ -47,8 +48,8 @@ import {
 } from "./lib/mixing"
 import { formatAmpouleUsage, formatFixedUsage, formatVialUsage } from "./lib/usageText"
 import { formatSavedAt, importWardRecipes, loadWardRecipes, removeWardRecipe, clearWardRecipesForDrug, saveWardRecipe, type WardRecipe } from "./lib/wardRecipes"
-import { useStickyState } from "./lib/uiState"
-import { computePerKgText, findFixedDose, findPerKgDoses, formatMass } from "./lib/perKgDose"
+import { useStickyState, writeStickyState } from "./lib/uiState"
+import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
 import { MAX_LINES, STALE_AFTER_MS, formatAgo, formatClock, lineLabel, loadRunning, saveRunning, upsertRunning, type RunningDrug } from "./lib/runningDrugs"
 import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
@@ -82,11 +83,11 @@ type Screen =
   | "mixing"
   | "customEntry"
   | "addAntibiotic"
-  | "addInotrope"
-  | "addVasoactive"
-  | "addVasodilator"
-  | "addArrhythmia"
-  | "addElectrolyte"
+  // Trước đây mỗi nhóm thuốc truyền có một màn "thêm" riêng ("addInotrope", "addVasoactive"...).
+  // Cả 5 màn đó vốn dùng CHUNG một component (AddInfusionScreen) và chỉ khác nhau ở tham số
+  // `category`, nên nay gộp thành một màn duy nhất mang theo nhóm đang thêm — xem addInfusionCategory
+  // trong App(). Nhờ vậy thêm nhóm mới không phải thêm một nhánh Screen nữa.
+  | "addInfusion"
   | "editAntibiotic"
   | "editInfusion"
   | "dataSync"
@@ -96,8 +97,10 @@ type Screen =
   | "addFlashcard"
   | "comingSoon"
 
-// Các mục con bên trong tab "Dùng thuốc": kháng sinh, thuốc co bóp cơ tim (inotrope), thuốc vận mạch (vasoactive).
-type MixingTab = "antibiotics" | "inotrope" | "vasoactive" | "vasodilator" | "arrhythmia" | "electrolyte"
+// Các mục con bên trong tab "Dùng thuốc": kháng sinh + toàn bộ các nhóm thuốc truyền khai trong
+// data/categories.ts (co bóp, vận mạch, giãn mạch, loạn nhịp, điện giải, an thần, thần kinh,
+// khác, giải độc).
+type MixingTab = "antibiotics" | InfusionCategory
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 // Toàn bộ data tham khảo (bài viết, thẻ ghi nhớ, kháng sinh, bệnh lý, thuốc truyền tĩnh mạch...)
@@ -2941,12 +2944,10 @@ function EditAntibioticScreen({
   )
 }
 
-const INFUSION_CATEGORY_LABELS: Record<"inotrope" | "vasoactive" | "vasodilator" | "arrhythmia" | "electrolyte", string> = {
-  inotrope: "Thêm thuốc co bóp cơ tim",
-  vasoactive: "Thêm thuốc vận mạch",
-  vasodilator: "Thêm thuốc giãn mạch",
-  arrhythmia: "Thêm thuốc xử trí rối loạn nhịp tim",
-  electrolyte: "Thêm thuốc xử trí rối loạn điện giải / chuyển hoá",
+// Tiêu đề màn "thêm thuốc" — dựng từ chính nhãn của nhóm (data/categories.ts) thay vì một bảng
+// chép tay song song, vốn là chỗ dễ quên nhất khi thêm nhóm mới.
+function addInfusionTitle(category: InfusionCategory): string {
+  return `Thêm ${infusionCategory(category).categoryLabel}`
 }
 
 // Bản nháp của một liều nạp trong lúc nhập: mọi ô số giữ ở dạng chuỗi để gõ dở dang ("0,", "1.")
@@ -3100,7 +3101,7 @@ function AddInfusionScreen({
   onSave,
   onBack,
 }: {
-  category: "inotrope" | "vasoactive" | "vasodilator" | "arrhythmia" | "electrolyte"
+  category: InfusionCategory
   initial?: InfusionDrug
   diseases: DiseaseEntry[]
   onSave: (d: InfusionDrug) => void
@@ -3250,7 +3251,7 @@ function AddInfusionScreen({
           Quay lại
         </button>
         <span className="text-sm font-semibold text-slate-900">
-          {isEdit ? `Sửa: ${initial?.name}` : INFUSION_CATEGORY_LABELS[category]}
+          {isEdit ? `Sửa: ${initial?.name}` : addInfusionTitle(category)}
         </span>
         <span className="w-10" />
       </div>
@@ -3562,11 +3563,7 @@ function DataSyncScreen({
   customArticles,
   customAntibiotics,
   customDiseases,
-  customInotropes,
-  customVasoactives,
-  customVasodilators,
-  customArrhythmia,
-  customElectrolytes,
+  customInfusions,
   customEcgLessons,
   customFlashcards,
   boards,
@@ -3577,11 +3574,7 @@ function DataSyncScreen({
   customArticles: Article[]
   customAntibiotics: Antibiotic[]
   customDiseases: DiseaseEntry[]
-  customInotropes: InfusionDrug[]
-  customVasoactives: InfusionDrug[]
-  customVasodilators: InfusionDrug[]
-  customArrhythmia: InfusionDrug[]
-  customElectrolytes: InfusionDrug[]
+  customInfusions: Record<InfusionCategory, InfusionDrug[]>
   customEcgLessons: EcgLesson[]
   customFlashcards: FlashCard[]
   boards: MindBoard[]
@@ -3590,11 +3583,7 @@ function DataSyncScreen({
     articles: Article[]
     antibiotics: Antibiotic[]
     diseases: DiseaseEntry[]
-    inotropes: InfusionDrug[]
-    vasoactives: InfusionDrug[]
-    vasodilators: InfusionDrug[]
-    antiarrhythmics: InfusionDrug[]
-    electrolytes: InfusionDrug[]
+    infusions: Record<InfusionCategory, InfusionDrug[]>
     ecgLessons: EcgLesson[]
     flashcards: FlashCard[]
     mindmapBoards: { board: MindBoard; mindmap: MindmapData }[]
@@ -3612,15 +3601,13 @@ function DataSyncScreen({
   const wardRecipesByDrug = loadWardRecipes()
   const wardRecipeCount = Object.values(wardRecipesByDrug).reduce((n, list) => n + list.length, 0)
 
+  const infusionCount = INFUSION_CATEGORIES.reduce((n, c) => n + (customInfusions[c.id]?.length ?? 0), 0)
+
   const totalCount =
     customArticles.length +
     customAntibiotics.length +
     customDiseases.length +
-    customInotropes.length +
-    customVasoactives.length +
-    customVasodilators.length +
-    customArrhythmia.length +
-    customElectrolytes.length +
+    infusionCount +
     customEcgLessons.length +
     customFlashcards.length +
     wardRecipeCount
@@ -3639,11 +3626,10 @@ function DataSyncScreen({
           articles: customArticles,
           antibiotics: customAntibiotics,
           diseases: customDiseases,
-          inotropes: customInotropes,
-          vasoactives: customVasoactives,
-          vasodilators: customVasodilators,
-          antiarrhythmics: customArrhythmia,
-          electrolytes: customElectrolytes,
+          // Mỗi nhóm thuốc truyền một khoá riêng trong file, tên khoá lấy từ `backupKey` của nhóm
+          // (data/categories.ts) — 5 nhóm cũ giữ nguyên tên cũ nên file xuất từ bản trước và file
+          // xuất từ bản này đọc lẫn nhau được.
+          ...Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.backupKey, customInfusions[c.id] ?? []])),
           ecgLessons: customEcgLessons,
           flashcards: customFlashcards,
           mindmapBoards,
@@ -3684,11 +3670,11 @@ function DataSyncScreen({
         const articles: Article[] = Array.isArray(d.articles) ? (d.articles as Article[]) : []
         const antibiotics: Antibiotic[] = Array.isArray(d.antibiotics) ? (d.antibiotics as Antibiotic[]) : []
         const diseases: DiseaseEntry[] = Array.isArray(d.diseases) ? (d.diseases as DiseaseEntry[]) : []
-        const inotropes: InfusionDrug[] = Array.isArray(d.inotropes) ? (d.inotropes as InfusionDrug[]) : []
-        const vasoactives: InfusionDrug[] = Array.isArray(d.vasoactives) ? (d.vasoactives as InfusionDrug[]) : []
-        const vasodilators: InfusionDrug[] = Array.isArray(d.vasodilators) ? (d.vasodilators as InfusionDrug[]) : []
-        const antiarrhythmics: InfusionDrug[] = Array.isArray(d.antiarrhythmics) ? (d.antiarrhythmics as InfusionDrug[]) : []
-        const electrolytes: InfusionDrug[] = Array.isArray(d.electrolytes) ? (d.electrolytes as InfusionDrug[]) : []
+        // Thuốc truyền: đọc theo `backupKey` của từng nhóm. File cũ (chỉ có 5 nhóm) đơn giản là
+        // thiếu khoá của 4 nhóm mới — mỗi khoá thiếu thành mảng rỗng, không phải lỗi.
+        const infusions = Object.fromEntries(
+          INFUSION_CATEGORIES.map((c) => [c.id, Array.isArray(d[c.backupKey]) ? (d[c.backupKey] as InfusionDrug[]) : []]),
+        ) as Record<InfusionCategory, InfusionDrug[]>
         const ecgLessons: EcgLesson[] = Array.isArray(d.ecgLessons) ? (d.ecgLessons as EcgLesson[]) : []
         const flashcards: FlashCard[] = Array.isArray(d.flashcards) ? (d.flashcards as FlashCard[]) : []
         const wardRecipes: WardRecipe[] = Array.isArray(d.wardRecipes) ? (d.wardRecipes as WardRecipe[]) : []
@@ -3721,11 +3707,7 @@ function DataSyncScreen({
           articles.length +
           antibiotics.length +
           diseases.length +
-          inotropes.length +
-          vasoactives.length +
-          vasodilators.length +
-          antiarrhythmics.length +
-          electrolytes.length +
+          INFUSION_CATEGORIES.reduce((n, c) => n + infusions[c.id].length, 0) +
           ecgLessons.length +
           flashcards.length +
           wardRecipes.length
@@ -3733,7 +3715,7 @@ function DataSyncScreen({
           setStatus("Không tìm thấy dữ liệu hợp lệ trong file này.")
           return
         }
-        onImport({ articles, antibiotics, diseases, inotropes, vasoactives, vasodilators, antiarrhythmics, electrolytes, ecgLessons, flashcards, mindmapBoards, wardRecipes })
+        onImport({ articles, antibiotics, diseases, infusions, ecgLessons, flashcards, mindmapBoards, wardRecipes })
         setStatus(
           `Đã nhập ${count} mục${wardRecipes.length ? ` (kể cả ${wardRecipes.length} công thức pha)` : ""}${mindmapBoards.length ? ` + ${mindmapBoards.length} bảng sơ đồ tư duy` : ""} (gộp theo id — mục trùng id được cập nhật, mục hiện có không bị mất).`,
         )
@@ -3770,11 +3752,9 @@ function DataSyncScreen({
               { label: "Bài viết", count: customArticles.length },
               { label: "Kháng sinh", count: customAntibiotics.length },
               { label: "Bệnh lý tự thêm", count: customDiseases.length },
-              { label: "Co bóp cơ tim", count: customInotropes.length },
-              { label: "Vận mạch", count: customVasoactives.length },
-              { label: "Giãn mạch", count: customVasodilators.length },
-              { label: "Rối loạn nhịp tim", count: customArrhythmia.length },
-              { label: "Điện giải / chuyển hoá", count: customElectrolytes.length },
+              // Một ô cho mỗi nhóm thuốc truyền, đọc từ danh mục nhóm — thêm nhóm mới là bảng này
+              // tự có thêm ô, không còn nguy cơ quên một nhóm rồi tưởng nhóm đó không có dữ liệu.
+              ...INFUSION_CATEGORIES.map((c) => ({ label: c.title, count: customInfusions[c.id]?.length ?? 0 })),
               { label: "Công thức pha đã lưu", count: wardRecipeCount },
               { label: "Bài học ECG", count: customEcgLessons.length },
               { label: "Thẻ ghi nhớ tự nhập", count: customFlashcards.length },
@@ -5860,6 +5840,9 @@ function AntibioticDoseCard({
   // tính ra mL thì sẽ đưa ra một "Cách dùng" trông chắc chắn cho một liều thực ra phải cá thể hoá —
   // đúng kiểu tự suy diễn nguy hiểm mà app tránh ở mọi chỗ khác. Chỉ cần bỏ qua tier đó là đủ an toàn.
   const notComputableDose = /theo nồng độ|cá thể hoá|giãn khoảng liều/i.test(tier.dose)
+  // Trần liều một lần dùng của thuốc (nếu có khai báo) — áp NGAY TẠI ĐÂY, cùng chỗ với chặn cân
+  // nặng vô lý, để mọi thứ đọc từ doseTargetMg (bảng pha, "Cách dùng", số mL phải rút) đều đã nằm
+  // dưới trần. Xem applyDoseCap trong lib/perKgDose.ts.
   const doseTargetMg = useMemo(() => {
     if (notComputableDose) return null
     const perKg = perKgDoses[0]
@@ -5867,12 +5850,18 @@ function AntibioticDoseCard({
       // Cân nặng bất thường (vd 5000 kg gõ nhầm) → không nhân ra một con số trông chắc chắn, xem
       // weightImplausible ở trên.
       if (weightImplausible) return null
-      return { low: perKg.low * dosingWeight.used, high: perKg.high != null ? perKg.high * dosingWeight.used : null, unit: perKg.unit }
+      return applyDoseCap(
+        perKg.low * dosingWeight.used,
+        perKg.high != null ? perKg.high * dosingWeight.used : null,
+        perKg.unit,
+        drug.maxSingleDose,
+      )
     }
     if (perKg) return null // liều mg/kg mà chưa có cân nặng thì không đoán được
     const fixed = findFixedDose(tier.dose)
-    return fixed ? { low: fixed.amount, high: null, unit: fixed.unit } : null
-  }, [notComputableDose, perKgDoses, dosingWeight.used, weightImplausible, tier.dose])
+    return fixed ? applyDoseCap(fixed.amount, null, fixed.unit, drug.maxSingleDose) : null
+  }, [notComputableDose, perKgDoses, dosingWeight.used, weightImplausible, tier.dose, drug.maxSingleDose])
+  const doseCapText = doseTargetMg ? describeDoseCap(doseTargetMg) : null
   const autoUsage = useMemo(() => {
     if (!mixCfg || !doseTargetMg) return null
     if (mixCfg.vialForm === "fixed") {
@@ -6128,8 +6117,17 @@ function AntibioticDoseCard({
                   {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
                 </p>
               ))}
+              {/* Trần liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
+                  không để dưới đáy thẻ: chỗ người dùng đang nhìn là dòng mg/kg này. */}
+              {doseCapText && (
+                <p className="text-[11px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-orange-soft)", color: "var(--c-orange)" }}>
+                  {doseCapText}
+                </p>
+              )}
               <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-accent)" }}>
-                Còn phải làm tròn theo hàm lượng lọ/ống thực tế và ngưỡng liều tối đa của thuốc.
+                {doseCapText
+                  ? "Còn phải làm tròn theo hàm lượng lọ/ống thực tế."
+                  : "Còn phải làm tròn theo hàm lượng lọ/ống thực tế và ngưỡng liều tối đa của thuốc."}
               </p>
             </>
           ) : (
@@ -7311,6 +7309,13 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   // thì phải nói rõ nó đang so với cái gì.
   const concIsDefault = calc.concDefault != null && concValue != null && Math.abs(concValue - calc.concDefault) < 1e-9
   const concIsWard = ward != null && concValue != null && Math.abs(concValue - ward.concValue) < 1e-9
+  // Nồng độ đang dùng có vượt ngưỡng còn truyền được qua đường ngoại biên hay không. Chỉ tính khi
+  // thuốc có khai ngưỡng — thiếu dữ liệu thì im lặng, không đoán một ngưỡng nào đó.
+  const peripheralWarn = useMemo(() => {
+    const max = calc.mix?.maxPeripheralConc
+    if (max == null || !(max > 0) || concValue == null || !(concValue > max + 1e-9)) return null
+    return { conc: concValue, max, factor: concValue / max, note: calc.mix?.peripheralNote }
+  }, [calc.mix?.maxPeripheralConc, calc.mix?.peripheralNote, concValue])
   const fieldClass = FIELD
   const fieldStyle = FIELD_STYLE
 
@@ -7459,6 +7464,33 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         <Note tone="info">
           Nồng độ tự nhập {conc} {calc.concUnit} — {ward ? `công thức của bạn là ${formatDoseNumber(ward.concValue)}` : `chuẩn của app là ${calc.concDefault}`} {calc.concUnit}.
         </Note>
+      )}
+
+      {/* ─── Đường truyền và hạn dùng sau pha ───────────────────────────────────
+          Hai thông tin này đã có sẵn trong dữ liệu từ lâu (MixRecipe.maxPeripheralConc / .stability)
+          nhưng bị ẩn hẳn khỏi giao diện cho gọn. Kết quả: công thức noradrenaline 0,08 mg/mL của
+          chính app đặc gấp 5 lần ngưỡng ngoại biên mà không có dòng nào nói ra — dữ liệu đúng nằm
+          sai chỗ. Nay chỉ hiện khi nồng độ ĐANG DÙNG thực sự vượt ngưỡng, nên nó không phải một
+          dòng chữ thường trực để người ta học cách lướt qua. */}
+      {peripheralWarn && (
+        <div className={`flex items-start gap-2 px-3 py-2.5 ${R.box} mb-2`} style={{ background: "var(--c-orange-soft)", border: "1px solid var(--c-orange-line)" }}>
+          <span className="mt-0.5 flex-none" style={{ color: "var(--c-orange)" }}>{icons.alert()}</span>
+          <div>
+            <p className={`${T.bodyStrong} font-extrabold leading-[1.3]`} style={{ color: "var(--c-orange)" }}>
+              ĐẶC HƠN NGƯỠNG CHO ĐƯỜNG NGOẠI BIÊN
+            </p>
+            <p className={`${T.meta} mt-0.5`} style={{ color: "var(--c-orange)" }}>
+              Đang pha {formatDoseNumber(peripheralWarn.conc)} {calc.concUnit}, gấp {formatDoseNumber(peripheralWarn.factor)} lần ngưỡng{" "}
+              {formatDoseNumber(peripheralWarn.max)} {calc.concUnit} — nồng độ này thuộc nhóm ưu tiên tĩnh mạch trung tâm.
+              {peripheralWarn.note ? ` ${peripheralWarn.note}` : ""}
+            </p>
+          </div>
+        </div>
+      )}
+      {calc.mix?.stability && (
+        <p className={`${T.meta} mb-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.lineSoft, color: C.textSoft }}>
+          Sau khi pha: {calc.mix.stability}
+        </p>
       )}
 
       {/* Trả về mốc chuẩn sau khi đã sửa lung tung */}
@@ -8087,80 +8119,45 @@ function ThemeToggle() {
 
 // ─── Dùng thuốc — màn hình cha chứa Kháng sinh / Co bóp cơ tim / Vận mạch / Giãn mạch / Rối loạn nhịp / Điện giải ──────
 
-// Nhãn tab ngắn (một từ nếu được) để hàng tab không phải cuộn xa và không có tab nào tràn hai dòng.
-// `search` là nhãn dài hơn, chỉ dùng trong câu "Tìm <...>" của ô tìm kiếm.
+// Hàng tab: kháng sinh đứng đầu, phần còn lại đọc thẳng từ danh mục nhóm thuốc truyền
+// (data/categories.ts) nên thêm một nhóm mới không phải sửa ở đây.
+// Nhãn tab cố ý ngắn (một từ nếu được) để hàng tab không phải cuộn xa; nhãn dài hơn chỉ dùng trong
+// câu "Tìm <...>" của ô tìm kiếm.
 const MIXING_TABS: { id: MixingTab; label: string; search: string }[] = [
   { id: "antibiotics", label: "Kháng sinh", search: "kháng sinh" },
-  { id: "inotrope", label: "Co bóp", search: "thuốc co bóp cơ tim" },
-  { id: "vasoactive", label: "Vận mạch", search: "thuốc vận mạch" },
-  { id: "vasodilator", label: "Giãn mạch", search: "thuốc giãn mạch" },
-  { id: "arrhythmia", label: "Loạn nhịp", search: "thuốc chống loạn nhịp" },
-  { id: "electrolyte", label: "Điện giải", search: "thuốc điện giải" },
+  ...INFUSION_CATEGORIES.map((c) => ({ id: c.id as MixingTab, label: c.tabLabel, search: c.categoryLabel })),
 ]
 
 // Tiêu đề một dòng, bỏ hẳn dòng mô tả phụ: dòng đó không giúp gì lúc trực mà lại đẩy nội dung
 // xuống thấp và là nguồn gốc của mấy chỗ xuống dòng lệch nhau giữa các tab.
 const MIXING_TITLES: Record<MixingTab, string> = {
   antibiotics: "Kháng sinh theo CrCl",
-  inotrope: "Thuốc co bóp cơ tim",
-  vasoactive: "Thuốc vận mạch",
-  vasodilator: "Thuốc giãn mạch",
-  arrhythmia: "Thuốc chống loạn nhịp",
-  electrolyte: "Điện giải / chuyển hoá",
+  ...(Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.id, c.title])) as Record<InfusionCategory, string>),
 }
 
 function DungThuocScreen({
   customAntibiotics,
   diseases,
-  customInotropes,
-  customVasoactives,
-  customVasodilators,
-  customArrhythmia,
-  customElectrolytes,
+  customInfusions,
   onAddAntibiotic,
-  onAddInotrope,
-  onAddVasoactive,
-  onAddVasodilator,
-  onAddArrhythmia,
-  onAddElectrolyte,
+  onAddInfusion,
   onEditAntibiotic,
-  onEditInotrope,
-  onEditVasoactive,
-  onEditVasodilator,
-  onEditArrhythmia,
-  onEditElectrolyte,
+  onEditInfusion,
   onDeleteAntibiotic,
-  onDeleteInotrope,
-  onDeleteVasoactive,
-  onDeleteVasodilator,
-  onDeleteArrhythmia,
-  onDeleteElectrolyte,
+  onDeleteInfusion,
 }: {
   customAntibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
-  customInotropes: InfusionDrug[]
-  customVasoactives: InfusionDrug[]
-  customVasodilators: InfusionDrug[]
-  customArrhythmia: InfusionDrug[]
-  customElectrolytes: InfusionDrug[]
+  // Danh sách thuốc TỰ NHẬP của từng nhóm, tra theo id nhóm. Trước đây mỗi nhóm là một prop riêng
+  // kèm ba prop thao tác (thêm/sửa/xoá) — 4 prop × số nhóm, tức là thêm một nhóm phải sửa đúng 4
+  // chỗ trong chữ ký, 4 chỗ ở nơi gọi và 1 chỗ khi vẽ. Nay mọi nhóm đi qua đúng một đường.
+  customInfusions: Record<InfusionCategory, InfusionDrug[]>
   onAddAntibiotic: () => void
-  onAddInotrope: () => void
-  onAddVasoactive: () => void
-  onAddVasodilator: () => void
-  onAddArrhythmia: () => void
-  onAddElectrolyte: () => void
+  onAddInfusion: (category: InfusionCategory) => void
   onEditAntibiotic: (drug: Antibiotic) => void
-  onEditInotrope: (drug: InfusionDrug) => void
-  onEditVasoactive: (drug: InfusionDrug) => void
-  onEditVasodilator: (drug: InfusionDrug) => void
-  onEditArrhythmia: (drug: InfusionDrug) => void
-  onEditElectrolyte: (drug: InfusionDrug) => void
+  onEditInfusion: (category: InfusionCategory, drug: InfusionDrug) => void
   onDeleteAntibiotic: (id: string) => void
-  onDeleteInotrope: (id: string) => void
-  onDeleteVasoactive: (id: string) => void
-  onDeleteVasodilator: (id: string) => void
-  onDeleteArrhythmia: (id: string) => void
-  onDeleteElectrolyte: (id: string) => void
+  onDeleteInfusion: (category: InfusionCategory, id: string) => void
 }) {
   // Tab đang mở phải sống sót qua việc rời màn hình rồi quay lại — xem lib/uiState.ts.
   const [tab, setTab] = useStickyState<MixingTab>("dungthuoc.tab", "antibiotics")
@@ -8171,6 +8168,58 @@ function DungThuocScreen({
   const [showLog, setShowLog] = useState(false)
   const [wardRecipes, setWardRecipes] = useState<Record<string, WardRecipe[]>>(loadWardRecipes)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  // ─── Tìm kiếm xuyên tab ────────────────────────────────────────────────────
+  // Mỗi tab vốn có ô tìm riêng, chỉ tìm trong đúng tab đang mở: gõ "adrenaline" ở tab Kháng sinh
+  // thì không ra gì, mà lúc cấp cứu không ai nhớ adrenaline nằm ở tab "Co bóp" hay "Vận mạch" —
+  // nó nằm ở CẢ HAI, dưới hai bản ghi khác nhau. Ô này tìm qua toàn bộ 10 nhóm cùng lúc.
+  //
+  // Mở bằng nút kính lúp trên tiêu đề chứ không chiếm sẵn một hàng: màn này cố ý giữ nội dung sát
+  // lên trên, thêm một hàng thường trực là đẩy phần máy tính xuống thấp ở mọi lần dùng.
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [globalQuery, setGlobalQuery] = useState("")
+  // Tăng lên mỗi lần nhảy tới một thuốc, để cây con được dựng lại KỂ CẢ khi thuốc đó nằm ngay
+  // trong tab đang mở — nếu không, giá trị sticky vừa ghi sẽ không được đọc lại.
+  const [jumpKey, setJumpKey] = useState(0)
+
+  const searchResults = useMemo(() => {
+    const q = normalizeSearch(globalQuery)
+    if (!q) return []
+    const out: { tab: MixingTab; tabLabel: string; id: string; name: string; route: string }[] = []
+    mergeWithOverrides(ANTIBIOTICS, customAntibiotics).forEach((d) => {
+      if (normalizeSearch(d.name).includes(q)) out.push({ tab: "antibiotics", tabLabel: "Kháng sinh", id: d.id, name: d.name, route: d.route })
+    })
+    INFUSION_CATEGORIES.forEach((c) => {
+      mergeWithOverrides(c.staticDrugs, customInfusions[c.id] ?? []).forEach((d) => {
+        if (normalizeSearch(d.name).includes(q)) out.push({ tab: c.id, tabLabel: c.tabLabel, id: d.id, name: d.name, route: d.route })
+      })
+    })
+    // Cắt ngắn: danh sách dài hơn một màn hình thì không còn là kết quả tìm kiếm nữa mà là danh mục.
+    return out.slice(0, 30)
+  }, [globalQuery, customAntibiotics, customInfusions])
+
+  // Mở thẳng thuốc vừa chọn ở tab của nó. Đặt sẵn các bước chọn của tab đích (hoạt chất / bệnh lý /
+  // đường dùng) rồi mới đổi tab — xem writeStickyState trong lib/uiState.ts.
+  function openSearchResult(r: { tab: MixingTab; id: string; name: string }) {
+    if (r.tab === "antibiotics") {
+      writeStickyState("abx.query", "")
+      writeStickyState<string | null>("abx.group", r.name)
+      // Bỏ qua bước chọn bệnh lý: người dùng vừa gọi đích danh một thuốc, bắt chọn thêm một bước
+      // nữa mới thấy liều là làm hỏng chính thao tác họ đang cố rút ngắn.
+      writeStickyState<string | null>("abx.disease", DISEASE_SKIP)
+      writeStickyState<string | null>("abx.entry", r.id)
+    } else {
+      const cat = infusionCategory(r.tab)
+      writeStickyState(`infusion.query.${cat.categoryLabel}`, "")
+      writeStickyState<string | null>(`infusion.sel.${cat.categoryLabel}`, r.id)
+      writeStickyState<string | null>(`infusion.disease.${cat.categoryLabel}`, null)
+    }
+    setTab(r.tab)
+    setJumpKey((n) => n + 1)
+    setSearchOpen(false)
+    setGlobalQuery("")
+    tickHaptic()
+  }
 
   // parseStrictNumber (không phải parseFloat) — "70abc"/"1.2.9" phải thành CHƯA NHẬP, không được
   // âm thầm rớt xuống 70/1.2 rồi chạy thẳng vào CrCl và liều mg/kg như một số sạch.
@@ -8264,15 +8313,67 @@ function DungThuocScreen({
       <ScreenHeader
         title={MIXING_TITLES[tab]}
         actions={
-          <button
-            onClick={() => setShowLog(true)}
-            className={`flex-none h-9 px-3 ${R.pill} ${T.label} border`}
-            style={{ borderColor: C.line, color: C.textSoft }}
-          >
-            Nhật ký{log.length > 0 ? ` · ${log.length}` : ""}
-          </button>
+          <>
+            <button
+              onClick={() => {
+                setSearchOpen((v) => !v)
+                setGlobalQuery("")
+              }}
+              className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
+              style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
+              aria-label="Tìm thuốc trong mọi nhóm"
+            >
+              {icons.search(searchOpen)}
+            </button>
+            <button
+              onClick={() => setShowLog(true)}
+              className={`flex-none h-9 px-3 ${R.pill} ${T.label} border`}
+              style={{ borderColor: C.line, color: C.textSoft }}
+            >
+              Nhật ký{log.length > 0 ? ` · ${log.length}` : ""}
+            </button>
+          </>
         }
       />
+
+      {/* Ô tìm chung — chỉ hiện khi bấm kính lúp, tìm qua kháng sinh và cả 9 nhóm thuốc truyền. */}
+      {searchOpen && (
+        <div className="flex-none px-5 pb-3">
+          <SearchField value={globalQuery} onChange={setGlobalQuery} placeholder="Tìm thuốc trong mọi nhóm..." />
+          {globalQuery.trim() !== "" && (
+            <div className={`${R.box} border overflow-hidden`} style={{ borderColor: C.line, background: C.surface }}>
+              {searchResults.length === 0 ? (
+                <p className={`${T.body} px-3 py-3`} style={{ color: C.textSoft }}>
+                  Không có thuốc nào khớp "{globalQuery.trim()}" trong danh mục.
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto scroll-ios">
+                  {searchResults.map((r) => (
+                    <button
+                      key={`${r.tab}-${r.id}`}
+                      onClick={() => openSearchResult(r)}
+                      className={`w-full text-left px-3 py-2.5 border-b ${TAP}`}
+                      style={{ borderColor: C.lineSoft }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <p className={`${T.bodyStrong} truncate flex-1`} style={{ color: C.text }}>
+                          {r.name}
+                        </p>
+                        <span className={`${T.meta} font-semibold px-2 py-0.5 ${R.pill} flex-none`} style={{ background: C.primarySoft, color: C.primary }}>
+                          {r.tabLabel}
+                        </span>
+                      </div>
+                      <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
+                        {shortRoute(r.route)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Hàng tab — cùng chiều cao với mọi chip khác trong màn (44px vùng chạm) */}
       <div className="flex-none pb-3">
@@ -8295,13 +8396,25 @@ function DungThuocScreen({
         <DisclaimerBar />
         <PatientPanel open={patientOpen} onToggle={() => setPatientOpen((v) => !v)} />
         <RunningPanel />
-        <div key={tab} className="fade-in">
-          {tab === "antibiotics" && <AntibioticsScreen customDrugs={customAntibiotics} diseases={diseases} onAddNew={onAddAntibiotic} onEdit={onEditAntibiotic} onDelete={onDeleteAntibiotic} />}
-          {tab === "inotrope" && <InfusionCategoryScreen staticDrugs={INOTROPES} customDrugs={customInotropes} diseases={diseases} categoryLabel="thuốc co bóp cơ tim" onAddNew={onAddInotrope} onEdit={onEditInotrope} onDelete={onDeleteInotrope} />}
-          {tab === "vasoactive" && <InfusionCategoryScreen staticDrugs={VASOACTIVES} customDrugs={customVasoactives} diseases={diseases} categoryLabel="thuốc vận mạch" onAddNew={onAddVasoactive} onEdit={onEditVasoactive} onDelete={onDeleteVasoactive} />}
-          {tab === "vasodilator" && <InfusionCategoryScreen staticDrugs={VASODILATORS} customDrugs={customVasodilators} diseases={diseases} categoryLabel="thuốc giãn mạch" onAddNew={onAddVasodilator} onEdit={onEditVasodilator} onDelete={onDeleteVasodilator} />}
-          {tab === "arrhythmia" && <InfusionCategoryScreen staticDrugs={ANTIARRHYTHMICS} customDrugs={customArrhythmia} diseases={diseases} categoryLabel="thuốc chống loạn nhịp" onAddNew={onAddArrhythmia} onEdit={onEditArrhythmia} onDelete={onDeleteArrhythmia} />}
-          {tab === "electrolyte" && <InfusionCategoryScreen staticDrugs={ELECTROLYTES} customDrugs={customElectrolytes} diseases={diseases} categoryLabel="thuốc điện giải" onAddNew={onAddElectrolyte} onEdit={onEditElectrolyte} onDelete={onDeleteElectrolyte} />}
+        <div key={`${tab}-${jumpKey}`} className="fade-in">
+          {tab === "antibiotics" ? (
+            <AntibioticsScreen customDrugs={customAntibiotics} diseases={diseases} onAddNew={onAddAntibiotic} onEdit={onEditAntibiotic} onDelete={onDeleteAntibiotic} />
+          ) : (
+            (() => {
+              const cat = infusionCategory(tab)
+              return (
+                <InfusionCategoryScreen
+                  staticDrugs={cat.staticDrugs}
+                  customDrugs={customInfusions[cat.id] ?? []}
+                  diseases={diseases}
+                  categoryLabel={cat.categoryLabel}
+                  onAddNew={() => onAddInfusion(cat.id)}
+                  onEdit={(drug) => onEditInfusion(cat.id, drug)}
+                  onDelete={(id) => onDeleteInfusion(cat.id, id)}
+                />
+              )
+            })()
+          )}
         </div>
       </div>
 
@@ -8690,10 +8803,10 @@ export default function App() {
     return () => window.removeEventListener(SW_UPDATE_EVENT, onUpdate)
   }, [])
   const [editAntibioticDraft, setEditAntibioticDraft] = useState<Antibiotic | null>(null)
-  const [editInfusionDraft, setEditInfusionDraft] = useState<{
-    category: "inotrope" | "vasoactive" | "vasodilator" | "arrhythmia" | "electrolyte"
-    drug: InfusionDrug
-  } | null>(null)
+  const [editInfusionDraft, setEditInfusionDraft] = useState<{ category: InfusionCategory; drug: InfusionDrug } | null>(null)
+  // Nhóm đang được thêm thuốc mới ở màn "addInfusion" — trước đây thông tin này nằm trong chính tên
+  // màn hình ("addInotrope", "addVasoactive"...), nên mỗi nhóm mới lại phải thêm một nhánh Screen.
+  const [addInfusionCategory, setAddInfusionCategory] = useState<InfusionCategory>("inotrope")
   const [history, setHistory] = useState<Screen[]>([])
   const [pulseKey, setPulseKey] = useState(0)
   // Những bài đã mở đọc, mới nhất trước (lưu trên máy — xem lib/recentReads.ts).
@@ -8710,11 +8823,27 @@ export default function App() {
   // gộp danh mục gốc với bản đã sửa/thêm, dùng thay cho DISEASES ở mọi nơi cần hiển thị hoặc chọn.
   const customDiseasesCol = useLocalCollection<DiseaseEntry>(CUSTOM_COLLECTION_KEYS.diseases)
   const allDiseases = useMemo(() => mergeWithOverrides(DISEASES, customDiseasesCol.items), [customDiseasesCol.items])
-  const customInotropesCol = useLocalCollection<InfusionDrug>(CUSTOM_COLLECTION_KEYS.inotropes)
-  const customVasoactivesCol = useLocalCollection<InfusionDrug>(CUSTOM_COLLECTION_KEYS.vasoactives)
-  const customVasodilatorsCol = useLocalCollection<InfusionDrug>(CUSTOM_COLLECTION_KEYS.vasodilators)
-  const customArrhythmiaCol = useLocalCollection<InfusionDrug>(CUSTOM_COLLECTION_KEYS.antiarrhythmics)
-  const customElectrolytesCol = useLocalCollection<InfusionDrug>(CUSTOM_COLLECTION_KEYS.electrolytes)
+  // Mỗi nhóm thuốc truyền một collection, khoá lưu trữ lấy từ data/categories.ts. Danh sách nhóm là
+  // hằng số ở cấp module (không đổi giữa các lần vẽ lại) nên số lượng và THỨ TỰ các lời gọi hook ở
+  // đây luôn cố định — đúng điều kiện duy nhất mà React yêu cầu.
+  const infusionCols: Record<InfusionCategory, ReturnType<typeof useLocalCollection<InfusionDrug>>> = {
+    inotrope: useLocalCollection<InfusionDrug>(infusionCategory("inotrope").storageKey),
+    vasoactive: useLocalCollection<InfusionDrug>(infusionCategory("vasoactive").storageKey),
+    vasodilator: useLocalCollection<InfusionDrug>(infusionCategory("vasodilator").storageKey),
+    arrhythmia: useLocalCollection<InfusionDrug>(infusionCategory("arrhythmia").storageKey),
+    electrolyte: useLocalCollection<InfusionDrug>(infusionCategory("electrolyte").storageKey),
+    sedation: useLocalCollection<InfusionDrug>(infusionCategory("sedation").storageKey),
+    neuro: useLocalCollection<InfusionDrug>(infusionCategory("neuro").storageKey),
+    other: useLocalCollection<InfusionDrug>(infusionCategory("other").storageKey),
+    antidote: useLocalCollection<InfusionDrug>(infusionCategory("antidote").storageKey),
+  }
+  // Chỉ danh sách mục, dạng tra theo nhóm — thứ mà DungThuocScreen và màn Đồng bộ dữ liệu cần.
+  // Không bọc useMemo: đây là phép gom 9 tham chiếu mảng có sẵn, rẻ hơn hẳn việc so sánh 9 phần tử
+  // deps, và không có nơi nhận nào phụ thuộc vào việc object này giữ nguyên tham chiếu.
+  const customInfusions = Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.id, infusionCols[c.id].items])) as Record<
+    InfusionCategory,
+    InfusionDrug[]
+  >
   const customFlashcardsCol = useLocalCollection<FlashCard>(CUSTOM_COLLECTION_KEYS.flashcards)
   // Bài học ECG — lưu bằng IndexedDB (không phải localStorage) vì kèm ảnh, xem useIdbCollection.
   const ecgCol = useIdbCollection<EcgLesson>(IDB_STORES.ecgLessons)
@@ -8732,11 +8861,7 @@ export default function App() {
     "search",
     "customEntry",
     "addAntibiotic",
-    "addInotrope",
-    "addVasoactive",
-    "addVasodilator",
-    "addArrhythmia",
-    "addElectrolyte",
+    "addInfusion",
     "editAntibiotic",
     "editInfusion",
     "dataSync",
@@ -8784,10 +8909,16 @@ export default function App() {
     setScreen("editAntibiotic")
   }
 
-  function goToEditInfusion(category: "inotrope" | "vasoactive" | "vasodilator" | "arrhythmia" | "electrolyte", drug: InfusionDrug) {
+  function goToEditInfusion(category: InfusionCategory, drug: InfusionDrug) {
     setEditInfusionDraft({ category, drug })
     setHistory((h) => [...h, screen])
     setScreen("editInfusion")
+  }
+
+  // Mở màn thêm thuốc mới cho một nhóm — nhóm đi kèm trong state chứ không nằm trong tên màn hình.
+  function goToAddInfusion(category: InfusionCategory) {
+    setAddInfusionCategory(category)
+    navigate("addInfusion")
   }
 
   // "Đã đọc gần đây" cho Trang chủ: tra tiêu đề từ dữ liệu THẬT theo id đã lưu, nên bài đổi tên thì
@@ -8894,51 +9025,11 @@ export default function App() {
     goBack()
   }
 
-  function handleSaveInotrope(d: InfusionDrug) {
-    customInotropesCol.update(d)
-    goBack()
-  }
-
-  function handleSaveVasoactive(d: InfusionDrug) {
-    customVasoactivesCol.update(d)
-    goBack()
-  }
-
-  function handleSaveVasodilator(d: InfusionDrug) {
-    customVasodilatorsCol.update(d)
-    goBack()
-  }
-
-  function handleSaveArrhythmia(d: InfusionDrug) {
-    customArrhythmiaCol.update(d)
-    goBack()
-  }
-
-  function handleSaveElectrolyte(d: InfusionDrug) {
-    customElectrolytesCol.update(d)
-    goBack()
-  }
-
-  // "editInfusion" dùng chung 1 màn cho cả 5 nhóm thuốc truyền — cần biết đang sửa thuốc thuộc
-  // nhóm nào (lưu kèm trong editInfusionDraft) để ghi vào đúng collection.
-  function handleSaveEditInfusion(d: InfusionDrug) {
-    switch (editInfusionDraft?.category) {
-      case "inotrope":
-        customInotropesCol.update(d)
-        break
-      case "vasoactive":
-        customVasoactivesCol.update(d)
-        break
-      case "vasodilator":
-        customVasodilatorsCol.update(d)
-        break
-      case "arrhythmia":
-        customArrhythmiaCol.update(d)
-        break
-      case "electrolyte":
-        customElectrolytesCol.update(d)
-        break
-    }
+  // Thêm mới và sửa đều ghi vào đúng collection của nhóm — không còn một hàm lưu riêng cho từng
+  // nhóm (trước đây là 5 hàm giống hệt nhau cộng một `switch` 5 nhánh, tức là thêm nhóm mới phải
+  // nhớ sửa đúng cả hai chỗ).
+  function handleSaveInfusion(category: InfusionCategory, d: InfusionDrug) {
+    infusionCols[category].update(d)
     goBack()
   }
 
@@ -8969,11 +9060,10 @@ export default function App() {
     articles: Article[]
     antibiotics: Antibiotic[]
     diseases: DiseaseEntry[]
-    inotropes: InfusionDrug[]
-    vasoactives: InfusionDrug[]
-    vasodilators: InfusionDrug[]
-    antiarrhythmics: InfusionDrug[]
-    electrolytes: InfusionDrug[]
+    // Thuốc truyền tự nhập, gom theo nhóm — khoá của từng nhóm trong file sao lưu là
+    // `backupKey` khai trong data/categories.ts (giữ nguyên tên cũ để file xuất từ bản trước vẫn
+    // nhập lại được).
+    infusions: Record<InfusionCategory, InfusionDrug[]>
     ecgLessons: EcgLesson[]
     flashcards: FlashCard[]
     mindmapBoards: { board: MindBoard; mindmap: MindmapData }[]
@@ -8982,11 +9072,10 @@ export default function App() {
     if (data.articles.length) customArticlesCol.upsertMany(data.articles)
     if (data.antibiotics.length) customAntibioticsCol.upsertMany(data.antibiotics)
     if (data.diseases.length) customDiseasesCol.upsertMany(data.diseases)
-    if (data.inotropes.length) customInotropesCol.upsertMany(data.inotropes)
-    if (data.vasoactives.length) customVasoactivesCol.upsertMany(data.vasoactives)
-    if (data.vasodilators.length) customVasodilatorsCol.upsertMany(data.vasodilators)
-    if (data.antiarrhythmics.length) customArrhythmiaCol.upsertMany(data.antiarrhythmics)
-    if (data.electrolytes.length) customElectrolytesCol.upsertMany(data.electrolytes)
+    INFUSION_CATEGORIES.forEach((c) => {
+      const list = data.infusions[c.id]
+      if (list?.length) infusionCols[c.id].upsertMany(list)
+    })
     if (data.ecgLessons.length) ecgCol.upsertMany(data.ecgLessons)
     if (data.flashcards.length) customFlashcardsCol.upsertMany(data.flashcards)
     if (data.wardRecipes.length) importWardRecipes(data.wardRecipes)
@@ -9126,23 +9215,11 @@ export default function App() {
             <DungThuocScreen
               customAntibiotics={customAntibioticsCol.items}
               diseases={allDiseases}
-              customInotropes={customInotropesCol.items}
-              customVasoactives={customVasoactivesCol.items}
-              customVasodilators={customVasodilatorsCol.items}
-              customArrhythmia={customArrhythmiaCol.items}
-              customElectrolytes={customElectrolytesCol.items}
+              customInfusions={customInfusions}
               onAddAntibiotic={() => navigate("addAntibiotic")}
-              onAddInotrope={() => navigate("addInotrope")}
-              onAddVasoactive={() => navigate("addVasoactive")}
-              onAddVasodilator={() => navigate("addVasodilator")}
-              onAddArrhythmia={() => navigate("addArrhythmia")}
-              onAddElectrolyte={() => navigate("addElectrolyte")}
+              onAddInfusion={goToAddInfusion}
               onEditAntibiotic={goToEditAntibiotic}
-              onEditInotrope={(d) => goToEditInfusion("inotrope", d)}
-              onEditVasoactive={(d) => goToEditInfusion("vasoactive", d)}
-              onEditVasodilator={(d) => goToEditInfusion("vasodilator", d)}
-              onEditArrhythmia={(d) => goToEditInfusion("arrhythmia", d)}
-              onEditElectrolyte={(d) => goToEditInfusion("electrolyte", d)}
+              onEditInfusion={goToEditInfusion}
               // Xoá thuốc tự nhập thì công thức pha đã lưu riêng cho nó (nếu có) cũng phải xoá theo —
               // không thì công thức đó thành mồ côi, không thuốc nào tham chiếu tới nhưng vẫn nằm
               // mãi trên máy và trong mọi lần xuất file sao lưu sau này.
@@ -9150,34 +9227,22 @@ export default function App() {
                 clearWardRecipesForDrug(id)
                 customAntibioticsCol.remove(id)
               }}
-              onDeleteInotrope={(id) => {
+              onDeleteInfusion={(category, id) => {
                 clearWardRecipesForDrug(id)
-                customInotropesCol.remove(id)
-              }}
-              onDeleteVasoactive={(id) => {
-                clearWardRecipesForDrug(id)
-                customVasoactivesCol.remove(id)
-              }}
-              onDeleteVasodilator={(id) => {
-                clearWardRecipesForDrug(id)
-                customVasodilatorsCol.remove(id)
-              }}
-              onDeleteArrhythmia={(id) => {
-                clearWardRecipesForDrug(id)
-                customArrhythmiaCol.remove(id)
-              }}
-              onDeleteElectrolyte={(id) => {
-                clearWardRecipesForDrug(id)
-                customElectrolytesCol.remove(id)
+                infusionCols[category].remove(id)
               }}
             />
           )}
           {screen === "addAntibiotic" && <AddAntibioticScreen diseases={allDiseases} onSave={handleSaveAntibiotic} onBack={goBack} />}
-          {screen === "addInotrope" && <AddInfusionScreen category="inotrope" diseases={allDiseases} onSave={handleSaveInotrope} onBack={goBack} />}
-          {screen === "addVasoactive" && <AddInfusionScreen category="vasoactive" diseases={allDiseases} onSave={handleSaveVasoactive} onBack={goBack} />}
-          {screen === "addVasodilator" && <AddInfusionScreen category="vasodilator" diseases={allDiseases} onSave={handleSaveVasodilator} onBack={goBack} />}
-          {screen === "addArrhythmia" && <AddInfusionScreen category="arrhythmia" diseases={allDiseases} onSave={handleSaveArrhythmia} onBack={goBack} />}
-          {screen === "addElectrolyte" && <AddInfusionScreen category="electrolyte" diseases={allDiseases} onSave={handleSaveElectrolyte} onBack={goBack} />}
+          {screen === "addInfusion" && (
+            <AddInfusionScreen
+              key={addInfusionCategory}
+              category={addInfusionCategory}
+              diseases={allDiseases}
+              onSave={(d) => handleSaveInfusion(addInfusionCategory, d)}
+              onBack={goBack}
+            />
+          )}
           {screen === "editAntibiotic" &&
             (editAntibioticDraft ? (
               <EditAntibioticScreen drug={editAntibioticDraft} diseases={allDiseases} onSave={handleSaveAntibiotic} onBack={goBack} />
@@ -9191,7 +9256,13 @@ export default function App() {
             ))}
           {screen === "editInfusion" &&
             (editInfusionDraft ? (
-              <AddInfusionScreen category={editInfusionDraft.category} initial={editInfusionDraft.drug} diseases={allDiseases} onSave={handleSaveEditInfusion} onBack={goBack} />
+              <AddInfusionScreen
+                category={editInfusionDraft.category}
+                initial={editInfusionDraft.drug}
+                diseases={allDiseases}
+                onSave={(d) => handleSaveInfusion(editInfusionDraft.category, d)}
+                onBack={goBack}
+              />
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 px-5">
                 <p className="text-sm text-slate-500">Không tìm thấy thuốc cần sửa.</p>
@@ -9205,11 +9276,7 @@ export default function App() {
               customArticles={customArticlesCol.items}
               customAntibiotics={customAntibioticsCol.items}
               customDiseases={customDiseasesCol.items}
-              customInotropes={customInotropesCol.items}
-              customVasoactives={customVasoactivesCol.items}
-              customVasodilators={customVasodilatorsCol.items}
-              customArrhythmia={customArrhythmiaCol.items}
-              customElectrolytes={customElectrolytesCol.items}
+              customInfusions={customInfusions}
               customEcgLessons={ecgCol.items}
               customFlashcards={customFlashcardsCol.items}
               boards={boards}

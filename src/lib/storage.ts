@@ -53,11 +53,12 @@ export const CUSTOM_COLLECTION_KEYS = {
   // IndexedDB (xem useIdbCollection) — khoá này chỉ còn dùng để đọc & di trú dữ liệu cũ một lần.
   articles: "customArticles",
   antibiotics: "customAntibiotics",
-  inotropes: "customInotropes",
-  vasoactives: "customVasoactives",
-  vasodilators: "customVasodilators",
-  antiarrhythmics: "customAntiarrhythmics",
-  electrolytes: "customElectrolytes",
+  // Khoá của các nhóm THUỐC TRUYỀN (co bóp, vận mạch, giãn mạch, loạn nhịp, điện giải, an thần,
+  // thần kinh, khác, giải độc) KHÔNG khai ở đây nữa: mỗi nhóm tự mang `storageKey` trong
+  // data/categories.ts, cùng chỗ với nhãn tab và danh sách thuốc dựng sẵn của nó. Trước đây khoá
+  // nằm một nơi còn phần còn lại của nhóm nằm nơi khác, nên thêm một nhóm là phải nhớ sửa đúng cả
+  // hai — và quên một bên thì nhóm mới im lặng biến mất khỏi bản sao lưu.
+  // Các chuỗi khoá cũ được giữ nguyên nguyên văn bên đó, dữ liệu đã lưu trên máy đọc lại bình thường.
   // Bệnh lý được tự động tạo khi sửa "Chỉ định riêng theo bệnh lý" của một kháng sinh và gõ tên
   // một bệnh lý chưa có trong danh mục gốc (xem EditAntibioticScreen trong App.tsx).
   diseases: "customDiseases",

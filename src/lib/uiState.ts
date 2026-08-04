@@ -23,6 +23,21 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+// Ghi thẳng một giá trị sticky TỪ BÊN NGOÀI component đang giữ nó.
+//
+// Dùng cho đúng một việc: ô tìm kiếm chung của màn "Dùng thuốc" cần mở sẵn một thuốc nằm ở tab
+// KHÁC. Tab đó chưa được dựng nên không thể gọi setter của nó; nhưng vì `useStickyState` đọc
+// sessionStorage ngay ở lần dựng đầu tiên, chỉ cần đặt sẵn giá trị trước rồi mới đổi tab là component
+// mới dựng lên sẽ mở đúng chỗ. Đổi tab luôn dựng lại cây con (khối vẽ tab mang `key` theo tab) nên
+// điều kiện này luôn đúng.
+export function writeStickyState<T>(key: string, value: T): void {
+  try {
+    sessionStorage.setItem(PREFIX + key, JSON.stringify(value))
+  } catch {
+    // Giống nhánh lỗi trong useStickyState: không nhớ được thì thôi, không làm gãy luồng đang dùng.
+  }
+}
+
 // Giống useState, nhưng giá trị sống sót qua việc chuyển màn hình. `key` phải là duy nhất trong
 // toàn app (thêm hậu tố khi cùng một component được dựng nhiều lần, vd theo từng nhóm thuốc).
 export function useStickyState<T>(key: string, initial: T): [T, (value: T) => void] {

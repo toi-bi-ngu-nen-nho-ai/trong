@@ -67,6 +67,41 @@ export const COMPAT_KEYS = {
   ceftriaxone: "ceftriaxone",
   ampicillin: "ampicillin",
   pipTazo: "pipTazo",
+  // ─── Bổ sung ───────────────────────────────────────────────────────────────
+  // Trước đây bảy khoá ở trên (propofol, midazolam, pantoprazole, heparin, bicarbonate, furosemide,
+  // phenytoin) được khai ở đây và có luật Y-site hẳn hoi, nhưng KHÔNG thuốc nào trong app mang các
+  // khoá đó — nghĩa là không có cách nào ghim chúng vào bảng "Đang truyền", nên đúng những cặp kết
+  // tủa quan trọng nhất không bao giờ kích hoạt được. Nay các nhóm An thần / Thần kinh / Khác /
+  // Giải độc đã mang đủ khoá, và danh sách dưới đây là phần mở rộng cho các thuốc mới thêm.
+  fentanyl: "fentanyl",
+  morphine: "morphine",
+  ketamine: "ketamine",
+  dexmedetomidine: "dexmedetomidine",
+  rocuronium: "rocuronium",
+  cisatracurium: "cisatracurium",
+  levetiracetam: "levetiracetam",
+  mannitol: "mannitol",
+  hypertonicSaline: "hypertonicSaline",
+  hydrocortisone: "hydrocortisone",
+  tranexamic: "tranexamic",
+  labetalol: "labetalol",
+  digoxin: "digoxin",
+  paracetamol: "paracetamol",
+  enoxaparin: "enoxaparin",
+  naloxone: "naloxone",
+  flumazenil: "flumazenil",
+  glucagon: "glucagon",
+  lipidEmulsion: "lipidEmulsion",
+  acetylcysteine: "acetylcysteine",
+  carbapenem: "carbapenem",
+  cefepime: "cefepime",
+  clindamycin: "clindamycin",
+  linezolid: "linezolid",
+  colistin: "colistin",
+  azole: "azole",
+  echinocandin: "echinocandin",
+  tetracycline: "tetracycline",
+  oxacillin: "oxacillin",
 } as const
 
 const K = COMPAT_KEYS
@@ -104,6 +139,40 @@ export const YSITE_RULES: CompatRule[] = [
     verified: true,
     source: "Tờ thông tin kê đơn Piperacillin/Tazobactam (Pfizer, Zosyn) — mục tương kỵ với aminoglycosid",
   },
+  // ─── Cặp bổ sung theo các nhóm thuốc mới ────────────────────────────────────
+  // Catecholamin cần môi trường acid — mọi dung dịch kiềm mạnh đều phân huỷ/kết tủa chúng. Trước
+  // đây bảng chỉ ghi được vế furosemide vì bicarbonat không có thuốc nào mang khoá.
+  { a: K.bicarbonate, b: K.noradrenaline, verdict: "incompatible", text: "Natri bicarbonat là dung dịch kiềm mạnh — phân huỷ catecholamin. Đường riêng, tráng dây bằng NaCl 0,9% nếu buộc dùng nối tiếp.", verified: false },
+  { a: K.bicarbonate, b: K.adrenaline, verdict: "incompatible", text: "Cùng lý do với noradrenaline — catecholamin bị phân huỷ trong môi trường kiềm.", verified: false },
+  { a: K.bicarbonate, b: K.dobutamine, verdict: "incompatible", text: "Không tương hợp — dobutamine kém bền trong dung dịch kiềm.", verified: false },
+  { a: K.bicarbonate, b: K.dopamine, verdict: "incompatible", text: "Không tương hợp — dopamine bị phân huỷ trong môi trường kiềm.", verified: false },
+  // Propofol là nhũ dịch lipid: gần như mọi cặp đều nên đi đường riêng, và đây là thuốc chạy liên
+  // tục nhiều nhất ở ICU nên phải nói rõ thay vì để bảng im lặng.
+  { a: K.propofol, b: K.adrenaline, verdict: "caution", text: "Nhũ dịch lipid — ưu tiên đường riêng; trộn chung có thể phá vỡ nhũ tương (tách pha, kết bông).", verified: false },
+  { a: K.propofol, b: K.pipTazo, verdict: "caution", text: "Nhũ dịch lipid — ưu tiên đường riêng cho propofol, không dùng chung với kháng sinh truyền ngắt quãng.", verified: false },
+  { a: K.propofol, b: K.vancomycin, verdict: "caution", text: "Ưu tiên đường riêng — nguy cơ phá vỡ nhũ tương; vancomycin cũng cần đường truyền có kiểm soát tốc độ.", verified: false },
+  { a: K.propofol, b: K.bicarbonate, verdict: "incompatible", text: "Dung dịch kiềm phá vỡ nhũ tương lipid — không dùng chung đường.", verified: false },
+  // Phenytoin: kết tủa với gần như mọi thứ, kể cả glucose. Chỉ tráng bằng NaCl 0,9%.
+  { a: K.phenytoin, b: K.midazolam, verdict: "incompatible", text: "Phenytoin truyền một mình — kết tủa khi tiếp xúc trực tiếp với hầu hết thuốc khác.", verified: false },
+  { a: K.phenytoin, b: K.propofol, verdict: "incompatible", text: "Phenytoin truyền một mình, chỉ tráng dây bằng NaCl 0,9%.", verified: false },
+  { a: K.phenytoin, b: K.heparin, verdict: "incompatible", text: "Kết tủa — phenytoin phải đi đường riêng hoàn toàn.", verified: false },
+  { a: K.phenytoin, b: K.dobutamine, verdict: "incompatible", text: "Kết tủa — phenytoin phải đi đường riêng hoàn toàn.", verified: false },
+  // Pantoprazole là dung dịch kiềm — cùng nhóm vấn đề với bicarbonat.
+  { a: K.pantoprazole, b: K.noradrenaline, verdict: "incompatible", text: "Pantoprazole là dung dịch kiềm — không dùng chung đường với catecholamin.", verified: false },
+  { a: K.pantoprazole, b: K.adrenaline, verdict: "incompatible", text: "Cùng lý do với noradrenaline (pH đối nghịch).", verified: false },
+  // Heparin: cặp kết tủa hay gặp nhất ngoài amiodarone.
+  { a: K.heparin, b: K.vancomycin, verdict: "incompatible", text: "Kết tủa tại Y-site — tráng dây bằng NaCl 0,9% giữa hai thuốc hoặc dùng nòng riêng.", verified: false },
+  { a: K.heparin, b: K.aminoglycoside, verdict: "caution", text: "Heparin có thể bất hoạt aminoglycosid khi trộn chung dung dịch — không pha chung, ưu tiên đường riêng.", verified: false },
+  { a: K.heparin, b: K.labetalol, verdict: "incompatible", text: "Không tương hợp tại Y-site — dùng đường riêng.", verified: false },
+  // Furosemide (kiềm) — bổ sung các cặp còn thiếu so với danh sách catecholamin/an thần.
+  { a: K.furosemide, b: K.dopamine, verdict: "incompatible", text: "Không tương hợp — cùng lý do pH đối nghịch với các catecholamin khác.", verified: false },
+  { a: K.furosemide, b: K.labetalol, verdict: "incompatible", text: "Kết tủa tại Y-site — furosemide kiềm, labetalol acid.", verified: false },
+  { a: K.furosemide, b: K.morphine, verdict: "incompatible", text: "Kết tủa tại Y-site — dùng đường riêng hoặc tráng dây giữa hai thuốc.", verified: false },
+  // Giãn cơ: mất tác dụng giãn cơ giữa chừng do kết tủa là tình huống không được phép xảy ra.
+  { a: K.rocuronium, b: K.bicarbonate, verdict: "incompatible", text: "Kết tủa trong môi trường kiềm — tráng dây bằng NaCl 0,9% trước và sau khi tiêm giãn cơ.", verified: false },
+  { a: K.rocuronium, b: K.furosemide, verdict: "incompatible", text: "Kết tủa tại Y-site — dùng đường riêng.", verified: false },
+  { a: K.cisatracurium, b: K.bicarbonate, verdict: "incompatible", text: "Cisatracurium cần môi trường acid để bền — dung dịch kiềm làm mất hoạt lực.", verified: false },
+  { a: K.cisatracurium, b: K.propofol, verdict: "caution", text: "Ưu tiên đường riêng — cisatracurium kém bền khi pha loãng ngoài môi trường acid.", verified: false },
 ]
 
 // Tương tác dược lý (không phải tương hợp vật lý) — hai thuốc dùng cùng lúc trên cùng người bệnh,
@@ -132,6 +201,36 @@ export const INTERACTION_RULES: InteractionRule[] = [
     verified: true,
     source: "Phân tích gộp/mạng lưới nguy cơ AKI khi phối hợp vancomycin + piperacillin-tazobactam (PubMed 29088001; J Antimicrob Chemother 2025;80:47)",
   },
+  // ─── Tương tác bổ sung theo các nhóm thuốc mới ──────────────────────────────
+  // Linezolid là chất ức chế MAO không chọn lọc, có hồi phục — đây là tương tác hay bị bỏ sót nhất
+  // vì người ta xếp nó vào "kháng sinh" chứ không nghĩ tới trục thần kinh.
+  { a: K.linezolid, b: K.noradrenaline, severity: "cao", text: "Linezolid ức chế MAO — có thể gây đáp ứng tăng huyết áp quá mức với thuốc vận mạch giao cảm. Chỉnh liều vận mạch từng nấc nhỏ và theo dõi huyết áp sát hơn thường lệ.", verified: false },
+  { a: K.linezolid, b: K.adrenaline, severity: "cao", text: "Cùng cơ chế ức chế MAO — nguy cơ tăng huyết áp kịch phát khi phối hợp thuốc giao cảm.", verified: false },
+  { a: K.linezolid, b: K.dopamine, severity: "cao", text: "Dopamine là cơ chất của MAO — linezolid làm tăng mạnh đáp ứng tăng huyết áp.", verified: false },
+  { a: K.linezolid, b: K.fentanyl, severity: "cao", text: "Nguy cơ hội chứng serotonin khi phối hợp linezolid với opioid có hoạt tính serotonin. Theo dõi sốt, rung giật cơ, kích thích thần kinh.", verified: false },
+  // Colistin: độc thận cộng gộp và kéo dài giãn cơ — hai vấn đề khác nhau, ghi tách.
+  { a: K.colistin, b: K.aminoglycoside, severity: "cao", text: "Cộng gộp độc tính thận — tránh phối hợp nếu còn lựa chọn khác; theo dõi creatinin hằng ngày.", verified: false },
+  { a: K.colistin, b: K.vancomycin, severity: "cao", text: "Cộng gộp độc tính thận — theo dõi creatinin hằng ngày và cân nhắc phác đồ thay thế.", verified: false },
+  { a: K.colistin, b: K.rocuronium, severity: "cao", text: "Polymyxin ức chế dẫn truyền thần kinh cơ — kéo dài tác dụng giãn cơ, nguy cơ chậm rút ống. Theo dõi TOF trước khi cai máy.", verified: false },
+  { a: K.colistin, b: K.cisatracurium, severity: "cao", text: "Cùng cơ chế — kéo dài giãn cơ, theo dõi TOF trước khi cai máy.", verified: false },
+  { a: K.clindamycin, b: K.rocuronium, severity: "trung bình", text: "Clindamycin có tác dụng ức chế thần kinh cơ nhẹ — có thể kéo dài giãn cơ.", verified: false },
+  { a: K.magnesium, b: K.rocuronium, severity: "cao", text: "Magie ức chế giải phóng acetylcholine tại synap thần kinh cơ — kéo dài rõ rệt tác dụng giãn cơ. Giảm liều giãn cơ và theo dõi TOF.", verified: false },
+  { a: K.magnesium, b: K.cisatracurium, severity: "cao", text: "Cùng cơ chế — magie kéo dài đáng kể tác dụng giãn cơ.", verified: false },
+  // Trục QT — bổ sung các thuốc mới vào nhóm đã có sẵn amiodarone × quinolon/macrolid.
+  { a: K.azole, b: K.amiodarone, severity: "cao", text: "Cộng gộp kéo dài QT, đồng thời fluconazole ức chế chuyển hoá amiodarone. Theo dõi QTc, điều chỉnh kali/magie máu.", verified: false },
+  { a: K.azole, b: K.fluoroquinolone, severity: "trung bình", text: "Cộng gộp kéo dài QT — theo dõi QTc khi buộc phải phối hợp.", verified: false },
+  // Digoxin — hai tương tác kinh điển, đều nguy hiểm.
+  { a: K.digoxin, b: K.amiodarone, severity: "cao", text: "Amiodarone làm TĂNG nồng độ digoxin (thường gấp đôi) — giảm nửa liều digoxin khi bắt đầu amiodarone và đo nồng độ.", verified: false },
+  { a: K.digoxin, b: K.calcium, severity: "cao", text: "Calci tĩnh mạch trên nền digoxin có thể gây loạn nhịp thất nặng — tránh bolus calci nhanh ở bệnh nhân đang dùng digoxin trừ khi có chỉ định sinh mạng.", verified: false },
+  { a: K.digoxin, b: K.esmolol, severity: "trung bình", text: "Cộng gộp ức chế nút nhĩ thất — nguy cơ chậm nhịp/block. Theo dõi ECG.", verified: false },
+  // An thần/giảm đau — cộng gộp tụt huyết áp và ức chế hô hấp là chuyện xảy ra hằng đêm ở ICU.
+  { a: K.propofol, b: K.fentanyl, severity: "trung bình", text: "Cộng gộp tụt huyết áp và ức chế hô hấp — giảm liều cả hai khi dùng cùng, chỉnh từng thuốc một.", verified: false },
+  { a: K.propofol, b: K.midazolam, severity: "trung bình", text: "Cộng gộp an thần sâu và tụt huyết áp — tránh tăng đồng thời hai thuốc.", verified: false },
+  { a: K.dexmedetomidine, b: K.esmolol, severity: "cao", text: "Cộng gộp chậm nhịp tim và tụt huyết áp — dexmedetomidine gây chậm nhịp qua trục giao cảm trung ương. Theo dõi ECG liên tục.", verified: false },
+  { a: K.dexmedetomidine, b: K.digoxin, severity: "trung bình", text: "Cộng gộp chậm nhịp — theo dõi nhịp tim khi bắt đầu dexmedetomidine.", verified: false },
+  // Kháng đông.
+  { a: K.heparin, b: K.tranexamic, severity: "cao", text: "Hai thuốc tác dụng ngược chiều lên đông máu — chỉ dùng cùng khi có chỉ định rõ ràng và hội chẩn; xem lại chỉ định của cả hai.", verified: false },
+  { a: K.heparin, b: K.enoxaparin, severity: "cao", text: "Chồng liều kháng đông — không dùng đồng thời trừ giai đoạn chuyển đổi có kế hoạch rõ ràng.", verified: false },
 ]
 
 function pairMatches(rule: { a: string; b: string }, x: string, y: string): boolean {
