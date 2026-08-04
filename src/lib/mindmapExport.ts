@@ -380,3 +380,24 @@ export async function deliverPng(blob: Blob, fileName: string): Promise<"share" 
   URL.revokeObjectURL(url)
   return "download"
 }
+
+// ─── Tên file ─────────────────────────────────────────────────────────────────
+//
+// Bỏ dấu tiếng Việt và mọi ký tự lạ. Tên có dấu trông thân thiện trên máy tính nhưng gây lỗi thật
+// khi gửi đi: một số máy chủ và ứng dụng nhận file cắt luôn phần tên không phải ASCII, có nơi file
+// về tới đầu bên kia thành tên rỗng và không mở được.
+export function safeFileName(raw: string, fallback = "so-do-tu-duy"): string {
+  const noAccent = raw
+    .normalize("NFD")
+    // Bỏ các dấu thanh/dấu mũ đã tách ra sau khi chuẩn hoá NFD.
+    .replace(/[̀-ͯ]/g, "")
+    // Chữ đ/Đ không phải là "d + dấu" nên NFD không tách được, phải thay tay.
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+  const slug = noAccent
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  // Tên quá dài bị một số hệ thống tệp cắt cụt giữa chừng, mất luôn phần đuôi mở rộng.
+  return (slug || fallback).slice(0, 60)
+}

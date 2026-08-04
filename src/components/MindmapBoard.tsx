@@ -104,7 +104,7 @@ import {
   type PaperKind,
   type PaperTone,
 } from "../lib/mindmapStyle"
-import { deliverPng, exportMindmapPdf, exportMindmapPng } from "../lib/mindmapExport"
+import { deliverPng, exportMindmapPdf, exportMindmapPng, safeFileName } from "../lib/mindmapExport"
 import { mindIcons as mi } from "./MindmapIcons"
 
 type Tool = "hand" | "pen" | "highlighter" | "eraser" | "shape" | "lasso" | "link"
@@ -340,9 +340,16 @@ interface SavedView {
   zoom: number
 }
 
-function readView(): SavedView | null {
+// Khung nhìn nhớ RIÊNG cho từng bảng. Trước đây một khoá dùng chung cho mọi bảng, nên mở bảng B
+// xong quay lại bảng A là A nhảy tới đúng chỗ đang xem của B — hai bảng khác nhau hoàn toàn về toạ
+// độ nội dung, nên chỗ đó thường là giấy trắng.
+function viewKey(boardId: string | undefined): string {
+  return boardId ? `${VIEW_STORAGE_KEY}:${boardId}` : VIEW_STORAGE_KEY
+}
+
+function readView(boardId?: string): SavedView | null {
   try {
-    const raw = localStorage.getItem(VIEW_STORAGE_KEY)
+    const raw = localStorage.getItem(viewKey(boardId))
     if (!raw) return null
     const v = JSON.parse(raw) as Partial<SavedView>
     if (typeof v.x !== "number" || typeof v.y !== "number" || typeof v.zoom !== "number") return null
@@ -353,9 +360,9 @@ function readView(): SavedView | null {
   }
 }
 
-function writeView(v: SavedView): void {
+function writeView(v: SavedView, boardId?: string): void {
   try {
-    localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ x: Math.round(v.x), y: Math.round(v.y), zoom: v.zoom }))
+    localStorage.setItem(viewKey(boardId), JSON.stringify({ x: Math.round(v.x), y: Math.round(v.y), zoom: v.zoom }))
   } catch {
     // Không ghi được thì thôi, chỉ mất chỗ đang xem chứ không mất nội dung bảng.
   }
@@ -556,6 +563,7 @@ export function MindmapBoard({
   replaceAll,
   undoStore,
   boardName,
+  boardId,
   onGoHome,
 }: {
   data: MindmapData
@@ -564,6 +572,8 @@ export function MindmapBoard({
   // Tên bảng và đường quay về danh sách — thanh trên của bảng nằm trong component này (nó cần
   // chạm tới paper/màu nền/căn chỉnh vốn là state của chính nó), nên hai thứ này phải truyền vào.
   boardName?: string
+  // Khung nhìn (kéo/phóng) được nhớ RIÊNG cho từng bảng theo id này — xem viewKey().
+  boardId?: string
   onGoHome?: () => void
   // Mọi bài trong app có thể gắn vào thẻ: bài viết dựng sẵn, bài tự nhập, bài học ECG. Cùng danh sách
   // mà trình soạn thảo dùng để chèn liên kết trong bài (xem linkTargets trong App.tsx).
@@ -634,6 +644,8 @@ export function MindmapBoard({
   const [snapObjects, setSnapObjects] = useState(() => readSnap("obj"))
   const [snapGrid, setSnapGrid] = useState(() => readSnap("grid"))
   const [exportOpen, setExportOpen] = useState(false)
+  // File đã dựng xong, đang chờ người dùng bấm để giao đi — xem exportBoard().
+  const [exportReady, setExportReady] = useState<{ blob: Blob; name: string; kind: "png" | "pdf" } | null>(null)
   const [sel, setSel] = useState<Selection>(null)
   const [linkFrom, setLinkFrom] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -942,7 +954,7 @@ export function MindmapBoard({
       // Chỗ đang xem phải ghi NGAY khi rời màn hình, không chờ hết 500ms gộp lần ghi.
       if (viewSaveTimer.current) {
         clearTimeout(viewSaveTimer.current)
-        writeView(view.current)
+        writeView(view.current, boardId)
       }
       roRef.current?.disconnect()
     }
@@ -954,7 +966,7 @@ export function MindmapBoard({
     if (loading || viewRestored.current) return
     viewRestored.current = true
     setShowCoach(!readCoachSeen())
-    const saved = readView()
+    const saved = readView(boardId)
     if (saved) {
       view.current = { ...saved }
       applyView()
@@ -1043,7 +1055,7 @@ export function MindmapBoard({
   function saveViewSoon() {
     if (viewSaveTimer.current) clearTimeout(viewSaveTimer.current)
     viewSaveTimer.current = setTimeout(() => {
-      writeView(view.current)
+      writeView(view.current, boardId)
       settleView()
     }, 500)
   }
@@ -1610,8 +1622,16 @@ export function MindmapBoard({
 
   // Xuất bảng ra file. PNG và PDF đi qua cùng một đường: cùng kiểm tra bảng trống, cùng vẽ lại nội
   // dung, cùng cách giao file cho người dùng — chỉ khác bước đóng gói cuối cùng.
+  //
+  // Dựng xong KHÔNG giao file ngay mà mở một tấm "file đã sẵn sàng". Lý do là một hạn chế thật của
+  // iOS: `navigator.share` chỉ chạy khi còn nằm trong cử chỉ chạm của người dùng, mà vẽ lại cả bảng
+  // ra ảnh mất vài trăm mili-giây tới vài giây — tới lúc gọi thì cử chỉ đã hết hiệu lực, iOS từ
+  // chối, và nhánh dự phòng (thẻ <a download>) thì trên iOS không lưu file mà chỉ mở blob ra một
+  // tab trắng. Đó chính là "xuất file không được". Bấm nút trong tấm này là một cử chỉ MỚI, nên
+  // bảng chia sẻ của iOS mở được bình thường.
   async function exportBoard(kind: "png" | "pdf") {
     setMenuOpen(false)
+    setExportOpen(false)
     if (!contentBounds(visibleData, sizesRef.current)) {
       flashToast("Bảng đang trống — chưa có gì để xuất.")
       return
@@ -1630,15 +1650,38 @@ export function MindmapBoard({
         return
       }
       const stamp = new Date().toISOString().slice(0, 10)
-      const safe = title.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").toLowerCase() || "so-do-tu-duy"
-      const how = await deliverPng(blob, `${safe}-${stamp}.${kind}`)
-      const what = kind === "pdf" ? "file PDF" : "ảnh"
-      flashToast(how === "share" ? `Đã gửi ${what} sang bảng chia sẻ.` : `Đã tải ${what} về máy.`)
+      setExportReady({ blob, name: `${safeFileName(title)}-${stamp}.${kind}`, kind })
     } catch {
       flashToast("Không xuất được file.")
     } finally {
       setBusy(false)
     }
+  }
+
+  // Giao file cho người dùng. Chỉ gọi từ trong tấm "file đã sẵn sàng", tức là luôn nằm trong một cử
+  // chỉ chạm còn hiệu lực.
+  async function deliverReady() {
+    const ready = exportReady
+    if (!ready) return
+    try {
+      const how = await deliverPng(ready.blob, ready.name)
+      const what = ready.kind === "pdf" ? "file PDF" : "ảnh"
+      flashToast(how === "share" ? `Đã gửi ${what} sang bảng chia sẻ.` : `Đã tải ${what} về máy.`)
+      setExportReady(null)
+    } catch {
+      flashToast("Không giao được file — thử lại.")
+    }
+  }
+
+  // Mở file ra xem trong một tab mới. Có mặt vì trên iOS đây là đường chắc chắn nhất: file hiện
+  // trong trình xem sẵn có của máy, từ đó dùng nút chia sẻ của chính hệ điều hành để lưu đi đâu tuỳ ý.
+  function openReadyInTab() {
+    const ready = exportReady
+    if (!ready) return
+    const url = URL.createObjectURL(ready.blob)
+    window.open(url, "_blank")
+    // Không thu hồi ngay: tab mới còn đang đọc từ URL này. Trình duyệt tự dọn khi đóng trang.
+    setExportReady(null)
   }
 
   function clearBoard() {
@@ -3401,10 +3444,60 @@ export function MindmapBoard({
           không phải một bảng chết chỉ để nhìn. */}
       <div className="flex-none flex items-center gap-1 px-3 py-2 relative z-40">
         <IconBtn icon={mi.home} hint="Về danh sách bảng" onClick={() => onGoHome?.()} />
-        <p className="flex-1 min-w-0 truncate text-[14px] font-bold px-1" style={{ color: "var(--c-text)" }}>
-          {boardName ?? "Bảng"}
-        </p>
 
+        {/* Ô tìm CHIẾM CHỖ của tên bảng khi đang mở, không phải một lớp nổi đè lên mặt bảng: đang
+            tìm thì tên bảng không còn là thứ cần đọc, mà một ô nổi thì luôn che mất đúng phần nội
+            dung ở đỉnh màn hình — chỗ có nhiều khả năng chứa thẻ vừa nhảy tới nhất. */}
+        {findOpen ? (
+          <div className="flex-1 min-w-0 flex items-center gap-1 pl-1" onPointerDown={stopPointer}>
+            <span className="flex-none text-slate-400">{mi.search("w-4 h-4")}</span>
+            <input
+              ref={findInputRef}
+              value={findQuery}
+              onChange={(e) => {
+                setFindQuery(e.target.value)
+                // Gõ lại từ đầu thì lần bấm "tiếp" sau đó phải về thẻ khớp ĐẦU TIÊN, không phải thẻ
+                // thứ mấy của lần tìm trước.
+                setFindIdx(-1)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  jumpToMatch(e.shiftKey ? -1 : 1)
+                } else if (e.key === "Escape") {
+                  e.preventDefault()
+                  closeFind()
+                }
+              }}
+              placeholder="Tìm chữ trong thẻ…"
+              className="mind-input flex-1 min-w-0 bg-transparent outline-none rounded-md text-[13px] font-medium text-slate-700"
+            />
+            {findQuery.trim() && (
+              <span className="flex-none text-[11px] font-bold tabular-nums text-slate-400">
+                {findMatches.length === 0
+                  ? "0"
+                  : findIdx >= 0
+                    ? `${findIdx + 1}/${findMatches.length}`
+                    : String(findMatches.length)}
+              </span>
+            )}
+            <IconBtn icon={mi.chevronUp} hint="Thẻ khớp trước đó" size={32} disabled={findMatches.length === 0} onClick={() => jumpToMatch(-1)} />
+            <IconBtn icon={mi.chevronDown} hint="Thẻ khớp tiếp theo" size={32} disabled={findMatches.length === 0} onClick={() => jumpToMatch(1)} />
+            <IconBtn icon={mi.close} hint="Đóng ô tìm" size={32} onClick={closeFind} />
+          </div>
+        ) : (
+          <>
+            <p className="flex-1 min-w-0 truncate text-[14px] font-bold px-1" style={{ color: "var(--c-text)" }}>
+              {boardName ?? "Bảng"}
+            </p>
+            <IconBtn icon={mi.search} hint="Tìm thẻ trên bảng" onClick={openFind} />
+          </>
+        )}
+
+        {/* Đang tìm thì nhường hết chỗ cho ô tìm — trên màn hình 375px, giữ cả ba nút này lại sẽ
+            bóp ô nhập xuống còn vài chữ. */}
+        {!findOpen && (
+        <>
         {/* Công tắc chỉnh sửa. Nhãn nói TRẠNG THÁI ĐANG Ở, không nói việc sẽ làm — người dùng cần
             biết ngay "bảng này có đang ăn nét vẽ của mình không", đó mới là câu hỏi thật. */}
         <button
@@ -3485,6 +3578,8 @@ export function MindmapBoard({
             setExportOpen(false)
           }}
         />
+        </>
+        )}
       </div>
 
       {/* ─── Thanh công cụ vẽ — chỉ hiện khi ĐANG SỬA ───────────────────── */}
@@ -4654,8 +4749,12 @@ export function MindmapBoard({
             onPointerUp={handleMinimapPointerUp}
             onPointerCancel={handleMinimapPointerUp}
             title="Chạm hoặc kéo để nhảy tới chỗ đó"
-            className="mind-pop absolute right-3 top-3 rounded-xl border overflow-hidden z-10"
+            // Nằm ngay TRÊN cụm phóng-thu ở góc dưới trái, không còn ở góc trên phải. Hai thứ này
+            // trả lời cùng một câu hỏi — "tôi đang xem chỗ nào, ở cỡ nào" — nên để cạnh nhau thì
+            // mắt không phải chạy chéo màn hình, và góc trên phải được trả lại cho nội dung bảng.
+            className="mind-pop absolute left-3 rounded-xl border overflow-hidden z-10"
             style={{
+              bottom: 60,
               width: MM_W,
               height: MM_H,
               borderColor: "#e2e8f0",
@@ -4715,69 +4814,6 @@ export function MindmapBoard({
 
         {/* ─── Nút nổi trên mặt bảng ───────────────────────────────────── */}
 
-        {/* Ô tìm thẻ — nổi TRÊN mặt bảng chứ không chen vào thanh công cụ: thanh công cụ trên điện
-            thoại đã chật tới mức phải vuốt ngang, thêm một ô nữa là đẩy nút "…" ra khỏi màn hình.
-            Nổi ở đây cũng đúng chỗ mắt tìm — mọi trình duyệt đều đặt ô tìm ở đỉnh vùng nội dung. */}
-        {findOpen && (
-          <div
-            className="mind-pop absolute top-3 left-3 right-3 z-20 flex items-center gap-1.5 p-1 rounded-2xl border"
-            onPointerDown={stopPointer}
-            style={{
-              borderColor: "#e2e8f0",
-              background: "rgba(255,255,255,.96)",
-              backdropFilter: "blur(6px)",
-              boxShadow: "0 8px 24px rgba(15,23,42,.14)",
-            }}
-          >
-            <span className="flex-none pl-2 text-slate-400">{mi.search("w-4 h-4")}</span>
-            <input
-              ref={findInputRef}
-              value={findQuery}
-              onChange={(e) => {
-                setFindQuery(e.target.value)
-                // Gõ lại từ đầu thì lần bấm "tiếp" sau đó phải về thẻ khớp ĐẦU TIÊN, không phải thẻ
-                // thứ mấy của lần tìm trước.
-                setFindIdx(-1)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  jumpToMatch(e.shiftKey ? -1 : 1)
-                } else if (e.key === "Escape") {
-                  e.preventDefault()
-                  closeFind()
-                }
-              }}
-              placeholder="Tìm chữ trong các thẻ…"
-              className="mind-input flex-1 min-w-0 bg-transparent outline-none rounded-md text-[13px] font-medium text-slate-700"
-            />
-            {findQuery.trim() && (
-              <span className="flex-none px-1 text-[11px] font-bold tabular-nums text-slate-400">
-                {findMatches.length === 0
-                  ? "không có"
-                  : findIdx >= 0
-                    ? `${findIdx + 1}/${findMatches.length}`
-                    : `${findMatches.length} thẻ`}
-              </span>
-            )}
-            <IconBtn
-              icon={mi.chevronUp}
-              hint="Thẻ khớp trước đó"
-              size={36}
-              disabled={findMatches.length === 0}
-              onClick={() => jumpToMatch(-1)}
-            />
-            <IconBtn
-              icon={mi.chevronDown}
-              hint="Thẻ khớp tiếp theo"
-              size={36}
-              disabled={findMatches.length === 0}
-              onClick={() => jumpToMatch(1)}
-            />
-            <IconBtn icon={mi.close} hint="Đóng ô tìm" size={36} onClick={closeFind} />
-          </div>
-        )}
-
         {/* Phóng - thu, góc dưới trái */}
         <div className="absolute left-3 bottom-4 flex items-center gap-2" onPointerDown={stopPointer}>
           <div
@@ -4811,28 +4847,7 @@ export function MindmapBoard({
           >
             {mi.fit("w-[18px] h-[18px]")}
           </button>
-          {/* Tìm thẻ nằm cạnh phóng-thu và "vừa khung" vì cùng một loại việc: tất cả đều là ĐI TỚI
-              một chỗ trên bảng, không phải sửa nội dung bảng. */}
-          <button
-            type="button"
-            onClick={() => {
-              if (findOpen) closeFind()
-              else openFind()
-              tickHaptic()
-            }}
-            title="Tìm thẻ trên bảng"
-            aria-label="Tìm thẻ trên bảng"
-            aria-pressed={findOpen}
-            className="mind-btn w-9 h-9 rounded-2xl border flex items-center justify-center"
-            style={{
-              borderColor: findOpen ? "var(--c-primary)" : "#e2e8f0",
-              background: findOpen ? "var(--c-primary)" : "rgba(255,255,255,.94)",
-              color: findOpen ? "#fff" : "#475569",
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            {mi.search("w-[18px] h-[18px]")}
-          </button>
+          {/* Nút tìm thẻ đã chuyển lên thanh trên, chung hàng với tên bảng. */}
           {/* Ô viết phóng to — đặt cạnh phóng-thu vì cùng là chuyện "nhìn bảng ở cỡ nào", chỉ khác
               là nó phóng riêng một ô để VIẾT thay vì phóng cả bảng. */}
           <button
@@ -5469,6 +5484,50 @@ export function MindmapBoard({
                 style={{ background: "var(--c-primary)" }}
               >
                 Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File đã dựng xong, chờ người dùng bấm để giao đi. Bước này tồn tại vì iOS — xem ghi chú
+          đầu exportBoard(). */}
+      {exportReady && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
+          style={{ background: "rgba(15,23,42,.42)" }}
+          onPointerDown={() => setExportReady(null)}
+        >
+          <div
+            className="mind-pop w-full max-w-[320px] rounded-3xl p-5"
+            style={{ background: "#fff", boxShadow: "0 18px 40px rgba(15,23,42,.28)" }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <p className="text-[15px] font-bold text-slate-900">
+              {exportReady.kind === "pdf" ? "File PDF đã sẵn sàng" : "Ảnh đã sẵn sàng"}
+            </p>
+            <p className="text-[12px] text-slate-500 leading-[1.5] mt-1 break-all">{exportReady.name}</p>
+            <div className="flex flex-col gap-2 mt-4">
+              <button
+                onClick={() => void deliverReady()}
+                className="w-full h-11 rounded-2xl text-[13.5px] font-bold"
+                style={{ background: "var(--c-primary)", color: "#fff" }}
+              >
+                Lưu / Chia sẻ
+              </button>
+              <button
+                onClick={openReadyInTab}
+                className="w-full h-11 rounded-2xl text-[13.5px] font-bold border"
+                style={{ borderColor: "#e2e8f0", color: "#334155" }}
+              >
+                Mở xem trước
+              </button>
+              <button
+                onClick={() => setExportReady(null)}
+                className="w-full h-9 text-[12.5px] font-semibold"
+                style={{ color: "#94a3b8" }}
+              >
+                Huỷ
               </button>
             </div>
           </div>

@@ -8876,6 +8876,56 @@ function BoardPreviewFrame({ board, previewTick, className }: { board: MindBoard
   )
 }
 
+// ─── Nhấn giữ để mở bảng tuỳ chọn ────────────────────────────────────────────
+//
+// Thay cho nút bút chì trên mỗi thẻ. Nút bút chì ăn mất chỗ của tên bảng (tên dài bị cắt sớm hơn),
+// và nó là một đích chạm nhỏ nằm sát ngay cạnh vùng mở bảng — trên điện thoại thì chạm nhầm là
+// chuyện thường. Nhấn giữ không tốn chỗ nào và không thể bấm nhầm với chạm thường.
+const CARD_HOLD_MS = 450
+
+function useHoldToEdit(onOpen: () => void, onEdit: () => void) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Đã bắn sự kiện giữ thì lúc nhấc tay KHÔNG mở bảng nữa — nếu không, giữ xong sẽ vừa hiện bảng
+  // tuỳ chọn vừa mở bảng ra sau lưng nó.
+  const held = useRef(false)
+  const start = useRef({ x: 0, y: 0 })
+
+  const cancel = () => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+  }
+
+  return {
+    onPointerDown: (e: ReactPointerEvent) => {
+      held.current = false
+      start.current = { x: e.clientX, y: e.clientY }
+      cancel()
+      timer.current = setTimeout(() => {
+        timer.current = null
+        held.current = true
+        tickHaptic()
+        onEdit()
+      }, CARD_HOLD_MS)
+    },
+    // Nhúc nhích quá ngưỡng là đang CUỘN danh sách, không phải đang giữ.
+    onPointerMove: (e: ReactPointerEvent) => {
+      if (!timer.current) return
+      if (Math.abs(e.clientX - start.current.x) > 8 || Math.abs(e.clientY - start.current.y) > 8) cancel()
+    },
+    onPointerUp: () => {
+      const wasHeld = held.current
+      cancel()
+      if (!wasHeld) onOpen()
+    },
+    onPointerCancel: cancel,
+    onPointerLeave: cancel,
+    // Chặn menu chuột phải trên máy tính: giữ chuột lâu ở đó cũng phải ra bảng tuỳ chọn của app.
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  }
+}
+
 function BoardCard({
   board,
   previewTick,
@@ -8887,28 +8937,17 @@ function BoardCard({
   onOpen: () => void
   onEdit: () => void
 }) {
+  const hold = useHoldToEdit(onOpen, onEdit)
   return (
-    <div className="flex flex-col gap-1.5">
-      <button onClick={onOpen} className={`w-full ${TAP}`} aria-label={`Mở bảng ${board.name}`}>
-        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
-      </button>
-      <div className="flex items-start gap-1">
-        <button onClick={onOpen} className="flex-1 min-w-0 text-left">
-          <p className={`${T.bodyStrong} leading-snug line-clamp-2`} style={{ color: C.text }}>
-            {board.name}
-          </p>
-          <p className={T.meta} style={{ color: C.textSoft }}>
-            {boardWhen(board.updatedAt)}
-          </p>
-        </button>
-        <button
-          onClick={onEdit}
-          aria-label={`Sửa bảng ${board.name}`}
-          className="flex-none w-8 h-8 rounded-full flex items-center justify-center"
-          style={{ color: C.muted }}
-        >
-          {icons.edit()}
-        </button>
+    <div className={`flex flex-col gap-1.5 ${TAP}`} {...hold} aria-label={`Mở bảng ${board.name}`} role="button" tabIndex={0}>
+      <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
+      <div className="min-w-0">
+        <p className={`${T.bodyStrong} leading-snug line-clamp-2`} style={{ color: C.text }}>
+          {board.name}
+        </p>
+        <p className={T.meta} style={{ color: C.textSoft }}>
+          {boardWhen(board.updatedAt)}
+        </p>
       </div>
     </div>
   )
@@ -8926,12 +8965,18 @@ function BoardRow({
   onEdit: () => void
 }) {
   const spec = board.specialtyId ? SPECIALTIES.find((s) => s.id === board.specialtyId) : undefined
+  const hold = useHoldToEdit(onOpen, onEdit)
   return (
-    <div className={`flex items-center gap-3 p-2 ${R.card} border`} style={{ borderColor: C.line, background: C.surface }}>
-      <button onClick={onOpen} className="flex-none" aria-label={`Mở bảng ${board.name}`}>
-        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-[72px] h-[54px]" />
-      </button>
-      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+    <div
+      className={`flex items-center gap-3 p-2 ${R.card} border ${TAP}`}
+      style={{ borderColor: C.line, background: C.surface }}
+      {...hold}
+      aria-label={`Mở bảng ${board.name}`}
+      role="button"
+      tabIndex={0}
+    >
+      <BoardPreviewFrame board={board} previewTick={previewTick} className="flex-none w-[72px] h-[54px]" />
+      <div className="flex-1 min-w-0">
         <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
           {board.name}
         </p>
@@ -8939,15 +8984,7 @@ function BoardRow({
           {boardWhen(board.updatedAt)}
           {spec ? ` · ${spec.name}` : ""}
         </p>
-      </button>
-      <button
-        onClick={onEdit}
-        aria-label={`Sửa bảng ${board.name}`}
-        className="flex-none w-9 h-9 rounded-full flex items-center justify-center"
-        style={{ color: C.muted }}
-      >
-        {icons.edit()}
-      </button>
+      </div>
     </div>
   )
 }
@@ -8990,9 +9027,13 @@ function MindmapScreen({
   onOpenBackup: () => void
 }) {
   const [sheetMode, setSheetMode] = useState<"create" | "edit" | null>(null)
-  // Bảng đang MỞ. null = đang ở danh sách. Giữ ở đây (không đưa lên `Screen` của App) vì đây thuần
-  // là chuyện bên trong tab Mindmap — nút Mindmap ở thanh dưới luôn phải quay về danh sách.
-  const [openId, setOpenId] = useState<string | null>(null)
+  // Bảng đang MỞ. null = đang ở danh sách.
+  //
+  // Dùng useStickyState (sessionStorage) chứ không phải useState: chuyển sang tab khác là màn này
+  // bị gỡ khỏi cây React, state thường mất sạch — quay lại thì rơi về danh sách và phải mở lại đúng
+  // bảng đang làm dở. Khung nhìn (kéo/phóng) của từng bảng cũng được nhớ riêng, xem viewKey() trong
+  // MindmapBoard.tsx, nên quay lại là thấy ĐÚNG chỗ đang vẽ chứ không chỉ đúng bảng.
+  const [openId, setOpenId] = useStickyState<string | null>("mindmap.openBoard", null)
   // Bảng nào đang được sửa tên/màu ở bảng trượt — có thể là bảng trong danh sách chứ không nhất
   // thiết là bảng đang mở.
   const [sheetBoardId, setSheetBoardId] = useState<string | null>(null)
@@ -9119,6 +9160,7 @@ function MindmapScreen({
           key={activeBoardId}
           {...boardProps}
           boardName={activeBoard?.name}
+          boardId={activeBoardId}
           onGoHome={() => {
             setOpenId(null)
             setSheetBoardId(null)
@@ -9141,6 +9183,7 @@ function SheetAction({
   label,
   hint,
   danger,
+  disabled,
   onClick,
   onBlur,
 }: {
@@ -9148,6 +9191,7 @@ function SheetAction({
   label: string
   hint: string
   danger?: boolean
+  disabled?: boolean
   onClick: () => void
   onBlur?: () => void
 }) {
@@ -9155,7 +9199,8 @@ function SheetAction({
     <button
       onClick={onClick}
       onBlur={onBlur}
-      className="w-full flex items-center gap-3 px-3 py-3 text-left border-b last:border-b-0"
+      disabled={disabled}
+      className="w-full flex items-center gap-3 px-3 py-3 text-left border-b last:border-b-0 disabled:opacity-45"
       style={{ borderColor: C.lineSoft }}
     >
       <span className="flex-none w-5 h-5" style={{ color: danger ? C.danger : C.textSoft }}>
@@ -9269,22 +9314,34 @@ function BoardEditSheet({
               <div className={`${R.card} border overflow-hidden`} style={{ borderColor: C.line }}>
                 <SheetAction icon={icons.copy()} label="Nhân bản" hint="Tạo một bản sao đầy đủ cả nội dung" onClick={onDuplicate} />
                 <SheetAction icon={icons.download()} label="Xuất file" hint="Mở bảng rồi chọn PNG hoặc PDF ở thanh trên" onClick={onExport} />
-                {canDelete && (
-                  <SheetAction
-                    icon={icons.trash()}
-                    label={confirmDelete ? "Chắc chắn dời vào thùng rác?" : "Dời vào thùng rác"}
-                    hint="Bảng còn nguyên trong thùng rác, khôi phục lại được"
-                    danger
-                    onClick={() => {
-                      if (!confirmDelete) {
-                        setConfirmDelete(true)
-                        return
-                      }
-                      onDelete()
-                    }}
-                    onBlur={() => setConfirmDelete(false)}
-                  />
-                )}
+                {/* LUÔN hiện, kể cả khi đang là bảng cuối cùng — lúc đó chỉ mờ đi kèm lý do. Ẩn hẳn
+                    thì người dùng chỉ có một bảng sẽ tìm mãi không thấy chỗ xoá và tưởng app thiếu
+                    tính năng, thay vì hiểu là app đang giữ lại cho họ ít nhất một bảng để dùng. */}
+                <SheetAction
+                  icon={icons.trash()}
+                  label={
+                    !canDelete
+                      ? "Dời vào thùng rác"
+                      : confirmDelete
+                        ? "Chắc chắn dời vào thùng rác?"
+                        : "Dời vào thùng rác"
+                  }
+                  hint={
+                    canDelete
+                      ? "Bảng còn nguyên trong thùng rác, khôi phục lại được"
+                      : "Đây là bảng cuối cùng — tạo thêm một bảng nữa rồi mới dời được bảng này đi"
+                  }
+                  danger={canDelete}
+                  disabled={!canDelete}
+                  onClick={() => {
+                    if (!confirmDelete) {
+                      setConfirmDelete(true)
+                      return
+                    }
+                    onDelete()
+                  }}
+                  onBlur={() => setConfirmDelete(false)}
+                />
               </div>
             </div>
           )}
