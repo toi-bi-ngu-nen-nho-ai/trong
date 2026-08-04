@@ -147,6 +147,50 @@ export const mindIcons: Record<string, IconFn> = {
       </g>,
     ),
   close: (cls = "w-5 h-5") => svg(cls, 2, <path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6" />),
+  // Về danh sách bảng.
+  home: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.8,
+      <>
+        <path d="M4 10.5L12 4l8 6.5" />
+        <path d="M6 9.6V19a1 1 0 001 1h10a1 1 0 001-1V9.6" />
+      </>,
+    ),
+  // Chế độ chỉ đọc: một trang tài liệu kèm con mắt.
+  readOnly: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.7,
+      <>
+        <path d="M6 3.5h7.5L18 8v5.2" />
+        <path d="M6 3.5A1.5 1.5 0 004.5 5v14A1.5 1.5 0 006 20.5h3" />
+        <path d="M8 8h4M8 11.5h6" />
+        <ellipse cx="16.5" cy="17.5" rx="4" ry="2.8" />
+        <circle cx="16.5" cy="17.5" r="1.1" />
+      </>,
+    ),
+  // Xuất/chia sẻ file.
+  share: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.9,
+      <>
+        <path d="M12 15.5V4M8.4 7.6L12 4l3.6 3.6" />
+        <path d="M5.5 13.5V19a1 1 0 001 1h11a1 1 0 001-1v-5.5" />
+      </>,
+    ),
+  // Tài liệu (dùng cho mục xuất PDF).
+  doc: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.8,
+      <>
+        <path d="M6.5 3.5h7L18 8v12.5a1 1 0 01-1 1H6.5a1 1 0 01-1-1v-16a1 1 0 011-1z" />
+        <path d="M13 3.6V8h4.4" />
+        <path d="M8.5 12.5h7M8.5 16h5" />
+      </>,
+    ),
   chevronLeft: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M14.5 5.5L8 12l6.5 6.5" />),
   chevronRight: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M9.5 5.5L16 12l-6.5 6.5" />),
   chevronUp: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M5.5 14.5L12 8l6.5 6.5" />),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import type { MindBoard } from "../data/types"
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from "./idb"
-import { deleteMindmap, hasLegacyMindmap } from "./mindmapStorage"
+import { deleteMindmap, hasLegacyMindmap, loadMindmap, saveMindmap } from "./mindmapStorage"
 
 // Quản lý DANH SÁCH các bảng Sơ đồ tư duy (tên/màu/chuyên khoa gắn thẻ) và bảng đang mở. Dữ liệu
 // THẬT của mỗi bảng (node/cạnh/nét vẽ/ảnh) không nằm ở đây — xem lib/mindmapStorage.ts + useMindmap.
@@ -66,9 +66,13 @@ function ensureBoards(): Promise<MindBoard[]> {
 }
 
 export function useBoards() {
-  const [boards, setBoards] = useState<MindBoard[]>([])
+  // `all` giữ CẢ bảng trong thùng rác. Lọc ở nơi hiển thị chứ không xoá khỏi state: thùng rác cần
+  // đọc đúng danh sách đó, và khôi phục chỉ là bỏ một trường đi.
+  const [all, setBoards] = useState<MindBoard[]>([])
   const [activeBoardId, setActiveBoardIdState] = useState<string>(LEGACY_ID_FALLBACK)
   const [loading, setLoading] = useState(true)
+  const boards = all.filter((b) => !b.deletedAt)
+  const trashedBoards = all.filter((b) => b.deletedAt).sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))
 
   useEffect(() => {
     let cancelled = false
@@ -77,7 +81,11 @@ export function useBoards() {
       if (cancelled) return
       setBoards(list)
       const saved = readActiveId()
-      setActiveBoardIdState(saved && list.some((b) => b.id === saved) ? saved : list[0].id)
+      // Bảng đang mở lần trước có thể đã bị dời vào thùng rác — mở lại nó thì người dùng chỉnh sửa
+      // một bảng mà họ tưởng đã xoá.
+      const live = list.filter((b) => !b.deletedAt)
+      const fallback = live[0]?.id ?? list[0].id
+      setActiveBoardIdState(saved && live.some((b) => b.id === saved) ? saved : fallback)
       setLoading(false)
     })()
     return () => {
@@ -139,21 +147,86 @@ export function useBoards() {
     })
   }, [])
 
-  // Luôn giữ ít nhất một bảng — xoá bảng đang mở thì tự chuyển sang bảng còn lại đầu tiên.
-  const deleteBoard = useCallback(
+  // ─── Nhân bản ─────────────────────────────────────────────────────────────
+  // Chép cả metadata lẫn NỘI DUNG bảng. Chép mỗi metadata thì ra một bảng trống mang tên "(bản
+  // sao)" — đúng thứ không ai muốn khi bấm nhân bản.
+  const duplicateBoard = useCallback(
     async (id: string) => {
-      if (boards.length <= 1) return false
-      await idbDelete(IDB_STORES.boards, id)
-      await deleteMindmap(id)
-      const remaining = boards.filter((b) => b.id !== id)
-      setBoards(remaining)
-      if (activeBoardId === id && remaining.length > 0) setActiveBoardId(remaining[0].id)
-      return true
+      const src = all.find((b) => b.id === id)
+      if (!src) return null
+      const now = Date.now()
+      const copy: MindBoard = {
+        ...src,
+        id: makeBoardId(),
+        name: `${src.name} (bản sao)`,
+        order: now,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: undefined,
+      }
+      const data = await loadMindmap(src.id)
+      await saveMindmap(copy.id, data)
+      await idbPut<MindBoard>(IDB_STORES.boards, copy)
+      setBoards((prev) => [...prev, copy])
+      return copy
     },
-    [boards, activeBoardId, setActiveBoardId],
+    [all],
   )
 
-  return { boards, activeBoardId, setActiveBoardId, loading, createBoard, updateBoard, deleteBoard, reorderBoards, upsertBoardLocal }
+  // ─── Thùng rác ────────────────────────────────────────────────────────────
+  // Dời vào thùng rác chỉ là đánh dấu thời điểm; dữ liệu bảng không bị đụng tới. Vẫn giữ quy tắc
+  // "luôn còn ít nhất một bảng đang dùng" — dọn hết vào thùng rác thì màn danh sách trống trơn và
+  // không còn gì để mở.
+  const trashBoard = useCallback(
+    async (id: string) => {
+      const live = all.filter((b) => !b.deletedAt)
+      if (live.length <= 1) return false
+      const target = all.find((b) => b.id === id)
+      if (!target) return false
+      const updated = { ...target, deletedAt: Date.now() }
+      await idbPut<MindBoard>(IDB_STORES.boards, updated)
+      setBoards((prev) => prev.map((b) => (b.id === id ? updated : b)))
+      if (activeBoardId === id) {
+        const next = live.find((b) => b.id !== id)
+        if (next) setActiveBoardId(next.id)
+      }
+      return true
+    },
+    [all, activeBoardId, setActiveBoardId],
+  )
+
+  const restoreBoard = useCallback(async (id: string) => {
+    setBoards((prev) => {
+      const target = prev.find((b) => b.id === id)
+      if (!target) return prev
+      const updated: MindBoard = { ...target, deletedAt: undefined, updatedAt: Date.now() }
+      void idbPut<MindBoard>(IDB_STORES.boards, updated)
+      return prev.map((b) => (b.id === id ? updated : b))
+    })
+  }, [])
+
+  // Xoá HẲN — chỉ gọi được từ trong thùng rác, và màn đó bắt xác nhận trước.
+  const purgeBoard = useCallback(async (id: string) => {
+    await idbDelete(IDB_STORES.boards, id)
+    await deleteMindmap(id)
+    setBoards((prev) => prev.filter((b) => b.id !== id))
+  }, [])
+
+  return {
+    boards,
+    trashedBoards,
+    activeBoardId,
+    setActiveBoardId,
+    loading,
+    createBoard,
+    duplicateBoard,
+    updateBoard,
+    trashBoard,
+    restoreBoard,
+    purgeBoard,
+    reorderBoards,
+    upsertBoardLocal,
+  }
 }
 
 // Id di trú cho bảng đầu tiên trên máy đã dùng app từ trước khi có nhiều bảng — phải khớp

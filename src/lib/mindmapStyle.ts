@@ -23,6 +23,36 @@ export const PAPER_BG = "#fcfdff"
 export const PAPER_LINE = "rgba(148,163,184,.20)"
 export const PAPER_DOT = "rgba(100,116,139,.30)"
 
+// ─── Màu mặt giấy ─────────────────────────────────────────────────────────────
+//
+// Trắng để đọc ban ngày, đen cho ca trực đêm (bảng trắng toàn màn lúc 2 giờ sáng trong buồng bệnh
+// tắt đèn thì chói và đánh thức người bệnh), vàng ngà đỡ mỏi mắt khi nhìn lâu.
+//
+// Giấy tối KHÔNG dùng chung màu lưới với giấy sáng: lưới xám nhạt trên nền đen thì mờ tới mức
+// không thấy, còn lưới sáng trên nền trắng thì chói hơn cả nét vẽ. Mỗi màu giấy vì vậy mang theo
+// màu lưới và màu chấm của riêng nó.
+export type PaperTone = "white" | "black" | "yellow"
+
+export interface PaperPalette {
+  id: PaperTone
+  label: string
+  bg: string
+  line: string
+  dot: string
+  // Giấy này là nền TỐI hay không — nơi dùng cần biết để đảo màu chữ/viền phụ trợ cho đọc được.
+  dark: boolean
+}
+
+export const PAPER_TONES: PaperPalette[] = [
+  { id: "white", label: "Trắng", bg: PAPER_BG, line: PAPER_LINE, dot: PAPER_DOT, dark: false },
+  { id: "black", label: "Đen", bg: "#12161c", line: "rgba(226,232,240,.13)", dot: "rgba(226,232,240,.22)", dark: true },
+  { id: "yellow", label: "Vàng", bg: "#fdf6e3", line: "rgba(146,110,45,.18)", dot: "rgba(146,110,45,.30)", dark: false },
+]
+
+export function paperTone(id: PaperTone | undefined): PaperPalette {
+  return PAPER_TONES.find((t) => t.id === id) ?? PAPER_TONES[0]
+}
+
 // ─── Bảng màu (theo hệ màu của Notion) ────────────────────────────────────────
 //
 // Mười sắc màu, mỗi sắc là MỘT BỘ BA chứ không phải một mã màu rời:
@@ -383,8 +413,15 @@ export function nodePaint(node: MindNode): NodePaint {
 
 // Ảnh nền của mặt bảng, giãn theo mức phóng để lưới không bị rối khi thu nhỏ.
 // (Các hằng số của giấy nền khai báo ở đầu file — bảng màu cần chúng để tính tương phản.)
-export function paperBackground(kind: PaperKind, zoom: number): { backgroundImage: string; backgroundSize: string } {
+export function paperBackground(
+  kind: PaperKind,
+  zoom: number,
+  tone: PaperTone = "white",
+): { backgroundImage: string; backgroundSize: string } {
   const step = PAPER_STEP * zoom
+  const pal = paperTone(tone)
+  const PAPER_LINE = pal.line
+  const PAPER_DOT = pal.dot
   if (kind === "plain") return { backgroundImage: "none", backgroundSize: "auto" }
   if (kind === "dot") {
     return {

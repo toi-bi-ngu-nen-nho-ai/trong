@@ -158,8 +158,10 @@ function drawNode(ctx: CanvasRenderingContext2D, node: MindNode, sizes: Sizes) {
   })
 }
 
-// Vẽ cả bảng ra một Blob PNG. Trả về null nếu bảng chưa có gì để xuất.
-export async function exportMindmapPng(data: MindmapData, sizes: Sizes, paper: PaperKind): Promise<Blob | null> {
+// Vẽ cả bảng ra một canvas. Tách riêng khỏi phần đóng gói file để PNG và PDF dùng CHUNG đúng một
+// đường vẽ — hai đường vẽ riêng là hai thứ sẽ lệch nhau dần, và người dùng sẽ thấy file PDF khác
+// file PNG của cùng một bảng.
+async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: PaperKind): Promise<HTMLCanvasElement | null> {
   const bounds = contentBounds(data, sizes)
   if (!bounds) return null
 
@@ -250,14 +252,115 @@ export async function exportMindmapPng(data: MindmapData, sizes: Sizes, paper: P
 
   data.nodes.forEach((n) => drawNode(ctx, n, sizes))
 
+  return canvas
+}
+
+// Vẽ cả bảng ra một Blob PNG. Trả về null nếu bảng chưa có gì để xuất.
+export async function exportMindmapPng(data: MindmapData, sizes: Sizes, paper: PaperKind): Promise<Blob | null> {
+  const canvas = await renderMindmapCanvas(data, sizes, paper)
+  if (!canvas) return null
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"))
+}
+
+// ─── Xuất PDF ─────────────────────────────────────────────────────────────────
+//
+// Tự dựng file PDF thay vì kéo về một thư viện (jsPDF ~350KB): app này chạy hoàn toàn ngoại tuyến
+// và được cài như PWA, mỗi kilobyte thêm vào là thêm thời gian tải lần đầu ở chỗ sóng yếu.
+//
+// PDF cần đúng một trang chứa một ảnh. Ảnh nhúng ở dạng JPEG vì PDF đọc thẳng được luồng JPEG qua
+// bộ lọc DCTDecode — không phải giải nén rồi nén lại như PNG (PNG trong PDF phải chuyển sang
+// FlateDecode trên dữ liệu điểm ảnh thô, tức là phải tự viết cả bộ nén zlib).
+
+// Cạnh dài của trang, tính bằng point (1/72 inch). 842pt = cạnh dài khổ A4 — trang cỡ này mở ra
+// trên mọi máy đọc đều vừa mắt, thay vì một trang khổng lồ theo đúng số điểm ảnh của bảng.
+const PDF_LONG_EDGE = 842
+
+function pdfEscape(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")
+}
+
+export async function exportMindmapPdf(
+  data: MindmapData,
+  sizes: Sizes,
+  paper: PaperKind,
+  title: string,
+): Promise<Blob | null> {
+  const canvas = await renderMindmapCanvas(data, sizes, paper)
+  if (!canvas) return null
+
+  const jpegBlob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92),
+  )
+  if (!jpegBlob) return null
+  const jpeg = new Uint8Array(await jpegBlob.arrayBuffer())
+
+  // Trang giữ đúng tỉ lệ của bảng, cạnh dài cố định.
+  const ratio = canvas.width / canvas.height
+  const pageW = ratio >= 1 ? PDF_LONG_EDGE : Math.round(PDF_LONG_EDGE * ratio)
+  const pageH = ratio >= 1 ? Math.round(PDF_LONG_EDGE / ratio) : PDF_LONG_EDGE
+
+  const enc = new TextEncoder()
+  const parts: Uint8Array[] = []
+  let length = 0
+  const push = (chunk: string | Uint8Array) => {
+    const bytes = typeof chunk === "string" ? enc.encode(chunk) : chunk
+    parts.push(bytes)
+    length += bytes.length
+  }
+
+  // Vị trí byte của từng đối tượng — bảng xref ở cuối file phải trỏ chính xác, sai một byte là máy
+  // đọc báo file hỏng.
+  const offsets: number[] = []
+  const startObj = (n: number) => {
+    offsets[n] = length
+    push(`${n} 0 obj\n`)
+  }
+
+  push("%PDF-1.4\n")
+  // Một dòng bình luận chứa byte > 127 để mọi công cụ nhận ra đây là file nhị phân, không phải văn bản.
+  push(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]))
+
+  startObj(1)
+  push("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+
+  startObj(2)
+  push("<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+
+  startObj(3)
+  push(
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] ` +
+      `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`,
+  )
+
+  startObj(4)
+  push(
+    `<< /Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} ` +
+      `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`,
+  )
+  push(jpeg)
+  push("\nendstream\nendobj\n")
+
+  // Ma trận đặt ảnh: phóng ảnh cho vừa đúng khổ trang. PDF lấy gốc toạ độ ở góc DƯỚI trái.
+  const content = `q\n${pageW} 0 0 ${pageH} 0 0 cm\n/Im0 Do\nQ\n`
+  startObj(5)
+  push(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\nendobj\n`)
+
+  startObj(6)
+  push(`<< /Title (${pdfEscape(title)}) /Producer (Bac si Trong) >>\nendobj\n`)
+
+  const xrefAt = length
+  push("xref\n0 7\n0000000000 65535 f \n")
+  for (let i = 1; i <= 6; i++) push(`${String(offsets[i]).padStart(10, "0")} 00000 n \n`)
+  push(`trailer\n<< /Size 7 /Root 1 0 R /Info 6 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`)
+
+  return new Blob(parts as BlobPart[], { type: "application/pdf" })
 }
 
 // Đưa ảnh vừa vẽ cho người dùng. Trên iPhone, bảng chia sẻ của iOS (Web Share) là cách duy nhất lưu
 // được vào Ảnh hoặc gửi đi ngay; máy nào không có thì tải file về như bình thường.
 // Trả về "share" | "download" để màn hình báo đúng việc vừa xảy ra.
 export async function deliverPng(blob: Blob, fileName: string): Promise<"share" | "download"> {
-  const file = new File([blob], fileName, { type: "image/png" })
+  const file = new File([blob], fileName, { type: blob.type || "image/png" })
   const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean }
   if (typeof nav.canShare === "function" && nav.canShare({ files: [file] })) {
     try {

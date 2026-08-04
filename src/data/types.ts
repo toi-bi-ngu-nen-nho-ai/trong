@@ -478,6 +478,13 @@ export interface MindBoard {
   order: number
   createdAt: number
   updatedAt: number
+  // Thời điểm bị dời vào thùng rác. Có giá trị = đang nằm trong thùng rác, KHÔNG hiện ở danh sách
+  // bảng nhưng dữ liệu vẫn còn nguyên và khôi phục lại được.
+  //
+  // Vì sao không xoá thẳng: một bảng sơ đồ là hàng giờ vẽ tay, mà nút xoá lại nằm ngay cạnh nút sửa
+  // tên. Bấm nhầm một cái là mất sạch và không có cách nào lấy lại — dữ liệu chỉ nằm trên máy này,
+  // không có bản trên máy chủ để khôi phục.
+  deletedAt?: number
 }
 
 export interface EcgLesson {

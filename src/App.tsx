@@ -266,6 +266,13 @@ const icons = {
   // Bốn ô vuông = đang xem dạng lưới; ba dòng kẻ = đang xem dạng danh sách. Nút chỉ có MỘT icon và
   // nó vẽ KIỂU SẼ CHUYỂN SANG khi bấm, không phải kiểu đang xem — nút một trạng thái mà vẽ trạng
   // thái hiện tại thì không ai đoán được bấm vào sẽ ra gì.
+  // Nhân bản: hai tờ giấy chồng lệch nhau.
+  copy: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.2" />
+      <path d="M15.5 5.5A1.5 1.5 0 0014 4H5.5A1.5 1.5 0 004 5.5V14a1.5 1.5 0 001.5 1.5" />
+    </svg>
+  ),
   gridView: () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
       <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" />
@@ -8569,16 +8576,23 @@ function MindmapGallery({
   onCreate,
   onEditBoard,
   previewTick,
+  trashedBoards,
+  onRestoreBoard,
+  onPurgeBoard,
 }: {
   boards: MindBoard[]
   onOpen: (id: string) => void
   onCreate: () => void
   onEditBoard: (board: MindBoard) => void
   previewTick: number
+  trashedBoards: MindBoard[]
+  onRestoreBoard: (id: string) => void
+  onPurgeBoard: (id: string) => void
 }) {
   const [view, setView] = useState<GalleryView>(readGalleryView)
   const [specialty, setSpecialty] = useState<string>("all")
   const [filterOpen, setFilterOpen] = useState(false)
+  const [trashOpen, setTrashOpen] = useState(false)
 
   // Chỉ đưa vào bộ lọc những chuyên khoa THẬT SỰ có bảng. Một danh sách 10 khoa mà 8 khoa bấm vào
   // ra màn trống thì bộ lọc thành thứ phải thử mới biết, thay vì nhìn là biết.
@@ -8660,6 +8674,21 @@ function MindmapGallery({
           {view === "grid" ? icons.listView() : icons.gridView()}
         </button>
 
+        {/* Thùng rác. Chỉ hiện khi trong đó CÓ thứ gì — một cái thùng rác rỗng thường trực chỉ tốn
+            chỗ và làm người dùng tưởng mình vừa lỡ xoá cái gì đó. */}
+        {trashedBoards.length > 0 && (
+          <button
+            onClick={() => setTrashOpen(true)}
+            aria-label={`Thùng rác, ${trashedBoards.length} bảng`}
+            title="Thùng rác"
+            className={`flex-none h-9 pl-2 pr-2.5 ${R.pill} border flex items-center gap-1`}
+            style={{ borderColor: C.line, color: C.textSoft, background: C.surface }}
+          >
+            {icons.trash()}
+            <span className={T.meta}>{trashedBoards.length}</span>
+          </button>
+        )}
+
         {filterOpen && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
@@ -8709,6 +8738,96 @@ function MindmapGallery({
             ))}
           </div>
         )}
+      </div>
+
+      {trashOpen && (
+        <TrashSheet
+          boards={trashedBoards}
+          onClose={() => setTrashOpen(false)}
+          onRestore={onRestoreBoard}
+          onPurge={onPurgeBoard}
+        />
+      )}
+    </div>
+  )
+}
+
+// Thùng rác. Bảng ở đây còn nguyên dữ liệu — khôi phục là về đúng chỗ cũ với đúng nội dung cũ.
+// Xoá hẳn thì bắt xác nhận hai chạm ngay trên dòng đó: đây là thao tác duy nhất trong toàn bộ màn
+// Mindmap thật sự không lấy lại được.
+function TrashSheet({
+  boards,
+  onClose,
+  onRestore,
+  onPurge,
+}: {
+  boards: MindBoard[]
+  onClose: () => void
+  onRestore: (id: string) => void
+  onPurge: (id: string) => void
+}) {
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  return (
+    <div className="absolute inset-0 z-40 flex flex-col" style={{ background: "rgba(15,23,42,.35)" }}>
+      <button className="flex-1" onClick={onClose} aria-label="Đóng" />
+      <div className="rounded-t-3xl flex flex-col" style={{ background: C.surface, maxHeight: "82%" }}>
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <p className={T.bodyStrong} style={{ color: C.text }}>
+            Thùng rác · {boards.length}
+          </p>
+          <button
+            onClick={onClose}
+            className="w-11 h-11 rounded-full flex items-center justify-center"
+            style={{ background: C.lineSoft, color: C.textSoft }}
+            aria-label="Đóng"
+          >
+            {icons.x()}
+          </button>
+        </div>
+        <p className={`${T.meta} px-5 pb-2`} style={{ color: C.textSoft }}>
+          Bảng trong đây không hiện ở danh sách nhưng dữ liệu vẫn còn nguyên. App không tự dọn thùng
+          rác — xoá hẳn phải do bạn bấm.
+        </p>
+        <div className="scroll-ios px-5 pb-4 flex flex-col gap-2" style={{ paddingBottom: "var(--nav-pad-bottom)" }}>
+          {boards.map((b) => (
+            <div key={b.id} className={`p-3 ${R.card} border`} style={{ borderColor: C.line }}>
+              <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
+                {b.name}
+              </p>
+              <p className={`${T.meta} mb-2`} style={{ color: C.textSoft }}>
+                Dời vào thùng rác {b.deletedAt ? boardWhen(b.deletedAt).toLowerCase() : ""}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onRestore(b.id)}
+                  className={`flex-1 h-9 ${R.pill} ${T.bodyStrong} border`}
+                  style={{ borderColor: C.primaryLine, color: C.primary, background: C.primarySoft }}
+                >
+                  Khôi phục
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirmId !== b.id) {
+                      setConfirmId(b.id)
+                      return
+                    }
+                    onPurge(b.id)
+                    setConfirmId(null)
+                  }}
+                  onBlur={() => setConfirmId(null)}
+                  className={`flex-1 h-9 ${R.pill} ${T.bodyStrong} border`}
+                  style={
+                    confirmId === b.id
+                      ? { borderColor: C.dangerIcon, background: C.dangerSoft, color: C.danger }
+                      : { borderColor: C.dangerLine, color: C.danger }
+                  }
+                >
+                  {confirmId === b.id ? "Chắc chắn xoá hẳn?" : "Xoá hẳn"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -8840,6 +8959,10 @@ function MindmapScreen({
   onCreateBoard,
   onUpdateBoard,
   onDeleteBoard,
+  onDuplicateBoard,
+  trashedBoards,
+  onRestoreBoard,
+  onPurgeBoard,
   onOpenBackup,
   ...boardProps
 }: {
@@ -8860,6 +8983,10 @@ function MindmapScreen({
   onCreateBoard: (name: string, color: string, specialtyId?: string) => Promise<string>
   onUpdateBoard: (id: string, patch: Partial<Pick<MindBoard, "name" | "color" | "specialtyId">>) => void
   onDeleteBoard: (id: string) => void
+  onDuplicateBoard: (id: string) => Promise<string | null>
+  trashedBoards: MindBoard[]
+  onRestoreBoard: (id: string) => void
+  onPurgeBoard: (id: string) => void
   onOpenBackup: () => void
 }) {
   const [sheetMode, setSheetMode] = useState<"create" | "edit" | null>(null)
@@ -8887,6 +9014,9 @@ function MindmapScreen({
         <MindmapGallery
           boards={boards}
           previewTick={previewTick}
+          trashedBoards={trashedBoards}
+          onRestoreBoard={onRestoreBoard}
+          onPurgeBoard={onPurgeBoard}
           onOpen={(id) => {
             onSwitchBoard(id)
             setOpenId(id)
@@ -8924,6 +9054,24 @@ function MindmapScreen({
               if (activeBoard) onDeleteBoard(activeBoard.id)
               setSheetMode(null)
               setSheetBoardId(null)
+              setPreviewTick((n) => n + 1)
+            }}
+            onDuplicate={() => {
+              const id = activeBoard?.id
+              setSheetMode(null)
+              setSheetBoardId(null)
+              if (id) void onDuplicateBoard(id)
+            }}
+            onExport={() => {
+              // Xuất file nằm ở thanh trên CỦA BẢNG (nó cần nội dung bảng đang mở để vẽ ra ảnh),
+              // nên ở đây chỉ mở bảng ra rồi để người dùng chọn PNG/PDF tại đó.
+              const id = activeBoard?.id
+              setSheetMode(null)
+              setSheetBoardId(null)
+              if (id) {
+                onSwitchBoard(id)
+                setOpenId(id)
+              }
             }}
           />
         )}
@@ -8932,38 +9080,12 @@ function MindmapScreen({
   }
 
   // ─── Một bảng đang mở ─────────────────────────────────────────────────────
+  // KHÔNG có ScreenHeader ở đây: thanh trên của bảng (nút về danh sách, tên bảng, công tắc Chỉ đọc,
+  // xuất file, cài đặt) nằm trong chính MindmapBoard, vì nó điều khiển giấy nền/màu nền/căn chỉnh
+  // vốn là state của component đó. Thêm một tiêu đề nữa ở đây là hai thanh chồng nhau, ăn mất chiều
+  // cao của mặt vẽ trên màn hình điện thoại.
   return (
     <div className="h-full flex flex-col">
-      <ScreenHeader
-        title={activeBoard?.name ?? "Bảng"}
-        actions={
-          <button
-            onClick={() => setSheetMode("edit")}
-            aria-label="Sửa tên, màu và chuyên khoa của bảng"
-            className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
-            style={{ borderColor: C.line, color: C.textSoft }}
-          >
-            {icons.edit()}
-          </button>
-        }
-      />
-      {/* Quay lại danh sách. Đặt thành một hàng riêng ngay dưới tiêu đề chứ không nhét vào tiêu đề:
-          tên bảng có thể rất dài, nút quay lại là thứ không bao giờ được bị chữ đẩy ra khỏi màn. */}
-      <div className="flex-none px-5 pb-2">
-        <button
-          onClick={() => {
-            setOpenId(null)
-            setSheetBoardId(null)
-            // Vẽ lại ảnh xem trước: bảng vừa đóng gần như chắc chắn đã khác lúc mở ra.
-            setPreviewTick((n) => n + 1)
-          }}
-          className={`h-8 pl-1.5 pr-3 ${R.pill} ${T.bodyStrong} flex items-center gap-1`}
-          style={{ color: C.primary }}
-        >
-          {icons.back()}
-          Tất cả bảng
-        </button>
-      </div>
       {/* Nằm trong luồng bố cục bình thường (không float đè lên canvas) — bảng vẽ có sẵn 2 cụm công
           cụ neo ở góc dưới trái/phải (xem MindmapBoard.tsx), nổi đè lên đó vừa che vừa dễ bấm nhầm. */}
       {showBackupReminder && (
@@ -8993,33 +9115,64 @@ function MindmapScreen({
         {/* key=boardId: đổi bảng phải là một lượt mount MỚI hoàn toàn — thẻ đang chọn/đang sửa, lasso
             đang khoanh... của bảng cũ không có ý nghĩa gì trên bảng khác. Ngăn xếp hoàn tác không mất
             theo vì nó không sống trong component này — xem undoStore ở useMindmap.ts. */}
-        <MindmapBoard key={activeBoardId} {...boardProps} />
-      </div>
-      {sheetMode && (
-        <BoardEditSheet
-          mode={sheetMode}
-          board={sheetMode === "edit" ? activeBoard : undefined}
-          canDelete={boards.length > 1}
-          onClose={() => setSheetMode(null)}
-          onCreate={(name, color, specialtyId) => {
-            onCreateBoard(name, color, specialtyId)
-            setSheetMode(null)
-          }}
-          onSave={(patch) => {
-            if (activeBoard) onUpdateBoard(activeBoard.id, patch)
-            setSheetMode(null)
-          }}
-          onDelete={() => {
-            if (activeBoard) onDeleteBoard(activeBoard.id)
-            setSheetMode(null)
+        <MindmapBoard
+          key={activeBoardId}
+          {...boardProps}
+          boardName={activeBoard?.name}
+          onGoHome={() => {
+            setOpenId(null)
+            setSheetBoardId(null)
+            // Vẽ lại ảnh xem trước: bảng vừa đóng gần như chắc chắn đã khác lúc mở ra.
+            setPreviewTick((n) => n + 1)
           }}
         />
-      )}
+      </div>
+      {/* Không có tấm sửa bảng ở đây: đổi tên/màu/chuyên khoa làm từ DANH SÁCH (nút bút chì trên
+          thẻ bảng). Thanh trên của bảng chỉ giữ những việc dùng ngay lúc đang xem/vẽ. */}
     </div>
   )
 }
 
 // Tấm trượt lên tạo bảng mới / sửa bảng đang mở (tên, màu-chuyên khoa gắn thẻ, xoá bảng).
+// Một dòng việc trong tấm sửa bảng. Gom thành component riêng vì cả ba dòng (nhân bản / xuất / dời
+// vào thùng rác) phải cao bằng nhau và cùng một cách bấm — ba khối JSX chép tay là ba chỗ sẽ lệch.
+function SheetAction({
+  icon,
+  label,
+  hint,
+  danger,
+  onClick,
+  onBlur,
+}: {
+  icon: React.ReactNode
+  label: string
+  hint: string
+  danger?: boolean
+  onClick: () => void
+  onBlur?: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      onBlur={onBlur}
+      className="w-full flex items-center gap-3 px-3 py-3 text-left border-b last:border-b-0"
+      style={{ borderColor: C.lineSoft }}
+    >
+      <span className="flex-none w-5 h-5" style={{ color: danger ? C.danger : C.textSoft }}>
+        {icon}
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className={`block ${T.bodyStrong}`} style={{ color: danger ? C.danger : C.text }}>
+          {label}
+        </span>
+        <span className={`block ${T.meta}`} style={{ color: C.textSoft }}>
+          {hint}
+        </span>
+      </span>
+    </button>
+  )
+}
+
 function BoardEditSheet({
   mode,
   board,
@@ -9028,6 +9181,8 @@ function BoardEditSheet({
   onCreate,
   onSave,
   onDelete,
+  onDuplicate,
+  onExport,
 }: {
   mode: "create" | "edit"
   board: MindBoard | undefined
@@ -9036,6 +9191,8 @@ function BoardEditSheet({
   onCreate: (name: string, color: string, specialtyId?: string) => void
   onSave: (patch: Partial<Pick<MindBoard, "name" | "color" | "specialtyId">>) => void
   onDelete: () => void
+  onDuplicate: () => void
+  onExport: () => void
 }) {
   const [name, setName] = useState(board?.name ?? "")
   const [specialtyId, setSpecialtyId] = useState<string | undefined>(board?.specialtyId)
@@ -9104,24 +9261,35 @@ function BoardEditSheet({
               })}
             </div>
           </div>
+
+          {/* Việc làm với cả bảng — chỉ có nghĩa khi đang SỬA một bảng đã tồn tại. */}
+          {mode === "edit" && (
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Bảng này</label>
+              <div className={`${R.card} border overflow-hidden`} style={{ borderColor: C.line }}>
+                <SheetAction icon={icons.copy()} label="Nhân bản" hint="Tạo một bản sao đầy đủ cả nội dung" onClick={onDuplicate} />
+                <SheetAction icon={icons.download()} label="Xuất file" hint="Mở bảng rồi chọn PNG hoặc PDF ở thanh trên" onClick={onExport} />
+                {canDelete && (
+                  <SheetAction
+                    icon={icons.trash()}
+                    label={confirmDelete ? "Chắc chắn dời vào thùng rác?" : "Dời vào thùng rác"}
+                    hint="Bảng còn nguyên trong thùng rác, khôi phục lại được"
+                    danger
+                    onClick={() => {
+                      if (!confirmDelete) {
+                        setConfirmDelete(true)
+                        return
+                      }
+                      onDelete()
+                    }}
+                    onBlur={() => setConfirmDelete(false)}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex-none flex gap-2 px-5 pt-2 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
-          {mode === "edit" && canDelete && (
-            <button
-              onClick={() => {
-                if (!confirmDelete) {
-                  setConfirmDelete(true)
-                  return
-                }
-                onDelete()
-              }}
-              onBlur={() => setConfirmDelete(false)}
-              className="flex-1 py-3 rounded-2xl font-semibold text-[13px] border"
-              style={confirmDelete ? { borderColor: C.dangerIcon, background: C.dangerSoft, color: C.danger } : { borderColor: C.dangerLine, color: C.danger }}
-            >
-              {confirmDelete ? "Chắc chắn xoá?" : "Xoá bảng"}
-            </button>
-          )}
           <button
             onClick={submit}
             disabled={!name.trim()}
@@ -9279,7 +9447,19 @@ export default function App() {
   // Sơ đồ tư duy — nhiều bảng (xem lib/boards.ts), mỗi bảng lưu riêng bằng IndexedDB (debounce, xem
   // useMindmap). Nâng lên cấp App() (thay vì để MindmapScreen tự giữ state riêng như trước) để
   // DataSyncScreen đọc/ghi được cùng dữ liệu.
-  const { boards, activeBoardId, setActiveBoardId, createBoard, updateBoard, deleteBoard, upsertBoardLocal } = useBoards()
+  const {
+    boards,
+    trashedBoards,
+    activeBoardId,
+    setActiveBoardId,
+    createBoard,
+    duplicateBoard,
+    updateBoard,
+    trashBoard,
+    restoreBoard,
+    purgeBoard,
+    upsertBoardLocal,
+  } = useBoards()
   const mindmap = useMindmap(activeBoardId)
 
   const NON_TAB_SCREENS: Screen[] = [
@@ -9619,7 +9799,11 @@ export default function App() {
               // ở danh sách thì lần nào cũng phải chạm thêm một cái nữa vào đúng thứ mình vừa tạo.
               onCreateBoard={(name, color, specialtyId) => createBoard(name, color, specialtyId).then((b) => b.id)}
               onUpdateBoard={updateBoard}
-              onDeleteBoard={(id) => void deleteBoard(id)}
+              onDeleteBoard={(id) => void trashBoard(id)}
+              onDuplicateBoard={(id) => duplicateBoard(id).then((b) => b?.id ?? null)}
+              trashedBoards={trashedBoards}
+              onRestoreBoard={(id) => void restoreBoard(id)}
+              onPurgeBoard={(id) => void purgeBoard(id)}
               onOpenBackup={() => navigate("dataSync")}
             />
           )}

@@ -93,15 +93,18 @@ import {
   PAPER_BG,
   PAPER_LABELS,
   PAPER_STEP,
+  PAPER_TONES,
   colorName,
   edgeColor,
   NODE_FONT_STACK,
   nodeMetrics,
   nodePaint,
   paperBackground,
+  paperTone,
   type PaperKind,
+  type PaperTone,
 } from "../lib/mindmapStyle"
-import { deliverPng, exportMindmapPng } from "../lib/mindmapExport"
+import { deliverPng, exportMindmapPdf, exportMindmapPng } from "../lib/mindmapExport"
 import { mindIcons as mi } from "./MindmapIcons"
 
 type Tool = "hand" | "pen" | "highlighter" | "eraser" | "shape" | "lasso" | "link"
@@ -393,6 +396,47 @@ function writePresets(list: PenPreset[]): void {
   }
 }
 
+const TONE_KEY = "drtrong:mindmap-tone"
+const SNAP_KEY = "drtrong:mindmap-snap"
+
+function readTone(): PaperTone {
+  try {
+    const v = localStorage.getItem(TONE_KEY)
+    return v === "black" || v === "yellow" ? v : "white"
+  } catch {
+    return "white"
+  }
+}
+
+function writeTone(v: PaperTone): void {
+  try {
+    localStorage.setItem(TONE_KEY, v)
+  } catch {
+    // Không lưu được thì lần sau về giấy trắng — không đáng chặn việc gì.
+  }
+}
+
+// Hai công tắc căn chỉnh nằm chung một khoá cho gọn. MẶC ĐỊNH BẬT: đó là hành vi đã có từ trước,
+// tắt sẵn sẽ làm người đang dùng quen thấy thẻ đột nhiên hết dính vào nhau mà không hiểu vì sao.
+function readSnap(which: "obj" | "grid"): boolean {
+  try {
+    const raw = localStorage.getItem(SNAP_KEY)
+    if (!raw) return true
+    const v = JSON.parse(raw) as Record<string, boolean>
+    return v[which] !== false
+  } catch {
+    return true
+  }
+}
+
+function writeSnap(obj: boolean, grid: boolean): void {
+  try {
+    localStorage.setItem(SNAP_KEY, JSON.stringify({ obj, grid }))
+  } catch {
+    // Như trên.
+  }
+}
+
 function readPenOnly(): boolean {
   try {
     return localStorage.getItem(PEN_ONLY_KEY) === "1"
@@ -511,10 +555,16 @@ export function MindmapBoard({
   updateImages,
   replaceAll,
   undoStore,
+  boardName,
+  onGoHome,
 }: {
   data: MindmapData
   loading: boolean
   savedTick: number
+  // Tên bảng và đường quay về danh sách — thanh trên của bảng nằm trong component này (nó cần
+  // chạm tới paper/màu nền/căn chỉnh vốn là state của chính nó), nên hai thứ này phải truyền vào.
+  boardName?: string
+  onGoHome?: () => void
   // Mọi bài trong app có thể gắn vào thẻ: bài viết dựng sẵn, bài tự nhập, bài học ECG. Cùng danh sách
   // mà trình soạn thảo dùng để chèn liên kết trong bài (xem linkTargets trong App.tsx).
   linkTargets?: { target: string; label: string; group: string }[]
@@ -545,7 +595,16 @@ export function MindmapBoard({
   // Bảng "như đang thấy" — dùng cho vừa khung và xuất ảnh, để ảnh xuất ra đúng bằng cái đang nhìn.
   const visibleData: MindmapData = { nodes: visibleNodes, edges: visibleEdges, strokes, images }
 
-  const [tool, setTool] = useState<Tool>("hand")
+  // ─── Chế độ chỉ đọc ───────────────────────────────────────────────────────
+  // Mở bảng ra là CHỈ ĐỌC. Lý do: phần lớn lần mở một sơ đồ đã vẽ xong là để XEM lại, mà ở chế độ
+  // vẽ thì mỗi lần chạm nhầm vào mặt bảng đều để lại một vệt mực hoặc xê dịch một thẻ. Muốn sửa thì
+  // bấm một nút — rõ ràng và cố ý.
+  const [readOnly, setReadOnly] = useState(true)
+  const [rawTool, setTool] = useState<Tool>("hand")
+  // Ở chế độ chỉ đọc, mọi công cụ đều coi như "tay": không vẽ, không tẩy, không khoanh, không nối —
+  // chỉ kéo và phóng-thu. Ép ở ĐÚNG MỘT chỗ này thay vì rải `if (readOnly)` khắp các nhánh xử lý
+  // chạm, vì bỏ sót một nhánh nghĩa là chế độ chỉ đọc vẫn để lại mực trên bảng.
+  const tool: Tool = readOnly ? "hand" : rawTool
   const [shapeKind, setShapeKind] = useState<ShapeKind>("arrow")
   const [inkColor, setInkColor] = useState(INK_COLORS[0])
   // Bút dạ NHỚ MÀU RIÊNG, không dùng chung với bút mực. Dùng chung thì mỗi lần đổi bút là mất màu
@@ -568,6 +627,13 @@ export function MindmapBoard({
   // Người dùng đã tự bật/tắt bằng tay chưa — nếu rồi thì không tự động bật đè lên lựa chọn của họ.
   const penOnlyTouched = useRef(false)
   const [paper, setPaper] = useState<PaperKind>(readPaper)
+  const [tone, setTone] = useState<PaperTone>(readTone)
+  // Căn chỉnh khi kéo thẻ/ảnh: theo các đối tượng khác, và theo ô lưới. Tách hai công tắc vì đây là
+  // hai kiểu canh khác hẳn nhau — có người muốn thẻ thẳng hàng với nhau nhưng không muốn bị ô lưới
+  // kéo đi, và ngược lại.
+  const [snapObjects, setSnapObjects] = useState(() => readSnap("obj"))
+  const [snapGrid, setSnapGrid] = useState(() => readSnap("grid"))
+  const [exportOpen, setExportOpen] = useState(false)
   const [sel, setSel] = useState<Selection>(null)
   const [linkFrom, setLinkFrom] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -649,6 +715,9 @@ export function MindmapBoard({
 
   const view = useRef({ x: 24, y: 24, zoom: 1 })
   const paperRef = useRef(paper)
+  // Màu giấy đọc trong applyView() — hàm đó chạy ngoài vòng vẽ của React (ghi thẳng vào style), nên
+  // phải lấy qua ref chứ không dùng được biến state trực tiếp.
+  const toneRef = useRef<PaperTone>("white")
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const draftPts = useRef<number[] | null>(null)
   // Bề dày tại từng điểm của nét đang vẽ (chỉ bút mực) và trạng thái tính bề dày — xem lib/ink.ts.
@@ -762,7 +831,7 @@ export function MindmapBoard({
     }
     const s = surfaceRef.current
     if (s) {
-      const bg = paperBackground(paperRef.current, zoom)
+      const bg = paperBackground(paperRef.current, zoom, toneRef.current)
       s.style.backgroundImage = bg.backgroundImage
       s.style.backgroundSize = bg.backgroundSize
       s.style.backgroundPosition = `${x}px ${y}px`
@@ -854,6 +923,7 @@ export function MindmapBoard({
 
   useEffect(() => {
     paperRef.current = paper
+    toneRef.current = tone
     applyView()
     try {
       localStorage.setItem(PAPER_STORAGE_KEY, paper)
@@ -1538,7 +1608,9 @@ export function MindmapBoard({
     }
   }
 
-  async function exportPng() {
+  // Xuất bảng ra file. PNG và PDF đi qua cùng một đường: cùng kiểm tra bảng trống, cùng vẽ lại nội
+  // dung, cùng cách giao file cho người dùng — chỉ khác bước đóng gói cuối cùng.
+  async function exportBoard(kind: "png" | "pdf") {
     setMenuOpen(false)
     if (!contentBounds(visibleData, sizesRef.current)) {
       flashToast("Bảng đang trống — chưa có gì để xuất.")
@@ -1546,18 +1618,24 @@ export function MindmapBoard({
     }
     setBusy(true)
     try {
-      // Xuất đúng phần ĐANG THẤY: nhánh đang gấp thì ảnh cũng không có nó, không thì người dùng gấp
+      // Xuất đúng phần ĐANG THẤY: nhánh đang gấp thì file cũng không có nó, không thì người dùng gấp
       // gọn bảng lại rồi xuất ra vẫn thấy nguyên đống thẻ mình vừa giấu đi.
-      const blob = await exportMindmapPng(visibleData, sizesRef.current, paperRef.current)
+      const title = boardName ?? "Sơ đồ tư duy"
+      const blob =
+        kind === "pdf"
+          ? await exportMindmapPdf(visibleData, sizesRef.current, paperRef.current, title)
+          : await exportMindmapPng(visibleData, sizesRef.current, paperRef.current)
       if (!blob) {
-        flashToast("Không tạo được ảnh trên máy này.")
+        flashToast("Không tạo được file trên máy này.")
         return
       }
       const stamp = new Date().toISOString().slice(0, 10)
-      const how = await deliverPng(blob, `so-do-tu-duy-${stamp}.png`)
-      flashToast(how === "share" ? "Đã gửi ảnh sang bảng chia sẻ." : "Đã tải ảnh bảng về máy.")
+      const safe = title.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").toLowerCase() || "so-do-tu-duy"
+      const how = await deliverPng(blob, `${safe}-${stamp}.${kind}`)
+      const what = kind === "pdf" ? "file PDF" : "ảnh"
+      flashToast(how === "share" ? `Đã gửi ${what} sang bảng chia sẻ.` : `Đã tải ${what} về máy.`)
     } catch {
-      flashToast("Không xuất được ảnh.")
+      flashToast("Không xuất được file.")
     } finally {
       setBusy(false)
     }
@@ -1920,7 +1998,7 @@ export function MindmapBoard({
     // canh thẳng với thẻ khác là ý người dùng muốn rõ ràng hơn.
     let bestX = tol
     let bestY = tol
-    visibleNodes.forEach((n) => {
+    if (snapObjects) visibleNodes.forEach((n) => {
       if (act.target === "node" && n.id === act.id) return
       const b = nodeBox(n, sizeOf(n.id))
       const targetsX: [number, number][] = [
@@ -1952,11 +2030,11 @@ export function MindmapBoard({
     })
 
     // Chưa canh được với thẻ nào thì hít vào ô lưới.
-    if (guideX === null) {
+    if (snapGrid && guideX === null) {
       const gx = Math.round(x / SNAP_STEP) * SNAP_STEP
       if (Math.abs(gx - x) < tol) x = gx
     }
-    if (guideY === null) {
+    if (snapGrid && guideY === null) {
       const gy = Math.round(y / SNAP_STEP) * SNAP_STEP
       if (Math.abs(gy - y) < tol) y = gy
     }
@@ -3271,6 +3349,7 @@ export function MindmapBoard({
     })
   }
 
+  const pal = paperTone(tone)
   const inking = tool === "pen" || tool === "highlighter"
   const drawTool = inking || tool === "shape"
   const widths = tool === "highlighter" ? HIGHLIGHTER_WIDTHS : PEN_WIDTHS
@@ -3316,7 +3395,100 @@ export function MindmapBoard({
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* ─── Thanh công cụ ─────────────────────────────────────────────── */}
+      {/* ─── Thanh trên: luôn hiện ở CẢ hai chế độ ──────────────────────
+          Chứa đúng những việc không phải là vẽ: về danh sách, tên bảng, bật/tắt chỉnh sửa, xuất
+          file, và các cài đặt của bảng. Nhờ vậy ở chế độ chỉ đọc màn hình vẫn dùng được đầy đủ chứ
+          không phải một bảng chết chỉ để nhìn. */}
+      <div className="flex-none flex items-center gap-1 px-3 py-2 relative z-40">
+        <IconBtn icon={mi.home} hint="Về danh sách bảng" onClick={() => onGoHome?.()} />
+        <p className="flex-1 min-w-0 truncate text-[14px] font-bold px-1" style={{ color: "var(--c-text)" }}>
+          {boardName ?? "Bảng"}
+        </p>
+
+        {/* Công tắc chỉnh sửa. Nhãn nói TRẠNG THÁI ĐANG Ở, không nói việc sẽ làm — người dùng cần
+            biết ngay "bảng này có đang ăn nét vẽ của mình không", đó mới là câu hỏi thật. */}
+        <button
+          onClick={() => {
+            setReadOnly((v) => !v)
+            setMenuOpen(false)
+            setExportOpen(false)
+            setSel(null)
+            setSelGroup(null)
+            tickHaptic()
+          }}
+          aria-pressed={readOnly}
+          className="mind-btn flex-none h-9 pl-2 pr-3 rounded-2xl border flex items-center gap-1.5 text-[12.5px] font-bold"
+          style={
+            readOnly
+              ? { borderColor: "#e2e8f0", background: "#f1f5f9", color: "#475569" }
+              : { borderColor: "var(--c-primary)", background: "var(--c-primary)", color: "#fff" }
+          }
+        >
+          {readOnly ? mi.readOnly("w-[18px] h-[18px]") : mi.pen("w-[18px] h-[18px]")}
+          {readOnly ? "Chỉ đọc" : "Đang sửa"}
+        </button>
+
+        <div className="flex-none relative">
+          <IconBtn
+            icon={mi.share}
+            hint="Xuất bảng ra file"
+            active={exportOpen}
+            onClick={() => {
+              setExportOpen((v) => !v)
+              setMenuOpen(false)
+            }}
+          />
+          {exportOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onPointerDown={() => setExportOpen(false)} />
+              <div
+                className="mind-pop absolute right-0 top-full mt-1 w-[184px] rounded-2xl border p-1.5 z-50"
+                style={{ borderColor: "#e2e8f0", background: "#fff", boxShadow: "0 12px 30px rgba(15,23,42,.18)" }}
+              >
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setExportOpen(false)
+                    void exportBoard("png")
+                  }}
+                  className="mind-btn w-full flex items-center gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ color: busy ? "#94a3b8" : "#334155" }}
+                >
+                  {mi.image("w-[18px] h-[18px]")}
+                  Ảnh PNG
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setExportOpen(false)
+                    void exportBoard("pdf")
+                  }}
+                  className="mind-btn w-full flex items-center gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ color: busy ? "#94a3b8" : "#334155" }}
+                >
+                  {mi.doc("w-[18px] h-[18px]")}
+                  Tài liệu PDF
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <IconBtn
+          icon={mi.more}
+          hint="Cài đặt bảng"
+          active={menuOpen}
+          onClick={() => {
+            setMenuOpen((v) => !v)
+            setExportOpen(false)
+          }}
+        />
+      </div>
+
+      {/* ─── Thanh công cụ vẽ — chỉ hiện khi ĐANG SỬA ───────────────────── */}
+      {!readOnly && (
       <div className="flex-none px-3 pb-2 relative z-30">
         <div className="flex items-center gap-1.5 overflow-x-auto -mx-3 px-3">
           <div
@@ -3573,11 +3745,14 @@ export function MindmapBoard({
               )}
           </div>
         )}
+      </div>
+      )}
 
-        {/* Bảng "thêm lựa chọn" */}
-        {menuOpen && (
+      {/* Bảng cài đặt bảng vẽ. Nằm NGOÀI khối thanh công cụ vì nút mở nó ở thanh trên, và thanh
+          trên thì có ở cả chế độ chỉ đọc — để trong đó thì chỉ đọc sẽ bấm ba chấm mà không ra gì. */}
+      {menuOpen && (
           <div
-            className="mind-pop absolute right-3 top-full mt-1 w-[236px] rounded-2xl border p-2 z-40"
+            className="mind-pop absolute right-3 top-[50px] w-[236px] rounded-2xl border p-2 z-50"
             style={{ borderColor: "#e2e8f0", background: "#fff", boxShadow: "0 12px 30px rgba(15,23,42,.18)" }}
           >
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pt-0.5 pb-1.5">
@@ -3603,6 +3778,80 @@ export function MindmapBoard({
                 </button>
               ))}
             </div>
+
+            <div className="h-px my-2" style={{ background: "#e2e8f0" }} />
+
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pb-1.5">Màu nền</p>
+            <div className="grid grid-cols-3 gap-1">
+              {PAPER_TONES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setTone(t.id)
+                    writeTone(t.id)
+                    tickHaptic()
+                  }}
+                  className="mind-btn flex flex-col items-center gap-1 py-1.5 rounded-xl border"
+                  style={
+                    tone === t.id
+                      ? { background: "#eff6ff", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                      : { background: "#fff", borderColor: "#e2e8f0", color: "#475569" }
+                  }
+                >
+                  {/* Ô xem trước mang ĐÚNG màu giấy sẽ dùng, có viền riêng để giấy trắng trên nền
+                      trắng vẫn nhìn ra là một ô chứ không biến mất. */}
+                  <span
+                    className="w-6 h-5 rounded"
+                    style={{ background: t.bg, border: "1px solid rgba(15,23,42,.18)" }}
+                  />
+                  <span className="text-[11px] font-semibold">{t.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="h-px my-2" style={{ background: "#e2e8f0" }} />
+
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pb-1.5">Căn chỉnh</p>
+            {[
+              { on: snapObjects, label: "Căn theo đối tượng", hint: "Thẻ dính vào mép và tâm thẻ khác" },
+              { on: snapGrid, label: "Căn theo lưới", hint: "Thẻ dính vào ô lưới của giấy" },
+            ].map((row, i) => (
+              <button
+                key={row.label}
+                type="button"
+                onClick={() => {
+                  const nextObj = i === 0 ? !snapObjects : snapObjects
+                  const nextGrid = i === 1 ? !snapGrid : snapGrid
+                  setSnapObjects(nextObj)
+                  setSnapGrid(nextGrid)
+                  writeSnap(nextObj, nextGrid)
+                  tickHaptic()
+                }}
+                aria-pressed={row.on}
+                className="mind-btn w-full flex items-center gap-2 px-1.5 py-2 rounded-xl text-left"
+              >
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[12.5px] font-semibold" style={{ color: "#334155" }}>
+                    {row.label}
+                  </span>
+                  <span className="block text-[10.5px]" style={{ color: "#94a3b8" }}>
+                    {row.hint}
+                  </span>
+                </span>
+                {/* Công tắc gạt: trạng thái đọc được bằng HÌNH DẠNG (núm trái/phải) chứ không chỉ
+                    bằng màu — nhìn lướt vẫn biết đang bật hay tắt. */}
+                <span
+                  className="flex-none w-9 h-5 rounded-full relative transition-colors"
+                  style={{ background: row.on ? "var(--c-primary)" : "#cbd5e1" }}
+                >
+                  <span
+                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                    style={{ left: row.on ? 18 : 2 }}
+                  />
+                </span>
+              </button>
+            ))}
 
             <div className="h-px my-2" style={{ background: "#e2e8f0" }} />
 
@@ -3643,16 +3892,8 @@ export function MindmapBoard({
 
             <div className="h-px my-2" style={{ background: "#e2e8f0" }} />
 
-            <button
-              type="button"
-              onClick={exportPng}
-              disabled={busy}
-              className="mind-btn w-full flex items-center gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
-              style={{ color: busy ? "#94a3b8" : "#334155" }}
-            >
-              {mi.download("w-[18px] h-[18px]")}
-              Xuất bảng ra ảnh PNG
-            </button>
+            {/* Xuất file đã dời lên thanh trên (nút mũi tên chia sẻ) để dùng được ở cả chế độ chỉ
+                đọc — xem bảng xong muốn gửi đi thì không phải bật chế độ sửa lên chỉ để xuất. */}
             <button
               type="button"
               onClick={() => {
@@ -3752,19 +3993,18 @@ export function MindmapBoard({
               </>
             )}
           </div>
-        )}
-      </div>
+      )}
 
-      {menuOpen && <div className="absolute inset-0 z-20" onPointerDown={() => setMenuOpen(false)} />}
+      {menuOpen && <div className="absolute inset-0 z-30" onPointerDown={() => setMenuOpen(false)} />}
 
       {/* ─── Mặt bảng ──────────────────────────────────────────────────── */}
       <div
         ref={surfaceRef}
         className="flex-1 relative overflow-hidden"
         style={{
-          background: PAPER_BG,
+          background: pal.bg,
           touchAction: "none",
-          cursor: tool === "hand" ? "grab" : "crosshair",
+          cursor: readOnly || tool === "hand" ? "grab" : "crosshair",
           WebkitUserSelect: "none",
           userSelect: "none",
         }}
@@ -4774,7 +5014,7 @@ export function MindmapBoard({
       {zoomBox && (
         <div
           className="flex-none border-t relative"
-          style={{ height: ZOOM_PANEL_H, borderColor: "#e2e8f0", background: PAPER_BG }}
+          style={{ height: ZOOM_PANEL_H, borderColor: "#e2e8f0", background: pal.bg }}
         >
           <div
             ref={zoomSurfaceRef}
