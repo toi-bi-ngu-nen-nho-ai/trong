@@ -57,6 +57,10 @@ import { THEME_LABELS, loadTheme, saveTheme, type ThemeMode } from "./lib/theme"
 import { useMindmap } from "./lib/useMindmap"
 import { useBoards, DEFAULT_BOARD_COLOR } from "./lib/boards"
 import { loadMindmap, saveMindmap, mergeMindmaps } from "./lib/mindmapStorage"
+// Dùng cho ảnh xem trước của từng bảng trong danh sách Mindmap — vẽ lại bằng ĐÚNG bộ hàm mà bảng
+// thật và phần xuất ảnh PNG dùng, nên ảnh nhỏ không bao giờ khác hình dạng bảng thật.
+import { NODE_FALLBACK, contentBounds, strokeOutline, strokePath } from "./lib/mindmapGeometry"
+import { PAPER_BG } from "./lib/mindmapStyle"
 import { markBackupDone, shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
 import { countArticlesFor, countFlashcardsFor } from "./lib/specialtyStats"
 import { tickHaptic } from "./lib/haptics"
@@ -257,6 +261,22 @@ const icons = {
   filter: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+    </svg>
+  ),
+  // Bốn ô vuông = đang xem dạng lưới; ba dòng kẻ = đang xem dạng danh sách. Nút chỉ có MỘT icon và
+  // nó vẽ KIỂU SẼ CHUYỂN SANG khi bấm, không phải kiểu đang xem — nút một trạng thái mà vẽ trạng
+  // thái hiện tại thì không ai đoán được bấm vào sẽ ra gì.
+  gridView: () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+      <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.6" />
+      <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.6" />
+      <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.6" />
+      <rect x="13" y="13" width="7.5" height="7.5" rx="1.6" />
+    </svg>
+  ),
+  listView: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-5 h-5">
+      <path d="M4 6.5h16M4 12h16M4 17.5h16" />
     </svg>
   ),
   fire: () => (
@@ -8434,6 +8454,384 @@ function DungThuocScreen({
 
 // ─── Mindmap ───────────────────────────────────────────────────────────────────
 // Toàn bộ bảng vẽ nằm trong components/MindmapBoard.tsx — xem ghi chú ở đầu file đó.
+//
+// Màn này có HAI trạng thái:
+//   1. Danh sách bảng (mặc định) — thấy hết các bảng đã tạo, lọc theo chuyên khoa, đổi lưới/danh sách.
+//   2. Một bảng đang mở — chạm vào một bảng ở danh sách thì vào đây, có nút quay lại.
+//
+// Trước đây vào tab là nhảy thẳng vào bảng đang mở gần nhất, còn các bảng khác nằm sau một dải chip
+// cuộn ngang. Cách đó chỉ ổn khi có 2–3 bảng: nhiều hơn thì phải cuộn ngang mò từng cái, không thấy
+// được bảng nào có gì, và không có chỗ nào cho biết bảng thuộc chuyên khoa nào.
+
+const MINDMAP_VIEW_KEY = "drtrong:mindmap-gallery-view"
+type GalleryView = "grid" | "list"
+
+function readGalleryView(): GalleryView {
+  try {
+    return localStorage.getItem(MINDMAP_VIEW_KEY) === "list" ? "list" : "grid"
+  } catch {
+    return "grid"
+  }
+}
+
+function writeGalleryView(v: GalleryView): void {
+  try {
+    localStorage.setItem(MINDMAP_VIEW_KEY, v)
+  } catch {
+    // Không lưu được thì lần sau về mặc định lưới — không đáng chặn việc gì.
+  }
+}
+
+// "Hôm nay" / "Hôm qua" / "5 ngày trước" / "12/07/2026". Ngày tuyệt đối chỉ hiện khi đã đủ xa để
+// con số tương đối mất nghĩa — "37 ngày trước" không nói được gì hơn một ngày tháng cụ thể.
+function boardWhen(ts: number): string {
+  const d = new Date(ts)
+  const today = new Date()
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((startOf(today) - startOf(d)) / 86400000)
+  if (days <= 0) return "Hôm nay"
+  if (days === 1) return "Hôm qua"
+  if (days < 30) return `${days} ngày trước`
+  return d.toLocaleDateString("vi-VN")
+}
+
+// Ảnh xem trước của một bảng — đọc dữ liệu thật rồi thu nhỏ cả bảng vào khung thẻ.
+//
+// Nhớ theo id ở cấp module: cuộn danh sách qua lại không đọc lại IndexedDB, và quay về danh sách sau
+// khi đóng một bảng thì ảnh hiện ngay chứ không nháy trắng một nhịp.
+const boardPreviewCache = new Map<string, MindmapData>()
+
+function BoardThumb({ board, tick }: { board: MindBoard; tick: number }) {
+  const [data, setData] = useState<MindmapData | null>(() => boardPreviewCache.get(board.id) ?? null)
+
+  useEffect(() => {
+    let cancelled = false
+    // Bảng vừa được sửa (tick đổi) thì phải đọc lại — ảnh xem trước cũ là ảnh của nội dung cũ.
+    ;(async () => {
+      const d = await loadMindmap(board.id)
+      if (cancelled) return
+      boardPreviewCache.set(board.id, d)
+      setData(d)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [board.id, tick])
+
+  const box = useMemo(() => (data ? contentBounds(data, {}) : null), [data])
+  // Bảng trống hoặc chưa đọc xong: vẽ mặt giấy trơn, không vẽ khung rỗng trông như ảnh lỗi.
+  if (!data || !box) return null
+
+  // Chừa lề quanh nội dung để nét ngoài cùng không dính sát mép thẻ.
+  const pad = Math.max(12, Math.max(box.w, box.h) * 0.06)
+  const vb = `${box.x - pad} ${box.y - pad} ${box.w + pad * 2} ${box.h + pad * 2}`
+  const strokes = (data.strokes ?? []).slice(0, 600)
+
+  return (
+    <svg viewBox={vb} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full">
+      {strokes.map((s) => {
+        const filled = !!s.widths && s.widths.length > 1 && !s.straight
+        return (
+          <path
+            key={s.id}
+            d={filled ? strokeOutline(s.points, s.widths!) : strokePath(s.points, s.straight)}
+            fill={filled ? s.color : "none"}
+            stroke={filled ? "none" : s.color}
+            strokeWidth={filled ? undefined : s.width}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={s.tool === "highlighter" ? 0.4 : 1}
+          />
+        )
+      })}
+      {/* Thẻ ghi chú vẽ thành khối màu đặc, KHÔNG in chữ: ở cỡ ảnh xem trước thì chữ chỉ còn vài
+          pixel, thành một vệt xám bẩn chứ không đọc được gì. Khối màu lại cho nhận ra ngay hình
+          dạng và màu sắc quen thuộc của bảng. */}
+      {data.nodes.map((n) => (
+        <rect
+          key={n.id}
+          x={n.x}
+          y={n.y}
+          width={NODE_FALLBACK.w}
+          height={NODE_FALLBACK.h}
+          rx={10}
+          fill={n.color}
+          opacity={0.9}
+        />
+      ))}
+    </svg>
+  )
+}
+
+function MindmapGallery({
+  boards,
+  onOpen,
+  onCreate,
+  onEditBoard,
+  previewTick,
+}: {
+  boards: MindBoard[]
+  onOpen: (id: string) => void
+  onCreate: () => void
+  onEditBoard: (board: MindBoard) => void
+  previewTick: number
+}) {
+  const [view, setView] = useState<GalleryView>(readGalleryView)
+  const [specialty, setSpecialty] = useState<string>("all")
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  // Chỉ đưa vào bộ lọc những chuyên khoa THẬT SỰ có bảng. Một danh sách 10 khoa mà 8 khoa bấm vào
+  // ra màn trống thì bộ lọc thành thứ phải thử mới biết, thay vì nhìn là biết.
+  const usedSpecialties = useMemo(() => {
+    const ids = new Set(boards.map((b) => b.specialtyId).filter((s): s is string => !!s))
+    return SPECIALTIES.filter((s) => ids.has(s.id))
+  }, [boards])
+  const hasUnassigned = boards.some((b) => !b.specialtyId)
+
+  const shown = useMemo(() => {
+    const list =
+      specialty === "all"
+        ? boards
+        : specialty === "none"
+          ? boards.filter((b) => !b.specialtyId)
+          : boards.filter((b) => b.specialtyId === specialty)
+    // Mới sửa gần đây nhất lên trước — bảng đang làm dở là bảng cần mở lại nhiều nhất.
+    return [...list].sort((a, b) => b.updatedAt - a.updatedAt)
+  }, [boards, specialty])
+
+  const filterLabel =
+    specialty === "all"
+      ? "Tất cả"
+      : specialty === "none"
+        ? "Chưa gắn khoa"
+        : (SPECIALTIES.find((s) => s.id === specialty)?.name ?? "Tất cả")
+
+  function pick(id: string) {
+    setSpecialty(id)
+    setFilterOpen(false)
+    tickHaptic()
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <ScreenHeader title="Mindmap" />
+
+      {/* Hàng điều khiển: lọc bên trái, thêm mới và đổi kiểu xem bên phải */}
+      <div className="flex-none px-5 pb-3 flex items-center gap-2 relative">
+        <button
+          onClick={() => setFilterOpen((v) => !v)}
+          className={`flex-none h-9 pl-2.5 pr-3 ${R.pill} ${T.bodyStrong} border flex items-center gap-1.5`}
+          style={
+            specialty === "all"
+              ? { borderColor: C.line, color: C.textSoft, background: C.surface }
+              : { borderColor: C.primary, color: C.primary, background: C.primarySoft }
+          }
+        >
+          {icons.filter()}
+          <span className="truncate max-w-[140px]">{filterLabel}</span>
+        </button>
+
+        <span className="flex-1" />
+
+        <button
+          onClick={() => {
+            onCreate()
+            tickHaptic()
+          }}
+          className={`flex-none h-9 pl-3 pr-4 ${R.pill} ${T.bodyStrong} flex items-center gap-1`}
+          style={{ background: C.primary, color: "var(--c-on-bright)" }}
+        >
+          {icons.plus()}
+          Mới
+        </button>
+
+        <button
+          onClick={() => {
+            const next: GalleryView = view === "grid" ? "list" : "grid"
+            setView(next)
+            writeGalleryView(next)
+            tickHaptic()
+          }}
+          aria-label={view === "grid" ? "Xem dạng danh sách" : "Xem dạng lưới"}
+          title={view === "grid" ? "Xem dạng danh sách" : "Xem dạng lưới"}
+          className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
+          style={{ borderColor: C.line, color: C.textSoft, background: C.surface }}
+        >
+          {view === "grid" ? icons.listView() : icons.gridView()}
+        </button>
+
+        {filterOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
+            <div
+              className={`absolute left-5 top-full z-40 w-[210px] ${R.card} border p-1.5 max-h-[320px] overflow-y-auto scroll-ios`}
+              style={{ borderColor: C.line, background: C.surface, boxShadow: "0 12px 30px rgba(15,23,42,.18)" }}
+            >
+              <FilterRow label="Tất cả" count={boards.length} active={specialty === "all"} onClick={() => pick("all")} />
+              {usedSpecialties.map((s) => (
+                <FilterRow
+                  key={s.id}
+                  label={s.name}
+                  color={s.color}
+                  count={boards.filter((b) => b.specialtyId === s.id).length}
+                  active={specialty === s.id}
+                  onClick={() => pick(s.id)}
+                />
+              ))}
+              {hasUnassigned && (
+                <FilterRow
+                  label="Chưa gắn khoa"
+                  count={boards.filter((b) => !b.specialtyId).length}
+                  active={specialty === "none"}
+                  onClick={() => pick("none")}
+                />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="scroll-ios flex-1 px-5 pb-6">
+        {shown.length === 0 ? (
+          <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
+            Chưa có bảng nào trong mục này. Bấm "Mới" để tạo bảng đầu tiên.
+          </p>
+        ) : view === "grid" ? (
+          <div className="grid grid-cols-2 gap-3">
+            {shown.map((b) => (
+              <BoardCard key={b.id} board={b} previewTick={previewTick} onOpen={() => onOpen(b.id)} onEdit={() => onEditBoard(b)} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {shown.map((b) => (
+              <BoardRow key={b.id} board={b} previewTick={previewTick} onOpen={() => onOpen(b.id)} onEdit={() => onEditBoard(b)} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function FilterRow({
+  label,
+  color,
+  count,
+  active,
+  onClick,
+}: {
+  label: string
+  color?: string
+  count: number
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2 px-2.5 py-2 ${R.box} ${T.body}`}
+      style={active ? { background: C.primarySoft, color: C.primary } : { color: C.text }}
+    >
+      <span className="flex-none w-2.5 h-2.5 rounded-full" style={{ background: color ?? C.muted }} />
+      <span className="flex-1 text-left truncate">{label}</span>
+      <span className={T.meta} style={{ color: active ? C.primary : C.muted }}>
+        {count}
+      </span>
+    </button>
+  )
+}
+
+// Khung ảnh xem trước dùng chung cho cả thẻ lưới lẫn dòng danh sách — cùng một mặt giấy, cùng một
+// cách vẽ, chỉ khác kích thước.
+function BoardPreviewFrame({ board, previewTick, className }: { board: MindBoard; previewTick: number; className: string }) {
+  return (
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={{ background: PAPER_BG, border: `1px solid ${C.line}`, borderRadius: 12 }}
+    >
+      <BoardThumb board={board} tick={previewTick} />
+      {/* Vạch màu của bảng ở mép trái — nhận ra bảng bằng màu trước cả khi đọc tên. */}
+      <span className="absolute left-0 top-0 bottom-0 w-1" style={{ background: board.color }} />
+    </div>
+  )
+}
+
+function BoardCard({
+  board,
+  previewTick,
+  onOpen,
+  onEdit,
+}: {
+  board: MindBoard
+  previewTick: number
+  onOpen: () => void
+  onEdit: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button onClick={onOpen} className={`w-full ${TAP}`} aria-label={`Mở bảng ${board.name}`}>
+        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
+      </button>
+      <div className="flex items-start gap-1">
+        <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+          <p className={`${T.bodyStrong} leading-snug line-clamp-2`} style={{ color: C.text }}>
+            {board.name}
+          </p>
+          <p className={T.meta} style={{ color: C.textSoft }}>
+            {boardWhen(board.updatedAt)}
+          </p>
+        </button>
+        <button
+          onClick={onEdit}
+          aria-label={`Sửa bảng ${board.name}`}
+          className="flex-none w-8 h-8 rounded-full flex items-center justify-center"
+          style={{ color: C.muted }}
+        >
+          {icons.edit()}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function BoardRow({
+  board,
+  previewTick,
+  onOpen,
+  onEdit,
+}: {
+  board: MindBoard
+  previewTick: number
+  onOpen: () => void
+  onEdit: () => void
+}) {
+  const spec = board.specialtyId ? SPECIALTIES.find((s) => s.id === board.specialtyId) : undefined
+  return (
+    <div className={`flex items-center gap-3 p-2 ${R.card} border`} style={{ borderColor: C.line, background: C.surface }}>
+      <button onClick={onOpen} className="flex-none" aria-label={`Mở bảng ${board.name}`}>
+        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-[72px] h-[54px]" />
+      </button>
+      <button onClick={onOpen} className="flex-1 min-w-0 text-left">
+        <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
+          {board.name}
+        </p>
+        <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
+          {boardWhen(board.updatedAt)}
+          {spec ? ` · ${spec.name}` : ""}
+        </p>
+      </button>
+      <button
+        onClick={onEdit}
+        aria-label={`Sửa bảng ${board.name}`}
+        className="flex-none w-9 h-9 rounded-full flex items-center justify-center"
+        style={{ color: C.muted }}
+      >
+        {icons.edit()}
+      </button>
+    </div>
+  )
+}
 
 function MindmapScreen({
   boards,
@@ -8459,13 +8857,21 @@ function MindmapScreen({
   boards: MindBoard[]
   activeBoardId: string
   onSwitchBoard: (id: string) => void
-  onCreateBoard: (name: string, color: string, specialtyId?: string) => void
+  onCreateBoard: (name: string, color: string, specialtyId?: string) => Promise<string>
   onUpdateBoard: (id: string, patch: Partial<Pick<MindBoard, "name" | "color" | "specialtyId">>) => void
   onDeleteBoard: (id: string) => void
   onOpenBackup: () => void
 }) {
   const [sheetMode, setSheetMode] = useState<"create" | "edit" | null>(null)
-  const activeBoard = boards.find((b) => b.id === activeBoardId)
+  // Bảng đang MỞ. null = đang ở danh sách. Giữ ở đây (không đưa lên `Screen` của App) vì đây thuần
+  // là chuyện bên trong tab Mindmap — nút Mindmap ở thanh dưới luôn phải quay về danh sách.
+  const [openId, setOpenId] = useState<string | null>(null)
+  // Bảng nào đang được sửa tên/màu ở bảng trượt — có thể là bảng trong danh sách chứ không nhất
+  // thiết là bảng đang mở.
+  const [sheetBoardId, setSheetBoardId] = useState<string | null>(null)
+  // Tăng lên mỗi lần đóng một bảng, để ảnh xem trước của bảng vừa sửa được vẽ lại từ dữ liệu mới.
+  const [previewTick, setPreviewTick] = useState(0)
+  const activeBoard = boards.find((b) => b.id === (sheetBoardId ?? activeBoardId))
   // Chỉ nhắc sao lưu khi bảng đang mở thật sự có gì đáng mất — bảng mới tinh (chỉ có node "Chủ đề
   // trung tâm" mặc định, chưa vẽ, chưa dán ảnh) thì chưa cần nhắc.
   const hasContent = boardProps.data.nodes.length > 1 || (boardProps.data.strokes?.length ?? 0) > 0 || (boardProps.data.images?.length ?? 0) > 0
@@ -8474,16 +8880,90 @@ function MindmapScreen({
     if (!boardProps.loading && hasContent) setShowBackupReminder(shouldRemindBackup())
   }, [boardProps.loading, hasContent])
 
+  // ─── Danh sách bảng ───────────────────────────────────────────────────────
+  if (openId == null) {
+    return (
+      <>
+        <MindmapGallery
+          boards={boards}
+          previewTick={previewTick}
+          onOpen={(id) => {
+            onSwitchBoard(id)
+            setOpenId(id)
+          }}
+          onCreate={() => {
+            setSheetBoardId(null)
+            setSheetMode("create")
+          }}
+          onEditBoard={(b) => {
+            setSheetBoardId(b.id)
+            setSheetMode("edit")
+          }}
+        />
+        {sheetMode && (
+          <BoardEditSheet
+            mode={sheetMode}
+            board={sheetMode === "edit" ? activeBoard : undefined}
+            canDelete={boards.length > 1}
+            onClose={() => {
+              setSheetMode(null)
+              setSheetBoardId(null)
+            }}
+            onCreate={(name, color, specialtyId) => {
+              setSheetMode(null)
+              setSheetBoardId(null)
+              // Tạo xong mở thẳng vào bảng mới — đó là việc người dùng định làm tiếp.
+              void onCreateBoard(name, color, specialtyId).then(setOpenId)
+            }}
+            onSave={(patch) => {
+              if (activeBoard) onUpdateBoard(activeBoard.id, patch)
+              setSheetMode(null)
+              setSheetBoardId(null)
+            }}
+            onDelete={() => {
+              if (activeBoard) onDeleteBoard(activeBoard.id)
+              setSheetMode(null)
+              setSheetBoardId(null)
+            }}
+          />
+        )}
+      </>
+    )
+  }
+
+  // ─── Một bảng đang mở ─────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col">
-      <ScreenHeader title="Sơ đồ tư duy" />
-      <BoardSwitcher
-        boards={boards}
-        activeBoardId={activeBoardId}
-        onSwitch={onSwitchBoard}
-        onTapActive={() => setSheetMode("edit")}
-        onTapAdd={() => setSheetMode("create")}
+      <ScreenHeader
+        title={activeBoard?.name ?? "Bảng"}
+        actions={
+          <button
+            onClick={() => setSheetMode("edit")}
+            aria-label="Sửa tên, màu và chuyên khoa của bảng"
+            className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
+            style={{ borderColor: C.line, color: C.textSoft }}
+          >
+            {icons.edit()}
+          </button>
+        }
       />
+      {/* Quay lại danh sách. Đặt thành một hàng riêng ngay dưới tiêu đề chứ không nhét vào tiêu đề:
+          tên bảng có thể rất dài, nút quay lại là thứ không bao giờ được bị chữ đẩy ra khỏi màn. */}
+      <div className="flex-none px-5 pb-2">
+        <button
+          onClick={() => {
+            setOpenId(null)
+            setSheetBoardId(null)
+            // Vẽ lại ảnh xem trước: bảng vừa đóng gần như chắc chắn đã khác lúc mở ra.
+            setPreviewTick((n) => n + 1)
+          }}
+          className={`h-8 pl-1.5 pr-3 ${R.pill} ${T.bodyStrong} flex items-center gap-1`}
+          style={{ color: C.primary }}
+        >
+          {icons.back()}
+          Tất cả bảng
+        </button>
+      </div>
       {/* Nằm trong luồng bố cục bình thường (không float đè lên canvas) — bảng vẽ có sẵn 2 cụm công
           cụ neo ở góc dưới trái/phải (xem MindmapBoard.tsx), nổi đè lên đó vừa che vừa dễ bấm nhầm. */}
       {showBackupReminder && (
@@ -8535,58 +9015,6 @@ function MindmapScreen({
           }}
         />
       )}
-    </div>
-  )
-}
-
-// ─── Bảng chọn / chuyển bảng Sơ đồ tư duy ─────────────────────────────────────
-// Dải chip cuộn ngang ngay dưới tiêu đề màn hình — mỗi bảng một chip mang đúng màu/icon chuyên khoa
-// đã gắn (hoặc màu tự chọn), để quét mắt nhận ra bảng cần mở mà không phải đọc hết từng tên. Bảng
-// đang mở luôn nằm trong khung nhìn đầu tiên và có thêm bút chì để sửa tên/màu/xoá.
-function BoardSwitcher({
-  boards,
-  activeBoardId,
-  onSwitch,
-  onTapActive,
-  onTapAdd,
-}: {
-  boards: MindBoard[]
-  activeBoardId: string
-  onSwitch: (id: string) => void
-  onTapActive: () => void
-  onTapAdd: () => void
-}) {
-  return (
-    <div className="flex-none flex items-center gap-1.5 px-4 pb-2.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-      {boards.map((b) => {
-        const active = b.id === activeBoardId
-        return (
-          <button
-            key={b.id}
-            onClick={() => (active ? onTapActive() : onSwitch(b.id))}
-            className="flex-none flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full border text-[12.5px] font-semibold whitespace-nowrap"
-            style={
-              active
-                ? { background: `${b.color}1a`, borderColor: b.color, color: b.color }
-                : { borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-            }
-          >
-            <span className="w-4 h-4 flex-none" style={{ color: active ? b.color : "var(--c-muted)" }}>
-              {specialtyIcon(b.specialtyId, "w-4 h-4")}
-            </span>
-            <span className="truncate max-w-[120px]">{b.name}</span>
-            {active && <span className="w-3 h-3 flex-none opacity-70">{icons.edit()}</span>}
-          </button>
-        )
-      })}
-      <button
-        onClick={onTapAdd}
-        aria-label="Thêm bảng mới"
-        className="flex-none w-11 h-11 rounded-full border flex items-center justify-center"
-        style={{ borderColor: "var(--c-line)", color: "var(--c-primary)" }}
-      >
-        <span className="w-4 h-4">{icons.plus()}</span>
-      </button>
     </div>
   )
 }
@@ -9187,7 +9615,9 @@ export default function App() {
               boards={boards}
               activeBoardId={activeBoardId}
               onSwitchBoard={setActiveBoardId}
-              onCreateBoard={(name, color, specialtyId) => void createBoard(name, color, specialtyId)}
+              // Trả lại id bảng vừa tạo để màn Mindmap mở thẳng vào đó — tạo bảng xong mà vẫn đứng
+              // ở danh sách thì lần nào cũng phải chạm thêm một cái nữa vào đúng thứ mình vừa tạo.
+              onCreateBoard={(name, color, specialtyId) => createBoard(name, color, specialtyId).then((b) => b.id)}
               onUpdateBoard={updateBoard}
               onDeleteBoard={(id) => void deleteBoard(id)}
               onOpenBackup={() => navigate("dataSync")}

@@ -39,6 +39,32 @@ async function loadBoardsRaw(): Promise<MindBoard[]> {
   return rows.slice().sort((a, b) => a.order - b.order)
 }
 
+// Lần khởi tạo đang chạy dở, dùng chung cho mọi lời gọi song song.
+//
+// Vì sao cần: bước "chưa có bảng nào thì tạo bảng đầu tiên" là một chuỗi ĐỌC rồi GHI bất đồng bộ.
+// Hai lần chạy chồng nhau đều đọc ra danh sách rỗng, rồi cả hai cùng tạo — thành hai bảng "Bảng đầu
+// tiên" y hệt nhau. Chuyện này xảy ra thật ở chế độ dev vì React.StrictMode cố ý chạy effect hai
+// lần (xem src/main.tsx), và về nguyên tắc có thể xảy ra bất cứ khi nào component được gắn lại
+// nhanh hơn một vòng đọc IndexedDB. Giữ chung MỘT lời hứa thì lần gọi thứ hai chờ kết quả của lần
+// đầu thay vì mở một cuộc đua mới.
+let bootstrap: Promise<MindBoard[]> | null = null
+
+function ensureBoards(): Promise<MindBoard[]> {
+  if (bootstrap) return bootstrap
+  bootstrap = (async () => {
+    const list = await loadBoardsRaw()
+    if (list.length > 0) return list
+    const migrating = await hasLegacyMindmap()
+    const now = Date.now()
+    const first: MindBoard = migrating
+      ? { id: LEGACY_ID_FALLBACK, name: "Bảng của tôi", color: DEFAULT_BOARD_COLOR, order: 0, createdAt: now, updatedAt: now }
+      : { id: makeBoardId(), name: "Bảng đầu tiên", color: DEFAULT_BOARD_COLOR, order: 0, createdAt: now, updatedAt: now }
+    await idbPut<MindBoard>(IDB_STORES.boards, first)
+    return [first]
+  })()
+  return bootstrap
+}
+
 export function useBoards() {
   const [boards, setBoards] = useState<MindBoard[]>([])
   const [activeBoardId, setActiveBoardIdState] = useState<string>(LEGACY_ID_FALLBACK)
@@ -47,16 +73,7 @@ export function useBoards() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      let list = await loadBoardsRaw()
-      if (list.length === 0) {
-        const migrating = await hasLegacyMindmap()
-        const now = Date.now()
-        const first: MindBoard = migrating
-          ? { id: LEGACY_ID_FALLBACK, name: "Bảng của tôi", color: DEFAULT_BOARD_COLOR, order: 0, createdAt: now, updatedAt: now }
-          : { id: makeBoardId(), name: "Bảng đầu tiên", color: DEFAULT_BOARD_COLOR, order: 0, createdAt: now, updatedAt: now }
-        await idbPut<MindBoard>(IDB_STORES.boards, first)
-        list = [first]
-      }
+      const list = await ensureBoards()
       if (cancelled) return
       setBoards(list)
       const saved = readActiveId()
