@@ -148,8 +148,20 @@ export const mindIcons: Record<string, IconFn> = {
     ),
   close: (cls = "w-5 h-5") => svg(cls, 2, <path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6" />),
   chevronLeft: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M14.5 5.5L8 12l6.5 6.5" />),
+  chevronRight: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M9.5 5.5L16 12l-6.5 6.5" />),
   chevronUp: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M5.5 14.5L12 8l6.5 6.5" />),
   chevronDown: (cls = "w-5 h-5") => svg(cls, 2.2, <path d="M5.5 9.5L12 16l6.5-6.5" />),
+  // Ô viết phóng to: một khung viết nhỏ trên trang, kèm nét chữ phóng to bên dưới.
+  writeBox: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.8,
+      <>
+        <rect x="3.5" y="4" width="17" height="6" rx="1.4" />
+        <path d="M3.5 14.5h4M3.5 18.5h9" />
+        <path d="M14 19.5l6-6" strokeWidth="2.2" />
+      </>,
+    ),
   // Tìm thẻ trên bảng — kính lúp
   search: (cls = "w-5 h-5") =>
     svg(

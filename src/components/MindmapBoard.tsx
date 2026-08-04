@@ -95,6 +95,7 @@ import {
   PAPER_STEP,
   colorName,
   edgeColor,
+  NODE_FONT_STACK,
   nodeMetrics,
   nodePaint,
   paperBackground,
@@ -125,6 +126,46 @@ type Selection =
 // cách kéo thẻ bằng ngón tay.
 const DRAW_TOOLS: Tool[] = ["pen", "highlighter", "eraser", "shape", "lasso"]
 const PEN_ONLY_KEY = "drtrong:mindmap-pen-only"
+
+// ─── Ô viết phóng to ──────────────────────────────────────────────────────────
+//
+// Bài toán: viết tay bằng ngón tay (hoặc cả bằng bút) ở cỡ chữ thật trên màn hình điện thoại thì
+// nét to và xấu — muốn chữ nhỏ gọn trên bảng thì phải phóng bảng lên rất lớn, mà lúc đó lại không
+// còn thấy mình đang viết ở chỗ nào trong tổng thể.
+//
+// Cách GoodNotes giải: một ô viết PHÓNG TO ở đáy màn hình. Viết to thoải mái trong ô đó, chữ hiện
+// ra nhỏ trên bảng, và bảng phía trên vẫn giữ nguyên khung nhìn tổng thể. Một khung mảnh trên bảng
+// chỉ rõ đang viết vào chỗ nào.
+//
+// Số pixel màn hình trên một đơn vị bảng BÊN TRONG ô phóng to. 3 lần là mức mà chữ viết bằng ngón
+// tay ra cỡ chữ ghi chú bình thường trên bảng.
+const ZOOM_SCALE = 3
+const ZOOM_PANEL_H = 190
+// Viết tới sát mép phải ô thì tự dịch khung sang chỗ mới, chừa lại một phần chữ vừa viết để nhìn
+// thấy mạch câu. Tính theo tỉ lệ bề rộng ô.
+const ZOOM_ADVANCE_AT = 0.86
+const ZOOM_ADVANCE_KEEP = 0.22
+
+// ─── Bút yêu thích ────────────────────────────────────────────────────────────
+//
+// Ba ô bút nhớ sẵn, giống thanh bút của GoodNotes. Vì sao cần: khi ghi chú thật, người ta đảo đi
+// đảo lại giữa vài cây bút cố định — mực đen để viết, mực đỏ để đánh dấu chỗ quan trọng, bút dạ
+// vàng để tô. Không có ô nhớ thì mỗi lần đổi phải bấm lại đủ ba thứ (loại bút → màu → cỡ nét), tức
+// là ba lần chạm cho một việc lẽ ra một lần.
+//
+// Ô đang chọn TỰ CẬP NHẬT khi đổi màu hoặc cỡ nét: chỉnh cây bút trong tay thì cây bút đó nhớ, chứ
+// không phải chỉnh xong lại phải bấm thêm một nút "lưu" nào nữa.
+interface PenPreset {
+  tool: "pen" | "highlighter"
+  color: string
+  width: number
+}
+const PRESETS_KEY = "drtrong:mindmap-pens"
+const DEFAULT_PRESETS: PenPreset[] = [
+  { tool: "pen", color: "#37352F", width: 3.5 },
+  { tool: "pen", color: "#E03E3E", width: 2 },
+  { tool: "highlighter", color: "#FDE68A", width: 14 },
+]
 
 const PEN_WIDTHS = [2, 3.5, 6]
 const HIGHLIGHTER_WIDTHS = [14, 24]
@@ -326,6 +367,32 @@ function readPaper(): PaperKind {
   }
 }
 
+function readPresets(): PenPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY)
+    if (!raw) return DEFAULT_PRESETS
+    const v = JSON.parse(raw) as PenPreset[]
+    // Dữ liệu hỏng hoặc thiếu ô thì quay về mặc định, không cố vá từng ô — thanh bút thiếu một ô
+    // trông như lỗi hiển thị và không có cách nào tạo lại ô đó.
+    if (!Array.isArray(v) || v.length !== DEFAULT_PRESETS.length) return DEFAULT_PRESETS
+    return v.map((p, i) =>
+      p && typeof p.color === "string" && typeof p.width === "number" && (p.tool === "pen" || p.tool === "highlighter")
+        ? p
+        : DEFAULT_PRESETS[i],
+    )
+  } catch {
+    return DEFAULT_PRESETS
+  }
+}
+
+function writePresets(list: PenPreset[]): void {
+  try {
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(list))
+  } catch {
+    // Không lưu được thì phiên sau quay về bộ mặc định — chấp nhận được.
+  }
+}
+
 function readPenOnly(): boolean {
   try {
     return localStorage.getItem(PEN_ONLY_KEY) === "1"
@@ -490,6 +557,11 @@ export function MindmapBoard({
   // Tẩy cả nét hay chỉ tẩy phần chạm trúng. Mặc định tẩy MỘT PHẦN, giống cục tẩy thật và giống
   // GoodNotes: xoá được một chữ viết sai giữa một dòng dài mà không mất cả dòng.
   const [eraseWholeStroke, setEraseWholeStroke] = useState(false)
+  // Ô viết phóng to: vùng bảng đang được phóng (toạ độ bảng). null = đang tắt.
+  const [zoomBox, setZoomBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  // Ba ô bút yêu thích và ô đang dùng — xem PenPreset ở đầu file.
+  const [presets, setPresets] = useState<PenPreset[]>(readPresets)
+  const [activePreset, setActivePreset] = useState(0)
   // Chế độ chỉ-bút (chống tì tay) — xem noteStylus().
   const [penOnly, setPenOnly] = useState(readPenOnly)
   const penSeen = useRef(false)
@@ -556,6 +628,13 @@ export function MindmapBoard({
   const worldRef = useRef<HTMLDivElement>(null)
   const draftPathRef = useRef<SVGPathElement>(null)
   const erasePreviewRef = useRef<SVGGElement>(null)
+  // Ô viết phóng to: nét nháp, vòng tẩy và mặt nhận chạm của riêng nó.
+  const zoomDraftRef = useRef<SVGPathElement>(null)
+  const zoomEraserRingRef = useRef<HTMLDivElement>(null)
+  const zoomSurfaceRef = useRef<HTMLDivElement>(null)
+  // Phép quy đổi toạ độ đang có hiệu lực — chỉ khác null khi ngón/bút đang đặt trong ô phóng to.
+  // Xem toBoard().
+  const drawMap = useRef<((cx: number, cy: number) => { x: number; y: number }) | null>(null)
   const edgeLayerRef = useRef<SVGGElement>(null)
   const linkLineRef = useRef<SVGLineElement>(null)
   const eraserRingRef = useRef<HTMLDivElement>(null)
@@ -861,10 +940,23 @@ export function MindmapBoard({
   }
 
   // Đổi toạ độ điểm trên màn hình sang toạ độ trên bảng (đã trừ pan, chia zoom).
+  //
+  // `drawMap` là cửa duy nhất để một MẶT VẼ KHÁC (ô viết phóng to ở đáy màn hình) chen vào phép quy
+  // đổi này. Nhờ nó, toàn bộ phần vẽ/tẩy/nhận dạng hình bên dưới chạy nguyên xi trong ô phóng to mà
+  // không phải viết lại một bản thứ hai — thứ chắc chắn sẽ trôi lệch khỏi bản gốc theo thời gian.
   function toBoard(clientX: number, clientY: number) {
+    const map = drawMap.current
+    if (map) return map(clientX, clientY)
     const rect = surfaceRect()
     const { x, y, zoom } = view.current
     return { x: (clientX - rect.left - x) / zoom, y: (clientY - rect.top - y) / zoom }
+  }
+
+  // Số pixel màn hình trên một đơn vị bảng, TẠI MẶT ĐANG VẼ. Mọi ngưỡng tính theo pixel màn hình
+  // (khoảng cách điểm tối thiểu, bán kính tẩy, ngưỡng nhận dạng hình) phải chia cho con số này —
+  // dùng nhầm mức phóng của bảng chính thì trong ô phóng to tẩy sẽ to gấp mấy lần đầu ngón tay.
+  function drawScale() {
+    return drawMap.current ? ZOOM_SCALE : view.current.zoom
   }
 
   function clampZoom(z: number) {
@@ -1483,7 +1575,7 @@ export function MindmapBoard({
   // ─── Tẩy ──────────────────────────────────────────────────────────────────
 
   function eraseAt(bx: number, by: number) {
-    const r = eraserSize / view.current.zoom
+    const r = eraserSize / drawScale()
     let hitAny = false
 
     if (eraseWholeStroke) {
@@ -1589,48 +1681,64 @@ export function MindmapBoard({
     erased.current.clear()
     erasedParts.current.clear()
     clearErasePreview()
-    if (eraserRingRef.current) eraserRingRef.current.style.display = "none"
+    hideEraserRings()
   }
 
   function moveEraserRing(clientX: number, clientY: number) {
-    const ring = eraserRingRef.current
-    if (!ring) return
     const p = toBoard(clientX, clientY)
-    const r = eraserSize / view.current.zoom
-    ring.style.display = "block"
-    ring.style.left = `${p.x - r}px`
-    ring.style.top = `${p.y - r}px`
-    ring.style.width = `${r * 2}px`
-    ring.style.height = `${r * 2}px`
-    ring.style.borderWidth = `${Math.max(1, 1.5 / view.current.zoom)}px`
+    const r = eraserSize / drawScale()
+    // Vẽ vòng tẩy ở cả bảng chính lẫn ô phóng to: cả hai lớp đều dùng toạ độ bảng nên cùng một con
+    // số đặt được vào cả hai, chỉ khác bề dày viền phải chia theo mức phóng của từng lớp để viền
+    // luôn mảnh như nhau trên màn hình.
+    const put = (ring: HTMLDivElement | null, scale: number) => {
+      if (!ring) return
+      ring.style.display = "block"
+      ring.style.left = `${p.x - r}px`
+      ring.style.top = `${p.y - r}px`
+      ring.style.width = `${r * 2}px`
+      ring.style.height = `${r * 2}px`
+      ring.style.borderWidth = `${Math.max(1, 1.5 / scale)}px`
+    }
+    put(eraserRingRef.current, view.current.zoom)
+    put(zoomEraserRingRef.current, ZOOM_SCALE)
+  }
+
+  function hideEraserRings() {
+    if (eraserRingRef.current) eraserRingRef.current.style.display = "none"
+    if (zoomEraserRingRef.current) zoomEraserRingRef.current.style.display = "none"
   }
 
   // ─── Nét đang vẽ ──────────────────────────────────────────────────────────
 
+  // Nét đang vẽ dở phải hiện ở CẢ HAI mặt: trên bảng chính và trong ô viết phóng to. Cùng một dữ
+  // liệu, cùng một toạ độ bảng — chỉ khác phép biến hình của lớp chứa, nên chỉ cần ghi cùng một
+  // chuỗi `d` vào hai phần tử.
+  function draftPaths(): SVGPathElement[] {
+    return [draftPathRef.current, zoomDraftRef.current].filter((p): p is SVGPathElement => p != null)
+  }
+
   // `filled`: nét nháp là vùng tô (bút mực có bề dày thay đổi) hay đường kẻ đều dày (bút dạ, hình vẽ).
   function beginDraft(width: number, color: string, opacity: number, filled: boolean) {
-    const p = draftPathRef.current
-    if (!p) return
-    if (filled) {
-      p.setAttribute("fill", color)
-      p.setAttribute("stroke", "none")
-    } else {
-      p.setAttribute("fill", "none")
-      p.setAttribute("stroke", color)
-      p.setAttribute("stroke-width", String(width))
-    }
-    p.setAttribute("opacity", String(opacity))
-    p.setAttribute("d", "")
+    draftPaths().forEach((p) => {
+      if (filled) {
+        p.setAttribute("fill", color)
+        p.setAttribute("stroke", "none")
+      } else {
+        p.setAttribute("fill", "none")
+        p.setAttribute("stroke", color)
+        p.setAttribute("stroke-width", String(width))
+      }
+      p.setAttribute("opacity", String(opacity))
+      p.setAttribute("d", "")
+    })
   }
 
   function paintDraft(straight: boolean) {
-    const p = draftPathRef.current
-    if (!p || !draftPts.current) return
+    if (!draftPts.current) return
     const w = draftWidths.current
-    p.setAttribute(
-      "d",
-      w && w.length > 1 && !straight ? strokeOutline(draftPts.current, w) : strokePath(draftPts.current, straight),
-    )
+    const d =
+      w && w.length > 1 && !straight ? strokeOutline(draftPts.current, w) : strokePath(draftPts.current, straight)
+    draftPaths().forEach((p) => p.setAttribute("d", d))
   }
 
   function endDraft() {
@@ -1640,7 +1748,7 @@ export function MindmapBoard({
     smoother.current = null
     snapped.current = null
     cancelHold()
-    draftPathRef.current?.setAttribute("d", "")
+    draftPaths().forEach((p) => p.setAttribute("d", ""))
   }
 
   // ─── Giữ yên tay cuối nét → nắn thành hình chuẩn ──────────────────────────
@@ -1682,7 +1790,7 @@ export function MindmapBoard({
     if (!pts || action.current.kind !== "draw" || snapped.current) return
     // Truyền mức phóng vào: mọi ngưỡng nhận dạng đo theo pixel MÀN HÌNH, không theo toạ độ bảng —
     // nếu không, cùng một chữ viết tay sẽ bị nhận khác nhau tuỳ đang phóng to hay thu nhỏ.
-    const found = recognizeShape(pts, view.current.zoom)
+    const found = recognizeShape(pts, drawScale())
     if (!found) return
     snapped.current = found
     draftPts.current = found.points.slice()
@@ -2108,27 +2216,7 @@ export function MindmapBoard({
     }
 
     if (tool === "pen" || tool === "highlighter") {
-      action.current = { kind: "draw" }
-      draftPts.current = [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]
-      // Bộ lọc rung mới cho mỗi nét, mồi bằng đúng điểm đặt bút để đầu nét không bị kéo lệch.
-      smoother.current = new PointerSmoother()
-      smoother.current.filter(e.clientX, e.clientY, e.timeStamp || performance.now())
-      snapped.current = null
-      cancelHold()
-      if (tool === "pen") {
-        inkState.current = initInkWidth(penWidth, e.clientX, e.clientY, e.timeStamp || performance.now())
-        draftWidths.current = [inkState.current.width]
-      } else {
-        draftWidths.current = null
-        inkState.current = null
-      }
-      beginDraft(
-        tool === "highlighter" ? hlWidth : penWidth,
-        tool === "highlighter" ? hlColor : inkColor,
-        tool === "highlighter" ? HIGHLIGHTER_ALPHA : 1,
-        tool === "pen",
-      )
-      paintDraft(false)
+      beginInk(e, p)
       return
     }
     if (tool === "shape") {
@@ -2150,10 +2238,7 @@ export function MindmapBoard({
       return
     }
     if (tool === "eraser") {
-      action.current = { kind: "erase" }
-      erased.current.clear()
-      moveEraserRing(e.clientX, e.clientY)
-      eraseAt(p.x, p.y)
+      beginErase(e, p)
       return
     }
     if (tool === "link") {
@@ -2352,7 +2437,7 @@ export function MindmapBoard({
         const p = toBoard(f.x, f.y)
         const lastX = pts[pts.length - 2]
         const lastY = pts[pts.length - 1]
-        if (dist(lastX, lastY, p.x, p.y) < MIN_POINT_DIST / view.current.zoom) continue
+        if (dist(lastX, lastY, p.x, p.y) < MIN_POINT_DIST / drawScale()) continue
         pts.push(Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10)
         added = true
         const ws = draftWidths.current
@@ -2607,7 +2692,7 @@ export function MindmapBoard({
     }
 
     if (act.kind === "erase") {
-      if (eraserRingRef.current) eraserRingRef.current.style.display = "none"
+      hideEraserRings()
       const gone = new Set(erased.current)
       const parts = erasedParts.current
       if (gone.size > 0 || parts.size > 0) {
@@ -3036,6 +3121,156 @@ export function MindmapBoard({
     return () => clearTimeout(t)
   }, [savedTick])
 
+  // ─── Bắt đầu một nét / một lượt tẩy ───────────────────────────────────────
+  // Tách riêng vì có HAI mặt vẽ gọi tới: bảng chính và ô viết phóng to. Viết hai bản là chắc chắn
+  // sẽ trôi lệch nhau — sửa một bên quên bên kia.
+
+  function beginInk(e: ReactPointerEvent, p: { x: number; y: number }) {
+    action.current = { kind: "draw" }
+    draftPts.current = [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]
+    // Bộ lọc rung mới cho mỗi nét, mồi bằng đúng điểm đặt bút để đầu nét không bị kéo lệch.
+    smoother.current = new PointerSmoother()
+    smoother.current.filter(e.clientX, e.clientY, e.timeStamp || performance.now())
+    snapped.current = null
+    cancelHold()
+    if (tool === "pen") {
+      inkState.current = initInkWidth(penWidth, e.clientX, e.clientY, e.timeStamp || performance.now())
+      draftWidths.current = [inkState.current.width]
+    } else {
+      draftWidths.current = null
+      inkState.current = null
+    }
+    beginDraft(
+      tool === "highlighter" ? hlWidth : penWidth,
+      tool === "highlighter" ? hlColor : inkColor,
+      tool === "highlighter" ? HIGHLIGHTER_ALPHA : 1,
+      tool === "pen",
+    )
+    paintDraft(false)
+  }
+
+  function beginErase(e: ReactPointerEvent, p: { x: number; y: number }) {
+    action.current = { kind: "erase" }
+    erased.current.clear()
+    erasedParts.current.clear()
+    moveEraserRing(e.clientX, e.clientY)
+    eraseAt(p.x, p.y)
+  }
+
+  // ─── Ô viết phóng to ──────────────────────────────────────────────────────
+
+  // Bề rộng/chiều cao vùng bảng lọt vào ô, suy từ bề rộng thật của ô trên màn hình. Tính lúc mở
+  // chứ không đặt cứng: bề rộng máy mỗi cái một khác, mà mức phóng thì phải giữ nguyên 3 lần.
+  function zoomBoxSize() {
+    const w = (zoomSurfaceRef.current?.clientWidth ?? surfaceRect().width) / ZOOM_SCALE
+    return { w, h: ZOOM_PANEL_H / ZOOM_SCALE }
+  }
+
+  function openZoomBox() {
+    const { w, h } = zoomBoxSize()
+    // Mở ngay giữa khung nhìn hiện tại — chỗ người dùng đang nhìn cũng là chỗ họ định viết.
+    const c = viewCenterBoard()
+    setZoomBox({ x: c.x - w / 2, y: c.y - h / 2, w, h })
+    // Công cụ tay không vẽ được gì trong ô — chuyển sẵn sang bút để mở ra là viết được ngay.
+    if (tool === "hand" || tool === "link") applyPreset(presets.findIndex((p) => p.tool === "pen") >= 0 ? presets.findIndex((p) => p.tool === "pen") : 0)
+    tickHaptic()
+  }
+
+  // Dịch khung viết. `dx`/`dy` tính theo TỈ LỆ bề rộng/chiều cao khung, không theo pixel — nhờ vậy
+  // một lần bấm luôn dịch đúng "gần hết một khung" ở mọi cỡ máy.
+  function moveZoomBox(dx: number, dy: number) {
+    setZoomBox((b) => (b ? { ...b, x: b.x + b.w * dx, y: b.y + b.h * dy } : b))
+    tickHaptic()
+  }
+
+  // Viết tới sát mép phải → tự dịch khung sang chỗ mới, chừa lại một dải chữ vừa viết ở mép trái để
+  // không mất mạch câu. Đây là thứ khiến ô viết phóng to dùng được liên tục thay vì cứ vài chữ lại
+  // phải dừng tay đi bấm nút dịch khung.
+  function maybeAdvanceZoom(strokeEndX: number) {
+    const b = zoomBox
+    if (!b) return
+    if (strokeEndX < b.x + b.w * ZOOM_ADVANCE_AT) return
+    setZoomBox({ ...b, x: b.x + b.w * (1 - ZOOM_ADVANCE_KEEP) })
+    tickHaptic()
+  }
+
+  // ─── Vẽ bên trong ô phóng to ──────────────────────────────────────────────
+  //
+  // Chỉ nhận bút mực / bút dạ / tẩy. Ô này để VIẾT; kéo bảng, chọn thẻ hay nối thẻ đều làm ở bảng
+  // chính phía trên, nơi nhìn được tổng thể.
+
+  function handleZoomPointerDown(e: ReactPointerEvent) {
+    const b = zoomBox
+    if (!b || loading) return
+    if (tool !== "pen" && tool !== "highlighter" && tool !== "eraser") return
+    // Chống tì tay áp dụng y như bảng chính — bàn tay tì vào ô phóng to còn dễ xảy ra hơn, vì ô này
+    // nằm ngay dưới lòng bàn tay khi viết.
+    if (penOnly && e.pointerType === "touch") return
+    noteStylus(e)
+    e.stopPropagation()
+    stopAnim()
+
+    const el = zoomSurfaceRef.current
+    if (!el) return
+    // Chốt phép quy đổi cho cả lượt vẽ này: đọc lại kích thước ô ở mỗi điểm là thừa, và nếu ô đổi
+    // kích thước giữa chừng (xoay máy) thì nét đang vẽ sẽ gãy làm đôi.
+    const r = el.getBoundingClientRect()
+    drawMap.current = (cx, cy) => ({ x: b.x + (cx - r.left) / ZOOM_SCALE, y: b.y + (cy - r.top) / ZOOM_SCALE })
+    try {
+      el.setPointerCapture(e.pointerId)
+    } catch {
+      // Vài trình duyệt từ chối bắt con trỏ — vẫn chạy được nhờ sự kiện nổi bọt lên.
+    }
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    const p = toBoard(e.clientX, e.clientY)
+    if (tool === "eraser") beginErase(e, p)
+    else beginInk(e, p)
+  }
+
+  function handleZoomPointerUp(e: ReactPointerEvent) {
+    const wasDrawing = action.current.kind === "draw"
+    const endX = draftPts.current ? draftPts.current[draftPts.current.length - 2] : null
+    handlePointerUp(e)
+    drawMap.current = null
+    // Xét dịch khung SAU khi nét đã chốt, nếu không nét cuối sẽ bị vẽ theo khung mới.
+    if (wasDrawing && endX != null) maybeAdvanceZoom(endX)
+  }
+
+  // ─── Bút yêu thích ────────────────────────────────────────────────────────
+
+  // Chọn một ô bút: đổi cả loại bút, màu và cỡ nét cùng lúc — đúng cảm giác nhấc một cây bút khác
+  // lên, thay vì chỉnh ba thứ riêng lẻ.
+  function applyPreset(i: number) {
+    const p = presets[i]
+    if (!p) return
+    setActivePreset(i)
+    setTool(p.tool)
+    if (p.tool === "highlighter") {
+      setHlColor(p.color)
+      setHlWidth(p.width)
+    } else {
+      setInkColor(p.color)
+      setPenWidth(p.width)
+    }
+    tickHaptic()
+  }
+
+  // Ghi lại thay đổi vào ô bút ĐANG dùng. Gọi từ chính chỗ đổi màu/cỡ nét, không đặt trong useEffect
+  // theo dõi inkColor/penWidth: effect như vậy sẽ chạy cả khi applyPreset() vừa đặt giá trị, và ô bút
+  // này sẽ ghi đè lên ô bút kia mỗi lần chuyển qua lại.
+  function rememberPreset(patch: Partial<PenPreset>) {
+    setPresets((prev) => {
+      const cur = prev[activePreset]
+      // Ô đang chọn khác loại bút với công cụ đang dùng → không ghi. Đây là lớp chặn cuối: ghi vào
+      // sẽ biến một ô bút mực thành ô bút dạ (hoặc ngược lại) mà người dùng không hề động tới ô đó.
+      if (!cur || (patch.tool && patch.tool !== cur.tool)) return prev
+      const next = prev.map((p, i) => (i === activePreset ? { ...cur, ...patch } : p))
+      writePresets(next)
+      return next
+    })
+  }
+
   const inking = tool === "pen" || tool === "highlighter"
   const drawTool = inking || tool === "shape"
   const widths = tool === "highlighter" ? HIGHLIGHTER_WIDTHS : PEN_WIDTHS
@@ -3111,6 +3346,14 @@ export function MindmapBoard({
                 plainBg
                 onClick={() => {
                   setTool(t.id)
+                  // Đổi thẳng sang bút mực/bút dạ bằng nút công cụ → nhảy về ô bút yêu thích ĐẦU
+                  // TIÊN cùng loại. Nếu không, ô đang chọn vẫn là ô của loại bút kia, và mọi thay
+                  // đổi màu/cỡ nét sau đó sẽ ghi nhầm vào ô đó — chọn màu vàng cho bút dạ mà cây
+                  // bút mực đen của mình lại hoá thành bút dạ vàng.
+                  if (t.id === "pen" || t.id === "highlighter") {
+                    const i = presets.findIndex((p) => p.tool === t.id)
+                    if (i >= 0 && i !== activePreset) applyPreset(i)
+                  }
                   setLinkFrom(null)
                   if (t.id !== "hand") setSel(null)
                   // Nhóm đã khoanh chỉ dùng được với công cụ tay và khoanh vùng — đổi sang bút/tẩy thì
@@ -3231,6 +3474,44 @@ export function MindmapBoard({
               )
               : (
                 <>
+                  {/* Ba ô bút yêu thích. Không hiện với công cụ Hình vẽ: ô bút nhớ cả LOẠI bút, mà
+                      bấm vào nó lúc đang vẽ hình sẽ nhảy ngược về bút mực/bút dạ — đúng thứ người
+                      dùng không hề yêu cầu. */}
+                  {inking && (
+                    <>
+                      {presets.map((p, i) => {
+                        const on = i === activePreset && tool === p.tool
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => applyPreset(i)}
+                            aria-label={`Bút ${i + 1}: ${p.tool === "highlighter" ? "bút dạ" : "bút mực"}, cỡ ${p.width}`}
+                            aria-pressed={on}
+                            className="mind-btn flex-none w-9 h-9 rounded-xl flex items-end justify-center border pb-1.5"
+                            style={
+                              on
+                                ? { background: "#eff6ff", borderColor: "var(--c-primary)" }
+                                : { background: "#fff", borderColor: "#e2e8f0" }
+                            }
+                          >
+                            {/* Vệt mực xem trước: dày đúng cỡ nét và mờ đúng độ mờ của loại bút đó,
+                                nên nhìn là biết ô nào ra nét gì mà không cần nhãn chữ. */}
+                            <span
+                              className="rounded-full"
+                              style={{
+                                width: 18,
+                                height: Math.max(3, Math.min(10, p.width)),
+                                background: p.color,
+                                opacity: p.tool === "highlighter" ? HIGHLIGHTER_ALPHA : 1,
+                              }}
+                            />
+                          </button>
+                        )
+                      })}
+                      <span className="flex-none w-px h-6 mx-0.5" style={{ background: "#e2e8f0" }} />
+                    </>
+                  )}
                   {inkPalette.map(({ color: c, name }) => (
                     <button
                       key={c}
@@ -3238,6 +3519,7 @@ export function MindmapBoard({
                       onClick={() => {
                         if (tool === "highlighter") setHlColor(c)
                         else setInkColor(c)
+                        if (inking) rememberPreset({ color: c, tool })
                         tickHaptic()
                       }}
                       aria-label={`${tool === "highlighter" ? "Màu bút dạ" : "Màu mực"}: ${name}`}
@@ -3260,7 +3542,11 @@ export function MindmapBoard({
                     <button
                       key={w}
                       type="button"
-                      onClick={() => (tool === "highlighter" ? setHlWidth(w) : setPenWidth(w))}
+                      onClick={() => {
+                        if (tool === "highlighter") setHlWidth(w)
+                        else setPenWidth(w)
+                        if (inking) rememberPreset({ width: w, tool })
+                      }}
                       aria-label={`Cỡ nét ${w}`}
                       aria-pressed={activeWidth === w}
                       className="mind-btn flex-none w-9 h-9 rounded-xl flex items-center justify-center border"
@@ -3786,6 +4072,26 @@ export function MindmapBoard({
             )
           })}
 
+          {/* Khung chỉ chỗ đang viết trong ô phóng to. Không có nó thì viết vào ô dưới mà không biết
+              chữ đang rơi vào đâu trên bảng — đúng thứ làm ô viết phóng to trở nên vô dụng. */}
+          {zoomBox && (
+            <div
+              className="absolute"
+              style={{
+                left: zoomBox.x,
+                top: zoomBox.y,
+                width: zoomBox.w,
+                height: zoomBox.h,
+                border: "2px solid var(--c-primary)",
+                borderRadius: 4,
+                background: "rgba(var(--c-primary-rgb),.06)",
+                // Viền luôn mảnh như nhau trên màn hình dù bảng đang phóng hay thu.
+                borderWidth: Math.max(1, 2 / view.current.zoom),
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
           {/* Vòng tròn đầu tẩy chạy theo ngón tay */}
           <div
             ref={eraserRingRef}
@@ -4287,6 +4593,27 @@ export function MindmapBoard({
           >
             {mi.search("w-[18px] h-[18px]")}
           </button>
+          {/* Ô viết phóng to — đặt cạnh phóng-thu vì cùng là chuyện "nhìn bảng ở cỡ nào", chỉ khác
+              là nó phóng riêng một ô để VIẾT thay vì phóng cả bảng. */}
+          <button
+            type="button"
+            onClick={() => {
+              if (zoomBox) setZoomBox(null)
+              else openZoomBox()
+            }}
+            title="Ô viết phóng to"
+            aria-label="Ô viết phóng to"
+            aria-pressed={zoomBox != null}
+            className="mind-btn w-9 h-9 rounded-2xl border flex items-center justify-center"
+            style={{
+              borderColor: zoomBox ? "var(--c-primary)" : "#e2e8f0",
+              background: zoomBox ? "var(--c-primary)" : "rgba(255,255,255,.94)",
+              color: zoomBox ? "#fff" : "#475569",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            {mi.writeBox("w-[18px] h-[18px]")}
+          </button>
         </div>
 
         {/* Thêm nội dung, góc dưới phải */}
@@ -4439,6 +4766,113 @@ export function MindmapBoard({
           </div>
         )}
       </div>
+
+      {/* ─── Ô viết phóng to ────────────────────────────────────────────
+          Là phần tử ANH EM của mặt bảng chứ không nằm đè lên nó: mặt bảng đang là `flex-1` nên khi
+          ô này mở ra, bảng tự co lại đúng phần chiều cao ô chiếm. Đè lên thì phần bảng bị che khuất
+          vẫn cuộn/vẽ được ở dưới, và khung viết trên bảng có thể nằm đúng vào chỗ bị che. */}
+      {zoomBox && (
+        <div
+          className="flex-none border-t relative"
+          style={{ height: ZOOM_PANEL_H, borderColor: "#e2e8f0", background: PAPER_BG }}
+        >
+          <div
+            ref={zoomSurfaceRef}
+            className="absolute inset-0 overflow-hidden"
+            style={{ touchAction: "none", cursor: "crosshair", WebkitUserSelect: "none", userSelect: "none" }}
+            onPointerDown={handleZoomPointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handleZoomPointerUp}
+            onPointerCancel={handleZoomPointerUp}
+            onContextMenu={(ev) => ev.preventDefault()}
+          >
+            {/* Lớp nội dung: cùng dữ liệu với bảng chính, chỉ khác phép biến hình. Đây là bản CHỈ
+                ĐỌC — không gắn ref hay bộ xử lý chạm cho từng thẻ, vì mọi thao tác với thẻ đều làm
+                ở bảng chính nơi nhìn được tổng thể. */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                transformOrigin: "0 0",
+                transform: `scale(${ZOOM_SCALE}) translate(${-zoomBox.x}px, ${-zoomBox.y}px)`,
+              }}
+            >
+              <svg style={{ position: "absolute", overflow: "visible", pointerEvents: "none" }} width="1" height="1">
+                <InkLayer strokes={strokes} />
+                <path ref={zoomDraftRef} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {images.map((im) => (
+                <img
+                  key={im.id}
+                  src={im.dataUrl}
+                  alt=""
+                  draggable={false}
+                  style={{ position: "absolute", left: im.x, top: im.y, width: im.w, height: im.h, pointerEvents: "none" }}
+                />
+              ))}
+              {visibleNodes.map((n) => {
+                const m = nodeMetrics(n)
+                const paint = nodePaint(n)
+                return (
+                  <div
+                    key={n.id}
+                    className="absolute font-semibold whitespace-pre-wrap"
+                    style={{
+                      left: n.x,
+                      top: n.y,
+                      width: "max-content",
+                      maxWidth: m.maxWidth,
+                      padding: `${m.padY}px ${m.padX}px`,
+                      borderRadius: m.radius,
+                      fontSize: m.fontSize,
+                      lineHeight: 1.3,
+                      fontFamily: NODE_FONT_STACK,
+                      background: paint.background,
+                      color: paint.color,
+                      border: `${paint.borderWidth}px solid ${paint.border}`,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {n.text}
+                  </div>
+                )
+              })}
+              <div
+                ref={zoomEraserRingRef}
+                className="absolute rounded-full"
+                style={{
+                  display: "none",
+                  border: "1.5px solid rgba(var(--c-primary-rgb),.6)",
+                  background: "rgba(var(--c-primary-rgb),.08)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Thanh điều khiển khung viết. Nằm đè góc phải để không ăn mất chiều rộng viết. */}
+          <div
+            className="absolute right-2 top-2 flex items-center gap-1 rounded-2xl border p-0.5"
+            style={{ borderColor: "#e2e8f0", background: "rgba(255,255,255,.94)", backdropFilter: "blur(6px)" }}
+            onPointerDown={stopPointer}
+          >
+            <IconBtn icon={mi.chevronLeft} hint="Lùi khung viết sang trái" size={34} onClick={() => moveZoomBox(-0.78, 0)} />
+            <IconBtn icon={mi.chevronRight} hint="Dịch khung viết sang phải" size={34} onClick={() => moveZoomBox(0.78, 0)} />
+            {/* Xuống dòng: lùi hẳn về mép trái của dòng vừa viết rồi hạ xuống một khung — đúng thao
+                tác viết hết một dòng trên giấy. */}
+            <IconBtn
+              icon={mi.chevronDown}
+              hint="Xuống dòng mới"
+              size={34}
+              onClick={() => {
+                setZoomBox((b) => (b ? { ...b, y: b.y + b.h * 0.82 } : b))
+                tickHaptic()
+              }}
+            />
+            <IconBtn icon={mi.close} hint="Đóng ô viết phóng to" size={34} onClick={() => setZoomBox(null)} />
+          </div>
+        </div>
+      )}
 
       {/* ─── Ô sửa ghi chú ─────────────────────────────────────────────── */}
       {editingNode && (
