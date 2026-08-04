@@ -54,19 +54,25 @@
 :root {
   color-scheme: light;
 
+  /* Nền và viền trung tính vốn lấy nguyên bảng "slate" của Tailwind — sắc xanh dương (hue ~215°),
+     trong khi primary/accent của app là xanh mòng két (hue ~175°). Cạnh nhau, nền lạnh ngả xanh
+     dương và chip/nút teal đọc thành hai họ màu khác nhau, không ăn nhập. Toàn bộ nền/viền/chữ
+     trung tính bên dưới được xoay sang hue ~190° (giữ nguyên độ sáng/độ đậm gốc, chỉ đổi sắc) —
+     một xám lạnh ngả teal, đứng giữa "trung tính" và "cùng họ với primary". Màu ý nghĩa (đỏ nguy
+     hiểm, vàng cảnh báo, cam, xanh lá) KHÔNG đụng tới. */
   --c-surface: #ffffff;
-  --c-surface-alt: #f8fafc;
-  --c-page: #fcfdff;
-  --c-line-soft: #f1f5f9;
-  --c-line: #e2e8f0;
-  --c-line-strong: #cbd5e1;
+  --c-surface-alt: #f8fbfc;
+  --c-page: #fcffff;
+  --c-line-soft: #f1f8f9;
+  --c-line: #e2eef0;
+  --c-line-strong: #cbdde1;
 
-  --c-text: #0f172a;
-  --c-text-2: #334155;
-  --c-text-soft: #475569;
-  --c-text-muted: #64748b;
-  --c-muted: #94a3b8;
-  --c-faint: #cbd5e1;
+  --c-text: #0f252a;
+  --c-text-2: #334f55;
+  --c-text-soft: #476369;
+  --c-text-muted: #64848b;
+  --c-muted: #94b2b8;
+  --c-faint: #cbdde1;
 
   /* Chủ đạo đổi từ xanh dương (#0050b3 cũ) sang xanh mòng két — cùng sắc với accent bên dưới, dùng
      lại đúng giá trị đã được đo tương phản kỹ (xem ghi chú accent): chữ trắng trên nền primary đạt
@@ -133,9 +139,9 @@
      2,4:1, tức là trượt xa ngưỡng AA. Đổi thành mực gần đen thì mọi nền nói trên đều đạt >= 7:1. */
   --c-on-bright: #ffffff;
 
-  --c-nav-bg: rgba(248, 250, 252, 0.94);
-  --c-nav-border: #e6ebf2;
-  --c-nav-active-bg: #e0edff;
+  --c-nav-bg: rgba(248, 251, 252, 0.94);
+  --c-nav-border: #e6f0f2;
+  --c-nav-active-bg: #e0faff;
   --c-float-bg: rgba(255, 255, 255, 0.92);
   --c-fog: 255, 255, 255;
 }
@@ -147,19 +153,22 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --c-surface: #161d2b;
-    --c-surface-alt: #1b2333;
-    --c-page: #0e1420;
-    --c-line-soft: #222c3d;
-    --c-line: #2b3648;
-    --c-line-strong: #3a465b;
+    /* Cùng lý do xoay hue với khối light ở trên (xem ghi chú tại :root) — trước đây bản tối này
+       dùng nguyên bảng "slate" (hue ~220°, xanh dương/navy), lệch hẳn khỏi primary teal (~175°),
+       nên nền tối trông như một app khác màu với chip/nút của chính nó. */
+    --c-surface: #16272b;
+    --c-surface-alt: #1b2f33;
+    --c-page: #0e1d20;
+    --c-line-soft: #22393d;
+    --c-line: #2b4348;
+    --c-line-strong: #3a565b;
 
-    --c-text: #e8edf5;
-    --c-text-2: #d3dbe7;
-    --c-text-soft: #b3bece;
-    --c-text-muted: #94a1b5;
-    --c-muted: #7d8a9e;
-    --c-faint: #4a5668;
+    --c-text: #e8f3f5;
+    --c-text-2: #d3e4e7;
+    --c-text-soft: #b3cace;
+    --c-text-muted: #94b0b5;
+    --c-muted: #7d999e;
+    --c-faint: #4a6368;
 
     --c-primary: #3ecfbd;
     --c-primary-strong: #6fe0d1;
@@ -205,13 +214,13 @@
 
     /* Thanh nav ở bản tối: SÁNG HƠN nền trang một bậc (không tối hơn) để vẫn đọc ra là một thanh
        nổi lên phía trước, nhưng vẫn nằm hẳn trong dải tối — không còn là mảng trắng chói. */
-    --c-on-bright: #08111f;
+    --c-on-bright: #081b1f;
 
-    --c-nav-bg: rgba(26, 34, 50, 0.94);
-    --c-nav-border: #2b3648;
-    --c-nav-active-bg: #21304d;
-    --c-float-bg: rgba(30, 39, 56, 0.94);
-    --c-fog: 18, 25, 38;
+    --c-nav-bg: rgba(26, 46, 50, 0.94);
+    --c-nav-border: #2b4348;
+    --c-nav-active-bg: #21464d;
+    --c-float-bg: rgba(30, 52, 56, 0.94);
+    --c-fog: 18, 35, 38;
   }
 }
 
@@ -220,19 +229,19 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --c-surface: #161d2b;
-  --c-surface-alt: #1b2333;
-  --c-page: #0e1420;
-  --c-line-soft: #222c3d;
-  --c-line: #2b3648;
-  --c-line-strong: #3a465b;
+  --c-surface: #16272b;
+  --c-surface-alt: #1b2f33;
+  --c-page: #0e1d20;
+  --c-line-soft: #22393d;
+  --c-line: #2b4348;
+  --c-line-strong: #3a565b;
 
-  --c-text: #e8edf5;
-  --c-text-2: #d3dbe7;
-  --c-text-soft: #b3bece;
-  --c-text-muted: #94a1b5;
-  --c-muted: #7d8a9e;
-  --c-faint: #4a5668;
+  --c-text: #e8f3f5;
+  --c-text-2: #d3e4e7;
+  --c-text-soft: #b3cace;
+  --c-text-muted: #94b0b5;
+  --c-muted: #7d999e;
+  --c-faint: #4a6368;
 
   --c-primary: #3ecfbd;
   --c-primary-strong: #6fe0d1;
@@ -276,13 +285,13 @@
   --c-scrim: rgba(3, 7, 15, 0.62);
   --c-shadow: rgba(0, 0, 0, 0.45);
 
-  --c-on-bright: #08111f;
+  --c-on-bright: #081b1f;
 
-  --c-nav-bg: rgba(26, 34, 50, 0.94);
-  --c-nav-border: #2b3648;
-  --c-nav-active-bg: #21304d;
-  --c-float-bg: rgba(30, 39, 56, 0.94);
-  --c-fog: 18, 25, 38;
+  --c-nav-bg: rgba(26, 46, 50, 0.94);
+  --c-nav-border: #2b4348;
+  --c-nav-active-bg: #21464d;
+  --c-float-bg: rgba(30, 52, 56, 0.94);
+  --c-fog: 18, 35, 38;
 }
 
 /* Bảng slate của Tailwind được trỏ về cùng bộ biến trên. Nhờ khối này, ~280 chỗ đang viết
