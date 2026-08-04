@@ -20,27 +20,50 @@ export const NODE_FALLBACK: { w: number; h: number } = { w: 116, h: 42 }
 
 // ─── Nét vẽ ───────────────────────────────────────────────────────────────────
 
-// Đường đi của một nét. Nét viết tay được làm mượt bằng đường bậc hai qua trung điểm từng cặp điểm
-// (rẻ và đủ mượt, không cần thư viện ngoài). Hình vẽ (`straight`) nối thẳng để góc khung không bị
-// bo tròn và mũi tên không bị cụt đầu.
+// ─── Làm mượt đường đi ────────────────────────────────────────────────────────
+//
+// Trước đây dùng đường bậc hai qua trung điểm từng cặp điểm. Cách đó rẻ và liên tục về tiếp tuyến,
+// nhưng có một nhược điểm thấy rõ khi viết chữ: đường cong KHÔNG đi qua các điểm đã lấy mẫu, nó chỉ
+// đi qua trung điểm giữa chúng — mỗi mẫu bị kéo về phía láng giềng, nên nét viết tay bị "béo" ra ở
+// chỗ cua gấp và các nét móc nhỏ bị bào mất.
+//
+// Catmull-Rom đi ĐÚNG QUA từng điểm đã lấy mẫu, với tiếp tuyến tại mỗi điểm suy từ hai điểm kề.
+// Chuyển sang Bézier bậc ba thì mỗi đoạn Pi→Pi+1 có hai điểm điều khiển:
+//   C1 = Pi   + (Pi+1 − Pi−1) / 6
+//   C2 = Pi+1 − (Pi+2 − Pi)   / 6
+// Đây là dạng chuẩn, không cần thư viện ngoài và chỉ đắt hơn cách cũ vài phép cộng.
+// `withMove = false` trả về chỉ phần đường cong (không có lệnh `M` mở đầu) — dùng khi nối tiếp vào
+// một đường đang dựng dở, ví dụ biên phải của vùng tô nét bút.
+function catmullRom(points: number[], withMove = true): string {
+  const n = points.length / 2
+  const px = (i: number) => points[Math.max(0, Math.min(n - 1, i)) * 2]
+  const py = (i: number) => points[Math.max(0, Math.min(n - 1, i)) * 2 + 1]
+
+  let d = withMove ? `M ${px(0)} ${py(0)}` : ""
+  for (let i = 0; i < n - 1; i++) {
+    const c1x = px(i) + (px(i + 1) - px(i - 1)) / 6
+    const c1y = py(i) + (py(i + 1) - py(i - 1)) / 6
+    const c2x = px(i + 1) - (px(i + 2) - px(i)) / 6
+    const c2y = py(i + 1) - (py(i + 2) - py(i)) / 6
+    d += ` C ${c1x} ${c1y} ${c2x} ${c2y} ${px(i + 1)} ${py(i + 1)}`
+  }
+  return d
+}
+
+// Đường đi của một nét. Nét viết tay làm mượt bằng Catmull-Rom (xem trên). Hình vẽ (`straight`) nối
+// thẳng để góc khung không bị bo tròn và mũi tên không bị cụt đầu.
 export function strokePath(points: number[], straight = false): string {
   if (points.length < 4) {
     // Nét chỉ có một điểm (chạm rồi nhấc): vẽ một đoạn cực ngắn để thành dấu chấm nhìn thấy được.
     if (points.length === 2) return `M ${points[0]} ${points[1]} L ${points[0] + 0.1} ${points[1]}`
     return ""
   }
-  let d = `M ${points[0]} ${points[1]}`
   if (straight) {
+    let d = `M ${points[0]} ${points[1]}`
     for (let i = 2; i < points.length; i += 2) d += ` L ${points[i]} ${points[i + 1]}`
     return d
   }
-  for (let i = 2; i < points.length - 2; i += 2) {
-    const mx = (points[i] + points[i + 2]) / 2
-    const my = (points[i + 1] + points[i + 3]) / 2
-    d += ` Q ${points[i]} ${points[i + 1]} ${mx} ${my}`
-  }
-  d += ` L ${points[points.length - 2]} ${points[points.length - 1]}`
-  return d
+  return catmullRom(points)
 }
 
 // Điểm của một hình vẽ, xuất ra cùng dạng "danh sách điểm" như nét viết tay — nhờ vậy hình vẽ dùng
@@ -137,23 +160,18 @@ export function strokeOutline(points: number[], widths: number[]): string {
   const rEnd = Math.max(0.25, widths[n - 1] / 2)
   const rStart = Math.max(0.25, widths[0] / 2)
 
-  let d = `M ${left[0]} ${left[1]}`
-  // Biên trái đi xuôi, làm mượt bằng đường bậc hai qua trung điểm — cùng cách làm mượt với nét đều.
-  for (let i = 1; i < n - 1; i++) {
-    const mx = (left[i * 2] + left[i * 2 + 2]) / 2
-    const my = (left[i * 2 + 1] + left[i * 2 + 3]) / 2
-    d += ` Q ${left[i * 2]} ${left[i * 2 + 1]} ${mx} ${my}`
-  }
-  d += ` L ${left[(n - 1) * 2]} ${left[(n - 1) * 2 + 1]}`
+  // Hai biên cũng làm mượt bằng Catmull-Rom, cùng công thức với đường tim nét (xem catmullRom ở
+  // trên) — nếu biên mượt kiểu khác đường tim thì bề dày nét sẽ phập phồng không đều ở chỗ cua.
+
+  // Biên trái đi xuôi.
+  let d = catmullRom(left)
   // Bo tròn đầu cuối sang biên phải.
   d += ` A ${rEnd} ${rEnd} 0 0 1 ${right[(n - 1) * 2]} ${right[(n - 1) * 2 + 1]}`
-  // Biên phải đi ngược về.
-  for (let i = n - 2; i > 0; i--) {
-    const mx = (right[i * 2] + right[i * 2 + 2]) / 2
-    const my = (right[i * 2 + 1] + right[i * 2 + 3]) / 2
-    d += ` Q ${right[i * 2 + 2]} ${right[i * 2 + 3]} ${mx} ${my}`
-  }
-  d += ` L ${right[0]} ${right[1]}`
+  // Biên phải đi NGƯỢC về — đảo mảng rồi mới mượt, không mượt xuôi rồi đọc ngược (đọc ngược một
+  // chuỗi Bézier là sai: điểm điều khiển sẽ gắn nhầm đầu đoạn).
+  const rightReversed: number[] = []
+  for (let i = n - 1; i >= 0; i--) rightReversed.push(right[i * 2], right[i * 2 + 1])
+  d += catmullRom(rightReversed, false)
   // Bo tròn đầu bắt đầu, đóng hình.
   d += ` A ${rStart} ${rStart} 0 0 1 ${left[0]} ${left[1]} Z`
   return d
@@ -213,6 +231,116 @@ export function strokeHit(points: number[], width: number, cx: number, cy: numbe
     if (distToSegment(cx, cy, points[i], points[i + 1], points[i + 2], points[i + 3]) <= reach) return true
   }
   return false
+}
+
+// ─── Tẩy một phần nét ─────────────────────────────────────────────────────────
+//
+// Tẩy cả nét là cách làm dễ nhất nhưng sai với thói quen dùng bút: viết sai một chữ giữa dòng mà
+// chạm tẩy vào là mất sạch cả dòng. Cục tẩy thật xoá đúng chỗ nó đi qua, phần còn lại của nét vẫn
+// nguyên — nghĩa là một nét có thể bị cắt thành nhiều mẩu rời.
+//
+// Cách làm: đánh dấu những ĐIỂM nằm trong tầm tẩy, rồi gom các đoạn điểm còn sống liền nhau thành
+// các nét mới. Ngoài ra còn phải xét từng ĐOẠN nối hai điểm: vẽ nhanh thì hai điểm liên tiếp cách
+// nhau khá xa, tẩy lọt vào giữa mà không chạm điểm nào — nếu chỉ xét điểm thì tẩy sẽ "trơ" ra ở
+// đúng những nét vẽ nhanh nhất.
+
+export interface StrokeFragment {
+  points: number[]
+  widths?: number[]
+}
+
+// Chèn thêm điểm để không đoạn nào dài quá `maxSeg`.
+//
+// Vì sao bắt buộc phải có: phép tẩy dưới đây xoá theo ĐIỂM, nên nó chỉ cắt được nét ở những chỗ có
+// điểm. Nét viết tay có điểm dày nên không sao, nhưng HÌNH VẼ thì cực thưa — một đường thẳng chỉ có
+// đúng 2 điểm, một khung chữ nhật có 5. Tẩy vào giữa một đường thẳng 2 điểm mà không chia nhỏ trước
+// thì cả hai đầu đều bị coi là "mẩu một điểm" rồi bị bỏ, tức là cả đường biến mất — đúng cái hành vi
+// "xoá cả nét" mà chế độ tẩy một phần sinh ra để tránh.
+export function densify(points: number[], widths: number[] | undefined, maxSeg: number): StrokeFragment {
+  const n = points.length / 2
+  if (n < 2 || !(maxSeg > 0)) return widths ? { points: points.slice(), widths: widths.slice() } : { points: points.slice() }
+  const outP: number[] = [points[0], points[1]]
+  const outW: number[] = widths ? [widths[0]] : []
+  for (let i = 1; i < n; i++) {
+    const x0 = points[(i - 1) * 2]
+    const y0 = points[(i - 1) * 2 + 1]
+    const x1 = points[i * 2]
+    const y1 = points[i * 2 + 1]
+    const w0 = widths ? widths[Math.min(i - 1, widths.length - 1)] : 0
+    const w1 = widths ? widths[Math.min(i, widths.length - 1)] : 0
+    const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / maxSeg))
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps
+      outP.push(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
+      if (widths) outW.push(w0 + (w1 - w0) * t)
+    }
+  }
+  return widths ? { points: outP, widths: outW } : { points: outP }
+}
+
+// Đánh dấu phần bị tẩy vào `removedPts` (chỉ số ĐIỂM) và `cutAfter` (cắt sau điểm thứ i, dùng khi
+// tẩy đi lọt giữa hai điểm). Trả về true nếu có gì đó bị chạm.
+export function markErased(
+  points: number[],
+  width: number,
+  cx: number,
+  cy: number,
+  radius: number,
+  removedPts: Set<number>,
+  cutAfter: Set<number>,
+): boolean {
+  const reach = radius + width / 2
+  const n = points.length / 2
+  let hit = false
+  for (let i = 0; i < n; i++) {
+    if (removedPts.has(i)) continue
+    if (Math.hypot(cx - points[i * 2], cy - points[i * 2 + 1]) <= reach) {
+      removedPts.add(i)
+      hit = true
+    }
+  }
+  for (let i = 0; i + 1 < n; i++) {
+    if (removedPts.has(i) || removedPts.has(i + 1) || cutAfter.has(i)) continue
+    const d = distToSegment(cx, cy, points[i * 2], points[i * 2 + 1], points[(i + 1) * 2], points[(i + 1) * 2 + 1])
+    if (d <= reach) {
+      cutAfter.add(i)
+      hit = true
+    }
+  }
+  return hit
+}
+
+// Những mẩu còn sống của một nét sau khi tẩy. Mảng rỗng nghĩa là nét đã bị xoá hết.
+export function surviveFragments(
+  points: number[],
+  widths: number[] | undefined,
+  removedPts: Set<number>,
+  cutAfter: Set<number>,
+): StrokeFragment[] {
+  const n = points.length / 2
+  const out: StrokeFragment[] = []
+  let curP: number[] = []
+  let curW: number[] = []
+
+  const flush = () => {
+    // Mẩu chỉ còn một điểm thì bỏ: một dấu chấm sót lại sau khi tẩy trông như bụi bẩn, không ai
+    // muốn giữ và cũng không ai nhắm tẩy trúng nó được nữa.
+    if (curP.length >= 4) out.push(widths ? { points: curP, widths: curW } : { points: curP })
+    curP = []
+    curW = []
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (removedPts.has(i)) {
+      flush()
+      continue
+    }
+    curP.push(points[i * 2], points[i * 2 + 1])
+    if (widths) curW.push(widths[Math.min(i, widths.length - 1)])
+    if (cutAfter.has(i)) flush()
+  }
+  flush()
+  return out
 }
 
 // ─── Thẻ ghi chú và đường nối ─────────────────────────────────────────────────

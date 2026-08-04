@@ -56,17 +56,30 @@ import {
   edgeDistance,
   edgeGeometry,
   edgeKey,
+  densify,
   hiddenByCollapse,
   layoutSubtree,
+  markErased,
   nodeBox,
   shapePoints,
   strokeHit,
   strokeMostlyInside,
   strokeOutline,
   strokePath,
+  surviveFragments,
   type Box,
   type ShapeKind,
+  type StrokeFragment,
 } from "../lib/mindmapGeometry"
+import {
+  PointerSmoother,
+  coalescedSamples,
+  initInkWidth,
+  nextInkWidth,
+  taperTail,
+  type InkWidthState,
+} from "../lib/ink"
+import { SHAPE_LABELS, recognizeShape, type Recognized } from "../lib/shapeRecognize"
 import {
   ALGORITHM_EDGE_COLOR,
   AUTO_COLORS,
@@ -106,6 +119,12 @@ type Selection =
   // rồi chạm lại đúng hai thẻ đó, không ai đoán ra.
   | { kind: "edge"; from: string; to: string }
   | null
+
+// Các công cụ bị chặn với ngón tay khi đang ở chế độ chỉ-bút (chống tì tay). "hand" và "link" không
+// nằm ở đây: chúng không để lại mực nên tì tay không gây hậu quả gì, mà chặn chúng thì mất luôn
+// cách kéo thẻ bằng ngón tay.
+const DRAW_TOOLS: Tool[] = ["pen", "highlighter", "eraser", "shape", "lasso"]
+const PEN_ONLY_KEY = "drtrong:mindmap-pen-only"
 
 const PEN_WIDTHS = [2, 3.5, 6]
 const HIGHLIGHTER_WIDTHS = [14, 24]
@@ -307,6 +326,22 @@ function readPaper(): PaperKind {
   }
 }
 
+function readPenOnly(): boolean {
+  try {
+    return localStorage.getItem(PEN_ONLY_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+function writePenOnly(on: boolean): void {
+  try {
+    localStorage.setItem(PEN_ONLY_KEY, on ? "1" : "0")
+  } catch {
+    // Không lưu được thì phiên sau quay về mặc định — chấp nhận được.
+  }
+}
+
 function readCoachSeen(): boolean {
   try {
     return localStorage.getItem(COACH_STORAGE_KEY) === "1"
@@ -452,6 +487,14 @@ export function MindmapBoard({
   const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1])
   const [hlWidth, setHlWidth] = useState(HIGHLIGHTER_WIDTHS[0])
   const [eraserSize, setEraserSize] = useState(ERASER_SIZES[0])
+  // Tẩy cả nét hay chỉ tẩy phần chạm trúng. Mặc định tẩy MỘT PHẦN, giống cục tẩy thật và giống
+  // GoodNotes: xoá được một chữ viết sai giữa một dòng dài mà không mất cả dòng.
+  const [eraseWholeStroke, setEraseWholeStroke] = useState(false)
+  // Chế độ chỉ-bút (chống tì tay) — xem noteStylus().
+  const [penOnly, setPenOnly] = useState(readPenOnly)
+  const penSeen = useRef(false)
+  // Người dùng đã tự bật/tắt bằng tay chưa — nếu rồi thì không tự động bật đè lên lựa chọn của họ.
+  const penOnlyTouched = useRef(false)
   const [paper, setPaper] = useState<PaperKind>(readPaper)
   const [sel, setSel] = useState<Selection>(null)
   const [linkFrom, setLinkFrom] = useState<string | null>(null)
@@ -512,6 +555,7 @@ export function MindmapBoard({
   const minimapViewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
   const draftPathRef = useRef<SVGPathElement>(null)
+  const erasePreviewRef = useRef<SVGGElement>(null)
   const edgeLayerRef = useRef<SVGGElement>(null)
   const linkLineRef = useRef<SVGLineElement>(null)
   const eraserRingRef = useRef<HTMLDivElement>(null)
@@ -528,12 +572,26 @@ export function MindmapBoard({
   const paperRef = useRef(paper)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const draftPts = useRef<number[] | null>(null)
-  // Bề dày tại từng điểm của nét đang vẽ (chỉ bút mực), và mốc thời gian/vị trí để tính tốc độ tay.
+  // Bề dày tại từng điểm của nét đang vẽ (chỉ bút mực) và trạng thái tính bề dày — xem lib/ink.ts.
   const draftWidths = useRef<number[] | null>(null)
-  const inkPace = useRef({ t: 0, x: 0, y: 0 })
+  const inkState = useRef<InkWidthState | null>(null)
+  // Bộ lọc rung One-Euro, tạo mới cho MỖI nét: bộ lọc mang trạng thái của nét trước, dùng lại thì
+  // đầu nét mới bị kéo về phía cuối nét cũ.
+  const smoother = useRef<PointerSmoother | null>(null)
+  // ─── Nhận dạng hình khi giữ tay ───────────────────────────────────────────
+  // Đồng hồ đếm khi tay đứng yên cuối nét, và hình đã nắn được (nếu có). Nắn xong thì KHOÁ lại tới
+  // khi nhấc tay — nếu để nhận lại liên tục, hình sẽ nhấp nháy đổi qua đổi lại dưới tay người dùng.
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdAnchor = useRef({ x: 0, y: 0 })
+  const snapped = useRef<Recognized | null>(null)
   // Vùng khoanh đang vẽ (công cụ lasso) và những gì đã khoanh được.
   const lassoPts = useRef<number[] | null>(null)
   const erased = useRef(new Set<string>())
+  // Tẩy MỘT PHẦN: với mỗi nét bị chạm, bản điểm đã chia nhỏ (xem densify) cùng những điểm đã bị tẩy
+  // và những chỗ phải cắt đôi.
+  const erasedParts = useRef(
+    new Map<string, { pts: number[]; widths?: number[]; removed: Set<number>; cuts: Set<number> }>(),
+  )
   const sizesRef = useRef<Record<string, { w: number; h: number }>>({})
   const sizesPending = useRef(false)
   const roRef = useRef<ResizeObserver | null>(null)
@@ -1427,16 +1485,93 @@ export function MindmapBoard({
   function eraseAt(bx: number, by: number) {
     const r = eraserSize / view.current.zoom
     let hitAny = false
+
+    if (eraseWholeStroke) {
+      strokes.forEach((s) => {
+        if (erased.current.has(s.id)) return
+        if (!strokeHit(s.points, s.width, bx, by, r)) return
+        erased.current.add(s.id)
+        hitAny = true
+        // Ẩn ngay trên DOM để thấy phản hồi tức thì, dữ liệu chỉ ghi một lần khi nhấc tay.
+        hideStrokeEl(s.id)
+      })
+      if (hitAny) tickHaptic()
+      return
+    }
+
+    // ─── Tẩy một phần ────────────────────────────────────────────────────────
+    // Đánh dấu phần bị tẩy của từng nét, rồi vẽ lại NGAY các mẩu còn sống vào một lớp xem trước
+    // riêng. Không thể cập nhật thẳng phần tử gốc: một nét bị cắt làm đôi cần hai phần tử, mà thêm
+    // phần tử giữa lúc kéo tay thì phải qua React — tức là dựng lại cả bảng ở mỗi khung hình.
     strokes.forEach((s) => {
       if (erased.current.has(s.id)) return
       if (!strokeHit(s.points, s.width, bx, by, r)) return
-      erased.current.add(s.id)
+      let part = erasedParts.current.get(s.id)
+      if (!part) {
+        // Chia nhỏ MỘT LẦN khi bắt đầu tẩy nét này, rồi mọi lần chạm sau đều làm việc trên bản đã
+        // chia — nếu chia lại ở mỗi lần chạm thì chỉ số điểm sẽ đổi và các dấu đã đánh trước đó
+        // trỏ nhầm chỗ. Đoạn dài nhất lấy bằng 40% bán kính tẩy: đủ mịn để vết tẩy bám sát đầu
+        // ngón tay, chưa tới mức làm phình dữ liệu.
+        const dense = densify(s.points, s.widths, Math.max(1, r * 0.4))
+        part = { pts: dense.points, widths: dense.widths, removed: new Set<number>(), cuts: new Set<number>() }
+        erasedParts.current.set(s.id, part)
+      }
+      if (!markErased(part.pts, s.width, bx, by, r, part.removed, part.cuts)) return
       hitAny = true
-      // Ẩn ngay trên DOM để thấy phản hồi tức thì, dữ liệu chỉ ghi một lần khi nhấc tay.
-      const el = worldRef.current?.querySelector(`[data-stroke="${s.id}"]`)
-      if (el instanceof SVGElement) el.style.display = "none"
+      hideStrokeEl(s.id)
+      const frags = surviveFragments(part.pts, part.widths, part.removed, part.cuts)
+      if (frags.length === 0) {
+        // Không còn mẩu nào → coi như xoá cả nét, khỏi giữ bản ghi rỗng.
+        erased.current.add(s.id)
+        erasedParts.current.delete(s.id)
+      }
+      drawErasePreview(s, frags)
     })
     if (hitAny) tickHaptic()
+  }
+
+  function hideStrokeEl(id: string) {
+    const el = worldRef.current?.querySelector(`[data-stroke="${id}"]`)
+    if (el instanceof SVGElement) el.style.display = "none"
+  }
+
+  // Vẽ các mẩu còn sống của MỘT nét vào lớp xem trước. Mỗi nét một nhóm riêng để cập nhật nét này
+  // không phải dựng lại các nét khác đang tẩy dở.
+  function drawErasePreview(s: MindStroke, frags: StrokeFragment[]) {
+    const host = erasePreviewRef.current
+    if (!host) return
+    const ns = "http://www.w3.org/2000/svg"
+    let g = host.querySelector(`[data-erase-for="${s.id}"]`)
+    if (!g) {
+      g = document.createElementNS(ns, "g")
+      g.setAttribute("data-erase-for", s.id)
+      host.appendChild(g)
+    }
+    while (g.firstChild) g.removeChild(g.firstChild)
+    const filled = isFilled(s)
+    frags.forEach((f) => {
+      const path = document.createElementNS(ns, "path")
+      const usesWidths = filled && f.widths && f.widths.length > 1
+      path.setAttribute("d", usesWidths ? strokeOutline(f.points, f.widths!) : strokePath(f.points, s.straight))
+      if (usesWidths) {
+        path.setAttribute("fill", s.color)
+        path.setAttribute("stroke", "none")
+      } else {
+        path.setAttribute("fill", "none")
+        path.setAttribute("stroke", s.color)
+        path.setAttribute("stroke-width", String(s.width))
+        path.setAttribute("stroke-linecap", "round")
+        path.setAttribute("stroke-linejoin", "round")
+      }
+      if (s.tool === "highlighter") path.setAttribute("opacity", String(HIGHLIGHTER_ALPHA))
+      g!.appendChild(path)
+    })
+  }
+
+  function clearErasePreview() {
+    const host = erasePreviewRef.current
+    if (!host) return
+    while (host.firstChild) host.removeChild(host.firstChild)
   }
 
   // Bỏ dở việc tẩy: hiện lại những nét mới chỉ bị ẩn trên DOM. Cần thiết khi ngón thứ hai đặt xuống
@@ -1447,7 +1582,13 @@ export function MindmapBoard({
       const el = worldRef.current?.querySelector(`[data-stroke="${id}"]`)
       if (el instanceof SVGElement) el.style.display = ""
     })
+    erasedParts.current.forEach((_, id) => {
+      const el = worldRef.current?.querySelector(`[data-stroke="${id}"]`)
+      if (el instanceof SVGElement) el.style.display = ""
+    })
     erased.current.clear()
+    erasedParts.current.clear()
+    clearErasePreview()
     if (eraserRingRef.current) eraserRingRef.current.style.display = "none"
   }
 
@@ -1495,22 +1636,63 @@ export function MindmapBoard({
   function endDraft() {
     draftPts.current = null
     draftWidths.current = null
+    inkState.current = null
+    smoother.current = null
+    snapped.current = null
+    cancelHold()
     draftPathRef.current?.setAttribute("d", "")
   }
 
-  // Bề dày tại một điểm mới của nét bút mực.
+  // ─── Giữ yên tay cuối nét → nắn thành hình chuẩn ──────────────────────────
   //
-  // Bút cảm ứng (Apple Pencil, bút Surface) báo lực nhấn thật qua `pressure` → dùng thẳng. Ngón tay và
-  // chuột luôn báo pressure = 0.5 hoặc 0, tức là vô nghĩa, nên suy từ TỐC ĐỘ: đưa tay nhanh thì nét
-  // mảnh, đi chậm/dừng lại thì nét đậm — đúng như bút mực thật trên giấy. Bề dày còn được làm trơn dần
-  // (mỗi điểm chỉ đổi tối đa 35% về phía giá trị mới) để nét không bị gấp khúc chỗ dày chỗ mỏng.
-  function nextInkWidth(e: ReactPointerEvent, base: number, prev: number, speed: number): number {
-    const usePressure = e.pointerType === "pen" && e.pressure > 0 && e.pressure !== 0.5
-    const factor = usePressure
-      ? 0.4 + e.pressure * 0.95
-      : Math.max(0.55, Math.min(1.25, 1.25 - speed * 0.22))
-    const target = base * factor
-    return prev + (target - prev) * 0.35
+  // Cách dùng giống GoodNotes: vẽ nguệch ngoạc bằng bút mực bình thường, KHÔNG nhấc tay, giữ yên
+  // khoảng nửa giây. Ưu điểm so với việc chọn công cụ hình trước là không phải rời mạch suy nghĩ để
+  // đi chọn công cụ — mà lúc đang dựng sơ đồ thì đó đúng là thứ hay làm đứt mạch nhất.
+  //
+  // Không nhận ra hình nào thì im lặng giữ nguyên nét tay: thà bỏ sót còn hơn nắn bừa chữ viết
+  // thành hình (xem ghi chú ngưỡng trong lib/shapeRecognize.ts).
+
+  // Tay còn nhúc nhích quá mức này (px màn hình) thì coi như chưa dừng, đếm lại từ đầu.
+  const HOLD_MOVE_TOLERANCE = 5
+  const HOLD_MS = 450
+
+  function cancelHold() {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current)
+      holdTimer.current = null
+    }
+  }
+
+  function trackHold(clientX: number, clientY: number) {
+    if (snapped.current) return
+    // Đã rời khỏi chỗ đang giữ → bắt đầu đếm lại từ vị trí mới.
+    if (holdTimer.current && dist(holdAnchor.current.x, holdAnchor.current.y, clientX, clientY) <= HOLD_MOVE_TOLERANCE) {
+      return
+    }
+    cancelHold()
+    holdAnchor.current = { x: clientX, y: clientY }
+    holdTimer.current = setTimeout(() => {
+      holdTimer.current = null
+      trySnapShape()
+    }, HOLD_MS)
+  }
+
+  function trySnapShape() {
+    const pts = draftPts.current
+    if (!pts || action.current.kind !== "draw" || snapped.current) return
+    // Truyền mức phóng vào: mọi ngưỡng nhận dạng đo theo pixel MÀN HÌNH, không theo toạ độ bảng —
+    // nếu không, cùng một chữ viết tay sẽ bị nhận khác nhau tuỳ đang phóng to hay thu nhỏ.
+    const found = recognizeShape(pts, view.current.zoom)
+    if (!found) return
+    snapped.current = found
+    draftPts.current = found.points.slice()
+    // Hình nắn ra là đường kẻ đều dày, không phải vùng tô có bề dày thay đổi — vẽ lại nét nháp
+    // theo đúng kiểu đó, nếu không hình sẽ hiện ra dưới dạng một vệt loang.
+    draftWidths.current = null
+    beginDraft(penWidth, inkColor, 1, false)
+    paintDraft(true)
+    tickHaptic()
+    flashToast(`Đã nắn thành ${SHAPE_LABELS[found.kind].toLowerCase()} — nhấc tay để giữ`)
   }
 
   function commitStroke(points: number[], straight: boolean, widths?: number[] | null) {
@@ -1838,6 +2020,24 @@ export function MindmapBoard({
     if (e.isPrimary && pointers.current.size > 0) pointers.current.clear()
   }
 
+  // ─── Phát hiện bút cảm ứng ────────────────────────────────────────────────
+  //
+  // Lần đầu thấy một sự kiện đến từ bút (Apple Pencil, bút Surface), tự bật chế độ chỉ-bút: từ đó
+  // ngón tay chỉ để kéo và phóng-thu, còn vẽ thì chỉ bút mới vẽ được. Không có bước này thì phần
+  // bàn tay tì lên màn hình khi viết sẽ để lại vệt mực ngang trang — lỗi khó chịu nhất khi viết
+  // tay trên máy tính bảng.
+  //
+  // Bật TỰ ĐỘNG chứ không bắt người dùng đi tìm cài đặt, nhưng vẫn tắt được bằng tay (nút trong
+  // menu "…"): có người thích vẽ bằng ngón tay ngay cả khi đang cầm bút.
+  function noteStylus(e: ReactPointerEvent) {
+    if (e.pointerType !== "pen" || penSeen.current) return
+    penSeen.current = true
+    // Người dùng đã tự tắt trước đó thì tôn trọng lựa chọn đó, không bật lại.
+    if (penOnlyTouched.current) return
+    setPenOnly(true)
+    flashToast("Đã nhận ra bút — ngón tay giờ chỉ kéo và phóng-thu bảng")
+  }
+
   function startPinch() {
     const [a, b] = Array.from(pointers.current.values())
     const rect = surfaceRect()
@@ -1858,6 +2058,7 @@ export function MindmapBoard({
 
   function handleSurfacePointerDown(e: ReactPointerEvent) {
     stopAnim()
+    noteStylus(e)
     reapStalePointers(e)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     capture(e)
@@ -1874,6 +2075,27 @@ export function MindmapBoard({
 
     const p = toBoard(e.clientX, e.clientY)
 
+    // ─── Chống tì tay ────────────────────────────────────────────────────────
+    // Đang ở chế độ chỉ-bút mà đây là NGÓN TAY → không vẽ/tẩy/khoanh, chuyển thẳng sang kéo bảng.
+    // Đây chính là cách cầm bút thật: bàn tay tì lên màn hình lẽ ra không được để lại vệt mực nào,
+    // còn ngón tay thì vẫn kéo và phóng-thu bảng được như thường.
+    if (penOnly && e.pointerType === "touch" && DRAW_TOOLS.includes(tool)) {
+      action.current = {
+        kind: "pan",
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: view.current.x,
+        origY: view.current.y,
+        moved: false,
+        vx: 0,
+        vy: 0,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        lastT: performance.now(),
+      }
+      return
+    }
+
     // Đang có nhóm khoanh chọn và ngón đặt vào TRONG khung nhóm → kéo cả nhóm. Xét trước các công cụ
     // khác để việc kéo nhóm không bị công cụ đang chọn giành mất (nét vẽ đè lên chẳng hạn).
     if (selGroup && (tool === "lasso" || tool === "hand")) {
@@ -1888,11 +2110,18 @@ export function MindmapBoard({
     if (tool === "pen" || tool === "highlighter") {
       action.current = { kind: "draw" }
       draftPts.current = [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]
+      // Bộ lọc rung mới cho mỗi nét, mồi bằng đúng điểm đặt bút để đầu nét không bị kéo lệch.
+      smoother.current = new PointerSmoother()
+      smoother.current.filter(e.clientX, e.clientY, e.timeStamp || performance.now())
+      snapped.current = null
+      cancelHold()
       if (tool === "pen") {
-        // Bắt đầu nét mực: đầu nét mảnh hơn thân nét, giống lúc đặt bút xuống giấy.
-        draftWidths.current = [penWidth * 0.62]
-        inkPace.current = { t: performance.now(), x: e.clientX, y: e.clientY }
-      } else draftWidths.current = null
+        inkState.current = initInkWidth(penWidth, e.clientX, e.clientY, e.timeStamp || performance.now())
+        draftWidths.current = [inkState.current.width]
+      } else {
+        draftWidths.current = null
+        inkState.current = null
+      }
       beginDraft(
         tool === "highlighter" ? hlWidth : penWidth,
         tool === "highlighter" ? hlColor : inkColor,
@@ -2105,23 +2334,34 @@ export function MindmapBoard({
     }
 
     if (act.kind === "draw") {
-      const p = toBoard(e.clientX, e.clientY)
       const pts = draftPts.current
       if (!pts) return
-      const lastX = pts[pts.length - 2]
-      const lastY = pts[pts.length - 1]
-      if (dist(lastX, lastY, p.x, p.y) < MIN_POINT_DIST / view.current.zoom) return
-      pts.push(Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10)
-      const ws = draftWidths.current
-      if (ws) {
-        // Tốc độ tay tính trên MÀN HÌNH (px/ms) nên cảm giác nét giống nhau ở mọi mức phóng.
-        const now = performance.now()
-        const dt = Math.max(8, now - inkPace.current.t)
-        const speed = dist(inkPace.current.x, inkPace.current.y, e.clientX, e.clientY) / dt
-        inkPace.current = { t: now, x: e.clientX, y: e.clientY }
-        ws.push(nextInkWidth(e, penWidth, ws[ws.length - 1], speed))
+      // Hình đã nắn xong thì khoá lại — tay còn rê tiếp cũng không vẽ thêm gì nữa (giống GoodNotes:
+      // nắn xong là xong, chỉ nhấc tay ra để chốt hoặc kéo ngược lại để huỷ).
+      if (snapped.current) return
+
+      // Lấy TOÀN BỘ mẫu mà trình duyệt đã gom lại, không chỉ mẫu cuối — đây là điểm khác biệt lớn
+      // nhất về độ mượt khi vẽ nhanh. Xem ghi chú đầu lib/ink.ts.
+      const samples = coalescedSamples(e.nativeEvent as PointerEvent, performance.now())
+      const sm = smoother.current
+      let added = false
+      for (const s of samples) {
+        // Lọc rung TRÊN TOẠ ĐỘ MÀN HÌNH rồi mới đổi sang toạ độ bảng: tham số bộ lọc chỉnh theo
+        // pixel màn hình nên độ lọc giữ nguyên ở mọi mức phóng.
+        const f = sm ? sm.filter(s.x, s.y, s.t) : { x: s.x, y: s.y }
+        const p = toBoard(f.x, f.y)
+        const lastX = pts[pts.length - 2]
+        const lastY = pts[pts.length - 1]
+        if (dist(lastX, lastY, p.x, p.y) < MIN_POINT_DIST / view.current.zoom) continue
+        pts.push(Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10)
+        added = true
+        const ws = draftWidths.current
+        if (ws && inkState.current) ws.push(nextInkWidth(s, penWidth, inkState.current))
       }
-      paintDraft(false)
+      if (added) paintDraft(false)
+      // Giữ yên tay cuối nét → thử nắn thành hình chuẩn. Chỉ bút mực, không áp cho bút dạ (bút dạ
+      // dùng để tô nền chứ không để vẽ hình).
+      if (tool === "pen") trackHold(e.clientX, e.clientY)
       return
     }
 
@@ -2340,12 +2580,22 @@ export function MindmapBoard({
     }
 
     if (act.kind === "draw" || act.kind === "shape") {
+      cancelHold()
       const pts = draftPts.current
+      // Nét đã được nắn thành hình chuẩn (giữ yên tay giữa chừng) → chốt nó như một HÌNH: nối thẳng
+      // các điểm, bề dày đều, không vuốt đuôi. Nắn xong mà vẫn vẽ như nét tay thì công sức nắn coi
+      // như bỏ đi.
+      const wasSnapped = snapped.current != null
       if (pts && pts.length >= 2) {
         // Hình vẽ chỉ là một cái chạm (không kéo) thì bỏ, tránh để lại dấu chấm vô nghĩa.
         const isTinyShape = act.kind === "shape" && dist(pts[0], pts[1], pts[2] ?? pts[0], pts[3] ?? pts[1]) < 6
         if (isTinyShape) endDraft()
-        else commitStroke(pts, act.kind === "shape", draftWidths.current)
+        else {
+          const widths = wasSnapped ? null : draftWidths.current
+          // Vuốt mảnh đuôi nét: bút thật nhấc lên thì nét nhỏ dần, không cắt ngang bằng một đầu tù.
+          if (widths) taperTail(widths)
+          commitStroke(pts, act.kind === "shape" || wasSnapped, widths)
+        }
       } else endDraft()
     }
 
@@ -2358,12 +2608,32 @@ export function MindmapBoard({
 
     if (act.kind === "erase") {
       if (eraserRingRef.current) eraserRingRef.current.style.display = "none"
-      if (erased.current.size > 0) {
-        const gone = new Set(erased.current)
+      const gone = new Set(erased.current)
+      const parts = erasedParts.current
+      if (gone.size > 0 || parts.size > 0) {
         pushUndo()
-        updateStrokes((ss) => ss.filter((s) => !gone.has(s.id)))
+        flushSync(() =>
+          updateStrokes((ss) =>
+            ss.flatMap((s) => {
+              if (gone.has(s.id)) return []
+              const part = parts.get(s.id)
+              if (!part) return [s]
+              const frags = surviveFragments(part.pts, part.widths, part.removed, part.cuts)
+              // Mỗi mẩu là một nét MỚI với id riêng — giữ nguyên id cũ cho một trong các mẩu sẽ làm
+              // bộ nhớ đệm đường đi (pathCache, khoá theo id) trả về hình dạng của nét trước khi tẩy.
+              return frags.map((f) => ({
+                ...s,
+                id: newId("s"),
+                points: f.points,
+                ...(f.widths && f.widths.length > 1 ? { widths: f.widths } : {}),
+              }))
+            }),
+          ),
+        )
       }
       erased.current.clear()
+      parts.clear()
+      clearErasePreview()
     }
 
     if (act.kind === "linkdrag") {
@@ -2912,30 +3182,53 @@ export function MindmapBoard({
             )}
 
             {tool === "eraser"
-              ? ERASER_SIZES.map((s) => (
+              ? (
+                <>
+                  {ERASER_SIZES.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setEraserSize(s)}
+                      aria-label={`Đầu tẩy ${s === ERASER_SIZES[0] ? "nhỏ" : "lớn"}`}
+                      className="mind-btn flex-none w-9 h-9 rounded-xl flex items-center justify-center border"
+                      style={
+                        eraserSize === s
+                          ? { background: "#eff6ff", borderColor: "var(--c-primary)" }
+                          : { background: "#fff", borderColor: "#e2e8f0" }
+                      }
+                    >
+                      <span
+                        className="rounded-full"
+                        style={{
+                          width: s === ERASER_SIZES[0] ? 11 : 19,
+                          height: s === ERASER_SIZES[0] ? 11 : 19,
+                          border: "1.5px solid #94a3b8",
+                          background: "#f1f5f9",
+                        }}
+                      />
+                    </button>
+                  ))}
+                  <span className="flex-none w-px h-6" style={{ background: "#e2e8f0" }} />
+                  {/* Tẩy một phần (mặc định, giống cục tẩy thật) hay xoá trọn cả nét. Cần cả hai:
+                      tẩy một phần để sửa một chữ giữa dòng, xoá cả nét để dọn nhanh một hình vẽ hỏng
+                      mà không phải tô đi tô lại lên nó. */}
                   <button
-                    key={s}
                     type="button"
-                    onClick={() => setEraserSize(s)}
-                    aria-label={`Đầu tẩy ${s === ERASER_SIZES[0] ? "nhỏ" : "lớn"}`}
-                    className="mind-btn flex-none w-9 h-9 rounded-xl flex items-center justify-center border"
+                    onClick={() => {
+                      setEraseWholeStroke((v) => !v)
+                      tickHaptic()
+                    }}
+                    className="mind-btn flex-none h-9 px-3 rounded-xl border text-[12px] font-bold"
                     style={
-                      eraserSize === s
-                        ? { background: "#eff6ff", borderColor: "var(--c-primary)" }
-                        : { background: "#fff", borderColor: "#e2e8f0" }
+                      eraseWholeStroke
+                        ? { background: "#eff6ff", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                        : { background: "#fff", borderColor: "#e2e8f0", color: "#64748b" }
                     }
                   >
-                    <span
-                      className="rounded-full"
-                      style={{
-                        width: s === ERASER_SIZES[0] ? 11 : 19,
-                        height: s === ERASER_SIZES[0] ? 11 : 19,
-                        border: "1.5px solid #94a3b8",
-                        background: "#f1f5f9",
-                      }}
-                    />
+                    {eraseWholeStroke ? "Xoá cả nét" : "Tẩy một phần"}
                   </button>
-                ))
+                </>
+              )
               : (
                 <>
                   {inkPalette.map(({ color: c, name }) => (
@@ -3098,6 +3391,39 @@ export function MindmapBoard({
               {mi.tidy("w-[18px] h-[18px]")}
               Sắp lại toàn bộ bảng
             </button>
+            {/* Chống tì tay. Tự bật khi app nhận ra bút cảm ứng (xem noteStylus), nhưng vẫn phải
+                tắt được bằng tay — có người thích vẽ bằng ngón tay ngay cả khi đang cầm bút, và
+                một chế độ tự bật mà không tắt được thì đúng là thứ gây ức chế nhất. */}
+            <button
+              type="button"
+              onClick={() => {
+                penOnlyTouched.current = true
+                const next = !penOnly
+                setPenOnly(next)
+                writePenOnly(next)
+                setMenuOpen(false)
+                flashToast(
+                  next ? "Chỉ bút mới vẽ được — ngón tay để kéo bảng" : "Ngón tay vẽ được như bút",
+                )
+              }}
+              className="mind-btn w-full flex items-center justify-between gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
+              style={{ color: "#334155" }}
+            >
+              <span className="flex items-center gap-2">
+                {mi.pen("w-[18px] h-[18px]")}
+                Chống tì tay
+              </span>
+              <span
+                className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                style={
+                  penOnly
+                    ? { background: "var(--c-primary-soft)", color: "var(--c-primary)" }
+                    : { background: "#f1f5f9", color: "#94a3b8" }
+                }
+              >
+                {penOnly ? "Đang bật" : "Đang tắt"}
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -3174,6 +3500,11 @@ export function MindmapBoard({
           {/* Nét vẽ và đường nối nằm DƯỚI ghi chú để chữ luôn đọc được */}
           <svg style={{ position: "absolute", overflow: "visible", pointerEvents: "none" }} width="1" height="1">
             <InkLayer strokes={strokes} />
+
+            {/* Các mẩu còn sống của những nét đang bị tẩy MỘT PHẦN. Nét gốc bị ẩn đi và thay tạm
+                bằng nhóm này trong lúc kéo tay, vì một nét bị cắt đôi cần nhiều phần tử hơn nét gốc
+                — thêm phần tử giữa lúc kéo thì phải qua React, tức dựng lại cả bảng mỗi khung hình. */}
+            <g ref={erasePreviewRef} />
 
             {/* Nét đang vẽ dở — cập nhật trực tiếp, không qua React */}
             <path ref={draftPathRef} fill="none" strokeLinecap="round" strokeLinejoin="round" />
