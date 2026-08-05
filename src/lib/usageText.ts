@@ -86,9 +86,13 @@ export function formatFixedUsage(params: {
   const { name, vialAmount, vialUnit, vialVolumeMl, vialsUsed, doseAmount, doseUnit, route, dropsPerMin, rateMlPerHour } = params
   const bottle = `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml`
   const pooled = vialsUsed != null && vialsUsed > 1
-  if (doseAmount == null) return pooled ? `${bottle} ${trim(vialsUsed, 0)} chai` : `${bottle} 01 chai`
-  const countPart = pooled ? ` ${trim(vialsUsed, 0)} chai` : ""
-  const base = `${bottle}${countPart} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
+  // Trước đây nhánh "dùng trọn chai" (doseAmount == null — trường hợp THƯỜNG GẶP NHẤT, vd Levofloxacin
+  // dùng cả chai) return NGAY tại đây, không bao giờ chạy tới phần route/giọt-phút/BTĐ bên dưới — kết
+  // quả là câu "Cách dùng" thiếu hẳn đường dùng và tốc độ truyền đúng lúc cần nhất. Gộp chung một
+  // điểm `base` rồi cùng đi qua phần tốc độ ở cuối, giống hệt nhánh "lấy một phần".
+  const base = doseAmount == null
+    ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : " 01 chai"}${route ? ` (${route})` : ""}`
+    : `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : ""} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
   if (route === "TMC") return base
   if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
   if (dropsPerMin == null) return base

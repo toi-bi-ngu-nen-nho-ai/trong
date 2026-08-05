@@ -44,6 +44,12 @@ export interface WardRecipe {
   // vancomycin và một số kháng sinh khác bắt buộc chạy bơm, không đếm giọt được vì tốc độ quá chậm.
   // Không có thì hiểu là dây truyền thường, đúng hành vi trước khi có lựa chọn này.
   deliveryDevice?: "drip" | "pump"
+  // Khoa có cho phép RÚT BỚT dung dịch sau khi pha gộp nhiều lọ/chai hay không — vài khoa cho rút
+  // (lấy 1,5 lọ nghĩa là hoàn nguyên 2 lọ rồi rút đúng 3/4 lượng dùng), vài khoa không (chỉ dùng
+  // NGUYÊN số lọ/chai đã mở, không đo rút riêng). Mặc định KHÔNG cho rút — "1,5 lọ" chỉ hợp lý khi
+  // khoa thật sự có thao tác rút này; im lặng coi là cho phép sẽ đưa ra số lọ vô lý cho khoa không
+  // làm vậy. Xem pickEasiestVialCount/wholeVialOptions/resolveFixedDraw trong lib/mixing.ts.
+  allowWithdraw?: boolean
   // Công thức được GHIM làm mặc định cố định của thuốc này — độc lập với "lưu gần nhất". Trước đây
   // công thức áp dụng luôn là công thức lưu SAU CÙNG, nên một công thức thử nghiệm cho ca đặc biệt
   // lưu hôm nay sẽ vô tình đè lên thành mặc định cho mọi bệnh nhân sau — xem useActiveWardRecipe

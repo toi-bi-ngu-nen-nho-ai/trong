@@ -45,6 +45,7 @@ import {
   vialsTotalVolume,
   volumeForConcentration,
   volumePerVial,
+  wholeCountOptions,
   type VialForm,
   type VialSpec,
 } from "./lib/mixing"
@@ -5536,6 +5537,10 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
   // mL/giờ) — vancomycin và một số kháng sinh khác BẮT BUỘC chạy bơm vì tốc độ quá chậm để đếm giọt
   // chính xác (vd 1 g/60 phút ở 100 mL chỉ ~33 giọt/phút, sai số đếm tay đáng kể). Xem lib/mixing.ts.
   const [deliveryDevice, setDeliveryDevice] = useState<"drip" | "pump">(ward?.deliveryDevice ?? "drip")
+  // Vài khoa hoàn nguyên/gộp nhiều lọ-chai rồi RÚT BỚT dung dịch dư ra (cho phép số lọ lẻ như 1,5),
+  // vài khoa chỉ dùng NGUYÊN số lọ/chai đã mở (bắt buộc số nguyên) — mặc định KHÔNG cho rút, vì "1,5
+  // lọ" chỉ hợp lý khi khoa thật sự làm thao tác đó. Xem WardRecipe.allowWithdraw.
+  const [allowWithdraw, setAllowWithdraw] = useState(ward?.allowWithdraw ?? false)
   const [saveTitle, setSaveTitle] = useState("")
 
   const allowedDiluents = mix?.diluents ?? ["NaCl 0,9%", "Glucose 5%"]
@@ -5588,9 +5593,11 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
   useEffect(() => setConfirmed(false), [conc, vol, nv])
   const blocked = grade.requiresConfirm && !confirmed
 
-  // Thể tích thực sự sẽ truyền — dùng để tính giọt/phút: chai cố định thì là mL rút ra (hoặc cả
-  // chai nếu dùng trọn), hai dạng kia là thể tích pha loãng tới.
-  const infuseVolumeMl = isFixed ? (fixedDoseNum != null ? fixedDrawMl : fixedVialVolume) : vol
+  // Thể tích thực sự sẽ truyền — dùng để tính giọt/phút: chai cố định thì là mL rút ra, hoặc TOÀN BỘ
+  // thể tích đã GỘP nếu dùng trọn (không phải thể tích một chai — sai khi gộp nhiều chai, giọt/phút
+  // sẽ tính ra như thể chỉ có một chai trong khi thực tế truyền cả 2-3 chai), hai dạng kia là thể
+  // tích pha loãng tới.
+  const infuseVolumeMl = isFixed ? (fixedDoseNum != null ? fixedDrawMl : fixedPoolVolume) : vol
   const minutes = num(infuseMinutes)
   const usePump = routeShort === "TTM" && deliveryDevice === "pump"
   const dropsPerMin = routeShort === "TTM" && !usePump ? dropsPerMinute(infuseVolumeMl ?? NaN, minutes ?? NaN, dropFactor) : null
@@ -5612,14 +5619,14 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
   // ghi đè mất số lọ/thể tích đã lưu). Thay vào đó, hai hàm dưới đây chỉ chạy khi NGƯỜI DÙNG chủ
   // động gõ hàm lượng — xem các onChange gọi tới chúng. Kết quả vẫn là Ô SỐ LỌ/THỂ TÍCH bình
   // thường, sửa tay lại được như mọi ô khác.
-  function applySolutionSuggestion(vaValue: number) {
+  function applySolutionSuggestion(vaValue: number, allow: boolean = allowWithdraw) {
     if (!doseTargetMg || !(vaValue > 0)) return
     const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
     const toConcMass = massFactor(vialUnit, concMass)
     if (toVialUnit == null) return
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, vaValue)
+    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, vaValue, allow)
     if (count == null) return
     setVials(String(count))
     if (toConcMass == null) return
@@ -5634,15 +5641,20 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     setVolume(String(vol))
   }
 
-  function applyFixedSuggestion(vaValue: number, volValue: number) {
+  function applyFixedSuggestion(vaValue: number, volValue: number, allow: boolean = allowWithdraw) {
     if (!doseTargetMg || !(vaValue > 0) || !(volValue > 0)) return
     const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
     if (toVialUnit == null) return
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, vaValue, volValue)
+    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, vaValue, volValue, allow)
     if (result == null) return
     setVials(String(result.bottleCount))
+    // Không rút được (drawMl null) — dùng TRỌN số chai, xoá "Liều cần lấy" để hiển thị "dùng trọn".
+    if (result.drawMl == null) {
+      setFixedDoseAmount("")
+      return
+    }
     const concPerMl = vaValue / volValue
     setFixedDoseAmount(String(Math.round(result.drawMl * concPerMl * 100) / 100))
   }
@@ -5658,10 +5670,20 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     if (toVialUnit == null || toDoseUnit == null) return null
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, va)
+    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, va, allowWithdraw)
     if (count == null) return null
-    return { count, totalInDoseUnit: count * va * toDoseUnit }
-  }, [isFixed, doseTargetMg, va, vialUnit])
+    // Không rút được VÀ không có số nguyên nào khớp hẳn khoảng liều — có hai phương án hợp lý (thấp
+    // hơn/cao hơn), hiện cả hai để người dùng tự chọn thay vì chỉ đưa phương án app tự thiên vị chọn
+    // (xem wholeCountOptions — cùng triết lý "Giữ nồng độ"/"Giữ thể tích" ở MixPanel).
+    const alt = !allowWithdraw
+      ? wholeCountOptions(loInVialUnit, hiInVialUnit, va).find((o) => o.count !== count)
+      : undefined
+    return {
+      count,
+      totalInDoseUnit: count * va * toDoseUnit,
+      alt: alt ? { count: alt.count, totalInDoseUnit: alt.totalAmount * toDoseUnit } : undefined,
+    }
+  }, [isFixed, doseTargetMg, va, vialUnit, allowWithdraw])
 
   const fixedPoolSuggestion = useMemo(() => {
     if (!isFixed || !doseTargetMg || !(va > 0) || !(fixedVialVolume != null && fixedVialVolume > 0)) return null
@@ -5669,10 +5691,13 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     if (toVialUnit == null) return null
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, va, fixedVialVolume)
+    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, va, fixedVialVolume, allowWithdraw)
     if (result == null) return null
-    return { count: result.bottleCount, drawMl: result.drawMl }
-  }, [isFixed, doseTargetMg, va, vialUnit, fixedVialVolume])
+    const alt = !allowWithdraw
+      ? wholeCountOptions(loInVialUnit, hiInVialUnit, va).find((o) => o.count !== result.bottleCount)
+      : undefined
+    return { count: result.bottleCount, drawMl: result.drawMl, alt: alt ? { count: alt.count } : undefined }
+  }, [isFixed, doseTargetMg, va, vialUnit, fixedVialVolume, allowWithdraw])
 
   const pill = (on: boolean) =>
     on
@@ -5716,6 +5741,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     setInfuseMinutes(w.infuseMinutes != null ? String(w.infuseMinutes) : "")
     setDropFactor(w.dropFactor ?? DEFAULT_DROP_FACTOR)
     setDeliveryDevice(w.deliveryDevice ?? "drip")
+    setAllowWithdraw(w.allowWithdraw ?? false)
     setActiveRecipeId(w.id)
     tickHaptic()
   }
@@ -5737,6 +5763,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     setInfuseMinutes("")
     setDropFactor(DEFAULT_DROP_FACTOR)
     setDeliveryDevice("drip")
+    setAllowWithdraw(false)
     setActiveRecipeId("system")
     tickHaptic()
   }
@@ -5760,6 +5787,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
       infuseMinutes: minutes ?? undefined,
       dropFactor,
       deliveryDevice: routeShort === "TTM" ? deliveryDevice : undefined,
+      allowWithdraw,
     })
     setSaveTitle("")
     tickHaptic()
@@ -5870,6 +5898,41 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
         </>
       )}
 
+      {/* Vài khoa hoàn nguyên/gộp nhiều lọ-chai rồi rút bớt dung dịch dư ra (cho phép số lọ lẻ như
+          1,5 lọ), vài khoa chỉ dùng NGUYÊN số lọ/chai đã mở — quyết định này ảnh hưởng thẳng tới gợi
+          ý số lọ/chai bên dưới, nên đặt ngay trước "Dạng chế phẩm". */}
+      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Cho phép rút dung dịch sau pha?</label>
+      <div className="flex gap-1.5 mb-2">
+        {(
+          [
+            { v: false, label: "Không — bắt buộc số nguyên" },
+            { v: true, label: "Có — được lấy số lẻ" },
+          ]
+        ).map((opt) => (
+          <button
+            key={String(opt.v)}
+            onClick={() => {
+              setAllowWithdraw(opt.v)
+              // Tính lại ngay bằng giá trị MỚI vừa bấm — closure của applySolutionSuggestion/
+              // applyFixedSuggestion còn giữ allowWithdraw CŨ tới khi component render lại, nên
+              // phải truyền tay opt.v thay vì dựa vào state (chưa kịp cập nhật ở lượt render này).
+              if (va > 0) {
+                if (isFixed) {
+                  if (fixedVialVolume != null) applyFixedSuggestion(va, fixedVialVolume, opt.v)
+                } else {
+                  applySolutionSuggestion(va, opt.v)
+                }
+              }
+              tickHaptic()
+            }}
+            className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
+            style={pill(allowWithdraw === opt.v)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <label className="text-[11px] font-medium text-slate-500 mb-1 block">Dạng chế phẩm</label>
       <div className="flex gap-1.5 mb-2">
         {(
@@ -5937,24 +6000,47 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
               <input value={fixedDoseAmount} onChange={(e) => setFixedDoseAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="500" className={FIELD} style={FIELD_STYLE} />
             </div>
           </div>
-          {/* Gợi ý số chai + thể tích rút gộp — bấm để áp dụng lại nếu vừa sửa tay lệch khỏi gợi ý.
-              Thể tích rút làm tròn tới mốc trăm/năm mươi mL (khác thang với thể tích pha loãng nhỏ ở
-              hai dạng kia) — xem poolDrawVolume trong lib/mixing.ts. */}
+          {/* Gợi ý số chai (+ thể tích rút gộp nếu khoa cho rút) — bấm để áp dụng lại nếu vừa sửa tay
+              lệch khỏi gợi ý. Thể tích rút làm tròn tới mốc trăm/năm mươi mL (khác thang với thể
+              tích pha loãng nhỏ ở hai dạng kia) — xem poolDrawVolume trong lib/mixing.ts. Không cho
+              rút thì không có "rút X mL" nào cả — dùng TRỌN số chai, và có thể có phương án thay thế
+              (thấp hơn/cao hơn) để tự chọn thay vì chỉ một đáp án app tự thiên vị. */}
           {fixedPoolSuggestion && doseTargetMg && (
-            <button
-              onClick={() => {
-                setVials(String(fixedPoolSuggestion.count))
-                const concPerMl = va / (fixedVialVolume as number)
-                setFixedDoseAmount(String(Math.round(fixedPoolSuggestion.drawMl * concPerMl * 100) / 100))
-                tickHaptic()
-              }}
-              className="w-full text-left text-[11px] leading-[1.45] font-semibold mb-2 px-2.5 py-2 rounded-xl underline decoration-dotted"
-              style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
-            >
-              Gợi ý {trim(fixedPoolSuggestion.count, 0)} chai — rút {trim(fixedPoolSuggestion.drawMl)} mL (khớp khoảng liều{" "}
-              {formatDoseNumber(doseTargetMg.low)}
-              {doseTargetMg.high != null ? `–${formatDoseNumber(doseTargetMg.high)}` : ""} {doseTargetMg.unit})
-            </button>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <button
+                onClick={() => {
+                  setVials(String(fixedPoolSuggestion.count))
+                  if (fixedPoolSuggestion.drawMl == null) {
+                    setFixedDoseAmount("")
+                  } else {
+                    const concPerMl = va / (fixedVialVolume as number)
+                    setFixedDoseAmount(String(Math.round(fixedPoolSuggestion.drawMl * concPerMl * 100) / 100))
+                  }
+                  tickHaptic()
+                }}
+                className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
+              >
+                {fixedPoolSuggestion.drawMl == null
+                  ? `Gợi ý dùng trọn ${trim(fixedPoolSuggestion.count, 0)} chai`
+                  : `Gợi ý ${trim(fixedPoolSuggestion.count, 0)} chai — rút ${trim(fixedPoolSuggestion.drawMl)} mL`}
+                {" "}(khớp khoảng liều {formatDoseNumber(doseTargetMg.low)}
+                {doseTargetMg.high != null ? `–${formatDoseNumber(doseTargetMg.high)}` : ""} {doseTargetMg.unit})
+              </button>
+              {fixedPoolSuggestion.alt && (
+                <button
+                  onClick={() => {
+                    setVials(String(fixedPoolSuggestion.alt!.count))
+                    setFixedDoseAmount("")
+                    tickHaptic()
+                  }}
+                  className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                  style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
+                >
+                  Hoặc {trim(fixedPoolSuggestion.alt.count, 0)} chai
+                </button>
+              )}
+            </div>
           )}
           {unitChoices.length > 1 && (
             <div className="flex gap-1.5 mb-2.5">
@@ -6006,18 +6092,34 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
               BẤM ÁP DỤNG LẠI nếu vừa sửa tay lệch khỏi gợi ý, vẫn sửa tay ô "Số {vialLabel}"/"Pha
               loãng tới" bình thường sau đó. */}
           {vialCountSuggestion && doseTargetMg && (
-            <button
-              onClick={() => {
-                applySolutionSuggestion(va)
-                tickHaptic()
-              }}
-              className="w-full text-left text-[11px] leading-[1.45] font-semibold mb-2 px-2.5 py-2 rounded-xl underline decoration-dotted"
-              style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
-            >
-              Gợi ý {trim(vialCountSuggestion.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.totalInDoseUnit)} {doseTargetMg.unit} — khớp khoảng liều{" "}
-              {formatDoseNumber(doseTargetMg.low)}
-              {doseTargetMg.high != null ? `–${formatDoseNumber(doseTargetMg.high)}` : ""} {doseTargetMg.unit})
-            </button>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <button
+                onClick={() => {
+                  applySolutionSuggestion(va)
+                  tickHaptic()
+                }}
+                className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
+              >
+                Gợi ý {trim(vialCountSuggestion.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.totalInDoseUnit)} {doseTargetMg.unit} — khớp khoảng liều{" "}
+                {formatDoseNumber(doseTargetMg.low)}
+                {doseTargetMg.high != null ? `–${formatDoseNumber(doseTargetMg.high)}` : ""} {doseTargetMg.unit})
+              </button>
+              {/* Không cho rút dung dịch VÀ không có số nguyên nào khớp hẳn — có 2 phương án hợp lý
+                  (thấp hơn/cao hơn khoảng liều), hiện cả hai để tự chọn thay vì chỉ app tự quyết. */}
+              {vialCountSuggestion.alt && (
+                <button
+                  onClick={() => {
+                    setVials(String(vialCountSuggestion.alt!.count))
+                    tickHaptic()
+                  }}
+                  className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                  style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
+                >
+                  Hoặc {trim(vialCountSuggestion.alt.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.alt.totalInDoseUnit)} {doseTargetMg.unit})
+                </button>
+              )}
+            </div>
           )}
 
           {/* Xếp dọc, mỗi ô một hàng riêng — không ghép ngang: "Thể tích bột tăng sau pha" luôn dài hơn
@@ -6062,14 +6164,15 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             <input value={infuseMinutes} onChange={(e) => setInfuseMinutes(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="60" className={FIELD} style={FIELD_STYLE} />
           </div>
           {usePump ? (
-            rateMlPerHour != null && (
-              <div className="flex flex-col justify-end">
-                <label className="text-[11px] font-medium text-slate-500 mb-1 block">Tốc độ bơm</label>
-                <p className={`${FIELD} flex items-center font-bold`} style={{ ...FIELD_STYLE, color: "var(--c-accent-deep)" }}>
-                  BTĐ {trim(rateMlPerHour)} ml/h
-                </p>
-              </div>
-            )
+            // Luôn chiếm đúng một ô của lưới 2 cột, kể cả khi CHƯA nhập số phút — trước đây ô này
+            // biến mất hoàn toàn lúc rateMlPerHour còn null, để lại một hàng lệch (chỉ "Truyền trong
+            // (phút)" một mình, nửa lưới bên phải trống trơn) thay vì đứng cân đối như phía dây thường.
+            <div className="flex flex-col justify-end">
+              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Tốc độ bơm</label>
+              <p className={`${FIELD} flex items-center font-bold`} style={{ ...FIELD_STYLE, color: rateMlPerHour != null ? "var(--c-accent-deep)" : "var(--c-muted)" }}>
+                {rateMlPerHour != null ? `BTĐ ${trim(rateMlPerHour)} ml/h` : "Nhập số phút để tính"}
+              </p>
+            </div>
           ) : (
             <div>
               <label className="text-[11px] font-medium text-slate-500 mb-1 block">Bộ dây (giọt/mL)</label>
@@ -6276,6 +6379,8 @@ function AntibioticDoseCard({
         // Bơm tiêm điện chỉ áp dụng được khi có công thức đã lưu khai rõ — công thức hệ thống dựng
         // sẵn (nhánh drug.mix bên dưới) không biết khoa nào chạy bơm nên luôn coi là dây thường.
         deliveryDevice: ward.deliveryDevice ?? "drip",
+        // Mặc định KHÔNG cho rút (số nguyên) khi công thức cũ chưa từng khai — xem WardRecipe.allowWithdraw.
+        allowWithdraw: ward.allowWithdraw ?? false,
       }
     const mix = drug.mix
     if (mix != null && mix.vialAmount != null)
@@ -6290,6 +6395,7 @@ function AntibioticDoseCard({
         infuseMinutes: undefined as number | undefined,
         dropFactor: undefined as number | undefined,
         deliveryDevice: "drip" as "drip" | "pump",
+        allowWithdraw: false,
       }
     return null
   }, [ward, drug.mix])
@@ -6332,15 +6438,17 @@ function AntibioticDoseCard({
       const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
       // Liều cần có thể vượt MỘT chai — resolveFixedDraw tự gộp thêm chai khi cần (giữ nguyên thang
       // làm tròn mịn 5/1/0,5/0,1 mL cho trường hợp một chai thường gặp nhất, chỉ chuyển sang thang
-      // trăm/năm mươi mL khi thật sự phải gộp — xem lib/mixing.ts).
-      const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, mixCfg.vialAmount, mixCfg.vialVolumeMl)
+      // trăm/năm mươi mL khi thật sự phải gộp — xem lib/mixing.ts). Không cho rút (allowWithdraw
+      // false) thì drawMl null — dùng TRỌN thể tích đã gộp, không có "lấy X mg" riêng.
+      const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, mixCfg.vialAmount, mixCfg.vialVolumeMl, mixCfg.allowWithdraw)
       if (result == null) return null
-      const { bottleCount, drawMl: pickedMl } = result
+      const { bottleCount } = result
       const pooledVolume = bottleCount * mixCfg.vialVolumeMl
+      const pickedMl = result.drawMl ?? pooledVolume
       const pickedDose = pickedMl * (mixCfg.vialAmount / mixCfg.vialVolumeMl) * toDoseUnit
       // Liều tính ra đúng bằng (các) chai gộp lại (vd Levofloxacin 750 mg = trọn chai 750 mg/150 mL)
       // → nói "N chai" đúng mẫu, không nói "lấy 750 mg" (đúng số nhưng sai câu chữ thực tế dùng).
-      const isWholeVial = pickedMl >= pooledVolume - 1e-6
+      const isWholeVial = result.drawMl == null || pickedMl >= pooledVolume - 1e-6
       // Chỉ tính tốc độ khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn hẳn
       // phần này thay vì bịa một thời gian truyền không ai xác nhận. Bơm tiêm điện thì ra mL/giờ,
       // dây thường thì ra giọt/phút — không tính cả hai cùng lúc (xem mixCfg.deliveryDevice).

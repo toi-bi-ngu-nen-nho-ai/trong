@@ -187,30 +187,60 @@ export function pickEasiestVolume(loMl: number, hiMl: number): number {
   return Math.round(((lo + hi) / 2) * 10) / 10
 }
 
-// Cùng triết lý với pickEasiestVolume() nhưng chọn SỐ LỌ/ỐNG thay vì thể tích — dùng khi bơm tiêm
-// điện: người pha nhập hàm lượng 1 lọ/ống, app gợi ý luôn số lọ khớp khoảng liều (theo CrCl hoặc
-// AdjBW) thay vì bắt tự nhẩm rồi gõ tay. Ưu tiên số NGUYÊN lọ (dễ lấy nhất, không phải chia lẻ một
-// lọ bột đang hoàn nguyên dở) — chỉ lùi xuống bước 0,5 lọ khi không lọ nguyên nào rơi vào khoảng.
+// Cùng triết lý với pickEasiestVolume() nhưng chọn SỐ LỌ/ỐNG thay vì thể tích — người pha nhập hàm
+// lượng 1 lọ/ống, app gợi ý luôn số lọ khớp khoảng liều (theo CrCl hoặc AdjBW) thay vì bắt tự nhẩm
+// rồi gõ tay. Ưu tiên số NGUYÊN lọ (dễ lấy nhất) — chỉ lùi xuống bước 0,5 lọ khi `allowHalf` bật VÀ
+// không lọ nguyên nào rơi vào khoảng. `allowHalf` phản ánh đúng thực tế pha: 0,5 lọ chỉ có nghĩa khi
+// khoa THẬT SỰ rút bớt dung dịch sau khi hoàn nguyên nhiều lọ (xem WardRecipe.allowWithdraw) — khoa
+// không làm vậy thì "1,5 lọ" là một con số vô lý, không có cách đong ra nó.
 //
 // Không có lựa chọn nào rơi ĐÚNG trong khoảng (vd lọ 1000mg cho khoảng liều 1050–1400mg: 1 lọ thiếu,
 // 1,5 lọ nhỉnh hơn cận trên) thì làm tròn LÊN — chọn số lọ nhỏ nhất còn đạt đủ cận dưới, dù có nhỉnh
 // hơn cận trên một chút. Thà dư nhẹ còn hơn để mặc định là "không tính được gì cả": khoảng liều đã
 // có biên an toàn hai đầu, dư một bước làm tròn không đưa thêm rủi ro nào so với thiếu liều thật sự.
-export function pickEasiestVialCount(loAmount: number, hiAmount: number, vialAmount: number): number | null {
+export function pickEasiestVialCount(loAmount: number, hiAmount: number, vialAmount: number, allowHalf: boolean): number | null {
   if (!(vialAmount > 0) || !(hiAmount > 0)) return null
   const lo = Math.min(loAmount, hiAmount) / vialAmount
   const hi = Math.max(loAmount, hiAmount) / vialAmount
-  for (const step of [1, 0.5]) {
+  const steps = allowHalf ? [1, 0.5] : [1]
+  for (const step of steps) {
     const within = Math.floor(hi / step + 1e-9) * step
     if (within > 0 && within >= lo - 1e-9) return Math.round(within * 100) / 100
   }
   // Làm tròn LÊN từ cận dưới — thử bước 0,5 trước để phần dư ra sát cận trên nhất có thể (dư ít vẫn
-  // tốt hơn dư nhiều), chỉ lùi về bước nguyên nếu 0,5 vẫn không tính ra được số dương nào.
-  for (const step of [0.5, 1]) {
+  // tốt hơn dư nhiều), chỉ lùi về bước nguyên nếu 0,5 vẫn không tính ra được số dương nào (hoặc
+  // allowHalf tắt, chỉ còn bước nguyên).
+  const overSteps = allowHalf ? [0.5, 1] : [1]
+  for (const step of overSteps) {
     const over = Math.ceil(lo / step - 1e-9) * step
     if (over > 0) return Math.round(over * 100) / 100
   }
   return null
+}
+
+export interface WholeCountOption {
+  count: number
+  totalAmount: number
+  fit: "under" | "over" | "exact"
+}
+
+// Khi khoa KHÔNG rút bớt dung dịch sau pha (allowWithdraw=false), số lọ/chai bắt buộc là SỐ NGUYÊN —
+// và khác với pickEasiestVialCount (luôn trả về đúng MỘT số để tự điền), ở đây trả về CẢ HAI phương
+// án nguyên gần khoảng liều nhất khi không số nào rơi đúng trong khoảng, để người dùng tự chọn thấp
+// hơn hay cao hơn — giống cách MixPanel cho chọn "Giữ nồng độ"/"Giữ thể tích" thay vì tự ý quyết định
+// thay, vì cả hai đều là lựa chọn hợp lý (thiếu nhẹ so với dư nhẹ), không có đáp án đúng duy nhất.
+export function wholeCountOptions(loAmount: number, hiAmount: number, unitAmount: number): WholeCountOption[] {
+  if (!(unitAmount > 0) || !(hiAmount > 0)) return []
+  const lo = Math.min(loAmount, hiAmount)
+  const hi = Math.max(loAmount, hiAmount)
+  const overCount = Math.max(1, Math.ceil(lo / unitAmount - 1e-9))
+  const overTotal = overCount * unitAmount
+  if (overTotal <= hi + 1e-9) return [{ count: overCount, totalAmount: overTotal, fit: "exact" }]
+  const underCount = Math.floor(hi / unitAmount + 1e-9)
+  const options: WholeCountOption[] = []
+  if (underCount >= 1) options.push({ count: underCount, totalAmount: underCount * unitAmount, fit: "under" })
+  options.push({ count: overCount, totalAmount: overTotal, fit: "over" })
+  return options
 }
 
 // ─── Chai cố định hàm lượng — gộp nhiều chai khi liều cần vượt một chai ────────
@@ -245,7 +275,9 @@ export function poolDrawVolume(targetDose: number, count: number, bottleAmount: 
 
 export interface FixedDrawResult {
   bottleCount: number
-  drawMl: number
+  // null = KHÔNG rút riêng — dùng TRỌN số chai đã tính (khoa không rút bớt dung dịch sau pha, xem
+  // tham số allowWithdraw).
+  drawMl: number | null
 }
 
 // Gộp hai bước "cần mấy chai" + "rút bao nhiêu mL" làm một, và chọn ĐÚNG thang làm tròn theo tình
@@ -254,7 +286,17 @@ export interface FixedDrawResult {
 // trước giờ, không đổi hành vi cũ. Chỉ khi liều cần THẬT SỰ vượt một chai mới chuyển sang gộp nhiều
 // chai + thang làm tròn THÔ hơn (poolDrawVolume, bước trăm/năm mươi mL) — dùng thang mịn cho trường
 // hợp gộp sẽ ra một con số mL lẻ vô nghĩa (vd rút 86,3 mL từ 2 chai gộp 300 mL).
-export function resolveFixedDraw(loAmount: number, hiAmount: number, bottleAmount: number, bottleVolumeMl: number): FixedDrawResult | null {
+//
+// `allowWithdraw` = false: khoa không rút bớt dung dịch sau pha — không có "gộp rồi rút một phần"
+// nào cả, chỉ còn cách chọn SỐ CHAI NGUYÊN gần khoảng liều nhất (ưu tiên phương án khớp/cao hơn,
+// xem wholeCountOptions) rồi dùng TRỌN, không đo rút riêng mL nào.
+export function resolveFixedDraw(loAmount: number, hiAmount: number, bottleAmount: number, bottleVolumeMl: number, allowWithdraw: boolean): FixedDrawResult | null {
+  if (!allowWithdraw) {
+    const options = wholeCountOptions(loAmount, hiAmount, bottleAmount)
+    if (options.length === 0) return null
+    const picked = options[options.length - 1]
+    return { bottleCount: picked.count, drawMl: null }
+  }
   const count = bottleCountForDose(hiAmount, bottleAmount)
   if (count == null) return null
   if (count <= 1) {
