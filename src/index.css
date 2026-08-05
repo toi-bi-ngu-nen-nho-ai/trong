@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Inter: font chính của app. Ba font sau chỉ dùng cho chữ ĐỊNH DẠNG trong ghi chú Sơ đồ tư duy (xem
+   `f=` trong src/lib/richText.ts, STYLE_FONT_STACKS trong src/lib/mindmapStyle.ts) — Source Serif 4
+   cho nhấn mạnh trang trọng, JetBrains Mono cho số liệu/liều lượng cần đọc rõ từng ký tự, Space
+   Grotesk cho tiêu đề/nhấn mạnh mạnh tay. Gộp một lời gọi @import (không phải bốn) để chỉ tốn một
+   lượt xin phông chữ qua mạng. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
 :root {

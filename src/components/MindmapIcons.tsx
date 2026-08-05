@@ -364,4 +364,14 @@ export const mindIcons: Record<string, IconFn> = {
         <path d="M14.4 18.4l3.1-8.4 3.1 8.4M15.6 15.6h3.8" strokeWidth={1.5} />
       </>,
     ),
+  help: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.7,
+      <>
+        <circle cx="12" cy="12" r="8.4" />
+        <path d="M9.4 9.4a2.6 2.6 0 115 1.05c-.62.62-1.9 1.05-1.9 2.55" />
+        <circle cx="12.5" cy="16.6" r="0.15" fill="currentColor" strokeWidth={1.4} />
+      </>,
+    ),
 }

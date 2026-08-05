@@ -80,6 +80,23 @@ export async function saveMindmap(boardId: string, data: MindmapData): Promise<b
   return idbPut<MindmapRecord>(IDB_STORES.mindmap, { id: boardId, ...data })
 }
 
+// Node của TOÀN BỘ các bảng, gộp một lượt — dùng cho ô tìm ở màn danh sách (App.tsx), nơi người
+// dùng không nhớ ghi chú họ cần nằm ở bảng nào. `idbGetAll` không lọc theo id nên đây vốn đã là MỘT
+// lần đọc IndexedDB duy nhất, dù có bao nhiêu bảng — không cần mở/tải từng bảng như loadMindmap().
+export interface BoardNode {
+  boardId: string
+  node: MindmapData["nodes"][number]
+}
+
+export async function loadAllMindmapNodes(): Promise<BoardNode[]> {
+  const rows = await idbGetAll<MindmapRecord>(IDB_STORES.mindmap)
+  const out: BoardNode[] = []
+  rows.forEach((r) => {
+    ;(Array.isArray(r.nodes) ? r.nodes : []).forEach((node) => out.push({ boardId: r.id, node }))
+  })
+  return out
+}
+
 // Xoá hẳn dữ liệu của một bảng — gọi khi người dùng xoá bảng đó (xem lib/boards.ts).
 export async function deleteMindmap(boardId: string): Promise<boolean> {
   return idbDelete(IDB_STORES.mindmap, boardId)

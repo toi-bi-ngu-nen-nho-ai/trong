@@ -101,10 +101,13 @@ import {
   nodePaint,
   paperBackground,
   paperTone,
+  STYLE_FONT_STACKS,
+  STYLE_FONT_LABELS,
   type PaperKind,
   type PaperTone,
 } from "../lib/mindmapStyle"
-import { deliverPng, exportMindmapPdf, exportMindmapPng, safeFileName } from "../lib/mindmapExport"
+import { buildOutlineText, copyOutlineText, deliverPng, downloadOutlineText, exportMindmapPdf, exportMindmapPng, safeFileName } from "../lib/mindmapExport"
+import { applyStyleAt, parseInline, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
 import { mindIcons as mi } from "./MindmapIcons"
 
 type Tool = "hand" | "pen" | "highlighter" | "eraser" | "shape" | "lasso" | "link"
@@ -164,10 +167,16 @@ interface PenPreset {
   width: number
 }
 const PRESETS_KEY = "drtrong:mindmap-pens"
+// Năm ô, không phải ba: đủ chỗ cho mực đen ghi chú chính, mực đỏ đánh dấu nguy hiểm, mực xanh dương
+// cho ghi chú phụ, cộng hai bút dạ (vàng/lục) — trước đây đổi qua lại 4 màu này liên tục trong lúc
+// vẽ nhanh mà chỉ có 3 ô thì luôn phải ghé bảng màu đầy đủ giữa chừng. Màu lấy đúng từ MIND_COLORS
+// (mindmapStyle.ts) chứ không tự bịa mã màu mới, để cùng một họ màu với bảng chọn màu thẻ/bút.
 const DEFAULT_PRESETS: PenPreset[] = [
   { tool: "pen", color: "#37352F", width: 3.5 },
   { tool: "pen", color: "#E03E3E", width: 2 },
+  { tool: "pen", color: "#337EA9", width: 2 },
   { tool: "highlighter", color: "#FDE68A", width: 14 },
+  { tool: "highlighter", color: "#A1C1AD", width: 14 },
 ]
 
 const PEN_WIDTHS = [2, 3.5, 6]
@@ -382,10 +391,13 @@ function readPresets(): PenPreset[] {
     const raw = localStorage.getItem(PRESETS_KEY)
     if (!raw) return DEFAULT_PRESETS
     const v = JSON.parse(raw) as PenPreset[]
-    // Dữ liệu hỏng hoặc thiếu ô thì quay về mặc định, không cố vá từng ô — thanh bút thiếu một ô
-    // trông như lỗi hiển thị và không có cách nào tạo lại ô đó.
-    if (!Array.isArray(v) || v.length !== DEFAULT_PRESETS.length) return DEFAULT_PRESETS
-    return v.map((p, i) =>
+    if (!Array.isArray(v)) return DEFAULT_PRESETS
+    // Mảng đã lưu NGẮN hơn mặc định hiện tại (vd người dùng cũ còn 3 ô từ trước khi thêm ô thứ 4-5):
+    // PHỦ THÊM các ô mặc định còn thiếu vào cuối, giữ nguyên các ô người dùng đã tự chỉnh — trước đây
+    // reset thẳng về mặc định khi độ dài lệch một chút là xoá sạch cả bút đã lưu của họ chỉ vì app
+    // thêm ô mới. Dài hơn (không nên xảy ra) thì cắt bớt cho vừa.
+    const padded = v.length < DEFAULT_PRESETS.length ? [...v, ...DEFAULT_PRESETS.slice(v.length)] : v.slice(0, DEFAULT_PRESETS.length)
+    return padded.map((p, i) =>
       p && typeof p.color === "string" && typeof p.width === "number" && (p.tool === "pen" || p.tool === "highlighter")
         ? p
         : DEFAULT_PRESETS[i],
@@ -406,10 +418,27 @@ function writePresets(list: PenPreset[]): void {
 const TONE_KEY = "drtrong:mindmap-tone"
 const SNAP_KEY = "drtrong:mindmap-snap"
 
+// Chưa từng tự chọn giấy (chưa có TONE_KEY) mà app đang ở chế độ tối thì mặc định giấy ĐEN, không
+// phải trắng: bảng trắng chói giữa một app đã bật tối là đúng thứ người trực đêm bật chế độ tối để
+// tránh. Người đã từng chọn tay — kể cả chọn đúng "white" — thì giữ nguyên lựa chọn đó mãi mãi, chỉ
+// ảnh hưởng tới lần mở đầu tiên. Cùng logic với applyTheme() ở src/lib/theme.ts: data-theme thắng,
+// không có thì theo prefers-color-scheme của máy.
+function isDarkThemeActive(): boolean {
+  try {
+    const attr = document.documentElement.getAttribute("data-theme")
+    if (attr === "dark") return true
+    if (attr === "light") return false
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+  } catch {
+    return false
+  }
+}
+
 function readTone(): PaperTone {
   try {
     const v = localStorage.getItem(TONE_KEY)
-    return v === "black" || v === "yellow" ? v : "white"
+    if (v === "black" || v === "yellow" || v === "white") return v
+    return isDarkThemeActive() ? "black" : "white"
   } catch {
     return "white"
   }
@@ -493,6 +522,50 @@ function newId(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 }
 
+// Chữ của một thẻ ghi chú, có định dạng (đậm/nghiêng/gạch chân/tô sáng/cỡ/màu/font) — xem
+// richText.ts. `size: "lg"` dùng em (không phải px tuyệt đối) để luôn tỉ lệ đúng với cỡ chữ GỐC của
+// thẻ (nhỏ/vừa/lớn, xem NODE_METRICS) thay vì đè lên nó. Màu/font mặc định (không đặt) không ghi gì
+// vào style — để thừa kế đúng `color`/font hệ thống của thẻ, không phải bịa ra một giá trị "mặc
+// định" trùng lặp.
+function RichNodeText({ text }: { text: string }) {
+  return (
+    <>
+      {parseInline(text).map((tok, i) => {
+        if (tok.kind === "text" || tok.kind === "link") return <span key={i}>{tok.text}</span>
+        const style: React.CSSProperties = {}
+        const bold = tok.kind === "bold" || (tok.kind === "styled" && tok.bold)
+        const italic = tok.kind === "italic" || (tok.kind === "styled" && tok.italic)
+        const underline = tok.kind === "underline" || (tok.kind === "styled" && tok.underline)
+        const highlight = tok.kind === "highlight" || (tok.kind === "styled" && tok.highlight)
+        if (tok.kind === "styled") {
+          if (tok.color) style.color = tok.color
+          if (tok.size === "lg") style.fontSize = "1.2em"
+          if (tok.font && STYLE_FONT_STACKS[tok.font]) style.fontFamily = STYLE_FONT_STACKS[tok.font]
+        }
+        if (bold) style.fontWeight = 800
+        if (italic) style.fontStyle = "italic"
+        if (underline) {
+          style.textDecoration = "underline"
+          style.textUnderlineOffset = 2
+        }
+        if (highlight) {
+          // Không dùng một màu vàng cố định: thẻ có thể mang BẤT KỲ màu nền nào trong 10 sắc, một
+          // mảng vàng cứng sẽ đẹp trên thẻ trắng nhưng chọi thẳng vào thẻ vàng/cam. Phủ đen mờ vừa
+          // luôn "đậm hơn một chút so với nền của chính thẻ đó", đúng nghĩa "tô sáng" trên MỌI màu.
+          style.background = "rgba(0,0,0,.16)"
+          style.borderRadius = 3
+          style.padding = "0 2px"
+        }
+        return (
+          <span key={i} style={style}>
+            {tok.text}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
 // Chặn sự kiện chạm của các nút NỔI TRÊN mặt bảng (nút ＋, phóng-thu, thanh nút trên thẻ đang chọn)
 // không cho nổi bọt xuống mặt bảng.
 //
@@ -571,6 +644,7 @@ export function MindmapBoard({
   boardName,
   boardId,
   onGoHome,
+  initialFindQuery,
 }: {
   data: MindmapData
   loading: boolean
@@ -581,6 +655,9 @@ export function MindmapBoard({
   // Khung nhìn (kéo/phóng) được nhớ RIÊNG cho từng bảng theo id này — xem viewKey().
   boardId?: string
   onGoHome?: () => void
+  // Mở TỪ kết quả tìm xuyên-bảng (màn danh sách) — tự mở ô tìm nội bộ với đúng từ khoá này và nhảy
+  // tới thẻ khớp đầu tiên, để không phải gõ lại từ khoá vừa gõ ở màn danh sách.
+  initialFindQuery?: string
   // Mọi bài trong app có thể gắn vào thẻ: bài viết dựng sẵn, bài tự nhập, bài học ECG. Cùng danh sách
   // mà trình soạn thảo dùng để chèn liên kết trong bài (xem linkTargets trong App.tsx).
   linkTargets?: { target: string; label: string; group: string }[]
@@ -696,6 +773,9 @@ export function MindmapBoard({
   const [colorsForId, setColorsForId] = useState<string | null>(null)
   // Bật thì mọi lần chọn màu áp cho cả nhánh bên dưới thẻ, không chỉ riêng thẻ đó.
   const [applyToBranch, setApplyToBranch] = useState(false)
+  // Bảng chọn màu chữ / font đang mở trong ô sửa ghi chú — xem hàng định dạng chữ cạnh textarea.
+  const [textColorOpen, setTextColorOpen] = useState(false)
+  const [textFontOpen, setTextFontOpen] = useState(false)
   // Rỗng = không lọc, hiện hết. Có màu nào trong đây thì CHỈ những màu đó giữ độ đậm bình thường, thẻ
   // màu khác mờ đi — xem cách dùng ở chỗ vẽ thẻ ghi chú (dimmed) và menu "…" (mục "Lọc theo màu").
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set())
@@ -1485,6 +1565,27 @@ export function MindmapBoard({
     if (findOpen) findInputRef.current?.focus()
   }, [findOpen])
 
+  // Mở từ kết quả tìm xuyên-bảng ở màn danh sách: tự mở ô tìm với đúng từ khoá đó, một lần duy nhất
+  // (không mở lại nếu người dùng tự đóng ô tìm sau đó rồi board re-render vì lý do khác).
+  const initialFindAppliedRef = useRef(false)
+  useEffect(() => {
+    if (!initialFindQuery || loading || initialFindAppliedRef.current) return
+    initialFindAppliedRef.current = true
+    setFindQuery(initialFindQuery)
+    openFind()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFindQuery, loading])
+
+  const initialFindJumpedRef = useRef(false)
+  useEffect(() => {
+    if (!findOpen || findQuery !== initialFindQuery || initialFindJumpedRef.current) return
+    initialFindJumpedRef.current = true
+    // step = 1 (không phải 0): findIdx bắt đầu ở -1, "bước tới" một lần mới đúng là thẻ khớp ĐẦU
+    // TIÊN — giống hệt việc người dùng tự bấm nút "khớp tiếp theo" một lần sau khi gõ xong.
+    jumpToMatch(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [findOpen, findQuery])
+
   function duplicateNode(node: MindNode) {
     const id = newId("n")
     pushUndo()
@@ -1659,6 +1760,35 @@ export function MindmapBoard({
       setExportReady({ blob, name: `${safeFileName(title)}-${stamp}.${kind}`, kind })
     } catch {
       flashToast("Không xuất được file.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Sao chép bảng dưới dạng dàn ý văn bản — dán được vào ghi chú bệnh án/email, thứ ảnh/PDF không
+  // làm được. Ưu tiên clipboard (dán ngay, đúng việc người dùng cần); Clipboard API không dùng được
+  // (quyền bị chặn, trình duyệt cũ) thì tải về file .txt thay thế, không để im lặng thất bại.
+  async function copyOutline() {
+    setMenuOpen(false)
+    setExportOpen(false)
+    if (!contentBounds(visibleData, sizesRef.current)) {
+      flashToast("Bảng đang trống — chưa có gì để sao chép.")
+      return
+    }
+    setBusy(true)
+    try {
+      const title = boardName ?? "Sơ đồ tư duy"
+      const text = `${title}\n${"=".repeat(title.length)}\n\n${buildOutlineText(visibleData)}`
+      const copied = await copyOutlineText(text)
+      if (copied) {
+        flashToast("Đã sao chép — dán vào ghi chú bệnh án hoặc bất kỳ đâu.")
+        return
+      }
+      const stamp = new Date().toISOString().slice(0, 10)
+      downloadOutlineText(text, `${safeFileName(title)}-${stamp}.txt`)
+      flashToast("Không sao chép được — đã tải file văn bản thay thế.")
+    } catch {
+      flashToast("Không xuất được văn bản.")
     } finally {
       setBusy(false)
     }
@@ -2989,6 +3119,17 @@ export function MindmapBoard({
     setDraft(node.text)
   }
 
+  // Vùng chọn hiện tại trong ô sửa ghi chú — NHỚ LẠI qua ref (không phải chỉ đọc trực tiếp từ
+  // textarea) vì bấm một nút định dạng làm textarea có thể mất focus ngay trước khi onClick chạy,
+  // lúc đó selectionStart/selectionEnd của nó đã không còn phản ánh đúng đoạn người dùng vừa chọn.
+  // Cùng cách BlockEditor.tsx đã dùng (currentSelection/selectionRef), chỉ gọn hơn vì ở đây luôn có
+  // ĐÚNG MỘT ô đang sửa, không phải một danh sách nhiều block.
+  const draftSelectionRef = useRef({ start: 0, end: 0 })
+  function rememberDraftSelection() {
+    const el = textareaRef.current
+    if (el) draftSelectionRef.current = { start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 }
+  }
+
   useEffect(() => {
     if (!editingId) return
     const el = textareaRef.current
@@ -2997,8 +3138,26 @@ export function MindmapBoard({
     // Chọn sẵn toàn bộ chữ: thẻ mới tạo có chữ mặc định, gõ là thay luôn — không phải xoá tay.
     if (draft === NEW_NODE_TEXT || draft === NEW_BRANCH_TEXT) el.select()
     else el.setSelectionRange(el.value.length, el.value.length)
+    rememberDraftSelection()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingId])
+
+  // Áp một thuộc tính định dạng (đậm/nghiêng/gạch chân/tô sáng/cỡ/màu/font) lên đúng đoạn đang nhớ,
+  // rồi đặt lại vùng chọn trên textarea đúng bằng đoạn chữ vừa định dạng — bấm liên tiếp nhiều nút
+  // (vd đậm rồi tô màu) trên CÙNG một đoạn vẫn thao tác đúng đoạn đó, không phải chọn lại từ đầu.
+  function applyDraftStyle(patch: Partial<StyleAttrs>) {
+    const { start, end } = draftSelectionRef.current
+    const res = applyStyleAt(draft, start, end, patch)
+    setDraft(res.text)
+    draftSelectionRef.current = { start: res.selStart, end: res.selEnd }
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(res.selStart, res.selEnd)
+    })
+    tickHaptic()
+  }
 
   function saveEdit() {
     if (!editingId) return
@@ -3570,6 +3729,22 @@ export function MindmapBoard({
                   {mi.doc("w-[18px] h-[18px]")}
                   Tài liệu PDF
                 </button>
+                <div className="h-px my-1" style={{ background: "var(--c-line)" }} />
+                {/* Ảnh/PDF chỉ để xem — dán vào ghi chú bệnh án hay email thì cần CHỮ, không phải
+                    ảnh. Sao chép thẳng vào clipboard, không bắt tải file rồi tự mở lên copy lại. */}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setExportOpen(false)
+                    void copyOutline()
+                  }}
+                  className="mind-btn w-full flex items-center gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ color: busy ? "var(--c-muted)" : "var(--c-text-2)" }}
+                >
+                  {mi.copy("w-[18px] h-[18px]")}
+                  Sao chép dạng văn bản
+                </button>
               </div>
             </>
           )}
@@ -3747,9 +3922,9 @@ export function MindmapBoard({
               )
               : (
                 <>
-                  {/* Ba ô bút yêu thích. Không hiện với công cụ Hình vẽ: ô bút nhớ cả LOẠI bút, mà
-                      bấm vào nó lúc đang vẽ hình sẽ nhảy ngược về bút mực/bút dạ — đúng thứ người
-                      dùng không hề yêu cầu. */}
+                  {/* Năm ô bút yêu thích (xem DEFAULT_PRESETS). Không hiện với công cụ Hình vẽ: ô bút
+                      nhớ cả LOẠI bút, mà bấm vào nó lúc đang vẽ hình sẽ nhảy ngược về bút mực/bút dạ
+                      — đúng thứ người dùng không hề yêu cầu. */}
                   {inking && (
                     <>
                       {presets.map((p, i) => {
@@ -4018,6 +4193,21 @@ export function MindmapBoard({
             >
               {mi.tidy("w-[18px] h-[18px]")}
               Sắp lại toàn bộ bảng
+            </button>
+            {/* Mở lại đúng bảng hướng dẫn cử chỉ đã thấy lúc mở bảng lần đầu — dismissCoach() chỉ ghi
+                "đã xem" một lần và không có lối quay lại nào khác, nên ai quên một cử chỉ giữa chừng
+                (vd "kéo chồng thẻ để nối nhánh") không có chỗ tra lại. */}
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                setShowCoach(true)
+              }}
+              className="mind-btn w-full flex items-center gap-2 px-2 py-2.5 rounded-xl text-[13px] font-semibold"
+              style={{ color: "var(--c-text-2)" }}
+            >
+              {mi.help("w-[18px] h-[18px]")}
+              Xem lại hướng dẫn cử chỉ
             </button>
             {/* Chống tì tay. Tự bật khi app nhận ra bút cảm ứng (xem noteStylus), nhưng vẫn phải
                 tắt được bằng tay — có người thích vẽ bằng ngón tay ngay cả khi đang cầm bút, và
@@ -4331,7 +4521,7 @@ export function MindmapBoard({
                   willChange: "transform",
                 }}
               >
-                {n.text}
+                <RichNodeText text={n.text} />
                 {/* Thẻ có gắn bài: một dòng nhỏ ngay dưới chữ, bấm vào là mở bài đó. Bài đã bị xoá thì
                     nói rõ chứ không im lặng dẫn tới màn hình trống. */}
                 {n.link && (
@@ -5094,7 +5284,7 @@ export function MindmapBoard({
                       pointerEvents: "none",
                     }}
                   >
-                    {n.text}
+                    <RichNodeText text={n.text} />
                   </div>
                 )
               })}
@@ -5145,11 +5335,160 @@ export function MindmapBoard({
             ref={textareaRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onSelect={rememberDraftSelection}
+            onKeyUp={rememberDraftSelection}
+            onClick={rememberDraftSelection}
             rows={2}
-            className="mind-input w-full px-3.5 py-2.5 rounded-2xl text-sm border outline-none mb-2.5"
+            className="mind-input w-full px-3.5 py-2.5 rounded-2xl text-sm border outline-none mb-2"
             style={{ borderColor: "var(--c-line-strong)", background: "var(--c-surface-alt)" }}
             placeholder="Nội dung ghi chú…"
           />
+
+          {/* Định dạng CHỮ trong ghi chú (khác với "Màu thẻ" bên dưới, vốn tô cả tấm nền). Áp lên
+              đúng đoạn đang chọn trong ô nhập trên — chưa chọn gì thì đậm/nghiêng/... áp vào đúng vị
+              trí con trỏ, giống mọi trình soạn thảo. `onMouseDown` chặn mất focus/mất vùng chọn khi
+              bấm nút — không có nó, textarea mất focus trước khi onClick kịp chạy, và đoạn vừa chọn
+              coi như mất, applyDraftStyle sẽ áp nhầm vào vị trí cũ đã nhớ từ trước đó. */}
+          <div className="flex items-center gap-1 mb-2 overflow-x-auto -mx-4 px-4 relative">
+            {(
+              [
+                { patch: { bold: true }, label: "B", hint: "Đậm", style: { fontWeight: 800 } },
+                { patch: { italic: true }, label: "I", hint: "Nghiêng", style: { fontStyle: "italic" } },
+                { patch: { underline: true }, label: "U", hint: "Gạch chân", style: { textDecoration: "underline" } },
+                { patch: { highlight: true }, label: "H", hint: "Tô sáng", style: { background: "rgba(0,0,0,.1)", borderRadius: 3 } },
+              ] as const
+            ).map((b) => (
+              <button
+                key={b.label}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => applyDraftStyle(b.patch)}
+                aria-label={b.hint}
+                title={b.hint}
+                className="mind-btn flex-none w-9 h-9 rounded-xl border text-[14px] flex items-center justify-center"
+                style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)", color: "var(--c-text-2)", ...b.style }}
+              >
+                {b.label}
+              </button>
+            ))}
+
+            <span className="flex-none w-px h-6 mx-0.5" style={{ background: "var(--c-line)" }} />
+
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => applyDraftStyle({ size: "lg" })}
+              aria-label="Cỡ chữ lớn hơn"
+              title="Cỡ chữ lớn hơn"
+              className="mind-btn flex-none px-2.5 h-9 rounded-xl border text-[15px] font-bold flex items-center justify-center"
+              style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)", color: "var(--c-text-2)" }}
+            >
+              A+
+            </button>
+
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setTextColorOpen((v) => !v)
+                setTextFontOpen(false)
+              }}
+              aria-label="Màu chữ"
+              title="Màu chữ"
+              className="mind-btn flex-none w-9 h-9 rounded-xl border flex items-center justify-center"
+              style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
+            >
+              <span className="w-4 h-4 rounded-full block" style={{ background: "conic-gradient(from 0deg, #D44C47, #D9730D, #CB912F, #448361, #337EA9, #9065B0, #D44C47)" }} />
+            </button>
+
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setTextFontOpen((v) => !v)
+                setTextColorOpen(false)
+              }}
+              aria-label="Font chữ"
+              title="Font chữ"
+              className="mind-btn flex-none px-2.5 h-9 rounded-xl border text-[14px] font-bold flex items-center justify-center"
+              style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)", color: "var(--c-text-2)" }}
+            >
+              Font
+            </button>
+
+            {textColorOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onPointerDown={() => setTextColorOpen(false)} />
+                <div
+                  className="mind-pop absolute left-0 top-full mt-1 rounded-2xl border p-2 z-50 grid grid-cols-5 gap-1"
+                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", boxShadow: "0 12px 30px var(--c-shadow)" }}
+                >
+                  {NODE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        applyDraftStyle({ color: c })
+                        setTextColorOpen(false)
+                      }}
+                      aria-label={`Màu chữ: ${colorName(c)}`}
+                      title={colorName(c)}
+                      className="mind-btn w-8 h-8 rounded-lg flex items-center justify-center"
+                    >
+                      <span className="w-6 h-6 rounded-full block" style={{ background: c, boxShadow: "0 1px 3px rgba(15,23,42,.2)" }} />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {textFontOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onPointerDown={() => setTextFontOpen(false)} />
+                <div
+                  className="mind-pop absolute left-0 top-full mt-1 w-[168px] rounded-2xl border p-1.5 z-50"
+                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", boxShadow: "0 12px 30px var(--c-shadow)" }}
+                >
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      applyDraftStyle({ font: "" })
+                      setTextFontOpen(false)
+                    }}
+                    className="mind-btn w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-[13px] font-semibold"
+                    style={{ color: "var(--c-text-2)" }}
+                  >
+                    <span className="w-6 text-center" style={{ fontFamily: NODE_FONT_STACK }}>
+                      Aa
+                    </span>
+                    Mặc định
+                  </button>
+                  {STYLE_FONTS.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        // `applyDraftStyle` gộp/xoá theo GIÁ TRỊ trùng — bấm lại đúng font đang chọn
+                        // thì tự trở về mặc định, không cần một nút "Mặc định" riêng phải nhớ bấm.
+                        applyDraftStyle({ font: f })
+                        setTextFontOpen(false)
+                      }}
+                      className="mind-btn w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-[13px] font-semibold"
+                      style={{ color: "var(--c-text-2)" }}
+                    >
+                      <span className="w-6 text-center" style={{ fontFamily: STYLE_FONT_STACKS[f] }}>
+                        Aa
+                      </span>
+                      {STYLE_FONT_LABELS[f]}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* MỘT hàng mười sắc. Bảng màu nay theo hệ Notion: mỗi sắc đã gồm sẵn cả bản đậm lẫn bản
               nhạt, chọn bản nào là do KIỂU thẻ ngay bên dưới quyết định — nên không còn phải chia hai

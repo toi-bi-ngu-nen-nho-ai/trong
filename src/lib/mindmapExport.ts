@@ -7,6 +7,7 @@
 
 import type { MindmapData, MindNode } from "../data/types"
 import { contentBounds, edgeGeometry, nodeBox, strokeOutline, strokePath } from "./mindmapGeometry"
+import { parseInline, stripInlineMarkers, type InlineToken } from "./richText"
 import {
   ALGORITHM_EDGE_COLOR,
   EDGE_COLOR,
@@ -16,6 +17,7 @@ import {
   PAPER_DOT,
   PAPER_LINE,
   PAPER_STEP,
+  STYLE_FONT_STACKS,
   edgeColor,
   nodeMetrics,
   nodePaint,
@@ -53,28 +55,90 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath()
 }
 
+// ─── Chữ có định dạng (đậm/nghiêng/gạch chân/tô sáng/cỡ/màu/font) ──────────────
+//
+// Trước đây `node.text` là một chuỗi phẳng, vẽ bằng ĐÚNG MỘT ctx.font. Từ khi có định dạng theo
+// từng đoạn (richText.ts, xem RichNodeText trong MindmapBoard.tsx cho bản HTML/CSS tương ứng), mỗi
+// TỪ có thể mang một font/màu/cỡ khác nhau — canvas không có khái niệm "đoạn chữ trong một dòng đổi
+// font giữa chừng" như HTML, nên phải tự đo và vẽ TỪNG TỪ một, không còn vẽ nguyên cả dòng bằng một
+// lệnh fillText() như bản trước.
+
+interface RunStyle {
+  font: string // chuỗi ctx.font đầy đủ, vd "italic 800 14px 'Source Serif 4', serif"
+  color: string
+  underline: boolean
+  highlight: boolean
+}
+
+function styleFor(tok: InlineToken, baseFontSize: number, baseColor: string): RunStyle {
+  let bold = false
+  let italic = false
+  let underline = false
+  let highlight = false
+  let color = baseColor
+  let fontSize = baseFontSize
+  let family = NODE_FONT_STACK
+  if (tok.kind === "bold") bold = true
+  else if (tok.kind === "italic") italic = true
+  else if (tok.kind === "underline") underline = true
+  else if (tok.kind === "highlight") highlight = true
+  else if (tok.kind === "styled") {
+    bold = !!tok.bold
+    italic = !!tok.italic
+    underline = !!tok.underline
+    highlight = !!tok.highlight
+    if (tok.color) color = tok.color
+    if (tok.size === "lg") fontSize = baseFontSize * 1.2
+    if (tok.font && STYLE_FONT_STACKS[tok.font]) family = STYLE_FONT_STACKS[tok.font]
+  }
+  // Chữ trong thẻ vốn đã đậm sẵn ở mức 600 (xem lời gọi ctx.font gốc trước đây) — "Đậm" chỉ có nghĩa
+  // khi rõ ràng đậm HƠN mức nền đó, không phải chỉ bật/tắt so với 400 như văn bản thường.
+  const weight = bold ? 800 : 600
+  return { font: `${italic ? "italic " : ""}${weight} ${fontSize}px ${family}`, color, underline, highlight }
+}
+
+type Word = { text: string; style: RunStyle; width: number }
+// Một dòng đã ngắt xong: danh sách từ theo đúng thứ tự, cộng bề rộng KHOẢNG TRẮNG dùng để nối chúng
+// (đo bằng font của thẻ, không đo riêng theo từng từ — khác biệt không đáng để phức tạp hoá).
+type Line = { words: Word[]; width: number }
+
 // Ngắt dòng giống cách trình duyệt ngắt trong thẻ ghi chú: tôn trọng dấu xuống dòng người dùng gõ,
-// còn lại ngắt theo từ khi vượt quá bề rộng phần chữ.
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const out: string[] = []
-  text.split("\n").forEach((para) => {
-    const words = para.split(/\s+/).filter(Boolean)
-    if (words.length === 0) {
-      out.push("")
-      return
-    }
-    let line = words[0]
-    for (let i = 1; i < words.length; i++) {
-      const next = `${line} ${words[i]}`
-      if (ctx.measureText(next).width <= maxWidth) line = next
-      else {
-        out.push(line)
-        line = words[i]
-      }
-    }
-    out.push(line)
+// còn lại ngắt theo từ khi vượt quá bề rộng phần chữ — nay còn phải theo dõi ĐÚNG font/màu của từng
+// từ khi đo, vì một từ in nghiêng đo bằng font đứng sẽ ra bề rộng sai.
+function wrapStyledText(ctx: CanvasRenderingContext2D, tokens: InlineToken[], baseFontSize: number, baseColor: string, maxWidth: number): Line[] {
+  ctx.font = `600 ${baseFontSize}px ${NODE_FONT_STACK}`
+  const spaceWidth = ctx.measureText(" ").width
+
+  const lines: Line[] = []
+  let cur: Word[] = []
+  let curWidth = 0
+
+  function pushLine() {
+    lines.push({ words: cur, width: curWidth })
+    cur = []
+    curWidth = 0
+  }
+
+  tokens.forEach((tok) => {
+    const style = styleFor(tok, baseFontSize, baseColor)
+    const paragraphs = tok.text.split("\n")
+    paragraphs.forEach((para, pi) => {
+      if (pi > 0) pushLine()
+      const words = para.split(/\s+/).filter(Boolean)
+      words.forEach((w) => {
+        ctx.font = style.font
+        const width = ctx.measureText(w).width
+        const addWidth = (cur.length > 0 ? spaceWidth : 0) + width
+        if (cur.length > 0 && curWidth + addWidth > maxWidth) pushLine()
+        cur.push({ text: w, style, width })
+        curWidth += cur.length === 1 ? width : addWidth
+      })
+    })
   })
-  return out
+  // Dòng cuối (hoặc bảng trống toàn chuỗi rỗng) — luôn đẩy nốt, kể cả khi rỗng, để một node chỉ
+  // toàn dấu xuống dòng vẫn cho đúng số dòng trống như trên bảng thật.
+  pushLine()
+  return lines
 }
 
 function drawPaper(ctx: CanvasRenderingContext2D, kind: PaperKind, x: number, y: number, w: number, h: number) {
@@ -115,8 +179,8 @@ function drawNode(ctx: CanvasRenderingContext2D, node: MindNode, sizes: Sizes) {
   const m = nodeMetrics(node)
   const paint = nodePaint(node)
 
-  ctx.font = `600 ${m.fontSize}px ${NODE_FONT_STACK}`
-  const lines = wrapText(ctx, node.text, box.w - m.padX * 2)
+  const tokens = parseInline(node.text)
+  const lines = wrapStyledText(ctx, tokens, m.fontSize, paint.color, box.w - m.padX * 2)
   // Canvas đo chữ không giống trình duyệt ngắt dòng đến từng pixel, nên số dòng ở đây có thể nhiều
   // hơn số dòng trên bảng một dòng. Cho thẻ cao thêm cho vừa chữ thay vì để chữ tràn ra ngoài thẻ.
   const h = Math.max(box.h, lines.length * m.lineHeight + m.padY * 2)
@@ -145,17 +209,71 @@ function drawNode(ctx: CanvasRenderingContext2D, node: MindNode, sizes: Sizes) {
     ctx.stroke()
   }
 
-  ctx.fillStyle = paint.color
+  // Căn GIỮA, khớp với textAlign của thẻ trên bảng (xem RichNodeText trong MindmapBoard.tsx). Mỗi
+  // dòng nay có thể gồm nhiều TỪ khác font/màu nhau — không còn một lệnh fillText() cho cả dòng
+  // được nữa, phải tính TỔNG bề rộng dòng rồi tự bước qua từng từ, giữ đúng cảm giác "canh giữa".
   ctx.textBaseline = "middle"
-  // Căn GIỮA, khớp với textAlign của thẻ trên bảng (xem MindmapBoard). Để "left" ở đây thì thẻ nhiều
-  // dòng trên ảnh xuất ra xếp chữ khác hẳn thẻ đang thấy trên bảng.
-  ctx.textAlign = "center"
+  ctx.textAlign = "left"
   const cx = box.x + box.w / 2
+  const spaceWidth = (() => {
+    ctx.font = `600 ${m.fontSize}px ${NODE_FONT_STACK}`
+    return ctx.measureText(" ").width
+  })()
   let ty = box.y + h / 2 - (lines.length * m.lineHeight) / 2 + m.lineHeight / 2
   lines.forEach((line) => {
-    ctx.fillText(line, cx, ty)
+    let x = cx - line.width / 2
+    line.words.forEach((word) => {
+      ctx.font = word.style.font
+      if (word.style.highlight) {
+        // Không tô vàng cố định — cùng lý do đã ghi ở RichNodeText (HTML): thẻ có thể mang bất kỳ
+        // nền màu nào trong 10 sắc, tô đen mờ luôn "đậm hơn nền chính nó" trên mọi màu.
+        ctx.fillStyle = "rgba(0,0,0,.16)"
+        ctx.fillRect(x - 1, ty - m.lineHeight / 2 + 2, word.width + 2, m.lineHeight - 4)
+      }
+      ctx.fillStyle = word.style.color
+      ctx.fillText(word.text, x, ty)
+      if (word.style.underline) {
+        ctx.strokeStyle = word.style.color
+        ctx.lineWidth = Math.max(1, m.fontSize * 0.06)
+        ctx.beginPath()
+        const uy = ty + m.fontSize * 0.38
+        ctx.moveTo(x, uy)
+        ctx.lineTo(x + word.width, uy)
+        ctx.stroke()
+      }
+      x += word.width + spaceWidth
+    })
     ty += m.lineHeight
   })
+}
+
+// Nạp trước các font ĐỊNH DẠNG thật sự được dùng trong dữ liệu bảng này (không phải cả bốn font một
+// lượt) — không có bước này, canvas ÂM THẦM vẽ bằng font hệ thống thay cho font đã chọn (không báo
+// lỗi gì cả, chỉ ảnh xuất ra sai font), vì `fillText` không tự đợi font tải xong như CSS/HTML vẫn
+// làm. Tải vài mức đậm/nghiêng đại diện cho mỗi font — đủ cho phần lớn tổ hợp thật gặp phải, không
+// cần dò khớp chính xác từng cân nặng.
+async function ensureFontsLoaded(data: MindmapData): Promise<void> {
+  if (typeof document === "undefined" || !("fonts" in document)) return
+  const used = new Set<string>()
+  data.nodes.forEach((n) => {
+    parseInline(n.text).forEach((tok) => {
+      if (tok.kind === "styled" && tok.font) used.add(tok.font)
+    })
+  })
+  if (used.size === 0) return
+  const specs: string[] = []
+  used.forEach((f) => {
+    const family = STYLE_FONT_STACKS[f]
+    if (!family) return
+    specs.push(`600 16px ${family}`, `800 16px ${family}`, `italic 600 16px ${family}`)
+  })
+  try {
+    await Promise.all(specs.map((spec) => document.fonts.load(spec, "Aa")))
+    await document.fonts.ready
+  } catch {
+    // Tải lỗi (mạng, CSP chặn font ngoài) thì vẽ tiếp bằng font hệ thống — vẫn ra được ảnh, chỉ sai
+    // font, còn hơn là chặn luôn cả việc xuất ảnh vì một font phụ không tải được.
+  }
 }
 
 // Vẽ cả bảng ra một canvas. Tách riêng khỏi phần đóng gói file để PNG và PDF dùng CHUNG đúng một
@@ -164,6 +282,8 @@ function drawNode(ctx: CanvasRenderingContext2D, node: MindNode, sizes: Sizes) {
 async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: PaperKind): Promise<HTMLCanvasElement | null> {
   const bounds = contentBounds(data, sizes)
   if (!bounds) return null
+
+  await ensureFontsLoaded(data)
 
   const boardW = bounds.w + PADDING * 2
   const boardH = bounds.h + PADDING * 2
@@ -379,6 +499,93 @@ export async function deliverPng(blob: Blob, fileName: string): Promise<"share" 
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
   return "download"
+}
+
+// ─── Xuất văn bản có cấu trúc ──────────────────────────────────────────────────
+//
+// Ảnh/PDF chỉ để XEM — không dán được vào ghi chú bệnh án, email, hay bất kỳ ô nhập chữ nào. Hàm
+// này dựng lại cây thẻ (cha/con theo đường nối) thành một dàn ý thụt lề bằng dấu gạch đầu dòng
+// thường, không ký tự đặc biệt nào — dán vào đâu cũng đọc được.
+
+// Dựng cây từ `edges`: thẻ không có cạnh nào TRỎ TỚI nó là gốc của một nhánh. Bảng là đồ thị chung
+// (một thẻ có thể có nhiều "cha" nếu người dùng nối chéo), không phải cây thuần, nên một thẻ có thể
+// gặp lại lần hai — lần đầu in đầy đủ, các lần sau chỉ in tên kèm "(xem ở trên)" để không lặp vô hạn
+// và không làm dàn ý phình to gấp nhiều lần nội dung thật.
+export function buildOutlineText(data: MindmapData): string {
+  const nodeById = new Map(data.nodes.map((n) => [n.id, n]))
+  const childrenOf = new Map<string, { to: string; label?: string }[]>()
+  const hasIncoming = new Set<string>()
+  const touched = new Set<string>()
+  data.edges.forEach((e) => {
+    if (!nodeById.has(e.from) || !nodeById.has(e.to)) return
+    const list = childrenOf.get(e.from) ?? []
+    list.push({ to: e.to, label: e.label })
+    childrenOf.set(e.from, list)
+    hasIncoming.add(e.to)
+    touched.add(e.from)
+    touched.add(e.to)
+  })
+
+  const lines: string[] = []
+  const printed = new Set<string>()
+
+  function printNode(id: string, depth: number, label?: string) {
+    const node = nodeById.get(id)
+    if (!node) return
+    const indent = "  ".repeat(depth)
+    const text = stripInlineMarkers(node.text).trim() || "(trống)"
+    const prefix = label ? `[${label}] ` : ""
+    if (printed.has(id)) {
+      lines.push(`${indent}- ${prefix}${text} (xem ở trên)`)
+      return
+    }
+    printed.add(id)
+    lines.push(`${indent}- ${prefix}${text}`)
+    ;(childrenOf.get(id) ?? []).forEach((k) => printNode(k.to, depth + 1, k.label))
+  }
+
+  data.nodes.filter((n) => touched.has(n.id) && !hasIncoming.has(n.id)).forEach((r) => printNode(r.id, 0))
+  // Cụm có cạnh nhưng không có gốc nào (toàn bộ nằm trong một vòng lặp khép kín) — vẫn phải in ra,
+  // không được lặng lẽ bỏ qua chỉ vì không thẻ nào "không có cha".
+  data.nodes.forEach((n) => {
+    if (touched.has(n.id) && !printed.has(n.id)) printNode(n.id, 0)
+  })
+
+  const isolated = data.nodes.filter((n) => !touched.has(n.id))
+  if (isolated.length > 0) {
+    if (lines.length > 0) lines.push("")
+    lines.push("Ghi chú rời:")
+    isolated.forEach((n) => lines.push(`- ${stripInlineMarkers(n.text).trim() || "(trống)"}`))
+  }
+
+  return lines.join("\n")
+}
+
+// Sao chép thẳng vào clipboard — đúng thứ người dùng cần để dán vào bệnh án/email, không phải tải
+// một file rồi tự mở lên copy lại. Trả `false` khi Clipboard API không dùng được (quyền bị chặn,
+// trình duyệt cũ) để màn hình tự chuyển sang tải file .txt thay thế.
+export async function copyOutlineText(text: string): Promise<boolean> {
+  try {
+    if (!navigator.clipboard?.writeText) return false
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Phương án dự phòng khi không sao chép được — cùng kiểu tải file bằng thẻ <a> đã dùng ở
+// deliverPng() phía trên.
+export function downloadOutlineText(text: string, fileName: string): void {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 // ─── Tên file ─────────────────────────────────────────────────────────────────

@@ -49,6 +49,8 @@ function InlineText({ text, onOpenLink }: { text: string; onOpenLink?: (target: 
                 {tok.text}
               </button>
             )
+          // "styled" (cỡ chữ/màu/font, xem richText.ts) chưa có nút bấm riêng trong trình soạn bài
+          // viết — rơi vào đây, hiện đúng CHỮ THUẦN, không lỗi. Kiểu "text" cũng qua đây.
           default:
             return <span key={i}>{tok.text}</span>
         }

@@ -180,6 +180,27 @@ export function nodeMetrics(node: MindNode): NodeMetrics {
 
 export const NODE_FONT_STACK = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 
+// ─── Font cho chữ ĐỊNH DẠNG trong ghi chú ──────────────────────────────────────
+// Ba lựa chọn ngoài Inter mặc định (xem `f=` trong richText.ts) — dùng CHUNG một bảng tra ở đây cho
+// cả mặt bảng (HTML/CSS, MindmapBoard.tsx) lẫn ảnh xuất PNG/PDF (canvas 2d, mindmapExport.ts), đúng
+// nguyên tắc đã có từ đầu file: một nơi khai báo, không để hai đường vẽ trôi lệch nhau.
+// - serif: nhấn mạnh trang trọng (chẩn đoán chính, kết luận).
+// - mono: số liệu/liều lượng cần đọc rõ TỪNG KÝ TỰ (dấu chấm thập phân, số 0 và chữ O không lẫn).
+// - display: tiêu đề/nhấn mạnh mạnh tay, đối lập rõ với phần chữ thường Inter xung quanh.
+export const STYLE_FONT_STACKS: Record<string, string> = {
+  serif: "'Source Serif 4', Georgia, 'Times New Roman', serif",
+  mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+  display: "'Space Grotesk', Inter, -apple-system, sans-serif",
+}
+
+// Tên hiển thị ngắn cho bảng chọn font — dùng đúng CHỮ CÁI ĐẦU kiểu "Aa" tô bằng chính font đó nên
+// không cần nhãn dài, chỉ cần một chữ để đọc màn hình (aria-label).
+export const STYLE_FONT_LABELS: Record<string, string> = {
+  serif: "Chữ có chân",
+  mono: "Chữ đều nét",
+  display: "Chữ tiêu đề",
+}
+
 // Đọc được cả "#abc", "#aabbcc" lẫn "rgb(r, g, b)" — vì mixHex TRẢ VỀ dạng rgb(), nên các hàm tính
 // tương phản bên dưới phải nhận lại được chính thứ mixHex sinh ra.
 function parseColor(color: string): [number, number, number] {

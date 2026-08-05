@@ -56,7 +56,8 @@ import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
 import { THEME_LABELS, loadTheme, saveTheme, type ThemeMode } from "./lib/theme"
 import { useMindmap } from "./lib/useMindmap"
 import { useBoards, DEFAULT_BOARD_COLOR } from "./lib/boards"
-import { loadMindmap, saveMindmap, mergeMindmaps } from "./lib/mindmapStorage"
+import { loadMindmap, saveMindmap, mergeMindmaps, loadAllMindmapNodes } from "./lib/mindmapStorage"
+import { stripInlineMarkers } from "./lib/richText"
 // Dùng cho ảnh xem trước của từng bảng trong danh sách Mindmap — vẽ lại bằng ĐÚNG bộ hàm mà bảng
 // thật và phần xuất ảnh PNG dùng, nên ảnh nhỏ không bao giờ khác hình dạng bảng thật.
 import { NODE_FALLBACK, contentBounds, strokeOutline, strokePath } from "./lib/mindmapGeometry"
@@ -8570,6 +8571,14 @@ function BoardThumb({ board, tick }: { board: MindBoard; tick: number }) {
   )
 }
 
+// Một thẻ khớp ô tìm xuyên-bảng: bảng nào, node nào, và đoạn trích đã bỏ dấu định dạng (**/{{...}})
+// để đọc gọn trong danh sách kết quả.
+interface MindmapSearchHit {
+  board: MindBoard
+  node: MindNode
+  snippet: string
+}
+
 function MindmapGallery({
   boards,
   onOpen,
@@ -8581,7 +8590,7 @@ function MindmapGallery({
   onPurgeBoard,
 }: {
   boards: MindBoard[]
-  onOpen: (id: string) => void
+  onOpen: (id: string, query?: string) => void
   onCreate: () => void
   onEditBoard: (board: MindBoard) => void
   previewTick: number
@@ -8593,6 +8602,58 @@ function MindmapGallery({
   const [specialty, setSpecialty] = useState<string>("all")
   const [filterOpen, setFilterOpen] = useState(false)
   const [trashOpen, setTrashOpen] = useState(false)
+
+  // ─── Tìm xuyên suốt mọi bảng ──────────────────────────────────────────────
+  // Trước đây ô tìm chỉ chạy TRONG một bảng đang mở — có hơn chục bảng thì nhớ "ghi chú đó nằm ở
+  // bảng nào" là việc của người dùng, phải mở từng bảng dò tay. `loadAllMindmapNodes()` đọc TOÀN
+  // BỘ node của mọi bảng trong đúng MỘT lần đọc IndexedDB (idbGetAll không lọc theo id), nên tìm
+  // xuyên bảng không tốn hơn tìm một bảng bao nhiêu.
+  const [query, setQuery] = useState("")
+  const [searchHits, setSearchHits] = useState<MindmapSearchHit[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const searchSeq = useRef(0)
+
+  useEffect(() => {
+    const q = normalizeSearch(query)
+    if (!q) {
+      setSearchHits(null)
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const seq = ++searchSeq.current
+    const timer = setTimeout(() => {
+      void loadAllMindmapNodes().then((rows) => {
+        // Phản hồi của một lượt gõ CŨ hơn tới sau lượt gõ MỚI hơn (mạng máy chậm/lag hiếm gặp) thì bỏ
+        // qua — không để kết quả cũ đè lên kết quả của từ khoá người dùng đang gõ dở.
+        if (seq !== searchSeq.current) return
+        const byId = new Map(boards.map((b) => [b.id, b]))
+        const hits: MindmapSearchHit[] = []
+        rows.forEach(({ boardId, node }) => {
+          const board = byId.get(boardId)
+          if (!board) return
+          const plain = stripInlineMarkers(node.text)
+          if (!normalizeSearch(plain).includes(q)) return
+          hits.push({ board, node, snippet: plain.length > 90 ? `${plain.slice(0, 90)}…` : plain })
+        })
+        setSearchHits(hits)
+        setSearching(false)
+      })
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [query, boards])
+
+  // Kết quả nhóm theo bảng, bảng mới sửa gần đây lên trước — cùng thứ tự với danh sách bảng thường.
+  const groupedHits = useMemo(() => {
+    if (!searchHits) return []
+    const byBoard = new Map<string, { board: MindBoard; hits: MindmapSearchHit[] }>()
+    searchHits.forEach((h) => {
+      const g = byBoard.get(h.board.id)
+      if (g) g.hits.push(h)
+      else byBoard.set(h.board.id, { board: h.board, hits: [h] })
+    })
+    return [...byBoard.values()].sort((a, b) => b.board.updatedAt - a.board.updatedAt)
+  }, [searchHits])
 
   // Chỉ đưa vào bộ lọc những chuyên khoa THẬT SỰ có bảng. Một danh sách 10 khoa mà 8 khoa bấm vào
   // ra màn trống thì bộ lọc thành thứ phải thử mới biết, thay vì nhìn là biết.
@@ -8630,6 +8691,47 @@ function MindmapGallery({
     <div className="h-full flex flex-col">
       <ScreenHeader title="Mindmap" />
 
+      {/* Tìm chữ trong ghi chú xuyên suốt MỌI bảng — trước đây ô tìm chỉ nằm trong từng bảng, phải
+          nhớ đúng bảng nào mới mở ra tìm được. */}
+      <div className="flex-none px-5">
+        <SearchField value={query} onChange={setQuery} placeholder="Tìm ghi chú trong mọi bảng…" />
+      </div>
+
+      {query.trim() ? (
+        <div className="scroll-ios flex-1 px-5 pb-6">
+          {searching ? (
+            <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
+              Đang tìm…
+            </p>
+          ) : groupedHits.length === 0 ? (
+            <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
+              Không tìm thấy "{query.trim()}" trong bất kỳ bảng nào.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {groupedHits.map(({ board, hits }) => (
+                <button
+                  key={board.id}
+                  onClick={() => onOpen(board.id, query.trim())}
+                  className={`w-full text-left flex items-center gap-3 p-3 ${R.card} border ${TAP}`}
+                  style={{ borderColor: C.line, background: C.surface }}
+                >
+                  <span className="flex-none w-1.5 self-stretch rounded-full" style={{ background: board.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
+                      {board.name} · {hits.length} kết quả
+                    </p>
+                    <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
+                      {hits[0].snippet || "(ghi chú trống)"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* Hàng điều khiển: lọc bên trái, thêm mới và đổi kiểu xem bên phải */}
       <div className="flex-none px-5 pb-3 flex items-center gap-2 relative">
         <button
@@ -8747,6 +8849,8 @@ function MindmapGallery({
           onRestore={onRestoreBoard}
           onPurge={onPurgeBoard}
         />
+      )}
+      </>
       )}
     </div>
   )
@@ -9034,6 +9138,9 @@ function MindmapScreen({
   // bảng đang làm dở. Khung nhìn (kéo/phóng) của từng bảng cũng được nhớ riêng, xem viewKey() trong
   // MindmapBoard.tsx, nên quay lại là thấy ĐÚNG chỗ đang vẽ chứ không chỉ đúng bảng.
   const [openId, setOpenId] = useStickyState<string | null>("mindmap.openBoard", null)
+  // Mở TỪ một kết quả tìm xuyên-bảng (MindmapGallery) — truyền tiếp cho MindmapBoard để nó tự mở ô
+  // tìm nội bộ với đúng từ khoá này, không phải state sticky (chỉ có ý nghĩa cho ĐÚNG một lần mở).
+  const [openQuery, setOpenQuery] = useState<string | undefined>(undefined)
   // Bảng nào đang được sửa tên/màu ở bảng trượt — có thể là bảng trong danh sách chứ không nhất
   // thiết là bảng đang mở.
   const [sheetBoardId, setSheetBoardId] = useState<string | null>(null)
@@ -9058,8 +9165,9 @@ function MindmapScreen({
           trashedBoards={trashedBoards}
           onRestoreBoard={onRestoreBoard}
           onPurgeBoard={onPurgeBoard}
-          onOpen={(id) => {
+          onOpen={(id, query) => {
             onSwitchBoard(id)
+            setOpenQuery(query)
             setOpenId(id)
           }}
           onCreate={() => {
@@ -9161,9 +9269,13 @@ function MindmapScreen({
           {...boardProps}
           boardName={activeBoard?.name}
           boardId={activeBoardId}
+          initialFindQuery={openQuery}
           onGoHome={() => {
             setOpenId(null)
             setSheetBoardId(null)
+            // Không mang từ khoá tìm sang lần mở TAY tiếp theo (mở bảng khác, hoặc mở lại đúng bảng
+            // này) — chỉ có ý nghĩa cho đúng lượt mở từ kết quả tìm xuyên-bảng.
+            setOpenQuery(undefined)
             // Vẽ lại ảnh xem trước: bảng vừa đóng gần như chắc chắn đã khác lúc mở ra.
             setPreviewTick((n) => n + 1)
           }}
