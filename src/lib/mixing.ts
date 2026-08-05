@@ -159,6 +159,14 @@ export function dropsPerMinute(volumeMl: number, durationMinutes: number, dropFa
   return (volumeMl * dropFactor) / durationMinutes
 }
 
+// Một số kháng sinh (vancomycin liều cao, một số truyền ngắt quãng khác) chạy bằng bơm tiêm điện/bơm
+// thể tích thay vì dây truyền thường — tốc độ đặt thẳng mL/giờ, không đếm giọt. Cùng một cặp số liệu
+// (thể tích + thời gian truyền dự kiến) như dropsPerMinute(), chỉ khác đơn vị ra.
+export function pumpRateMlPerHour(volumeMl: number, durationMinutes: number): number | null {
+  if (!(volumeMl > 0) || !(durationMinutes > 0)) return null
+  return (volumeMl / durationMinutes) * 60
+}
+
 // ─── Chọn thể tích "dễ lấy nhất" trong một khoảng ──────────────────────────────
 // Liều theo khoảng (vd Amikacin 5–7,5 mg/kg) quy đổi ra mL sẽ ra một khoảng lẻ (vd 35–52,5 mL).
 // Người pha thực tế không rút đúng số lẻ máy tính ra — họ làm tròn tới vạch dễ đọc nhất trên bơm/xi

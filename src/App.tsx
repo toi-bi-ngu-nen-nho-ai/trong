@@ -37,6 +37,7 @@ import {
   infusionDurationHours,
   partialDraw,
   pickEasiestVolume,
+  pumpRateMlPerHour,
   roundToStep,
   totalAmountInBag,
   vialsForConcentration,
@@ -47,7 +48,7 @@ import {
   type VialSpec,
 } from "./lib/mixing"
 import { formatAmpouleUsage, formatFixedUsage, formatVialUsage } from "./lib/usageText"
-import { formatSavedAt, importWardRecipes, loadWardRecipes, removeWardRecipe, clearWardRecipesForDrug, saveWardRecipe, type WardRecipe } from "./lib/wardRecipes"
+import { formatSavedAt, importWardRecipes, loadWardRecipes, removeWardRecipe, clearWardRecipesForDrug, saveWardRecipe, setPinnedWardRecipe, type WardRecipe } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
@@ -4300,6 +4301,9 @@ interface DosingContextValue {
   // `id` bỏ trống = thêm công thức mới (tự sinh id); có `id` = ghi đè đúng công thức đó.
   saveWard: (recipe: Omit<WardRecipe, "savedAt" | "id"> & { id?: string }) => void
   clearWard: (drugId: string, recipeId: string) => void
+  // Ghim/gỡ ghim một công thức làm mặc định cố định — độc lập với "lưu gần nhất" (xem
+  // useActiveWardRecipe và lib/wardRecipes.ts).
+  pinWard: (drugId: string, recipeId: string) => void
 }
 
 const DosingContext = createContext<DosingContextValue | null>(null)
@@ -5327,11 +5331,15 @@ function useActiveWardRecipe(wardList: WardRecipe[]): {
   setActiveId: (id: string) => void
   active: WardRecipe | undefined
 } {
-  const [activeId, setActiveId] = useState<string>(() => wardList[wardList.length - 1]?.id ?? "system")
+  // Công thức ĐƯỢC GHIM (nếu có) thắng "lưu gần nhất" khi chọn công thức mở mặc định — xem
+  // setPinnedWardRecipe trong lib/wardRecipes.ts. Không có công thức nào được ghim thì hành vi y hệt
+  // trước đây (lưu gần nhất thắng).
+  const fallbackId = (list: WardRecipe[]) => list.find((w) => w.pinned)?.id ?? list[list.length - 1]?.id ?? "system"
+  const [activeId, setActiveId] = useState<string>(() => fallbackId(wardList))
   // Theo dõi id của lần render trước để phát hiện: (a) vừa có công thức MỚI được lưu (id chưa từng
   // thấy) → tự chuyển sang xem công thức đó luôn, khỏi bấm thêm một lần nữa; (b) công thức đang xem
-  // vừa bị xoá (id không còn nằm trong danh sách) → rơi về công thức mới nhất còn lại, hoặc hệ thống
-  // nếu danh sách rỗng — tránh treo activeId trỏ vào một công thức không còn tồn tại.
+  // vừa bị xoá (id không còn nằm trong danh sách) → rơi về công thức được ghim, hoặc mới nhất còn
+  // lại, hoặc hệ thống nếu danh sách rỗng — tránh treo activeId trỏ vào một công thức không còn tồn tại.
   const prevIdsRef = useRef<string[]>(wardList.map((w) => w.id))
   useEffect(() => {
     const prevIds = prevIdsRef.current
@@ -5339,7 +5347,7 @@ function useActiveWardRecipe(wardList: WardRecipe[]): {
     if (newlyAdded) {
       setActiveId(newlyAdded.id)
     } else if (activeId !== "system" && !wardList.some((w) => w.id === activeId)) {
-      setActiveId(wardList[wardList.length - 1]?.id ?? "system")
+      setActiveId(fallbackId(wardList))
     }
     prevIdsRef.current = wardList.map((w) => w.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5348,8 +5356,144 @@ function useActiveWardRecipe(wardList: WardRecipe[]): {
   return { activeId, setActiveId, active }
 }
 
+// Hàng chip "công thức pha" dùng chung ở ba chỗ (AntibioticDoseCard, AntibioticMixPanel,
+// InfusionCalculator) — mỗi chỗ đều cần: chip "Công thức hệ thống" để chuyển về, chip mỗi công thức
+// đã lưu (bấm để nạp), sao ghim (mặc định cố định, thắng "lưu gần nhất" — xem useActiveWardRecipe),
+// và nút xoá hai chạm. Khi một thuốc có nhiều công thức đã lưu (dùng chung máy giữa nhiều khoa), hàng
+// chip dễ dài tràn — thêm ô lọc theo tên khi vượt quá một ngưỡng, thay vì bắt cuộn ngang dò cả dãy.
+function WardRecipeChips({
+  wardList,
+  activeId,
+  onSelectSystem,
+  onSelectWard,
+  onDelete,
+  onPin,
+}: {
+  wardList: WardRecipe[]
+  activeId: string
+  onSelectSystem: () => void
+  onSelectWard: (w: WardRecipe) => void
+  onDelete: (recipeId: string) => void
+  onPin: (recipeId: string) => void
+}) {
+  const [filter, setFilter] = useState("")
+  const q = normalizeSearch(filter)
+  const shown = q ? wardList.filter((w) => normalizeSearch(w.title || "công thức đã lưu").includes(q)) : wardList
+  const pill = (on: boolean) =>
+    on
+      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+      : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+
+  return (
+    <div className="mb-2">
+      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Công thức pha — bấm để chuyển đổi</label>
+      {wardList.length > 6 && (
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Lọc theo tên công thức..."
+          className="w-full h-8 px-2.5 mb-1.5 rounded-full text-[11px] border outline-none"
+          style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
+        />
+      )}
+      <div className="flex flex-wrap gap-2">
+        {/* Công thức HỆ THỐNG luôn là một lựa chọn để chuyển VỀ, không chỉ để xoá hẳn công thức đã
+            lưu mới quay lại được — không lọc theo ô tìm ở trên vì nó không có tên để so khớp. */}
+        <button onClick={onSelectSystem} className="h-9 px-3 rounded-full text-[12px] font-semibold border" style={pill(activeId === "system")}>
+          Công thức hệ thống
+        </button>
+        {shown.map((w) => (
+          <span
+            key={w.id}
+            className="inline-flex items-center h-9 rounded-full border overflow-hidden"
+            style={{ borderColor: activeId === w.id ? "var(--c-accent)" : "var(--c-accent-line)" }}
+          >
+            <button
+              onClick={() => onSelectWard(w)}
+              className="h-full pl-3 pr-1.5 text-[12px] font-semibold max-w-[140px] truncate"
+              style={activeId === w.id ? { color: "var(--c-on-bright)", background: "var(--c-accent)" } : { color: "var(--c-accent-deep)", background: "var(--c-surface)" }}
+            >
+              {w.title || "Công thức đã lưu"}
+            </button>
+            {/* Ghim làm mặc định cố định — độc lập với "lưu gần nhất". Chỉ một công thức được ghim
+                mỗi thuốc, bấm sao đang sáng để gỡ ghim (xem setPinnedWardRecipe). */}
+            <button
+              onClick={() => onPin(w.id)}
+              aria-label={w.pinned ? `Gỡ ghim công thức ${w.title}` : `Ghim công thức ${w.title} làm mặc định`}
+              className="h-full px-1.5 flex-none flex items-center justify-center"
+              style={activeId === w.id ? { background: "var(--c-accent)" } : { background: "var(--c-surface)" }}
+            >
+              <span style={{ opacity: w.pinned ? 1 : 0.3 }}>{icons.star()}</span>
+            </button>
+            {/* Đây là công thức ĐÃ LƯU từ phiên trước, không phải một dòng đang soạn dở — nên xoá
+                cần xác nhận hai chạm giống xoá kháng sinh/bài viết tự nhập, không phải nút "×" tức
+                thì (nút đó dành cho dòng nháp chưa lưu, xem chú thích ConfirmIconButton phía trên:
+                trước đây liệt "công thức pha" nhầm vào nhóm đó). */}
+            <ConfirmIconButton
+              onConfirm={() => onDelete(w.id)}
+              ariaLabel={`Xoá công thức ${w.title}`}
+              className="h-full px-2.5 flex-none flex items-center justify-center"
+              style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }}
+            />
+          </span>
+        ))}
+        {shown.length === 0 && <p className="text-[11px] text-slate-400 py-1.5">Không có công thức nào khớp "{filter}".</p>}
+      </div>
+    </div>
+  )
+}
+
+// Cảnh báo tương kỵ Y-site/tương tác NGAY LÚC ĐANG PHA — trước đây bảng tương hợp chỉ chạy ở màn
+// "Bệnh nhân đang dùng" (RunningPanel), so hai thuốc ĐÃ ghim cùng nòng. Vô dụng đúng lúc cần nhất:
+// người đang đứng pha Noradrenaline chưa ghim gì cả, nên không có "hai thuốc cùng nòng" nào để so —
+// phải tự nhớ ra rồi mở màn khác kiểm tra. Ở đây so compatKey của thuốc đang xem với TỪNG thuốc đã
+// ghim (bất kể đang ở nòng nào — người dùng tự quyết định chọn nòng nào sau khi thấy cảnh báo), không
+// đợi đến lúc ghim xong mới biết.
+function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ownDrugId: string }) {
+  const { running } = useDosing()
+  if (!compatKey) return null
+  const others = running.filter((r) => r.drugId !== ownDrugId)
+  const ysite = others
+    .map((r) => ({ r, rule: findYsiteRule(compatKey, r.compatKey) }))
+    .filter((x): x is { r: RunningDrug; rule: CompatRule } => x.rule != null)
+  const interactions = others
+    .map((r) => ({ r, rule: findInteractionRule(compatKey, r.compatKey) }))
+    .filter((x): x is { r: RunningDrug; rule: InteractionRule } => x.rule != null)
+  if (ysite.length === 0 && interactions.length === 0) return null
+
+  const danger = ysite.some((x) => x.rule.verdict === "incompatible") || interactions.some((x) => x.rule.severity === "cao")
+  const style = danger
+    ? { bg: "var(--c-danger-soft)", border: "var(--c-danger-line)", text: "var(--c-danger-deep)" }
+    : { bg: "var(--c-orange-soft)", border: "var(--c-orange-line)", text: "var(--c-orange)" }
+
+  return (
+    <div className="mt-2 px-3 py-2.5 rounded-xl" style={{ background: style.bg, border: `1px solid ${style.border}` }}>
+      <div className="flex items-start gap-2">
+        <span className="mt-0.5 flex-none" style={{ color: style.text }}>{icons.alert()}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-extrabold leading-[1.3]" style={{ color: style.text }}>
+            {danger ? "KHÔNG TƯƠNG HỢP VỚI THUỐC ĐANG DÙNG" : "THẬN TRỌNG VỚI THUỐC ĐANG DÙNG"} — kiểm tra nòng trước khi ghim
+          </p>
+          {ysite.map(({ r, rule }, i) => (
+            <p key={`y-${i}`} className="text-[11px] leading-[1.45] mt-1" style={{ color: style.text }}>
+              <b>{r.name}</b> ({lineLabel(r.line)}){rule.verdict === "incompatible" ? " — KHÔNG tương hợp Y-site" : " — thận trọng Y-site"}: {rule.text}
+              {!rule.verified && " (chưa đối chiếu tài liệu gốc)"}
+            </p>
+          ))}
+          {interactions.map(({ r, rule }, i) => (
+            <p key={`i-${i}`} className="text-[11px] leading-[1.45] mt-1" style={{ color: style.text }}>
+              <b>{r.name}</b> — tương tác mức {rule.severity}: {rule.text}
+              {!rule.verified && " (chưa đối chiếu tài liệu gốc)"}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
-  const { logCalc, wardRecipes, saveWard, clearWard } = useDosing()
+  const { logCalc, wardRecipes, saveWard, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   // Công thức ĐANG XEM — có thể là một công thức đã lưu, hoặc công thức HỆ THỐNG (xem
   // useActiveWardRecipe phía trên) — bấm chip tương ứng để nạp lại giá trị của nó vào form đang mở
@@ -5387,6 +5531,10 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
   // Giọt/phút: máy tính sống, không thuộc dữ liệu thuốc — nhập thời gian truyền dự kiến là ra ngay.
   const [infuseMinutes, setInfuseMinutes] = useState("")
   const [dropFactor, setDropFactor] = useState(DEFAULT_DROP_FACTOR)
+  // Đường TTM có hai thiết bị truyền: dây thường (đếm giọt) hoặc bơm tiêm điện/bơm thể tích (đặt
+  // mL/giờ) — vancomycin và một số kháng sinh khác BẮT BUỘC chạy bơm vì tốc độ quá chậm để đếm giọt
+  // chính xác (vd 1 g/60 phút ở 100 mL chỉ ~33 giọt/phút, sai số đếm tay đáng kể). Xem lib/mixing.ts.
+  const [deliveryDevice, setDeliveryDevice] = useState<"drip" | "pump">(ward?.deliveryDevice ?? "drip")
   const [saveTitle, setSaveTitle] = useState("")
 
   const allowedDiluents = mix?.diluents ?? ["NaCl 0,9%", "Glucose 5%"]
@@ -5430,7 +5578,12 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
   // chai nếu dùng trọn), hai dạng kia là thể tích pha loãng tới.
   const infuseVolumeMl = isFixed ? (fixedDoseNum != null ? fixedDrawMl : fixedVialVolume) : vol
   const minutes = num(infuseMinutes)
-  const dropsPerMin = routeShort === "TTM" ? dropsPerMinute(infuseVolumeMl ?? NaN, minutes ?? NaN, dropFactor) : null
+  const usePump = routeShort === "TTM" && deliveryDevice === "pump"
+  const dropsPerMin = routeShort === "TTM" && !usePump ? dropsPerMinute(infuseVolumeMl ?? NaN, minutes ?? NaN, dropFactor) : null
+  // Làm tròn theo bước đặt tốc độ nhỏ nhất của bơm — 166.666... ml/h không phải con số đặt được thật
+  // trên bơm tiêm điện (bước 0,1 ml/h), giống cách InfusionCalculator làm tròn roundedRate.
+  const rateMlPerHourRaw = usePump ? pumpRateMlPerHour(infuseVolumeMl ?? NaN, minutes ?? NaN) : null
+  const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
 
   const pill = (on: boolean) =>
     on
@@ -5455,8 +5608,9 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
             doseUnit: vialUnit,
             route: routeShort,
             dropsPerMin,
+            rateMlPerHour,
           })
-        : formatVialUsage({ name: drug.name, vialAmount: va * nv, vialUnit, diluentName: diluent, route: routeShort, dropsPerMin })
+        : formatVialUsage({ name: drug.name, vialAmount: va * nv, vialUnit, diluentName: diluent, route: routeShort, dropsPerMin, rateMlPerHour })
 
   function loadWard(w: WardRecipe) {
     setVialAmount(String(w.vialAmount))
@@ -5471,6 +5625,7 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
     setRouteShort(w.route ?? defaultRoute)
     setInfuseMinutes(w.infuseMinutes != null ? String(w.infuseMinutes) : "")
     setDropFactor(w.dropFactor ?? DEFAULT_DROP_FACTOR)
+    setDeliveryDevice(w.deliveryDevice ?? "drip")
     setActiveRecipeId(w.id)
     tickHaptic()
   }
@@ -5491,6 +5646,7 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
     setRouteShort(defaultRoute)
     setInfuseMinutes("")
     setDropFactor(DEFAULT_DROP_FACTOR)
+    setDeliveryDevice("drip")
     setActiveRecipeId("system")
     tickHaptic()
   }
@@ -5513,6 +5669,7 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
       route: routeShort,
       infuseMinutes: minutes ?? undefined,
       dropFactor,
+      deliveryDevice: routeShort === "TTM" ? deliveryDevice : undefined,
     })
     setSaveTitle("")
     tickHaptic()
@@ -5532,45 +5689,14 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
   return (
     <div className="mt-2.5 p-3 rounded-xl fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
       {wardList.length > 0 && (
-        <div className="mb-2">
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Công thức pha — bấm để chuyển đổi</label>
-          <div className="flex flex-wrap gap-2">
-            {/* Công thức HỆ THỐNG luôn là một lựa chọn để chuyển VỀ, không chỉ để xoá hẳn công thức
-                đã lưu mới quay lại được. */}
-            <button
-              onClick={loadSystemDefault}
-              className="h-9 px-3 rounded-full text-[12px] font-semibold border"
-              style={pill(activeRecipeId === "system")}
-            >
-              Công thức hệ thống
-            </button>
-            {wardList.map((w) => (
-              <span
-                key={w.id}
-                className="inline-flex items-center h-9 rounded-full border overflow-hidden"
-                style={{ borderColor: activeRecipeId === w.id ? "var(--c-accent)" : "var(--c-accent-line)" }}
-              >
-                <button
-                  onClick={() => loadWard(w)}
-                  className="h-full px-3 text-[12px] font-semibold max-w-[160px] truncate"
-                  style={activeRecipeId === w.id ? { color: "var(--c-on-bright)", background: "var(--c-accent)" } : { color: "var(--c-accent-deep)", background: "var(--c-surface)" }}
-                >
-                  {w.title || "Công thức đã lưu"}
-                </button>
-                {/* Đây là công thức ĐÃ LƯU từ phiên trước, không phải một dòng đang soạn dở — nên
-                    xoá cần xác nhận hai chạm giống xoá kháng sinh/bài viết tự nhập, không phải nút
-                    "×" tức thì (nút đó dành cho dòng nháp chưa lưu, xem chú thích ConfirmIconButton
-                    phía trên: trước đây liệt "công thức pha" nhầm vào nhóm đó). */}
-                <ConfirmIconButton
-                  onConfirm={() => clearWard(drug.id, w.id)}
-                  ariaLabel={`Xoá công thức ${w.title}`}
-                  className="h-full px-2.5 flex-none flex items-center justify-center"
-                  style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }}
-                />
-              </span>
-            ))}
-          </div>
-        </div>
+        <WardRecipeChips
+          wardList={wardList}
+          activeId={activeRecipeId}
+          onSelectSystem={loadSystemDefault}
+          onSelectWard={loadWard}
+          onDelete={(id) => clearWard(drug.id, id)}
+          onPin={(id) => pinWard(drug.id, id)}
+        />
       )}
 
       {!isFixed && (
@@ -5623,6 +5749,36 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
           </button>
         ))}
       </div>
+
+      {/* Chỉ TTM mới cần chọn thiết bị truyền — TMC là tiêm nhanh một lần, không có tốc độ. Một số
+          kháng sinh (vancomycin liều cao, một số kháng sinh truyền kéo dài khác) BẮT BUỘC chạy bơm
+          tiêm điện/bơm thể tích vì tốc độ quá chậm để đếm giọt cho chính xác — xem lib/mixing.ts
+          (pumpRateMlPerHour) và lib/usageText.ts. */}
+      {routeShort === "TTM" && (
+        <>
+          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thiết bị truyền</label>
+          <div className="flex gap-1.5 mb-2">
+            {(
+              [
+                { v: "drip" as const, label: "Dây thường (giọt/phút)" },
+                { v: "pump" as const, label: "Bơm tiêm điện (mL/giờ)" },
+              ]
+            ).map((opt) => (
+              <button
+                key={opt.v}
+                onClick={() => {
+                  setDeliveryDevice(opt.v)
+                  tickHaptic()
+                }}
+                className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
+                style={pill(deliveryDevice === opt.v)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <label className="text-[11px] font-medium text-slate-500 mb-1 block">Dạng chế phẩm</label>
       <div className="flex gap-1.5 mb-2">
@@ -5723,28 +5879,40 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
         </>
       )}
 
-      {/* Giọt/phút — chỉ có ý nghĩa với đường TTM (nhỏ giọt), không áp dụng cho TMC (tiêm thẳng). */}
+      {/* Tốc độ truyền — chỉ có ý nghĩa với đường TTM, không áp dụng cho TMC (tiêm thẳng). Bộ dây
+          (giọt/mL) chỉ hiện khi dùng dây thường; bơm tiêm điện đặt thẳng mL/giờ, không đếm giọt. */}
       {routeShort === "TTM" && infuseVolumeMl != null && infuseVolumeMl > 0 && (
         <div className="grid grid-cols-2 gap-2 mb-2">
           <div>
             <label className="text-[11px] font-medium text-slate-500 mb-1 block">Truyền trong (phút)</label>
             <input value={infuseMinutes} onChange={(e) => setInfuseMinutes(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="60" className={FIELD} style={FIELD_STYLE} />
           </div>
-          <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Bộ dây (giọt/mL)</label>
-            <div className="flex h-11 rounded-2xl overflow-hidden border" style={{ borderColor: "var(--c-line)" }}>
-              {[DEFAULT_DROP_FACTOR, MICRO_DROP_FACTOR].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setDropFactor(f)}
-                  className="flex-1 text-[11px] font-semibold"
-                  style={dropFactor === f ? { background: "var(--c-accent)", color: "var(--c-on-bright)" } : { background: "var(--c-surface)", color: "var(--c-text-soft)" }}
-                >
-                  {f}
-                </button>
-              ))}
+          {usePump ? (
+            rateMlPerHour != null && (
+              <div className="flex flex-col justify-end">
+                <label className="text-[11px] font-medium text-slate-500 mb-1 block">Tốc độ bơm</label>
+                <p className={`${FIELD} flex items-center font-bold`} style={{ ...FIELD_STYLE, color: "var(--c-accent-deep)" }}>
+                  BTĐ {trim(rateMlPerHour)} ml/h
+                </p>
+              </div>
+            )
+          ) : (
+            <div>
+              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Bộ dây (giọt/mL)</label>
+              <div className="flex h-11 rounded-2xl overflow-hidden border" style={{ borderColor: "var(--c-line)" }}>
+                {[DEFAULT_DROP_FACTOR, MICRO_DROP_FACTOR].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setDropFactor(f)}
+                    className="flex-1 text-[11px] font-semibold"
+                    style={dropFactor === f ? { background: "var(--c-accent)", color: "var(--c-on-bright)" } : { background: "var(--c-surface)", color: "var(--c-text-soft)" }}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -5868,7 +6036,7 @@ function AntibioticDoseCard({
   onEdit?: (drug: Antibiotic) => void
   onDelete?: (id: string) => void
 }) {
-  const { patient, abwKg, heightCm, crcl, crclUsable, openPatientPanel, pinRunning, wardRecipes, clearWard } = useDosing()
+  const { patient, abwKg, heightCm, crcl, crclUsable, openPatientPanel, pinRunning, wardRecipes, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
   const [showMix, setShowMix] = useState(false)
@@ -5924,6 +6092,9 @@ function AntibioticDoseCard({
         // nhánh dưới vẫn ẩn phần giọt/phút thay vì bịa thời gian truyền.
         infuseMinutes: ward.infuseMinutes,
         dropFactor: ward.dropFactor,
+        // Bơm tiêm điện chỉ áp dụng được khi có công thức đã lưu khai rõ — công thức hệ thống dựng
+        // sẵn (nhánh drug.mix bên dưới) không biết khoa nào chạy bơm nên luôn coi là dây thường.
+        deliveryDevice: ward.deliveryDevice ?? "drip",
       }
     const mix = drug.mix
     if (mix != null && mix.vialAmount != null)
@@ -5937,6 +6108,7 @@ function AntibioticDoseCard({
         diluent: mix.diluents?.[0] ?? "NaCl 0,9%",
         infuseMinutes: undefined as number | undefined,
         dropFactor: undefined as number | undefined,
+        deliveryDevice: "drip" as "drip" | "pump",
       }
     return null
   }, [ward, drug.mix])
@@ -5981,10 +6153,14 @@ function AntibioticDoseCard({
       // Liều tính ra đúng bằng cả chai (vd Levofloxacin 750 mg = trọn chai 750 mg/150 mL) → nói "01
       // chai" đúng mẫu, không nói "lấy 750 mg" (đúng số nhưng sai câu chữ thực tế người pha dùng).
       const isWholeVial = pickedMl >= mixCfg.vialVolumeMl - 1e-6
-      // Chỉ tính giọt/phút khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn
-      // hẳn phần này thay vì bịa một thời gian truyền không ai xác nhận.
+      // Chỉ tính tốc độ khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn hẳn
+      // phần này thay vì bịa một thời gian truyền không ai xác nhận. Bơm tiêm điện thì ra mL/giờ,
+      // dây thường thì ra giọt/phút — không tính cả hai cùng lúc (xem mixCfg.deliveryDevice).
+      const onPump = routeShort === "TTM" && mixCfg.deliveryDevice === "pump"
       const dropsPerMin =
-        routeShort === "TTM" && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
+        routeShort === "TTM" && !onPump && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
+      const rateMlPerHourRaw = onPump && mixCfg.infuseMinutes != null ? pumpRateMlPerHour(pickedMl, mixCfg.infuseMinutes) : null
+      const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
       return formatFixedUsage({
         name: drug.name,
         vialAmount: mixCfg.vialAmount,
@@ -5994,6 +6170,7 @@ function AntibioticDoseCard({
         doseUnit: doseTargetMg.unit,
         route: routeShort,
         dropsPerMin,
+        rateMlPerHour,
       })
     }
     const f = massFactor(doseTargetMg.unit, mixCfg.vialUnit)
@@ -6026,10 +6203,14 @@ function AntibioticDoseCard({
     // Liều tính ra dùng ĐÚNG trọn lượng vừa pha (không cần rút riêng một phần) → câu gọn như mẫu
     // 3b, không lặp lại "đủ X ml lấy Y ml" một cách thừa thãi.
     const isWholeBatch = pickedMl >= volumeMl - 1e-6
-    // Chỉ tính giọt/phút khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn hẳn
-    // phần này thay vì bịa một thời gian truyền không ai xác nhận (xem mixCfg ở trên).
+    // Chỉ tính tốc độ khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn hẳn
+    // phần này thay vì bịa một thời gian truyền không ai xác nhận (xem mixCfg ở trên). Bơm tiêm điện
+    // thì ra mL/giờ, dây thường thì ra giọt/phút.
+    const onPump = routeShort === "TTM" && mixCfg.deliveryDevice === "pump"
     const dropsPerMin =
-      routeShort === "TTM" && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
+      routeShort === "TTM" && !onPump && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
+    const rateMlPerHourRaw = onPump && mixCfg.infuseMinutes != null ? pumpRateMlPerHour(pickedMl, mixCfg.infuseMinutes) : null
+    const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
     return formatVialUsage({
       name: drug.name,
       vialAmount: mixCfg.vialAmount,
@@ -6044,6 +6225,7 @@ function AntibioticDoseCard({
       finalVolumeMl: isWholeBatch ? undefined : volumeMl,
       drawMl: isWholeBatch ? undefined : pickedMl,
       dropsPerMin,
+      rateMlPerHour,
     })
   }, [mixCfg, doseTargetMg, drug.name, drug.mix?.vialLabel, routeShort])
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
@@ -6273,6 +6455,8 @@ function AntibioticDoseCard({
         </div>
       )}
 
+      <CompatWarningForDrug compatKey={drug.compatKey} ownDrugId={drug.id} />
+
       <button
         onClick={() => {
           pinRunning({
@@ -6309,33 +6493,14 @@ function AntibioticDoseCard({
               còn phải mở hẳn "Bảng pha thuốc" bên dưới mới đổi được, và không cần XOÁ một công thức
               đã lưu chỉ để tạm xem lại công thức hệ thống (xem useActiveWardRecipe). */}
           {wardList.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2.5">
-              <button
-                onClick={() => setActiveRecipeId("system")}
-                className="h-9 px-3 rounded-full text-[12px] font-semibold border"
-                style={
-                  activeRecipeId === "system"
-                    ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
-                    : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-                }
-              >
-                Công thức hệ thống
-              </button>
-              {wardList.map((w) => (
-                <button
-                  key={w.id}
-                  onClick={() => setActiveRecipeId(w.id)}
-                  className="h-9 px-3 rounded-full text-[12px] font-semibold border max-w-[160px] truncate"
-                  style={
-                    activeRecipeId === w.id
-                      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
-                      : { background: "var(--c-surface)", borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }
-                  }
-                >
-                  {w.title || "Công thức đã lưu"}
-                </button>
-              ))}
-            </div>
+            <WardRecipeChips
+              wardList={wardList}
+              activeId={activeRecipeId}
+              onSelectSystem={() => setActiveRecipeId("system")}
+              onSelectWard={(w) => setActiveRecipeId(w.id)}
+              onDelete={(id) => clearWard(drug.id, id)}
+              onPin={(id) => pinWard(drug.id, id)}
+            />
           )}
           {ward ? (
             <div className="flex items-start gap-2">
@@ -7321,7 +7486,7 @@ function MixPanel({
 }
 
 function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: InfusionCalcConfig }) {
-  const { abwKg, heightCm, patient, openPatientPanel, pinRunning, logCalc, wardRecipes, saveWard, clearWard } = useDosing()
+  const { abwKg, heightCm, patient, openPatientPanel, pinRunning, logCalc, wardRecipes, saveWard, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   // Công thức đã lưu GẦN NHẤT là mặc định thật sự của thuốc này lúc MỞ THẺ — không bắt gõ lại mỗi
   // lần mở (chỉ dùng để khởi tạo `conc`/`bagVolume` bên dưới). Sau đó `ward` đổi theo chip người dùng
@@ -7684,46 +7849,24 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           thế nào) nhưng lại ở hai chỗ khác nhau. */}
       <Disclosure label="Cách dùng · Pha thuốc">
         {wardList.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2">
-            {/* Công thức HỆ THỐNG giờ là một chip chuyển đổi như mọi công thức đã lưu khác — trước
-                đây chỉ có cách quay lại nó bằng cách xoá hẳn công thức đã lưu (mất dữ liệu), hoặc bấm
-                một nút riêng biệt phía trên (xem chú thích "Trả về mốc chuẩn"). */}
-            <button
-              onClick={() => {
-                setActiveRecipeId("system")
-                setConc(calc.concDefault != null ? String(calc.concDefault) : "")
-                setBagVolume(calc.mix ? String(calc.mix.volumeMl) : "")
-                tickHaptic()
-              }}
-              className="h-9 px-3 rounded-full text-[12px] font-semibold border"
-              style={
-                activeRecipeId === "system"
-                  ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
-                  : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-              }
-            >
-              Công thức hệ thống
-            </button>
-            {wardList.map((w) => (
-              <button
-                key={w.id}
-                onClick={() => {
-                  setActiveRecipeId(w.id)
-                  setConc(String(w.concValue))
-                  setBagVolume(String(w.volumeMl))
-                  tickHaptic()
-                }}
-                className="h-9 px-3 rounded-full text-[12px] font-semibold border max-w-[160px] truncate"
-                style={
-                  activeRecipeId === w.id
-                    ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
-                    : { background: "var(--c-surface)", borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }
-                }
-              >
-                {w.title || "Công thức đã lưu"}
-              </button>
-            ))}
-          </div>
+          <WardRecipeChips
+            wardList={wardList}
+            activeId={activeRecipeId}
+            onSelectSystem={() => {
+              setActiveRecipeId("system")
+              setConc(calc.concDefault != null ? String(calc.concDefault) : "")
+              setBagVolume(calc.mix ? String(calc.mix.volumeMl) : "")
+              tickHaptic()
+            }}
+            onSelectWard={(w) => {
+              setActiveRecipeId(w.id)
+              setConc(String(w.concValue))
+              setBagVolume(String(w.volumeMl))
+              tickHaptic()
+            }}
+            onDelete={(id) => clearWard(drug.id, id)}
+            onPin={(id) => pinWard(drug.id, id)}
+          />
         )}
         {ward ? (
           <div className="flex items-start gap-2">
@@ -8044,6 +8187,8 @@ function InfusionDrugCard({
           ))}
         </div>
       )}
+
+      <CompatWarningForDrug compatKey={drug.compatKey} ownDrugId={drug.id} />
 
       {drug.calc && <InfusionCalculator drug={drug} calc={drug.calc} />}
 
@@ -8486,6 +8631,7 @@ function DungThuocScreen({
           saveWardRecipe({ ...recipe, id: recipe.id ?? `${recipe.drugId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, savedAt: Date.now() }),
         ),
       clearWard: (drugId, recipeId) => setWardRecipes(removeWardRecipe(drugId, recipeId)),
+      pinWard: (drugId, recipeId) => setWardRecipes(setPinnedWardRecipe(drugId, recipeId)),
     }),
     [patient, setField, reset, abwKg, heightCm, ageYears, crcl, crclUsable, running, wardRecipes],
   )

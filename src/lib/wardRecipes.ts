@@ -39,6 +39,16 @@ export interface WardRecipe {
   // giọt/phút thay vì bịa một thời gian truyền không có căn cứ — xem AntibioticDoseCard.
   infuseMinutes?: number
   dropFactor?: number
+  // Đường TTM có hai thiết bị truyền khác hẳn nhau về cách tính tốc độ: dây truyền thường đếm giọt
+  // (dropFactor + infuseMinutes → giọt/phút), hoặc bơm tiêm điện/bơm thể tích đặt thẳng mL/giờ —
+  // vancomycin và một số kháng sinh khác bắt buộc chạy bơm, không đếm giọt được vì tốc độ quá chậm.
+  // Không có thì hiểu là dây truyền thường, đúng hành vi trước khi có lựa chọn này.
+  deliveryDevice?: "drip" | "pump"
+  // Công thức được GHIM làm mặc định cố định của thuốc này — độc lập với "lưu gần nhất". Trước đây
+  // công thức áp dụng luôn là công thức lưu SAU CÙNG, nên một công thức thử nghiệm cho ca đặc biệt
+  // lưu hôm nay sẽ vô tình đè lên thành mặc định cho mọi bệnh nhân sau — xem useActiveWardRecipe
+  // trong App.tsx. Chỉ một công thức được ghim tại một thời điểm cho mỗi thuốc (xem setPinnedWardRecipe).
+  pinned?: boolean
   savedAt: number
 }
 
@@ -85,6 +95,20 @@ export function saveWardRecipe(recipe: WardRecipe): Record<string, WardRecipe[]>
   const list = all[recipe.drugId] ?? []
   const idx = list.findIndex((r) => r.id === recipe.id)
   all[recipe.drugId] = idx >= 0 ? list.map((r, i) => (i === idx ? recipe : r)) : [...list, recipe]
+  persist(all)
+  return all
+}
+
+// Ghim MỘT công thức làm mặc định cố định của thuốc này — gỡ ghim mọi công thức khác cùng thuốc
+// (giống nút radio, không phải checkbox). Gọi lại với đúng `recipeId` đang ghim để GỠ ghim (quay về
+// hành vi "công thức lưu gần nhất" như trước).
+export function setPinnedWardRecipe(drugId: string, recipeId: string): Record<string, WardRecipe[]> {
+  const all = loadWardRecipes()
+  const list = all[drugId]
+  if (!list) return all
+  const target = list.find((r) => r.id === recipeId)
+  const pinning = !target?.pinned
+  all[drugId] = list.map((r) => (r.id === recipeId ? { ...r, pinned: pinning } : r.pinned ? { ...r, pinned: false } : r))
   persist(all)
   return all
 }

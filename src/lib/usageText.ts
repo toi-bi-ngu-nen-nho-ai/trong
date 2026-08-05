@@ -51,13 +51,19 @@ export function formatVialUsage(params: {
   finalVolumeMl?: number
   drawMl?: number
   dropsPerMin?: number | null
+  // Truyền qua bơm tiêm điện/bơm thể tích thay vì đếm giọt — vancomycin và một số kháng sinh khác
+  // bắt buộc chạy bơm vì tốc độ quá chậm để đếm giọt chính xác. Chỉ TRUYỀN VÀO một trong hai
+  // (dropsPerMin HOẶC rateMlPerHour) tuỳ deliveryDevice của công thức — xem AntibioticDoseCard.
+  rateMlPerHour?: number | null
 }): string {
-  const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin } = params
+  const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin, rateMlPerHour } = params
   const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml` : formatMass(vialAmount, vialUnit)
   const countPart = vialsUsed != null && vialsUsed > 1 ? ` ${trim(vialsUsed, 0)} ${vialLabel ?? "ống"}` : ""
   const drawPart = finalVolumeMl != null && drawMl != null ? ` đủ ${trim(finalVolumeMl)} ml lấy ${trim(drawMl)} ml` : ""
   const base = `${name} ${strength}${countPart} pha với ${diluentName}${drawPart} (${route})`
-  if (route === "TMC" || dropsPerMin == null) return base
+  if (route === "TMC") return base
+  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
+  if (dropsPerMin == null) return base
   return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
 }
 
@@ -71,11 +77,14 @@ export function formatFixedUsage(params: {
   doseUnit?: string
   route?: "TTM" | "TMC"
   dropsPerMin?: number | null
+  rateMlPerHour?: number | null
 }): string {
-  const { name, vialAmount, vialUnit, vialVolumeMl, doseAmount, doseUnit, route, dropsPerMin } = params
+  const { name, vialAmount, vialUnit, vialVolumeMl, doseAmount, doseUnit, route, dropsPerMin, rateMlPerHour } = params
   const bottle = `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml`
   if (doseAmount == null) return `${bottle} 01 chai`
   const base = `${bottle} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
-  if (route === "TMC" || dropsPerMin == null) return base
+  if (route === "TMC") return base
+  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
+  if (dropsPerMin == null) return base
   return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
 }
