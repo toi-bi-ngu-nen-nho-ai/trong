@@ -1160,13 +1160,13 @@ function HomeScreen({
       {/* Clinical Resources */}
       <div className="mb-6">
         <h2 className="px-5 text-lg font-bold text-slate-900 mb-3">Truy cập nhanh</h2>
-        <div className="px-5">
-          {resourceCards.filter((c) => c.target.screen !== "comingSoon").map((c) => (
+        <div className="flex gap-3 overflow-x-auto pl-5 pr-5 pb-1">
+          {resourceCards.map((c) => (
             <button
               key={c.label}
               onClick={() => onNavigate(c.target.screen, c.target.id)}
-              className="w-full flex items-center gap-3 p-4 rounded-2xl mb-3 text-left"
-              style={{ background: "var(--c-primary-soft)" }}
+              className="flex-none w-[136px] h-[152px] p-4 rounded-2xl border card-press text-left flex flex-col"
+              style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
             >
               <div
                 className="flex-none w-9 h-9 rounded-lg flex items-center justify-center"
@@ -1174,18 +1174,12 @@ function HomeScreen({
               >
                 {c.icon}
               </div>
-              <div>
-                <p className="font-bold text-slate-900 text-[14px]">{c.label}</p>
-                <p className="text-sm text-slate-400">{cardCaption(c)}</p>
-              </div>
+              <p className="flex-1 flex items-start font-bold text-slate-900 text-[14px] leading-tight line-clamp-2 mt-3">
+                {c.label}
+              </p>
+              <p className="flex-none text-sm text-slate-400">{cardCaption(c)}</p>
             </button>
           ))}
-          <div className="flex flex-wrap gap-x-4 gap-y-2 px-1">
-            {resourceCards.filter((c) => c.target.screen === "comingSoon").map((c) => (
-              <button key={c.label} onClick={() => onNavigate(c.target.screen, c.target.id)} className="text-[12px] text-slate-400">{c.label}</button>
-            ))}
-          </div>
-          <p className="text-[10.5px] text-slate-300 mt-1">Sắp ra mắt</p>
         </div>
       </div>
 
@@ -1362,7 +1356,7 @@ function LibraryScreen({
         {/* Specialty list */}
         <div className="px-6 pb-6">
           <h2 className="text-base font-semibold text-slate-900 mb-3">Tất cả chuyên khoa</h2>
-          <div className="divide-y" style={{ borderColor: "var(--c-line-soft)" }}>
+          <div className="space-y-2">
             {SPECIALTIES.map((spec) => {
               const articleCount = countArticlesFor(spec.name, ARTICLES, customArticles)
               return (
@@ -1372,7 +1366,8 @@ function LibraryScreen({
                     setSelected(selected === spec.id ? null : spec.id)
                     onNavigate("specialty", spec.id)
                   }}
-                  className="w-full flex items-center gap-3 py-3.5 text-left"
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
+                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-none"
                     style={{ background: `${spec.color}15`, color: spec.color }}>
