@@ -100,6 +100,10 @@
   --c-accent-deep: #115e59;
   --c-accent-soft: #f0fdfa;
   --c-accent-line: #99f6e4;
+  /* Sắc thứ hai, TÁCH KHỎI primary/accent teal — dùng cho những dấu hiệu cần nổi bật ngay giữa một
+     mặt bảng đã đầy màu chủ đạo (chấm báo "đang lọc màu", khung khoanh vùng...), nơi một chấm teal
+     sẽ chìm lẫn vào các nút primary khác quanh nó. */
+  --c-accent-2: #e8007d;
 
   --c-danger-icon: #dc2626;
   --c-danger: #b91c1c;
@@ -187,6 +191,7 @@
     --c-accent-deep: #6fe0d1;
     --c-accent-soft: #102b2a;
     --c-accent-line: #1f4a46;
+    --c-accent-2: #ff6fae;
 
     --c-danger-icon: #ff6b6b;
     --c-danger: #ff8585;
@@ -260,6 +265,7 @@
   --c-accent-deep: #6fe0d1;
   --c-accent-soft: #102b2a;
   --c-accent-line: #1f4a46;
+  --c-accent-2: #ff6fae;
 
   --c-danger-icon: #ff6b6b;
   --c-danger: #ff8585;
@@ -425,6 +431,21 @@ input, select, textarea {
   animation: toastIn 0.28s cubic-bezier(0.34, 1.45, 0.64, 1);
 }
 
+/* Biến thể của .toast-in cho dải NEO ĐÁY chạy hết bề ngang (định vị bằng left/right, không phải
+   "left: 50%" căn giữa). .toast-in gốc giữ transform ở translateX(-50%) SUỐT animation — đúng cho
+   một khối định vị bằng left:50% cần tự trừ lại nửa bề rộng của nó để nằm giữa, nhưng áp lên một
+   khối đã kéo hết bề ngang bằng left/right thì khối bị xô lệch nửa bề rộng của chính nó trong lúc
+   chạy rồi giật ngược lại đúng chỗ ngay khi animation vừa dứt — một cú giật ngay lúc mắt vẫn đang
+   nhìn theo nó trồi lên. */
+@keyframes toastInFull {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast-in-full {
+  animation: toastInFull 0.28s cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
 @keyframes pulseGlow {
   0% { opacity: 0; }
   20% { opacity: 1; }
@@ -556,7 +577,8 @@ input, select, textarea {
   .mind-found,
   .mind-tool-slider,
   .fade-in,
-  .toast-in {
+  .toast-in,
+  .toast-in-full {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

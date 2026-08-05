@@ -9829,11 +9829,17 @@ function MindmapScreen({
   // vốn là state của component đó. Thêm một tiêu đề nữa ở đây là hai thanh chồng nhau, ăn mất chiều
   // cao của mặt vẽ trên màn hình điện thoại.
   return (
-    <div className="h-full flex flex-col">
-      {/* Nằm trong luồng bố cục bình thường (không float đè lên canvas) — bảng vẽ có sẵn 2 cụm công
-          cụ neo ở góc dưới trái/phải (xem MindmapBoard.tsx), nổi đè lên đó vừa che vừa dễ bấm nhầm. */}
+    <div className="h-full flex flex-col relative">
+      {/* Nổi ĐÈ lên canvas thay vì chiếm một hàng riêng trong luồng bố cục — bảng vẽ vốn đã eo hẹp
+          chiều cao trên điện thoại, một hàng nhắc nhở không liên quan gì tới nội dung đang xem/vẽ
+          không nên trừ thẳng vào đó mỗi lần hiện ra. Neo ở `64px` từ đáy: cụm phóng-thu/radar của
+          MindmapBoard đứng ở `bottom-4`/`bottom-[60px]`, nhắc nhở đứng cao hơn hẳn hai cụm đó nên
+          không chồng lên nút nào của chúng dù đang cùng hiện ra. */}
       {showBackupReminder && (
-        <div className="flex-none flex items-center gap-2.5 mx-3 mb-2 px-4 py-2.5 rounded-2xl" style={{ background: "rgba(15,23,42,.94)" }}>
+        <div
+          className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-30"
+          style={{ left: 12, right: 12, bottom: "calc(64px + var(--safe-bottom))", background: "rgba(15,23,42,.94)" }}
+        >
           <span className="flex-1 text-[12.5px] text-white leading-snug">
             Đã lâu chưa sao lưu — dữ liệu chỉ nằm trên máy này, mất máy là mất hết.
           </span>

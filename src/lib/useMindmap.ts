@@ -168,5 +168,30 @@ export function useMindmap(boardId: string) {
     })
   }, [])
 
-  return { data, loading, savedTick, updateNodes, updateEdges, updateStrokes, updateImages, replaceAll, importMerge, undoStore }
+  // `data`/`loading` bên trên có một khe hở NGẮN mỗi lần đổi bảng: ngay khung hình đầu tiên sau khi
+  // `boardId` đổi, hai state đó VẪN còn mang giá trị của bảng CŨ (loading=false, data=bảng cũ) —
+  // effect nạp bảng mới ở trên chạy SAU khung hình đó, không phải cùng lúc. Khung hình đó vẫn được
+  // vẽ ra bình thường (React không "nhịn vẽ" để đợi effect), nên bất cứ ai đọc `loading`/`data` ngay
+  // lúc `boardId` vừa đổi sẽ thấy một cặp giá trị "loading=false" đi kèm dữ liệu SAI BẢNG.
+  //
+  // `boardIdRef.current` chỉ được cập nhật đúng lúc load THẬT SỰ xong (bên trong effect ở trên) —
+  // nên nó chính là "boardId mà `data` hiện tại đang thật sự phản ánh". Lệch với `boardId` (tham số)
+  // nghĩa là đang ở đúng khe hở đó; lộ ra ngoài `data`/`loading` RAW lúc này là lộ đúng dữ liệu sai
+  // bảng, nên phải thay bằng cặp "đang tải" an toàn.
+  const isCurrent = boardIdRef.current === boardId
+  const safeData = isCurrent ? data : DEFAULT_MINDMAP
+  const safeLoading = isCurrent ? loading : true
+
+  return {
+    data: safeData,
+    loading: safeLoading,
+    savedTick,
+    updateNodes,
+    updateEdges,
+    updateStrokes,
+    updateImages,
+    replaceAll,
+    importMerge,
+    undoStore,
+  }
 }

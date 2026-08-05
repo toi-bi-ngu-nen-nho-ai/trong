@@ -942,10 +942,28 @@ export function MindmapBoard({
   const visibleData: MindmapData = { nodes: visibleNodes, edges: visibleEdges, strokes, images }
 
   // ─── Chế độ chỉ đọc ───────────────────────────────────────────────────────
-  // Mở bảng ra là CHỈ ĐỌC. Lý do: phần lớn lần mở một sơ đồ đã vẽ xong là để XEM lại, mà ở chế độ
-  // vẽ thì mỗi lần chạm nhầm vào mặt bảng đều để lại một vệt mực hoặc xê dịch một thẻ. Muốn sửa thì
-  // bấm một nút — rõ ràng và cố ý.
+  // Bảng ĐÃ CÓ NỘI DUNG mở ra là CHỈ ĐỌC. Lý do: phần lớn lần mở một sơ đồ đã vẽ xong là để XEM lại,
+  // mà ở chế độ vẽ thì mỗi lần chạm nhầm vào mặt bảng đều để lại một vệt mực hoặc xê dịch một thẻ.
+  // Muốn sửa thì bấm một nút — rõ ràng và cố ý.
+  //
+  // Bảng TRỐNG (chỉ có đúng thẻ trung tâm mặc định, chưa vẽ chưa thêm gì) thì mở sẵn ở chế độ SỬA:
+  // một bảng chưa có gì để "xem lại" — buộc phải bấm thêm một nút trước khi viết được chữ đầu tiên
+  // là một bước thừa, không bảo vệ được gì cả vì chưa có nội dung nào để lỡ tay làm hỏng.
+  //
+  // KHÔNG quyết định bằng `useState(() => ...)` đọc `data` ngay lúc mount: `data`/`loading` đến từ
+  // useMindmap() ở App.tsx, nạp bất đồng bộ từ IndexedDB — đọc `data` ngay lúc mount có thể vẫn là
+  // dữ liệu tạm (mặc định hoặc còn sót của bảng trước). Phải đợi `loading` về `false` (nạp xong THẬT,
+  // useMindmap() đã tự đảm bảo không lộ dữ liệu sai bảng ra prop này — xem ghi chú ở đó) rồi mới đọc.
   const [readOnly, setReadOnly] = useState(true)
+  // Đã tự quyết định readOnly cho lượt mở này chưa — chỉ quyết ĐÚNG MỘT LẦN. Sau đó readOnly hoàn
+  // toàn do người dùng bấm nút, không tự nhảy qua nhảy lại theo nội dung đổi trong lúc đang sửa.
+  const autoEditDecidedRef = useRef(false)
+  useEffect(() => {
+    if (autoEditDecidedRef.current || loading) return
+    autoEditDecidedRef.current = true
+    if (nodes.length <= 1 && strokes.length === 0 && images.length === 0) setReadOnly(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, nodes.length, strokes.length, images.length])
   const [rawTool, setTool] = useState<Tool>("hand")
   // Ở chế độ chỉ đọc, mọi công cụ đều coi như "tay": không vẽ, không tẩy, không khoanh, không nối —
   // chỉ kéo và phóng-thu. Ép ở ĐÚNG MỘT chỗ này thay vì rải `if (readOnly)` khắp các nhánh xử lý
@@ -962,6 +980,9 @@ export function MindmapBoard({
   // tự đóng khi đổi bút — thanh tự biến mất giữa lúc đang chọn màu là cách nhanh nhất làm hỏng mạch
   // thao tác.
   const [penBarOpen, setPenBarOpen] = useState(false)
+  // Thanh trên và thanh công cụ tự mờ đi khi đang vẽ, để tay và mắt tập trung hết vào nét đang đi —
+  // xem noteDrawActivity()/revealChrome() và khối style ở thanh trên/thanh công cụ.
+  const [chromeHidden, setChromeHidden] = useState(false)
   // Thanh bút gắn vào mép nào của bảng — xem BarPos. Mặc định dính mép TRÊN, ngay dưới hàng công cụ:
   // đó là chỗ mọi app ghi chép đặt thanh bút, và cũng là chỗ ít che phần giấy đang viết nhất.
   const [barPos, setBarPos] = useState<BarPos>(() => readBarPos() ?? { dock: "top", f: 0.12 })
@@ -1012,6 +1033,9 @@ export function MindmapBoard({
   // không có một "ô" cố định trên bảng để đặt textarea đè lên như thẻ ghi chú.
   const [editingEdgeLabel, setEditingEdgeLabel] = useState<{ from: string; to: string; text: string; kind: "relationship" | "algorithm" } | null>(null)
   const [zoomPct, setZoomPct] = useState(100)
+  // Cụm phóng-thu ở góc dưới trái mặc định chỉ hiện viên phần trăm; chạm vào mới bung ra bốn nút
+  // còn lại — xem openZoomCluster()/bumpZoomCluster().
+  const [zoomClusterOpen, setZoomClusterOpen] = useState(false)
   const [canUndo, setCanUndo] = useState(() => undoStore.undo.length > 0)
   const [canRedo, setCanRedo] = useState(() => undoStore.redo.length > 0)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -1086,6 +1110,12 @@ export function MindmapBoard({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const findInputRef = useRef<HTMLInputElement>(null)
   const foundTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Đếm ngược lúc nào thanh trên/thanh công cụ hiện lại — xem noteDrawActivity().
+  const chromeHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Đếm ngược lúc nào radar tự mờ đi — xem showRadar() trong applyView().
+  const radarHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Đếm ngược lúc nào cụm phóng-thu tự thu lại — xem openZoomCluster()/bumpZoomCluster().
+  const zoomClusterTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const view = useRef({ x: 24, y: 24, zoom: 1 })
   const paperRef = useRef(paper)
@@ -1213,6 +1243,25 @@ export function MindmapBoard({
       s.style.backgroundPosition = `${x}px ${y}px`
     }
     drawMinimapViewport()
+    showRadar()
+  }
+
+  // Radar chỉ hiện trong lúc khung nhìn đang đổi và một nhịp ngắn sau đó — bảng ít nội dung hoặc
+  // đang đứng yên thì một khung nhỏ luôn nổi ở góc chỉ thêm rối mắt mà không nói lên điều gì. Viết
+  // trực tiếp vào style qua ref (không qua state) vì applyView() chạy ở tần suất một khung hình mỗi
+  // lần trong lúc kéo/phóng — setState ở đó sẽ dựng lại cả cây React mỗi lần rê ngón tay.
+  function showRadar() {
+    const el = minimapPanelRef.current
+    if (!el) return
+    el.style.opacity = "1"
+    el.style.pointerEvents = "auto"
+    if (radarHideTimer.current) clearTimeout(radarHideTimer.current)
+    radarHideTimer.current = setTimeout(() => {
+      const cur = minimapPanelRef.current
+      if (!cur) return
+      cur.style.opacity = "0"
+      cur.style.pointerEvents = "none"
+    }, 1500)
   }
 
   // Khung trắng nhỏ trong radar thể hiện đúng phần bảng đang nhìn thấy — vẽ lại mỗi lần pan/zoom đổi.
@@ -1491,6 +1540,30 @@ export function MindmapBoard({
   }
 
   // Phóng quanh một điểm trên MÀN HÌNH (mặc định là giữa mặt bảng) — giữ đúng điểm đó tại chỗ.
+  // ─── Cụm phóng-thu: mở/thu ─────────────────────────────────────────────────
+  // Xem A2 — mặc định chỉ hiện viên phần trăm, chạm vào mới bung ra −/+/vừa khung/ô viết phóng to.
+
+  function openZoomCluster() {
+    setZoomClusterOpen(true)
+    tickHaptic()
+    bumpZoomCluster()
+  }
+
+  // Chạm vào bất kỳ nút nào trong cụm (đang mở) thì đẩy lại giờ tự thu — mỗi lần dùng là một lần
+  // "vẫn còn đang cần nó", không đáng để nó biến mất giữa lúc đang bấm liên tiếp.
+  function bumpZoomCluster() {
+    if (zoomClusterTimer.current) clearTimeout(zoomClusterTimer.current)
+    zoomClusterTimer.current = setTimeout(() => setZoomClusterOpen(false), 3000)
+  }
+
+  function closeZoomCluster() {
+    if (zoomClusterTimer.current) {
+      clearTimeout(zoomClusterTimer.current)
+      zoomClusterTimer.current = null
+    }
+    setZoomClusterOpen(false)
+  }
+
   function zoomAround(nextZoom: number, sx?: number, sy?: number, ms = 200) {
     const rect = surfaceRect()
     const cx = sx ?? rect.width / 2
@@ -2774,6 +2847,7 @@ export function MindmapBoard({
     // không phải nét tay. Khác nhau đúng một chỗ — băng dính luôn là một DẢI THẲNG, xử lý ở phần
     // kéo bên dưới.
     if (tool === "shape" || tool === "tape") {
+      noteDrawActivity()
       action.current = { kind: "shape", sx: p.x, sy: p.y }
       draftPts.current = [p.x, p.y]
       draftWidths.current = null
@@ -3359,8 +3433,17 @@ export function MindmapBoard({
         if (act.target === "node") {
           const n = nodes.find((x) => x.id === act.id)
           if (n) {
-            if (sel?.kind === "node" && sel.id === n.id) openEditor(n)
-            else {
+            if (sel?.kind === "node" && sel.id === n.id) {
+              // Đang CHỈ ĐỌC mà vẫn chạm lại vào đúng thẻ đang chọn để mở ô sửa: đây là ý định RÕ
+              // RÀNG muốn sửa ngay thẻ này, không phải chạm nhầm — chuyển hẳn cả bảng sang chế độ sửa
+              // (không chỉ mở riêng ô này) để những gì gõ tiếp theo (thêm nhánh, đổi màu…) cũng đi
+              // vào đúng chế độ, không phải bật lại "Đang sửa" thêm một lần nữa ngay sau đó.
+              if (readOnly) {
+                setReadOnly(false)
+                tickHaptic()
+              }
+              openEditor(n)
+            } else {
               setSel({ kind: "node", id: n.id })
               tickHaptic()
             }
@@ -3715,11 +3798,47 @@ export function MindmapBoard({
     return () => clearTimeout(t)
   }, [savedTick])
 
+  // ─── Chrome tự ẩn khi đang vẽ ─────────────────────────────────────────────
+  //
+  // Thanh trên và thanh công cụ là hai dải viền/nút không liên quan gì tới nội dung đang viết — giữ
+  // chúng lù lù trên màn suốt lúc tay đang đi từng nét là một dải xao nhãng ở mép mắt. Mờ đi trong
+  // lúc vẽ, hiện lại ngay khi tay ngừng một nhịp hoặc khi chạm lên mép trên.
+  //
+  // Chỉ mờ ở CHẾ ĐỘ SỬA: readOnly không bao giờ gọi tới hàm này (không có nét nào để bắt đầu), nên
+  // không cần chặn riêng — nhưng vẫn kiểm tránh trường hợp gọi nhầm từ chỗ khác sau này.
+  function noteDrawActivity() {
+    if (readOnly) return
+    setChromeHidden(true)
+    if (chromeHideTimer.current) clearTimeout(chromeHideTimer.current)
+    chromeHideTimer.current = setTimeout(() => setChromeHidden(false), 1200)
+    // Bắt đầu vẽ cũng là một điều kiện tự thu của cụm phóng-thu (xem A2) — tay đã đặt bút xuống
+    // rồi thì cụm đang bung, nếu còn, chỉ đứng giữa đường vẽ và ngón tay.
+    closeZoomCluster()
+  }
+
+  // Chạm lên dải 24px sát mép trên → hiện lại ngay, không đợi hết giờ. Đây là lối thoát cho lúc
+  // đang vẽ liên tục (chrome cứ mờ) mà cần bấm một nút trên thanh trên/thanh công cụ.
+  function revealChrome() {
+    if (chromeHideTimer.current) {
+      clearTimeout(chromeHideTimer.current)
+      chromeHideTimer.current = null
+    }
+    setChromeHidden(false)
+  }
+
+  // Đang CHUYỂN sang chỉ đọc thì trả chrome về hiện ngay — không đợi bộ đếm 1200ms hết giờ, và
+  // không để lần sau bật sửa lại thấy chrome vẫn đang mờ từ phiên trước.
+  useEffect(() => {
+    if (readOnly) revealChrome()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly])
+
   // ─── Bắt đầu một nét / một lượt tẩy ───────────────────────────────────────
   // Tách riêng vì có HAI mặt vẽ gọi tới: bảng chính và ô viết phóng to. Viết hai bản là chắc chắn
   // sẽ trôi lệch nhau — sửa một bên quên bên kia.
 
   function beginInk(e: ReactPointerEvent, p: { x: number; y: number }) {
+    noteDrawActivity()
     action.current = { kind: "draw" }
     draftPts.current = [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10]
     // Bộ lọc rung mới cho mỗi nét, mồi bằng đúng điểm đặt bút để đầu nét không bị kéo lệch.
@@ -3745,6 +3864,7 @@ export function MindmapBoard({
   }
 
   function beginErase(e: ReactPointerEvent, p: { x: number; y: number }) {
+    noteDrawActivity()
     action.current = { kind: "erase" }
     erased.current.clear()
     erasedParts.current.clear()
@@ -4168,13 +4288,35 @@ export function MindmapBoard({
     return edgeGeometry(a, b).mid
   })()
 
+  // Chrome mờ đi khi đang vẽ — KHÔNG unmount, chỉ mờ/dịch/tắt chạm: unmount thanh trên lúc ô tìm
+  // đang mở sẽ làm mất tiêu điểm ô nhập, và unmount thanh công cụ thì bố cục giật một nhịp mỗi lần
+  // ẩn/hiện vì flex phải tính lại chiều cao.
+  const chromeStyle: React.CSSProperties = chromeHidden
+    ? { opacity: 0, transform: "translateY(-8px)", pointerEvents: "none", transition: "opacity 0.18s ease, transform 0.18s ease" }
+    : { opacity: 1, transform: "translateY(0)", transition: "opacity 0.18s ease, transform 0.18s ease" }
+
   return (
     <div className="h-full flex flex-col relative">
+      {/* Dải hiện lại chrome — chỉ CÓ MẶT (pointer-events) lúc chrome đang mờ. Nằm ĐÈ LÊN thanh trên
+          (z cao hơn) nhưng vì thanh trên lúc đó đang pointer-events:none nên không giẫm lên việc
+          bấm nút của nó khi chrome đã hiện lại — dải này tự biến mất (pointer-events:none) ngay khi
+          chromeHidden về false. */}
+      {chromeHidden && (
+        <div
+          className="absolute left-0 right-0 top-0 z-50"
+          style={{ height: 24 }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            revealChrome()
+          }}
+        />
+      )}
+
       {/* ─── Thanh trên: luôn hiện ở CẢ hai chế độ ──────────────────────
           Chứa đúng những việc không phải là vẽ: về danh sách, tên bảng, bật/tắt chỉnh sửa, xuất
           file, và các cài đặt của bảng. Nhờ vậy ở chế độ chỉ đọc màn hình vẫn dùng được đầy đủ chứ
-          không phải một bảng chết chỉ để nhìn. */}
-      <div className="flex-none flex items-center gap-1 px-3 py-2 relative z-40">
+          không phải một bảng chết chỉ để nhìn. Mờ đi khi đang vẽ (chromeStyle) — xem noteDrawActivity(). */}
+      <div className="flex-none flex items-center gap-1 px-3 py-2 relative z-40" style={chromeStyle}>
         <IconBtn icon={mi.home} hint="Về danh sách bảng" onClick={() => onGoHome?.()} />
 
         {/* Ô tìm CHIẾM CHỖ của tên bảng khi đang mở, không phải một lớp nổi đè lên mặt bảng: đang
@@ -4246,7 +4388,9 @@ export function MindmapBoard({
           style={
             readOnly
               ? { borderColor: "var(--c-line)", background: "var(--c-line-soft)", color: "var(--c-text-soft)" }
-              : { borderColor: "var(--c-primary)", background: "var(--c-primary)", color: "var(--c-on-bright)" }
+              // Nền đặc chỉ dành cho nút "＋ Thêm" (hành động chính) và con trượt công cụ đang chọn —
+              // nút công tắc này chỉ BÁO TRẠNG THÁI, không phải một hành động nổi bật cần lôi mắt.
+              : { borderColor: "var(--c-primary)", background: "transparent", color: "var(--c-primary)" }
           }
         >
           {readOnly ? mi.readOnly("w-[18px] h-[18px]") : mi.pen("w-[18px] h-[18px]")}
@@ -4332,7 +4476,7 @@ export function MindmapBoard({
           {colorFilter.size > 0 && (
             <span
               className="absolute rounded-full pointer-events-none"
-              style={{ top: 3, right: 3, width: 7, height: 7, background: "#e8007d", border: "1.5px solid var(--c-surface)" }}
+              style={{ top: 3, right: 3, width: 7, height: 7, background: "var(--c-accent-2)", border: "1.5px solid var(--c-surface)" }}
             />
           )}
         </span>
@@ -4340,9 +4484,10 @@ export function MindmapBoard({
         )}
       </div>
 
-      {/* ─── Thanh công cụ vẽ — chỉ hiện khi ĐANG SỬA ───────────────────── */}
+      {/* ─── Thanh công cụ vẽ — chỉ hiện khi ĐANG SỬA ─────────────────────
+          Mờ đi khi đang vẽ, cùng nhịp với thanh trên — xem chromeStyle/noteDrawActivity(). */}
       {!readOnly && (
-      <div className="flex-none px-3 pb-2 relative z-30">
+      <div className="flex-none px-3 pb-2 relative z-30" style={chromeStyle}>
         <div className="flex items-center gap-1.5 overflow-x-auto -mx-3 px-3">
           <div
             className="flex-none flex items-center rounded-2xl border p-0.5 relative"
@@ -5833,6 +5978,25 @@ export function MindmapBoard({
           </div>
         )}
 
+        {/* Gợi ý cử chỉ trên bảng TRỐNG — chỉ hiện lúc chưa có gì để mất công đọc hướng dẫn dài
+            (menu "…" đã có bảng phím tắt đầy đủ cho người cần tra lại). Tự mất ngay khi có nét/thẻ
+            đầu tiên, không cần cờ "đã xem" nào — điều kiện rỗng tự đúng lúc bảng còn trống và tự
+            sai ngay sau đó, không có trường hợp phải nhớ lại. */}
+        {strokes.length === 0 && nodes.length <= 1 && images.length === 0 && !readOnly && (
+          <div
+            className="absolute inset-0 flex items-center justify-center px-10 text-center"
+            style={{ pointerEvents: "none" }}
+          >
+            <p style={{ color: "var(--c-muted)", fontSize: 12.5, lineHeight: 1.7 }}>
+              Hai ngón để di chuyển bảng
+              <br />
+              Giữ yên tay cuối nét để nắn thành hình
+              <br />
+              ＋ để thêm ghi chú, ảnh hoặc bài trong app
+            </p>
+          </div>
+        )}
+
         {/* Radar góc trên phải — thu nhỏ toàn bộ nội dung để biết đang xem ở đâu, chạm/kéo để nhảy tới
             đó ngay. Ẩn khi bảng trống (mmMap null: chưa có gì để làm radar) hoặc lúc đang gõ tìm kiếm
             (ô tìm cũng neo gần góc này trên máy hẹp, hai thứ đè lên nhau thì rối hơn là giúp). */}
@@ -5847,7 +6011,11 @@ export function MindmapBoard({
             // Nằm ngay TRÊN cụm phóng-thu ở góc dưới trái, không còn ở góc trên phải. Hai thứ này
             // trả lời cùng một câu hỏi — "tôi đang xem chỗ nào, ở cỡ nào" — nên để cạnh nhau thì
             // mắt không phải chạy chéo màn hình, và góc trên phải được trả lại cho nội dung bảng.
-            className="mind-pop absolute left-3 rounded-xl border overflow-hidden z-10"
+            //
+            // Không dùng class "mind-pop": hoạt ảnh bật lên của nó tự chạy opacity 0→1 mỗi lần
+            // component này được dựng lại, giẫm lên đúng thứ showRadar()/applyView() đang điều
+            // khiển bằng tay (ẩn/hiện theo pan-zoom, không phải theo lúc mount).
+            className="absolute left-3 rounded-xl border overflow-hidden z-10"
             style={{
               bottom: 60,
               width: MM_W,
@@ -5857,6 +6025,10 @@ export function MindmapBoard({
               backdropFilter: "blur(6px)",
               touchAction: "none",
               cursor: "crosshair",
+              // Mặc định ẨN — chỉ hiện khi showRadar() bật lên lúc pan/zoom, xem applyView().
+              opacity: 0,
+              pointerEvents: "none",
+              transition: "opacity 0.25s ease",
             }}
           >
             {images.map((im) => {
@@ -5909,61 +6081,100 @@ export function MindmapBoard({
 
         {/* ─── Nút nổi trên mặt bảng ───────────────────────────────────── */}
 
-        {/* Phóng - thu, góc dưới trái */}
+        {/* ─── Cụm phóng-thu, góc dưới trái ──────────────────────────────
+            Mặc định chỉ một viên phần trăm — bốn nút kia (−, +, vừa khung, ô viết phóng to) chỉ
+            thật sự cần khi đang chủ động chỉnh khung nhìn, mà lại thường trực chiếm chỗ suốt phiên
+            làm việc. Chạm vào viên phần trăm để bung cả cụm ra, tự thu lại sau 3s không đụng tới
+            hoặc ngay khi bắt đầu vẽ (xem openZoomCluster/bumpZoomCluster/closeZoomCluster). */}
         <div className="absolute left-3 bottom-4 flex items-center gap-2" onPointerDown={stopPointer}>
           <div
-            className="flex items-center rounded-2xl border p-0.5"
+            className={`flex items-center rounded-2xl border p-0.5 ${zoomClusterOpen ? "mind-pop" : ""}`}
             style={{ borderColor: "var(--c-line)", background: "var(--c-float-bg)", backdropFilter: "blur(6px)" }}
           >
-            <IconBtn icon={mi.minus} hint="Thu nhỏ" size={36} onClick={() => zoomAround(view.current.zoom / 1.35)} />
+            {zoomClusterOpen && (
+              <IconBtn
+                icon={mi.minus}
+                hint="Thu nhỏ"
+                size={36}
+                onClick={() => {
+                  zoomAround(view.current.zoom / 1.35)
+                  bumpZoomCluster()
+                }}
+              />
+            )}
             <button
               type="button"
-              onClick={() => animateView({ x: view.current.x, y: view.current.y, zoom: 1 })}
+              onClick={() => {
+                if (!zoomClusterOpen) {
+                  openZoomCluster()
+                  return
+                }
+                animateView({ x: view.current.x, y: view.current.y, zoom: 1 })
+                bumpZoomCluster()
+              }}
               className="mind-btn px-1 h-8 text-[11px] font-bold tabular-nums"
               style={{ color: "var(--c-text-soft)", minWidth: 40 }}
-              title="Về tỉ lệ 100%"
+              title={zoomClusterOpen ? "Về tỉ lệ 100%" : "Mở cụm phóng-thu"}
             >
               {zoomPct}%
             </button>
-            <IconBtn icon={mi.plus} hint="Phóng to" size={36} onClick={() => zoomAround(view.current.zoom * 1.35)} />
+            {zoomClusterOpen && (
+              <IconBtn
+                icon={mi.plus}
+                hint="Phóng to"
+                size={36}
+                onClick={() => {
+                  zoomAround(view.current.zoom * 1.35)
+                  bumpZoomCluster()
+                }}
+              />
+            )}
           </div>
-          <button
-            type="button"
-            onClick={fitToContent}
-            title="Thu cả bảng vừa khung"
-            aria-label="Thu cả bảng vừa khung"
-            className="mind-btn w-9 h-9 rounded-2xl border flex items-center justify-center"
-            style={{
-              borderColor: "var(--c-line)",
-              background: "var(--c-float-bg)",
-              color: "var(--c-text-soft)",
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            {mi.fit("w-[18px] h-[18px]")}
-          </button>
-          {/* Nút tìm thẻ đã chuyển lên thanh trên, chung hàng với tên bảng. */}
-          {/* Ô viết phóng to — đặt cạnh phóng-thu vì cùng là chuyện "nhìn bảng ở cỡ nào", chỉ khác
-              là nó phóng riêng một ô để VIẾT thay vì phóng cả bảng. */}
-          <button
-            type="button"
-            onClick={() => {
-              if (zoomBox) setZoomBox(null)
-              else openZoomBox()
-            }}
-            title="Ô viết phóng to"
-            aria-label="Ô viết phóng to"
-            aria-pressed={zoomBox != null}
-            className="mind-btn w-9 h-9 rounded-2xl border flex items-center justify-center"
-            style={{
-              borderColor: zoomBox ? "var(--c-primary)" : "var(--c-line)",
-              background: zoomBox ? "var(--c-primary)" : "var(--c-float-bg)",
-              color: zoomBox ? "var(--c-on-bright)" : "var(--c-text-soft)",
-              backdropFilter: "blur(6px)",
-            }}
-          >
-            {mi.writeBox("w-[18px] h-[18px]")}
-          </button>
+          {zoomClusterOpen && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  fitToContent()
+                  bumpZoomCluster()
+                }}
+                title="Thu cả bảng vừa khung"
+                aria-label="Thu cả bảng vừa khung"
+                className="mind-btn mind-pop w-9 h-9 rounded-2xl border flex items-center justify-center"
+                style={{
+                  borderColor: "var(--c-line)",
+                  background: "var(--c-float-bg)",
+                  color: "var(--c-text-soft)",
+                  backdropFilter: "blur(6px)",
+                }}
+              >
+                {mi.fit("w-[18px] h-[18px]")}
+              </button>
+              {/* Nút tìm thẻ đã chuyển lên thanh trên, chung hàng với tên bảng. */}
+              {/* Ô viết phóng to — đặt cạnh phóng-thu vì cùng là chuyện "nhìn bảng ở cỡ nào", chỉ khác
+                  là nó phóng riêng một ô để VIẾT thay vì phóng cả bảng. */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (zoomBox) setZoomBox(null)
+                  else openZoomBox()
+                  bumpZoomCluster()
+                }}
+                title="Ô viết phóng to"
+                aria-label="Ô viết phóng to"
+                aria-pressed={zoomBox != null}
+                className="mind-btn mind-pop w-9 h-9 rounded-2xl border flex items-center justify-center"
+                style={{
+                  borderColor: zoomBox ? "var(--c-primary)" : "var(--c-line)",
+                  background: zoomBox ? "var(--c-primary)" : "var(--c-float-bg)",
+                  color: zoomBox ? "var(--c-on-bright)" : "var(--c-text-soft)",
+                  backdropFilter: "blur(6px)",
+                }}
+              >
+                {mi.writeBox("w-[18px] h-[18px]")}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Thêm nội dung, góc dưới phải */}
