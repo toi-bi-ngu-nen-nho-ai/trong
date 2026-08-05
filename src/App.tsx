@@ -5742,6 +5742,11 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     setDropFactor(w.dropFactor ?? DEFAULT_DROP_FACTOR)
     setDeliveryDevice(w.deliveryDevice ?? "drip")
     setAllowWithdraw(w.allowWithdraw ?? false)
+    // Liều rút riêng của chai cố định không được lưu trong công thức (WardRecipe không có trường
+    // này) — không xoá thì con số RÚT của công thức trước đó (thường không khớp hàm lượng/số chai
+    // vừa nạp) tiếp tục nằm lại, có thể vượt hẳn tổng hàm lượng mới và làm cả khối "Cách dùng" biến
+    // mất (xem fixedImpossible bên dưới).
+    setFixedDoseAmount("")
     setActiveRecipeId(w.id)
     tickHaptic()
   }
@@ -5764,6 +5769,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     setDropFactor(DEFAULT_DROP_FACTOR)
     setDeliveryDevice("drip")
     setAllowWithdraw(false)
+    setFixedDoseAmount("")
     setActiveRecipeId("system")
     tickHaptic()
   }
@@ -5990,15 +5996,9 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Số chai</label>
-              <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Liều cần lấy (tuỳ chọn — bỏ trống = dùng trọn)</label>
-              <input value={fixedDoseAmount} onChange={(e) => setFixedDoseAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="500" className={FIELD} style={FIELD_STYLE} />
-            </div>
+          <div className="mb-2">
+            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Số chai</label>
+            <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
           </div>
           {/* Gợi ý số chai (+ thể tích rút gộp nếu khoa cho rút) — bấm để áp dụng lại nếu vừa sửa tay
               lệch khỏi gợi ý. Thể tích rút làm tròn tới mốc trăm/năm mươi mL (khác thang với thể
