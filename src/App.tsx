@@ -36,6 +36,7 @@ import {
   gradeConcentration,
   infusionDurationHours,
   partialDraw,
+  pickEasiestVialCount,
   pickEasiestVolume,
   pumpRateMlPerHour,
   roundToStep,
@@ -50,7 +51,7 @@ import {
 import { formatAmpouleUsage, formatFixedUsage, formatVialUsage } from "./lib/usageText"
 import { formatSavedAt, importWardRecipes, loadWardRecipes, removeWardRecipe, clearWardRecipesForDrug, saveWardRecipe, setPinnedWardRecipe, type WardRecipe } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
-import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass } from "./lib/perKgDose"
+import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
 import { MAX_LINES, STALE_AFTER_MS, formatAgo, formatClock, lineLabel, loadRunning, saveRunning, upsertRunning, type RunningDrug } from "./lib/runningDrugs"
 import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
@@ -5492,7 +5493,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
   )
 }
 
-function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
+function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTargetMg?: CappedDose | null }) {
   const { logCalc, wardRecipes, saveWard, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   // Công thức ĐANG XEM — có thể là một công thức đã lưu, hoặc công thức HỆ THỐNG (xem
@@ -5584,6 +5585,22 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
   // trên bơm tiêm điện (bước 0,1 ml/h), giống cách InfusionCalculator làm tròn roundedRate.
   const rateMlPerHourRaw = usePump ? pumpRateMlPerHour(infuseVolumeMl ?? NaN, minutes ?? NaN) : null
   const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
+
+  // Gợi ý số lọ/ống khớp khoảng liều (CrCl hoặc AdjBW đã tính sẵn ở AntibioticDoseCard, truyền
+  // xuống qua prop doseTargetMg) — chỉ cần nhập hàm lượng 1 lọ/ống, app tự tính số lọ thay vì bắt tự
+  // nhẩm khoảng liều rồi gõ tay. CHỈ áp dụng ở chế độ bơm tiêm điện, đúng theo yêu cầu, và im lặng
+  // (không tự bịa số lọ) khi chưa biết khoảng liều thật (vd liều "theo nồng độ đo được").
+  const vialCountSuggestion = useMemo(() => {
+    if (!usePump || !doseTargetMg || !(va > 0)) return null
+    const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
+    const toDoseUnit = massFactor(vialUnit, doseTargetMg.unit)
+    if (toVialUnit == null || toDoseUnit == null) return null
+    const loInVialUnit = doseTargetMg.low * toVialUnit
+    const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
+    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, va)
+    if (count == null) return null
+    return { count, totalInDoseUnit: count * va * toDoseUnit }
+  }, [usePump, doseTargetMg, va, vialUnit])
 
   const pill = (on: boolean) =>
     on
@@ -5845,6 +5862,23 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
               <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
             </div>
           </div>
+
+          {/* Bơm tiêm điện: gợi ý số lọ/ống khớp khoảng liều — bấm để điền vào ô "Số {vialLabel}" ở
+              trên, vẫn sửa tay được bình thường (đây là gợi ý, không phải giá trị bị khoá). */}
+          {usePump && vialCountSuggestion && doseTargetMg && (
+            <button
+              onClick={() => {
+                setVials(String(vialCountSuggestion.count))
+                tickHaptic()
+              }}
+              className="w-full text-left text-[11px] leading-[1.45] font-semibold mb-2 px-2.5 py-2 rounded-xl underline decoration-dotted"
+              style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
+            >
+              Gợi ý {trim(vialCountSuggestion.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.totalInDoseUnit)} {doseTargetMg.unit} — khớp khoảng liều{" "}
+              {formatDoseNumber(doseTargetMg.low)}
+              {doseTargetMg.high != null ? `–${formatDoseNumber(doseTargetMg.high)}` : ""} {doseTargetMg.unit})
+            </button>
+          )}
 
           {/* Xếp dọc, mỗi ô một hàng riêng — không ghép ngang: "Thể tích bột tăng sau pha" luôn dài hơn
               hẳn "Pha ban đầu với", và độ dài {vialLabel} (lọ/ống/chai) đổi theo từng thuốc nên không
@@ -6552,7 +6586,7 @@ function AntibioticDoseCard({
               >
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
-              {showMix && <AntibioticMixPanel drug={drug} />}
+              {showMix && <AntibioticMixPanel drug={drug} doseTargetMg={doseTargetMg} />}
             </>
           )}
         </Disclosure>

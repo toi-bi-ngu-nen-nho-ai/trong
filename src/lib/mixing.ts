@@ -187,6 +187,22 @@ export function pickEasiestVolume(loMl: number, hiMl: number): number {
   return Math.round(((lo + hi) / 2) * 10) / 10
 }
 
+// Cùng triết lý với pickEasiestVolume() nhưng chọn SỐ LỌ/ỐNG thay vì thể tích — dùng khi bơm tiêm
+// điện: người pha nhập hàm lượng 1 lọ/ống, app gợi ý luôn số lọ khớp khoảng liều (theo CrCl hoặc
+// AdjBW) thay vì bắt tự nhẩm rồi gõ tay. Ưu tiên số NGUYÊN lọ (dễ lấy nhất, không phải chia lẻ một
+// lọ bột đang hoàn nguyên dở) — chỉ lùi xuống bước 0,5 lọ khi không lọ nguyên nào rơi vào khoảng.
+// Trả về null (không ép ra một số) nếu không có bước nào khớp — im lặng còn hơn gợi ý sai.
+export function pickEasiestVialCount(loAmount: number, hiAmount: number, vialAmount: number): number | null {
+  if (!(vialAmount > 0) || !(hiAmount > 0)) return null
+  const lo = Math.min(loAmount, hiAmount) / vialAmount
+  const hi = Math.max(loAmount, hiAmount) / vialAmount
+  for (const step of [1, 0.5]) {
+    const candidate = Math.floor(hi / step + 1e-9) * step
+    if (candidate > 0 && candidate >= lo - 1e-9) return Math.round(candidate * 100) / 100
+  }
+  return null
+}
+
 // Bơm/chai `volumeMl` mL chạy ở `rate` mL/giờ thì hết sau bao nhiêu giờ.
 export function infusionDurationHours(volumeMl: number, rate: number): number | null {
   if (!(volumeMl > 0) || !(rate > 0)) return null
