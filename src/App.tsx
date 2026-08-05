@@ -1160,13 +1160,13 @@ function HomeScreen({
       {/* Clinical Resources */}
       <div className="mb-6">
         <h2 className="px-5 text-lg font-bold text-slate-900 mb-3">Truy cập nhanh</h2>
-        <div className="flex gap-3 overflow-x-auto pl-5 pr-5 pb-1">
-          {resourceCards.map((c) => (
+        <div className="px-5">
+          {resourceCards.filter((c) => c.target.screen !== "comingSoon").map((c) => (
             <button
               key={c.label}
               onClick={() => onNavigate(c.target.screen, c.target.id)}
-              className="flex-none w-[136px] h-[152px] p-4 rounded-2xl border card-press text-left flex flex-col"
-              style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl mb-3 text-left"
+              style={{ background: "var(--c-primary-soft)" }}
             >
               <div
                 className="flex-none w-9 h-9 rounded-lg flex items-center justify-center"
@@ -1174,12 +1174,18 @@ function HomeScreen({
               >
                 {c.icon}
               </div>
-              <p className="flex-1 flex items-start font-bold text-slate-900 text-[14px] leading-tight line-clamp-2 mt-3">
-                {c.label}
-              </p>
-              <p className="flex-none text-sm text-slate-400">{cardCaption(c)}</p>
+              <div>
+                <p className="font-bold text-slate-900 text-[14px]">{c.label}</p>
+                <p className="text-sm text-slate-400">{cardCaption(c)}</p>
+              </div>
             </button>
           ))}
+          <div className="flex flex-wrap gap-x-4 gap-y-2 px-1">
+            {resourceCards.filter((c) => c.target.screen === "comingSoon").map((c) => (
+              <button key={c.label} onClick={() => onNavigate(c.target.screen, c.target.id)} className="text-[12px] text-slate-400">{c.label}</button>
+            ))}
+          </div>
+          <p className="text-[10.5px] text-slate-300 mt-1">Sắp ra mắt</p>
         </div>
       </div>
 
@@ -1188,8 +1194,8 @@ function HomeScreen({
         <h2 className="text-lg font-bold text-slate-900 mb-3">Học tập</h2>
         <button
           onClick={() => onNavigate("addEntry")}
-          className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left mb-2.5"
-          style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
+          className="w-full flex items-center gap-3 p-4 rounded-2xl card-press text-left"
+          style={{ background: "var(--c-surface)" }}
         >
           <div
             className="flex-none w-9 h-9 rounded-full flex items-center justify-center"
@@ -1202,10 +1208,10 @@ function HomeScreen({
             <p className="text-xs text-slate-400 mt-0.5">Nhập thêm dữ liệu mới vào kho kiến thức</p>
           </div>
         </button>
+        <div className="h-px mx-1" style={{ background: "var(--c-line-soft)" }} />
         <button
           onClick={() => onNavigate("dataSync")}
-          className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
-          style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
+          className="w-full flex items-center gap-3 p-4 rounded-2xl card-press text-left"
         >
           <div
             className="flex-none w-9 h-9 rounded-full flex items-center justify-center"
@@ -1240,10 +1246,7 @@ function HomeScreen({
           ? (
             // Chưa đọc bài nào thì nói thẳng là chưa có, KHÔNG lấy mấy bài đầu danh sách ra hiển thị
             // như bản trước — đó là thông tin sai, người dùng tưởng mình đã đọc rồi.
-            <div
-              className="flex items-center gap-3 p-4 rounded-2xl border"
-              style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
-            >
+            <div className="flex items-center gap-2 py-2">
               <span className="flex-none text-slate-300">{icons.clock()}</span>
               <p className="text-[13px] text-slate-500 leading-snug">
                 Chưa mở bài nào. Bài bạn đọc sẽ được ghi lại ở đây để mở lại cho nhanh.
@@ -1359,7 +1362,7 @@ function LibraryScreen({
         {/* Specialty list */}
         <div className="px-6 pb-6">
           <h2 className="text-base font-semibold text-slate-900 mb-3">Tất cả chuyên khoa</h2>
-          <div className="space-y-2">
+          <div className="divide-y" style={{ borderColor: "var(--c-line-soft)" }}>
             {SPECIALTIES.map((spec) => {
               const articleCount = countArticlesFor(spec.name, ARTICLES, customArticles)
               return (
@@ -1369,8 +1372,7 @@ function LibraryScreen({
                     setSelected(selected === spec.id ? null : spec.id)
                     onNavigate("specialty", spec.id)
                   }}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
-                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
+                  className="w-full flex items-center gap-3 py-3.5 text-left"
                 >
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-none"
                     style={{ background: `${spec.color}15`, color: spec.color }}>
@@ -4642,7 +4644,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
     .join(" · ")
 
   return (
-    <div className="mx-5 mb-3 rounded-2xl border" style={{ borderColor: "var(--c-primary-line)", background: "var(--c-primary-soft)" }}>
+    <div className="mx-5 mb-3 rounded-2xl" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={onToggle} className="flex-1 min-w-0 text-left">
           <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--c-primary)" }}>
@@ -4775,7 +4777,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               margin-bottom, không có khoảng trên. */}
           <div
             className={`flex items-center gap-3 px-3 h-14 ${R.box} mt-3 mb-2`}
-            style={{ background: C.surface, border: `1px solid ${crclUsable ? C.primaryLine : C.line}` }}
+            style={{ background: crclUsable ? "var(--c-primary-soft)" : C.surface }}
           >
             <span key={crcl ?? "none"} className={`${T.metric} pop-value flex-none`} style={{ color: crclUsable ? C.primary : C.muted }}>
               {crcl != null ? crcl : "—"}
@@ -4804,7 +4806,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               style={
                 patient.rrt === "none"
                   ? { background: C.primary, borderColor: "transparent", color: "var(--c-on-bright)" }
-                  : { background: C.surface, borderColor: C.primaryLine, color: C.textSoft }
+                  : { background: "transparent", borderColor: "transparent", color: C.textSoft }
               }
             >
               {RRT_SHORT.none}
@@ -4818,7 +4820,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               style={
                 patient.akiUnstable
                   ? { background: C.warnIcon, borderColor: C.warnIcon, color: "var(--c-on-bright)" }
-                  : { background: C.surface, borderColor: C.primaryLine, color: C.textSoft }
+                  : { background: "transparent", borderColor: "transparent", color: C.textSoft }
               }
             >
               AKI
@@ -4836,7 +4838,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                   style={
                     patient.rrt === m
                       ? { background: C.danger, borderColor: "transparent", color: "var(--c-on-bright)" }
-                      : { background: C.surface, borderColor: C.primaryLine, color: C.textSoft }
+                      : { background: "transparent", borderColor: "transparent", color: C.textSoft }
                   }
                 >
                   {RRT_SHORT[m]}
@@ -9334,11 +9336,11 @@ function MindmapGallery({
       <div className="flex-none px-5 pb-3 flex items-center gap-2 relative">
         <button
           onClick={() => setFilterOpen((v) => !v)}
-          className={`flex-none h-9 pl-2.5 pr-3 ${R.pill} ${T.bodyStrong} border flex items-center gap-1.5`}
+          className={`flex-none h-9 pl-2.5 pr-3 ${R.pill} ${T.bodyStrong} flex items-center gap-1.5`}
           style={
             specialty === "all"
-              ? { borderColor: C.line, color: C.textSoft, background: C.surface }
-              : { borderColor: C.primary, color: C.primary, background: C.primarySoft }
+              ? { color: C.textSoft, background: "transparent" }
+              : { color: C.primary, background: C.primarySoft }
           }
         >
           {icons.filter()}
@@ -9368,8 +9370,8 @@ function MindmapGallery({
           }}
           aria-label={view === "grid" ? "Xem dạng danh sách" : "Xem dạng lưới"}
           title={view === "grid" ? "Xem dạng danh sách" : "Xem dạng lưới"}
-          className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
-          style={{ borderColor: C.line, color: C.textSoft, background: C.surface }}
+          className="flex-none w-9 h-9 flex items-center justify-center"
+          style={{ color: "var(--c-text-soft)" }}
         >
           {view === "grid" ? icons.listView() : icons.gridView()}
         </button>
@@ -9381,8 +9383,8 @@ function MindmapGallery({
             onClick={() => setTrashOpen(true)}
             aria-label={`Thùng rác, ${trashedBoards.length} bảng`}
             title="Thùng rác"
-            className={`flex-none h-9 pl-2 pr-2.5 ${R.pill} border flex items-center gap-1`}
-            style={{ borderColor: C.line, color: C.textSoft, background: C.surface }}
+            className={`flex-none h-9 pl-2 pr-2.5 ${R.pill} flex items-center gap-1`}
+            style={{ color: C.textSoft, background: "transparent" }}
           >
             {icons.trash()}
             <span className={T.meta}>{trashedBoards.length}</span>
