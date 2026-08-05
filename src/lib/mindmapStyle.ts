@@ -329,37 +329,95 @@ export const INK_COLORS = INK_SWATCHES.map((s) => s.color)
 //                mực tối đều biến mất, chỉ còn mực trắng nhìn được.
 //
 // Tám ô mỗi hàng: đó là số ô 26px lọt vừa bề ngang máy 360px mà khoảng cách chạm vẫn trên ngưỡng.
-const PALETTE_HUES = ["red", "orange", "yellow", "green", "blue", "purple", "pink", "brown"]
-const PALETTE_COLORS = PALETTE_HUES.map((id) => MIND_COLORS.find((c) => c.id === id)!)
+//
+// MÀU BÚT KHÔNG DÙNG CHUNG HỆ MÀU VỚI THẺ GHI CHÚ (MIND_COLORS). Hai việc khác nhau: màu thẻ là màu
+// NỀN của một mảng lớn nên phải trầm để chữ trên đó còn đọc được; màu bút là một sợi nét mảnh 2px
+// nằm giữa mặt giấy trắng — trầm như màu thẻ thì nét viết ra xỉn và nhợt, nhìn như bút hết mực. Nên
+// bảng bút dựng riêng từ HSL với độ bão hoà cao: tươi, sáng, tách sắc rõ ngay cả ở nét mảnh nhất.
+const PEN_HUES: { h: number; name: string }[] = [
+  { h: 4, name: "Đỏ" },
+  { h: 26, name: "Cam" },
+  { h: 45, name: "Vàng" },
+  { h: 142, name: "Lục" },
+  { h: 190, name: "Xanh ngọc" },
+  { h: 214, name: "Xanh dương" },
+  { h: 280, name: "Tím" },
+  { h: 330, name: "Hồng" },
+]
+
+function hsl(h: number, s: number, l: number): string {
+  // Tự tính ra rgb() thay vì trả thẳng chuỗi "hsl(...)": mọi phần còn lại của app (đo tương phản, pha
+  // màu, đổi sang hex cho ô chọn màu của máy) đều đọc màu bằng parseColor, vốn chỉ hiểu #hex và rgb().
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  const seg = Math.floor(h / 60) % 6
+  const [r, g, b] = [
+    [c, x, 0],
+    [x, c, 0],
+    [0, c, x],
+    [0, x, c],
+    [x, 0, c],
+    [c, 0, x],
+  ][seg]
+  return `rgb(${Math.round((r + m) * 255)}, ${Math.round((g + m) * 255)}, ${Math.round((b + m) * 255)})`
+}
 
 // Hàng trung tính của mực: đi từ trắng (dành cho giấy tối) tới đen.
 const INK_NEUTRALS: Swatch[] = [
   { color: "#FFFFFF", name: "Trắng" },
-  { color: "#E3E2E0", name: "Xám rất nhạt" },
-  { color: "#A5A4A1", name: "Xám nhạt" },
-  { color: "#787774", name: "Xám" },
-  { color: "#37352F", name: "Đen" },
+  { color: "#D4D4D2", name: "Xám rất nhạt" },
+  { color: "#9B9A97", name: "Xám nhạt" },
+  { color: "#5B5A57", name: "Xám" },
+  { color: "#1E1B1B", name: "Đen" },
 ]
 
 export const INK_PALETTE: Swatch[][] = [
-  PALETTE_COLORS.map((c) => ({ color: readableOn(c.text, [PAPER_BG], 3), name: c.name })),
-  PALETTE_COLORS.map((c) => ({ color: mix(c.text, INK_BLACK, 0.45), name: `${c.name} đậm` })),
+  // Hàng tươi: bão hoà gần tối đa, sáng vừa — đây là màu người ta thật sự viết bằng.
+  PEN_HUES.map((c) => ({ color: hsl(c.h, 0.92, c.h > 40 && c.h < 70 ? 0.5 : 0.55), name: c.name })),
+  // Hàng đậm: cùng sắc, tối hơn. Dùng khi viết trên giấy vàng ngà/giấy sáng, hoặc để tách hai ý cùng
+  // một sắc mà không phải đổi sang sắc khác.
+  PEN_HUES.map((c) => ({ color: hsl(c.h, 0.88, 0.34), name: `${c.name} đậm` })),
   INK_NEUTRALS,
 ]
 
-// Bảng màu bút dạ / băng dính. Cùng cấu trúc ba hàng, nhưng lấy sắc `highlight` (nhạt hơn) vì cả hai
-// công cụ này đều vẽ ở độ mờ thấp ĐÈ LÊN chữ — lấy màu mực đậm thì tô xong không đọc được chữ nữa.
+// Bảng màu bút dạ / băng dính. Cùng tám sắc đó nhưng SÁNG hơn nhiều: cả hai công cụ này vẽ ở độ mờ
+// thấp ĐÈ LÊN chữ, nên màu càng tối thì chữ nằm dưới càng khó đọc — đúng thứ mà bút dạ không được
+// phép làm.
 export const HIGHLIGHT_PALETTE: Swatch[][] = [
-  PALETTE_COLORS.map((c) => ({ color: c.highlight, name: c.name })),
-  PALETTE_COLORS.map((c) => ({ color: mix(c.highlight, parseColor(c.text), 0.5), name: `${c.name} đậm` })),
+  PEN_HUES.map((c) => ({ color: hsl(c.h, 1, 0.62), name: c.name })),
+  PEN_HUES.map((c) => ({ color: hsl(c.h, 1, 0.48), name: `${c.name} đậm` })),
   [
     { color: "#FFFFFF", name: "Trắng" },
-    { color: "#E3E2E0", name: "Xám rất nhạt" },
-    { color: "#C7C6C3", name: "Xám nhạt" },
-    { color: "#A5A4A1", name: "Xám" },
-    { color: "#6F6E6B", name: "Xám đậm" },
+    { color: "#E6E6E4", name: "Xám rất nhạt" },
+    { color: "#C4C4C1", name: "Xám nhạt" },
+    { color: "#9B9A97", name: "Xám" },
+    { color: "#6B6A67", name: "Xám đậm" },
   ],
 ]
+
+// ─── Lưới màu tự pha (tab "Tùy chỉnh") ────────────────────────────────────────
+//
+// Một lưới sắc × độ sáng thay cho bánh xe màu: trên màn cảm ứng, chọn màu bằng cách CHẠM THẲNG vào ô
+// mình thấy luôn nhanh và chắc tay hơn kéo hai con trượt rồi nhìn ô xem trước đoán xem đã đúng chưa.
+// Cột đầu là dải xám (không có sắc nào cả) — không có nó thì muốn một nét xám nhạt phải đi tìm trong
+// bảng khác.
+export const MIX_GRID_ROWS = 10
+export const MIX_GRID_HUES = 12
+
+export const MIX_GRID: string[][] = Array.from({ length: MIX_GRID_ROWS }, (_, r) => {
+  // Hàng trên cùng gần đen, hàng dưới cùng gần trắng.
+  const l = 0.08 + (r / (MIX_GRID_ROWS - 1)) * 0.88
+  const gray = hsl(0, 0, l)
+  const hues = Array.from({ length: MIX_GRID_HUES }, (_, i) => {
+    const h = (i * 360) / MIX_GRID_HUES
+    // Bão hoà giảm dần ở hai đầu sáng/tối: màu bão hoà tối đa ở độ sáng 8% hay 96% thì mắt không
+    // phân biệt được nữa, cả hàng thành một dải đen (hoặc trắng) như nhau.
+    const s = 1 - Math.abs(l - 0.5) * 0.5
+    return hsl(h, s, l)
+  })
+  return [gray, ...hues]
+})
 
 // Nền thẻ "Nền đặc" phải đủ tối để chữ TRẮNG trên đó đọc được. Hệ màu Notion là màu chữ dùng trên nền
 // trắng nên phần lớn chưa đủ tối (cam 3.28:1, vàng 2.75:1) — đậm dần cho tới khi đạt, vẫn giữ nguyên

@@ -185,6 +185,16 @@ export const mindIcons: Record<string, IconFn> = {
         <circle cx="14.6" cy="17.6" r="1.35" />
       </g>,
     ),
+  // Ống hút màu — lấy đúng màu của một thứ đang hiện trên màn hình.
+  dropper: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.7,
+      <>
+        <path d="M17.4 3.6a2.4 2.4 0 013.4 3.4l-2 2-3.4-3.4 2-2z" />
+        <path d="M14.6 6.4l3.4 3.4-8.2 8.2-4.2.8.8-4.2 8.2-8.2z" />
+      </>,
+    ),
   // Con trượt — mở phần pha màu tự do trong bảng màu bút.
   sliders: (cls = "w-5 h-5") =>
     svg(

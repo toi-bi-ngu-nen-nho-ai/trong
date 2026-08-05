@@ -86,6 +86,7 @@ import {
   EDGE_COLOR,
   HIGHLIGHT_PALETTE,
   INK_PALETTE,
+  MIX_GRID,
   NODE_COLORS,
   PAPER_BG,
   PAPER_LABELS,
@@ -203,13 +204,16 @@ const INK_KEY = "drtrong:mindmap-ink"
 // dùng cảm thấy ngay từ nét đầu tiên sau khi cập nhật.
 const PRESETS_KEY = "drtrong:mindmap-pens"
 
+// Màu mặc định lấy THẲNG từ bảng màu (không gõ lại mã màu): nhờ vậy mở bảng màu lần đầu là thấy
+// ngay ô đang được chọn có vòng sáng, chứ không phải một bảng không ô nào được đánh dấu vì mã màu
+// mặc định lệch bảng vài đơn vị.
 const DEFAULT_INK: Record<InkTool, InkStyle> = {
-  pen: { color: "#37352F", widths: [3.5, 2, 6] },
+  pen: { color: INK_PALETTE[2][4].color, widths: [3.5, 2, 6] },
   // Bút chì mặc định KHÔNG phải màu đen: nét chì đen tuyền nhìn y hệt bút mực, mất luôn lý do tồn
   // tại của cây bút này. Xám than là màu của chì thật.
-  pencil: { color: "#5B5A57", widths: [2.5, 1.5, 4] },
-  highlighter: { color: "#FDE68A", widths: [14, 24, 8] },
-  tape: { color: "#96BED4", widths: [26, 16, 40] },
+  pencil: { color: INK_PALETTE[2][3].color, widths: [2.5, 1.5, 4] },
+  highlighter: { color: HIGHLIGHT_PALETTE[0][2].color, widths: [14, 24, 8] },
+  tape: { color: HIGHLIGHT_PALETTE[0][4].color, widths: [26, 16, 40] },
 }
 
 // Khoảng cỡ nét cho con trượt của từng bút. Bút dạ và băng dính bắt đầu từ chỗ bút mực kết thúc:
@@ -232,12 +236,40 @@ const COLOR_CUSTOM_KEY = "drtrong:mindmap-ink-custom"
 const COLOR_HISTORY_MAX = 18
 const COLOR_CUSTOM_MAX = 16
 
+// Tên bảng màu gọi đúng cây bút đang cầm — "Màu chì" khác "Màu bút dạ", và mỗi cây nhớ màu riêng nên
+// nếu chỉ đề "Màu bút" thì không biết mình đang đổi màu của cây nào.
+const COLOR_SHEET_TITLES: Record<InkTool, string> = {
+  pen: "Màu bút",
+  pencil: "Màu chì",
+  highlighter: "Màu bút dạ",
+  tape: "Màu băng dính",
+}
+
+// Ống hút màu của trình duyệt (Chrome/Edge trên máy tính). Không có trên Safari/iOS — hỏi trước rồi
+// mới bày nút ra.
+interface EyeDropperCtor {
+  new (): { open: () => Promise<{ sRGBHex: string }> }
+}
+function eyeDropper(): EyeDropperCtor | null {
+  const w = window as unknown as { EyeDropper?: EyeDropperCtor }
+  return typeof w.EyeDropper === "function" ? w.EyeDropper : null
+}
+
 // Vị trí thanh công cụ bút (kéo thả được) — xem phần dựng thanh bút ở dưới.
 const PENBAR_KEY = "drtrong:mindmap-penbar"
 
+// Cỡ nút trên hàng công cụ chính. 42 chứ không phải 36 như bản trước: hàng này chỉ còn năm công cụ
+// (bút gom lại một nút) và đã bỏ nút "…" trùng lặp, nên chỗ trống dôi ra được trả về cho chính các
+// nút — 36px là sát mức tối thiểu cho một mục tiêu chạm, mà đây lại là những nút bấm nhiều nhất.
+const TOOL_BTN = 42
+
 // Bán kính tẩy (theo pixel MÀN HÌNH — chia cho zoom khi đổi sang toạ độ bảng, để đầu tẩy luôn to
 // bằng đầu ngón tay dù đang phóng to hay thu nhỏ).
-const ERASER_SIZES = [14, 30]
+//
+// Ba cỡ: đầu nhỏ để lấy đúng một dấu phụ tiếng Việt viết sai, đầu vừa cho một chữ, đầu lớn để dọn cả
+// một mảng nháp. Hai cỡ như trước thì cỡ "vừa" phải kiêm luôn một trong hai việc kia.
+const ERASER_SIZES = [9, 18, 34]
+const ERASER_LABELS = ["nhỏ", "vừa", "lớn"]
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 4
 // Số bước hoàn tác giữ lại. Mỗi bước là một bản chụp cả bảng — các mảng con dùng chung tham chiếu
@@ -552,20 +584,27 @@ function writeColorList(key: string, list: string[]): void {
 // Vị trí thanh bút, lưu theo TỈ LỆ bề rộng/chiều cao mặt bảng chứ không theo pixel: người dùng xoay
 // máy ngang hoặc mở app trên màn khác cỡ thì thanh vẫn nằm đúng "chỗ đó" trên bảng, không văng ra
 // ngoài màn hình rồi không cách nào kéo lại.
-function readBarPos(): { fx: number; fy: number } | null {
+interface BarPos {
+  fx: number
+  fy: number
+  // Nằm dọc (áp vào mép trái/phải màn hình) hay nằm ngang.
+  vert: boolean
+}
+
+function readBarPos(): BarPos | null {
   try {
     const raw = localStorage.getItem(PENBAR_KEY)
     if (!raw) return null
-    const v = JSON.parse(raw) as { fx?: number; fy?: number }
+    const v = JSON.parse(raw) as Partial<BarPos>
     if (typeof v.fx !== "number" || typeof v.fy !== "number") return null
     if (!Number.isFinite(v.fx) || !Number.isFinite(v.fy)) return null
-    return { fx: Math.min(1, Math.max(0, v.fx)), fy: Math.min(1, Math.max(0, v.fy)) }
+    return { fx: Math.min(1, Math.max(0, v.fx)), fy: Math.min(1, Math.max(0, v.fy)), vert: v.vert === true }
   } catch {
     return null
   }
 }
 
-function writeBarPos(v: { fx: number; fy: number } | null): void {
+function writeBarPos(v: BarPos | null): void {
   try {
     if (v) localStorage.setItem(PENBAR_KEY, JSON.stringify(v))
     else localStorage.removeItem(PENBAR_KEY)
@@ -869,7 +908,9 @@ export function MindmapBoard({
   // thao tác.
   const [penBarOpen, setPenBarOpen] = useState(false)
   // Vị trí thanh bút (tỉ lệ so với mặt bảng). null = chưa kéo bao giờ, nằm ở chỗ mặc định.
-  const [barPos, setBarPos] = useState<{ fx: number; fy: number } | null>(readBarPos)
+  const [barPos, setBarPos] = useState<BarPos | null>(readBarPos)
+  // Thanh bút đang bày CẢ BỘ hay chỉ cây đang cầm — xem chỗ dựng thanh bút.
+  const [kitOpen, setKitOpen] = useState(false)
   // Bảng phụ đang mở trên thanh bút: cỡ nét, hoặc danh sách hình vẽ.
   const [penPop, setPenPop] = useState<null | "size" | "shape">(null)
   // Bảng màu bút (tấm trượt lên từ đáy). Ba tab như trong thiết kế: bảng có sẵn, tự pha, đã dùng.
@@ -879,9 +920,15 @@ export function MindmapBoard({
   const [colorEdit, setColorEdit] = useState(false)
   const [colorHistory, setColorHistory] = useState<string[]>(() => readColorList(COLOR_HISTORY_KEY, COLOR_HISTORY_MAX))
   const [customColors, setCustomColors] = useState<string[]>(() => readColorList(COLOR_CUSTOM_KEY, COLOR_CUSTOM_MAX))
-  // Màu đang pha dở trong tab "Tùy chỉnh" — chưa áp vào bút cho tới khi bấm chọn.
-  const [mixColor, setMixColor] = useState("#37352F")
-  const [eraserSize, setEraserSize] = useState(ERASER_SIZES[0])
+  // Màu đang pha trong tab "Tùy chỉnh".
+  const [mixColor, setMixColor] = useState("#1E1B1B")
+  // Chuỗi đang gõ dở trong ô HEX. Tách khỏi mixColor vì gõ dở ("1E1B") chưa phải một màu hợp lệ —
+  // ép nó thành màu ngay từng ký tự thì con trỏ nhảy lung tung và ô tự sửa chữ dưới tay người gõ.
+  const [hexDraft, setHexDraft] = useState<string | null>(null)
+  const [hasEyeDropper] = useState(() => eyeDropper() != null)
+  const [eraserSize, setEraserSize] = useState(ERASER_SIZES[1])
+  // Khoanh vùng bằng nét tay tự do, hay bằng một khung chữ nhật kéo từ góc này sang góc kia.
+  const [lassoRect, setLassoRect] = useState(false)
   // Tẩy cả nét hay chỉ tẩy phần chạm trúng. Mặc định tẩy MỘT PHẦN, giống cục tẩy thật và giống
   // GoodNotes: xoá được một chữ viết sai giữa một dòng dài mà không mất cả dòng.
   const [eraseWholeStroke, setEraseWholeStroke] = useState(false)
@@ -1007,6 +1054,8 @@ export function MindmapBoard({
   const snapped = useRef<Recognized | null>(null)
   // Vùng khoanh đang vẽ (công cụ lasso) và những gì đã khoanh được.
   const lassoPts = useRef<number[] | null>(null)
+  // Điểm đặt tay của một vùng khoanh HÌNH CHỮ NHẬT — bốn góc tính lại từ điểm này và điểm hiện tại.
+  const lassoAnchor = useRef({ x: 0, y: 0 })
   const erased = useRef(new Set<string>())
   // Tẩy MỘT PHẦN: với mỗi nét bị chạm, bản điểm đã chia nhỏ (xem densify) cùng những điểm đã bị tẩy
   // và những chỗ phải cắt đôi.
@@ -2672,6 +2721,7 @@ export function MindmapBoard({
     if (tool === "lasso") {
       action.current = { kind: "lasso" }
       lassoPts.current = [p.x, p.y]
+      lassoAnchor.current = { x: p.x, y: p.y }
       setSelGroup(null)
       const el = lassoPathRef.current
       if (el) {
@@ -2897,6 +2947,16 @@ export function MindmapBoard({
       const p = toBoard(e.clientX, e.clientY)
       const pts = lassoPts.current
       if (!pts) return
+      // Khoanh theo khung chữ nhật: bốn góc tính lại từ điểm đặt tay và điểm hiện tại. Cần cách này
+      // bên cạnh khoanh tay tự do vì phần lớn thứ muốn chọn trên bảng (một cụm thẻ, một khối chữ đã
+      // viết) nằm gọn trong một khung vuông vắn — vẽ tay quanh nó vừa run vừa dễ sót mép, mà chỉ cần
+      // sót một thẻ là cả nhóm kéo đi bị đứt.
+      if (lassoRect) {
+        const a = lassoAnchor.current
+        lassoPts.current = [a.x, a.y, p.x, a.y, p.x, p.y, a.x, p.y]
+        lassoPathRef.current?.setAttribute("d", `${strokePath(lassoPts.current, true)} Z`)
+        return
+      }
       if (dist(pts[pts.length - 2], pts[pts.length - 1], p.x, p.y) < 3 / view.current.zoom) return
       pts.push(p.x, p.y)
       // Vùng khoanh vẽ khép kín ngay trong lúc kéo để thấy rõ mình đang quây cái gì.
@@ -3760,7 +3820,7 @@ export function MindmapBoard({
   // Vị trí lưu theo TỈ LỆ (xem readBarPos) và ĐẶT bằng chính tỉ lệ đó — `left: fx%` cộng
   // `translateX(-fx%)` cho ra đúng công thức fx × (bề rộng bảng − bề rộng thanh), tức là fx = 0 thì
   // thanh sát mép trái, fx = 1 thì sát mép phải, không bao giờ lòi ra ngoài dù màn hình cỡ nào.
-  const barDrag = useRef<{ dx: number; dy: number; pos: { fx: number; fy: number } } | null>(null)
+  const barDrag = useRef<{ dx: number; dy: number; pos: BarPos } | null>(null)
   // Danh sách cỡ nét trước khi bắt đầu kéo con trượt — xem setInkWidthFor().
   const widthBase = useRef<number[] | null>(null)
 
@@ -3769,7 +3829,7 @@ export function MindmapBoard({
     if (!bar) return
     e.stopPropagation()
     const b = bar.getBoundingClientRect()
-    barDrag.current = { dx: e.clientX - b.left, dy: e.clientY - b.top, pos: barPos ?? { fx: 0.5, fy: 0 } }
+    barDrag.current = { dx: e.clientX - b.left, dy: e.clientY - b.top, pos: barPos ?? { fx: 0.5, fy: 0, vert: false } }
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {
@@ -3788,9 +3848,20 @@ export function MindmapBoard({
     // của chính nó. Chặn dưới 1 để không chia cho 0 trên máy hẹp hơn cả thanh.
     const maxX = Math.max(1, r.width - bar.offsetWidth)
     const maxY = Math.max(1, r.height - bar.offsetHeight)
-    const x = Math.min(maxX, Math.max(0, e.clientX - r.left - d.dx))
-    const y = Math.min(maxY, Math.max(0, e.clientY - r.top - d.dy))
-    d.pos = { fx: x / maxX, fy: y / maxY }
+    const px = e.clientX - r.left
+    const py = e.clientY - r.top
+    // ─── Áp mép trái/phải thì thanh XOAY DỌC ────────────────────────────────
+    // Một thanh nằm ngang ép sát mép trái vẫn chiếm hết bề ngang bảng, tức là vẫn che đúng chỗ mà
+    // việc kéo nó đi định giải quyết. Dựng dọc thì nó chỉ còn chiếm một dải hẹp bên rìa, chừa lại
+    // gần như cả mặt giấy — và đó cũng là chỗ tay cầm bút hay đặt sẵn.
+    //
+    // Quyết định theo vị trí NGÓN TAY (không theo mép thanh): bề rộng thanh đổi ngay khi xoay, lấy
+    // mép thanh làm mốc thì vừa xoay xong mốc đã khác, thanh sẽ nhấp nháy xoay tới xoay lui.
+    const vert = px < r.width * 0.16 || px > r.width * 0.84
+    const y = Math.min(maxY, Math.max(0, py - d.dy))
+    d.pos = vert
+      ? { fx: px < r.width / 2 ? 0 : 1, fy: y / maxY, vert: true }
+      : { fx: Math.min(maxX, Math.max(0, px - d.dx)) / maxX, fy: y / maxY, vert: false }
     setBarPos(d.pos)
   }
 
@@ -3854,6 +3925,22 @@ export function MindmapBoard({
     })
   }
 
+  // Hút màu từ bất cứ đâu trên màn hình (ảnh X-quang vừa dán vào bảng, một thẻ đã tô màu…) rồi dùng
+  // luôn làm màu bút.
+  async function pickScreenColor() {
+    const Ctor = eyeDropper()
+    if (!Ctor) return
+    try {
+      const res = await new Ctor().open()
+      if (!res?.sRGBHex) return
+      setMixColor(res.sRGBHex)
+      setInkColorFor(styleTool, res.sRGBHex)
+      tickHaptic()
+    } catch {
+      // Người dùng bấm Esc để bỏ — không phải lỗi, im lặng.
+    }
+  }
+
   function removeCustomColor(color: string) {
     setCustomColors((prev) => {
       const next = prev.filter((c) => c !== color)
@@ -3877,6 +3964,11 @@ export function MindmapBoard({
   // Bút dạ và băng dính dùng bảng màu nhạt (màu tô sáng); bút mực và bút chì dùng bảng màu mực.
   const inkPalette = styleTool === "highlighter" || styleTool === "tape" ? HIGHLIGHT_PALETTE : INK_PALETTE
   const widthRange = WIDTH_RANGE[styleTool]
+
+  // Thanh bút đang dựng dọc (áp mép trái/phải) hay nằm ngang — xem barPointerMove.
+  const barVert = barPos?.vert === true
+  // Vạch ngăn giữa các cụm nút, xoay theo chiều của thanh.
+  const barDivider = barVert ? "flex-none h-px w-6 my-0.5" : "flex-none w-px h-6 mx-0.5"
 
   // Đường kính chấm xem trước trên nút cỡ nét. Không vẽ chấm to đúng bằng cỡ nét thật (bút dạ 40 thì
   // chấm sẽ to hơn cả cái nút) mà quy về khoảng 4–10px THEO TỈ LỆ trong khoảng cỡ của chính cây bút
@@ -4071,15 +4163,25 @@ export function MindmapBoard({
           )}
         </div>
 
-        <IconBtn
-          icon={mi.more}
-          hint="Cài đặt bảng"
-          active={menuOpen}
-          onClick={() => {
-            setMenuOpen((v) => !v)
-            setExportOpen(false)
-          }}
-        />
+        <span className="relative inline-flex">
+          <IconBtn
+            icon={mi.more}
+            hint="Cài đặt bảng"
+            active={menuOpen}
+            onClick={() => {
+              setMenuOpen((v) => !v)
+              setExportOpen(false)
+            }}
+          />
+          {/* Chấm nhỏ báo "đang lọc màu" — không có nó, thẻ mờ đi trên bảng rất dễ bị hiểu lầm là lỗi
+              hiển thị chứ không phải một bộ lọc đang bật, vì nút mở ra bộ lọc lại đang đóng. */}
+          {colorFilter.size > 0 && (
+            <span
+              className="absolute rounded-full pointer-events-none"
+              style={{ top: 3, right: 3, width: 7, height: 7, background: "#e8007d", border: "1.5px solid var(--c-surface)" }}
+            />
+          )}
+        </span>
         </>
         )}
       </div>
@@ -4097,13 +4199,13 @@ export function MindmapBoard({
             <div
               className="mind-tool-slider absolute rounded-xl"
               style={{
-                width: 36,
-                height: 36,
+                width: TOOL_BTN,
+                height: TOOL_BTN,
                 left: 2,
                 top: 2,
                 background: "var(--c-primary)",
                 boxShadow: "0 2px 8px rgba(var(--c-primary-rgb),.35)",
-                transform: `translateX(${Math.max(0, TOP_TOOLS.findIndex((t) => t.id === topOf(tool))) * 36}px)`,
+                transform: `translateX(${Math.max(0, TOP_TOOLS.findIndex((t) => t.id === topOf(tool))) * TOOL_BTN}px)`,
               }}
             />
             {TOP_TOOLS.map((t) => (
@@ -4115,6 +4217,7 @@ export function MindmapBoard({
                   icon={t.id === "draw" ? (PEN_KIT_ITEMS.find((k) => k.id === (drawTool ? tool : lastDraw))?.icon ?? mi.pen) : t.icon}
                   hint={t.hint}
                   active={topOf(tool) === t.id}
+                  size={TOOL_BTN}
                   plainBg
                   onClick={() => pickTopTool(t.id)}
                 />
@@ -4123,9 +4226,9 @@ export function MindmapBoard({
                   <span
                     className="absolute rounded-full pointer-events-none"
                     style={{
-                      left: 9,
-                      right: 9,
-                      bottom: 5,
+                      left: 10,
+                      right: 10,
+                      bottom: 6,
                       height: 3,
                       background: activeInk,
                       opacity: strokeAlpha(styleTool) < 1 ? 0.85 : 1,
@@ -4136,31 +4239,16 @@ export function MindmapBoard({
             ))}
           </div>
           <span className="flex-1 min-w-0" />
+          {/* Chỉ còn hoàn tác/làm lại. Nút "…" từng đứng ở đây đã bỏ: nó mở ĐÚNG cái bảng mà nút "…"
+              trên thanh tiêu đề mở, chỉ khác là bảng đó lại nằm neo theo nút trên kia — hai nút giống
+              hệt nhau cách nhau 40px là chỗ chỉ tổ làm người dùng phải thử xem chúng có khác gì
+              không. Chấm báo "đang lọc màu" chuyển theo sang nút "…" của thanh tiêu đề. */}
           <div
             className="flex-none flex items-center rounded-2xl border p-0.5"
             style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
           >
-            <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} />
-            <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} />
-            <span className="relative inline-flex">
-              <IconBtn
-                icon={mi.more}
-                hint="Thêm lựa chọn"
-                active={menuOpen}
-                onClick={() => {
-                  setMenuOpen((v) => !v)
-                  setAddOpen(false)
-                }}
-              />
-              {/* Chấm nhỏ báo "đang lọc màu" — không có nó, thẻ mờ đi trên bảng rất dễ bị hiểu lầm là
-                  lỗi hiển thị chứ không phải một bộ lọc đang bật, vì nút mở ra bộ lọc lại đang đóng. */}
-              {colorFilter.size > 0 && (
-                <span
-                  className="absolute rounded-full pointer-events-none"
-                  style={{ top: 3, right: 3, width: 7, height: 7, background: "#e8007d", border: "1.5px solid var(--c-surface-alt)" }}
-                />
-              )}
-            </span>
+            <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={TOOL_BTN} />
+            <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} size={TOOL_BTN} />
           </div>
         </div>
 
@@ -4171,24 +4259,30 @@ export function MindmapBoard({
             dưới ngưỡng khoảng cách chạm tối thiểu. */}
         {tool === "eraser" && (
           <div className="mind-row flex items-center gap-2 mt-1.5 overflow-x-auto -mx-3 px-3 pb-0.5">
-            {ERASER_SIZES.map((s) => (
+            {ERASER_SIZES.map((s, i) => (
                     <button
                       key={s}
                       type="button"
-                      onClick={() => setEraserSize(s)}
-                      aria-label={`Đầu tẩy ${s === ERASER_SIZES[0] ? "nhỏ" : "lớn"}`}
-                      className="mind-btn flex-none w-9 h-9 rounded-xl flex items-center justify-center border"
+                      onClick={() => {
+                        setEraserSize(s)
+                        tickHaptic()
+                      }}
+                      aria-label={`Đầu tẩy ${ERASER_LABELS[i]}`}
+                      aria-pressed={eraserSize === s}
+                      className="mind-btn flex-none w-10 h-10 rounded-xl flex items-center justify-center border"
                       style={
                         eraserSize === s
                           ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
                           : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
                       }
                     >
+                      {/* Vòng tròn xem trước to đúng theo TỈ LỆ giữa ba cỡ thật, không phải ba cỡ đặt
+                          tuỳ ý — nhìn là ước lượng được đầu tẩy sẽ ăn vào bao nhiêu. */}
                       <span
                         className="rounded-full"
                         style={{
-                          width: s === ERASER_SIZES[0] ? 11 : 19,
-                          height: s === ERASER_SIZES[0] ? 11 : 19,
+                          width: 8 + i * 5,
+                          height: 8 + i * 5,
                           border: "1.5px solid var(--c-muted)",
                           background: "var(--c-line-soft)",
                         }}
@@ -4214,6 +4308,36 @@ export function MindmapBoard({
                   >
                     {eraseWholeStroke ? "Xoá cả nét" : "Tẩy một phần"}
                   </button>
+          </div>
+        )}
+
+        {/* Hàng phụ của KHOANH VÙNG: khoanh tay tự do hay kéo một khung chữ nhật. */}
+        {tool === "lasso" && (
+          <div className="mind-row flex items-center gap-2 mt-1.5 overflow-x-auto -mx-3 px-3 pb-0.5">
+            {([
+              [false, mi.lasso, "Khoanh tay tự do"],
+              [true, mi.shapeRect, "Khoanh theo khung chữ nhật"],
+            ] as const).map(([rect, icon, label]) => (
+              <button
+                key={String(rect)}
+                type="button"
+                onClick={() => {
+                  setLassoRect(rect)
+                  tickHaptic()
+                }}
+                aria-label={label}
+                aria-pressed={lassoRect === rect}
+                className="mind-btn flex-none h-10 pl-2.5 pr-3.5 rounded-xl border flex items-center gap-1.5 text-[12.5px] font-bold"
+                style={
+                  lassoRect === rect
+                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                    : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-muted)" }
+                }
+              >
+                {icon("w-[17px] h-[17px]")}
+                {rect ? "Khung" : "Tay tự do"}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -5142,7 +5266,7 @@ export function MindmapBoard({
             // thuộc tính `transform`, mà chính transform là thứ đang giữ vị trí của thanh này (xem
             // cách đặt left/top theo tỉ lệ bên dưới) — hoạt ảnh sẽ đè lên và ném thanh ra khỏi chỗ
             // của nó trong suốt 0,2 giây đầu. Hiện dần bằng độ mờ thì không đụng tới vị trí.
-            className="fade-in absolute z-20 flex items-center gap-0.5 rounded-2xl border p-1"
+            className={`fade-in absolute z-20 flex ${barVert ? "flex-col" : "flex-row"} items-center gap-0.5 rounded-2xl border p-1`}
             style={{
               ...(barPos
                 ? { left: `${barPos.fx * 100}%`, top: `${barPos.fy * 100}%`, transform: `translate(${-barPos.fx * 100}%, ${-barPos.fy * 100}%)` }
@@ -5165,69 +5289,106 @@ export function MindmapBoard({
               onPointerUp={barPointerUp}
               onPointerCancel={barPointerUp}
               className="flex-none flex items-center justify-center rounded-lg"
-              style={{ width: 22, height: 38, color: "var(--c-faint)", touchAction: "none", cursor: "grab" }}
+              style={{
+                width: barVert ? 38 : 22,
+                height: barVert ? 22 : 38,
+                color: "var(--c-faint)",
+                touchAction: "none",
+                cursor: "grab",
+              }}
             >
-              {mi.grip("w-[15px] h-[15px]")}
+              {mi.grip(barVert ? "w-[15px] h-[15px] rotate-90" : "w-[15px] h-[15px]")}
             </button>
 
             <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={34} />
-            <span className="flex-none w-px h-6 mx-0.5" style={{ background: "var(--c-line)" }} />
+            <span className={barDivider} style={{ background: "var(--c-line)" }} />
 
-            {PEN_KIT_ITEMS.map((k) => {
+            {/* ─── Bộ bút ───────────────────────────────────────────────────
+                Bình thường chỉ bày ĐÚNG CÂY ĐANG CẦM, nở rộng ra kèm một mũi tên mở phần cài đặt của
+                nó. Bốn cây còn lại chỉ hiện khi chạm vào cây đang cầm.
+
+                Vì sao giấu bớt: trong một buổi ghi chép, việc "đổi cây bút" xảy ra ít hơn hẳn việc
+                "đổi màu/cỡ nét của cây đang cầm", nhưng bày cả năm cây lúc nào cũng chiếm gần hết
+                thanh — thanh dài ra thì che mất bảng, mà nút màu/cỡ nét (thứ bấm nhiều nhất) lại bị
+                đẩy ra tận rìa. Thu lại còn một cây thì thanh ngắn đi hơn một nửa. */}
+            {(kitOpen ? PEN_KIT_ITEMS : PEN_KIT_ITEMS.filter((k) => k.id === tool)).map((k) => {
               const on = tool === k.id
               const kInk = inkStyles[inkOf(k.id)]
               return (
-                <button
+                <span
                   key={k.id}
-                  type="button"
-                  title={k.hint}
-                  aria-label={k.hint}
-                  aria-pressed={on}
-                  onClick={() => {
-                    // Bấm cây bút ĐANG cầm lần nữa = mở phần cài đặt của nó (cỡ nét, hoặc danh sách
-                    // hình vẽ). Cùng một nút làm hai việc theo trạng thái, giống mọi app vẽ tay: lần
-                    // bấm thứ hai không còn ý nghĩa "đổi bút" nữa nên nó rảnh để làm việc khác.
-                    if (!on) {
-                      pickPen(k.id)
-                      setPenPop(null)
-                      return
-                    }
-                    const want = k.id === "shape" ? "shape" : "size"
-                    setPenPop((v) => (v === want ? null : want))
-                    tickHaptic()
-                  }}
-                  className="mind-btn flex-none relative flex items-start justify-center rounded-xl pt-[7px]"
-                  style={{
-                    width: 36,
-                    height: 38,
-                    background: on ? "var(--c-primary-soft)" : "transparent",
-                    color: on ? "var(--c-primary)" : "var(--c-text-soft)",
-                  }}
+                  className={`flex-none flex ${barVert ? "flex-col" : "flex-row"} items-center rounded-xl overflow-hidden`}
+                  style={{ background: on ? "var(--c-primary-soft)" : "transparent" }}
                 >
-                  {k.icon("w-[20px] h-[20px]")}
-                  {/* Vạch mực dưới mỗi cây bút: nhìn cả thanh là thấy ngay bút chì đang xám, bút dạ
-                      đang vàng — không phải bấm vào từng cây để biết nó đang mang màu gì. */}
-                  <span
-                    className="absolute rounded-full"
-                    style={{
-                      left: 7,
-                      right: 7,
-                      bottom: 4,
-                      height: 3,
-                      background: kInk.color,
-                      opacity: strokeAlpha(inkOf(k.id)) < 1 ? 0.85 : 1,
+                  <button
+                    type="button"
+                    title={k.hint}
+                    aria-label={on ? `${k.hint} — chạm để đổi bút` : k.hint}
+                    aria-pressed={on}
+                    onClick={() => {
+                      // Cây đang cầm: chạm vào = bung/thu cả bộ để đổi sang cây khác.
+                      // Cây khác: chạm vào = nhấc nó lên rồi thu bộ lại ngay, vì việc đổi bút đã xong.
+                      if (on) {
+                        setKitOpen((v) => !v)
+                        setPenPop(null)
+                        tickHaptic()
+                        return
+                      }
+                      pickPen(k.id)
+                      setKitOpen(false)
+                      setPenPop(null)
                     }}
-                  />
+                    className="mind-btn flex-none relative flex items-start justify-center pt-[7px]"
+                    style={{
+                      width: 36,
+                      height: 38,
+                      color: on ? "var(--c-primary)" : "var(--c-text-soft)",
+                    }}
+                  >
+                    {k.icon("w-[20px] h-[20px]")}
+                    {/* Vạch mực dưới mỗi cây bút: nhìn cả thanh là thấy ngay bút chì đang xám, bút dạ
+                        đang vàng — không phải bấm vào từng cây để biết nó đang mang màu gì. */}
+                    <span
+                      className="absolute rounded-full"
+                      style={{
+                        left: 7,
+                        right: 7,
+                        bottom: 4,
+                        height: 3,
+                        background: kInk.color,
+                        opacity: strokeAlpha(inkOf(k.id)) < 1 ? 0.85 : 1,
+                      }}
+                    />
+                  </button>
+                  {/* Mũi tên tùy chỉnh, chỉ mọc ra ở cây ĐANG CẦM. Tách hẳn thành một nút riêng (không
+                      phải một dấu nhỏ góc nút): "đổi bút" và "chỉnh bút đang cầm" là hai việc khác
+                      nhau, dồn vào một nút thì lần chạm thứ hai luôn phải đoán xem sẽ ra cái nào. */}
                   {on && (
-                    <span className="absolute" style={{ right: 1, top: 0, color: "var(--c-primary)" }}>
-                      {mi.chevronDown("w-[11px] h-[11px]")}
-                    </span>
+                    <button
+                      type="button"
+                      title={k.id === "shape" ? "Chọn hình vẽ" : "Chỉnh cỡ nét"}
+                      aria-label={k.id === "shape" ? "Chọn hình vẽ" : "Chỉnh cỡ nét"}
+                      aria-pressed={penPop != null}
+                      onClick={() => {
+                        const want = k.id === "shape" ? "shape" : "size"
+                        setPenPop((v) => (v === want ? null : want))
+                        tickHaptic()
+                      }}
+                      className="mind-btn flex-none flex items-center justify-center"
+                      style={{
+                        width: barVert ? 36 : 18,
+                        height: barVert ? 18 : 38,
+                        color: "var(--c-primary)",
+                      }}
+                    >
+                      {(barVert ? mi.chevronDown : mi.chevronRight)("w-[13px] h-[13px]")}
+                    </button>
                   )}
-                </button>
+                </span>
               )
             })}
 
-            <span className="flex-none w-px h-6 mx-0.5" style={{ background: "var(--c-line)" }} />
+            <span className={barDivider} style={{ background: "var(--c-line)" }} />
 
             {/* Nút cỡ nét — ba chấm là BA CỠ GẦN NHẤT của cây bút đang cầm, chấm to nhất ở trên. Chấm
                 của cỡ đang dùng tô đúng màu mực, hai chấm kia xám: liếc một cái là biết đang vẽ cỡ
@@ -5280,8 +5441,8 @@ export function MindmapBoard({
                 setPenPop(null)
                 tickHaptic()
               }}
-              className="mind-btn flex-none flex items-center gap-[1px] rounded-xl pl-1 pr-0.5"
-              style={{ height: 38, color: "var(--c-text-soft)" }}
+              className={`mind-btn flex-none flex ${barVert ? "flex-col" : "flex-row"} items-center justify-center gap-[1px] rounded-xl`}
+              style={{ width: barVert ? 38 : 36, height: barVert ? 36 : 38, color: "var(--c-text-soft)" }}
             >
               <span
                 className="rounded-full"
@@ -5293,18 +5454,25 @@ export function MindmapBoard({
                   boxShadow: "0 0 0 1.5px var(--c-surface), 0 0 0 3px var(--c-line)",
                 }}
               />
-              {mi.chevronDown("w-[12px] h-[12px]")}
+              {mi.chevronDown("w-[11px] h-[11px]")}
             </button>
 
-            {/* Bảng cỡ nét / bảng hình vẽ — mở ra phía có chỗ trống: thanh nằm nửa dưới màn hình thì
-                bảng bung LÊN, nằm nửa phải thì căn theo mép phải. Không tính lại theo pixel thật vì
-                thanh đã được đặt bằng tỉ lệ (xem barPointerMove). */}
+            {/* Bảng cỡ nét / bảng hình vẽ — mở ra phía có chỗ trống: thanh dựng dọc thì bảng bung
+                sang NGANG (bên trong màn hình), thanh nằm ngang ở nửa dưới thì bảng bung LÊN. Không
+                tính lại theo pixel thật vì thanh đã được đặt bằng tỉ lệ (xem barPointerMove). */}
             {penPop && (
               <div
                 className="mind-pop absolute rounded-2xl border p-2.5 z-50"
                 style={{
-                  ...((barPos?.fy ?? 0) > 0.55 ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
-                  ...((barPos?.fx ?? 0.5) > 0.55 ? { right: 0 } : { left: 0 }),
+                  ...(barVert
+                    ? {
+                        top: 0,
+                        ...((barPos?.fx ?? 0) > 0.5 ? { right: "calc(100% + 6px)" } : { left: "calc(100% + 6px)" }),
+                      }
+                    : {
+                        ...((barPos?.fy ?? 0) > 0.55 ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
+                        ...((barPos?.fx ?? 0.5) > 0.55 ? { right: 0 } : { left: 0 }),
+                      }),
                   width: penPop === "size" ? 214 : 176,
                   borderColor: "var(--c-line)",
                   background: "var(--c-surface)",
@@ -6193,27 +6361,45 @@ export function MindmapBoard({
                 {mi.sliders("w-[17px] h-[17px]")}
               </button>
               <p className="flex-1 text-center text-[15px] font-bold" style={{ color: "var(--c-text)" }}>
-                {styleTool === "highlighter" ? "Màu bút dạ" : styleTool === "tape" ? "Màu băng dính" : "Màu bút"}
+                {COLOR_SHEET_TITLES[styleTool]}
               </p>
-              {/* "Sửa" chỉ mở khoá cho những màu TỰ PHA — màu dựng sẵn không xoá được, vì xoá xong
-                  không có đường nào lấy lại ngoài xoá dữ liệu cả app. */}
-              <button
-                type="button"
-                onClick={() => {
-                  setColorTab("palette")
-                  setColorEdit((v) => !v)
-                  tickHaptic()
-                }}
-                aria-pressed={colorEdit}
-                className="mind-btn flex-none h-9 px-4 rounded-full text-[13px] font-bold"
-                style={
-                  colorEdit
-                    ? { background: "var(--c-primary)", color: "var(--c-on-bright)" }
-                    : { background: "var(--c-line-soft)", color: "var(--c-text-2)" }
-                }
-              >
-                {colorEdit ? "Xong" : "Sửa"}
-              </button>
+              {/* Góc phải đổi việc theo tab đang mở, vì hai tab cần hai thứ khác nhau:
+                  • Bảng màu → "Sửa", mở khoá xoá cho những màu TỰ PHA (màu dựng sẵn không xoá được,
+                    xoá xong không có đường nào lấy lại ngoài xoá dữ liệu cả app).
+                  • Tùy chỉnh → ống hút màu, lấy đúng màu của một thứ đang có sẵn trên màn hình. Chỉ
+                    hiện khi trình duyệt thật sự có nó (Chrome/Edge trên máy tính) — bày một nút bấm
+                    vào không ra gì còn tệ hơn là không có nút. */}
+              {colorTab === "custom" ? (
+                hasEyeDropper && (
+                  <button
+                    type="button"
+                    onClick={() => void pickScreenColor()}
+                    aria-label="Hút màu từ màn hình"
+                    title="Hút màu từ màn hình"
+                    className="mind-btn flex-none w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{ background: "var(--c-line-soft)", color: "var(--c-text-2)" }}
+                  >
+                    {mi.dropper("w-[17px] h-[17px]")}
+                  </button>
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setColorEdit((v) => !v)
+                    tickHaptic()
+                  }}
+                  aria-pressed={colorEdit}
+                  className="mind-btn flex-none h-9 px-4 rounded-full text-[13px] font-bold"
+                  style={
+                    colorEdit
+                      ? { background: "var(--c-primary)", color: "var(--c-on-bright)" }
+                      : { background: "var(--c-line-soft)", color: "var(--c-text-2)" }
+                  }
+                >
+                  {colorEdit ? "Xong" : "Sửa"}
+                </button>
+              )}
             </div>
 
             <div className="flex-none px-4 pb-3">
@@ -6335,63 +6521,134 @@ export function MindmapBoard({
               )}
 
               {colorTab === "custom" && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="flex-none rounded-2xl"
-                      style={{
-                        width: 62,
-                        height: 62,
-                        background: mixColor,
-                        boxShadow: "inset 0 0 0 1px rgba(15,23,42,.12)",
-                      }}
-                    />
-                    <div className="flex-1 min-w-0 flex flex-col gap-2">
-                      {/* Ô chọn màu của chính hệ điều hành: trên điện thoại nó mở bộ chọn màu quen
-                          thuộc của máy, không phải một bánh xe màu tự vẽ chạy lệch trên từng máy. */}
-                      <input
-                        type="color"
-                        value={toHex(mixColor)}
-                        onChange={(e) => setMixColor(e.target.value)}
-                        aria-label="Chọn màu"
-                        className="w-full h-10 rounded-xl"
-                        style={{ background: "var(--c-surface)", border: "1px solid var(--c-line)" }}
-                      />
-                      <input
-                        value={mixColor}
-                        onChange={(e) => setMixColor(e.target.value)}
-                        onBlur={(e) => setMixColor(toHex(e.target.value))}
-                        aria-label="Mã màu"
-                        spellCheck={false}
-                        className="mind-input w-full h-10 px-3 rounded-xl text-[13px] font-bold tabular-nums outline-none"
-                        style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)", color: "var(--c-text-2)" }}
-                      />
-                    </div>
+                <div className="flex flex-col gap-4">
+                  {/* Lưới sắc × độ sáng. Chạm thẳng vào ô là ĂN NGAY vào cây bút (không phải chọn rồi
+                      bấm thêm nút xác nhận): đang so hai sắc gần nhau thì thứ cần thấy là nét thật
+                      trên giấy, mà muốn thấy nó thì màu phải được áp trước đã. */}
+                  <div
+                    className="grid overflow-hidden rounded-2xl"
+                    style={{ gridTemplateColumns: `repeat(${MIX_GRID[0].length}, 1fr)` }}
+                  >
+                    {MIX_GRID.map((row, ri) =>
+                      row.map((c, ci) => (
+                        <button
+                          key={`${ri}-${ci}`}
+                          type="button"
+                          onClick={() => {
+                            setMixColor(toHex(c))
+                            setInkColorFor(styleTool, c)
+                            tickHaptic()
+                          }}
+                          aria-label={`Màu ${toHex(c)}`}
+                          aria-pressed={sameColor(activeInk, c)}
+                          className="relative"
+                          style={{ aspectRatio: "1", background: c }}
+                        >
+                          {/* Ô đang chọn: một vòng trắng viền đen mảnh — thấy được trên cả ô đen lẫn
+                              ô trắng, thứ mà một vòng một màu không làm được trên lưới này. */}
+                          {sameColor(activeInk, c) && (
+                            <span
+                              className="absolute rounded-full pointer-events-none"
+                              style={{
+                                left: "50%",
+                                top: "50%",
+                                width: 12,
+                                height: 12,
+                                marginLeft: -6,
+                                marginTop: -6,
+                                border: "2px solid #fff",
+                                boxShadow: "0 0 0 1px rgba(0,0,0,.45)",
+                              }}
+                            />
+                          )}
+                        </button>
+                      )),
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInkColorFor(styleTool, toHex(mixColor))
-                        tickHaptic()
-                      }}
-                      className="mind-btn flex-1 h-11 rounded-2xl text-[13.5px] font-bold"
-                      style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
-                    >
-                      Dùng màu này
-                    </button>
+
+                  <div className="flex items-center gap-3">
+                    {/* Lưu màu đang pha vào Bảng màu — chấm màu kèm dấu cộng, đúng thứ nó sẽ thành. */}
                     <button
                       type="button"
                       onClick={() => {
                         addCustomColor(toHex(mixColor))
-                        setColorTab("palette")
                         tickHaptic()
+                        flashToast("Đã thêm vào bảng màu")
                       }}
-                      className="mind-btn flex-1 h-11 rounded-2xl border text-[13.5px] font-bold"
-                      style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", color: "var(--c-text-2)" }}
+                      className="mind-btn flex-none flex items-center gap-2"
+                      style={{ color: "var(--c-text-2)" }}
                     >
-                      Lưu vào bảng màu
+                      <span className="relative flex-none">
+                        <span
+                          className="block rounded-full"
+                          style={{ width: 34, height: 34, background: mixColor, boxShadow: "inset 0 0 0 1px rgba(15,23,42,.15)" }}
+                        />
+                        <span
+                          className="absolute flex items-center justify-center rounded-full"
+                          style={{ top: -3, right: -3, width: 16, height: 16, background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+                        >
+                          {mi.plus("w-[10px] h-[10px]")}
+                        </span>
+                      </span>
+                      <span className="text-[13.5px] font-bold whitespace-nowrap">Vào Bảng màu</span>
                     </button>
+
+                    {/* Ô mã màu: gõ tay được, dùng khi cần đúng một mã lấy từ chỗ khác. */}
+                    <label
+                      className="flex-1 min-w-0 h-11 flex items-center gap-1.5 px-3 rounded-full"
+                      style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}
+                    >
+                      <span className="text-[12px] font-bold" style={{ color: "var(--c-text-muted)" }}>
+                        HEX
+                      </span>
+                      <input
+                        value={hexDraft ?? toHex(mixColor).slice(1).toUpperCase()}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6)
+                          setHexDraft(v.toUpperCase())
+                          // Đủ sáu ký tự thì áp luôn, không đợi rời ô: gõ xong mà chưa thấy gì đổi
+                          // thì không biết mình gõ đúng hay sai.
+                          if (v.length === 6) {
+                            setMixColor(`#${v}`)
+                            setInkColorFor(styleTool, `#${v}`)
+                          }
+                        }}
+                        onBlur={() => setHexDraft(null)}
+                        aria-label="Mã màu HEX"
+                        spellCheck={false}
+                        autoCapitalize="characters"
+                        className="mind-input flex-1 min-w-0 bg-transparent outline-none text-[14px] font-bold tabular-nums tracking-wide"
+                        style={{ color: "var(--c-text)" }}
+                      />
+                    </label>
+
+                    {/* Bánh xe màu của chính hệ điều hành — chỗ duy nhất lấy được những sắc không có
+                        trong lưới (lưới chia 12 sắc, đủ dùng nhưng không phải là tất cả). */}
+                    <span className="relative flex-none" style={{ width: 44, height: 44 }}>
+                      <span
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background:
+                            "conic-gradient(#ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)",
+                        }}
+                      />
+                      <span
+                        className="absolute rounded-full"
+                        style={{ inset: 7, background: mixColor, boxShadow: "0 0 0 2px var(--c-surface)" }}
+                      />
+                      <input
+                        type="color"
+                        value={toHex(mixColor)}
+                        onChange={(e) => {
+                          setMixColor(e.target.value)
+                          setInkColorFor(styleTool, e.target.value)
+                        }}
+                        aria-label="Chọn màu tự do"
+                        title="Chọn màu tự do"
+                        className="absolute inset-0 opacity-0"
+                        style={{ width: "100%", height: "100%" }}
+                      />
+                    </span>
                   </div>
                 </div>
               )}
