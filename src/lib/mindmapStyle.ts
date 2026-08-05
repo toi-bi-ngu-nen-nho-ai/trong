@@ -4,7 +4,7 @@
 // HTML/CSS, và khi xuất ảnh PNG bằng canvas 2d. Nếu mỗi nơi tự khai báo màu nền, cỡ chữ, bán kính
 // góc thì ảnh xuất ra sẽ không còn giống bảng người dùng đang thấy.
 
-import type { MindNode, MindNodeSize, MindNodeStyle } from "../data/types"
+import type { MindNode, MindNodeSize, MindNodeStyle, MindStrokeTool } from "../data/types"
 
 // ─── Giấy nền ─────────────────────────────────────────────────────────────────
 // Khai báo TRƯỚC bảng màu vì bảng màu tính ra một số màu bằng cách đối chiếu tương phản với mặt giấy.
@@ -103,8 +103,37 @@ export const HIGHLIGHT_SWATCHES = MIND_COLORS.filter((c) => c.id !== "default").
 }))
 export const HIGHLIGHT_COLORS = HIGHLIGHT_SWATCHES.map((s) => s.color)
 
+// ─── Chất mực của từng cây bút ────────────────────────────────────────────────
+//
+// Ba con số này là toàn bộ khác biệt hình thức giữa bốn cây bút, và chúng được khai báo Ở ĐÂY (chứ
+// không ở component vẽ) vì cùng một nét phải ra GIỐNG HỆT nhau ở ba nơi: bảng trên màn hình (SVG),
+// lớp xem trước lúc tẩy (SVG dựng tay), và ảnh/PDF xuất ra (canvas 2d).
+//
 // Độ mờ của nét bút dạ.
 export const HIGHLIGHTER_ALPHA = 0.4
+// Bút chì: hơi mờ, đúng cảm giác than chì bám trên mặt giấy chứ không phải mực đặc phủ kín. Chọn
+// 0.72 chứ không thấp hơn — dưới ngưỡng này thì nét chì trên giấy vàng ngà bắt đầu khó đọc.
+export const PENCIL_ALPHA = 0.72
+// Băng dính: đủ mờ để còn đọc được chữ nằm dưới (đó là điểm khác nhau giữa "dán băng dính" và "bôi
+// xoá"), đủ đặc để nhìn ra là một miếng vật liệu dán lên chứ không phải vệt bút dạ.
+export const TAPE_ALPHA = 0.55
+
+export function strokeAlpha(tool: MindStrokeTool | undefined): number {
+  if (tool === "highlighter") return HIGHLIGHTER_ALPHA
+  if (tool === "pencil") return PENCIL_ALPHA
+  if (tool === "tape") return TAPE_ALPHA
+  return 1
+}
+
+// Băng dính có đầu CẮT VUÔNG — đó là thứ duy nhất phân biệt một dải băng dính với một vệt bút dạ to
+// khi cả hai cùng nằm trên giấy. Các bút còn lại đầu tròn như bút thật.
+export function strokeCap(tool: MindStrokeTool | undefined): "round" | "butt" {
+  return tool === "tape" ? "butt" : "round"
+}
+
+// Thứ tự vẽ chồng lớp: băng dính dán dưới cùng, rồi bút dạ, trên cùng mới là nét chì/mực. Cùng lý do
+// với bút dạ thật — thứ dùng để ĐÁNH DẤU phải nằm dưới thứ dùng để VIẾT, nếu không nó che mất chữ.
+export const STROKE_LAYERS: MindStrokeTool[] = ["tape", "highlighter", "pencil", "pen"]
 
 export function colorName(color: string): string {
   const lower = color.toLowerCase()
@@ -286,6 +315,51 @@ export const INK_SWATCHES: Swatch[] = MIND_COLORS.map((c) => ({
   name: c.name,
 }))
 export const INK_COLORS = INK_SWATCHES.map((s) => s.color)
+
+// ─── Bảng màu bút đầy đủ ──────────────────────────────────────────────────────
+//
+// Hàng công cụ chỉ đủ chỗ cho một nút màu duy nhất; bảng đầy đủ mở ra từ nút đó và bày BA HÀNG cùng
+// lúc, mỗi hàng trả lời một nhu cầu khác nhau:
+//
+//   tươi       — màu gốc, dùng để viết và đánh dấu bình thường.
+//   đậm        — cùng sắc pha về phía mực đen. Cần thật sự, không phải cho đủ hàng: trên giấy vàng
+//                ngà màu tươi bị nền nuốt mất một phần, và khi một sơ đồ đã dùng hết các sắc thì
+//                cách duy nhất còn lại để tách hai ý là đổi ĐỘ ĐẬM của cùng một sắc.
+//   trung tính — trắng → đen. Bắt buộc phải có từ khi bảng có giấy tối: trên giấy đen thì mọi màu
+//                mực tối đều biến mất, chỉ còn mực trắng nhìn được.
+//
+// Tám ô mỗi hàng: đó là số ô 26px lọt vừa bề ngang máy 360px mà khoảng cách chạm vẫn trên ngưỡng.
+const PALETTE_HUES = ["red", "orange", "yellow", "green", "blue", "purple", "pink", "brown"]
+const PALETTE_COLORS = PALETTE_HUES.map((id) => MIND_COLORS.find((c) => c.id === id)!)
+
+// Hàng trung tính của mực: đi từ trắng (dành cho giấy tối) tới đen.
+const INK_NEUTRALS: Swatch[] = [
+  { color: "#FFFFFF", name: "Trắng" },
+  { color: "#E3E2E0", name: "Xám rất nhạt" },
+  { color: "#A5A4A1", name: "Xám nhạt" },
+  { color: "#787774", name: "Xám" },
+  { color: "#37352F", name: "Đen" },
+]
+
+export const INK_PALETTE: Swatch[][] = [
+  PALETTE_COLORS.map((c) => ({ color: readableOn(c.text, [PAPER_BG], 3), name: c.name })),
+  PALETTE_COLORS.map((c) => ({ color: mix(c.text, INK_BLACK, 0.45), name: `${c.name} đậm` })),
+  INK_NEUTRALS,
+]
+
+// Bảng màu bút dạ / băng dính. Cùng cấu trúc ba hàng, nhưng lấy sắc `highlight` (nhạt hơn) vì cả hai
+// công cụ này đều vẽ ở độ mờ thấp ĐÈ LÊN chữ — lấy màu mực đậm thì tô xong không đọc được chữ nữa.
+export const HIGHLIGHT_PALETTE: Swatch[][] = [
+  PALETTE_COLORS.map((c) => ({ color: c.highlight, name: c.name })),
+  PALETTE_COLORS.map((c) => ({ color: mix(c.highlight, parseColor(c.text), 0.5), name: `${c.name} đậm` })),
+  [
+    { color: "#FFFFFF", name: "Trắng" },
+    { color: "#E3E2E0", name: "Xám rất nhạt" },
+    { color: "#C7C6C3", name: "Xám nhạt" },
+    { color: "#A5A4A1", name: "Xám" },
+    { color: "#6F6E6B", name: "Xám đậm" },
+  ],
+]
 
 // Nền thẻ "Nền đặc" phải đủ tối để chữ TRẮNG trên đó đọc được. Hệ màu Notion là màu chữ dùng trên nền
 // trắng nên phần lớn chưa đủ tối (cam 3.28:1, vàng 2.75:1) — đậm dần cho tới khi đạt, vẫn giữ nguyên

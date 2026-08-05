@@ -55,6 +55,30 @@ export const mindIcons: Record<string, IconFn> = {
         <path d="M5 20.2h11" strokeWidth={2.6} opacity={0.42} />
       </>,
     ),
+  // Bút chì: thân có ĐỐT (vạch ngang chỗ giáp đầu gỗ) và đầu vót nhọn — hai chi tiết này là thứ duy
+  // nhất phân biệt được nó với icon bút máy ở cỡ 19px, nơi hình dáng chung của hai cây gần như nhau.
+  pencilTool: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.6,
+      <>
+        <path d="M4 20l1.2-4 10-10 2.8 2.8-10 10L4 20z" />
+        <path d="M6.6 14.4l2.8 2.8" opacity={0.55} />
+        <path d="M15.2 6l1.7-1.7a1.5 1.5 0 012.1 0l.7.7a1.5 1.5 0 010 2.1L18 8.8" />
+        <path d="M4 20l3-1-2-2-1 3z" fill="currentColor" stroke="none" />
+      </>,
+    ),
+  // Băng dính: một dải nghiêng, hai đầu CẮT VUÔNG có vạch răng cưa — đúng hình miếng băng dính xé ra
+  // dán lên giấy, và cũng đúng thứ nét mà công cụ này vẽ ra.
+  tape: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.6,
+      <g transform="rotate(-27 12 12)">
+        <path d="M2.6 8.8h18.8v6.4H2.6z" />
+        <path d="M7 8.8v6.4M17 8.8v6.4" opacity={0.45} />
+      </g>,
+    ),
   eraser: (cls = "w-5 h-5") =>
     svg(
       cls,
@@ -147,6 +171,31 @@ export const mindIcons: Record<string, IconFn> = {
       </g>,
     ),
   close: (cls = "w-5 h-5") => svg(cls, 2, <path d="M6.4 6.4l11.2 11.2M17.6 6.4L6.4 17.6" />),
+  // Tay nắm để kéo thanh công cụ đi chỗ khác — sáu chấm, quy ước quen thuộc của "chỗ này kéo được".
+  grip: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      0,
+      <g fill="currentColor" stroke="none">
+        <circle cx="9.4" cy="6.4" r="1.35" />
+        <circle cx="14.6" cy="6.4" r="1.35" />
+        <circle cx="9.4" cy="12" r="1.35" />
+        <circle cx="14.6" cy="12" r="1.35" />
+        <circle cx="9.4" cy="17.6" r="1.35" />
+        <circle cx="14.6" cy="17.6" r="1.35" />
+      </g>,
+    ),
+  // Con trượt — mở phần pha màu tự do trong bảng màu bút.
+  sliders: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.8,
+      <>
+        <path d="M4 8h9M17 8h3M4 16h3M11 16h9" />
+        <circle cx="15" cy="8" r="2.2" />
+        <circle cx="9" cy="16" r="2.2" />
+      </>,
+    ),
   // Về danh sách bảng.
   home: (cls = "w-5 h-5") =>
     svg(

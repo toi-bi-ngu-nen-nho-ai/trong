@@ -430,12 +430,21 @@ export interface MindEdge {
 // được vẽ dưới dạng vùng tô có viền dày mỏng thay đổi — nét bút thật đầu nhẹ, giữa đậm, nhấc tay thì
 // mảnh dần; bút cảm ứng (Apple Pencil) lấy theo lực nhấn, ngón tay/chuột lấy theo tốc độ di chuyển.
 // Không có trường này (nét vẽ cũ, bút dạ, hình vẽ) thì vẫn vẽ bằng đường kẻ đều dày `width`.
+// Cây bút đã vẽ ra nét này. Không chỉ để hiện icon: mỗi loại có độ mờ, kiểu đầu nét và thứ tự lớp
+// riêng (xem strokeAlpha/strokeCap trong lib/mindmapStyle.ts), nên nét phải NHỚ mình được vẽ bằng gì
+// thì mở lại bảng mới ra đúng thứ đã vẽ.
+//   pen         — bút máy: bề dày thay đổi theo lực nhấn/tốc độ.
+//   pencil      — bút chì: nét đều, hơi mờ như than chì trên giấy.
+//   highlighter — bút dạ: vệt mờ vẽ chìm dưới nét mực.
+//   tape        — băng dính: một dải thẳng, đầu cắt vuông, dán đè lên nội dung.
+export type MindStrokeTool = "pen" | "pencil" | "highlighter" | "tape"
+
 export interface MindStroke {
   id: string
   points: number[]
   color: string
   width: number
-  tool: "pen" | "highlighter"
+  tool: MindStrokeTool
   straight?: boolean
   widths?: number[]
 }

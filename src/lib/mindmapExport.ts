@@ -11,13 +11,15 @@ import { parseInline, stripInlineMarkers, type InlineToken } from "./richText"
 import {
   ALGORITHM_EDGE_COLOR,
   EDGE_COLOR,
-  HIGHLIGHTER_ALPHA,
   NODE_FONT_STACK,
   PAPER_BG,
   PAPER_DOT,
   PAPER_LINE,
   PAPER_STEP,
+  STROKE_LAYERS,
   STYLE_FONT_STACKS,
+  strokeAlpha,
+  strokeCap,
   edgeColor,
   nodeMetrics,
   nodePaint,
@@ -324,15 +326,19 @@ async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: Paper
     ctx.restore()
   })
 
-  // Nét bút dạ trước (chìm dưới), rồi nét mực.
+  // Băng dính dưới cùng, rồi bút dạ, rồi nét chì/mực — đúng thứ tự lớp của bảng (STROKE_LAYERS).
+  // Dữ liệu cũ (trước khi có bút chì/băng dính) chỉ có "pen"/"highlighter" nên vẫn rơi đúng vào hai
+  // lượt tương ứng, không mất nét nào.
   const strokes = data.strokes ?? []
-  ctx.lineCap = "round"
   ctx.lineJoin = "round"
-  for (const pass of ["highlighter", "pen"] as const) {
+  for (const pass of STROKE_LAYERS) {
     strokes
-      .filter((s) => s.tool === pass)
+      // Nét mang loại bút lạ (file sao lưu của một bản app mới hơn) vẫn được vẽ, gộp vào lượt mực —
+      // thà hơi khác một chút còn hơn để nó biến mất khỏi ảnh xuất ra mà không báo gì.
+      .filter((s) => s.tool === pass || (pass === "pen" && !STROKE_LAYERS.includes(s.tool)))
       .forEach((s) => {
-        ctx.globalAlpha = pass === "highlighter" ? HIGHLIGHTER_ALPHA : 1
+        ctx.globalAlpha = strokeAlpha(pass)
+        ctx.lineCap = strokeCap(pass)
         // Nét có bề dày thay đổi là một VÙNG TÔ, không phải đường kẻ — phải tô (fill) chứ không stroke,
         // nếu không ảnh xuất ra sẽ khác hẳn nét đang thấy trên bảng.
         if (s.widths && s.widths.length > 1 && !s.straight) {
