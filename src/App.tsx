@@ -5313,12 +5313,48 @@ function tierFor(tiers: DoseTier[], crcl: number | null): DoseTier {
 // lâu". Dùng lại đúng bộ hàm tính + kiểm tra vật lý của lib/mixing.ts (cùng bản chất phép tính, chỉ
 // khác chỗ dùng), và dùng lại kho "công thức của bạn" (wardRecipes) — antibiotic.id cũng là một
 // drugId hợp lệ trong kho đó.
+
+// Một thuốc giờ có NHIỀU công thức đã lưu + một công thức HỆ THỐNG (mặc định dựng sẵn của app) —
+// ba nơi hiển thị công thức pha (AntibioticDoseCard, AntibioticMixPanel, InfusionCalculator) đều
+// cần cùng một khái niệm "công thức nào đang được xem/áp dụng" để chuyển đổi qua lại. Trước đây
+// mỗi nơi tự suy "công thức đang áp dụng" = công thức lưu GẦN NHẤT (wardList[wardList.length-1]) —
+// không có chỗ nào nhớ người dùng vừa BẤM chọn công thức nào, nên bấm sang một công thức cũ hơn chỉ
+// nạp giá trị vào form chứ không có gì đánh dấu nó đang "đang chọn", và không có cách nào quay lại
+// công thức hệ thống mà không XOÁ hẳn công thức đã lưu. `activeId` ở đây có thể là id một công thức
+// đã lưu, hoặc chuỗi "system" — undefined `active` nghĩa là công thức hệ thống đang được chọn.
+function useActiveWardRecipe(wardList: WardRecipe[]): {
+  activeId: string
+  setActiveId: (id: string) => void
+  active: WardRecipe | undefined
+} {
+  const [activeId, setActiveId] = useState<string>(() => wardList[wardList.length - 1]?.id ?? "system")
+  // Theo dõi id của lần render trước để phát hiện: (a) vừa có công thức MỚI được lưu (id chưa từng
+  // thấy) → tự chuyển sang xem công thức đó luôn, khỏi bấm thêm một lần nữa; (b) công thức đang xem
+  // vừa bị xoá (id không còn nằm trong danh sách) → rơi về công thức mới nhất còn lại, hoặc hệ thống
+  // nếu danh sách rỗng — tránh treo activeId trỏ vào một công thức không còn tồn tại.
+  const prevIdsRef = useRef<string[]>(wardList.map((w) => w.id))
+  useEffect(() => {
+    const prevIds = prevIdsRef.current
+    const newlyAdded = wardList.find((w) => !prevIds.includes(w.id))
+    if (newlyAdded) {
+      setActiveId(newlyAdded.id)
+    } else if (activeId !== "system" && !wardList.some((w) => w.id === activeId)) {
+      setActiveId(wardList[wardList.length - 1]?.id ?? "system")
+    }
+    prevIdsRef.current = wardList.map((w) => w.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wardList])
+  const active = activeId === "system" ? undefined : wardList.find((w) => w.id === activeId)
+  return { activeId, setActiveId, active }
+}
+
 function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
   const { logCalc, wardRecipes, saveWard, clearWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
-  // Công thức ÁP DỤNG mặc định là công thức lưu GẦN NHẤT — các công thức khác vẫn giữ nguyên trong
-  // danh sách, bấm chip tương ứng để nạp lại giá trị của nó vào form đang mở (xem loadWard()).
-  const ward = wardList[wardList.length - 1]
+  // Công thức ĐANG XEM — có thể là một công thức đã lưu, hoặc công thức HỆ THỐNG (xem
+  // useActiveWardRecipe phía trên) — bấm chip tương ứng để nạp lại giá trị của nó vào form đang mở
+  // (xem loadWard()/loadSystemDefault() bên dưới).
+  const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
   const mix = drug.mix
   const concUnit = mix?.concUnit ?? "mg/mL"
   const concMass = massOfConcUnit(concUnit)
@@ -5435,6 +5471,27 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
     setRouteShort(w.route ?? defaultRoute)
     setInfuseMinutes(w.infuseMinutes != null ? String(w.infuseMinutes) : "")
     setDropFactor(w.dropFactor ?? DEFAULT_DROP_FACTOR)
+    setActiveRecipeId(w.id)
+    tickHaptic()
+  }
+
+  // Quay lại công thức DỰNG SẴN của app — không xoá công thức đã lưu nào cả, chỉ đổi giá trị form
+  // đang mở về đúng như lúc chưa lưu công thức nào (xem các useState phía trên dùng cùng fallback
+  // `mix?.xxx`). Trước đây muốn "quay lại hệ thống" chỉ có một cách: XOÁ hẳn công thức đã lưu.
+  function loadSystemDefault() {
+    setVialAmount(String(mix?.vialAmount ?? ""))
+    setVialUnit(mix?.vialUnit ?? concMass)
+    setVials("1")
+    setVialForm(mix?.vialForm ?? "powder")
+    setVialVolume(mix?.vialVolumeMl != null ? String(mix.vialVolumeMl) : "")
+    setReconstitute(mix?.reconstituteMl != null ? String(mix.reconstituteMl) : "")
+    setDisplacement(mix?.displacementMl != null ? String(mix.displacementMl) : "")
+    setVolume("100")
+    setDiluent(mix?.diluents?.[0] ?? "NaCl 0,9%")
+    setRouteShort(defaultRoute)
+    setInfuseMinutes("")
+    setDropFactor(DEFAULT_DROP_FACTOR)
+    setActiveRecipeId("system")
     tickHaptic()
   }
 
@@ -5476,11 +5533,28 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
     <div className="mt-2.5 p-3 rounded-xl fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
       {wardList.length > 0 && (
         <div className="mb-2">
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Công thức đã lưu</label>
-          <div className="flex flex-wrap gap-1.5">
+          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Công thức pha — bấm để chuyển đổi</label>
+          <div className="flex flex-wrap gap-2">
+            {/* Công thức HỆ THỐNG luôn là một lựa chọn để chuyển VỀ, không chỉ để xoá hẳn công thức
+                đã lưu mới quay lại được. */}
+            <button
+              onClick={loadSystemDefault}
+              className="h-9 px-3 rounded-full text-[12px] font-semibold border"
+              style={pill(activeRecipeId === "system")}
+            >
+              Công thức hệ thống
+            </button>
             {wardList.map((w) => (
-              <span key={w.id} className="inline-flex items-center h-8 rounded-full border overflow-hidden" style={{ borderColor: "var(--c-accent-line)" }}>
-                <button onClick={() => loadWard(w)} className="h-full px-2.5 text-[11px] font-semibold max-w-[160px] truncate" style={{ color: "var(--c-accent-deep)", background: "var(--c-surface)" }}>
+              <span
+                key={w.id}
+                className="inline-flex items-center h-9 rounded-full border overflow-hidden"
+                style={{ borderColor: activeRecipeId === w.id ? "var(--c-accent)" : "var(--c-accent-line)" }}
+              >
+                <button
+                  onClick={() => loadWard(w)}
+                  className="h-full px-3 text-[12px] font-semibold max-w-[160px] truncate"
+                  style={activeRecipeId === w.id ? { color: "var(--c-on-bright)", background: "var(--c-accent)" } : { color: "var(--c-accent-deep)", background: "var(--c-surface)" }}
+                >
                   {w.title || "Công thức đã lưu"}
                 </button>
                 {/* Đây là công thức ĐÃ LƯU từ phiên trước, không phải một dòng đang soạn dở — nên
@@ -5490,7 +5564,7 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
                 <ConfirmIconButton
                   onConfirm={() => clearWard(drug.id, w.id)}
                   ariaLabel={`Xoá công thức ${w.title}`}
-                  className="h-full px-2 flex-none flex items-center justify-center"
+                  className="h-full px-2.5 flex-none flex items-center justify-center"
                   style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }}
                 />
               </span>
@@ -5752,12 +5826,15 @@ function AntibioticMixPanel({ drug }: { drug: Antibiotic }) {
                   </button>
                 </div>
                 <div className="flex gap-1.5 mt-1.5">
+                  {/* `min-w-0` là bắt buộc: flex item mặc định min-width:auto (theo nội dung), nên
+                      một input flex-1 đứng cạnh nút flex-none sẽ không chịu co lại dưới độ rộng nội
+                      dung của nó — trên màn hình hẹp, cả hàng tràn ra ngoài thẻ thay vì input co lại. */}
                   <input
                     value={saveTitle}
                     onChange={(e) => setSaveTitle(e.target.value)}
                     placeholder="Đặt tên công thức (tuỳ chọn, vd: Khoa Hồi sức)"
                     maxLength={40}
-                    className="flex-1 h-8 px-2.5 rounded-full text-[11px] border outline-none"
+                    className="flex-1 min-w-0 h-8 px-2.5 rounded-full text-[11px] border outline-none"
                     style={FIELD_STYLE}
                   />
                   <button onClick={saveWardFrom} className="h-8 px-3 rounded-full text-[11px] font-bold border flex-none" style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}>
@@ -5793,8 +5870,9 @@ function AntibioticDoseCard({
 }) {
   const { patient, abwKg, heightCm, crcl, crclUsable, openPatientPanel, pinRunning, wardRecipes, clearWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
-  const ward = wardList[wardList.length - 1]
+  const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
   const [showMix, setShowMix] = useState(false)
+  const [confirmClearWard, setConfirmClearWard] = useState(false)
   // Đường uống không cần hoàn nguyên/pha loãng — bảng pha chỉ có ý nghĩa với đường tiêm/truyền.
   const injectable = !drug.route.includes("Uống")
   const indication = disease ? drug.indications?.find((i) => i.diseaseId === disease.id) : undefined
@@ -6227,27 +6305,70 @@ function AntibioticDoseCard({
           nút riêng — cùng nói về một việc nhưng tách hai chỗ. */}
       {(injectable || drug.preparation || indication?.note || drug.note) && (
         <Disclosure label="Cách dùng · Ghi chú">
+          {/* Chuyển đổi qua lại giữa các công thức đã lưu VÀ công thức hệ thống ngay ở đây — không
+              còn phải mở hẳn "Bảng pha thuốc" bên dưới mới đổi được, và không cần XOÁ một công thức
+              đã lưu chỉ để tạm xem lại công thức hệ thống (xem useActiveWardRecipe). */}
+          {wardList.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2.5">
+              <button
+                onClick={() => setActiveRecipeId("system")}
+                className="h-9 px-3 rounded-full text-[12px] font-semibold border"
+                style={
+                  activeRecipeId === "system"
+                    ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                    : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+                }
+              >
+                Công thức hệ thống
+              </button>
+              {wardList.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => setActiveRecipeId(w.id)}
+                  className="h-9 px-3 rounded-full text-[12px] font-semibold border max-w-[160px] truncate"
+                  style={
+                    activeRecipeId === w.id
+                      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                      : { background: "var(--c-surface)", borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }
+                  }
+                >
+                  {w.title || "Công thức đã lưu"}
+                </button>
+              ))}
+            </div>
+          )}
           {ward ? (
             <div className="flex items-start gap-2">
               <span className="mt-0.5 flex-none" style={{ color: "var(--c-accent)" }}>{icons.edit()}</span>
               <div className="flex-1 min-w-0">
                 <p className={`${T.meta} font-bold`} style={{ color: "var(--c-accent-deep)" }}>
-                  Công thức của bạn (lưu {formatSavedAt(ward.savedAt)}) — khác công thức hệ thống
+                  {ward.title || "Công thức của bạn"} (lưu {formatSavedAt(ward.savedAt)}) — khác công thức hệ thống
                 </p>
                 <p className={`${T.body} mt-0.5`} style={{ color: C.textSoft }}>
                   {ward.vials} {ward.vialForm === "powder" ? "lọ" : "ống"} × {formatMass(ward.vialAmount, ward.vialUnit)} vừa đủ {trim(ward.volumeMl)} mL
                   {ward.diluent ? `, dung môi ${ward.diluent}` : ""}.
                 </p>
+                {/* Đây là XOÁ THẬT (mất hẳn công thức đã lưu) — chuyển VỀ công thức hệ thống mà
+                    không mất dữ liệu thì dùng chip "Công thức hệ thống" ở trên. Nên cần xác nhận hai
+                    chạm giống mọi chỗ xoá dữ liệu đã lưu khác trong app, không phải một chạm "hoàn
+                    tác" như trước (dễ bấm nhầm mất công thức chỉ để xem lại công thức hệ thống). */}
                 <button
                   onClick={() => {
+                    if (!confirmClearWard) {
+                      setConfirmClearWard(true)
+                      tickHaptic()
+                      return
+                    }
                     clearWard(drug.id, ward.id)
+                    setConfirmClearWard(false)
                     tickHaptic()
                   }}
+                  onBlur={() => setConfirmClearWard(false)}
                   className="flex items-center gap-1.5 text-[11px] font-bold mt-1.5"
-                  style={{ color: "var(--c-danger)" }}
+                  style={{ color: confirmClearWard ? "var(--c-on-bright)" : "var(--c-danger)", background: confirmClearWard ? "var(--c-danger-icon)" : "transparent", padding: confirmClearWard ? "4px 8px" : 0, borderRadius: 999 }}
                 >
-                  <span className="scale-90">{icons.undo()}</span>
-                  Hoàn tác — dùng lại công thức hệ thống
+                  <span className="scale-90">{confirmClearWard ? icons.alert() : icons.trash()}</span>
+                  {confirmClearWard ? "Chắc chắn xoá?" : "Xoá công thức này"}
                 </button>
               </div>
             </div>
@@ -7202,9 +7323,11 @@ function MixPanel({
 function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: InfusionCalcConfig }) {
   const { abwKg, heightCm, patient, openPatientPanel, pinRunning, logCalc, wardRecipes, saveWard, clearWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
-  // Công thức đã lưu GẦN NHẤT là mặc định thật sự của thuốc này — không bắt gõ lại mỗi lần mở. Các
-  // công thức khác vẫn còn trong danh sách, chọn lại ở hàng chip trong "Cách dùng · Pha thuốc".
-  const ward = wardList[wardList.length - 1]
+  // Công thức đã lưu GẦN NHẤT là mặc định thật sự của thuốc này lúc MỞ THẺ — không bắt gõ lại mỗi
+  // lần mở (chỉ dùng để khởi tạo `conc`/`bagVolume` bên dưới). Sau đó `ward` đổi theo chip người dùng
+  // BẤM chọn (kể cả "Công thức hệ thống") — xem useActiveWardRecipe và hàng chip trong "Cách dùng ·
+  // Pha thuốc".
+  const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
   const unitOptions = useMemo(() => doseUnitOptions(calc.doseUnit, calc.concUnit), [calc.doseUnit, calc.concUnit])
   const [unitId, setUnitId] = useState(calc.doseUnit)
   const [mode, setMode] = useState<"doseToRate" | "rateToDose">("doseToRate")
@@ -7527,6 +7650,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           {ward && (
             <button
               onClick={() => {
+                setActiveRecipeId(ward.id)
                 setConc(String(ward.concValue))
                 setBagVolume(String(ward.volumeMl))
                 tickHaptic()
@@ -7540,6 +7664,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           {calc.concDefault != null && (
             <button
               onClick={() => {
+                setActiveRecipeId("system")
                 setConc(String(calc.concDefault))
                 if (calc.mix) setBagVolume(String(calc.mix.volumeMl))
                 tickHaptic()
@@ -7558,19 +7683,39 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           "Bảng pha thuốc" là một nút riêng nằm giữa dòng — hai thứ cùng nói về MỘT việc (pha thuốc
           thế nào) nhưng lại ở hai chỗ khác nhau. */}
       <Disclosure label="Cách dùng · Pha thuốc">
-        {wardList.length > 1 && (
-          <div className="flex flex-wrap gap-1.5 mb-2">
+        {wardList.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {/* Công thức HỆ THỐNG giờ là một chip chuyển đổi như mọi công thức đã lưu khác — trước
+                đây chỉ có cách quay lại nó bằng cách xoá hẳn công thức đã lưu (mất dữ liệu), hoặc bấm
+                một nút riêng biệt phía trên (xem chú thích "Trả về mốc chuẩn"). */}
+            <button
+              onClick={() => {
+                setActiveRecipeId("system")
+                setConc(calc.concDefault != null ? String(calc.concDefault) : "")
+                setBagVolume(calc.mix ? String(calc.mix.volumeMl) : "")
+                tickHaptic()
+              }}
+              className="h-9 px-3 rounded-full text-[12px] font-semibold border"
+              style={
+                activeRecipeId === "system"
+                  ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                  : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+              }
+            >
+              Công thức hệ thống
+            </button>
             {wardList.map((w) => (
               <button
                 key={w.id}
                 onClick={() => {
+                  setActiveRecipeId(w.id)
                   setConc(String(w.concValue))
                   setBagVolume(String(w.volumeMl))
                   tickHaptic()
                 }}
-                className="h-8 px-2.5 rounded-full text-[11px] font-semibold border max-w-[160px] truncate"
+                className="h-9 px-3 rounded-full text-[12px] font-semibold border max-w-[160px] truncate"
                 style={
-                  w.id === ward?.id
+                  activeRecipeId === w.id
                     ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
                     : { background: "var(--c-surface)", borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }
                 }
@@ -7599,8 +7744,18 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                     return
                   }
                   clearWard(drug.id, ward.id)
-                  if (calc.concDefault != null) setConc(String(calc.concDefault))
-                  if (calc.mix) setBagVolume(String(calc.mix.volumeMl))
+                  // Xoá xong thì rơi về công thức đã lưu MỚI NHẤT còn lại (nếu có), chứ không nhảy
+                  // thẳng về công thức hệ thống khi vẫn còn công thức khác — khớp với cách
+                  // useActiveWardRecipe tự chọn lại khi công thức đang xem biến mất.
+                  const remaining = wardList.filter((w) => w.id !== ward.id)
+                  const next = remaining[remaining.length - 1]
+                  if (next) {
+                    setConc(String(next.concValue))
+                    setBagVolume(String(next.volumeMl))
+                  } else {
+                    setConc(calc.concDefault != null ? String(calc.concDefault) : "")
+                    setBagVolume(calc.mix ? String(calc.mix.volumeMl) : "")
+                  }
                   setConfirmClearWard(false)
                   tickHaptic()
                 }}
