@@ -439,6 +439,11 @@ export interface MindEdge {
 //   tape        — băng dính: một dải thẳng, đầu cắt vuông, dán đè lên nội dung.
 export type MindStrokeTool = "pen" | "pencil" | "highlighter" | "tape"
 
+// Kiểu nét: liền (mặc định, không lưu gì), đứt đoạn, hoặc chấm. Áp cho MỌI cây bút và cả hình vẽ —
+// một khung chữ nhật nét đứt hay một mũi tên chấm chấm là cách quen thuộc nhất để nói "cái này là
+// phụ / là giả định / là đường liên hệ", mà nét liền không nói được.
+export type MindDash = "dash" | "dot"
+
 export interface MindStroke {
   id: string
   points: number[]
@@ -447,6 +452,7 @@ export interface MindStroke {
   tool: MindStrokeTool
   straight?: boolean
   widths?: number[]
+  dash?: MindDash
 }
 
 // Một ảnh dán trên bảng Sơ đồ tư duy (ảnh chụp X-quang, ECG, sơ đồ trong sách...).

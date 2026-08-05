@@ -20,6 +20,7 @@ import {
   STYLE_FONT_STACKS,
   strokeAlpha,
   strokeCap,
+  strokeDashArray,
   edgeColor,
   nodeMetrics,
   nodePaint,
@@ -338,10 +339,10 @@ async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: Paper
       .filter((s) => s.tool === pass || (pass === "pen" && !STROKE_LAYERS.includes(s.tool)))
       .forEach((s) => {
         ctx.globalAlpha = strokeAlpha(pass)
-        ctx.lineCap = strokeCap(pass)
+        ctx.lineCap = s.dash === "dot" ? "round" : strokeCap(pass)
         // Nét có bề dày thay đổi là một VÙNG TÔ, không phải đường kẻ — phải tô (fill) chứ không stroke,
         // nếu không ảnh xuất ra sẽ khác hẳn nét đang thấy trên bảng.
-        if (s.widths && s.widths.length > 1 && !s.straight) {
+        if (s.widths && s.widths.length > 1 && !s.straight && !s.dash) {
           const d = strokeOutline(s.points, s.widths)
           if (!d) return
           ctx.fillStyle = s.color
@@ -350,9 +351,14 @@ async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: Paper
         }
         const d = strokePath(s.points, s.straight)
         if (!d) return
+        // Nét đứt/nét chấm: cùng một công thức với trên bảng (strokeDashArray) để ảnh xuất ra có đúng
+        // khoảng hở đang thấy, không phải một kiểu đứt khác do canvas tự đặt.
+        const da = strokeDashArray(s.dash, s.width)
+        ctx.setLineDash(da ? da.split(" ").map(Number) : [])
         ctx.strokeStyle = s.color
         ctx.lineWidth = s.width
         ctx.stroke(new Path2D(d))
+        ctx.setLineDash([])
       })
   }
   ctx.globalAlpha = 1

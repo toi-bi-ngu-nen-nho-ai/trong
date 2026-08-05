@@ -4,7 +4,7 @@
 // HTML/CSS, và khi xuất ảnh PNG bằng canvas 2d. Nếu mỗi nơi tự khai báo màu nền, cỡ chữ, bán kính
 // góc thì ảnh xuất ra sẽ không còn giống bảng người dùng đang thấy.
 
-import type { MindNode, MindNodeSize, MindNodeStyle, MindStrokeTool } from "../data/types"
+import type { MindDash, MindNode, MindNodeSize, MindNodeStyle, MindStrokeTool } from "../data/types"
 
 // ─── Giấy nền ─────────────────────────────────────────────────────────────────
 // Khai báo TRƯỚC bảng màu vì bảng màu tính ra một số màu bằng cách đối chiếu tương phản với mặt giấy.
@@ -134,6 +134,18 @@ export function strokeCap(tool: MindStrokeTool | undefined): "round" | "butt" {
 // Thứ tự vẽ chồng lớp: băng dính dán dưới cùng, rồi bút dạ, trên cùng mới là nét chì/mực. Cùng lý do
 // với bút dạ thật — thứ dùng để ĐÁNH DẤU phải nằm dưới thứ dùng để VIẾT, nếu không nó che mất chữ.
 export const STROKE_LAYERS: MindStrokeTool[] = ["tape", "highlighter", "pencil", "pen"]
+
+// Nét đứt / nét chấm, tính THEO BỀ DÀY của chính nét đó: một khoảng hở cố định 6px trông vừa phải ở
+// nét 2px nhưng biến mất hẳn ở nét 20px. Nhân theo bề dày thì nét nào cũng ra đúng một kiểu đứt.
+//
+// Nét chấm dùng đoạn dài gần bằng 0 cộng đầu nét TRÒN — đó là cách duy nhất ra được chấm tròn thật
+// sự; đặt đoạn dài bằng đúng bề dày sẽ ra các ô vuông nhỏ, không phải chấm.
+export function strokeDashArray(dash: MindDash | undefined, width: number): string | undefined {
+  const r = (n: number) => Math.round(n * 10) / 10
+  if (dash === "dash") return `${r(width * 3)} ${r(width * 2.2)}`
+  if (dash === "dot") return `${r(Math.max(0.1, width * 0.08))} ${r(width * 2)}`
+  return undefined
+}
 
 export function colorName(color: string): string {
   const lower = color.toLowerCase()

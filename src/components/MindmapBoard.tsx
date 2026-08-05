@@ -35,6 +35,7 @@ import {
 } from "react"
 import { flushSync } from "react-dom"
 import type {
+  MindDash,
   MindEdge,
   MindImage,
   MindNode,
@@ -99,9 +100,11 @@ import {
   nodePaint,
   paperBackground,
   paperTone,
+  luminance,
   STROKE_LAYERS,
   strokeAlpha,
   strokeCap,
+  strokeDashArray,
   STYLE_FONT_STACKS,
   STYLE_FONT_LABELS,
   type PaperKind,
@@ -194,10 +197,29 @@ const ZOOM_ADVANCE_KEEP = 0.22
 // "cỡ vừa dùng" vào một mảng thay vì hai biến rời: nút cỡ nét trên thanh bút chỉ cần đọc thẳng mảng
 // này ra là có đủ ba chấm để bấm lại ngay, không phải tự dựng thêm một danh sách lịch sử riêng có
 // khả năng lệch với cỡ đang dùng thật.
+// Một "nét" = bề dày + kiểu nét. Đi thành cặp chứ không tách hai danh sách: người ta nhớ cây bút của
+// mình theo cả cụm ("nét mảnh đứt đoạn để khoanh vùng phụ"), đổi bề dày mà kiểu nét ở lại là ra một
+// cây bút thứ ba không ai gọi.
+interface StrokeSpec {
+  w: number
+  dash?: MindDash
+}
+
 interface InkStyle {
   color: string
-  widths: number[]
+  // Ba nét gần nhất; phần tử đầu là nét đang dùng.
+  strokes: StrokeSpec[]
 }
+
+function sameSpec(a: StrokeSpec, b: StrokeSpec): boolean {
+  return a.w === b.w && (a.dash ?? null) === (b.dash ?? null)
+}
+
+const DASH_ITEMS: { id: MindDash | undefined; label: string }[] = [
+  { id: undefined, label: "Liền" },
+  { id: "dash", label: "Đứt đoạn" },
+  { id: "dot", label: "Chấm" },
+]
 const INK_KEY = "drtrong:mindmap-ink"
 // Khoá của bản cũ (năm ô bút yêu thích) — đọc một lần để giữ lại MÀU người dùng đã chọn cho bút mực
 // và bút dạ, rồi thôi. Mất màu đã quen tay chỉ vì app đổi cách sắp xếp thanh công cụ là thứ người
@@ -208,12 +230,12 @@ const PRESETS_KEY = "drtrong:mindmap-pens"
 // ngay ô đang được chọn có vòng sáng, chứ không phải một bảng không ô nào được đánh dấu vì mã màu
 // mặc định lệch bảng vài đơn vị.
 const DEFAULT_INK: Record<InkTool, InkStyle> = {
-  pen: { color: INK_PALETTE[2][4].color, widths: [3.5, 2, 6] },
+  pen: { color: INK_PALETTE[2][4].color, strokes: [{ w: 3.5 }, { w: 2 }, { w: 6, dash: "dash" }] },
   // Bút chì mặc định KHÔNG phải màu đen: nét chì đen tuyền nhìn y hệt bút mực, mất luôn lý do tồn
   // tại của cây bút này. Xám than là màu của chì thật.
-  pencil: { color: INK_PALETTE[2][3].color, widths: [2.5, 1.5, 4] },
-  highlighter: { color: HIGHLIGHT_PALETTE[0][2].color, widths: [14, 24, 8] },
-  tape: { color: HIGHLIGHT_PALETTE[0][4].color, widths: [26, 16, 40] },
+  pencil: { color: INK_PALETTE[2][3].color, strokes: [{ w: 2.5 }, { w: 1.5 }, { w: 4, dash: "dot" }] },
+  highlighter: { color: HIGHLIGHT_PALETTE[0][2].color, strokes: [{ w: 14 }, { w: 24 }, { w: 8 }] },
+  tape: { color: HIGHLIGHT_PALETTE[0][4].color, strokes: [{ w: 26 }, { w: 16 }, { w: 40 }] },
 }
 
 // Khoảng cỡ nét cho con trượt của từng bút. Bút dạ và băng dính bắt đầu từ chỗ bút mực kết thúc:
@@ -225,8 +247,10 @@ const WIDTH_RANGE: Record<InkTool, [number, number]> = {
   highlighter: [6, 40],
   tape: [10, 60],
 }
-// Số cỡ nét gần nhất giữ lại cho mỗi bút.
+// Số nét gần nhất giữ lại cho mỗi bút.
 const RECENT_WIDTHS = 3
+// Số ô màu bấm-là-xong bày sẵn trên thanh bút dựng dọc (ngoài ô màu đang dùng).
+const QUICK_COLORS = 2
 
 // Màu vừa dùng (tab "Lịch sử" của bảng màu) và màu tự pha người dùng đã lưu (tab "Tùy chỉnh").
 // Dùng CHUNG cho cả bốn bút, không tách theo bút: một màu vừa pha ra để viết thì thường cũng là màu
@@ -262,6 +286,9 @@ const PENBAR_KEY = "drtrong:mindmap-penbar"
 // (bút gom lại một nút) và đã bỏ nút "…" trùng lặp, nên chỗ trống dôi ra được trả về cho chính các
 // nút — 36px là sát mức tối thiểu cho một mục tiêu chạm, mà đây lại là những nút bấm nhiều nhất.
 const TOOL_BTN = 42
+// Cỡ nút trên thanh bút. Bằng đúng hàng công cụ chính — thanh bút mới là thứ tay chạm nhiều nhất
+// trong lúc vẽ, nút ở đây nhỏ hơn chỗ khác là vô lý.
+const BAR_BTN = 42
 
 // Bán kính tẩy (theo pixel MÀN HÌNH — chia cho zoom khi đổi sang toạ độ bảng, để đầu tẩy luôn to
 // bằng đầu ngón tay dù đang phóng to hay thu nhỏ).
@@ -386,8 +413,12 @@ const pathCache = new Map<string, string>()
 
 // Nét có `widths` được vẽ bằng VÙNG TÔ (bề dày thay đổi theo lực nhấn / tốc độ), nét còn lại vẫn là
 // đường kẻ đều dày.
+//
+// Nét đứt/nét chấm luôn là đường kẻ: nét đứt được tạo ra bằng cách cắt khúc ĐƯỜNG VIỀN, mà một vùng
+// tô thì viền của nó chạy vòng quanh cả hai mép nét — cắt khúc cái viền đó ra không thành nét đứt,
+// nó thành một chuỗi mảnh vụn hình răng cưa.
 function isFilled(s: MindStroke): boolean {
-  return !!s.widths && s.widths.length > 1 && !s.straight
+  return !!s.widths && s.widths.length > 1 && !s.straight && !s.dash
 }
 
 // Xoá bộ nhớ đệm của những nét vừa bị đổi toạ độ (kéo cả nhóm). Không xoá thì lần vẽ sau vẫn lấy
@@ -418,8 +449,9 @@ function StrokePath({ s }: { s: MindStroke }) {
       fill={filled ? s.color : "none"}
       stroke={filled ? "none" : s.color}
       strokeWidth={filled ? undefined : s.width}
-      strokeLinecap={filled ? undefined : strokeCap(s.tool)}
+      strokeLinecap={filled ? undefined : s.dash === "dot" ? "round" : strokeCap(s.tool)}
       strokeLinejoin={filled ? undefined : "round"}
+      strokeDasharray={filled ? undefined : strokeDashArray(s.dash, s.width)}
       opacity={alpha === 1 ? undefined : alpha}
     />
   )
@@ -489,24 +521,33 @@ function readPaper(): PaperKind {
   }
 }
 
-// Màu/cỡ nét của bốn cây bút. Đọc bản mới trước; chưa có thì cố vớt màu từ bộ "bút yêu thích" đời cũ.
+// Màu/nét của bốn cây bút. Đọc bản mới trước; chưa có thì cố vớt màu từ bộ "bút yêu thích" đời cũ.
 function readInkStyles(): Record<InkTool, InkStyle> {
+  const clone = (s: InkStyle): InkStyle => ({ color: s.color, strokes: s.strokes.map((x) => ({ ...x })) })
   const out: Record<InkTool, InkStyle> = {
-    pen: { ...DEFAULT_INK.pen, widths: [...DEFAULT_INK.pen.widths] },
-    pencil: { ...DEFAULT_INK.pencil, widths: [...DEFAULT_INK.pencil.widths] },
-    highlighter: { ...DEFAULT_INK.highlighter, widths: [...DEFAULT_INK.highlighter.widths] },
-    tape: { ...DEFAULT_INK.tape, widths: [...DEFAULT_INK.tape.widths] },
+    pen: clone(DEFAULT_INK.pen),
+    pencil: clone(DEFAULT_INK.pencil),
+    highlighter: clone(DEFAULT_INK.highlighter),
+    tape: clone(DEFAULT_INK.tape),
   }
   try {
     const raw = localStorage.getItem(INK_KEY)
     if (raw) {
-      const v = JSON.parse(raw) as Partial<Record<InkTool, Partial<InkStyle>>>
+      // `widths` là dạng cũ (chỉ có bề dày, chưa có kiểu nét) — đọc lên rồi nâng thành StrokeSpec,
+      // để người đã chỉnh cỡ nét quen tay không bị trả về mặc định chỉ vì app thêm nét đứt/nét chấm.
+      const v = JSON.parse(raw) as Partial<Record<InkTool, { color?: string; strokes?: StrokeSpec[]; widths?: number[] }>>
       INK_TOOLS.forEach((t) => {
         const s = v?.[t]
         if (!s) return
         if (typeof s.color === "string") out[t].color = s.color
-        const ws = Array.isArray(s.widths) ? s.widths.filter((w) => typeof w === "number" && w > 0) : []
-        if (ws.length > 0) out[t].widths = ws.slice(0, RECENT_WIDTHS)
+        const list: StrokeSpec[] = Array.isArray(s.strokes)
+          ? s.strokes
+              .filter((x) => x && typeof x.w === "number" && x.w > 0)
+              .map((x) => ({ w: x.w, ...(x.dash === "dash" || x.dash === "dot" ? { dash: x.dash } : {}) }))
+          : Array.isArray(s.widths)
+            ? s.widths.filter((w) => typeof w === "number" && w > 0).map((w) => ({ w }))
+            : []
+        if (list.length > 0) out[t].strokes = list.slice(0, RECENT_WIDTHS)
       })
       return out
     }
@@ -584,21 +625,35 @@ function writeColorList(key: string, list: string[]): void {
 // Vị trí thanh bút, lưu theo TỈ LỆ bề rộng/chiều cao mặt bảng chứ không theo pixel: người dùng xoay
 // máy ngang hoặc mở app trên màn khác cỡ thì thanh vẫn nằm đúng "chỗ đó" trên bảng, không văng ra
 // ngoài màn hình rồi không cách nào kéo lại.
+// ─── Chỗ đứng của thanh bút ───────────────────────────────────────────────────
+//
+// Thanh bút GẮN VÀO MỘT MÉP bảng chứ không thả nổi tự do ở toạ độ bất kỳ.
+//
+// Bản trước thả nổi và đó là một quyết định sai: thanh nằm ngang rộng gần bằng cả bề ngang máy, nên
+// kéo qua kéo lại theo chiều ngang chỉ nhích được vài chục pixel — tay kéo cả đoạn dài mà thanh gần
+// như đứng yên, cảm giác lỏng lẻo và không điều khiển được. Gắn mép thì mỗi lần kéo là một quyết
+// định rõ ràng: "đưa sang trái", "đưa xuống dưới", và thanh luôn nằm thẳng hàng với mép bảng.
+//
+//   top/bottom — nằm ngang, CHIẾM TRỌN bề ngang, dính sát mép trên hoặc mép dưới.
+//   left/right — dựng dọc, cao vừa đủ nội dung, trượt lên xuống được bằng `f`.
+type BarDock = "top" | "bottom" | "left" | "right"
+
 interface BarPos {
-  fx: number
-  fy: number
-  // Nằm dọc (áp vào mép trái/phải màn hình) hay nằm ngang.
-  vert: boolean
+  dock: BarDock
+  // Vị trí dọc theo mép, chỉ dùng khi thanh dựng dọc (0 = trên cùng, 1 = dưới cùng).
+  f: number
 }
+
+const BAR_DOCKS: BarDock[] = ["top", "bottom", "left", "right"]
 
 function readBarPos(): BarPos | null {
   try {
     const raw = localStorage.getItem(PENBAR_KEY)
     if (!raw) return null
     const v = JSON.parse(raw) as Partial<BarPos>
-    if (typeof v.fx !== "number" || typeof v.fy !== "number") return null
-    if (!Number.isFinite(v.fx) || !Number.isFinite(v.fy)) return null
-    return { fx: Math.min(1, Math.max(0, v.fx)), fy: Math.min(1, Math.max(0, v.fy)), vert: v.vert === true }
+    if (!v.dock || !BAR_DOCKS.includes(v.dock)) return null
+    const f = typeof v.f === "number" && Number.isFinite(v.f) ? Math.min(1, Math.max(0, v.f)) : 0.12
+    return { dock: v.dock, f }
   } catch {
     return null
   }
@@ -907,10 +962,9 @@ export function MindmapBoard({
   // tự đóng khi đổi bút — thanh tự biến mất giữa lúc đang chọn màu là cách nhanh nhất làm hỏng mạch
   // thao tác.
   const [penBarOpen, setPenBarOpen] = useState(false)
-  // Vị trí thanh bút (tỉ lệ so với mặt bảng). null = chưa kéo bao giờ, nằm ở chỗ mặc định.
-  const [barPos, setBarPos] = useState<BarPos | null>(readBarPos)
-  // Thanh bút đang bày CẢ BỘ hay chỉ cây đang cầm — xem chỗ dựng thanh bút.
-  const [kitOpen, setKitOpen] = useState(false)
+  // Thanh bút gắn vào mép nào của bảng — xem BarPos. Mặc định dính mép TRÊN, ngay dưới hàng công cụ:
+  // đó là chỗ mọi app ghi chép đặt thanh bút, và cũng là chỗ ít che phần giấy đang viết nhất.
+  const [barPos, setBarPos] = useState<BarPos>(() => readBarPos() ?? { dock: "top", f: 0.12 })
   // Bảng phụ đang mở trên thanh bút: cỡ nét, hoặc danh sách hình vẽ.
   const [penPop, setPenPop] = useState<null | "size" | "shape">(null)
   // Bảng màu bút (tấm trượt lên từ đáy). Ba tab như trong thiết kế: bảng có sẵn, tự pha, đã dùng.
@@ -2133,8 +2187,10 @@ export function MindmapBoard({
         path.setAttribute("fill", "none")
         path.setAttribute("stroke", s.color)
         path.setAttribute("stroke-width", String(s.width))
-        path.setAttribute("stroke-linecap", strokeCap(s.tool))
+        path.setAttribute("stroke-linecap", s.dash === "dot" ? "round" : strokeCap(s.tool))
         path.setAttribute("stroke-linejoin", "round")
+        const da = strokeDashArray(s.dash, s.width)
+        if (da) path.setAttribute("stroke-dasharray", da)
       }
       const alpha = strokeAlpha(s.tool)
       if (alpha !== 1) path.setAttribute("opacity", String(alpha))
@@ -2202,6 +2258,9 @@ export function MindmapBoard({
   // `filled`: nét nháp là vùng tô (bút mực có bề dày thay đổi) hay đường kẻ đều dày (bút chì, bút dạ,
   // băng dính, hình vẽ). `cap`: đầu nét — băng dính cắt vuông, còn lại đầu tròn (xem strokeCap).
   function beginDraft(width: number, color: string, opacity: number, filled: boolean, cap: "round" | "butt" = "round") {
+    // Nét nháp phải mang ĐÚNG kiểu nét sẽ chốt lại: vẽ liền rồi nhấc tay mới thấy nó hoá nét đứt thì
+    // không canh được khoảng hở rơi vào đâu — mà đó chính là thứ người ta canh khi vẽ nét đứt.
+    const da = strokeDashArray(activeDash, width)
     draftPaths().forEach((p) => {
       if (filled) {
         p.setAttribute("fill", color)
@@ -2211,7 +2270,9 @@ export function MindmapBoard({
         p.setAttribute("stroke", color)
         p.setAttribute("stroke-width", String(width))
       }
-      p.setAttribute("stroke-linecap", cap)
+      p.setAttribute("stroke-linecap", activeDash === "dot" ? "round" : cap)
+      if (da) p.setAttribute("stroke-dasharray", da)
+      else p.removeAttribute("stroke-dasharray")
       p.setAttribute("opacity", String(opacity))
       p.setAttribute("d", "")
     })
@@ -2296,6 +2357,7 @@ export function MindmapBoard({
       // Hình vẽ được chốt lại như một nét BÚT MÁY: nó dùng chung mực với bút máy (xem inkOf), nên
       // lưu là "shape" sẽ tạo ra một loại nét thứ năm không có luật hiển thị riêng nào cả.
       tool: inkOf(tool),
+      ...(activeDash ? { dash: activeDash } : {}),
       ...(straight ? { straight: true } : {}),
       // Làm tròn 0.1 để dữ liệu lưu không phình vì mấy chữ số thập phân vô nghĩa.
       ...(widths && widths.length > 1 ? { widths: widths.map((w) => Math.round(w * 10) / 10) } : {}),
@@ -3668,14 +3730,17 @@ export function MindmapBoard({
     // CHỈ bút máy có bề dày thay đổi theo lực nhấn/tốc độ. Bút chì thật cũng đậm nhạt theo lực,
     // nhưng cái làm nên nét chì là VỆT ĐỀU hơi mờ — cho nó nét vuốt thon như bút máy thì hai cây bút
     // ra gần như cùng một nét, và người dùng không còn lý do gì để chọn giữa chúng.
-    if (tool === "pen") {
+    // Bút máy đang để nét đứt/nét chấm thì cũng vẽ nét ĐỀU: bề dày thay đổi cộng với cắt khúc thành
+    // ra một chuỗi mảnh vụn to nhỏ lộn xộn, không đọc ra là nét đứt nữa (xem isFilled).
+    const varied = tool === "pen" && !activeDash
+    if (varied) {
       inkState.current = initInkWidth(activeWidth, e.clientX, e.clientY, e.timeStamp || performance.now())
       draftWidths.current = [inkState.current.width]
     } else {
       draftWidths.current = null
       inkState.current = null
     }
-    beginDraft(activeWidth, activeInk, strokeAlpha(inkOf(tool)), tool === "pen", strokeCap(inkOf(tool)))
+    beginDraft(activeWidth, activeInk, strokeAlpha(inkOf(tool)), varied, strokeCap(inkOf(tool)))
     paintDraft(false)
   }
 
@@ -3810,26 +3875,24 @@ export function MindmapBoard({
     tickHaptic()
   }
 
-  // ─── Kéo thanh bút đi chỗ khác ────────────────────────────────────────────
+  // ─── Kéo thanh bút sang mép khác ──────────────────────────────────────────
   //
-  // Vì sao phải kéo được: thanh bút nổi trên mặt bảng, nên ở bất kỳ chỗ cố định nào nó cũng che mất
-  // một phần bảng — và chỗ bị che luôn là chỗ người dùng đang muốn vẽ vào (họ kéo bảng tới đó chính
-  // vì định vẽ ở đó). Thêm nữa, thanh nằm bên phải thì người thuận tay trái phải vươn cả cánh tay
-  // qua màn hình, tay áo quét lên mặt bảng.
+  // Vì sao phải kéo được: thanh bút nổi trên mặt bảng, nên ở bất kỳ mép cố định nào nó cũng che mất
+  // một phần bảng — và phần bị che luôn là phần người dùng đang muốn vẽ vào (họ kéo bảng tới đó
+  // chính vì định vẽ ở đó). Thêm nữa, thanh nằm bên phải thì người thuận tay trái phải vươn cả cánh
+  // tay qua màn hình, tay áo quét lên mặt bảng.
   //
-  // Vị trí lưu theo TỈ LỆ (xem readBarPos) và ĐẶT bằng chính tỉ lệ đó — `left: fx%` cộng
-  // `translateX(-fx%)` cho ra đúng công thức fx × (bề rộng bảng − bề rộng thanh), tức là fx = 0 thì
-  // thanh sát mép trái, fx = 1 thì sát mép phải, không bao giờ lòi ra ngoài dù màn hình cỡ nào.
-  const barDrag = useRef<{ dx: number; dy: number; pos: BarPos } | null>(null)
-  // Danh sách cỡ nét trước khi bắt đầu kéo con trượt — xem setInkWidthFor().
-  const widthBase = useRef<number[] | null>(null)
+  // Kéo tới đâu thì thanh GẮN VÀO MÉP gần đó nhất — xem BarPos về lý do không thả nổi tự do.
+  const barDrag = useRef<{ dy: number; pos: BarPos } | null>(null)
+  // Danh sách nét trước khi bắt đầu kéo con trượt — xem useStrokeSpec().
+  const widthBase = useRef<StrokeSpec[] | null>(null)
 
   function barPointerDown(e: ReactPointerEvent) {
     const bar = penBarRef.current
     if (!bar) return
     e.stopPropagation()
     const b = bar.getBoundingClientRect()
-    barDrag.current = { dx: e.clientX - b.left, dy: e.clientY - b.top, pos: barPos ?? { fx: 0.5, fy: 0, vert: false } }
+    barDrag.current = { dy: e.clientY - b.top, pos: barPos }
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {
@@ -3844,24 +3907,22 @@ export function MindmapBoard({
     if (!d || !host || !bar) return
     e.stopPropagation()
     const r = host.getBoundingClientRect()
-    // Trừ đi bề rộng/chiều cao thanh: quãng đường thanh đi được luôn nhỏ hơn mặt bảng đúng bằng cỡ
-    // của chính nó. Chặn dưới 1 để không chia cho 0 trên máy hẹp hơn cả thanh.
-    const maxX = Math.max(1, r.width - bar.offsetWidth)
-    const maxY = Math.max(1, r.height - bar.offsetHeight)
     const px = e.clientX - r.left
     const py = e.clientY - r.top
-    // ─── Áp mép trái/phải thì thanh XOAY DỌC ────────────────────────────────
-    // Một thanh nằm ngang ép sát mép trái vẫn chiếm hết bề ngang bảng, tức là vẫn che đúng chỗ mà
-    // việc kéo nó đi định giải quyết. Dựng dọc thì nó chỉ còn chiếm một dải hẹp bên rìa, chừa lại
-    // gần như cả mặt giấy — và đó cũng là chỗ tay cầm bút hay đặt sẵn.
-    //
-    // Quyết định theo vị trí NGÓN TAY (không theo mép thanh): bề rộng thanh đổi ngay khi xoay, lấy
-    // mép thanh làm mốc thì vừa xoay xong mốc đã khác, thanh sẽ nhấp nháy xoay tới xoay lui.
-    const vert = px < r.width * 0.16 || px > r.width * 0.84
-    const y = Math.min(maxY, Math.max(0, py - d.dy))
-    d.pos = vert
-      ? { fx: px < r.width / 2 ? 0 : 1, fy: y / maxY, vert: true }
-      : { fx: Math.min(maxX, Math.max(0, px - d.dx)) / maxX, fy: y / maxY, vert: false }
+    // Mép nào gần ngón tay nhất thì thanh về mép đó. So khoảng cách TƯƠNG ĐỐI (chia cho bề ngang/bề
+    // cao) chứ không so pixel thô: màn điện thoại cao gấp đôi bề ngang, so pixel thô thì mép
+    // trên/dưới gần như không bao giờ thắng nổi mép trái/phải.
+    const cand: [BarDock, number][] = [
+      ["left", px / r.width],
+      ["right", (r.width - px) / r.width],
+      ["top", py / r.height],
+      ["bottom", (r.height - py) / r.height],
+    ]
+    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
+    // Thanh dựng dọc còn trượt lên xuống dọc theo mép; thanh nằm ngang thì đã chiếm trọn bề ngang
+    // nên không còn gì để chỉnh.
+    const maxY = Math.max(1, r.height - bar.offsetHeight)
+    d.pos = { dock, f: Math.min(1, Math.max(0, (py - d.dy) / maxY)) }
     setBarPos(d.pos)
   }
 
@@ -3882,27 +3943,27 @@ export function MindmapBoard({
     rememberColor(color)
   }
 
-  // Đổi cỡ nét: cỡ mới lên đầu mảng, cỡ cũ lùi lại một chỗ. Nhờ vậy nút cỡ nét trên thanh bút luôn
-  // bày đúng ba cỡ vừa dùng gần nhất — quay về cỡ trước đó chỉ mất một lần chạm, không phải kéo lại
+  // Đổi nét đang dùng: nét mới lên đầu mảng, nét cũ lùi lại một chỗ. Nhờ vậy ba ô nét trên thanh bút
+  // luôn là ba nét vừa dùng gần nhất — quay lại nét trước đó chỉ mất một lần chạm, không phải kéo lại
   // con trượt để dò đúng con số cũ.
   //
-  // `base` là danh sách cỡ nét TRƯỚC KHI kéo con trượt (xem widthBase): kéo một lần đi qua hàng chục
-  // giá trị trung gian, lấy danh sách hiện tại thì ba ô nhớ bị mấy con số chỉ lướt qua quét sạch.
-  function setInkWidthFor(t: InkTool, width: number, base?: number[]) {
+  // `base` là danh sách TRƯỚC KHI kéo con trượt (xem widthBase): một lần kéo đi qua hàng chục giá trị
+  // trung gian, lấy danh sách hiện tại thì ba ô nhớ bị mấy con số chỉ lướt qua quét sạch.
+  function useStrokeSpec(t: InkTool, spec: StrokeSpec, base?: StrokeSpec[]) {
     setInkStyles((prev) => {
       const cur = prev[t]
-      const widths = [width, ...(base ?? cur.widths).filter((w) => w !== width)].slice(0, RECENT_WIDTHS)
-      const next = { ...prev, [t]: { ...cur, widths } }
+      const strokes = [spec, ...(base ?? cur.strokes).filter((s) => !sameSpec(s, spec))].slice(0, RECENT_WIDTHS)
+      const next = { ...prev, [t]: { ...cur, strokes } }
       writeInkStyles(next)
       return next
     })
   }
 
-  // Đang kéo con trượt: chỉ đổi cỡ ĐANG dùng (ô đầu mảng), chưa đụng tới hai ô nhớ còn lại.
-  function setCurrentWidth(t: InkTool, width: number) {
+  // Đang kéo con trượt: chỉ đổi nét ĐANG dùng (ô đầu mảng), chưa đụng tới hai ô nhớ còn lại.
+  function setCurrentSpec(t: InkTool, spec: StrokeSpec) {
     setInkStyles((prev) => {
       const cur = prev[t]
-      const next = { ...prev, [t]: { ...cur, widths: [width, ...cur.widths.slice(1)] } }
+      const next = { ...prev, [t]: { ...cur, strokes: [spec, ...cur.strokes.slice(1)] } }
       writeInkStyles(next)
       return next
     })
@@ -3960,15 +4021,30 @@ export function MindmapBoard({
   const styleTool: InkTool = drawTool ? inkOf(tool) : inkOf(lastDraw)
   const inkStyle = inkStyles[styleTool]
   const activeInk = inkStyle.color
-  const activeWidth = inkStyle.widths[0]
+  const activeSpec = inkStyle.strokes[0]
+  const activeWidth = activeSpec.w
+  const activeDash = activeSpec.dash
   // Bút dạ và băng dính dùng bảng màu nhạt (màu tô sáng); bút mực và bút chì dùng bảng màu mực.
   const inkPalette = styleTool === "highlighter" || styleTool === "tape" ? HIGHLIGHT_PALETTE : INK_PALETTE
   const widthRange = WIDTH_RANGE[styleTool]
 
-  // Thanh bút đang dựng dọc (áp mép trái/phải) hay nằm ngang — xem barPointerMove.
-  const barVert = barPos?.vert === true
+  // Thanh bút đang dựng dọc (gắn mép trái/phải) hay nằm ngang (gắn mép trên/dưới).
+  const barVert = barPos.dock === "left" || barPos.dock === "right"
   // Vạch ngăn giữa các cụm nút, xoay theo chiều của thanh.
-  const barDivider = barVert ? "flex-none h-px w-6 my-0.5" : "flex-none w-px h-6 mx-0.5"
+  const barDivider = barVert ? "flex-none h-px w-7 my-1" : "flex-none w-px h-7 mx-1"
+  // Chỗ đứng thật của thanh trên mặt bảng.
+  //
+  // Nằm ngang thì DÍNH TRỌN một mép (left:0, right:0) — không còn toạ độ ngang tự do nữa, nên không
+  // còn cái cảm giác kéo cả đoạn dài mà thanh nhích được vài pixel. Dựng dọc thì dính mép trái/phải
+  // và trượt lên xuống theo `f`, đặt bằng đúng mẹo phần trăm cũ: top f% cộng translateY(-f%) cho ra
+  // f × (chiều cao bảng − chiều cao thanh), không bao giờ lòi ra ngoài dù màn hình cỡ nào.
+  const barStyle: React.CSSProperties = barVert
+    ? {
+        [barPos.dock === "left" ? "left" : "right"]: 6,
+        top: `${barPos.f * 100}%`,
+        transform: `translateY(${-barPos.f * 100}%)`,
+      }
+    : { left: 0, right: 0, [barPos.dock === "top" ? "top" : "bottom"]: 0 }
 
   // Đường kính chấm xem trước trên nút cỡ nét. Không vẽ chấm to đúng bằng cỡ nét thật (bút dạ 40 thì
   // chấm sẽ to hơn cả cái nút) mà quy về khoảng 4–10px THEO TỈ LỆ trong khoảng cỡ của chính cây bút
@@ -3977,6 +4053,84 @@ export function MindmapBoard({
     const [lo, hi] = widthRange
     const t = Math.min(1, Math.max(0, (w - lo) / Math.max(0.001, hi - lo)))
     return Math.round(4 + t * 6)
+  }
+
+  // Mẫu nét vẽ trên nút: một đoạn thẳng mang ĐÚNG bề dày (đã quy về khoảng 3–9px cho vừa nút) và
+  // ĐÚNG kiểu nét sẽ vẽ ra. Nét chấm hiện ra thành mấy cái chấm, nét đứt thành mấy gạch — nhìn là
+  // biết, không cần nhãn chữ nào.
+  function strokeSample(sp: StrokeSpec, color: string, len: number): React.ReactElement {
+    const t = Math.min(9, Math.max(3, dotSize(sp.w) - 1))
+    return (
+      <svg width={len} height={10} viewBox={`0 0 ${len} 10`} aria-hidden="true" style={{ display: "block" }}>
+        <line
+          x1={1.5}
+          y1={5}
+          x2={len - 1.5}
+          y2={5}
+          stroke={color}
+          strokeWidth={t}
+          strokeLinecap="round"
+          strokeDasharray={strokeDashArray(sp.dash, t)}
+          opacity={strokeAlpha(styleTool) < 1 ? 0.85 : 1}
+        />
+      </svg>
+    )
+  }
+
+  // Hai màu bấm-là-xong trên thanh dựng dọc: lấy từ những màu VỪA DÙNG, bỏ màu đang cầm (nó đã có ô
+  // riêng ngay bên cạnh). Chưa dùng màu nào thì mượn tạm đỏ và xanh dương của bảng — hai màu đánh dấu
+  // hay dùng nhất, còn hơn để hai ô trống không bấm được.
+  const quickColors = (() => {
+    const seen = new Set([toHex(activeInk)])
+    const out: string[] = []
+    for (const c of [...colorHistory, inkPalette[0][0].color, inkPalette[0][5].color]) {
+      const h = toHex(c)
+      if (seen.has(h)) continue
+      seen.add(h)
+      out.push(c)
+      if (out.length === QUICK_COLORS) break
+    }
+    return out
+  })()
+
+  function openColorSheet(tab: "palette" | "custom") {
+    setMixColor(toHex(activeInk))
+    setColorTab(tab)
+    setColorEdit(false)
+    setColorSheet(true)
+    setPenPop(null)
+    tickHaptic()
+  }
+
+  // Ô màu đang dùng + mũi tên: mở bảng màu đầy đủ. Dùng chung cho cả hai chiều của thanh nên viết
+  // một lần ở đây thay vì chép hai bản trong JSX.
+  function colorButton(): React.ReactElement {
+    return (
+      <button
+        type="button"
+        title="Màu bút"
+        aria-label="Màu bút"
+        onClick={() => openColorSheet("palette")}
+        className="mind-btn flex-none flex items-center justify-center rounded-full relative"
+        style={{ width: BAR_BTN, height: barVert ? 36 : BAR_BTN, color: "var(--c-text-soft)" }}
+      >
+        <span
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 28,
+            height: 28,
+            background: activeInk,
+            opacity: strokeAlpha(styleTool) < 1 ? 0.85 : 1,
+            boxShadow: "0 0 0 3px var(--c-line-soft)",
+            // Mũi tên nằm TRONG ô màu (không phải bên cạnh): thanh không còn chỗ cho một nút nữa, mà
+            // ô màu thì luôn đủ tối/đủ sáng để một mũi tên tương phản nằm lên trên.
+            color: luminance(activeInk) > 0.5 ? "#1E1B1B" : "#fff",
+          }}
+        >
+          {mi.chevronDown("w-3.5 h-3.5")}
+        </span>
+      </button>
+    )
   }
   const selNode = sel?.kind === "node" ? nodes.find((n) => n.id === sel.id) : undefined
   const selImage = sel?.kind === "image" ? images.find((im) => im.id === sel.id) : undefined
@@ -5266,15 +5420,28 @@ export function MindmapBoard({
             // thuộc tính `transform`, mà chính transform là thứ đang giữ vị trí của thanh này (xem
             // cách đặt left/top theo tỉ lệ bên dưới) — hoạt ảnh sẽ đè lên và ném thanh ra khỏi chỗ
             // của nó trong suốt 0,2 giây đầu. Hiện dần bằng độ mờ thì không đụng tới vị trí.
-            className={`fade-in absolute z-20 flex ${barVert ? "flex-col" : "flex-row"} items-center gap-0.5 rounded-2xl border p-1`}
+            className={`fade-in absolute z-20 flex ${barVert ? "flex-col" : "flex-row"} items-center gap-0.5 border ${barVert ? "rounded-2xl px-1 py-1.5" : "px-1.5"}`}
             style={{
-              ...(barPos
-                ? { left: `${barPos.fx * 100}%`, top: `${barPos.fy * 100}%`, transform: `translate(${-barPos.fx * 100}%, ${-barPos.fy * 100}%)` }
-                : { left: "50%", top: 8, transform: "translateX(-50%)" }),
+              ...barStyle,
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
-              boxShadow: "0 8px 26px var(--c-shadow)",
+              boxShadow: barVert ? "0 8px 26px var(--c-shadow)" : "0 4px 16px var(--c-shadow)",
+              // Máy hẹp hoặc thanh dựng dọc trên máy màn ngắn: cho cuộn bên trong thanh thay vì để
+              // nút cuối cùng bị cắt mất ra ngoài mép bảng.
+              ...(barVert
+                ? { maxHeight: "calc(100% - 12px)", overflowY: "auto", overflowX: "hidden" }
+                : { overflowX: "auto" }),
+              // Thanh nằm ngang dính trọn một mép nên chỉ bo hai góc phía TRONG bảng — bo cả bốn góc
+              // sẽ để lộ hai khe tam giác ở hai đầu, nhìn như thanh bị đặt lệch chứ không phải đang
+              // gắn vào mép.
+              // Dùng borderTopWidth (không phải `borderTop: none`): trộn thuộc tính viết tắt với
+              // borderColor ở trên là kiểu React cảnh báo và có thể xoá nhầm màu viền.
+              ...(barVert
+                ? {}
+                : barPos.dock === "top"
+                  ? { borderTopWidth: 0, borderRadius: "0 0 18px 18px" }
+                  : { borderBottomWidth: 0, borderRadius: "18px 18px 0 0" }),
             }}
             // Chặn tại đây: nếu để sự kiện chạm rơi xuống mặt bảng phía dưới thì mỗi lần bấm nút trên
             // thanh cũng là một lần đặt bút xuống bảng, để lại một chấm mực ngay dưới thanh.
@@ -5282,36 +5449,41 @@ export function MindmapBoard({
           >
             <button
               type="button"
-              aria-label="Kéo để đổi chỗ thanh bút"
-              title="Kéo để đổi chỗ thanh bút"
+              aria-label="Kéo để đưa thanh bút sang mép khác"
+              title="Kéo để đưa thanh bút sang mép khác"
               onPointerDown={barPointerDown}
               onPointerMove={barPointerMove}
               onPointerUp={barPointerUp}
               onPointerCancel={barPointerUp}
               className="flex-none flex items-center justify-center rounded-lg"
               style={{
-                width: barVert ? 38 : 22,
-                height: barVert ? 22 : 38,
+                width: barVert ? BAR_BTN : 20,
+                height: barVert ? 20 : BAR_BTN,
                 color: "var(--c-faint)",
                 touchAction: "none",
                 cursor: "grab",
               }}
             >
-              {mi.grip(barVert ? "w-[15px] h-[15px] rotate-90" : "w-[15px] h-[15px]")}
+              {mi.grip(barVert ? "w-4 h-4 rotate-90" : "w-4 h-4")}
             </button>
 
-            <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={34} />
-            <span className={barDivider} style={{ background: "var(--c-line)" }} />
+            {/* Hoàn tác/làm lại CHỈ có ở thanh dựng dọc. Thanh nằm ngang dính mép trên thì nó nằm
+                ngay dưới hàng công cụ vốn đã có sẵn hai nút này — hai cặp nút giống hệt nhau cách
+                nhau vài chục pixel là thứ vừa phải bỏ đi ở lần sửa trước. Dựng dọc thì hàng công cụ
+                ở tận đầu kia màn hình, lúc đó nút hoàn tác ngay dưới ngón tay mới đáng giá. */}
+            {barVert && (
+              <>
+                <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={BAR_BTN} />
+                <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} size={BAR_BTN} />
+                <span className={barDivider} style={{ background: "var(--c-line)" }} />
+              </>
+            )}
 
-            {/* ─── Bộ bút ───────────────────────────────────────────────────
-                Bình thường chỉ bày ĐÚNG CÂY ĐANG CẦM, nở rộng ra kèm một mũi tên mở phần cài đặt của
-                nó. Bốn cây còn lại chỉ hiện khi chạm vào cây đang cầm.
-
-                Vì sao giấu bớt: trong một buổi ghi chép, việc "đổi cây bút" xảy ra ít hơn hẳn việc
-                "đổi màu/cỡ nét của cây đang cầm", nhưng bày cả năm cây lúc nào cũng chiếm gần hết
-                thanh — thanh dài ra thì che mất bảng, mà nút màu/cỡ nét (thứ bấm nhiều nhất) lại bị
-                đẩy ra tận rìa. Thu lại còn một cây thì thanh ngắn đi hơn một nửa. */}
-            {(kitOpen ? PEN_KIT_ITEMS : PEN_KIT_ITEMS.filter((k) => k.id === tool)).map((k) => {
+            {/* ─── Bộ bút: cả năm cây luôn có mặt ───────────────────────────
+                Chỉ CÂY ĐANG CẦM mọc thêm mũi tên mở phần cài đặt của nó; bốn cây kia không có mũi
+                tên nào cả. Đổi bút vẫn là một lần chạm duy nhất — thứ phải giữ bằng mọi giá, vì trong
+                lúc ghi chép người ta đảo bút liên tục giữa mực và bút dạ. */}
+            {PEN_KIT_ITEMS.map((k) => {
               const on = tool === k.id
               const kInk = inkStyles[inkOf(k.id)]
               return (
@@ -5323,51 +5495,47 @@ export function MindmapBoard({
                   <button
                     type="button"
                     title={k.hint}
-                    aria-label={on ? `${k.hint} — chạm để đổi bút` : k.hint}
+                    aria-label={k.hint}
                     aria-pressed={on}
                     onClick={() => {
-                      // Cây đang cầm: chạm vào = bung/thu cả bộ để đổi sang cây khác.
-                      // Cây khác: chạm vào = nhấc nó lên rồi thu bộ lại ngay, vì việc đổi bút đã xong.
                       if (on) {
-                        setKitOpen((v) => !v)
-                        setPenPop(null)
+                        // Chạm lại cây đang cầm = mở phần cài đặt của nó, y như bấm mũi tên bên cạnh.
+                        const want = k.id === "shape" ? "shape" : "size"
+                        setPenPop((v) => (v === want ? null : want))
                         tickHaptic()
                         return
                       }
                       pickPen(k.id)
-                      setKitOpen(false)
                       setPenPop(null)
                     }}
-                    className="mind-btn flex-none relative flex items-start justify-center pt-[7px]"
+                    className="mind-btn flex-none relative flex items-start justify-center pt-[9px]"
                     style={{
-                      width: 36,
-                      height: 38,
+                      width: BAR_BTN,
+                      height: BAR_BTN,
                       color: on ? "var(--c-primary)" : "var(--c-text-soft)",
                     }}
                   >
-                    {k.icon("w-[20px] h-[20px]")}
+                    {k.icon("w-6 h-6")}
                     {/* Vạch mực dưới mỗi cây bút: nhìn cả thanh là thấy ngay bút chì đang xám, bút dạ
                         đang vàng — không phải bấm vào từng cây để biết nó đang mang màu gì. */}
                     <span
                       className="absolute rounded-full"
                       style={{
-                        left: 7,
-                        right: 7,
-                        bottom: 4,
+                        left: 8,
+                        right: 8,
+                        bottom: 5,
                         height: 3,
                         background: kInk.color,
                         opacity: strokeAlpha(inkOf(k.id)) < 1 ? 0.85 : 1,
                       }}
                     />
                   </button>
-                  {/* Mũi tên tùy chỉnh, chỉ mọc ra ở cây ĐANG CẦM. Tách hẳn thành một nút riêng (không
-                      phải một dấu nhỏ góc nút): "đổi bút" và "chỉnh bút đang cầm" là hai việc khác
-                      nhau, dồn vào một nút thì lần chạm thứ hai luôn phải đoán xem sẽ ra cái nào. */}
+                  {/* Mũi tên tùy chỉnh, chỉ mọc ra ở cây ĐANG CẦM. */}
                   {on && (
                     <button
                       type="button"
-                      title={k.id === "shape" ? "Chọn hình vẽ" : "Chỉnh cỡ nét"}
-                      aria-label={k.id === "shape" ? "Chọn hình vẽ" : "Chỉnh cỡ nét"}
+                      title={k.id === "shape" ? "Chọn hình vẽ" : "Chỉnh nét"}
+                      aria-label={k.id === "shape" ? "Chọn hình vẽ" : "Chỉnh nét"}
                       aria-pressed={penPop != null}
                       onClick={() => {
                         const want = k.id === "shape" ? "shape" : "size"
@@ -5376,12 +5544,12 @@ export function MindmapBoard({
                       }}
                       className="mind-btn flex-none flex items-center justify-center"
                       style={{
-                        width: barVert ? 36 : 18,
-                        height: barVert ? 18 : 38,
+                        width: barVert ? BAR_BTN : 16,
+                        height: barVert ? 16 : BAR_BTN,
                         color: "var(--c-primary)",
                       }}
                     >
-                      {(barVert ? mi.chevronDown : mi.chevronRight)("w-[13px] h-[13px]")}
+                      {(barVert ? mi.chevronDown : mi.chevronDown)("w-[13px] h-[13px]")}
                     </button>
                   )}
                 </span>
@@ -5390,72 +5558,119 @@ export function MindmapBoard({
 
             <span className={barDivider} style={{ background: "var(--c-line)" }} />
 
-            {/* Nút cỡ nét — ba chấm là BA CỠ GẦN NHẤT của cây bút đang cầm, chấm to nhất ở trên. Chấm
-                của cỡ đang dùng tô đúng màu mực, hai chấm kia xám: liếc một cái là biết đang vẽ cỡ
-                nào và còn hai cỡ nào bấm lại được ngay. */}
-            <button
-              type="button"
-              title={`Cỡ nét ${activeWidth}`}
-              aria-label={`Cỡ nét ${activeWidth}`}
-              aria-pressed={penPop === "size"}
-              onClick={() => {
-                setPenPop((v) => (v === "size" ? null : "size"))
-                tickHaptic()
-              }}
-              className="mind-btn flex-none flex flex-col items-center justify-center gap-[3px] rounded-xl"
-              style={{
-                width: 34,
-                height: 38,
-                background: penPop === "size" ? "var(--c-primary-soft)" : "transparent",
-              }}
-            >
-              {[...inkStyle.widths]
-                .sort((a, b) => b - a)
-                .map((w, i) => {
-                  const d = dotSize(w)
+            {/* ─── Nét và màu ───────────────────────────────────────────────
+                Thanh DỰNG DỌC có cả chiều dài của màn hình nên bày thẳng ra: ba ô nét và ba ô màu,
+                bấm phát ăn ngay. Thanh NẰM NGANG chỉ có 375px cho mười mấy nút nên gộp lại thành hai
+                nút mở bảng. Cùng một bộ chức năng, khác cách bày theo chỗ thật sự có. */}
+            {barVert ? (
+              <>
+                {inkStyle.strokes.map((sp, i) => {
+                  const on = i === 0
                   return (
-                    <span
-                      key={`${w}-${i}`}
-                      className="rounded-full"
-                      style={{
-                        width: d,
-                        height: d,
-                        background: w === activeWidth ? activeInk : "var(--c-line-strong)",
-                        opacity: w === activeWidth && strokeAlpha(styleTool) < 1 ? 0.85 : 1,
+                    <button
+                      key={`${sp.w}-${sp.dash ?? ""}-${i}`}
+                      type="button"
+                      title={`Nét ${sp.w}${sp.dash ? ` ${DASH_ITEMS.find((d) => d.id === sp.dash)?.label.toLowerCase()}` : ""}`}
+                      aria-label={`Nét ${sp.w}${sp.dash ? ` ${DASH_ITEMS.find((d) => d.id === sp.dash)?.label.toLowerCase()}` : ""}`}
+                      aria-pressed={on}
+                      onClick={() => {
+                        if (on) {
+                          setPenPop((v) => (v === "size" ? null : "size"))
+                          tickHaptic()
+                          return
+                        }
+                        useStrokeSpec(styleTool, sp)
+                        tickHaptic()
                       }}
-                    />
+                      className="mind-btn flex-none flex items-center justify-center rounded-xl"
+                      style={{
+                        width: BAR_BTN,
+                        height: 34,
+                        background: on ? "var(--c-line-soft)" : "transparent",
+                      }}
+                    >
+                      {strokeSample(sp, on ? activeInk : "var(--c-text-soft)", 26)}
+                    </button>
                   )
                 })}
-            </button>
 
-            {/* Nút màu — chạm để mở bảng màu bút ở đáy màn hình. */}
-            <button
-              type="button"
-              title="Màu bút"
-              aria-label="Màu bút"
-              onClick={() => {
-                setMixColor(toHex(activeInk))
-                setColorTab("palette")
-                setColorEdit(false)
-                setColorSheet(true)
-                setPenPop(null)
-                tickHaptic()
-              }}
-              className={`mind-btn flex-none flex ${barVert ? "flex-col" : "flex-row"} items-center justify-center gap-[1px] rounded-xl`}
-              style={{ width: barVert ? 38 : 36, height: barVert ? 36 : 38, color: "var(--c-text-soft)" }}
-            >
-              <span
-                className="rounded-full"
-                style={{
-                  width: 22,
-                  height: 22,
-                  background: activeInk,
-                  opacity: strokeAlpha(styleTool) < 1 ? 0.85 : 1,
-                  boxShadow: "0 0 0 1.5px var(--c-surface), 0 0 0 3px var(--c-line)",
-                }}
-              />
-              {mi.chevronDown("w-[11px] h-[11px]")}
-            </button>
+                <span className={barDivider} style={{ background: "var(--c-line)" }} />
+
+                {/* Vài màu bấm-là-xong, lấy từ chính những màu vừa dùng. */}
+                {quickColors.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    title={`Màu ${c}`}
+                    aria-label={`Màu ${c}`}
+                    onClick={() => {
+                      setInkColorFor(styleTool, c)
+                      tickHaptic()
+                    }}
+                    className="mind-btn flex-none flex items-center justify-center"
+                    style={{ width: BAR_BTN, height: 36 }}
+                  >
+                    <span
+                      className="rounded-full"
+                      style={{
+                        width: 26,
+                        height: 26,
+                        background: c,
+                        opacity: strokeAlpha(styleTool) < 1 ? 0.85 : 1,
+                        boxShadow: "inset 0 0 0 1px rgba(15,23,42,.15)",
+                      }}
+                    />
+                  </button>
+                ))}
+                {colorButton()}
+                {/* Ô "+" nét đứt: mở thẳng phần tự pha màu, đúng chỗ người ta tìm khi ba màu trên
+                    thanh không có màu mình cần. */}
+                <button
+                  type="button"
+                  title="Thêm màu"
+                  aria-label="Thêm màu"
+                  onClick={() => openColorSheet("custom")}
+                  className="mind-btn flex-none flex items-center justify-center"
+                  style={{ width: BAR_BTN, height: 36, color: "var(--c-text-muted)" }}
+                >
+                  <span
+                    className="flex items-center justify-center rounded-full"
+                    style={{ width: 26, height: 26, border: "1.5px dashed var(--c-line-strong)" }}
+                  >
+                    {mi.plus("w-3 h-3")}
+                  </span>
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Nút nét — ba mẫu nét gần nhất xếp chồng, mẫu đang dùng tô đúng màu mực. */}
+                <button
+                  type="button"
+                  title={`Nét ${activeWidth}`}
+                  aria-label={`Nét ${activeWidth}`}
+                  aria-pressed={penPop === "size"}
+                  onClick={() => {
+                    setPenPop((v) => (v === "size" ? null : "size"))
+                    tickHaptic()
+                  }}
+                  className="mind-btn flex-none flex flex-col items-center justify-center gap-[3px] rounded-xl"
+                  style={{
+                    width: BAR_BTN,
+                    height: BAR_BTN,
+                    background: penPop === "size" ? "var(--c-primary-soft)" : "transparent",
+                  }}
+                >
+                  {[...inkStyle.strokes]
+                    .sort((a, b) => b.w - a.w)
+                    .map((sp, i) => (
+                      <span key={`${sp.w}-${sp.dash ?? ""}-${i}`} className="flex items-center justify-center">
+                        {strokeSample(sp, sameSpec(sp, activeSpec) ? activeInk : "var(--c-line-strong)", 22)}
+                      </span>
+                    ))}
+                </button>
+                {colorButton()}
+              </>
+            )}
 
             {/* Bảng cỡ nét / bảng hình vẽ — mở ra phía có chỗ trống: thanh dựng dọc thì bảng bung
                 sang NGANG (bên trong màn hình), thanh nằm ngang ở nửa dưới thì bảng bung LÊN. Không
@@ -5466,14 +5681,16 @@ export function MindmapBoard({
                 style={{
                   ...(barVert
                     ? {
-                        top: 0,
-                        ...((barPos?.fx ?? 0) > 0.5 ? { right: "calc(100% + 6px)" } : { left: "calc(100% + 6px)" }),
+                        // Bung ra phía TRONG bảng, và nếu thanh đang trượt xuống thấp thì căn theo
+                        // đáy thanh để bảng không thò ra ngoài màn hình.
+                        ...(barPos.f > 0.6 ? { bottom: 0 } : { top: 0 }),
+                        ...(barPos.dock === "right" ? { right: "calc(100% + 6px)" } : { left: "calc(100% + 6px)" }),
                       }
                     : {
-                        ...((barPos?.fy ?? 0) > 0.55 ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
-                        ...((barPos?.fx ?? 0.5) > 0.55 ? { right: 0 } : { left: 0 }),
+                        ...(barPos.dock === "bottom" ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
+                        right: 6,
                       }),
-                  width: penPop === "size" ? 214 : 176,
+                  width: penPop === "size" ? 236 : 190,
                   borderColor: "var(--c-line)",
                   background: "var(--c-surface)",
                   boxShadow: "0 12px 30px var(--c-shadow)",
@@ -5517,53 +5734,97 @@ export function MindmapBoard({
                       max={widthRange[1]}
                       step={0.5}
                       value={activeWidth}
-                      // Ghi lại danh sách cỡ nét TRƯỚC khi kéo, chốt lại khi thả tay — xem
-                      // setInkWidthFor/setCurrentWidth.
+                      // Ghi lại danh sách nét TRƯỚC khi kéo, chốt lại khi thả tay — xem
+                      // useStrokeSpec/setCurrentSpec.
                       onPointerDown={() => {
-                        widthBase.current = [...inkStyle.widths]
+                        widthBase.current = inkStyle.strokes.map((s) => ({ ...s }))
                       }}
-                      onChange={(e) => setCurrentWidth(styleTool, Number(e.target.value))}
-                      onPointerUp={(e) => setInkWidthFor(styleTool, Number((e.target as HTMLInputElement).value), widthBase.current ?? undefined)}
-                      onKeyUp={(e) => setInkWidthFor(styleTool, Number((e.target as HTMLInputElement).value), widthBase.current ?? undefined)}
+                      onChange={(e) => setCurrentSpec(styleTool, { w: Number(e.target.value), ...(activeDash ? { dash: activeDash } : {}) })}
+                      onPointerUp={(e) =>
+                        useStrokeSpec(
+                          styleTool,
+                          { w: Number((e.target as HTMLInputElement).value), ...(activeDash ? { dash: activeDash } : {}) },
+                          widthBase.current ?? undefined,
+                        )
+                      }
+                      onKeyUp={(e) =>
+                        useStrokeSpec(
+                          styleTool,
+                          { w: Number((e.target as HTMLInputElement).value), ...(activeDash ? { dash: activeDash } : {}) },
+                          widthBase.current ?? undefined,
+                        )
+                      }
                       className="w-full"
                       style={{ accentColor: "var(--c-primary)" }}
                       aria-label="Cỡ nét"
                     />
-                    <p className="text-[10px] font-bold uppercase tracking-wide px-0.5 pt-1.5 pb-1" style={{ color: "var(--c-text-muted)" }}>
-                      Ba cỡ gần nhất
+
+                    {/* ─── Kiểu nét ───────────────────────────────────────
+                        Chung cho mọi cây bút và cả hình vẽ: một khung chữ nhật nét đứt hay một mũi
+                        tên chấm chấm là cách quen thuộc nhất để nói "cái này là phụ / là giả định",
+                        mà nét liền không nói được. */}
+                    <p className="text-[10px] font-bold uppercase tracking-wide px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
+                      Kiểu nét
                     </p>
                     <div className="flex items-center gap-1.5">
-                      {inkStyle.widths.map((w, i) => (
-                        <button
-                          key={`${w}-${i}`}
-                          type="button"
-                          onClick={() => {
-                            setInkWidthFor(styleTool, w)
-                            tickHaptic()
-                          }}
-                          aria-label={`Cỡ nét ${w}`}
-                          aria-pressed={w === activeWidth}
-                          className="mind-btn flex-1 h-10 rounded-xl flex flex-col items-center justify-center gap-1 border"
-                          style={
-                            w === activeWidth
-                              ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
-                              : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
-                          }
-                        >
-                          <span
-                            className="rounded-full"
-                            style={{
-                              width: Math.min(20, Math.max(4, w + 3)),
-                              height: Math.min(12, Math.max(3, w)),
-                              background: activeInk,
-                              opacity: strokeAlpha(styleTool),
+                      {DASH_ITEMS.map((d) => {
+                        const on = (activeDash ?? undefined) === d.id
+                        return (
+                          <button
+                            key={d.label}
+                            type="button"
+                            onClick={() => {
+                              useStrokeSpec(styleTool, { w: activeWidth, ...(d.id ? { dash: d.id } : {}) })
+                              tickHaptic()
                             }}
-                          />
-                          <span className="text-[9.5px] font-bold tabular-nums" style={{ color: "var(--c-text-muted)" }}>
-                            {w}
-                          </span>
-                        </button>
-                      ))}
+                            aria-label={`Kiểu nét: ${d.label}`}
+                            aria-pressed={on}
+                            className="mind-btn flex-1 h-11 rounded-xl flex flex-col items-center justify-center gap-1 border"
+                            style={
+                              on
+                                ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
+                                : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
+                            }
+                          >
+                            {strokeSample({ w: activeWidth, ...(d.id ? { dash: d.id } : {}) }, activeInk, 40)}
+                            <span className="text-[9.5px] font-bold" style={{ color: on ? "var(--c-primary)" : "var(--c-text-muted)" }}>
+                              {d.label}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <p className="text-[10px] font-bold uppercase tracking-wide px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
+                      Ba nét gần nhất
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {inkStyle.strokes.map((sp, i) => {
+                        const on = sameSpec(sp, activeSpec)
+                        return (
+                          <button
+                            key={`${sp.w}-${sp.dash ?? ""}-${i}`}
+                            type="button"
+                            onClick={() => {
+                              useStrokeSpec(styleTool, sp)
+                              tickHaptic()
+                            }}
+                            aria-label={`Nét ${sp.w}${sp.dash ? ` ${DASH_ITEMS.find((d) => d.id === sp.dash)?.label.toLowerCase()}` : ""}`}
+                            aria-pressed={on}
+                            className="mind-btn flex-1 h-11 rounded-xl flex flex-col items-center justify-center gap-1 border"
+                            style={
+                              on
+                                ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
+                                : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
+                            }
+                          >
+                            {strokeSample(sp, activeInk, 40)}
+                            <span className="text-[9.5px] font-bold tabular-nums" style={{ color: "var(--c-text-muted)" }}>
+                              {sp.w}
+                            </span>
+                          </button>
+                        )
+                      })}
                     </div>
                   </>
                 )}
