@@ -30,7 +30,6 @@ import {
   MICRO_DROP_FACTOR,
   concentrationFromVials,
   diluentVolume,
-  drawFromFixedVial,
   dropsPerMinute,
   formatDuration,
   gradeConcentration,
@@ -39,6 +38,7 @@ import {
   pickEasiestVialCount,
   pickEasiestVolume,
   pumpRateMlPerHour,
+  resolveFixedDraw,
   roundToStep,
   totalAmountInBag,
   vialsForConcentration,
@@ -5563,8 +5563,21 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
   const isFixed = vialForm === "fixed"
   const fixedDoseNum = num(fixedDoseAmount)
   const fixedVialVolume = num(vialVolume)
-  const fixedDrawMl = isFixed && fixedDoseNum != null && fixedVialVolume != null ? drawFromFixedVial(fixedDoseNum, vialUnit, va, vialUnit, fixedVialVolume) : null
-  const fixedImpossible = isFixed && fixedDoseNum != null && fixedVialVolume != null && fixedDrawMl == null
+  // Chai cố định hàm lượng có thể cần GỘP NHIỀU CHAI khi liều cần vượt một chai (xem
+  // applyFixedSuggestion bên dưới) — dùng chung ô "Số {vialLabel}" (nv/vials) với hai dạng kia thay
+  // vì thêm state riêng, vì WardRecipe.vials vốn đã là "số đơn vị đã dùng" chung cho mọi dạng chế
+  // phẩm. Công thức tỉ lệ trên TỔNG lượng đã gộp bên dưới cho kết quả giống hệt drawFromFixedVial()
+  // khi fixedBottleCount = 1 (trường hợp một chai — vẫn thường gặp nhất, không đổi hành vi cũ).
+  const fixedBottleCount = isFixed ? (nv > 0 ? nv : 1) : 1
+  const fixedPoolAmount = isFixed && va > 0 ? fixedBottleCount * va : null
+  const fixedPoolVolume = isFixed && fixedVialVolume != null ? fixedBottleCount * fixedVialVolume : null
+  const fixedDrawMl =
+    isFixed && fixedDoseNum != null && fixedPoolAmount != null && fixedPoolVolume != null
+      ? fixedDoseNum > fixedPoolAmount + 1e-9
+        ? null
+        : (fixedDoseNum / fixedPoolAmount) * fixedPoolVolume
+      : null
+  const fixedImpossible = isFixed && fixedDoseNum != null && fixedPoolAmount != null && fixedDrawMl == null
 
   const conc = isFixed ? (fixedVialVolume != null && va > 0 ? va / fixedVialVolume : null) : concentrationFromVials(va, nv, vol, vialUnit, concUnit)
   const grade = isFixed ? CONC_OK : gradeConcentration(conc, ward?.concValue, mix?.maxConc, concUnit, ward ? "công thức của bạn" : "công thức chuẩn")
@@ -5586,12 +5599,60 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
   const rateMlPerHourRaw = usePump ? pumpRateMlPerHour(infuseVolumeMl ?? NaN, minutes ?? NaN) : null
   const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
 
-  // Gợi ý số lọ/ống khớp khoảng liều (CrCl hoặc AdjBW đã tính sẵn ở AntibioticDoseCard, truyền
-  // xuống qua prop doseTargetMg) — chỉ cần nhập hàm lượng 1 lọ/ống, app tự tính số lọ thay vì bắt tự
-  // nhẩm khoảng liều rồi gõ tay. CHỈ áp dụng ở chế độ bơm tiêm điện, đúng theo yêu cầu, và im lặng
-  // (không tự bịa số lọ) khi chưa biết khoảng liều thật (vd liều "theo nồng độ đo được").
+  // ─── Tự tính số lọ/ống (hoặc số chai) khớp khoảng liều ────────────────────────
+  // Chỉ cần nhập hàm lượng — dựa vào khoảng liều đã tính theo CrCl/AdjBW (doseTargetMg, truyền từ
+  // AntibioticDoseCard), app tự điền số lọ VÀ thể tích pha loãng (hai dạng lọ bột/ống dung dịch),
+  // hoặc số chai VÀ liều cần rút (dạng chai cố định). Áp dụng cho MỌI đường dùng/thiết bị truyền —
+  // TTM lẫn TMC, dây thường lẫn bơm tiêm điện — không riêng gì bơm, vì "làm tròn ống/lọ theo khoảng
+  // liều" là nhu cầu chung của mọi cách pha kháng sinh. Không có lựa chọn nào rơi đúng trong khoảng
+  // thì làm tròn LÊN (thà dư nhẹ còn hơn thiếu liều — xem pickEasiestVialCount/bottleCountForDose).
+  //
+  // Cố ý KHÔNG dùng useEffect phản ứng theo doseTargetMg/vialAmount: một effect như vậy sẽ ĐÈ LÊN
+  // công thức đã lưu ngay khi vừa nạp lại (loadWard đổi vialAmount cùng lúc, effect sẽ tính lại và
+  // ghi đè mất số lọ/thể tích đã lưu). Thay vào đó, hai hàm dưới đây chỉ chạy khi NGƯỜI DÙNG chủ
+  // động gõ hàm lượng — xem các onChange gọi tới chúng. Kết quả vẫn là Ô SỐ LỌ/THỂ TÍCH bình
+  // thường, sửa tay lại được như mọi ô khác.
+  function applySolutionSuggestion(vaValue: number) {
+    if (!doseTargetMg || !(vaValue > 0)) return
+    const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
+    const toConcMass = massFactor(vialUnit, concMass)
+    if (toVialUnit == null) return
+    const loInVialUnit = doseTargetMg.low * toVialUnit
+    const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
+    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, vaValue)
+    if (count == null) return
+    setVials(String(count))
+    if (toConcMass == null) return
+    // Thể tích pha loãng mặc định: quy ước 100 mL/lọ đã dùng ở autoUsage, trừ khi nồng độ đó vượt
+    // ngưỡng trên (mix.maxConc) — khi đó nâng lên mốc 50 mL gần nhất để về lại nồng độ an toàn.
+    const totalInConcMass = count * vaValue * toConcMass
+    let vol = count * 100
+    if (mix?.maxConc != null) {
+      const minSafeVol = totalInConcMass / mix.maxConc
+      if (minSafeVol > vol) vol = Math.ceil(minSafeVol / 50 - 1e-9) * 50
+    }
+    setVolume(String(vol))
+  }
+
+  function applyFixedSuggestion(vaValue: number, volValue: number) {
+    if (!doseTargetMg || !(vaValue > 0) || !(volValue > 0)) return
+    const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
+    if (toVialUnit == null) return
+    const loInVialUnit = doseTargetMg.low * toVialUnit
+    const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
+    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, vaValue, volValue)
+    if (result == null) return
+    setVials(String(result.bottleCount))
+    const concPerMl = vaValue / volValue
+    setFixedDoseAmount(String(Math.round(result.drawMl * concPerMl * 100) / 100))
+  }
+
+  // Chỉ để HIỂN THỊ lý do (dòng "Đã tự tính..." dưới ô) — phép tính giống hệt applySolutionSuggestion
+  // nhưng không ghi state, nên an toàn gọi lại mỗi lần render. Áp dụng cho MỌI đường dùng/thiết bị
+  // truyền (TTM lẫn TMC, dây thường lẫn bơm) — không riêng gì bơm tiêm điện, vì "làm tròn ống/lọ
+  // theo khoảng liều" là nhu cầu chung của mọi cách pha kháng sinh, không phải chỉ lúc chạy bơm.
   const vialCountSuggestion = useMemo(() => {
-    if (!usePump || !doseTargetMg || !(va > 0)) return null
+    if (isFixed || !doseTargetMg || !(va > 0)) return null
     const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
     const toDoseUnit = massFactor(vialUnit, doseTargetMg.unit)
     if (toVialUnit == null || toDoseUnit == null) return null
@@ -5600,7 +5661,18 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
     const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, va)
     if (count == null) return null
     return { count, totalInDoseUnit: count * va * toDoseUnit }
-  }, [usePump, doseTargetMg, va, vialUnit])
+  }, [isFixed, doseTargetMg, va, vialUnit])
+
+  const fixedPoolSuggestion = useMemo(() => {
+    if (!isFixed || !doseTargetMg || !(va > 0) || !(fixedVialVolume != null && fixedVialVolume > 0)) return null
+    const toVialUnit = massFactor(doseTargetMg.unit, vialUnit)
+    if (toVialUnit == null) return null
+    const loInVialUnit = doseTargetMg.low * toVialUnit
+    const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
+    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, va, fixedVialVolume)
+    if (result == null) return null
+    return { count: result.bottleCount, drawMl: result.drawMl }
+  }, [isFixed, doseTargetMg, va, vialUnit, fixedVialVolume])
 
   const pill = (on: boolean) =>
     on
@@ -5621,6 +5693,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             vialAmount: va,
             vialUnit,
             vialVolumeMl: fixedVialVolume ?? 0,
+            vialsUsed: fixedBottleCount,
             doseAmount: fixedDoseNum ?? undefined,
             doseUnit: vialUnit,
             route: routeShort,
@@ -5815,21 +5888,74 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
       {isFixed ? (
         <>
           {/* Chai cố định hàm lượng: KHÔNG pha loãng thêm — chỉ khai hàm lượng/thể tích cả chai rồi
-              hoặc dùng trọn, hoặc rút một phần theo liều cần. */}
+              hoặc dùng trọn, hoặc rút một phần theo liều cần. Liều cần có thể vượt một chai — GỘP
+              NHIỀU CHAI thay vì rút lẻ trong một chai duy nhất; ô "Số chai" dùng chung state với "Số
+              lọ/ống" ở hai dạng kia (WardRecipe.vials), mặc định 1 nên không đổi hành vi cũ. Tự tính
+              số chai + thể tích rút (làm tròn tới hàng trăm mL) khi biết khoảng liều — áp dụng cho
+              MỌI đường dùng/thiết bị truyền, không riêng bơm tiêm điện. */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Hàm lượng cả chai</label>
-              <input value={vialAmount} onChange={(e) => setVialAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="750" className={FIELD} style={FIELD_STYLE} />
+              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Hàm lượng 1 chai</label>
+              <input
+                value={vialAmount}
+                onChange={(e) => {
+                  const v = normalizeDecimalInput(e.target.value)
+                  setVialAmount(v)
+                  const parsed = parseFloat(v)
+                  if (parsed > 0 && fixedVialVolume != null) applyFixedSuggestion(parsed, fixedVialVolume)
+                }}
+                inputMode="decimal"
+                placeholder="750"
+                className={FIELD}
+                style={FIELD_STYLE}
+              />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích cả chai (mL)</label>
-              <input value={vialVolume} onChange={(e) => setVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="150" className={FIELD} style={FIELD_STYLE} />
+              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích 1 chai (mL)</label>
+              <input
+                value={vialVolume}
+                onChange={(e) => {
+                  const v = normalizeDecimalInput(e.target.value)
+                  setVialVolume(v)
+                  const parsed = parseFloat(v)
+                  if (va > 0 && parsed > 0) applyFixedSuggestion(va, parsed)
+                }}
+                inputMode="decimal"
+                placeholder="150"
+                className={FIELD}
+                style={FIELD_STYLE}
+              />
             </div>
           </div>
-          <div className="mb-2">
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Liều cần lấy (tuỳ chọn — bỏ trống = dùng trọn chai)</label>
-            <input value={fixedDoseAmount} onChange={(e) => setFixedDoseAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="500" className={FIELD} style={FIELD_STYLE} />
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Số chai</label>
+              <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Liều cần lấy (tuỳ chọn — bỏ trống = dùng trọn)</label>
+              <input value={fixedDoseAmount} onChange={(e) => setFixedDoseAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="500" className={FIELD} style={FIELD_STYLE} />
+            </div>
           </div>
+          {/* Gợi ý số chai + thể tích rút gộp — bấm để áp dụng lại nếu vừa sửa tay lệch khỏi gợi ý.
+              Thể tích rút làm tròn tới mốc trăm/năm mươi mL (khác thang với thể tích pha loãng nhỏ ở
+              hai dạng kia) — xem poolDrawVolume trong lib/mixing.ts. */}
+          {fixedPoolSuggestion && doseTargetMg && (
+            <button
+              onClick={() => {
+                setVials(String(fixedPoolSuggestion.count))
+                const concPerMl = va / (fixedVialVolume as number)
+                setFixedDoseAmount(String(Math.round(fixedPoolSuggestion.drawMl * concPerMl * 100) / 100))
+                tickHaptic()
+              }}
+              className="w-full text-left text-[11px] leading-[1.45] font-semibold mb-2 px-2.5 py-2 rounded-xl underline decoration-dotted"
+              style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
+            >
+              Gợi ý {trim(fixedPoolSuggestion.count, 0)} chai — rút {trim(fixedPoolSuggestion.drawMl)} mL (khớp khoảng liều{" "}
+              {formatDoseNumber(doseTargetMg.low)}
+              {doseTargetMg.high != null ? `–${formatDoseNumber(doseTargetMg.high)}` : ""} {doseTargetMg.unit})
+            </button>
+          )}
           {unitChoices.length > 1 && (
             <div className="flex gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
@@ -5849,7 +5975,19 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
           <div className={`grid ${vialForm === "solution" ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-2`}>
             <div>
               <label className="text-[11px] font-medium text-slate-500 mb-1 block">Hàm lượng 1 {vialLabel}</label>
-              <input value={vialAmount} onChange={(e) => setVialAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1000" className={FIELD} style={FIELD_STYLE} />
+              <input
+                value={vialAmount}
+                onChange={(e) => {
+                  const v = normalizeDecimalInput(e.target.value)
+                  setVialAmount(v)
+                  const parsed = parseFloat(v)
+                  if (parsed > 0) applySolutionSuggestion(parsed)
+                }}
+                inputMode="decimal"
+                placeholder="1000"
+                className={FIELD}
+                style={FIELD_STYLE}
+              />
             </div>
             {vialForm === "solution" && (
               <div>
@@ -5863,12 +6001,14 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             </div>
           </div>
 
-          {/* Bơm tiêm điện: gợi ý số lọ/ống khớp khoảng liều — bấm để điền vào ô "Số {vialLabel}" ở
-              trên, vẫn sửa tay được bình thường (đây là gợi ý, không phải giá trị bị khoá). */}
-          {usePump && vialCountSuggestion && doseTargetMg && (
+          {/* Đã tự điền số {vialLabel} + thể tích pha loãng ngay khi gõ hàm lượng ở trên (xem
+              applySolutionSuggestion, áp dụng cho mọi đường dùng/thiết bị truyền) — dòng này chỉ để
+              BẤM ÁP DỤNG LẠI nếu vừa sửa tay lệch khỏi gợi ý, vẫn sửa tay ô "Số {vialLabel}"/"Pha
+              loãng tới" bình thường sau đó. */}
+          {vialCountSuggestion && doseTargetMg && (
             <button
               onClick={() => {
-                setVials(String(vialCountSuggestion.count))
+                applySolutionSuggestion(va)
                 tickHaptic()
               }}
               className="w-full text-left text-[11px] leading-[1.45] font-semibold mb-2 px-2.5 py-2 rounded-xl underline decoration-dotted"
@@ -5974,8 +6114,15 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             <p className="text-[11px] font-semibold leading-[1.45] mt-1" style={{ color: "var(--c-accent-deep)" }}>
               {isFixed
                 ? fixedDoseNum != null
-                  ? `Rút ${formatDoseNumber(fixedDrawMl as number)} mL từ chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL`
-                  : `Dùng trọn 1 chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL`
+                  ? // Luôn nói rõ SỐ CHAI đã gộp — "rút 300 mL từ chai 750 mg/150 mL" đọc như đang rút
+                    // từ MỘT chai duy nhất, dễ hiểu lầm là lỗi khi con số rút ra lớn hơn cả một chai
+                    // (vd rút 300 mL từ chai chỉ có 150 mL). Phải nói "2 chai gộp lại" ngay tại đây.
+                    fixedBottleCount > 1
+                    ? `Rút ${formatDoseNumber(fixedDrawMl as number)} mL từ ${trim(fixedBottleCount, 0)} chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL gộp lại (tổng ${formatDoseNumber(fixedPoolAmount as number)} ${vialUnit}/${trim(fixedPoolVolume as number)} mL)`
+                    : `Rút ${formatDoseNumber(fixedDrawMl as number)} mL từ chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL`
+                  : fixedBottleCount > 1
+                    ? `Dùng trọn ${trim(fixedBottleCount, 0)} chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL`
+                    : `Dùng trọn 1 chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL`
                 : describeComposition(outcome(), vialLabel)}
             </p>
             {mix?.infuseNote && <p className="text-[11px] leading-[1.45] mt-2" style={{ color: "var(--c-text-soft)" }}>Truyền: {mix.infuseNote}</p>}
@@ -6178,15 +6325,22 @@ function AntibioticDoseCard({
     if (!mixCfg || !doseTargetMg) return null
     if (mixCfg.vialForm === "fixed") {
       if (mixCfg.vialVolumeMl == null) return null
-      const loMl = drawFromFixedVial(doseTargetMg.low, doseTargetMg.unit, mixCfg.vialAmount, mixCfg.vialUnit, mixCfg.vialVolumeMl)
-      const hiMl = doseTargetMg.high != null ? drawFromFixedVial(doseTargetMg.high, doseTargetMg.unit, mixCfg.vialAmount, mixCfg.vialUnit, mixCfg.vialVolumeMl) : loMl
-      if (loMl == null || hiMl == null) return null
-      const pickedMl = doseTargetMg.high != null ? pickEasiestVolume(loMl, hiMl) : loMl
-      const f = massFactor(mixCfg.vialUnit, doseTargetMg.unit)
-      const pickedDose = f != null ? (pickedMl / mixCfg.vialVolumeMl) * mixCfg.vialAmount * f : doseTargetMg.low
-      // Liều tính ra đúng bằng cả chai (vd Levofloxacin 750 mg = trọn chai 750 mg/150 mL) → nói "01
-      // chai" đúng mẫu, không nói "lấy 750 mg" (đúng số nhưng sai câu chữ thực tế người pha dùng).
-      const isWholeVial = pickedMl >= mixCfg.vialVolumeMl - 1e-6
+      const toVialUnit = massFactor(doseTargetMg.unit, mixCfg.vialUnit)
+      const toDoseUnit = massFactor(mixCfg.vialUnit, doseTargetMg.unit)
+      if (toVialUnit == null || toDoseUnit == null) return null
+      const loInVialUnit = doseTargetMg.low * toVialUnit
+      const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
+      // Liều cần có thể vượt MỘT chai — resolveFixedDraw tự gộp thêm chai khi cần (giữ nguyên thang
+      // làm tròn mịn 5/1/0,5/0,1 mL cho trường hợp một chai thường gặp nhất, chỉ chuyển sang thang
+      // trăm/năm mươi mL khi thật sự phải gộp — xem lib/mixing.ts).
+      const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, mixCfg.vialAmount, mixCfg.vialVolumeMl)
+      if (result == null) return null
+      const { bottleCount, drawMl: pickedMl } = result
+      const pooledVolume = bottleCount * mixCfg.vialVolumeMl
+      const pickedDose = pickedMl * (mixCfg.vialAmount / mixCfg.vialVolumeMl) * toDoseUnit
+      // Liều tính ra đúng bằng (các) chai gộp lại (vd Levofloxacin 750 mg = trọn chai 750 mg/150 mL)
+      // → nói "N chai" đúng mẫu, không nói "lấy 750 mg" (đúng số nhưng sai câu chữ thực tế dùng).
+      const isWholeVial = pickedMl >= pooledVolume - 1e-6
       // Chỉ tính tốc độ khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn hẳn
       // phần này thay vì bịa một thời gian truyền không ai xác nhận. Bơm tiêm điện thì ra mL/giờ,
       // dây thường thì ra giọt/phút — không tính cả hai cùng lúc (xem mixCfg.deliveryDevice).
@@ -6200,6 +6354,7 @@ function AntibioticDoseCard({
         vialAmount: mixCfg.vialAmount,
         vialUnit: mixCfg.vialUnit,
         vialVolumeMl: mixCfg.vialVolumeMl,
+        vialsUsed: bottleCount,
         doseAmount: isWholeVial ? undefined : pickedDose,
         doseUnit: doseTargetMg.unit,
         route: routeShort,

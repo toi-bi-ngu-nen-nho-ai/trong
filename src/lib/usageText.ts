@@ -72,6 +72,10 @@ export function formatFixedUsage(params: {
   vialAmount: number
   vialUnit: string
   vialVolumeMl: number
+  // Gộp NHIỀU CHAI khi liều cần vượt một chai — mặc định 1 (không đổi câu chữ so với trước khi chỉ
+  // dùng một chai duy nhất). Nói rõ số chai ngay trong câu, không chỉ nói tổng hàm lượng: "lấy 1500
+  // mg" từ MỘT chai 750 mg nghe như lỗi (750 mg làm sao ra 1500 mg) nếu không nói kèm "2 chai".
+  vialsUsed?: number
   // Trọn chai: bỏ trống doseAmount/drawMl. Lấy một phần: truyền đủ doseAmount + drawMl + đơn vị liều.
   doseAmount?: number
   doseUnit?: string
@@ -79,10 +83,12 @@ export function formatFixedUsage(params: {
   dropsPerMin?: number | null
   rateMlPerHour?: number | null
 }): string {
-  const { name, vialAmount, vialUnit, vialVolumeMl, doseAmount, doseUnit, route, dropsPerMin, rateMlPerHour } = params
+  const { name, vialAmount, vialUnit, vialVolumeMl, vialsUsed, doseAmount, doseUnit, route, dropsPerMin, rateMlPerHour } = params
   const bottle = `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml`
-  if (doseAmount == null) return `${bottle} 01 chai`
-  const base = `${bottle} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
+  const pooled = vialsUsed != null && vialsUsed > 1
+  if (doseAmount == null) return pooled ? `${bottle} ${trim(vialsUsed, 0)} chai` : `${bottle} 01 chai`
+  const countPart = pooled ? ` ${trim(vialsUsed, 0)} chai` : ""
+  const base = `${bottle}${countPart} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
   if (route === "TMC") return base
   if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
   if (dropsPerMin == null) return base
