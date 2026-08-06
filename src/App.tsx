@@ -9666,7 +9666,9 @@ function BoardThumb({ board, tick }: { board: MindBoard; tick: number }) {
   const strokes = (data.strokes ?? []).slice(0, 600)
 
   return (
-    <svg viewBox={vb} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full">
+    // fade-in: cuộn một danh sách 20 bảng cho ra một loạt nét vẽ bật lên rời rạc khi mỗi ảnh xem
+    // trước đọc xong IndexedDB không cùng lúc — mờ dần 0,18s thay vì bật cứng.
+    <svg viewBox={vb} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full fade-in">
       {strokes.map((s) => {
         const filled = !!s.widths && s.widths.length > 1 && !s.straight
         return (
@@ -9699,6 +9701,34 @@ function BoardThumb({ board, tick }: { board: MindBoard; tick: number }) {
       ))}
     </svg>
   )
+}
+
+// Số ghi chú của một bảng, hiện cạnh "Hôm qua" ở thẻ bảng trong danh sách — trước đây con số này
+// (nodes.length) chỉ có bên TRONG bảng, ở dòng gần cuối một menu phải mở ra mới thấy. Đọc từ CÙNG
+// `boardPreviewCache` mà BoardThumb đã dùng để tránh đọc IndexedDB hai lần cho cùng một bảng —
+// bảng nào BoardThumb đã tải xong thì component này có ngay, không phải tải lại.
+function BoardNoteCount({ board, tick }: { board: MindBoard; tick: number }) {
+  const [data, setData] = useState<MindmapData | null>(() => boardPreviewCache.get(board.id) ?? null)
+  useEffect(() => {
+    let cancelled = false
+    const cached = boardPreviewCache.get(board.id)
+    if (cached) {
+      setData(cached)
+      return
+    }
+    void loadMindmap(board.id).then((d) => {
+      if (cancelled) return
+      boardPreviewCache.set(board.id, d)
+      setData(d)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [board.id, tick])
+  if (!data) return null
+  const count = data.nodes.length
+  if (count === 0) return null
+  return <span> · {count} ghi chú</span>
 }
 
 // Một thẻ khớp ô tìm xuyên-bảng: bảng nào, node nào, và đoạn trích đã bỏ dấu định dạng (**/{{...}})
@@ -9831,7 +9861,11 @@ function MindmapGallery({
 
       {query.trim() ? (
         <div className="scroll-ios flex-1 px-5 pb-6">
-          {searching ? (
+          {/* Trước đây `searching` thay CẢ vùng kết quả bằng một dòng "Đang tìm…" — một thao tác
+              200ms mà thay hết nội dung cho ra cảm giác nháy liên tục khi gõ. Giữ kết quả CŨ
+              (searchHits không bị xoá khi lượt tìm mới bắt đầu — xem effect phía trên), chỉ giảm
+              opacity trong lúc chờ; "Đang tìm…" chỉ còn dành cho lượt tìm ĐẦU TIÊN chưa có gì. */}
+          {searching && groupedHits.length === 0 ? (
             <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
               Đang tìm…
             </p>
@@ -9840,7 +9874,7 @@ function MindmapGallery({
               Không tìm thấy "{query.trim()}" trong bất kỳ bảng nào.
             </p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2" style={{ opacity: searching ? 0.5 : 1, transition: "opacity .15s ease" }}>
               {groupedHits.map(({ board, hits }) => (
                 <button
                   key={board.id}
@@ -9926,9 +9960,11 @@ function MindmapGallery({
         {filterOpen && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
+            {/* Mọi popover trong bảng vẽ đều mind-pop bung ra từ nút — bảng này (ở danh sách gallery,
+                không phải trong MindmapBoard) trước đây hiện tức thì, khác hẳn phần còn lại. */}
             <div
-              className={`absolute left-5 top-full z-40 w-[210px] ${R.card} border p-1.5 max-h-[320px] overflow-y-auto scroll-ios`}
-              style={{ borderColor: C.line, background: C.surface, boxShadow: "0 12px 30px rgba(15,23,42,.18)" }}
+              className={`mind-pop absolute left-5 top-full z-40 w-[210px] ${R.card} border p-1.5 max-h-[320px] overflow-y-auto scroll-ios`}
+              style={{ borderColor: C.line, background: C.surface, boxShadow: "0 12px 30px var(--c-shadow)", transformOrigin: "top left" }}
             >
               <FilterRow label="Tất cả" count={boards.length} active={specialty === "all"} onClick={() => pick("all")} />
               {usedSpecialties.map((s) => (
@@ -9960,13 +9996,15 @@ function MindmapGallery({
             Chưa có bảng nào trong mục này. Bấm "Mới" để tạo bảng đầu tiên.
           </p>
         ) : view === "grid" ? (
-          <div className="grid grid-cols-2 gap-3">
+          // key={view} buộc React dựng lại khối này khi đổi view — bố cục trước đây nhảy tức thì
+          // giữa lưới/danh sách; remount kích hoạt lại .fade-in cho cảm giác crossfade nhẹ.
+          <div key="grid" className="grid grid-cols-2 gap-3 fade-in">
             {shown.map((b) => (
               <BoardCard key={b.id} board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div key="list" className="flex flex-col gap-2 fade-in">
             {shown.map((b) => (
               <BoardRow key={b.id} board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
             ))}
@@ -10004,9 +10042,12 @@ function TrashSheet({
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   return (
-    <div className="absolute inset-0 z-40 flex flex-col" style={{ background: "rgba(15,23,42,.35)" }}>
+    // Trước đây `absolute inset-0` với rounded-t-3xl xuất hiện tức thì — trông như bottom sheet
+    // nhưng không có động tác của bottom sheet, cùng lỗi với CalcLogSheet/DisclaimerGate ở màn
+    // Dùng thuốc. `.mind-sheet` (đã có sẵn trong index.css) trượt lên từ đáy.
+    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng" />
-      <div className="rounded-t-3xl flex flex-col" style={{ background: C.surface, maxHeight: "82%" }}>
+      <div className="mind-sheet rounded-t-3xl flex flex-col" style={{ background: C.surface, maxHeight: "82%" }}>
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <p className={T.bodyStrong} style={{ color: C.text }}>
             Thùng rác · {boards.length}
@@ -10279,6 +10320,15 @@ function BoardCard({
       data-board-id={board.id}
       className={`flex flex-col gap-1.5 ${TAP}`}
       {...hold}
+      // Có role="button" + tabIndex nên Tab tới được và trình đọc màn hình đọc là "nút", nhưng
+      // trước đây chỉ gắn handler con trỏ — Enter/Space không làm gì cả. Enter/Space giờ mở bảng,
+      // giống hành vi mặc định của một <button> thật.
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onOpen(cardRef.current?.getBoundingClientRect() ?? new DOMRect())
+        }
+      }}
       aria-label={`Mở bảng ${board.name}`}
       role="button"
       tabIndex={0}
@@ -10290,6 +10340,7 @@ function BoardCard({
         </p>
         <p className={T.meta} style={{ color: C.textSoft }}>
           {boardWhen(board.updatedAt)}
+          <BoardNoteCount board={board} tick={previewTick} />
         </p>
       </div>
     </div>
@@ -10317,6 +10368,12 @@ function BoardRow({
       className={`flex items-center gap-3 p-2 ${R.card} border ${TAP}`}
       style={{ borderColor: C.line, background: C.surface }}
       {...hold}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onOpen(rowRef.current?.getBoundingClientRect() ?? new DOMRect())
+        }
+      }}
       aria-label={`Mở bảng ${board.name}`}
       role="button"
       tabIndex={0}
@@ -10329,6 +10386,7 @@ function BoardRow({
         <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
           {boardWhen(board.updatedAt)}
           {spec ? ` · ${spec.name}` : ""}
+          <BoardNoteCount board={board} tick={previewTick} />
         </p>
       </div>
     </div>
@@ -10654,9 +10712,9 @@ function BoardEditSheet({
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col" style={{ background: "rgba(15,23,42,.35)" }}>
+    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng" />
-      <div className="rounded-t-3xl flex flex-col" style={{ background: "var(--c-surface)", maxHeight: "82%" }}>
+      <div className="mind-sheet rounded-t-3xl flex flex-col" style={{ background: "var(--c-surface)", maxHeight: "82%" }}>
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <p className="text-[13px] font-bold text-slate-900">{mode === "create" ? "Bảng mới" : "Sửa bảng"}</p>
           <button onClick={onClose} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }} aria-label="Đóng">

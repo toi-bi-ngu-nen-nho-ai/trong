@@ -140,6 +140,11 @@
   /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm) — đen ngả teal, không phải navy. */
   --c-scrim: rgba(9, 32, 33, 0.45);
   --c-shadow: rgba(9, 32, 33, 0.1);
+  /* Dải/pill NỔI TRÊN MẶT BẢNG vẽ (gợi ý cử chỉ, toast) — đậm hơn --c-scrim (dải chữ trắng cần nền
+     đủ tối để đọc được ở mọi vị trí trên canvas, không phải một lớp phủ mờ phía sau modal). Trước
+     đây mỗi dải viết một giá trị rgba(15,23,42,...) riêng (.86/.92/.93) — cùng vai trò, khác màu,
+     đứng cạnh nhau trong cùng khung hình đọc ra như hai lớp phủ khác nhau. */
+  --c-pill-dark: rgba(9, 32, 33, 0.9);
 
   /* ─── Thanh điều hướng dưới & các phần tử NỔI ───────────────────────────────
      Tách riêng khỏi bảng màu chung vì đây là những chỗ trước đây viết mã màu cứng

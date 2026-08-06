@@ -1147,9 +1147,6 @@ export function MindmapBoard({
   const chromeHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Đếm ngược lúc nào radar tự mờ đi — xem showRadar() trong applyView().
   const radarHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Đếm ngược lúc nào cụm phóng-thu tự thu lại — xem openZoomCluster()/bumpZoomCluster().
-  const zoomClusterTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const view = useRef({ x: 24, y: 24, zoom: 1 })
   const paperRef = useRef(paper)
   // Màu giấy đọc trong applyView() — hàm đó chạy ngoài vòng vẽ của React (ghi thẳng vào style), nên
@@ -1417,7 +1414,6 @@ export function MindmapBoard({
       if (foundTimer.current) clearTimeout(foundTimer.current)
       if (chromeHideTimer.current) clearTimeout(chromeHideTimer.current)
       if (radarHideTimer.current) clearTimeout(radarHideTimer.current)
-      if (zoomClusterTimer.current) clearTimeout(zoomClusterTimer.current)
       if (holdTimer.current) clearTimeout(holdTimer.current)
       if (holdLassoTimer.current) clearTimeout(holdLassoTimer.current)
       // Chỗ đang xem phải ghi NGAY khi rời màn hình, không chờ hết 500ms gộp lần ghi.
@@ -1607,21 +1603,17 @@ export function MindmapBoard({
   function openZoomCluster() {
     setZoomClusterOpen(true)
     tickHaptic()
-    bumpZoomCluster()
   }
 
-  // Chạm vào bất kỳ nút nào trong cụm (đang mở) thì đẩy lại giờ tự thu — mỗi lần dùng là một lần
-  // "vẫn còn đang cần nó", không đáng để nó biến mất giữa lúc đang bấm liên tiếp.
+  // Trước đây cụm tự thu sau 3 giây bất kể người dùng đang làm gì — một trong những nguồn ức chế
+  // kinh điển: bung cụm ra, nhìn mặt bảng để quyết định phóng bao nhiêu, đưa tay tới nút "+" thì
+  // cụm vừa thu lại, cú chạm rơi vào viên phần trăm và bung lại từ đầu. Bỏ hẳn đồng hồ — giờ chỉ
+  // thu khi bắt đầu vẽ (noteDrawActivity → closeZoomCluster) hoặc bấm lại nút mở/thu.
   function bumpZoomCluster() {
-    if (zoomClusterTimer.current) clearTimeout(zoomClusterTimer.current)
-    zoomClusterTimer.current = setTimeout(() => setZoomClusterOpen(false), 3000)
+    // Không còn hẹn giờ tự thu — hàm giữ lại (không làm gì) để mọi chỗ gọi cũ không cần sửa.
   }
 
   function closeZoomCluster() {
-    if (zoomClusterTimer.current) {
-      clearTimeout(zoomClusterTimer.current)
-      zoomClusterTimer.current = null
-    }
     setZoomClusterOpen(false)
   }
 
@@ -4748,12 +4740,12 @@ export function MindmapBoard({
               className="mind-input flex-1 min-w-0 bg-transparent outline-none rounded-md text-[13px] font-medium text-slate-700"
             />
             {findQuery.trim() && (
+              // Trước đây trước khi bấm nhảy lần đầu chỉ hiện số tổng ("7") — trông như "7" là vị
+              // trí hiện tại chứ không phải tổng số. Luôn hiện dạng "–/7" cho tới khi đã nhảy.
               <span className="flex-none text-[11px] font-bold tabular-nums text-slate-400">
                 {findMatches.length === 0
                   ? "0"
-                  : findIdx >= 0
-                    ? `${findIdx + 1}/${findMatches.length}`
-                    : String(findMatches.length)}
+                  : `${findIdx >= 0 ? findIdx + 1 : "–"}/${findMatches.length}`}
               </span>
             )}
             <IconBtn icon={mi.chevronUp} hint="Thẻ khớp trước đó" size={32} disabled={findMatches.length === 0} onClick={() => jumpToMatch(-1)} />
@@ -4772,8 +4764,13 @@ export function MindmapBoard({
                   animation chạy lại từ đầu khi lưu liên tiếp nhiều lần, không phải bật/tắt qua
                   state như trước (đổi lại phải giữ THÊM một biến `savedFlash` chỉ để làm việc mà
                   chính bản thân animation `.flash-ok` — có sẵn điểm dừng ở cuối — đã tự làm được). */}
+              {/* Trước đây 10.5px + --c-muted (~3:1, dưới ngưỡng đọc) — chữ nhỏ nhất, nhạt nhất
+                  màn hình lại đúng là lời trấn an cho nỗi lo "mất bài vẽ tay". Lên 12px + --c-green
+                  (đã có token, gần như không dùng ở đâu) + icon tích, cho lời trấn an trọng lượng
+                  đúng với vai trò của nó. */}
               {savedTick > 0 && (
-                <span key={savedTick} className="flash-ok flex-none text-[10.5px] font-semibold" style={{ color: "var(--c-muted)" }}>
+                <span key={savedTick} className="flash-ok flex-none flex items-center gap-1 text-[12px] font-semibold" style={{ color: "var(--c-green)" }}>
+                  <span className="scale-75">{mi.check("w-3.5 h-3.5")}</span>
                   đã lưu
                 </span>
               )}
@@ -5058,7 +5055,7 @@ export function MindmapBoard({
             className="mind-pop absolute right-3 top-[50px] w-[236px] rounded-2xl border p-2 z-50"
             style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", boxShadow: "0 12px 30px var(--c-shadow)" }}
           >
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pt-0.5 pb-1.5">
+            <p className="text-[12px] font-semibold text-slate-400 px-1.5 pt-0.5 pb-1.5">
               Giấy nền
             </p>
             <div className="grid grid-cols-2 gap-1">
@@ -5084,7 +5081,7 @@ export function MindmapBoard({
 
             <div className="h-px my-2" style={{ background: "var(--c-line)" }} />
 
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pb-1.5">Màu nền</p>
+            <p className="text-[12px] font-semibold text-slate-400 px-1.5 pb-1.5">Màu nền</p>
             <div className="grid grid-cols-3 gap-1">
               {PAPER_TONES.map((t) => (
                 <button
@@ -5115,7 +5112,7 @@ export function MindmapBoard({
 
             <div className="h-px my-2" style={{ background: "var(--c-line)" }} />
 
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pb-1.5">Căn chỉnh</p>
+            <p className="text-[12px] font-semibold text-slate-400 px-1.5 pb-1.5">Căn chỉnh</p>
             {[
               { on: snapObjects, label: "Căn theo đối tượng", hint: "Thẻ dính vào mép và tâm thẻ khác" },
               { on: snapGrid, label: "Căn theo lưới", hint: "Thẻ dính vào ô lưới của giấy" },
@@ -5159,7 +5156,7 @@ export function MindmapBoard({
             <div className="h-px my-2" style={{ background: "var(--c-line)" }} />
 
             <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Lọc theo màu</p>
+              <p className="text-[12px] font-semibold text-slate-400">Lọc theo màu</p>
               {colorFilter.size > 0 && (
                 <button type="button" onClick={clearColorFilter} className="mind-btn text-[10.5px] font-bold" style={{ color: "var(--c-primary)" }}>
                   Xem tất cả
@@ -5292,7 +5289,7 @@ export function MindmapBoard({
             {hasKeyboard && (
               <>
                 <div className="h-px my-2" style={{ background: "var(--c-line)" }} />
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 px-1.5 pb-1.5">
+                <p className="text-[12px] font-semibold text-slate-400 px-1.5 pb-1.5">
                   Phím tắt
                 </p>
                 <div className="px-1.5 pb-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10.5px] text-slate-500">
@@ -5741,7 +5738,7 @@ export function MindmapBoard({
                   top: groupBox.y - 14,
                   transform: "translate(-50%, -100%) scale(var(--inv-zoom, 1))",
                   transformOrigin: "bottom center",
-                  background: "rgba(15,23,42,.93)",
+                  background: "var(--c-pill-dark)",
                   boxShadow: "0 6px 20px rgba(15,23,42,.3)",
                 }}
               >
@@ -5809,7 +5806,7 @@ export function MindmapBoard({
                 top: selNode ? selNode.y - 6 : selImage ? selImage.y - 6 : (selEdgeMid?.y ?? 0) - 6,
                 transform: "translate(-50%, -100%) scale(var(--inv-zoom, 1))",
                 transformOrigin: "bottom center",
-                background: "rgba(15,23,42,.93)",
+                background: "var(--c-pill-dark)",
                 boxShadow: "0 6px 20px rgba(15,23,42,.3)",
                 transition: "opacity .12s ease",
               }}
@@ -6334,7 +6331,7 @@ export function MindmapBoard({
               >
                 {penPop === "shape" ? (
                   <>
-                    <p className="text-[10px] font-bold uppercase tracking-wide px-0.5 pb-1.5" style={{ color: "var(--c-text-muted)" }}>
+                    <p className="text-[12px] font-semibold px-0.5 pb-1.5" style={{ color: "var(--c-text-muted)" }}>
                       Hình vẽ
                     </p>
                     <div className="flex items-center gap-1">
@@ -6357,7 +6354,7 @@ export function MindmapBoard({
                 ) : (
                   <>
                     <div className="flex items-center justify-between px-0.5 pb-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--c-text-muted)" }}>
+                      <p className="text-[12px] font-semibold" style={{ color: "var(--c-text-muted)" }}>
                         Cỡ nét
                       </p>
                       <span className="text-[12px] font-bold tabular-nums" style={{ color: "var(--c-text-2)" }}>
@@ -6399,7 +6396,7 @@ export function MindmapBoard({
                         Chung cho mọi cây bút và cả hình vẽ: một khung chữ nhật nét đứt hay một mũi
                         tên chấm chấm là cách quen thuộc nhất để nói "cái này là phụ / là giả định",
                         mà nét liền không nói được. */}
-                    <p className="text-[10px] font-bold uppercase tracking-wide px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
+                    <p className="text-[12px] font-semibold px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
                       Kiểu nét
                     </p>
                     <div className="flex items-center gap-1.5">
@@ -6431,7 +6428,7 @@ export function MindmapBoard({
                       })}
                     </div>
 
-                    <p className="text-[10px] font-bold uppercase tracking-wide px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
+                    <p className="text-[12px] font-semibold px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
                       Ba nét gần nhất
                     </p>
                     <div className="flex items-center gap-1.5">
@@ -6576,8 +6573,10 @@ export function MindmapBoard({
         {/* ─── Cụm phóng-thu, góc dưới trái ──────────────────────────────
             Mặc định chỉ một viên phần trăm — bốn nút kia (−, +, vừa khung, ô viết phóng to) chỉ
             thật sự cần khi đang chủ động chỉnh khung nhìn, mà lại thường trực chiếm chỗ suốt phiên
-            làm việc. Chạm vào viên phần trăm để bung cả cụm ra, tự thu lại sau 3s không đụng tới
-            hoặc ngay khi bắt đầu vẽ (xem openZoomCluster/bumpZoomCluster/closeZoomCluster). */}
+            làm việc. Chạm vào viên phần trăm để bung cả cụm ra, thu lại ngay khi bắt đầu vẽ (xem
+            openZoomCluster/closeZoomCluster). Trước đây còn tự thu sau 3s bất kể đang làm gì — bỏ
+            hẳn, vì đó là kiểu ức chế kinh điển: bung cụm, nhìn bảng để quyết định phóng bao nhiêu,
+            đưa tay tới nút thì cụm vừa thu lại. */}
         <div className="absolute left-3 bottom-4 flex items-center gap-2" onPointerDown={stopPointer}>
           <div
             className={`flex items-center rounded-2xl border p-0.5 ${zoomClusterOpen ? "mind-pop" : ""}`}
@@ -6698,6 +6697,9 @@ export function MindmapBoard({
                 {mi.image("w-[18px] h-[18px]")}
                 Ảnh
               </button>
+              {/* "Chữ trần" (không "Chữ") và "Ghi chú thẻ" (không "Ghi chú") — hai nhãn cũ không tự
+                  giải thích được khác nhau ở điểm gì, phải thử mới biết: "Chữ" trước đây là chữ
+                  trần trên giấy, không khung không nền; "Ghi chú" là một thẻ có khung/nền thật. */}
               <button
                 type="button"
                 onClick={() => addText()}
@@ -6705,7 +6707,7 @@ export function MindmapBoard({
                 style={{ background: "var(--c-surface)", color: "var(--c-text-2)", boxShadow: "0 6px 18px var(--c-shadow)", animationDelay: "40ms" }}
               >
                 {mi.textSize("w-[18px] h-[18px]")}
-                Chữ
+                Chữ trần
               </button>
               <button
                 type="button"
@@ -6714,7 +6716,7 @@ export function MindmapBoard({
                 style={{ background: "var(--c-surface)", color: "var(--c-text-2)", boxShadow: "0 6px 18px var(--c-shadow)" }}
               >
                 {mi.note("w-[18px] h-[18px]")}
-                Ghi chú
+                Ghi chú thẻ
               </button>
               {/* Chỉ hiện khi thật sự có gì để dán (đã sao chép từ nút "Sao chép nhánh"/"Sao chép"
                   trên thẻ hoặc nhóm đang chọn) — bày một nút bấm vào không ra gì còn tệ hơn không có. */}
@@ -6756,7 +6758,7 @@ export function MindmapBoard({
         {(tool === "lasso" || tempLassoActive) && !selGroup && (
           <div
             className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in flex items-center gap-1.5 whitespace-nowrap"
-            style={{ background: "rgba(15,23,42,.86)", color: "#fff", pointerEvents: "none" }}
+            style={{ background: "var(--c-pill-dark)", color: "#fff", pointerEvents: "none" }}
           >
             {mi.lasso("w-4 h-4")}
             Khoanh một vòng quanh phần muốn chọn
@@ -6769,7 +6771,7 @@ export function MindmapBoard({
             className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in flex items-center gap-1.5 whitespace-nowrap"
             // Chỉ là dải chữ nhắc việc: không được nhận chạm, nếu không chạm vào nó sẽ tính là chạm
             // vào mặt bảng (kéo bảng, hoặc để lại dấu mực khi đang chọn bút).
-            style={{ background: "rgba(15,23,42,.86)", color: "#fff", pointerEvents: "none" }}
+            style={{ background: "var(--c-pill-dark)", color: "#fff", pointerEvents: "none" }}
           >
             {mi.link("w-4 h-4")}
             {linkFrom ? "Chạm thẻ thứ hai để nối" : "Kéo từ thẻ này sang thẻ khác"}
@@ -6779,7 +6781,7 @@ export function MindmapBoard({
         {(loading || busy) && (
           <div
             className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in"
-            style={{ background: "rgba(15,23,42,.86)", color: "#fff", pointerEvents: "none" }}
+            style={{ background: "var(--c-pill-dark)", color: "#fff", pointerEvents: "none" }}
           >
             {loading ? "Đang mở bảng…" : "Đang xử lý ảnh…"}
           </div>
@@ -6810,7 +6812,7 @@ export function MindmapBoard({
           <div
             className="toast-in absolute bottom-20 left-1/2 px-4 py-2.5 rounded-2xl text-[12px] font-semibold text-center max-w-[80%]"
             style={{
-              background: "rgba(15,23,42,.92)",
+              background: "var(--c-pill-dark)",
               color: "#fff",
               transform: "translateX(-50%)",
               pointerEvents: "none",
@@ -7292,7 +7294,7 @@ export function MindmapBoard({
       {colorSheet && (
         <div
           className="absolute inset-0 z-50 flex items-end fade-in"
-          style={{ background: "rgba(15,23,42,.42)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={() => setColorSheet(false)}
         >
           <div
@@ -7417,7 +7419,7 @@ export function MindmapBoard({
                     </div>
                   ))}
 
-                  <p className="text-[10px] font-bold uppercase tracking-wide pt-1 pb-2" style={{ color: "var(--c-text-muted)" }}>
+                  <p className="text-[12px] font-semibold pt-1 pb-2" style={{ color: "var(--c-text-muted)" }}>
                     Màu tự pha
                   </p>
                   <div className="grid grid-cols-8 gap-2.5">
@@ -7647,7 +7649,7 @@ export function MindmapBoard({
       {pickLink && (
         <div
           className="absolute inset-0 z-50 flex items-end fade-in"
-          style={{ background: "rgba(15,23,42,.42)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={() => setPickLink(false)}
         >
           <div
@@ -7715,7 +7717,7 @@ export function MindmapBoard({
       {editingEdgeLabel && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
-          style={{ background: "rgba(15,23,42,.42)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={() => setEditingEdgeLabel(null)}
         >
           <div
@@ -7807,7 +7809,7 @@ export function MindmapBoard({
       {exportReady && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
-          style={{ background: "rgba(15,23,42,.42)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={() => setExportReady(null)}
         >
           <div
@@ -7849,7 +7851,7 @@ export function MindmapBoard({
       {confirmClear && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
-          style={{ background: "rgba(15,23,42,.42)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={() => setConfirmClear(false)}
         >
           <div
@@ -7887,7 +7889,7 @@ export function MindmapBoard({
       {confirmDeleteEdge && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
-          style={{ background: "rgba(15,23,42,.42)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={() => setConfirmDeleteEdge(null)}
         >
           <div
@@ -7933,7 +7935,7 @@ export function MindmapBoard({
       {showCoach && !loading && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center px-8 fade-in"
-          style={{ background: "rgba(15,23,42,.5)" }}
+          style={{ background: "var(--c-scrim)" }}
           onPointerDown={dismissCoach}
         >
           <div
