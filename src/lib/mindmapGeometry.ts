@@ -373,6 +373,10 @@ export interface EdgeGeometry {
   head: string
   // Điểm giữa cung — chỗ đặt nút xoá khi người dùng chạm chọn đường nối.
   mid: { x: number; y: number }
+  // Cung RIÊNG cho chữ nhãn chạy dọc theo — song song với cung nối thật, lệch ra ngoài đúng
+  // LABEL_OFFSET để chữ không đè lên nét, luôn chạy TỪ TRÁI SANG PHẢI (xem ghi chú ở nơi tính) để
+  // chữ không lộn ngược. Dùng làm path cho <textPath> — xem chỗ vẽ nhãn trong MindmapBoard.tsx.
+  labelD: string
 }
 
 interface EdgeCurve {
@@ -380,6 +384,10 @@ interface EdgeCurve {
   b: { x: number; y: number }
   ctrl: { x: number; y: number }
 }
+
+// Khoảng lệch của cung chữ nhãn so với cung nối thật — vừa đủ để chữ không đè lên nét đứt/liền bên
+// dưới, không xa tới mức trông như đang tách rời khỏi cạnh.
+const LABEL_OFFSET = 8
 
 // Cung nối hai thẻ: cong nhẹ (12% chiều dài) thay vì đoạn thẳng — nhiều nối cùng lúc vẫn phân biệt
 // được nhau và trông giống sơ đồ tư duy vẽ tay hơn. Tách riêng để phần vẽ và phần xét chạm trúng
@@ -406,12 +414,41 @@ function curveAt(c: EdgeCurve, t: number): { x: number; y: number } {
   }
 }
 
+function curveToPathD(c: EdgeCurve): string {
+  return `M ${c.a.x} ${c.a.y} Q ${c.ctrl.x} ${c.ctrl.y} ${c.b.x} ${c.b.y}`
+}
+
+// Cung SONG SONG với `c`, lệch ra ngoài đúng `dist` theo phương vuông góc tại mỗi đầu/điểm điều
+// khiển — không phải nghiệm chính xác của "đường cong offset" (bezier không có công thức đóng cho
+// việc này), nhưng với độ cong rất nhẹ của cạnh nối (bow tối đa 26px) thì dịch cả ba điểm bằng CÙNG
+// một vector pháp tuyến là đủ khít, mắt thường không phân biệt được với offset thật.
+function offsetCurve(c: EdgeCurve, dist: number): EdgeCurve {
+  const dx = c.b.x - c.a.x
+  const dy = c.b.y - c.a.y
+  const len = Math.hypot(dx, dy) || 1
+  const nx = (-dy / len) * dist
+  const ny = (dx / len) * dist
+  return {
+    a: { x: c.a.x + nx, y: c.a.y + ny },
+    ctrl: { x: c.ctrl.x + nx, y: c.ctrl.y + ny },
+    b: { x: c.b.x + nx, y: c.b.y + ny },
+  }
+}
+
 export function edgeGeometry(from: Box, to: Box): EdgeGeometry {
   const c = edgeCurve(from, to)
   const { a, b, ctrl } = c
   const mid = curveAt(c, 0.5)
+  // Luôn lệch về CÙNG một phía của cạnh nối (phía cung bị bow tránh ra) — nếu không, mỗi lần kéo
+  // thẻ đổi hướng cạnh, chữ có thể nhảy từ bên này sang bên kia đường nét giữa chừng.
+  const labelCurve = offsetCurve(c, LABEL_OFFSET)
+  // <textPath> vẽ chữ theo ĐÚNG chiều đi của path — cạnh nối chạy từ phải sang trái thì phải đảo
+  // lại A↔B ở đây, nếu không chữ lộn ngược, đọc phải-sang-trái.
+  const labelD = curveToPathD(
+    labelCurve.a.x <= labelCurve.b.x ? labelCurve : { a: labelCurve.b, ctrl: labelCurve.ctrl, b: labelCurve.a },
+  )
   if (Math.hypot(b.x - a.x, b.y - a.y) < 1) {
-    return { d: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, head: "", mid }
+    return { d: `M ${a.x} ${a.y} L ${b.x} ${b.y}`, head: "", mid, labelD }
   }
 
   // Hướng đầu mũi lấy theo tiếp tuyến cuối cung (từ điểm điều khiển tới đích), không lấy theo
@@ -425,6 +462,7 @@ export function edgeGeometry(from: Box, to: Box): EdgeGeometry {
     d: `M ${a.x} ${a.y} Q ${ctrl.x} ${ctrl.y} ${b.x} ${b.y}`,
     head: `M ${b.x} ${b.y} L ${h1.x} ${h1.y} L ${h2.x} ${h2.y} Z`,
     mid,
+    labelD,
   }
 }
 

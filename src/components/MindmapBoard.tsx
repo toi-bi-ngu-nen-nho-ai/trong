@@ -68,7 +68,6 @@ import {
   strokeOutline,
   strokePath,
   surviveFragments,
-  type Box,
   type ShapeKind,
   type StrokeFragment,
 } from "../lib/mindmapGeometry"
@@ -111,6 +110,7 @@ import {
   type PaperTone,
 } from "../lib/mindmapStyle"
 import { buildOutlineText, copyOutlineText, deliverPng, downloadOutlineText, exportMindmapPdf, exportMindmapPng, safeFileName } from "../lib/mindmapExport"
+import { hasMindmapClip, readMindmapClip, writeMindmapClip } from "../lib/mindmapClipboard"
 import { applyStyleAt, parseInline, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
 import { mindIcons as mi } from "./MindmapIcons"
 
@@ -2114,6 +2114,94 @@ export function MindmapBoard({
     tickHaptic()
   }
 
+  // ─── Sao chép/dán một nhánh sang bảng KHÁC ─────────────────────────────────
+  // "Nhân đôi" (trên) chỉ nhân bản NGAY TRÊN bảng đang mở — không giúp được gì khi người dùng muốn
+  // dùng lại một cụm thẻ (vd. phác đồ "Sốc nhiễm khuẩn") ở một bảng chuyên khoa khác. Sao chép ghi
+  // xuống sessionStorage (xem lib/mindmapClipboard.ts) vì mỗi bảng là một lượt mount RIÊNG của
+  // component này (key={activeBoardId} ở App.tsx) — state React thường không sống sót qua đó.
+
+  // Sao chép một thẻ CÙNG TOÀN BỘ nhánh con của nó — cùng quy tắc "kéo cha thì con đi theo" mà việc
+  // kéo tay và nhân đôi vẫn dùng.
+  function copyBranch(node: MindNode) {
+    const ids = new Set([node.id, ...descendantsOf(node.id, childrenMap(edges))])
+    const copiedNodes = nodes.filter((n) => ids.has(n.id))
+    const copiedEdges = edges.filter((e) => ids.has(e.from) && ids.has(e.to))
+    writeMindmapClip({ nodes: copiedNodes, edges: copiedEdges, strokes: [], images: [] })
+    flashToast(`Đã sao chép ${copiedNodes.length} thẻ — mở bảng khác rồi bấm "Thêm → Dán nhánh"`)
+    tickHaptic()
+  }
+
+  // Sao chép nguyên một nhóm đang khoanh (nét vẽ + thẻ + ảnh) — dùng khi cụm muốn mang sang không
+  // đi gọn theo quan hệ cha-con (vd. một mảng ghi chú rời kèm nét vẽ minh hoạ).
+  function copyGroup(g: GroupSel) {
+    if (g.nodes.length === 0 && g.strokes.length === 0 && g.images.length === 0) return
+    const nodeIds = new Set(g.nodes)
+    writeMindmapClip({
+      nodes: nodes.filter((n) => nodeIds.has(n.id)),
+      edges: edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to)),
+      strokes: strokes.filter((s) => g.strokes.includes(s.id)),
+      images: images.filter((im) => g.images.includes(im.id)),
+    })
+    flashToast(`Đã sao chép phần đã chọn — mở bảng khác rồi bấm "Thêm → Dán nhánh"`)
+    tickHaptic()
+  }
+
+  // Dán phần vừa sao chép (từ CHÍNH bảng này hoặc từ một bảng khác) vào giữa khung nhìn hiện tại.
+  // Cấp lại ID MỚI cho mọi thứ — id cũ có thể trùng với thẻ đang có trên bảng đích (hai bảng khác
+  // nhau nhưng cùng đọc từ một bản `newId()` trong cùng một phiên có xác suất trùng cực nhỏ nhưng
+  // không phải KHÔNG THỂ, và dán 2 lần liên tiếp từ cùng một lần sao chép CHẮC CHẮN trùng nếu giữ
+  // nguyên id) — kèm ánh xạ id cũ→mới để cạnh nối bám đúng thẻ vừa tạo, không đứt gãy.
+  function pasteClip() {
+    const clip = readMindmapClip()
+    if (!clip || (clip.nodes.length === 0 && clip.strokes.length === 0 && clip.images.length === 0)) {
+      flashToast("Chưa sao chép gì để dán")
+      return
+    }
+    setAddOpen(false)
+    // Đưa TRỌNG TÂM phần vừa dán ra giữa khung nhìn hiện tại — toạ độ ở bảng nguồn và bảng đích là
+    // hai hệ gốc khác nhau, dán y nguyên toạ độ cũ dễ rơi ra ngoài màn hình, phải kéo đi tìm.
+    const bounds = contentBounds({ nodes: clip.nodes, edges: [], strokes: clip.strokes, images: clip.images }, {})
+    const c = viewCenterBoard()
+    const dx = bounds ? Math.round(c.x - (bounds.x + bounds.w / 2)) : 0
+    const dy = bounds ? Math.round(c.y - (bounds.y + bounds.h / 2)) : 0
+
+    const idMap = new Map<string, string>()
+    clip.nodes.forEach((n) => idMap.set(n.id, newId("n")))
+    const newNodes: MindNode[] = clip.nodes.map((n) => ({
+      ...n,
+      id: idMap.get(n.id)!,
+      x: n.x + dx,
+      y: n.y + dy,
+      // Nhánh đang gấp ở bảng nguồn thì dán sang mở sẵn — nhánh con của nó không được sao chép theo
+      // (copyBranch/copyGroup không đi qua thẻ ẩn), giữ "đang gấp" sẽ chỉ còn một cờ vô nghĩa.
+      collapsed: undefined,
+    }))
+    const newEdges: MindEdge[] = clip.edges
+      .filter((e) => idMap.has(e.from) && idMap.has(e.to))
+      .map((e) => ({ ...e, from: idMap.get(e.from)!, to: idMap.get(e.to)! }))
+    const newStrokes: MindStroke[] = clip.strokes.map((s) => ({
+      ...s,
+      id: newId("s"),
+      points: s.points.map((p, i) => p + (i % 2 === 0 ? dx : dy)),
+    }))
+    const newImages: MindImage[] = clip.images.map((im) => ({ ...im, id: newId("im"), x: im.x + dx, y: im.y + dy }))
+
+    pushUndo()
+    if (newNodes.length) updateNodes((ns) => [...ns, ...newNodes])
+    if (newEdges.length) updateEdges((es) => [...es, ...newEdges])
+    if (newStrokes.length) updateStrokes((ss) => [...ss, ...newStrokes])
+    if (newImages.length) updateImages((ims) => [...ims, ...newImages])
+
+    setSelGroup({
+      nodes: newNodes.map((n) => n.id),
+      strokes: newStrokes.map((s) => s.id),
+      images: newImages.map((im) => im.id),
+    })
+    setTool("hand")
+    tickHaptic()
+    flashToast(`Đã dán ${newNodes.length + newStrokes.length + newImages.length} phần`)
+  }
+
   // Xếp lại CẢ nhánh bên dưới một thẻ (con, cháu, chắt...) thành cây toả hai bên — xem layoutSubtree.
   // Chạy kèm hiệu ứng trượt (bật transition cho left/top trong 380ms) nên nhìn thấy rõ các thẻ tự đi
   // về chỗ mới, thay vì cả bảng nhảy một cái là xong mà không biết cái gì vừa đi đâu.
@@ -2610,18 +2698,6 @@ export function MindmapBoard({
 
   // ─── Đường nối: cập nhật trực tiếp khi đang kéo thẻ ───────────────────────
 
-  // Góc xoay cho chữ nhãn CHẠY DỌC theo chiều dài đường nối. Tiếp tuyến ở đúng giữa một cung bậc hai
-  // luôn bằng đúng hướng nối thẳng từ điểm đầu tới điểm cuối (tính chất toán học của bezier bậc hai,
-  // không phụ thuộc điểm điều khiển cong bao nhiêu) — nên chỉ cần góc giữa hai TÂM thẻ, không cần tính
-  // lại điểm điều khiển của cung. Gập góc về trong khoảng [-90°, 90°] để chữ luôn đọc xuôi, không lộn
-  // ngược khi đường nối chạy từ phải sang trái.
-  function edgeLabelAngle(a: Box, b: Box): number {
-    const deg = (Math.atan2(b.y + b.h / 2 - (a.y + a.h / 2), b.x + b.w / 2 - (a.x + a.w / 2)) * 180) / Math.PI
-    if (deg > 90) return deg - 180
-    if (deg < -90) return deg + 180
-    return deg
-  }
-
   // Vẽ lại (chỉ trên DOM, không đụng state) mọi đường nối chạm vào tập thẻ đang kéo — dùng chung cho
   // kéo một thẻ (kèm nhánh con), kéo cả nhóm đang khoanh, v.v. Nhận CẢ TẬP một lần thay vì gọi lặp lại
   // cho từng id: một đường nối có CẢ HAI đầu cùng nằm trong tập đang kéo (nối hai thẻ trong cùng một
@@ -2651,9 +2727,10 @@ export function MindmapBoard({
       const key = edgeKey(e)
       layer.querySelector(`[data-edge="${key}"]`)?.setAttribute("d", g.d)
       layer.querySelector(`[data-edge-head="${key}"]`)?.setAttribute("d", g.head)
-      layer
-        .querySelector(`[data-edge-label="${key}"]`)
-        ?.setAttribute("transform", `translate(${g.mid.x} ${g.mid.y}) rotate(${edgeLabelAngle(boxA, boxB)})`)
+      // Chữ nhãn CHẠY DỌC theo cung riêng của nó (xem <textPath> ở chỗ vẽ) — chỉ cần đổi `d` của
+      // đúng cung đó là trình duyệt tự dựng lại chữ theo hình dạng mới, không phải tính lại vị trí
+      // từng chữ cái bằng tay.
+      layer.querySelector(`[data-edge-labelpath="${key}"]`)?.setAttribute("d", g.labelD)
     })
   }
 
@@ -3858,9 +3935,9 @@ export function MindmapBoard({
     tickHaptic()
   }
 
-  // Chữ nhãn chạy dọc theo đường nối (xem edgeLabelAngle) — nhánh ngắn hơn chữ sẽ làm chữ tràn ra khỏi
-  // hai đầu, đè lên thẳng hai thẻ. Đẩy CẢ NHÁNH bên dưới thẻ đích ra xa thêm đúng phần còn thiếu, giữ
-  // nguyên hướng đang nối — cùng cách "kéo thẻ thì nhánh con đi theo" mà việc kéo tay vẫn làm.
+  // Chữ nhãn chạy dọc theo cung nối (xem edgeGeometry().labelD) — nhánh ngắn hơn chữ sẽ làm chữ tràn
+  // ra khỏi hai đầu, đè lên thẳng hai thẻ. Đẩy CẢ NHÁNH bên dưới thẻ đích ra xa thêm đúng phần còn
+  // thiếu, giữ nguyên hướng đang nối — cùng cách "kéo thẻ thì nhánh con đi theo" mà việc kéo tay vẫn làm.
   function ensureEdgeLength(from: string, to: string, label: string) {
     const a = nodes.find((n) => n.id === from)
     const b = nodes.find((n) => n.id === to)
@@ -5303,6 +5380,10 @@ export function MindmapBoard({
                 const isAlgorithm = e.kind === "algorithm"
                 const child = nodeById.get(e.to)
                 const col = picked ? "var(--c-primary)" : isAlgorithm ? ALGORITHM_EDGE_COLOR : child ? edgeColor(child.color) : EDGE_COLOR
+                // id dùng cho href="#..." của <textPath> — chỉ giữ ký tự an toàn cho id/URL, khỏi
+                // phải nghĩ tới việc "->" trong edgeKey() có hợp lệ trong một fragment identifier hay
+                // không (nó vốn hợp lệ, nhưng không phải rủi ro đáng giữ lại khi đổi tên rẻ như vậy).
+                const labelPathId = `mind-edge-lbl-${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`
                 return (
                   <g key={key}>
                     <path
@@ -5319,35 +5400,36 @@ export function MindmapBoard({
                     />
                     <path data-edge-head={key} d={g.head} fill={col} stroke="none" />
                     {e.label && (
-                      // Bọc trong một <g transform="translate(mid)"> để lúc kéo thẻ (redrawEdgesFor)
-                      // chỉ cần đổi MỘT thuộc tính transform là nhãn bám đúng theo đường nối đang di
-                      // chuyển, không phải tính lại toạ độ x/y của cả rect lẫn text mỗi khung hình.
-                      // Không gắn onPointerDown — chạm trúng đường nối đã tính bằng khoảng cách toán
-                      // học tới đường cong (edgeAtPoint) trên toàn mặt bảng, không qua sự kiện DOM của
-                      // riêng path này. Sửa nhãn thì chọn đường nối rồi bấm bút chì trên thanh nổi.
-                      <g
-                        data-edge-label={key}
-                        transform={`translate(${g.mid.x} ${g.mid.y}) rotate(${edgeLabelAngle(a, b)})`}
-                        style={{ pointerEvents: "none" }}
-                      >
-                        {/* Chữ trần (không khung/nền) — giống đúng kiểu "Chữ trần" của thẻ ghi chú,
-                            CHẠY DỌC theo chiều dài đường nối (xoay theo edgeLabelAngle) và nằm PHÍA TRÊN
-                            đường nối (y âm) thay vì đè lên giữa đường, để không che mất nét đứt/liền
-                            ngay dưới nó. */}
+                      <>
+                        {/* Cung ẨN (không tô, không viền) chỉ để làm "đường ray" cho <textPath> bên
+                            dưới — song song với cung nối thật nhưng lệch ra một chút (xem LABEL_OFFSET
+                            trong edgeGeometry) để chữ không đè lên nét đứt/liền. Kéo thẻ thì
+                            redrawEdgesFor() chỉ cần đổi `d` của đúng path này, chữ tự chạy theo hình
+                            dạng mới — không phải tính lại toạ độ từng chữ cái bằng tay. */}
+                        <path id={labelPathId} data-edge-labelpath={key} d={g.labelD} fill="none" stroke="none" />
+                        {/* Chữ trần (không khung/nền) — giống đúng kiểu "Chữ trần" của thẻ ghi chú.
+                            CONG THEO ĐÚNG ĐỘ CONG của cạnh nối nhờ textPath (không phải một dòng chữ
+                            thẳng xoay một góc cố định như trước — dòng thẳng chỉ đúng tiếp tuyến tại
+                            ĐÚNG một điểm giữa cung, càng xa điểm đó chữ càng tách khỏi đường nét, rõ
+                            nhất ở nhánh dài/nhãn dài).
+                            Không gắn onPointerDown — chạm trúng đường nối đã tính bằng khoảng cách
+                            toán học tới đường cong (edgeAtPoint) trên toàn mặt bảng, không qua sự
+                            kiện DOM của riêng path này. Sửa nhãn thì chọn đường nối rồi bấm bút chì
+                            trên thanh nổi. */}
                         <text
-                          x={0}
-                          y={-7}
-                          textAnchor="middle"
                           fontSize={10.5}
                           fontWeight={600}
                           fill={col}
                           paintOrder="stroke"
                           stroke={PAPER_BG}
                           strokeWidth={3}
+                          style={{ pointerEvents: "none" }}
                         >
-                          {e.label}
+                          <textPath href={`#${labelPathId}`} startOffset="50%" textAnchor="middle">
+                            {e.label}
+                          </textPath>
                         </text>
-                      </g>
+                      </>
                     )}
                   </g>
                 )
@@ -5679,6 +5761,13 @@ export function MindmapBoard({
                     style={{ width: 22, height: 22, margin: 3, background: c }}
                   />
                 ))}
+                <IconBtn
+                  icon={mi.share}
+                  hint="Sao chép để dán ở bảng khác"
+                  tone="dark"
+                  size={38}
+                  onClick={() => copyGroup(selGroup)}
+                />
                 {/* Vạch ngăn trước nút xoá: xoá là thao tác không lùi lại được (dù có hoàn tác) và
                     đứng cạnh một dãy nút bấm liên tục (đổi màu) — không có vạch này, tay vung nhanh
                     qua các ô màu rất dễ trượt luôn vào nút xoá ngay kế bên. */}
@@ -5769,6 +5858,13 @@ export function MindmapBoard({
                     }}
                   />
                   <IconBtn icon={mi.copy} hint="Nhân đôi" tone="dark" size={38} onClick={() => duplicateNode(selNode)} />
+                  <IconBtn
+                    icon={mi.share}
+                    hint="Sao chép cả nhánh sang bảng khác"
+                    tone="dark"
+                    size={38}
+                    onClick={() => copyBranch(selNode)}
+                  />
                   {/* Vạch ngăn trước nút xoá — xem lý do ở thanh nút của nhóm đang khoanh chọn bên
                       trên. Ở đây còn quan trọng hơn: nút liền trước là "Nhân đôi", bấm nhiều lần liên
                       tiếp khi đang nhân bản ý tưởng, trượt tay là xoá luôn thẻ gốc. */}
@@ -6620,6 +6716,19 @@ export function MindmapBoard({
                 {mi.note("w-[18px] h-[18px]")}
                 Ghi chú
               </button>
+              {/* Chỉ hiện khi thật sự có gì để dán (đã sao chép từ nút "Sao chép nhánh"/"Sao chép"
+                  trên thẻ hoặc nhóm đang chọn) — bày một nút bấm vào không ra gì còn tệ hơn không có. */}
+              {hasMindmapClip() && (
+                <button
+                  type="button"
+                  onClick={() => pasteClip()}
+                  className="mind-fab-item mind-btn flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full text-[13px] font-bold"
+                  style={{ background: "var(--c-surface)", color: "var(--c-text-2)", boxShadow: "0 6px 18px var(--c-shadow)" }}
+                >
+                  {mi.download("w-[18px] h-[18px]")}
+                  Dán nhánh
+                </button>
+              )}
             </>
           )}
           {/* Nút này có CHỮ chứ không chỉ một dấu ＋: dấu ＋ trơ trọi không cho biết bên trong có gì,
@@ -7201,22 +7310,6 @@ export function MindmapBoard({
               >
                 {mi.close("w-[17px] h-[17px]")}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setColorTab("custom")
-                  tickHaptic()
-                }}
-                aria-label="Tự pha màu"
-                title="Tự pha màu"
-                className="mind-btn flex-none w-9 h-9 rounded-full flex items-center justify-center"
-                style={{
-                  background: colorTab === "custom" ? "var(--c-primary-soft)" : "var(--c-line-soft)",
-                  color: colorTab === "custom" ? "var(--c-primary)" : "var(--c-text-2)",
-                }}
-              >
-                {mi.sliders("w-[17px] h-[17px]")}
-              </button>
               <p className="flex-1 text-center text-[15px] font-bold" style={{ color: "var(--c-text)" }}>
                 {COLOR_SHEET_TITLES[styleTool]}
               </p>
@@ -7225,9 +7318,13 @@ export function MindmapBoard({
                     xoá xong không có đường nào lấy lại ngoài xoá dữ liệu cả app).
                   • Tùy chỉnh → ống hút màu, lấy đúng màu của một thứ đang có sẵn trên màn hình. Chỉ
                     hiện khi trình duyệt thật sự có nó (Chrome/Edge trên máy tính) — bày một nút bấm
-                    vào không ra gì còn tệ hơn là không có nút. */}
+                    vào không ra gì còn tệ hơn là không có nút.
+                  Luôn CHỪA ĐÚNG một ô rộng w-9 ở góc này (kể cả khi không có gì để hiện — tab "Tùy
+                  chỉnh" trên mọi iPhone, Safari không có API hút màu) — nếu để trống hẳn, tiêu đề
+                  giữa (`flex-1 text-center`) mất chỗ dựa bên phải, tự dạt sang trái ngay lúc chuyển
+                  tab, đúng lỗi "chữ bị lệch" đã gặp. */}
               {colorTab === "custom" ? (
-                hasEyeDropper && (
+                hasEyeDropper ? (
                   <button
                     type="button"
                     onClick={() => void pickScreenColor()}
@@ -7238,6 +7335,8 @@ export function MindmapBoard({
                   >
                     {mi.dropper("w-[17px] h-[17px]")}
                   </button>
+                ) : (
+                  <span className="flex-none w-9 h-9" aria-hidden="true" />
                 )
               ) : (
                 <button

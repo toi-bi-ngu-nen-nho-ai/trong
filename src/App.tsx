@@ -69,7 +69,7 @@ import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
 import { THEME_LABELS, loadTheme, saveTheme, type ThemeMode } from "./lib/theme"
 import { useMindmap } from "./lib/useMindmap"
 import { useBoards, DEFAULT_BOARD_COLOR } from "./lib/boards"
-import { loadMindmap, saveMindmap, mergeMindmaps, loadAllMindmapNodes, sanitizeMindmapData } from "./lib/mindmapStorage"
+import { loadMindmap, saveMindmap, mergeMindmaps, loadAllMindmapNodes, sanitizeMindmapData, type BoardNode } from "./lib/mindmapStorage"
 import { stripInlineMarkers } from "./lib/richText"
 // Dùng cho ảnh xem trước của từng bảng trong danh sách Mindmap — vẽ lại bằng ĐÚNG bộ hàm mà bảng
 // thật và phần xuất ảnh PNG dùng, nên ảnh nhỏ không bao giờ khác hình dạng bảng thật.
@@ -1406,15 +1406,22 @@ function LibraryScreen({
 const SEARCH_FILTERS = ["Tất cả", ...Array.from(new Set(ARTICLES.map((a) => a.specialty)))]
 
 // Một kết quả tìm kiếm gộp từ nhiều nguồn khác nhau (bài viết dựng sẵn/tự nhập, bài học ECG, thẻ ghi
-// nhớ) — trước đây SearchScreen chỉ tìm trong ARTICLES tĩnh, nên mọi nội dung người dùng TỰ THÊM
-// (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô tìm kiếm chính.
+// nhớ, ghi chú trong Sơ đồ tư duy) — trước đây SearchScreen chỉ tìm trong ARTICLES tĩnh, nên mọi nội
+// dung người dùng TỰ THÊM (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô
+// tìm kiếm chính. Mindmap gia nhập sau cùng: trước đó nó có ô tìm RIÊNG (xem MindmapGallery), tìm
+// "furosemide" ở trang chủ không bao giờ ra một ghi chú đã ghi ở Mindmap, dù đúng chữ đó nằm sẵn
+// trên bảng — người dùng phải NHỚ trước mình từng ghi cái này ở "bài viết" hay "sơ đồ" mới tìm đúng
+// chỗ. Gộp vào đây thì tìm một lần là ra hết, không phải đoán.
 interface SearchResult {
-  kind: "article" | "customArticle" | "ecg" | "flashcard"
+  kind: "article" | "customArticle" | "ecg" | "flashcard" | "mindmapNode"
   id: string
   title: string
   subtitle: string
   specialty?: string
   tags: string[]
+  // Chỉ có ở kind "mindmapNode" — bảng chứa ghi chú này, cần để mở ĐÚNG bảng đó (Mindmap có thể có
+  // hàng chục bảng, id thẻ không tự nói lên nó nằm ở đâu).
+  boardId?: string
 }
 
 function SearchScreen({
@@ -1422,41 +1429,69 @@ function SearchScreen({
   onBack,
   customArticles,
   customFlashcards,
+  boards,
+  onOpenMindmapNode,
   ecgLessons,
 }: {
   onNavigate: (s: Screen, id?: string) => void
   onBack: () => void
   customArticles: Article[]
   customFlashcards: FlashCard[]
+  boards: MindBoard[]
+  // Mở một ghi chú Mindmap từ kết quả tìm — khác các loại kết quả khác (điều hướng bằng `onNavigate`
+  // + id), Mindmap cần biết CẢ bảng chứa nó lẫn từ khoá để tự nhảy tới đúng thẻ (xem MindmapScreen).
+  onOpenMindmapNode: (boardId: string, query: string) => void
   ecgLessons: EcgLesson[]
 }) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("Tất cả")
   const inputRef = useRef<HTMLInputElement>(null)
+  // Node của MỌI bảng Sơ đồ tư duy — nạp một lần lúc vào màn (component này bị gỡ khỏi cây mỗi lần
+  // rời màn hình, nên mở lại luôn là dữ liệu mới, không cần theo dõi thêm để tự làm mới giữa chừng).
+  const [mindmapRows, setMindmapRows] = useState<BoardNode[]>([])
 
   useEffect(() => {
     inputRef.current?.focus()
+    void loadAllMindmapNodes().then(setMindmapRows)
   }, [])
 
-  const allResults = useMemo<SearchResult[]>(
-    () => [
+  const allResults = useMemo<SearchResult[]>(() => {
+    const boardsById = new Map(boards.map((b) => [b.id, b]))
+    return [
       ...ARTICLES.map((a): SearchResult => ({ kind: "article", id: a.id, title: a.title, subtitle: a.excerpt, specialty: a.specialty, tags: a.tags })),
       ...customArticles.map((a): SearchResult => ({ kind: "customArticle", id: a.id, title: a.title, subtitle: a.excerpt, specialty: a.specialty, tags: a.tags })),
       // Bài ECG không có trường chuyên khoa (chỉ có tags tự do) — không lọc được theo bộ lọc chuyên
       // khoa, chỉ hiện khi đang ở "Tất cả" (xem điều kiện activeFilter bên dưới).
       ...ecgLessons.map((l): SearchResult => ({ kind: "ecg", id: l.id, title: l.title, subtitle: l.summary ?? "", tags: l.tags })),
       ...customFlashcards.map((c): SearchResult => ({ kind: "flashcard", id: c.id, title: c.front, subtitle: c.back, specialty: c.specialty, tags: [] })),
-    ],
-    [customArticles, customFlashcards, ecgLessons],
-  )
+      ...mindmapRows.flatMap((row): SearchResult[] => {
+        const board = boardsById.get(row.boardId)
+        if (!board) return []
+        const text = stripInlineMarkers(row.node.text).trim()
+        if (!text) return []
+        const specialtyName = board.specialtyId ? SPECIALTIES.find((s) => s.id === board.specialtyId)?.name : undefined
+        return [
+          {
+            kind: "mindmapNode",
+            id: `${row.boardId}::${row.node.id}`,
+            title: text,
+            subtitle: `Bảng "${board.name}"`,
+            specialty: specialtyName,
+            tags: [],
+            boardId: row.boardId,
+          },
+        ]
+      }),
+    ]
+  }, [customArticles, customFlashcards, ecgLessons, mindmapRows, boards])
 
   const filtered = useMemo(() => {
     if (query.length === 0) return []
     const q = query.toLowerCase()
     return allResults.filter((r) => {
-      // Bài ECG không có `specialty` (r.specialty == null) — activeFilter khác "Tất cả" thì
-      // r.specialty !== activeFilter đã đúng (null luôn khác một chuỗi cụ thể) nên tự động bị loại,
-      // không cần kiểm tra riêng.
+      // Bài ECG/ghi chú Mindmap không có `specialty` khi bảng chưa gắn khoa (r.specialty == null) —
+      // activeFilter khác "Tất cả" thì r.specialty !== activeFilter đã đúng (null luôn khác một
+      // chuỗi cụ thể) nên tự động bị loại, không cần kiểm tra riêng.
       if (activeFilter !== "Tất cả" && r.specialty !== activeFilter) return false
       return (
         r.title.toLowerCase().includes(q) ||
@@ -1471,13 +1506,16 @@ function SearchScreen({
     customArticle: "Tự nhập",
     ecg: "ECG",
     flashcard: "Thẻ ghi nhớ",
+    mindmapNode: "Mindmap",
   }
 
   function openResult(r: SearchResult) {
     if (r.kind === "article") onNavigate("article", r.id)
     else if (r.kind === "customArticle") onNavigate("customEntry", r.id)
     else if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
-    else onNavigate("specialty", SPECIALTIES.find((s) => s.name === r.specialty)?.id)
+    else if (r.kind === "mindmapNode") {
+      if (r.boardId) onOpenMindmapNode(r.boardId, r.title)
+    } else onNavigate("specialty", SPECIALTIES.find((s) => s.name === r.specialty)?.id)
   }
 
   const trending = ["Tăng huyết áp", "Rung nhĩ", "Thuyên tắc phổi", "Xơ gan", "Tổn thương thận cấp"]
@@ -1852,11 +1890,16 @@ function ArticleScreen({ articleId, onBack }: { articleId: string; onBack: () =>
   )
 }
 
-function SpecialtyScreen({ specialtyId, pulseKey, customArticles, customFlashcards, onBack, onNavigate }: {
+function SpecialtyScreen({ specialtyId, pulseKey, customArticles, customFlashcards, boards, onOpenMindmapBoard, onBack, onNavigate }: {
   specialtyId: string
   pulseKey: number
   customArticles: Article[]
   customFlashcards: FlashCard[]
+  boards: MindBoard[]
+  // Mở thẳng một bảng Sơ đồ tư duy đã gắn chuyên khoa này — không đi qua `onNavigate` như các mục
+  // khác vì Mindmap có ID bảng riêng, không dùng chung không gian id với Screen thường (xem
+  // openMindmapNode() ở App()).
+  onOpenMindmapBoard: (boardId: string) => void
   onBack: () => void
   onNavigate: (s: Screen, id?: string) => void
 }) {
@@ -1869,6 +1912,10 @@ function SpecialtyScreen({ specialtyId, pulseKey, customArticles, customFlashcar
   const all = [...customForSpec, ...builtInForSpec]
   const articleCount = all.length
   const flashcardCount = countFlashcardsFor(spec.name, FLASHCARDS, customFlashcards)
+  // Bảng Sơ đồ tư duy có gắn ĐÚNG chuyên khoa này (Mindmap tự có bộ lọc chuyên khoa riêng — xem
+  // MindmapGallery — nhưng trước đây một bảng gắn "Tim mạch" không hề xuất hiện lại ở màn Tim mạch
+  // của Thư viện, nên gắn khoa cho bảng gần như vô nghĩa: không có nơi nào khác đọc lại nó).
+  const mindmapBoardsForSpec = boards.filter((b) => b.specialtyId === spec.id)
 
   return (
     <div className="relative h-full flex flex-col screen-transition" style={{ background: `${spec.color}0c` }}>
@@ -1888,8 +1935,32 @@ function SpecialtyScreen({ specialtyId, pulseKey, customArticles, customFlashcar
             {specialtyIcon(spec.id, "w-9 h-9")}
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mt-3">{spec.name}</h1>
-          <p className="text-sm text-slate-500 mt-1">{articleCount} bài viết · {flashcardCount} thẻ ghi nhớ</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {articleCount} bài viết · {flashcardCount} thẻ ghi nhớ
+            {mindmapBoardsForSpec.length > 0 && ` · ${mindmapBoardsForSpec.length} sơ đồ tư duy`}
+          </p>
         </div>
+        {mindmapBoardsForSpec.length > 0 && (
+          <div className="px-6 pt-1 pb-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Sơ đồ tư duy</p>
+            <div className="space-y-2">
+              {mindmapBoardsForSpec.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => onOpenMindmapBoard(b.id)}
+                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl border card-press text-left"
+                  style={{ borderColor: `${spec.color}25`, background: "var(--c-surface)" }}
+                >
+                  <span className="flex-none w-2.5 h-2.5 rounded-full" style={{ background: b.color }} />
+                  <span className="flex-1 min-w-0 font-semibold text-sm text-slate-900 truncate">{b.name}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-line-strong)" strokeWidth={1.8} className="w-4 h-4 flex-none">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="px-6 pt-4 space-y-3">
           {all.length === 0 && (
             <div className="text-center py-10 px-4 rounded-2xl border" style={{ borderColor: `${spec.color}25`, background: "var(--c-surface)" }}>
@@ -10022,6 +10093,8 @@ function MindmapScreen({
   trashedBoards,
   onRestoreBoard,
   onPurgeBoard,
+  pendingOpen,
+  onConsumePendingOpen,
   ...boardProps
 }: {
   data: MindmapData
@@ -10045,6 +10118,11 @@ function MindmapScreen({
   trashedBoards: MindBoard[]
   onRestoreBoard: (id: string) => void
   onPurgeBoard: (id: string) => void
+  // Yêu cầu mở một bảng CỤ THỂ đến từ NGOÀI màn này (kết quả Mindmap trong ô tìm chung, hoặc mục
+  // "Sơ đồ tư duy" trong màn chuyên khoa) — xem openMindmapNode() ở App(). null = không có yêu cầu
+  // nào đang chờ.
+  pendingOpen: { boardId: string; query?: string } | null
+  onConsumePendingOpen: () => void
 }) {
   const [sheetMode, setSheetMode] = useState<"create" | "edit" | null>(null)
   // Bảng đang MỞ. null = đang ở danh sách.
@@ -10113,6 +10191,17 @@ function MindmapScreen({
     if (rect && board && !prefersReducedMotion()) setTransition({ board, from: domRectToBox(rect), dir: "enter" })
     setOpenId(id)
   }
+
+  // Có yêu cầu mở bảng từ NGOÀI màn này (xem khai báo pendingOpen) — tiêu thụ NGAY khi vào màn
+  // (cũng chạy đúng một lần lúc mount, vì màn này chỉ tồn tại đúng lúc pendingOpen đã kịp đặt trước
+  // đó ở App() rồi mới navigate("mindmap") tới đây). Báo lại đã tiêu thụ xong để App() xoá cờ, nếu
+  // không lần SAU quay lại tab Mindmap bằng tay sẽ bị ép mở lại đúng bảng cũ một lần nữa.
+  useEffect(() => {
+    if (!pendingOpen) return
+    openBoard(pendingOpen.boardId, pendingOpen.query)
+    onConsumePendingOpen()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingOpen])
 
   function goHome() {
     const board = activeBoard
@@ -10568,6 +10657,12 @@ export default function App() {
     upsertBoardLocal,
   } = useBoards()
   const mindmap = useMindmap(activeBoardId)
+  // Mở MỘT bảng Mindmap CỤ THỂ (kèm sẵn từ khoá tìm) TỪ NGOÀI màn Mindmap — kết quả tìm kiếm chung
+  // (SearchScreen) hoặc mục "Sơ đồ tư duy" trong Thư viện theo chuyên khoa (SpecialtyScreen) đều đi
+  // qua đây. MindmapScreen tự đọc giá trị này lúc mount/đổi và gọi hàm mở bảng nội bộ của nó rồi báo
+  // lại đã tiêu thụ xong (setPendingMindmapOpen(null)) — không đặt openId/openQuery thẳng từ đây vì
+  // hai state đó thuộc về MindmapScreen (sessionStorage-backed, xem ghi chú ở đó).
+  const [pendingMindmapOpen, setPendingMindmapOpen] = useState<{ boardId: string; query?: string } | null>(null)
 
   // Nhắc sao lưu — trước đây chỉ hiện khi đang MỞ một bảng Sơ đồ tư duy có nội dung (đặt trong
   // MindmapScreen), nên người chỉ dùng ECG/thẻ ghi nhớ/bài viết tự nhập, không đụng tới Sơ đồ tư duy,
@@ -10634,6 +10729,15 @@ export default function App() {
     if (!NON_TAB_SCREENS.includes(s)) setActiveTab(s)
     setHistory((h) => [...h, screen])
     setScreen(s)
+  }
+
+  // Mở tab Mindmap thẳng vào MỘT bảng cụ thể (kèm từ khoá tìm nếu có) — dùng cho kết quả Mindmap ở
+  // ô tìm kiếm chung và mục "Sơ đồ tư duy" trong màn chuyên khoa (SpecialtyScreen). `navigate("mindmap")`
+  // chỉ chuyển TAB, còn bảng nào mở ra là việc của pendingMindmapOpen (MindmapScreen tự đọc và tiêu
+  // thụ — xem ghi chú ở khai báo state).
+  function openMindmapNode(boardId: string, query?: string) {
+    setPendingMindmapOpen({ boardId, query })
+    navigate("mindmap")
   }
 
   // Sửa thuốc trong "Dùng thuốc": khác các mục khác (tra theo id từ một danh sách có sẵn ở đây),
@@ -10929,6 +11033,8 @@ export default function App() {
               onBack={goBack}
               customArticles={customArticlesCol.items}
               customFlashcards={customFlashcardsCol.items}
+              boards={boards}
+              onOpenMindmapNode={openMindmapNode}
               ecgLessons={allEcgLessons}
             />
           )}
@@ -10957,6 +11063,8 @@ export default function App() {
               trashedBoards={trashedBoards}
               onRestoreBoard={(id) => void restoreBoard(id)}
               onPurgeBoard={(id) => void purgeBoard(id)}
+              pendingOpen={pendingMindmapOpen}
+              onConsumePendingOpen={() => setPendingMindmapOpen(null)}
             />
           )}
           {/* FlashcardScreen hoãn lại — UI hiện tại còn lỗi, đưa "sắp ra mắt" thay vì để người dùng
@@ -10970,6 +11078,8 @@ export default function App() {
               pulseKey={pulseKey}
               customArticles={customArticlesCol.items}
               customFlashcards={customFlashcardsCol.items}
+              boards={boards}
+              onOpenMindmapBoard={(boardId) => openMindmapNode(boardId)}
               onBack={goBack}
               onNavigate={navigate}
             />
