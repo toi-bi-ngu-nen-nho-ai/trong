@@ -9403,14 +9403,21 @@ function DungThuocScreen({
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
               }}
-              className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
+              // Vòng tròn 36px (bằng "Nhật ký" cạnh nó) với icon 24px gốc bên trong to hẳn so với
+              // tiêu đề 20px — thu cả vòng tròn (32px) lẫn icon xuống cho cân với chữ, chấp nhận
+              // lệch 4px so với "Nhật ký" (căn giữa theo chiều dọc nhờ items-center của hàng ngoài).
+              className={`flex-none w-8 h-8 ${R.pill} border flex items-center justify-center`}
               style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
               aria-label="Tìm thuốc trong mọi nhóm"
             >
               {/* Icon luôn ở dạng nét (không tô đặc): path này vẽ cho outline, tô đặc theo `active`
                   làm phần tay cầm (một nét thẳng không khép kín) biến mất — chỉ còn vòng tròn đặc,
-                  trông như ảnh vỡ. Trạng thái đang mở đã có màu/nền riêng ở nút bọc ngoài. */}
-              {icons.search(false)}
+                  trông như ảnh vỡ. Trạng thái đang mở đã có màu/nền riêng ở nút bọc ngoài.
+                  icons.search() vẽ cỡ 24px cố định (w-6 h-6) — thu nhỏ bằng `scale` ở đây thay vì sửa
+                  icon dùng chung: chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc của nó. */}
+              <span className="flex items-center justify-center" style={{ transform: "scale(0.62)" }}>
+                {icons.search(false)}
+              </span>
             </button>
             <button
               onClick={() => setShowLog(true)}
