@@ -6054,6 +6054,13 @@ export function MindmapBoard({
             className={`fade-in absolute z-20 border ${barVert ? "rounded-2xl" : ""}`}
             style={{
               ...barStyle,
+              // Mờ đi khi đang vẽ, cùng nhịp với thanh trên/thanh công cụ chính (chromeStyle) — trước
+              // đây chỉ hai thanh đó ẩn, thanh bút vẫn đứng nguyên che một phần bảng suốt lúc đang vẽ.
+              // Không dùng thẳng `chromeStyle`: nó có `transform: translateY(...)`, mà transform ở
+              // đây đã bị `barStyle` chiếm (gắn mép dọc) — gộp chung sẽ đè mất vị trí thanh.
+              opacity: chromeHidden ? 0 : 1,
+              pointerEvents: chromeHidden ? "none" : undefined,
+              transition: "opacity 0.18s ease",
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
@@ -6475,13 +6482,25 @@ export function MindmapBoard({
             className="absolute inset-0 flex items-center justify-center px-10 text-center"
             style={{ pointerEvents: "none" }}
           >
-            <p style={{ color: "var(--c-muted)", fontSize: 12.5, lineHeight: 1.7 }}>
-              Hai ngón để di chuyển bảng
-              <br />
-              Giữ yên tay cuối nét để nắn thành hình
-              <br />
-              ＋ để thêm ghi chú, ảnh hoặc bài trong app
-            </p>
+            <div style={{ pointerEvents: "auto" }}>
+              <p style={{ color: "var(--c-muted)", fontSize: 12.5, lineHeight: 1.7 }}>
+                Hai ngón để di chuyển bảng
+                <br />
+                Giữ yên tay cuối nét để nắn thành hình
+                <br />
+                ＋ để thêm ghi chú, ảnh hoặc bài trong app
+              </p>
+              {/* Gợi ý rút gọn ở trên và hộp "4 cách chạm hay dùng nhất" (showCoach) nói cùng một
+                  chuyện — đặt lối tắt vào đây thay vì bắt người dùng tự mò menu "…" mới thấy. */}
+              <button
+                type="button"
+                onClick={() => setShowCoach(true)}
+                className="mind-btn mt-2 text-[12px] font-semibold underline"
+                style={{ color: "var(--c-primary)" }}
+              >
+                Xem lại hướng dẫn cử chỉ
+              </button>
+            </div>
           </div>
         )}
 

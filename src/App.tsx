@@ -1123,18 +1123,13 @@ function HomeScreen({
   ecgCount: number
   recentReads: RecentReadItem[]
 }) {
-  // Trước đây cả 5 thẻ (trừ ECG) đều trỏ thẳng vào "library" và đều in "(0)" — một tính năng CHƯA
-  // XÂY (Phác đồ, Công cụ tính, Cập nhật guideline...) trông giống hệt một tính năng ĐÃ XONG nhưng
-  // rỗng. Giờ chỉ thẻ nào có màn thật (Thuốc → "Dùng thuốc", đã có kháng sinh/vận mạch/tương
-  // tác/bảng pha) mới trỏ vào đó; thẻ chưa có màn thì trỏ sang "comingSoon" và không in số đếm giả.
+  // Thẻ nào có màn thật (Sử dụng thuốc → "mixing", đã có kháng sinh/vận mạch/tương tác/bảng pha;
+  // ECG) mới trỏ vào đó; thẻ chưa có màn thì trỏ sang "comingSoon" và không in số đếm giả.
   const resourceCards: { label: string; count?: number; icon: ReactElement; target: { screen: Screen; id?: string } }[] = [
-    { label: "Tiếp cận nhanh", icon: icons.summary(), target: { screen: "comingSoon", id: "Tiếp cận nhanh" } },
-    // "Thuốc" ở đây là một mục THAM KHẢO DƯỢC LÝ (chưa xây) — khác hẳn tab "Dùng thuốc" dưới thanh
-    // nav (máy tính liều/pha thuốc). Trỏ hai cái vào cùng một màn là gán nhầm ý nghĩa cho thẻ này.
-    { label: "Thuốc", icon: icons.pill(), target: { screen: "comingSoon", id: "Thuốc" } },
+    { label: "Tiếp cận vấn đề", icon: icons.summary(), target: { screen: "comingSoon", id: "Tiếp cận vấn đề" } },
     { label: "Phác đồ", icon: icons.flow(), target: { screen: "comingSoon", id: "Phác đồ" } },
-    { label: "Công cụ tính", icon: icons.calculator(), target: { screen: "comingSoon", id: "Công cụ tính" } },
-    { label: "Cập nhật guideline", icon: icons.guideline(), target: { screen: "comingSoon", id: "Cập nhật guideline" } },
+    { label: "Sử dụng thuốc", icon: icons.dungThuoc(true), target: { screen: "mixing" } },
+    { label: "Công cụ", icon: icons.calculator(), target: { screen: "comingSoon", id: "Công cụ" } },
     { label: "ECG", count: ecgCount, icon: icons.ecg(), target: { screen: "ecg" } },
   ]
   // Thẻ nào trỏ vào "comingSoon" thì dòng dưới nói "Sắp ra mắt"; thẻ trỏ vào tính năng thật thì im
@@ -4616,7 +4611,7 @@ function SectionLabel({ children, tone = "muted" }: { children: React.ReactNode;
 
 function SearchField({ value, onChange, placeholder, autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean }) {
   return (
-    <div className={`flex items-center gap-2.5 px-3.5 h-11 ${R.pill} mb-2.5`} style={{ background: C.lineSoft }}>
+    <div className={`mind-search-pill flex items-center gap-2.5 px-3.5 h-11 ${R.pill} mb-2.5`} style={{ background: C.lineSoft }}>
       <span style={{ color: C.muted }}>{icons.search(false)}</span>
       <input
         value={value}
@@ -9452,7 +9447,10 @@ function DungThuocScreen({
               style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
               aria-label="Tìm thuốc trong mọi nhóm"
             >
-              {icons.search(searchOpen)}
+              {/* Icon luôn ở dạng nét (không tô đặc): path này vẽ cho outline, tô đặc theo `active`
+                  làm phần tay cầm (một nét thẳng không khép kín) biến mất — chỉ còn vòng tròn đặc,
+                  trông như ảnh vỡ. Trạng thái đang mở đã có màu/nền riêng ở nút bọc ngoài. */}
+              {icons.search(false)}
             </button>
             <button
               onClick={() => setShowLog(true)}
@@ -10195,7 +10193,14 @@ function BoardTransitionOverlay({
   targetRect: { x: number; y: number; w: number; h: number } | null
   onDone: () => void
 }) {
-  const [box, setBox] = useState(transition.from)
+  const from = transition.from
+  // Khung DOM đứng yên ở `from` suốt cả lượt chuyển cảnh — chỉ `transform` (translate + scale) chạy
+  // hoạt ảnh. Trước đây animate thẳng left/top/width/height: mỗi khung hình trình duyệt phải tính
+  // lại layout rồi vẽ lại toàn bộ SVG bên trong BoardThumb (có thể tới 600 nét) ở một kích thước
+  // MỚI — vừa layout vừa paint lặp lại ~17 lần trong 0,28s là đúng lý do hiệu ứng phóng to/thu nhỏ bị
+  // sượng. `transform` chỉ tốn compositor (GPU dán lại đúng lớp đã vẽ sẵn ở kích thước `from`, không
+  // layout/paint lại), nên mượt bất kể bảng có bao nhiêu nét.
+  const [transform, setTransform] = useState("translate(0px, 0px) scale(1, 1)")
   const doneRef = useRef(false)
 
   useEffect(() => {
@@ -10204,9 +10209,15 @@ function BoardTransitionOverlay({
     // đo `transitionTarget` trong MindmapScreen về lý do): phải để trình duyệt VẼ XONG khung BẮT ĐẦU
     // trước, nếu đổi ngay trong cùng một lượt vẽ thì CSS transition không có "trước" để so, chạy
     // thẳng tới đích luôn, không thấy phóng to/thu nhỏ gì cả.
-    const t = setTimeout(() => setBox(targetRect), 20)
+    const t = setTimeout(() => {
+      const dx = targetRect.x - from.x
+      const dy = targetRect.y - from.y
+      const sx = targetRect.w / from.w
+      const sy = targetRect.h / from.h
+      setTransform(`translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`)
+    }, 20)
     return () => clearTimeout(t)
-  }, [targetRect])
+  }, [targetRect, from])
 
   // Hết giờ dự phòng — quá thời lượng animation (0.28s) cộng một khoảng dư mà `transitionend` vẫn
   // chưa bắn (tab bị ẩn giữa chừng, hoặc trình duyệt bỏ lỡ sự kiện): tự dẹp lớp phủ, đừng để nó che
@@ -10226,18 +10237,19 @@ function BoardTransitionOverlay({
     <div
       className="fixed z-50 overflow-hidden"
       style={{
-        left: box.x,
-        top: box.y,
-        width: box.w,
-        height: box.h,
+        left: from.x,
+        top: from.y,
+        width: from.w,
+        height: from.h,
         borderRadius: 12,
-        transition: "left .28s cubic-bezier(.22,1.1,.36,1), top .28s cubic-bezier(.22,1.1,.36,1), width .28s cubic-bezier(.22,1.1,.36,1), height .28s cubic-bezier(.22,1.1,.36,1)",
+        transformOrigin: "0 0",
+        transform,
+        willChange: "transform",
+        transition: "transform .28s cubic-bezier(.22,1.1,.36,1)",
         pointerEvents: "none",
       }}
-      // Bốn thuộc tính cùng chạy một lúc, cùng thời lượng — chặn hết ba lần gọi dư, chỉ giữ một lần
-      // (khớp đúng thuộc tính "width") để onDone() không bị gọi bốn lần cho một lượt chuyển cảnh.
       onTransitionEnd={(e) => {
-        if (e.propertyName !== "width" || doneRef.current) return
+        if (e.propertyName !== "transform" || doneRef.current) return
         doneRef.current = true
         onDone()
       }}
@@ -10862,12 +10874,14 @@ function UpdateBanner({ offsetBottom }: { offsetBottom: number | string }) {
 
 // ─── Bottom Navigation ────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { id: "home" as Screen, label: "Trang chủ", icon: icons.home },
-  { id: "library" as Screen, label: "Thư viện", icon: icons.library },
-  { id: "mixing" as Screen, label: "Dùng thuốc", icon: (active: boolean) => icons.dungThuoc(active) },
-  { id: "mindmap" as Screen, label: "Mindmap", icon: icons.mindmap },
-  { id: "flashcard" as Screen, label: "FlashCard", icon: icons.cards },
+const NAV_ITEMS: { id: Screen; navId?: string; label: string; icon: (active: boolean) => ReactElement }[] = [
+  { id: "home", label: "Trang chủ", icon: icons.home },
+  { id: "library", label: "Thư viện", icon: icons.library },
+  // "Dùng thuốc" (máy tính liều/pha thuốc, screen "mixing") đã chuyển lên Truy cập nhanh ở Trang chủ
+  // (đổi tên "Sử dụng thuốc") — mục thứ 3 của thanh nav dưới giờ là "Cập nhật guideline".
+  { id: "comingSoon", navId: "Cập nhật guideline", label: "Cập nhật guideline", icon: () => icons.guideline() },
+  { id: "mindmap", label: "Mindmap", icon: icons.mindmap },
+  { id: "flashcard", label: "FlashCard", icon: icons.cards },
 ]
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
@@ -11522,14 +11536,14 @@ export default function App() {
             }}
           >
             <div className="flex items-stretch" style={{ height: "var(--nav-body-h)" }}>
-              {NAV_ITEMS.map(({ id, label, icon }) => {
+              {NAV_ITEMS.map(({ id, label, icon, navId }) => {
                 const isActive = activeTab === id
                 return (
                   // flex-1: mỗi mục chiếm đúng 1/5 bề ngang nên vùng chạm rộng hơn hẳn so với việc
                   // chỉ đệm quanh chữ — ngón cái bấm hụt ít hơn, nhất là 2 mục ngoài rìa.
                   <button
                     key={id}
-                    onClick={() => navigate(id)}
+                    onClick={() => navigate(id, navId)}
                     aria-current={isActive ? "page" : undefined}
                     className="nav-press flex-1 flex flex-col items-center justify-center gap-1"
                     // Mục chưa chọn dùng --c-text-muted chứ không phải --c-muted: nhãn nav chỉ cao

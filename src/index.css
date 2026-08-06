@@ -398,6 +398,9 @@ body {
 }
 
 input[type="search"]::-webkit-search-cancel-button { display: none; }
+/* type="search" mang khung viền/bóng đổ mặc định của hệ điều hành (khác hẳn outline) — bỏ khung đó
+   để ô tìm chỉ còn nền bo tròn mình tự vẽ, không hiện thêm hình chữ nhật khi focus. */
+input[type="search"] { -webkit-appearance: none; appearance: none; }
 input:focus { outline: none; }
 
 /* iOS Safari tự động zoom khi focus vào input có font-size < 16px — ép tối thiểu 16px để tránh lỗi phóng to màn hình */
@@ -629,6 +632,19 @@ input, select, textarea {
 .scr-dose input:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Ô tìm dạng viên thuốc (SearchField trong App.tsx): input con nằm bên trong một khối bo tròn riêng,
+   bản thân input không bo góc — outline vẽ thẳng lên input ra một hình chữ nhật góc vuông cắt
+   ngang qua khối bo tròn đó mỗi khi chạm vào ô tìm (input luôn được coi là focus-visible ngay cả khi
+   chạm, khác với nút bấm). Chuyển vòng focus sang khối bo tròn bọc ngoài cho đúng hình, và tắt hẳn
+   outline trên input con để không còn cả hai chồng lên nhau. */
+.scr-dose .mind-search-pill:focus-within {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.scr-dose .mind-search-pill input:focus-visible {
+  outline: none;
 }
 
 /* Khối gấp/mở (Disclosure trong Dùng thuốc + PatientPanel): chiều cao co giãn KHÔNG cần đo bằng
