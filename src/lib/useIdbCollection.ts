@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { idbDelete, idbGetAll, idbPut, idbPutMany } from "./idb"
+import { idbDelete, idbGetAll, idbPut, idbPutMany, idbReplaceAll } from "./idb"
 import { loadCollection, removeCollection } from "./storage"
 
 // Hook quản lý một danh sách tự nhập lưu trong IndexedDB (bài học ECG, bài viết) — cùng bộ hàm
@@ -90,7 +90,17 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
     [store],
   )
 
-  return { items, loading, add, update, remove, upsertMany }
+  // Dùng cho "Hoàn tác nhập file" — thay hẳn danh sách hiện tại bằng snapshot chụp trước lúc nhập,
+  // khác `upsertMany` (chỉ gộp thêm/đè, không xoá mục mà file nhập vừa thêm mới).
+  const replaceAll = useCallback(
+    (next: T[]) => {
+      setItems(next)
+      void idbReplaceAll(store, next)
+    },
+    [store],
+  )
+
+  return { items, loading, add, update, remove, upsertMany, replaceAll }
 }
 
 // IndexedDB trả về theo thứ tự khoá (id) tăng dần, trong khi màn hình muốn mục mới nhất lên đầu.

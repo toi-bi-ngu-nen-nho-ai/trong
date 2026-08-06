@@ -141,6 +141,19 @@ export function clearWardRecipesForDrug(drugId: string): Record<string, WardReci
   return all
 }
 
+// Thay TOÀN BỘ công thức pha đã lưu bằng đúng danh sách `list` (dạng dẹt, giống file xuất/nhập) —
+// khác `importWardRecipes` (chỉ gộp thêm/đè theo id). Dùng cho "Hoàn tác nhập file": khôi phục đúng
+// như snapshot trước khi nhập, kể cả công thức mà file vừa nhập THÊM MỚI cũng phải mất đi.
+export function replaceAllWardRecipes(list: WardRecipe[]): Record<string, WardRecipe[]> {
+  const all: Record<string, WardRecipe[]> = {}
+  for (const recipe of list) {
+    if (!recipe || typeof recipe.drugId !== "string" || typeof recipe.id !== "string") continue
+    ;(all[recipe.drugId] ??= []).push(recipe)
+  }
+  persist(all)
+  return all
+}
+
 export function formatSavedAt(at: number): string {
   const d = new Date(at)
   const two = (n: number) => String(n).padStart(2, "0")

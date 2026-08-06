@@ -112,6 +112,27 @@ export function idbPut<T>(store: string, item: T): Promise<boolean> {
   return idbPutMany(store, [item])
 }
 
+// Thay TOÀN BỘ nội dung một store bằng đúng danh sách `items` — xoá sạch rồi ghi lại trong CÙNG một
+// transaction, khác `idbPutMany` (chỉ đè/thêm, không xoá mục không có trong `items`). Dùng cho "Hoàn
+// tác nhập file": khôi phục đúng như snapshot trước khi nhập, kể cả những mục mà file vừa nhập THÊM
+// MỚI (không có trong snapshot) cũng phải mất đi, không chỉ những mục bị đè.
+export async function idbReplaceAll<T>(store: string, items: T[]): Promise<boolean> {
+  try {
+    const db = await openDb()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite")
+      const objectStore = tx.objectStore(store)
+      objectStore.clear()
+      items.forEach((item) => objectStore.put(item))
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function idbDelete(store: string, id: string): Promise<boolean> {
   try {
     const db = await openDb()

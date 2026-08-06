@@ -50,7 +50,17 @@ import {
   type VialSpec,
 } from "./lib/mixing"
 import { formatAmpouleUsage, formatFixedUsage, formatVialUsage } from "./lib/usageText"
-import { formatSavedAt, importWardRecipes, loadWardRecipes, removeWardRecipe, clearWardRecipesForDrug, saveWardRecipe, setPinnedWardRecipe, type WardRecipe } from "./lib/wardRecipes"
+import {
+  formatSavedAt,
+  importWardRecipes,
+  loadWardRecipes,
+  removeWardRecipe,
+  clearWardRecipesForDrug,
+  replaceAllWardRecipes,
+  saveWardRecipe,
+  setPinnedWardRecipe,
+  type WardRecipe,
+} from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
@@ -66,6 +76,7 @@ import { stripInlineMarkers } from "./lib/richText"
 import { NODE_FALLBACK, contentBounds, strokeOutline, strokePath } from "./lib/mindmapGeometry"
 import { PAPER_BG } from "./lib/mindmapStyle"
 import { markBackupDone, shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
+import { diffImportCounts, formatDateTime, latestTimestamp } from "./lib/importPreview"
 import { countArticlesFor, countFlashcardsFor } from "./lib/specialtyStats"
 import { tickHaptic } from "./lib/haptics"
 import { forgetRead, formatReadTime, loadRecentReads, recordRead, type ReadEntry } from "./lib/recentReads"
@@ -3587,6 +3598,42 @@ function AddInfusionScreen({
   )
 }
 
+// Một dòng dữ liệu trong màn "Đồng bộ dữ liệu": vừa dùng để hiển thị ô thống kê + hộp chọn xuất,
+// vừa dùng để so khớp id lúc xem trước file nhập (`incomingOf` tự tra đúng nhánh của mình trong dữ
+// liệu đã phân tích từ file — nhóm thuốc truyền tra theo `InfusionCategory.id`, còn khoá lưu trong
+// JSON của file lại là `backupKey`, hai tên khác nhau nên phải tách riêng thay vì dùng chung `key`).
+type SyncCategoryRow = {
+  key: string
+  label: string
+  current: { id: string }[]
+  incomingOf: (d: ImportPayload) => { id: string }[]
+}
+
+type ImportPayload = {
+  articles: Article[]
+  antibiotics: Antibiotic[]
+  diseases: DiseaseEntry[]
+  infusions: Record<InfusionCategory, InfusionDrug[]>
+  ecgLessons: EcgLesson[]
+  flashcards: FlashCard[]
+  mindmapBoards: { board: MindBoard; mindmap: MindmapData }[]
+  wardRecipes: WardRecipe[]
+}
+
+// Snapshot đủ để hoàn tác một lần nhập file — CHỈ gồm các bảng gộp theo id (nơi nhập nhầm file cũ
+// thật sự làm mất nội dung vừa sửa, vì mục trùng id bị THAY THẾ toàn bộ). Sơ đồ tư duy không nằm
+// trong snapshot: nó được gộp theo node/cạnh (`mergeMindmaps`), không thay thế toàn bộ, nên rủi ro
+// mất nét vẽ đã có do nhập nhầm thấp hơn hẳn — hoàn tác cho phần này chưa cấp thiết bằng phần còn lại.
+type SyncSnapshot = {
+  articles: Article[]
+  antibiotics: Antibiotic[]
+  diseases: DiseaseEntry[]
+  infusions: Record<InfusionCategory, InfusionDrug[]>
+  ecgLessons: EcgLesson[]
+  flashcards: FlashCard[]
+  wardRecipes: WardRecipe[]
+}
+
 function DataSyncScreen({
   customArticles,
   customAntibiotics,
@@ -3597,6 +3644,8 @@ function DataSyncScreen({
   boards,
   activeBoardId,
   onImport,
+  onRestoreSnapshot,
+  onBackupDone,
   onBack,
 }: {
   customArticles: Article[]
@@ -3607,67 +3656,98 @@ function DataSyncScreen({
   customFlashcards: FlashCard[]
   boards: MindBoard[]
   activeBoardId: string
-  onImport: (data: {
-    articles: Article[]
-    antibiotics: Antibiotic[]
-    diseases: DiseaseEntry[]
-    infusions: Record<InfusionCategory, InfusionDrug[]>
-    ecgLessons: EcgLesson[]
-    flashcards: FlashCard[]
-    mindmapBoards: { board: MindBoard; mindmap: MindmapData }[]
-    wardRecipes: WardRecipe[]
-  }) => void
+  onImport: (data: ImportPayload) => void
+  onRestoreSnapshot: (snapshot: SyncSnapshot) => void
+  onBackupDone: () => void
   onBack: () => void
 }) {
   const [status, setStatus] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
+  // File đã đọc/phân tích xong, đang CHỜ người dùng xác nhận — chưa động gì tới dữ liệu trên máy.
+  const [pendingImport, setPendingImport] = useState<{ data: ImportPayload; rows: { label: string; added: number; updated: number }[] } | null>(null)
+  // Snapshot của lần nhập GẦN NHẤT trong phiên xem màn này — còn giữ thì còn hoàn tác được. Mất khi
+  // rời màn hình (đổi tab/đóng app) vì dữ liệu đã lưu xuống máy ngay khi nhập, không có ý nghĩa "chưa
+  // lưu" để giữ lại lâu hơn; đây là lưới an toàn cho đúng cái vừa bấm nhập, không phải một lịch sử.
+  const [undoSnapshot, setUndoSnapshot] = useState<SyncSnapshot | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Công thức pha (bảng "Cách dùng"/"Đường dùng" người dùng tự chỉnh mỗi thuốc) đọc thẳng từ
   // localStorage — KHÔNG được quên trong bản sao lưu, vì đây chính là dữ liệu tốn công nhập nhất
   // (mỗi khoa một kiểu pha) và trước đây bị bỏ sót hoàn toàn khỏi "Xuất file"/"Nhập file".
   const wardRecipesByDrug = loadWardRecipes()
-  const wardRecipeCount = Object.values(wardRecipesByDrug).reduce((n, list) => n + list.length, 0)
+  const wardRecipeList = Object.values(wardRecipesByDrug).flat()
 
-  const infusionCount = INFUSION_CATEGORIES.reduce((n, c) => n + (customInfusions[c.id]?.length ?? 0), 0)
+  const categoryRows: SyncCategoryRow[] = [
+    { key: "articles", label: "Bài viết", current: customArticles, incomingOf: (d) => d.articles },
+    { key: "antibiotics", label: "Kháng sinh", current: customAntibiotics, incomingOf: (d) => d.antibiotics },
+    { key: "diseases", label: "Bệnh lý tự thêm", current: customDiseases, incomingOf: (d) => d.diseases },
+    // Một dòng cho mỗi nhóm thuốc truyền, đọc từ danh mục nhóm — thêm nhóm mới là bảng này tự có
+    // thêm dòng, không còn nguy cơ quên một nhóm rồi tưởng nhóm đó không có dữ liệu.
+    ...INFUSION_CATEGORIES.map((c) => ({
+      key: c.backupKey,
+      label: c.title,
+      current: customInfusions[c.id] ?? [],
+      incomingOf: (d: ImportPayload) => d.infusions[c.id] ?? [],
+    })),
+    { key: "wardRecipes", label: "Công thức pha đã lưu", current: wardRecipeList, incomingOf: (d) => d.wardRecipes },
+    { key: "ecgLessons", label: "Bài học ECG", current: customEcgLessons, incomingOf: (d) => d.ecgLessons },
+    { key: "flashcards", label: "Thẻ ghi nhớ tự nhập", current: customFlashcards, incomingOf: (d) => d.flashcards },
+    // Sơ đồ tư duy cũng có id (id bảng) nên tra được số bảng file nhập sẽ đụng tới, dù nội dung mỗi
+    // bảng được gộp riêng theo node/cạnh chứ không thay thế toàn bộ như các dòng khác ở trên.
+    { key: "mindmapBoards", label: "Bảng Sơ đồ tư duy", current: boards, incomingOf: (d) => d.mindmapBoards.map((mb) => mb.board) },
+  ]
 
-  const totalCount =
-    customArticles.length +
-    customAntibiotics.length +
-    customDiseases.length +
-    infusionCount +
-    customEcgLessons.length +
-    customFlashcards.length +
-    wardRecipeCount
+  const [exportSelection, setExportSelection] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(categoryRows.map((r) => [r.key, true])),
+  )
+  const selectedCount = categoryRows.filter((r) => exportSelection[r.key] !== false).length
+
+  function toggleExportKey(key: string) {
+    setExportSelection((prev) => ({ ...prev, [key]: prev[key] === false }))
+  }
+  function selectAllExport(value: boolean) {
+    setExportSelection(Object.fromEntries(categoryRows.map((r) => [r.key, value])))
+  }
 
   // Đọc dữ liệu THẬT của TỪNG bảng trực tiếp từ IndexedDB ngay lúc xuất, thay vì giữ sẵn tất cả các
   // bảng trong bộ nhớ suốt lúc dùng app — phần lớn thời gian chỉ một bảng đang mở là cần tới.
   async function handleExport() {
+    if (selectedCount === 0) {
+      setStatus("Chọn ít nhất một mục để xuất.")
+      return
+    }
     setExporting(true)
     try {
-      const mindmapBoards = await Promise.all(boards.map(async (board) => ({ board, mindmap: await loadMindmap(board.id) })))
+      const includeMindmap = exportSelection.mindmapBoards !== false
+      const mindmapBoards = includeMindmap
+        ? await Promise.all(boards.map(async (board) => ({ board, mindmap: await loadMindmap(board.id) })))
+        : []
+      const pick = <T,>(key: string, items: T[]): T[] => (exportSelection[key] !== false ? items : [])
       const payload = {
         app: "drtrong",
         version: 2,
         exportedAt: new Date().toISOString(),
         data: {
-          articles: customArticles,
-          antibiotics: customAntibiotics,
-          diseases: customDiseases,
+          articles: pick("articles", customArticles),
+          antibiotics: pick("antibiotics", customAntibiotics),
+          diseases: pick("diseases", customDiseases),
           // Mỗi nhóm thuốc truyền một khoá riêng trong file, tên khoá lấy từ `backupKey` của nhóm
           // (data/categories.ts) — 5 nhóm cũ giữ nguyên tên cũ nên file xuất từ bản trước và file
           // xuất từ bản này đọc lẫn nhau được.
-          ...Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.backupKey, customInfusions[c.id] ?? []])),
-          ecgLessons: customEcgLessons,
-          flashcards: customFlashcards,
+          ...Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.backupKey, pick(c.backupKey, customInfusions[c.id] ?? [])])),
+          ecgLessons: pick("ecgLessons", customEcgLessons),
+          flashcards: pick("flashcards", customFlashcards),
           mindmapBoards,
-          wardRecipes: Object.values(wardRecipesByDrug).flat(),
+          wardRecipes: pick("wardRecipes", wardRecipeList),
         },
       }
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
-      const stamp = new Date().toISOString().slice(0, 10)
+      const now = new Date()
+      const two = (n: number) => String(n).padStart(2, "0")
+      const stamp = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}`
       a.href = url
       a.download = `drtrong-du-lieu-${stamp}.json`
       document.body.appendChild(a)
@@ -3675,7 +3755,9 @@ function DataSyncScreen({
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       markBackupDone()
-      setStatus(`Đã xuất ${totalCount} mục (kể cả ${wardRecipeCount} công thức pha) + ${boards.length} bảng sơ đồ tư duy ra file.`)
+      onBackupDone()
+      const exportedCount = categoryRows.filter((r) => r.key !== "mindmapBoards").reduce((n, r) => n + (exportSelection[r.key] !== false ? r.current.length : 0), 0)
+      setStatus(`Đã xuất ${exportedCount} mục${includeMindmap ? ` + ${boards.length} bảng sơ đồ tư duy` : ""} ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.`)
     } finally {
       setExporting(false)
     }
@@ -3685,9 +3767,13 @@ function DataSyncScreen({
     fileInputRef.current?.click()
   }
 
+  // Chỉ ĐỌC và PHÂN TÍCH file — chưa ghi gì vào máy. Kết quả (kèm số mục mới/số mục sẽ bị đè theo
+  // từng nhóm) đứng chờ ở `pendingImport` cho tới khi người dùng xem qua rồi bấm "Xác nhận nhập".
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setStatus(null)
+    setImporting(true)
     const reader = new FileReader()
     reader.onload = () => {
       try {
@@ -3731,6 +3817,7 @@ function DataSyncScreen({
           }
         }
 
+        const parsedData: ImportPayload = { articles, antibiotics, diseases, infusions, ecgLessons, flashcards, mindmapBoards, wardRecipes }
         const count =
           articles.length +
           antibiotics.length +
@@ -3741,18 +3828,61 @@ function DataSyncScreen({
           wardRecipes.length
         if (count === 0 && mindmapBoards.length === 0) {
           setStatus("Không tìm thấy dữ liệu hợp lệ trong file này.")
+          setImporting(false)
           return
         }
-        onImport({ articles, antibiotics, diseases, infusions, ecgLessons, flashcards, mindmapBoards, wardRecipes })
-        setStatus(
-          `Đã nhập ${count} mục${wardRecipes.length ? ` (kể cả ${wardRecipes.length} công thức pha)` : ""}${mindmapBoards.length ? ` + ${mindmapBoards.length} bảng sơ đồ tư duy` : ""} (gộp theo id — mục trùng id được cập nhật, mục hiện có không bị mất).`,
-        )
+        const rows = categoryRows
+          .map((row) => {
+            const { added, updated } = diffImportCounts(row.current, row.incomingOf(parsedData))
+            return { label: row.label, added, updated }
+          })
+          .filter((r) => r.added > 0 || r.updated > 0)
+        setPendingImport({ data: parsedData, rows })
       } catch {
         setStatus("File không đọc được — cần đúng định dạng JSON đã xuất từ app này.")
+      } finally {
+        setImporting(false)
       }
+    }
+    reader.onerror = () => {
+      setStatus("Không đọc được file này.")
+      setImporting(false)
     }
     reader.readAsText(file)
     e.target.value = ""
+  }
+
+  function handleCancelImport() {
+    setPendingImport(null)
+  }
+
+  // Chụp lại nguyên trạng TRƯỚC khi gộp — đây là thứ "Hoàn tác" sẽ trả về, nên phải lấy đúng lúc
+  // này (dữ liệu hiện có trên máy, chưa bị file mới đè lên).
+  function handleConfirmImport() {
+    if (!pendingImport) return
+    const snapshot: SyncSnapshot = {
+      articles: customArticles,
+      antibiotics: customAntibiotics,
+      diseases: customDiseases,
+      infusions: customInfusions,
+      ecgLessons: customEcgLessons,
+      flashcards: customFlashcards,
+      wardRecipes: wardRecipeList,
+    }
+    onImport(pendingImport.data)
+    setUndoSnapshot(snapshot)
+    const totalAdded = pendingImport.rows.reduce((n, r) => n + r.added, 0)
+    const totalUpdated = pendingImport.rows.reduce((n, r) => n + r.updated, 0)
+    const mindmapCount = pendingImport.data.mindmapBoards.length
+    setStatus(`Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật${mindmapCount ? ` + ${mindmapCount} bảng sơ đồ tư duy` : ""}.`)
+    setPendingImport(null)
+  }
+
+  function handleUndo() {
+    if (!undoSnapshot) return
+    onRestoreSnapshot(undoSnapshot)
+    setUndoSnapshot(null)
+    setStatus("Đã hoàn tác — dữ liệu trở lại như trước khi nhập file.")
   }
 
   return (
@@ -3773,54 +3903,127 @@ function DataSyncScreen({
           </p>
         </div>
 
-        <div>
-          <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">Hiện có trên máy này</p>
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { label: "Bài viết", count: customArticles.length },
-              { label: "Kháng sinh", count: customAntibiotics.length },
-              { label: "Bệnh lý tự thêm", count: customDiseases.length },
-              // Một ô cho mỗi nhóm thuốc truyền, đọc từ danh mục nhóm — thêm nhóm mới là bảng này
-              // tự có thêm ô, không còn nguy cơ quên một nhóm rồi tưởng nhóm đó không có dữ liệu.
-              ...INFUSION_CATEGORIES.map((c) => ({ label: c.title, count: customInfusions[c.id]?.length ?? 0 })),
-              { label: "Công thức pha đã lưu", count: wardRecipeCount },
-              { label: "Bài học ECG", count: customEcgLessons.length },
-              { label: "Thẻ ghi nhớ tự nhập", count: customFlashcards.length },
-              { label: "Bảng Sơ đồ tư duy", count: boards.length },
-            ].map((row) => (
-              <div key={row.label} className="p-3 rounded-xl border" style={{ borderColor: "var(--c-line)" }}>
-                <p className="text-lg font-bold text-slate-900">{row.count}</p>
-                <p className="text-xs text-slate-500">{row.label}</p>
+        {pendingImport ? (
+          // ─── Xem trước file trước khi ghi gì vào máy ───────────────────────────
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-bold text-slate-900">Xem trước trước khi nhập</p>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                {pendingImport.rows.length === 0
+                  ? "File này chỉ có sơ đồ tư duy (gộp theo node/cạnh) hoặc không có gì mới."
+                  : "Mục \"cập nhật\" nghĩa là trên máy ĐÃ CÓ id này — nội dung hiện tại sẽ bị THAY bằng nội dung trong file."}
+              </p>
+            </div>
+            {pendingImport.rows.length > 0 && (
+              <div className="rounded-2xl border divide-y" style={{ borderColor: "var(--c-line)" }}>
+                {pendingImport.rows.map((r) => (
+                  <div key={r.label} className="flex items-center justify-between px-3.5 py-2.5">
+                    <span className="text-sm text-slate-700">{r.label}</span>
+                    <span className="text-xs font-semibold flex items-center gap-2">
+                      {r.added > 0 && <span style={{ color: "var(--c-green)" }}>+{r.added} mới</span>}
+                      {r.updated > 0 && <span style={{ color: "var(--c-accent)" }}>{r.updated} cập nhật</span>}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            <div className="flex gap-2.5">
+              <button
+                onClick={handleCancelImport}
+                className="flex-1 py-3 rounded-2xl font-semibold text-sm border"
+                style={{ borderColor: "var(--c-line)", color: "var(--c-muted)", background: "var(--c-surface)" }}
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={handleConfirmImport}
+                className="flex-1 py-3 rounded-2xl font-semibold text-sm"
+                style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+              >
+                Xác nhận nhập
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hiện có trên máy này</p>
+                <button
+                  onClick={() => selectAllExport(selectedCount < categoryRows.length)}
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--c-primary)" }}
+                >
+                  {selectedCount < categoryRows.length ? "Chọn tất cả" : "Bỏ chọn tất cả"}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-2">Chạm một ô để bỏ/chọn xuất mục đó — đang chọn {selectedCount}/{categoryRows.length}.</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {categoryRows.map((row) => {
+                  const selected = exportSelection[row.key] !== false
+                  const latest = latestTimestamp(row.current)
+                  return (
+                    <button
+                      key={row.key}
+                      onClick={() => toggleExportKey(row.key)}
+                      className="p-3 rounded-xl border text-left relative"
+                      style={{ borderColor: selected ? "var(--c-primary-line)" : "var(--c-line)", background: selected ? "var(--c-primary-soft)" : "var(--c-surface)" }}
+                    >
+                      <span
+                        className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full flex items-center justify-center"
+                        style={{ background: selected ? "var(--c-primary)" : "var(--c-line-soft)", color: "var(--c-on-bright)" }}
+                      >
+                        {selected && icons.check()}
+                      </span>
+                      <p className="text-lg font-bold text-slate-900">{row.current.length}</p>
+                      <p className="text-xs text-slate-500 pr-4">{row.label}</p>
+                      {latest != null && <p className="text-[10px] text-slate-400 mt-0.5">Mới nhất: {formatDateTime(latest)}</p>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60"
-          style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
-        >
-          {icons.download()}
-          {exporting ? "Đang xuất…" : "Xuất file sao lưu (.json)"}
-        </button>
+            <button
+              onClick={handleExport}
+              disabled={exporting || importing}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60"
+              style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+            >
+              {icons.download()}
+              {exporting ? "Đang xuất…" : "Xuất file sao lưu (.json)"}
+            </button>
 
-        <button
-          onClick={handleImportClick}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm border"
-          style={{ borderColor: "var(--c-primary)", color: "var(--c-primary)", background: "var(--c-surface)" }}
-        >
-          {icons.upload()}
-          Nhập file đã sao lưu
-        </button>
-        <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleFileChange} className="hidden" />
+            <button
+              onClick={handleImportClick}
+              disabled={exporting || importing}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm border disabled:opacity-60"
+              style={{ borderColor: "var(--c-primary)", color: "var(--c-primary)", background: "var(--c-surface)" }}
+            >
+              {icons.upload()}
+              {importing ? "Đang đọc file…" : "Nhập file đã sao lưu"}
+            </button>
+            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleFileChange} disabled={importing} className="hidden" />
+          </>
+        )}
 
-        {status && <p className="text-xs text-center leading-relaxed" style={{ color: "var(--c-accent)" }}>{status}</p>}
+        {status && (
+          <div className="text-center space-y-2">
+            <p className="text-xs leading-relaxed" style={{ color: "var(--c-accent)" }}>{status}</p>
+            {undoSnapshot && (
+              <button onClick={handleUndo} className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--c-danger-icon)" }}>
+                {icons.undo()}
+                Hoàn tác lần nhập vừa rồi
+              </button>
+            )}
+          </div>
+        )}
 
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — dữ liệu hiện có trên máy không bị xoá. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ.
-        </p>
+        {!pendingImport && (
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — dữ liệu hiện có trên máy không bị xoá. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. Có thể hoàn tác ngay sau khi nhập, miễn còn đứng ở màn này.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -9811,7 +10014,6 @@ function MindmapScreen({
   trashedBoards,
   onRestoreBoard,
   onPurgeBoard,
-  onOpenBackup,
   ...boardProps
 }: {
   data: MindmapData
@@ -9835,7 +10037,6 @@ function MindmapScreen({
   trashedBoards: MindBoard[]
   onRestoreBoard: (id: string) => void
   onPurgeBoard: (id: string) => void
-  onOpenBackup: () => void
 }) {
   const [sheetMode, setSheetMode] = useState<"create" | "edit" | null>(null)
   // Bảng đang MỞ. null = đang ở danh sách.
@@ -9854,13 +10055,6 @@ function MindmapScreen({
   // Tăng lên mỗi lần đóng một bảng, để ảnh xem trước của bảng vừa sửa được vẽ lại từ dữ liệu mới.
   const [previewTick, setPreviewTick] = useState(0)
   const activeBoard = boards.find((b) => b.id === (sheetBoardId ?? activeBoardId))
-  // Chỉ nhắc sao lưu khi bảng đang mở thật sự có gì đáng mất — bảng mới tinh (chỉ có node "Chủ đề
-  // trung tâm" mặc định, chưa vẽ, chưa dán ảnh) thì chưa cần nhắc.
-  const hasContent = boardProps.data.nodes.length > 1 || (boardProps.data.strokes?.length ?? 0) > 0 || (boardProps.data.images?.length ?? 0) > 0
-  const [showBackupReminder, setShowBackupReminder] = useState(false)
-  useEffect(() => {
-    if (!boardProps.loading && hasContent) setShowBackupReminder(shouldRemindBackup())
-  }, [boardProps.loading, hasContent])
 
   // ─── Chuyển cảnh danh sách ↔ bảng (D3) ────────────────────────────────────
   // `rootRef` đo khung CẢ MÀN HÌNH này — đích lúc mở bảng (enter), điểm xuất phát lúc rời bảng
@@ -9999,37 +10193,6 @@ function MindmapScreen({
         // nền/màu nền/căn chỉnh vốn là state của component đó. Thêm một tiêu đề nữa ở đây là hai
         // thanh chồng nhau, ăn mất chiều cao của mặt vẽ trên màn hình điện thoại.
         <div className="h-full flex flex-col relative">
-          {/* Nổi ĐÈ lên canvas thay vì chiếm một hàng riêng trong luồng bố cục — bảng vẽ vốn đã eo
-              hẹp chiều cao trên điện thoại, một hàng nhắc nhở không liên quan gì tới nội dung đang
-              xem/vẽ không nên trừ thẳng vào đó mỗi lần hiện ra. Neo ở `64px` từ đáy: cụm phóng-thu/
-              radar của MindmapBoard đứng ở `bottom-4`/`bottom-[60px]`, nhắc nhở đứng cao hơn hẳn hai
-              cụm đó nên không chồng lên nút nào của chúng dù đang cùng hiện ra. */}
-          {showBackupReminder && (
-            <div
-              className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-30"
-              style={{ left: 12, right: 12, bottom: "calc(64px + var(--safe-bottom))", background: "rgba(15,23,42,.94)" }}
-            >
-              <span className="flex-1 text-[12.5px] text-white leading-snug">
-                Đã lâu chưa sao lưu — dữ liệu chỉ nằm trên máy này, mất máy là mất hết.
-              </span>
-              <button
-                onClick={() => {
-                  snoozeBackupReminder()
-                  setShowBackupReminder(false)
-                }}
-                className="flex-none text-[12.5px] font-medium px-2 py-1 text-slate-300"
-              >
-                Để sau
-              </button>
-              <button
-                onClick={onOpenBackup}
-                className="flex-none text-[12.5px] font-bold px-3 py-1.5 rounded-full"
-                style={{ background: "var(--c-surface)", color: "var(--c-primary)" }}
-              >
-                Sao lưu
-              </button>
-            </div>
-          )}
           <div className="flex-1 overflow-hidden relative">
             {/* key=boardId: đổi bảng phải là một lượt mount MỚI hoàn toàn — thẻ đang chọn/đang sửa,
                 lasso đang khoanh... của bảng cũ không có ý nghĩa gì trên bảng khác. Ngăn xếp hoàn
@@ -10398,6 +10561,28 @@ export default function App() {
   } = useBoards()
   const mindmap = useMindmap(activeBoardId)
 
+  // Nhắc sao lưu — trước đây chỉ hiện khi đang MỞ một bảng Sơ đồ tư duy có nội dung (đặt trong
+  // MindmapScreen), nên người chỉ dùng ECG/thẻ ghi nhớ/bài viết tự nhập, không đụng tới Sơ đồ tư duy,
+  // không bao giờ thấy lời nhắc dù dữ liệu tự nhập của họ cũng chỉ nằm trên máy này. Nâng lên cấp
+  // App() và tính theo TẤT CẢ mục tự nhập (không chỉ Sơ đồ tư duy) để hiện được ở bất cứ tab nào.
+  const hasCustomContent =
+    customArticlesCol.items.length > 0 ||
+    customAntibioticsCol.items.length > 0 ||
+    customDiseasesCol.items.length > 0 ||
+    INFUSION_CATEGORIES.some((c) => infusionCols[c.id].items.length > 0) ||
+    ecgCol.items.length > 0 ||
+    customFlashcardsCol.items.length > 0 ||
+    mindmap.data.nodes.length > 1 ||
+    (mindmap.data.strokes?.length ?? 0) > 0 ||
+    (mindmap.data.images?.length ?? 0) > 0
+  const [showBackupReminder, setShowBackupReminder] = useState(false)
+  useEffect(() => {
+    if (customArticlesCol.loading || ecgCol.loading || mindmap.loading) return
+    // Công thức pha đọc thẳng từ localStorage (không phải state React) — xem lib/wardRecipes.ts.
+    const wardRecipeCount = Object.values(loadWardRecipes()).reduce((n, list) => n + list.length, 0)
+    if (hasCustomContent || wardRecipeCount > 0) setShowBackupReminder(shouldRemindBackup())
+  }, [customArticlesCol.loading, ecgCol.loading, mindmap.loading, hasCustomContent])
+
   const NON_TAB_SCREENS: Screen[] = [
     "article",
     "specialty",
@@ -10636,6 +10821,30 @@ export default function App() {
     }
   }
 
+  // Hoàn tác một lần nhập file: thay HẲN từng bảng bằng đúng snapshot chụp trước lúc nhập (khác
+  // `handleImportData` — gộp theo id, không xoá mục file thêm mới). Không đụng tới sơ đồ tư duy, xem
+  // lý do ở khai báo `SyncSnapshot` cạnh DataSyncScreen.
+  function handleRestoreSnapshot(snapshot: {
+    articles: Article[]
+    antibiotics: Antibiotic[]
+    diseases: DiseaseEntry[]
+    infusions: Record<InfusionCategory, InfusionDrug[]>
+    ecgLessons: EcgLesson[]
+    flashcards: FlashCard[]
+    wardRecipes: WardRecipe[]
+  }) {
+    customArticlesCol.replaceAll(snapshot.articles)
+    customAntibioticsCol.replaceAll(snapshot.antibiotics)
+    customDiseasesCol.replaceAll(snapshot.diseases)
+    INFUSION_CATEGORIES.forEach((c) => infusionCols[c.id].replaceAll(snapshot.infusions[c.id] ?? []))
+    ecgCol.replaceAll(snapshot.ecgLessons)
+    customFlashcardsCol.replaceAll(snapshot.flashcards)
+    // Chỉ có state cục bộ của DungThuocScreen đọc danh sách này — màn đó đã unmount lúc "Đồng bộ dữ
+    // liệu" đang mở nên không cần đồng bộ state ở đây, chỉ cần ghi đúng xuống localStorage; lần sau
+    // mở lại "Dùng thuốc" nó tự đọc lại từ đầu bằng loadWardRecipes().
+    replaceAllWardRecipes(snapshot.wardRecipes)
+  }
+
   function jumpTo(id: string, isFinal: boolean) {
     if (id === "home") {
       if (screen !== "home") {
@@ -10740,7 +10949,6 @@ export default function App() {
               trashedBoards={trashedBoards}
               onRestoreBoard={(id) => void restoreBoard(id)}
               onPurgeBoard={(id) => void purgeBoard(id)}
-              onOpenBackup={() => navigate("dataSync")}
             />
           )}
           {/* FlashcardScreen hoãn lại — UI hiện tại còn lỗi, đưa "sắp ra mắt" thay vì để người dùng
@@ -10832,6 +11040,8 @@ export default function App() {
               boards={boards}
               activeBoardId={activeBoardId}
               onImport={handleImportData}
+              onRestoreSnapshot={handleRestoreSnapshot}
+              onBackupDone={() => setShowBackupReminder(false)}
               onBack={goBack}
             />
           )}
@@ -10946,6 +11156,43 @@ export default function App() {
           >
             <span style={{ color: "#4ade80" }}>✓</span>
             {toast}
+          </div>
+        )}
+
+        {/* Hiện ở BẤT KỲ tab nào (không riêng Sơ đồ tư duy) — xem lý do ở khai báo `hasCustomContent`
+            phía trên. Xếp CHỒNG lên cả dải cập nhật lẫn dải xác nhận nếu chúng đang hiện cùng lúc,
+            theo đúng quy ước 52px/dải đã dùng cho hai dải đó. */}
+        {showBackupReminder && (
+          <div
+            className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40"
+            style={{
+              left: 12,
+              right: 12,
+              bottom: `calc(${isDetailScreen ? "24px + var(--safe-bottom)" : "var(--nav-body-h) + 18px"} + ${
+                (updateBannerVisible ? 52 : 0) + (toast ? 52 : 0)
+              }px)`,
+              background: "rgba(15,23,42,.94)",
+            }}
+          >
+            <span className="flex-1 text-[12.5px] text-white leading-snug">
+              Đã lâu chưa sao lưu — dữ liệu chỉ nằm trên máy này, mất máy là mất hết.
+            </span>
+            <button
+              onClick={() => {
+                snoozeBackupReminder()
+                setShowBackupReminder(false)
+              }}
+              className="flex-none text-[12.5px] font-medium px-2 py-1 text-slate-300"
+            >
+              Để sau
+            </button>
+            <button
+              onClick={() => navigate("dataSync")}
+              className="flex-none text-[12.5px] font-bold px-3 py-1.5 rounded-full"
+              style={{ background: "var(--c-surface)", color: "var(--c-primary)" }}
+            >
+              Sao lưu
+            </button>
           </div>
         )}
     </div>
