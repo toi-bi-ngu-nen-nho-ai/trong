@@ -307,7 +307,7 @@ const icons = {
     </svg>
   ),
   star: () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-amber-400">
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5" style={{ color: "var(--c-warn-icon)" }}>
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
@@ -1819,8 +1819,8 @@ function ArticleScreen({ articleId, onBack }: { articleId: string; onBack: () =>
             <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--c-primary-strong)" }}>Điểm chính</p>
             <ul className="space-y-2">
               {keyPoints.map((pt) => (
-                <li key={pt} className="flex items-start gap-2 text-sm text-blue-800">
-                  <span className="mt-1 flex-none w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#3b82f6" }}>
+                <li key={pt} className="flex items-start gap-2 text-sm" style={{ color: "var(--c-text-2)" }}>
+                  <span className="mt-1 flex-none w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--c-primary)" }}>
                     <svg viewBox="0 0 10 10" fill="white" className="w-2.5 h-2.5">
                       <path d="M2 5l2.5 2.5 4-4" stroke="white" strokeWidth={1.5} fill="none" strokeLinecap="round" />
                     </svg>
@@ -2842,7 +2842,7 @@ function EditAntibioticScreen({
                   )}
 
                   {isNewDisease && (
-                    <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--c-warn-2)" }}>
+                    <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--c-warn-icon)" }}>
                       Bệnh lý mới — khi lưu, "{trimmedName}" sẽ được tự thêm vào danh mục bệnh lý.
                     </p>
                   )}
@@ -4572,7 +4572,7 @@ function Chip({
       }}
       className={`${CHIP}${index != null ? " rise-in" : ""}`}
       style={{
-        ...(active ? { background: on, borderColor: on, color: "#fff" } : { background: C.surface, borderColor: C.line, color: C.textSoft }),
+        ...(active ? { background: on, borderColor: on, color: "var(--c-on-bright)" } : { background: C.surface, borderColor: C.line, color: C.textSoft }),
         ...(index != null ? ({ "--i": index } as React.CSSProperties) : {}),
       }}
     >
@@ -4698,7 +4698,7 @@ function SourceLine({ item, bare }: { item: SourceInfo; bare?: boolean }) {
       {item.reviewedOn && <>Rà soát: {formatReviewedOn(item.reviewedOn)}</>}
     </p>
   ) : (
-    <p className={`${T.meta} px-2.5 py-2 ${R.box}`} style={{ background: C.warnSoft, color: "var(--c-warn-3)" }}>
+    <p className={`${T.meta} px-2.5 py-2 ${R.box}`} style={{ background: C.warnSoft, color: "var(--c-warn-icon)" }}>
       Chưa ghi nguồn · chưa có ngày rà soát — bổ sung qua nút Sửa.
     </p>
   )
@@ -4732,7 +4732,7 @@ function DisclaimerGate() {
   return (
     <div className="absolute inset-0 z-50 flex items-end" style={{ background: "rgba(15,23,42,.45)" }}>
       <div className="w-full rounded-t-3xl px-6 pt-6" style={{ background: "var(--c-surface)", paddingBottom: "var(--nav-pad-bottom)" }}>
-        <div className="flex items-center gap-2 mb-2" style={{ color: "var(--c-warn-2)" }}>
+        <div className="flex items-center gap-2 mb-2" style={{ color: "var(--c-warn-icon)" }}>
           {icons.alert()}
           <p className="text-[13px] font-bold">Trước khi dùng</p>
         </div>
@@ -4771,7 +4771,7 @@ function DisclaimerBar() {
 
 // Dòng cảnh báo nhỏ cho một ô nhập (cân nặng gõ nhầm 700 kg, chiều cao 17 cm...).
 function InputWarning({ text, level }: { text: string; level: "check" | "implausible" }) {
-  const color = level === "implausible" ? { bg: "var(--c-danger-soft)", fg: "var(--c-danger)" } : { bg: "var(--c-warn-soft)", fg: "var(--c-warn-2)" }
+  const color = level === "implausible" ? { bg: "var(--c-danger-soft)", fg: "var(--c-danger)" } : { bg: "var(--c-warn-soft)", fg: "var(--c-warn-icon)" }
   return (
     <p className="text-[11px] font-semibold leading-[1.45] mt-1 px-2 py-1 rounded-lg" style={{ background: color.bg, color: color.fg }}>
       {text}
@@ -5456,7 +5456,7 @@ function DrugWarnings({ warnings, bare }: { warnings?: AntibioticWarning[]; bare
   if (!warnings || warnings.length === 0) return null
   return (
     <div className={bare ? "space-y-1.5" : "mt-3 pt-3 border-t space-y-1.5"} style={bare ? undefined : { borderColor: "var(--c-line-soft)" }}>
-      {!bare && <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600">Lưu ý / tương tác</p>}
+      {!bare && <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--c-warn-icon)" }}>Lưu ý / tương tác</p>}
       {warnings.map((w, i) =>
         w.severity === "cao" ? (
           <div key={i} className="flex items-start gap-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
@@ -6799,7 +6799,7 @@ function AntibioticDoseCard({
               <p className="text-[11px] font-bold" style={{ color: "var(--c-warn)" }}>
                 Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1)} kg
               </p>
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--c-warn-3)" }}>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
                 ABW {dosingWeight.abw?.toFixed(1)} kg
                 {dosingWeight.ibw != null && ` · IBW ${dosingWeight.ibw.toFixed(1)} kg`}
                 {dosingWeight.adjBw != null && ` · AdjBW ${dosingWeight.adjBw.toFixed(1)} kg`}
@@ -6864,7 +6864,7 @@ function AntibioticDoseCard({
             <span className={`${T.meta} font-bold block`} style={{ color: C.warn }}>
               Chưa có CrCl — đang hiện liều bậc THẬN BÌNH THƯỜNG
             </span>
-            <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-3)" }}>
+            <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
               Thuốc này có {tiers.length} bậc liều theo chức năng thận. Nhập tuổi, cân nặng và creatinin ở khung "Bệnh nhân hiện tại" để app chọn đúng bậc.
             </span>
           </span>
@@ -7373,9 +7373,9 @@ function BolusList({
             }
           >
             <p className="text-[11px] font-bold leading-[1.45]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn)" }}>{b.label}</p>
-            {info.perKgText && <p className="text-[11px]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn-3)" }}>Theo cân nặng: {info.perKgText}</p>}
+            {info.perKgText && <p className="text-[11px]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn-icon)" }}>Theo cân nặng: {info.perKgText}</p>}
             {info.needWeight ? (
-              <button onClick={openPatientPanel} className="text-[11px] font-bold underline mt-0.5" style={{ color: "var(--c-warn-2)" }}>
+              <button onClick={openPatientPanel} className="text-[11px] font-bold underline mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
                 Nhập cân nặng ở khung "Bệnh nhân hiện tại" để tính ra số mg
               </button>
             ) : info.blocked ? (
@@ -7390,8 +7390,8 @@ function BolusList({
             ) : (
               <p className={`${T.title} ${NUM} mt-0.5`} style={{ color: C.warn }}>{info.text}</p>
             )}
-            {b.over && <p className="text-[11px] leading-[1.45]" style={{ color: "var(--c-warn-3)" }}>Cách dùng: {b.over}</p>}
-            {b.note && <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-warn-3)" }}>{b.note}</p>}
+            {b.over && <p className="text-[11px] leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>Cách dùng: {b.over}</p>}
+            {b.note && <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>{b.note}</p>}
             {!info.needWeight && !info.blocked && (
               <button
                 onClick={() => {
@@ -7404,7 +7404,7 @@ function BolusList({
                   tickHaptic()
                 }}
                 className="text-[11px] font-bold mt-1.5"
-                style={{ color: "var(--c-warn-2)" }}
+                style={{ color: "var(--c-warn-icon)" }}
               >
                 Lưu vào nhật ký
               </button>
@@ -10287,7 +10287,7 @@ function BoardEditSheet({
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const swatches: { id: string | undefined; name: string; color: string }[] = [
-    { id: undefined, name: "Khác", color: "#64748b" },
+    { id: undefined, name: "Khác", color: "var(--c-text-muted)" },
     ...SPECIALTIES.map((s) => ({ id: s.id, name: s.name, color: s.color })),
   ]
 
@@ -11154,6 +11154,9 @@ export default function App() {
               whiteSpace: "nowrap",
             }}
           >
+            {/* Dải này LUÔN có nền tối (rgba(15,23,42,.92)) bất kể theme — #4ade80 là đúng giá trị
+                --c-green của bản tối, chọn cố định vì đổi theo --c-green sẽ tối sẫm lại ở bản sáng
+                và mất tương phản trên nền navy cố định này. */}
             <span style={{ color: "#4ade80" }}>✓</span>
             {toast}
           </div>

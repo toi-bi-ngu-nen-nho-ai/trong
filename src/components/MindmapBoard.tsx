@@ -6630,9 +6630,9 @@ export function MindmapBoard({
             className="absolute inset-0 flex items-center justify-center fade-in"
             style={{ pointerEvents: "none" }}
           >
-            {/* #64748b (không phải #94a3b8) trên nền giấy #fcfdff: #94a3b8 chỉ đạt 2.56:1, dưới cả
-                ngưỡng 3:1 cho hình vẽ lẫn 4.5:1 cho chữ. */}
-            <div className="flex flex-col items-center gap-2 text-center px-8" style={{ color: "#64748b" }}>
+            {/* var(--c-text-muted) thay vì var(--c-muted): --c-muted chỉ đạt ~3:1, dưới cả ngưỡng
+                4.5:1 cho chữ dù đây là chữ mô tả, không phải icon/placeholder thuần. */}
+            <div className="flex flex-col items-center gap-2 text-center px-8" style={{ color: "var(--c-text-muted)" }}>
               {mi.note("w-8 h-8")}
               <p className="text-[13px] font-semibold text-slate-600">Bảng đang trống</p>
               <p className="text-[12px] leading-relaxed max-w-[220px]">
@@ -7590,7 +7590,7 @@ export function MindmapBoard({
                   className="flex-1 h-9 rounded-xl text-[12px] font-bold"
                   style={
                     editingEdgeLabel.kind === opt.v
-                      ? { background: opt.v === "algorithm" ? ALGORITHM_EDGE_COLOR : "#334155", color: opt.v === "algorithm" ? "var(--c-on-bright)" : "#fff" }
+                      ? { background: opt.v === "algorithm" ? ALGORITHM_EDGE_COLOR : "var(--c-text-2)", color: "var(--c-on-bright)" }
                       : { background: "var(--c-line-soft)", color: "var(--c-text-muted)" }
                   }
                 >
@@ -7721,7 +7721,7 @@ export function MindmapBoard({
                 type="button"
                 onClick={clearBoard}
                 className="mind-btn flex-1 h-11 rounded-2xl text-sm font-semibold text-white"
-                style={{ background: "#dc2626" }}
+                style={{ background: "var(--c-danger-icon)" }}
               >
                 Xoá hết
               </button>
@@ -7764,7 +7764,7 @@ export function MindmapBoard({
                   setConfirmDeleteEdge(null)
                 }}
                 className="mind-btn flex-1 h-11 rounded-2xl text-sm font-semibold text-white"
-                style={{ background: "#dc2626" }}
+                style={{ background: "var(--c-danger-icon)" }}
               >
                 Xoá
               </button>

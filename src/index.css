@@ -26,21 +26,12 @@
      tự phủ nốt 34px đó thì dải kia trở thành phần thân của thanh, không còn khoảng trống nào. */
   --nav-pad-bottom: var(--safe-bottom);
 
-  --background: #ffffff;
-  --foreground: #0f172a;
-  --card: #f8fafc;
-  --card-foreground: #0f172a;
-  --primary: #0f766e;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #475569;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #e8007d;
-  --accent-foreground: #ffffff;
-  --border: #e2e8f0;
-  --ring: #0f766e;
+  /* Khối token cũ (--background/--primary/--accent...) đã bị xoá: không còn chỗ nào trong mã nguồn
+     dùng tới, và nó từng là một NGUỒN SỰ THẬT THỨ HAI cho primary/accent — mang giá trị #e8007d cho
+     --accent trong khi --c-accent-2 (nguồn thật) đã đổi khác, chỉ chờ ai đó sửa nhầm chỗ. Giữ lại
+     --radius (còn dùng) và --ring (trỏ thẳng sang --c-primary thay vì lặp lại mã màu). */
   --radius: 10px;
+  --ring: var(--c-primary);
 }
 
 /* ─── Bảng màu theo chủ đề sáng/tối ───────────────────────────────────────────
@@ -59,54 +50,54 @@
 :root {
   color-scheme: light;
 
-  /* Nền và viền trung tính vốn lấy nguyên bảng "slate" của Tailwind — sắc xanh dương (hue ~215°),
-     trong khi primary/accent của app là xanh mòng két (hue ~175°). Cạnh nhau, nền lạnh ngả xanh
-     dương và chip/nút teal đọc thành hai họ màu khác nhau, không ăn nhập. Toàn bộ nền/viền/chữ
-     trung tính bên dưới được xoay sang hue ~190° (giữ nguyên độ sáng/độ đậm gốc, chỉ đổi sắc) —
-     một xám lạnh ngả teal, đứng giữa "trung tính" và "cùng họ với primary". Màu ý nghĩa (đỏ nguy
-     hiểm, vàng cảnh báo, cam, xanh lá) KHÔNG đụng tới. */
+  /* Nền và viền trung tính giờ dùng CHUNG MỘT hue 196° — nằm giữa primary (186°) và một xám lạnh
+     đáng tin, thay cho bảng "slate" gốc của Tailwind (hue ~215°, một họ màu khác hẳn primary).
+     Nền trang có sắc (chroma đủ để mắt đọc ra "có màu", không chỉ trắng vô sắc), mặt thẻ trắng
+     tinh — thẻ tự nổi lên khỏi nền mà không cần viền/đổ bóng. Chroma giảm dần theo độ sáng: nền
+     nhạt nhất → viền đậm hơn → chữ đậm nhất, cho nền trông "sạch" thay vì "ám màu". Màu ý nghĩa
+     (đỏ nguy hiểm, vàng cảnh báo, cam, xanh lá) KHÔNG đụng tới. */
   --c-surface: #ffffff;
-  --c-surface-alt: #f8fbfc;
-  --c-page: #fcffff;
-  --c-line-soft: #f1f8f9;
-  --c-line: #e2eef0;
-  --c-line-strong: #cbdde1;
+  --c-surface-alt: #f5fcfc;
+  --c-page: #eef9f9;
+  --c-line-soft: #e9f3f3;
+  --c-line: #dae9e9;
+  --c-line-strong: #c0d6d6;
 
-  --c-text: #0f252a;
-  --c-text-2: #334f55;
-  --c-text-soft: #476369;
-  --c-text-muted: #64848b;
-  --c-muted: #94b2b8;
-  --c-faint: #cbdde1;
+  --c-text: #0d2324;
+  --c-text-2: #314747;
+  --c-text-soft: #465d5d;
+  --c-text-muted: #637979;
+  --c-muted: #7c9191;
+  --c-faint: #bccfcf;
 
-  /* Chủ đạo đổi từ xanh dương (#0050b3 cũ) sang xanh mòng két — cùng sắc với accent bên dưới, dùng
-     lại đúng giá trị đã được đo tương phản kỹ (xem ghi chú accent): chữ trắng trên nền primary đạt
-     5,5:1, primary làm chữ/icon trên nền sáng đạt 5,3:1 — cả hai vượt ngưỡng AA 4,5:1. `--c-primary-rgb`
-     theo đúng khuôn `--c-fog` bên dưới: bộ ba R,G,B để nhét vào rgba() cho các đổ bóng/viền mờ ăn
-     theo chủ đạo, tự đổi theo sáng/tối như mọi biến --c-* khác. */
-  --c-primary: #0f766e;
-  --c-primary-strong: #115e59;
-  --c-primary-deep: #134e4a;
-  --c-primary-soft: #f0fdfa;
-  --c-primary-line: #99f6e4;
-  --c-primary-line-2: #5eead4;
-  --c-primary-rgb: 15, 118, 110;
+  /* Chủ đạo giữ nguyên sắc mòng két nhưng đổi đúng hue 196 (thay vì 186/181 lệch nhau vài độ giữa
+     các token) để mọi mảng "teal" trong app — nền, viền, chữ — cùng một họ tuyệt đối. Chữ trắng
+     trên nền primary đạt 5,5:1, primary làm chữ/icon trên nền sáng đạt 5,1:1 — cả hai vượt ngưỡng
+     AA 4,5:1. `--c-primary-rgb` theo đúng khuôn `--c-fog` bên dưới: bộ ba R,G,B để nhét vào rgba()
+     cho các đổ bóng/viền mờ ăn theo chủ đạo, tự đổi theo sáng/tối như mọi biến --c-* khác. */
+  --c-primary: #00766e;
+  --c-primary-strong: #00615a;
+  --c-primary-deep: #004c46;
+  --c-primary-soft: #e0f9f7;
+  --c-primary-line: #b2e7e1;
+  --c-primary-line-2: #78d0c7;
+  --c-primary-rgb: 0, 118, 110;
 
-  /* Xanh mòng két đậm hơn một bậc so với #0d9488 cũ. Lý do là tương phản, không phải thẩm mỹ:
-     accent vừa làm NỀN đặc (chip dung môi, nút "Thêm vào danh sách đang dùng") vừa làm CHỮ trên
-     nền accent-soft. Ở mức #0d9488 thì chữ trắng trên nền accent chỉ đạt 3,74:1 và accent làm chữ
-     chỉ đạt 3,59:1 — cả hai đều trượt ngưỡng AA 4,5:1. Ở #0f766e cả hai lên 5,5 và 5,3:1. */
-  --c-accent: #0f766e;
-  --c-accent-deep: #115e59;
-  --c-accent-soft: #f0fdfa;
-  --c-accent-line: #99f6e4;
+  /* --c-accent* trước đây là một bộ giá trị RIÊNG trùng khít --c-primary* — hai nguồn sự thật cho
+     cùng một màu, sửa primary mà quên sửa accent là sẽ lệch ngay. Giờ trỏ thẳng vào primary, giữ
+     lại tên biến vì còn hàng chục chỗ dùng `--c-accent*` trong App.tsx/MindmapBoard.tsx. */
+  --c-accent: var(--c-primary);
+  --c-accent-deep: var(--c-primary-strong);
+  --c-accent-soft: var(--c-primary-soft);
+  --c-accent-line: var(--c-primary-line);
   /* Sắc thứ hai, TÁCH KHỎI primary/accent teal — dùng cho những dấu hiệu cần nổi bật ngay giữa một
-     mặt bảng đã đầy màu chủ đạo (chấm báo "đang lọc màu", khung khoanh vùng...), nơi một chấm teal
-     sẽ chìm lẫn vào các nút primary khác quanh nó. */
-  --c-accent-2: #e8007d;
+     mặt bảng đã đầy màu chủ đạo (chấm báo "đang lọc màu", khung khoanh vùng...). Hạ chroma xuống
+     dưới --c-danger để nó không tranh vị trí "màu tươi nhất màn hình" với cảnh báo nguy hiểm, và
+     CHỈ dùng trong bảng Sơ đồ tư duy — không xuất hiện ở màn thuốc/liều. */
+  --c-accent-2: #b8196f;
   /* Bộ ba R,G,B của accent-2 — cùng khuôn với --c-primary-rgb, để nhét vào rgba() cho viền/nền mờ
      (khung khoanh vùng, vệt lasso) ăn theo sắc này mà vẫn tự đổi theo sáng/tối. */
-  --c-accent-2-rgb: 232, 0, 125;
+  --c-accent-2-rgb: 184, 25, 111;
 
   --c-danger-icon: #dc2626;
   --c-danger: #b91c1c;
@@ -116,27 +107,37 @@
   --c-danger-line: #fecaca;
   --c-danger-line-2: #fca5a5;
 
-  --c-warn-icon: #d97706;
+  /* Bốn vai trò (-icon/-soft/-line + chữ đậm cho tiêu đề), không phải bảy như trước — warn-2/-3/
+     -line-2/-line-3 chỉ là vá tạm theo từng màn hình mà không ai gộp lại. --c-warn-icon đổi từ
+     #d97706 (3,17:1 — trượt AA) sang #b45309 (~4,9:1) vì đây là màu ICON CẢNH BÁO, không được mờ. */
+  --c-warn-icon: #b45309;
   --c-warn: #92400e;
-  --c-warn-2: #b45309;
-  --c-warn-3: #a16207;
   --c-warn-soft: #fffbeb;
   --c-warn-line: #fde68a;
-  --c-warn-line-2: #fcd34d;
-  --c-warn-line-3: #fef08a;
 
   --c-orange: #c2410c;
   --c-orange-soft: #fff7ed;
   --c-orange-line: #fdba74;
 
-  --c-green: #16a34a;
-  --c-green-deep: #15803d;
+  /* #16a34a cũ chỉ đạt 3,28:1 và tươi gấp đôi primary — "thành công" hét to hơn hành động chính.
+     Đổi sang sắc lá đậm hơn một bậc (giữ đúng hue), ~5,1:1, cùng trọng lượng thị giác với primary. */
+  --c-green: #15803d;
+  --c-green-deep: #14532d;
   --c-green-soft: #f0fdf4;
   --c-green-line: #bbf7d0;
 
-  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm). */
-  --c-scrim: rgba(15, 23, 42, 0.45);
-  --c-shadow: rgba(15, 23, 42, 0.1);
+  /* Trạng thái :disabled — trước đây chỉ mờ bằng opacity rải rác, giờ có token riêng. */
+  --c-disabled-bg: var(--c-line-soft);
+  --c-disabled-fg: var(--c-muted);
+
+  /* Chữ tô sáng trong ghi chú (BlockContent/BlockEditor) — trước dùng #fef08a cứng + color:inherit,
+     ở bản tối chữ sáng trên nền vàng sáng chỉ còn ~1:1, hoàn toàn không đọc được. */
+  --c-mark-bg: #fdf0b8;
+  --c-mark-fg: #3d2f00;
+
+  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm) — đen ngả teal, không phải navy. */
+  --c-scrim: rgba(9, 32, 33, 0.45);
+  --c-shadow: rgba(9, 32, 33, 0.1);
 
   /* ─── Thanh điều hướng dưới & các phần tử NỔI ───────────────────────────────
      Tách riêng khỏi bảng màu chung vì đây là những chỗ trước đây viết mã màu cứng
@@ -151,10 +152,12 @@
      2,4:1, tức là trượt xa ngưỡng AA. Đổi thành mực gần đen thì mọi nền nói trên đều đạt >= 7:1. */
   --c-on-bright: #ffffff;
 
-  --c-nav-bg: rgba(248, 251, 252, 0.94);
-  --c-nav-border: #e6f0f2;
-  --c-nav-active-bg: #e0faff;
-  --c-float-bg: rgba(255, 255, 255, 0.92);
+  --c-nav-bg: rgba(246, 253, 253, 0.94);
+  --c-nav-border: #dae9e9;
+  /* Cùng hue với --c-primary-soft (196°) — trước đây #e0faff ở hue 211°, lệch 30° so với chip
+     primary đứng ngay cạnh trong cùng khung nhìn. */
+  --c-nav-active-bg: #d6f6f4;
+  --c-float-bg: rgba(255, 255, 255, 0.94);
   --c-fog: 255, 255, 255;
 }
 
@@ -165,37 +168,39 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Cùng lý do xoay hue với khối light ở trên (xem ghi chú tại :root) — trước đây bản tối này
-       dùng nguyên bảng "slate" (hue ~220°, xanh dương/navy), lệch hẳn khỏi primary teal (~175°),
-       nên nền tối trông như một app khác màu với chip/nút của chính nó. */
-    --c-surface: #16272b;
-    --c-surface-alt: #1b2f33;
-    --c-page: #0e1d20;
-    --c-line-soft: #22393d;
-    --c-line: #2b4348;
-    --c-line-strong: #3a565b;
+    /* Cùng hue 196° với khối light ở trên (xem ghi chú tại :root) — trước đây bản tối lấy teal
+       tươi hơn/sáng hơn hẳn (H183, C0.123) đặt lên nền xanh dương-xám kiểu slate (H212-214),
+       khiến bản sáng và bản tối đọc ra như hai app khác nhau. Primary tối giờ hạ chroma về đúng
+       mức bản sáng (C0.090) — thứ làm hai chế độ đọc ra là MỘT thương hiệu, không phải mint chói
+       trực đêm. */
+    --c-surface: #162525;
+    --c-surface-alt: #1e2f2f;
+    --c-page: #0c1919;
+    --c-line-soft: #263636;
+    --c-line: #324747;
+    --c-line-strong: #445d5d;
 
-    --c-text: #e8f3f5;
-    --c-text-2: #d3e4e7;
-    --c-text-soft: #b3cace;
-    --c-text-muted: #94b0b5;
-    --c-muted: #7d999e;
-    --c-faint: #4a6368;
+    --c-text: #e6f1f1;
+    --c-text-2: #ccdbdb;
+    --c-text-soft: #a9bcbb;
+    --c-text-muted: #899d9d;
+    --c-muted: #728584;
+    --c-faint: #425757;
 
-    --c-primary: #3ecfbd;
-    --c-primary-strong: #6fe0d1;
-    --c-primary-deep: #94ede0;
-    --c-primary-soft: #102b2a;
-    --c-primary-line: #1f4a46;
-    --c-primary-line-2: #2b625c;
-    --c-primary-rgb: 62, 207, 189;
+    --c-primary: #61bdb3;
+    --c-primary-strong: #86d5cc;
+    --c-primary-deep: #ace9e1;
+    --c-primary-soft: #0e2c2a;
+    --c-primary-line: #154642;
+    --c-primary-line-2: #1d655e;
+    --c-primary-rgb: 97, 189, 179;
 
-    --c-accent: #3ecfbd;
-    --c-accent-deep: #6fe0d1;
-    --c-accent-soft: #102b2a;
-    --c-accent-line: #1f4a46;
-    --c-accent-2: #ff6fae;
-    --c-accent-2-rgb: 255, 111, 174;
+    --c-accent: var(--c-primary);
+    --c-accent-deep: var(--c-primary-strong);
+    --c-accent-soft: var(--c-primary-soft);
+    --c-accent-line: var(--c-primary-line);
+    --c-accent-2: #f175a6;
+    --c-accent-2-rgb: 241, 117, 166;
 
     --c-danger-icon: #ff6b6b;
     --c-danger: #ff8585;
@@ -207,12 +212,8 @@
 
     --c-warn-icon: #f0b429;
     --c-warn: #f5c86b;
-    --c-warn-2: #f0b429;
-    --c-warn-3: #dcae55;
     --c-warn-soft: #2a2113;
     --c-warn-line: #4d3c19;
-    --c-warn-line-2: #6b5320;
-    --c-warn-line-3: #7d6224;
 
     --c-orange: #ffa76b;
     --c-orange-soft: #2e1d12;
@@ -223,18 +224,24 @@
     --c-green-soft: #122a1b;
     --c-green-line: #1f4b2f;
 
-    --c-scrim: rgba(3, 7, 15, 0.62);
-    --c-shadow: rgba(0, 0, 0, 0.45);
+    --c-disabled-bg: var(--c-line-soft);
+    --c-disabled-fg: var(--c-muted);
+
+    --c-mark-bg: #5a4a12;
+    --c-mark-fg: #f7ecc4;
+
+    --c-scrim: rgba(4, 14, 14, 0.62);
+    --c-shadow: rgba(0, 0, 0, 0.5);
 
     /* Thanh nav ở bản tối: SÁNG HƠN nền trang một bậc (không tối hơn) để vẫn đọc ra là một thanh
        nổi lên phía trước, nhưng vẫn nằm hẳn trong dải tối — không còn là mảng trắng chói. */
-    --c-on-bright: #081b1f;
+    --c-on-bright: #0c1919;
 
-    --c-nav-bg: rgba(26, 46, 50, 0.94);
-    --c-nav-border: #2b4348;
-    --c-nav-active-bg: #21464d;
-    --c-float-bg: rgba(30, 52, 56, 0.94);
-    --c-fog: 18, 35, 38;
+    --c-nav-bg: rgba(24, 40, 40, 0.94);
+    --c-nav-border: #324747;
+    --c-nav-active-bg: #163d3a;
+    --c-float-bg: rgba(30, 47, 47, 0.94);
+    --c-fog: 18, 37, 37;
   }
 }
 
@@ -243,34 +250,34 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --c-surface: #16272b;
-  --c-surface-alt: #1b2f33;
-  --c-page: #0e1d20;
-  --c-line-soft: #22393d;
-  --c-line: #2b4348;
-  --c-line-strong: #3a565b;
+  --c-surface: #162525;
+  --c-surface-alt: #1e2f2f;
+  --c-page: #0c1919;
+  --c-line-soft: #263636;
+  --c-line: #324747;
+  --c-line-strong: #445d5d;
 
-  --c-text: #e8f3f5;
-  --c-text-2: #d3e4e7;
-  --c-text-soft: #b3cace;
-  --c-text-muted: #94b0b5;
-  --c-muted: #7d999e;
-  --c-faint: #4a6368;
+  --c-text: #e6f1f1;
+  --c-text-2: #ccdbdb;
+  --c-text-soft: #a9bcbb;
+  --c-text-muted: #899d9d;
+  --c-muted: #728584;
+  --c-faint: #425757;
 
-  --c-primary: #3ecfbd;
-  --c-primary-strong: #6fe0d1;
-  --c-primary-deep: #94ede0;
-  --c-primary-soft: #102b2a;
-  --c-primary-line: #1f4a46;
-  --c-primary-line-2: #2b625c;
-  --c-primary-rgb: 62, 207, 189;
+  --c-primary: #61bdb3;
+  --c-primary-strong: #86d5cc;
+  --c-primary-deep: #ace9e1;
+  --c-primary-soft: #0e2c2a;
+  --c-primary-line: #154642;
+  --c-primary-line-2: #1d655e;
+  --c-primary-rgb: 97, 189, 179;
 
-  --c-accent: #3ecfbd;
-  --c-accent-deep: #6fe0d1;
-  --c-accent-soft: #102b2a;
-  --c-accent-line: #1f4a46;
-  --c-accent-2: #ff6fae;
-  --c-accent-2-rgb: 255, 111, 174;
+  --c-accent: var(--c-primary);
+  --c-accent-deep: var(--c-primary-strong);
+  --c-accent-soft: var(--c-primary-soft);
+  --c-accent-line: var(--c-primary-line);
+  --c-accent-2: #f175a6;
+  --c-accent-2-rgb: 241, 117, 166;
 
   --c-danger-icon: #ff6b6b;
   --c-danger: #ff8585;
@@ -282,12 +289,8 @@
 
   --c-warn-icon: #f0b429;
   --c-warn: #f5c86b;
-  --c-warn-2: #f0b429;
-  --c-warn-3: #dcae55;
   --c-warn-soft: #2a2113;
   --c-warn-line: #4d3c19;
-  --c-warn-line-2: #6b5320;
-  --c-warn-line-3: #7d6224;
 
   --c-orange: #ffa76b;
   --c-orange-soft: #2e1d12;
@@ -298,16 +301,22 @@
   --c-green-soft: #122a1b;
   --c-green-line: #1f4b2f;
 
-  --c-scrim: rgba(3, 7, 15, 0.62);
-  --c-shadow: rgba(0, 0, 0, 0.45);
+  --c-disabled-bg: var(--c-line-soft);
+  --c-disabled-fg: var(--c-muted);
 
-  --c-on-bright: #081b1f;
+  --c-mark-bg: #5a4a12;
+  --c-mark-fg: #f7ecc4;
 
-  --c-nav-bg: rgba(26, 46, 50, 0.94);
-  --c-nav-border: #2b4348;
-  --c-nav-active-bg: #21464d;
-  --c-float-bg: rgba(30, 52, 56, 0.94);
-  --c-fog: 18, 35, 38;
+  --c-scrim: rgba(4, 14, 14, 0.62);
+  --c-shadow: rgba(0, 0, 0, 0.5);
+
+  --c-on-bright: #0c1919;
+
+  --c-nav-bg: rgba(24, 40, 40, 0.94);
+  --c-nav-border: #324747;
+  --c-nav-active-bg: #163d3a;
+  --c-float-bg: rgba(30, 47, 47, 0.94);
+  --c-fog: 18, 37, 37;
 }
 
 /* Bảng slate của Tailwind được trỏ về cùng bộ biến trên. Nhờ khối này, ~280 chỗ đang viết
@@ -601,7 +610,7 @@ input, select, textarea {
    vào con trỏ chuột/ngón tay. `:focus-visible` (không phải `:focus`) để không hiện vòng này khi
    CHẠM/BẤM CHUỘT — chỉ hiện khi thật sự dùng Tab, giống hành vi mặc định của trình duyệt. */
 .mind-btn:focus-visible {
-  outline: 2px solid var(--ring, #0f766e);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -609,7 +618,7 @@ input, select, textarea {
    `input:focus`) mà không thay bằng gì khác, nên riêng trong bảng vẽ — nơi giờ điều hướng được bằng
    phím — phải tự vẽ lại một vòng focus rõ ràng. */
 .mind-input:focus-visible {
-  outline: 2px solid var(--ring, #0f766e);
+  outline: 2px solid var(--ring);
   outline-offset: 1px;
 }
 

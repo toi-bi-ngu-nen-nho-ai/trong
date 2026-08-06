@@ -37,7 +37,7 @@ const MARK_BUTTONS: { kind: InlineMarkKind; label: string; hint: string; style: 
   { kind: "bold", label: "B", hint: "In đậm", style: { fontWeight: 800 } },
   { kind: "italic", label: "I", hint: "In nghiêng", style: { fontStyle: "italic", fontFamily: "Georgia, serif" } },
   { kind: "underline", label: "U", hint: "Gạch chân", style: { textDecoration: "underline" } },
-  { kind: "highlight", label: "H", hint: "Tô sáng", style: { background: "#fef08a", borderRadius: 3, padding: "0 3px" } },
+  { kind: "highlight", label: "H", hint: "Tô sáng", style: { background: "var(--c-mark-bg)", color: "var(--c-mark-fg)", borderRadius: 3, padding: "0 3px" } },
 ]
 
 const PLACEHOLDERS: Record<BlockType, string> = {
@@ -261,7 +261,7 @@ export function BlockEditor({
 
   return (
     <div>
-      <div className="rounded-2xl border px-3 py-2" style={{ borderColor: "#e2e8f0", background: "#fff" }}>
+      <div className="rounded-2xl border px-3 py-2" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
         {blocks.map((block, index) => {
           const isActive = activeId === block.id
           return (
@@ -270,7 +270,7 @@ export function BlockEditor({
                 <div
                   onClick={() => setActiveId(block.id)}
                   className="rounded-xl overflow-hidden border"
-                  style={{ borderColor: isActive ? "var(--c-primary)" : "#e2e8f0" }}
+                  style={{ borderColor: isActive ? "var(--c-primary)" : "var(--c-line)" }}
                 >
                   <img src={block.dataUrl} alt="" className="w-full block" />
                   <input
@@ -279,18 +279,18 @@ export function BlockEditor({
                     onFocus={() => setActiveId(block.id)}
                     placeholder="Chú thích ảnh (không bắt buộc)"
                     className="w-full px-3 py-2 text-xs text-center text-slate-500 outline-none border-t"
-                    style={{ borderColor: "#e2e8f0", background: "#f8fafc" }}
+                    style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
                   />
                 </div>
               ) : (
                 <div className="flex gap-2">
                   {block.type === "bullet" && (
-                    <span className="flex-none mt-[11px] w-1.5 h-1.5 rounded-full" style={{ background: "#94a3b8" }} />
+                    <span className="flex-none mt-[11px] w-1.5 h-1.5 rounded-full" style={{ background: "var(--c-muted)" }} />
                   )}
                   {block.type === "numbered" && (
                     <span
                       className="flex-none mt-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold"
-                      style={{ background: "#eff6ff", color: "var(--c-primary)" }}
+                      style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
                     >
                       {blocks.slice(0, index + 1).reduceRight((acc, b, i) => {
                         // Đếm ngược tới khi gặp dòng khác loại — cùng cách tính số như lúc hiển thị.
@@ -312,7 +312,7 @@ export function BlockEditor({
                       block.type === "quote"
                         ? { borderColor: "var(--c-primary)" }
                         : block.type === "callout"
-                          ? { background: "#eff6ff", border: "1px solid #bfdbfe" }
+                          ? { background: "var(--c-primary-soft)", border: "1px solid var(--c-primary-line)" }
                           : undefined
                     }
                   >
@@ -338,7 +338,7 @@ export function BlockEditor({
                       onBlur={(e) => rememberSelection(block.id, e.currentTarget)}
                       placeholder={PLACEHOLDERS[block.type]}
                       className={`w-full py-1.5 bg-transparent outline-none resize-none overflow-hidden ${textClassFor(block.type)}`}
-                      style={block.type === "callout" ? { color: "#1e40af" } : undefined}
+                      style={block.type === "callout" ? { color: "var(--c-text-2)" } : undefined}
                     />
                   </div>
                 </div>
@@ -358,8 +358,8 @@ export function BlockEditor({
                       className="w-8 h-8 rounded-lg text-xs font-bold border flex items-center justify-center"
                       style={
                         block.type === t.id
-                          ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "#fff" }
-                          : { background: "#fff", borderColor: "#e2e8f0", color: "#475569" }
+                          ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+                          : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                       }
                     >
                       {t.label}
@@ -381,7 +381,7 @@ export function BlockEditor({
                       title={m.hint}
                       aria-label={m.hint}
                       className="w-8 h-8 rounded-lg text-[13px] border flex items-center justify-center"
-                      style={{ background: "#fff", borderColor: "#e2e8f0", color: "#334155", ...m.style }}
+                      style={{ background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-2)", ...m.style }}
                     >
                       {m.label}
                     </button>
@@ -399,8 +399,8 @@ export function BlockEditor({
                     className="w-8 h-8 rounded-lg text-[13px] border flex items-center justify-center"
                     style={
                       linkPickerFor === block.id
-                        ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "#fff" }
-                        : { background: "#fff", borderColor: "#e2e8f0", color: linkTargets.length === 0 ? "#cbd5e1" : "#334155" }
+                        ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+                        : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: linkTargets.length === 0 ? "var(--c-faint)" : "var(--c-text-2)" }
                     }
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="w-4 h-4">
@@ -411,13 +411,13 @@ export function BlockEditor({
               )}
 
               {isActive && linkPickerFor === block.id && (
-                <div className="mt-1.5 rounded-xl border overflow-hidden fade-in" style={{ borderColor: "#dbeafe", background: "#f8fafc" }}>
+                <div className="mt-1.5 rounded-xl border overflow-hidden fade-in" style={{ borderColor: "var(--c-primary-line)", background: "var(--c-surface-alt)" }}>
                   <input
                     value={linkQuery}
                     onChange={(e) => setLinkQuery(e.target.value)}
                     placeholder="Tìm bài để liên kết…"
                     className="w-full px-3 py-2 text-xs outline-none border-b"
-                    style={{ borderColor: "#e2e8f0", background: "#fff" }}
+                    style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
                   />
                   <div className="max-h-40 overflow-y-auto">
                     {linkTargets
@@ -430,9 +430,9 @@ export function BlockEditor({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => applyLink(block, t)}
                           className="w-full text-left px-3 py-2 border-b last:border-0 flex items-center gap-2"
-                          style={{ borderColor: "#f1f5f9" }}
+                          style={{ borderColor: "var(--c-line-soft)" }}
                         >
-                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full flex-none" style={{ background: "#eff6ff", color: "var(--c-primary)" }}>
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full flex-none" style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}>
                             {t.group}
                           </span>
                           <span className="text-xs text-slate-700 truncate">{t.label}</span>
@@ -454,7 +454,7 @@ export function BlockEditor({
                     onClick={() => requestImageAt(index + 1)}
                     disabled={busy}
                     className="h-8 px-2.5 rounded-lg text-[11px] font-semibold border flex items-center gap-1"
-                    style={{ background: "#eff6ff", borderColor: "#dbeafe", color: "var(--c-primary)" }}
+                    style={{ background: "var(--c-primary-soft)", borderColor: "var(--c-primary-line)", color: "var(--c-primary)" }}
                   >
                     {busy ? "Đang xử lý…" : "＋ Ảnh"}
                   </button>
@@ -466,7 +466,7 @@ export function BlockEditor({
                     disabled={index === 0}
                     aria-label="Chuyển lên trên"
                     className="w-8 h-8 rounded-lg border flex items-center justify-center text-sm"
-                    style={{ background: "#fff", borderColor: "#e2e8f0", color: index === 0 ? "#cbd5e1" : "#475569" }}
+                    style={{ background: "var(--c-surface)", borderColor: "var(--c-line)", color: index === 0 ? "var(--c-faint)" : "var(--c-text-soft)" }}
                   >
                     ↑
                   </button>
@@ -478,9 +478,9 @@ export function BlockEditor({
                     aria-label="Chuyển xuống dưới"
                     className="w-8 h-8 rounded-lg border flex items-center justify-center text-sm"
                     style={{
-                      background: "#fff",
-                      borderColor: "#e2e8f0",
-                      color: index === blocks.length - 1 ? "#cbd5e1" : "#475569",
+                      background: "var(--c-surface)",
+                      borderColor: "var(--c-line)",
+                      color: index === blocks.length - 1 ? "var(--c-faint)" : "var(--c-text-soft)",
                     }}
                   >
                     ↓
@@ -491,7 +491,7 @@ export function BlockEditor({
                     onClick={() => removeAt(index)}
                     aria-label="Xoá dòng này"
                     className="w-8 h-8 rounded-lg border flex items-center justify-center text-sm font-bold"
-                    style={{ background: "#fef2f2", borderColor: "#fee2e2", color: "#dc2626" }}
+                    style={{ background: "var(--c-danger-soft)", borderColor: "var(--c-danger-line)", color: "var(--c-danger-icon)" }}
                   >
                     ×
                   </button>
@@ -506,7 +506,7 @@ export function BlockEditor({
             type="button"
             onClick={() => insertTextBlockAfter(blocks.length - 1)}
             className="flex-1 py-2 rounded-xl text-[11px] font-semibold border"
-            style={{ background: "#fff", borderColor: "#e2e8f0", color: "#64748b" }}
+            style={{ background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-muted)" }}
           >
             ＋ Thêm dòng
           </button>
@@ -515,7 +515,7 @@ export function BlockEditor({
             onClick={() => requestImageAt(blocks.length)}
             disabled={busy}
             className="flex-1 py-2 rounded-xl text-[11px] font-semibold border"
-            style={{ background: "#eff6ff", borderColor: "#dbeafe", color: "var(--c-primary)" }}
+            style={{ background: "var(--c-primary-soft)", borderColor: "var(--c-primary-line)", color: "var(--c-primary)" }}
           >
             {busy ? "Đang xử lý ảnh…" : "＋ Ảnh ở cuối"}
           </button>
@@ -524,7 +524,7 @@ export function BlockEditor({
 
       <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
       {error && (
-        <p className="text-[11px] mt-2" style={{ color: "#dc2626" }}>
+        <p className="text-[11px] mt-2" style={{ color: "var(--c-danger-icon)" }}>
           {error}
         </p>
       )}

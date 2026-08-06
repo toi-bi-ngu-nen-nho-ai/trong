@@ -147,8 +147,8 @@ export interface SeverityStyle {
 
 export const SEVERITY_STYLE: Record<DoseSeverity, SeverityStyle> = {
   unknown: { bg: "var(--c-surface-alt)", border: "var(--c-line)", text: "var(--c-text-soft)", label: "Chưa kiểm tra được" },
-  "far-below": { bg: "var(--c-warn-soft)", border: "var(--c-warn-line-2)", text: "var(--c-warn-2)", label: "Quá thấp" },
-  below: { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-2)", label: "Dưới khoảng khuyến cáo" },
+  "far-below": { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Quá thấp" },
+  below: { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Dưới khoảng khuyến cáo" },
   ok: { bg: "var(--c-primary-soft)", border: "var(--c-primary-line)", text: "var(--c-primary)", label: "Trong khoảng khuyến cáo" },
   above: { bg: "var(--c-orange-soft)", border: "var(--c-orange-line)", text: "var(--c-orange)", label: "Trên khoảng khuyến cáo" },
   high: { bg: "var(--c-danger-soft)", border: "var(--c-danger-line-2)", text: "var(--c-danger)", label: "Vượt liều tối đa" },

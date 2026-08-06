@@ -33,7 +33,7 @@ function InlineText({ text, onOpenLink }: { text: string; onOpenLink?: (target: 
             )
           case "highlight":
             return (
-              <mark key={i} className="rounded px-0.5" style={{ background: "#fef08a", color: "inherit" }}>
+              <mark key={i} className="rounded px-0.5" style={{ background: "var(--c-mark-bg)", color: "var(--c-mark-fg)" }}>
                 {tok.text}
               </mark>
             )
@@ -97,7 +97,7 @@ export function BlockContent({
                 key={block.id}
                 ref={(el) => headingRefs?.(block.id, el)}
                 className="text-[17px] font-bold text-slate-900 mt-6 mb-2 pb-1.5 border-b leading-snug scroll-mt-4"
-                style={{ borderColor: "#e2e8f0" }}
+                style={{ borderColor: "var(--c-line)" }}
               >
                 {inline}
               </h2>
@@ -105,7 +105,7 @@ export function BlockContent({
           case "bullet":
             return (
               <div key={block.id} className="flex gap-2.5 mt-1.5">
-                <span className="flex-none mt-[9px] w-1.5 h-1.5 rounded-full" style={{ background: "#94a3b8" }} />
+                <span className="flex-none mt-[9px] w-1.5 h-1.5 rounded-full" style={{ background: "var(--c-muted)" }} />
                 <p className="text-[15px] text-slate-800 leading-relaxed whitespace-pre-wrap flex-1">{inline}</p>
               </div>
             )
@@ -114,7 +114,7 @@ export function BlockContent({
               <div key={block.id} className="flex gap-2.5 mt-1.5">
                 <span
                   className="flex-none mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold"
-                  style={{ background: "#eff6ff", color: "var(--c-primary)" }}
+                  style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
                 >
                   {numbers[idx]}
                 </span>
@@ -136,12 +136,12 @@ export function BlockContent({
               <div
                 key={block.id}
                 className="mt-4 p-4 rounded-2xl"
-                style={{ background: "#eff6ff", border: "1.5px solid #bfdbfe" }}
+                style={{ background: "var(--c-primary-soft)", border: "1.5px solid var(--c-primary-line)" }}
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#1d4ed8" }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "var(--c-primary-strong)" }}>
                   Điểm chính
                 </p>
-                <p className="text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "#1e40af" }}>
+                <p className="text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--c-text-2)" }}>
                   {inline}
                 </p>
               </div>
@@ -153,7 +153,7 @@ export function BlockContent({
                   src={block.dataUrl}
                   alt={block.caption ?? ""}
                   className="w-full rounded-2xl border"
-                  style={{ borderColor: "#e2e8f0" }}
+                  style={{ borderColor: "var(--c-line)" }}
                 />
                 {block.caption && (
                   <figcaption className="text-xs text-slate-400 mt-1.5 text-center">{block.caption}</figcaption>
