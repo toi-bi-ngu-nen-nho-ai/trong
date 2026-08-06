@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
+import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticWarning, DiseaseEntry, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, MindNode, MindEdge, MindImage, MindStroke, MindmapData, MindBoard, SourceInfo } from "./data/types"
 import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
@@ -4560,6 +4560,10 @@ interface DosingContextValue {
   patient: PatientVitals
   setPatientField: <K extends keyof PatientVitals>(key: K, value: PatientVitals[K]) => void
   resetPatient: () => void
+  // Còn khác null trong 10 giây sau khi bấm "Bệnh nhân mới" — bản sao thông số + bảng đang dùng
+  // NGAY TRƯỚC lúc xoá, để dải "Hoàn tác" phục hồi lại đúng như cũ.
+  resetUndo: { patient: PatientVitals; running: RunningDrug[] } | null
+  undoResetPatient: () => void
   abwKg: number | null
   heightCm: number | null
   ageYears: number | null
@@ -4600,7 +4604,9 @@ function useDosing(): DosingContextValue {
 // mỗi chỗ một cỡ chữ và một kiểu canh lề. Xem lib/ui.ts.
 
 function SectionLabel({ children, tone = "muted" }: { children: React.ReactNode; tone?: "muted" | "accent" | "danger" }) {
-  const color = tone === "accent" ? C.accent : tone === "danger" ? C.danger : C.muted
+  // C.muted (~3,1:1) chỉ đủ cho icon/placeholder, KHÔNG đủ cho chữ đọc được (dưới ngưỡng AA
+  // 4,5:1) — đây là NHÃN MỤC thật, phải đọc được, nên dùng C.textSoft (~4,x:1) cho tone mặc định.
+  const color = tone === "accent" ? C.accent : tone === "danger" ? C.danger : C.textSoft
   return (
     <p className={`${T.label} mb-2`} style={{ color }}>
       {children}
@@ -4608,7 +4614,7 @@ function SectionLabel({ children, tone = "muted" }: { children: React.ReactNode;
   )
 }
 
-function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function SearchField({ value, onChange, placeholder, autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean }) {
   return (
     <div className={`flex items-center gap-2.5 px-3.5 h-11 ${R.pill} mb-2.5`} style={{ background: C.lineSoft }}>
       <span style={{ color: C.muted }}>{icons.search(false)}</span>
@@ -4616,6 +4622,14 @@ function SearchField({ value, onChange, placeholder }: { value: string; onChange
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        // Ô này được mở CÓ CHỦ ĐÍCH bằng nút kính lúp — không tự focus là bắt người dùng chạm
+        // thêm một lần nữa đúng lúc đang vội. type="search" + enterKeyHint cho bàn phím ảo đúng
+        // nút "Tìm"; tắt viết-hoa-đầu-câu/tự-sửa-chính-tả vì đây là tên thuốc, không phải văn xuôi.
+        autoFocus={autoFocus}
+        type="search"
+        enterKeyHint="search"
+        autoCapitalize="off"
+        autoCorrect="off"
         className={`flex-1 h-full bg-transparent  outline-none`}
       />
       {value && (
@@ -4654,6 +4668,7 @@ function Chip({
         ...(active ? { background: on, borderColor: on, color: "var(--c-on-bright)" } : { background: C.surface, borderColor: C.line, color: C.textSoft }),
         ...(index != null ? ({ "--i": index } as React.CSSProperties) : {}),
       }}
+      aria-pressed={active}
     >
       {children}
     </button>
@@ -4677,10 +4692,17 @@ function Disclosure({
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(Boolean(defaultOpen))
-  const color = alert ? C.warn : C.muted
+  // C.muted (~3,1:1) chỉ đủ cho icon/placeholder — đây là tiêu đề mục thật, phải đọc được.
+  const color = alert ? C.warn : C.textSoft
+  const contentId = useId()
   return (
     <div className="mt-2.5 pt-2.5 border-t" style={{ borderColor: C.lineSoft }}>
-      <button onClick={() => setOpen((v) => !v)} className={`w-full flex items-center justify-between gap-2 ${TAP} -my-2.5 py-2.5`}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center justify-between gap-2 ${TAP} -my-2.5 py-2.5`}
+        aria-expanded={open}
+        aria-controls={contentId}
+      >
         <span className={T.label} style={{ color }}>
           {label}
           {count != null && count > 0 ? ` · ${count}` : ""}
@@ -4689,7 +4711,13 @@ function Disclosure({
           {icons.chevronDown()}
         </span>
       </button>
-      {open && <div className="mt-2.5 fade-in">{children}</div>}
+      {/* Trước đây `{open && <div>}` — nội dung xuất hiện/biến mất TỨC THÌ và đẩy cả phần dưới
+          nhảy theo, đặc biệt rõ trên thẻ có 4-5 Disclosure xếp chồng. `.disc-body` (index.css)
+          dùng grid-template-rows 0fr→1fr để chiều cao co giãn mượt mà không cần đo bằng JS —
+          luôn render children, chỉ ẩn bằng chiều cao 0 + overflow hidden khi đóng. */}
+      <div id={contentId} className="disc-body" data-open={open}>
+        <div>{children}</div>
+      </div>
     </div>
   )
 }
@@ -4735,9 +4763,22 @@ function ConfirmIconButton({
         onConfirm()
       }}
       className={className}
-      style={confirm ? { background: "var(--c-danger-icon)", color: "var(--c-on-bright)" } : style}
+      style={{ ...(confirm ? { background: "var(--c-danger-icon)", color: "var(--c-on-bright)" } : style), position: "relative" }}
       aria-label={confirm ? `${ariaLabel} — chạm lần nữa để xác nhận` : ariaLabel}
     >
+      {/* Chạm lần 1 trước đây chỉ đổi icon (thùng rác → cảnh báo) cùng kích thước, cùng vị trí,
+          không chữ — rất dễ tưởng "máy không nhận" rồi chạm lại, mà lần chạm đó xoá thật. Vòng
+          đếm ngược viền quanh icon cho biết rõ: đã nhận, đang chờ chạm lần hai, còn bấy nhiêu
+          thời gian nữa thì tự huỷ. */}
+      {confirm && (
+        <svg viewBox="0 0 36 36" className="absolute inset-0 w-full h-full" style={{ transform: "rotate(-90deg)" }} aria-hidden="true">
+          <circle
+            cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.55"
+            strokeDasharray={2 * Math.PI * 15.5}
+            style={{ animation: `confirmRing ${CONFIRM_ICON_RESET_MS}ms linear forwards` }}
+          />
+        </svg>
+      )}
       {confirm ? icons.alert() : icons.trash()}
     </button>
   )
@@ -4809,8 +4850,10 @@ function DisclaimerGate() {
   })
   if (ack) return null
   return (
-    <div className="absolute inset-0 z-50 flex items-end" style={{ background: "rgba(15,23,42,.45)" }}>
-      <div className="w-full rounded-t-3xl px-6 pt-6" style={{ background: "var(--c-surface)", paddingBottom: "var(--nav-pad-bottom)" }}>
+    // Trước đây bung ra tức thì dù có rounded-t-3xl — trông như bottom sheet nhưng không có động
+    // tác của bottom sheet. `.fade-in` cho nền phủ, `.mind-sheet` (trượt lên từ đáy) cho tấm sheet.
+    <div className="absolute inset-0 z-50 flex items-end fade-in" style={{ background: "var(--c-scrim)" }}>
+      <div className="mind-sheet w-full rounded-t-3xl px-6 pt-6" style={{ background: "var(--c-surface)", paddingBottom: "var(--nav-pad-bottom)" }}>
         <div className="flex items-center gap-2 mb-2" style={{ color: "var(--c-warn-icon)" }}>
           {icons.alert()}
           <p className="text-[13px] font-bold">Trước khi dùng</p>
@@ -4841,8 +4884,11 @@ function DisclaimerGate() {
 // Dải nhắc thường trực — rút còn MỘT dòng. Bản đầy đủ đã hiện ở màn xác nhận lần đầu; ở đây chỉ
 // cần một lời nhắc không chiếm chỗ, vì nó nằm trên đầu mọi lần mở app.
 function DisclaimerBar() {
+  // Trước đây `truncate` trên một dòng pháp lý: máy hẹp cắt mất nửa câu, không cách nào đọc hết.
+  // Bỏ truncate, cho xuống tối đa hai dòng — đổi hình dạng từ viên (rounded-full, chỉ đẹp một
+  // dòng) sang khối bo góc mềm để hai dòng không trông méo.
   return (
-    <p className={`${T.meta} px-3 py-1 ${R.pill} mx-5 mb-2 truncate`} style={{ background: C.surfaceAlt, color: C.muted }}>
+    <p className={`${T.meta} px-3 py-1.5 ${R.box} mx-5 mb-2`} style={{ background: C.surfaceAlt, color: C.textSoft }}>
       Công cụ tham khảo — luôn kiểm tra lại trước khi thực hiện.
     </p>
   )
@@ -4878,8 +4924,13 @@ function PatientField({ label, children }: { label: string; children: React.Reac
 }
 
 function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const { patient, setPatientField, resetPatient, abwKg, heightCm, ageYears, crcl, crclUsable } = useDosing()
+  const { patient, setPatientField, resetPatient, running, abwKg, heightCm, ageYears, crcl, crclUsable } = useDosing()
   const hasData = patientHasData(patient)
+  // "Bệnh nhân mới" xoá SẠCH thông số lẫn bảng đang dùng — hành động phá huỷ nhất màn hình, nên
+  // bắt xác nhận hai bước như mọi nút xoá khác thay vì thực thi ngay từ một chạm.
+  const [confirmReset, setConfirmReset] = useState(false)
+  const confirmResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current) }, [])
 
   const weightWarn = checkWeight(abwKg)
   const heightWarn = checkHeight(heightCm)
@@ -4932,13 +4983,27 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
         {hasData && (
           <button
             onClick={() => {
+              if (!confirmReset) {
+                setConfirmReset(true)
+                tickHaptic()
+                confirmResetTimer.current = setTimeout(() => setConfirmReset(false), CONFIRM_ICON_RESET_MS)
+                return
+              }
+              if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current)
+              setConfirmReset(false)
               resetPatient()
               tickHaptic()
             }}
             className="flex-none h-8 px-2.5 rounded-full text-[11px] font-bold border"
-            style={{ background: "var(--c-surface)", borderColor: "var(--c-danger-line)", color: "var(--c-danger)" }}
+            style={
+              confirmReset
+                ? { background: "var(--c-danger)", borderColor: "var(--c-danger)", color: "var(--c-on-bright)" }
+                : { background: "var(--c-surface)", borderColor: "var(--c-danger-line)", color: "var(--c-danger)" }
+            }
           >
-            Bệnh nhân mới
+            {confirmReset
+              ? `Xoá bệnh nhân${running.length > 0 ? ` + ${running.length} thuốc?` : "?"}`
+              : "Xoá bệnh nhân"}
           </button>
         )}
         <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }} aria-label={open ? "Thu gọn" : "Mở rộng"}>
@@ -4946,14 +5011,56 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
         </button>
       </div>
 
-      {open && (
-        <div className="px-4 pb-4 fade-in">
+      {/* Trước đây `{open && <div>}` — gấp/mở khối ~700px này NHẢY TỨC THÌ, đúng khoảnh khắc "chọn
+          thuốc → panel gấp lại → cuộn tới thẻ" bị giật nhiều nhất màn hình. Dùng lại kỹ thuật
+          .disc-body (grid-template-rows 0fr→1fr, xem Disclosure) để chiều cao co giãn mượt. */}
+      <div className="disc-body disc-body--flush" data-open={open}>
+        <div className="px-4 pb-4">
           {/* Mọi ô đều có hàng nhãn CAO BẰNG NHAU (PatientField) nên đáy các ô nhập thẳng một đường.
               Trước đây ô Creatinin có thêm bộ chọn đơn vị nằm chung hàng nhãn, đẩy ô nhập của nó
               tụt xuống so với ô Chiều cao bên cạnh — nay bộ chọn đơn vị nằm cạnh ô nhập. */}
+          {/* Cân nặng lên ĐẦU: đây là trường DUY NHẤT mà hầu hết máy tính liều bắt buộc phải có
+              (missingReason chỉ ra đúng nó) — tuổi/creatinin chỉ cần khi tính CrCl cho kháng sinh.
+              Trước đây Tuổi/Giới tính đứng đầu, đẩy Cân nặng xuống hàng thứ hai dù nó quan trọng
+              hơn hẳn cho phần lớn thuốc (vận mạch, an thần... không cần CrCl). */}
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <PatientField label="Cân nặng (kg)">
+              <input value={patient.weight} onChange={(e) => setPatientField("weight", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 65" className={FIELD} style={FIELD_STYLE} />
+            </PatientField>
+            <PatientField label="Chiều cao (cm)">
+              <input value={patient.height} onChange={(e) => setPatientField("height", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 165" className={FIELD} style={FIELD_STYLE} />
+            </PatientField>
+          </div>
+          {/* Cân nặng và chiều cao có thể cùng lúc đều cảnh báo (vd trẻ em nhẹ cân, thấp) — xếp mỗi
+              cảnh báo một dòng riêng, đủ rộng để đọc trọn câu thay vì bị bóp trong nửa cột. Ký tự lạ
+              (vd "70abc") ưu tiên hiện trước cảnh báo độ lớn, vì lúc đó con số còn chưa xác định được. */}
+          {(
+            [
+              weightInvalid
+                ? { key: "w", message: `Cân nặng "${patient.weight.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
+                : weightWarn && weightWarn.severity !== "ok"
+                  ? { key: "w", message: weightWarn.message, severity: weightWarn.severity }
+                  : null,
+              heightInvalid
+                ? { key: "h", message: `Chiều cao "${patient.height.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
+                : heightWarn && heightWarn.severity !== "ok"
+                  ? { key: "h", message: heightWarn.message, severity: heightWarn.severity }
+                  : null,
+            ] as ({ key: string; message: string; severity: "check" | "implausible" } | null)[]
+          )
+            .filter((w): w is { key: string; message: string; severity: "check" | "implausible" } => w != null)
+            .map((w) => (
+              <div key={w.key} className="mb-2">
+                <InputWarning text={w.message} level={w.severity} />
+              </div>
+            ))}
+
+          {/* Tuổi + Giới tính + Creatinin: chỉ cần cho CrCl (kháng sinh chỉnh theo chức năng thận) —
+              nhóm lại thành cụm "để tính CrCl", đứng sau cụm cân nặng/chiều cao dùng chung cho mọi
+              thuốc. */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <PatientField label="Tuổi">
-              <input value={patient.age} onChange={(e) => setPatientField("age", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="tuổi" className={FIELD} style={FIELD_STYLE} />
+              <input value={patient.age} onChange={(e) => setPatientField("age", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 70" className={FIELD} style={FIELD_STYLE} />
             </PatientField>
             <PatientField label="Giới tính">
               <div className="flex gap-1.5">
@@ -4989,41 +5096,9 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             )
           )}
 
-          <div className="grid grid-cols-2 gap-2 mb-2">
-            <PatientField label="Cân nặng (kg)">
-              <input value={patient.weight} onChange={(e) => setPatientField("weight", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="kg" className={FIELD} style={FIELD_STYLE} />
-            </PatientField>
-            <PatientField label="Chiều cao (cm)">
-              <input value={patient.height} onChange={(e) => setPatientField("height", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="cm" className={FIELD} style={FIELD_STYLE} />
-            </PatientField>
-          </div>
-          {/* Cân nặng và chiều cao có thể cùng lúc đều cảnh báo (vd trẻ em nhẹ cân, thấp) — xếp mỗi
-              cảnh báo một dòng riêng, đủ rộng để đọc trọn câu thay vì bị bóp trong nửa cột. Ký tự lạ
-              (vd "70abc") ưu tiên hiện trước cảnh báo độ lớn, vì lúc đó con số còn chưa xác định được. */}
-          {(
-            [
-              weightInvalid
-                ? { key: "w", message: `Cân nặng "${patient.weight.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
-                : weightWarn && weightWarn.severity !== "ok"
-                  ? { key: "w", message: weightWarn.message, severity: weightWarn.severity }
-                  : null,
-              heightInvalid
-                ? { key: "h", message: `Chiều cao "${patient.height.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
-                : heightWarn && heightWarn.severity !== "ok"
-                  ? { key: "h", message: heightWarn.message, severity: heightWarn.severity }
-                  : null,
-            ] as ({ key: string; message: string; severity: "check" | "implausible" } | null)[]
-          )
-            .filter((w): w is { key: string; message: string; severity: "check" | "implausible" } => w != null)
-            .map((w) => (
-              <div key={w.key} className="mb-2">
-                <InputWarning text={w.message} level={w.severity} />
-              </div>
-            ))}
-
             <PatientField label="Creatinin">
               <div className="flex gap-1.5">
-                <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="Nhập creatinin" className={FIELD} style={FIELD_STYLE} />
+                <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={FIELD} style={FIELD_STYLE} />
                 {/* h-11 trên chính khung viền, không phải trên các nút bên trong — nếu không, viền
                     1px cộng thêm làm khối này cao 46px và lệch 2px so với ô nhập bên cạnh. */}
                 <div className={`flex h-11 ${R.input} overflow-hidden border flex-none`} style={{ borderColor: C.primaryLine }}>
@@ -5056,13 +5131,33 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             className={`flex items-center gap-3 px-3 h-14 ${R.box} mt-3 mb-2`}
             style={{ background: crclUsable ? "var(--c-primary-soft)" : C.surface }}
           >
+            {/* Trước đây khi crclUsable=false vẫn hiện to con số CrCl thật, chỉ đổi màu xám — quá
+                yếu để nói "con số này KHÔNG được dùng chọn bậc liều". Đổi hẳn sang "—": im lặng
+                còn an toàn hơn một con số đúng-về-mặt-tính-toán nhưng sai-về-mặt-lâm-sàng. */}
             <span key={crcl ?? "none"} className={`${T.metric} pop-value flex-none`} style={{ color: crclUsable ? C.primary : C.muted }}>
-              {crcl != null ? crcl : "—"}
+              {crclUsable && crcl != null ? crcl : "—"}
             </span>
             <div className="min-w-0">
-              <p className={T.meta} style={{ color: C.textSoft }}>mL/phút · CrCl (Cockcroft-Gault)</p>
+              <p className={T.meta} style={{ color: C.textSoft }}>
+                mL/phút · CrCl (Cockcroft-Gault)
+                {!crclUsable && crcl != null && ` — tính được ${crcl} nhưng không dùng được`}
+              </p>
+              {/* Dấu "—" không bao giờ được đứng một mình — missingReason ở InfusionCalculator đã
+                  làm đúng điều này (lý do + đường sửa), ô CrCl trước đây thì chưa: thiếu dữ liệu
+                  chỉ hiện "—" trơn, không nói thiếu gì. */}
+              {crclUsable && crcl == null && (
+                <p className={T.meta} style={{ color: C.muted }}>
+                  {ageYears == null
+                    ? "Cần nhập tuổi để tính"
+                    : abwKg == null
+                      ? "Cần nhập cân nặng để tính"
+                      : parseStrictNumber(patient.scr) == null
+                        ? "Cần nhập creatinin để tính"
+                        : null}
+                </p>
+              )}
               {crclWeight.ibw != null && crclWeight.used != null && (
-                <p className={`${T.meta} ${NUM} truncate`} style={{ color: C.muted }}>
+                <p className={`${T.meta} ${NUM} truncate`} style={{ color: C.textSoft }}>
                   IBW {crclWeight.ibw.toFixed(0)} kg · tính theo {crclWeight.usedLabel} {crclWeight.used.toFixed(1)} kg
                 </p>
               )}
@@ -5136,7 +5231,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                   style={FIELD_STYLE}
                 />
               </PatientField>
-              <p className={`${T.meta} mt-1`} style={{ color: C.muted }}>
+              <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>
                 {abwKg != null && (parseStrictNumber(patient.crrtFlowLPerH) ?? 0) > 0
                   ? `Tương đương ${(((parseStrictNumber(patient.crrtFlowLPerH) as number) * 1000) / abwKg).toFixed(0)} mL/kg/giờ — so với điều kiện Qeff ghi trong liều CRRT của từng thuốc.`
                   : "Cộng tốc độ dịch lọc và tốc độ siêu lọc — liều kháng sinh trong CRRT thay đổi theo con số này."}
@@ -5153,7 +5248,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -5181,6 +5276,33 @@ function RunningPanel() {
     const t = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(t)
   }, [])
+  // Bỏ ghim một thuốc làm mất luôn kết quả rà tương hợp Y-site/tương tác cho cặp đó, mà người dùng
+  // không hề được báo. Bấm "×" chỉ ĐÁNH DẤU chờ xoá (hàng mờ đi + nút đổi thành "Hoàn tác") — xoá
+  // thật sự chỉ xảy ra sau 5 giây, đủ để bấm nhầm còn kịp sửa.
+  const [pendingRemove, setPendingRemove] = useState<Record<string, true>>({})
+  const pendingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  useEffect(() => () => { Object.values(pendingTimers.current).forEach(clearTimeout) }, [])
+  function requestUnpin(id: string) {
+    setPendingRemove((prev) => ({ ...prev, [id]: true }))
+    pendingTimers.current[id] = setTimeout(() => {
+      delete pendingTimers.current[id]
+      setPendingRemove((prev) => {
+        const { [id]: _drop, ...rest } = prev
+        return rest
+      })
+      unpinRunning(id)
+    }, 5000)
+  }
+  function cancelUnpin(id: string) {
+    if (pendingTimers.current[id]) {
+      clearTimeout(pendingTimers.current[id])
+      delete pendingTimers.current[id]
+    }
+    setPendingRemove((prev) => {
+      const { [id]: _drop, ...rest } = prev
+      return rest
+    })
+  }
   if (running.length === 0) return null
 
   const lines = Array.from({ length: MAX_LINES }, (_, i) => i).filter((l) => running.some((r) => r.line === l))
@@ -5215,10 +5337,12 @@ function RunningPanel() {
 
   return (
     <div className="mx-5 mb-3 rounded-2xl border p-4" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
-      <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "var(--c-accent)" }}>
+      <p className={`${T.label} mb-2`} style={{ color: "var(--c-accent)" }}>
         {/* Trước đây tên là "Đang truyền", nhưng kháng sinh mỗi 8 giờ cũng nằm trong bảng này —
-            gọi một liều ngắt quãng là "đang truyền" là mô tả sai thứ đang xảy ra trên người bệnh. */}
-        Bệnh nhân đang dùng · {running.length} thuốc
+            gọi một liều ngắt quãng là "đang truyền" là mô tả sai thứ đang xảy ra trên người bệnh.
+            Số đếm nảy một nhịp mỗi khi đổi — ghim/bỏ ghim là hành động "thành công" chính của
+            màn hình này, trước đây không có phản hồi thị giác nào khi con số đổi. */}
+        Bệnh nhân đang dùng · <span key={running.length} className="pop-value inline-block">{running.length}</span> thuốc
       </p>
 
       {lines.map((line) => (
@@ -5227,10 +5351,14 @@ function RunningPanel() {
           {running
             .filter((r) => r.line === line)
             .map((r) => (
-              <div key={r.id} className="flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1" style={{ background: C.surfaceAlt }}>
+              <div
+                key={r.id}
+                className="rise-in flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1"
+                style={{ background: C.surfaceAlt, opacity: pendingRemove[r.id] ? 0.45 : 1, transition: "opacity .2s ease" }}
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <p className={`${T.meta} font-bold truncate`} style={{ color: C.text }}>{r.name}</p>
+                    <p className={`${T.critical} truncate`} style={{ color: C.text }}>{r.name}</p>
                     {r.kind === "intermittent" && (
                       <span className={`${T.meta} font-bold px-1.5 rounded-full flex-none`} style={{ background: C.primarySoft, color: C.primary }}>
                         ngắt quãng
@@ -5241,10 +5369,10 @@ function RunningPanel() {
                     {r.doseText}
                     {r.rateText ? ` · ${r.rateText}` : ""}
                   </p>
-                  {r.concText && <p className={T.meta} style={{ color: C.muted }}>{r.concText}</p>}
+                  {r.concText && <p className={T.meta} style={{ color: C.textSoft }}>{r.concText}</p>}
                   {/* Con số này CŨ tới mức nào — thiếu dòng này thì bảng trông như đang phản ánh
                       thời gian thực, trong khi nó chỉ là ảnh chụp lúc bấm ghim. */}
-                  <p className={`${T.meta} ${NUM}`} style={{ color: C.muted }}>
+                  <p className={`${T.meta} ${NUM}`} style={{ color: C.textSoft }}>
                     Ghim {formatClock(r.at)} · {formatAgo(r.at, now)}
                   </p>
                   {staleReason(r) && (
@@ -5253,25 +5381,42 @@ function RunningPanel() {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 flex-none">
-                  {Array.from({ length: MAX_LINES }, (_, i) => i).map((l) => (
+                <div className="flex items-center flex-none">
+                  {/* Trước đây 4 chip nòng 36×36px (dưới ngưỡng 44px mà chính app đặt ra ở
+                      CHIP/TAP) đứng SÁT nút "×" xoá 44px đỏ — đeo găng, buồng tối, chạm hụt một
+                      nòng là rơi vào nút xoá. Bơm đủ 44px cho chip nòng VÀ tách hẳn khỏi nút xoá
+                      bằng một khoảng trống rõ ràng thay vì chỉ cách nhau 4px như mọi chip khác. */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: MAX_LINES }, (_, i) => i).map((l) => (
+                      <button
+                        key={l}
+                        onClick={() => setRunningLine(r.id, l)}
+                        className="w-11 h-11 rounded-full text-[11px] font-bold border"
+                        style={
+                          r.line === l
+                            ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                            : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+                        }
+                        aria-label={`Chuyển sang ${lineLabel(l)}`}
+                      >
+                        {l === 0 ? "NB" : l}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="w-4 flex-none" aria-hidden="true" />
+                  {pendingRemove[r.id] ? (
                     <button
-                      key={l}
-                      onClick={() => setRunningLine(r.id, l)}
-                      className="w-9 h-9 rounded-full text-[11px] font-bold border"
-                      style={
-                        r.line === l
-                          ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
-                          : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-muted)" }
-                      }
-                      aria-label={`Chuyển sang ${lineLabel(l)}`}
+                      onClick={() => cancelUnpin(r.id)}
+                      className="h-11 px-3 rounded-full flex items-center justify-center flex-none text-[11px] font-bold"
+                      style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
                     >
-                      {l === 0 ? "NB" : l}
+                      Hoàn tác
                     </button>
-                  ))}
-                  <button onClick={() => unpinRunning(r.id)} className="w-11 h-11 rounded-full flex items-center justify-center flex-none" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }} aria-label="Bỏ khỏi bảng">
-                    {icons.x()}
-                  </button>
+                  ) : (
+                    <button onClick={() => requestUnpin(r.id)} className="w-11 h-11 rounded-full flex items-center justify-center flex-none" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }} aria-label="Bỏ khỏi bảng">
+                      {icons.x()}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -5283,7 +5428,7 @@ function RunningPanel() {
       {ysiteFindings.length === 0 && interactionFindings.length === 0 ? (
         <div className="pt-2 border-t" style={{ borderColor: C.lineSoft }}>
           <Disclosure label="Tương hợp · Tương tác">
-            <p className={T.meta} style={{ color: C.muted }}>{COMPAT_DISCLAIMER}</p>
+            <p className={T.meta} style={{ color: C.textSoft }}>{COMPAT_DISCLAIMER}</p>
           </Disclosure>
           <p className={`${T.meta} flex items-center gap-1.5 mt-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.accentSoft, color: C.accent }}>
             <span className="flex-none scale-90">{icons.check()}</span>
@@ -5307,10 +5452,10 @@ function RunningPanel() {
               >
                 <span className="mt-0.5 flex-none" style={{ color: danger ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>{icons.alert()}</span>
                 <div>
-                  <p className="text-[11px] font-bold leading-[1.45]" style={{ color: fg }}>
+                  <p className={T.critical} style={{ color: fg }}>
                     {danger ? "KHÔNG tương hợp" : "Thận trọng"} — {f.a.name} + {f.b.name} ({lineLabel(f.line)})
                   </p>
-                  <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: fg }}>{f.rule.text}</p>
+                  <p className={`${T.meta} mt-0.5`} style={{ color: fg }}>{f.rule.text}</p>
                   <CompatSource verified={f.rule.verified} source={f.rule.source} color={fg} />
                 </div>
               </div>
@@ -5392,9 +5537,9 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col" style={{ background: "rgba(15,23,42,.35)" }}>
+    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng nhật ký" />
-      <div className="rounded-t-3xl flex flex-col" style={{ background: "var(--c-surface)", maxHeight: "78%" }}>
+      <div className="mind-sheet rounded-t-3xl flex flex-col" style={{ background: "var(--c-surface)", maxHeight: "78%" }}>
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <p className="text-[13px] font-bold text-slate-900">Nhật ký tính toán</p>
           <button onClick={onClose} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }} aria-label="Đóng">
@@ -5445,9 +5590,9 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
                   <span className="flex-1 min-w-0">
                     <span className="flex items-baseline justify-between gap-2">
                       <span className={`${T.meta} font-bold truncate`} style={{ color: C.text }}>{e.drug}</span>
-                      <span className={`${T.meta} flex-none`} style={{ color: C.muted }}>{formatLogTime(e.at)}</span>
+                      <span className={`${T.meta} flex-none`} style={{ color: C.textSoft }}>{formatLogTime(e.at)}</span>
                     </span>
-                    <span className={`${T.meta} block`} style={{ color: C.muted }}>
+                    <span className={`${T.meta} block`} style={{ color: C.textSoft }}>
                       {CALC_KIND_LABELS[e.kind]}
                       {e.patient ? ` · ${e.patient}` : ""}
                       {e.weightKg != null ? ` · ${e.weightKg} kg` : ""}
@@ -5510,7 +5655,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
             className="flex-1 py-3 rounded-2xl font-semibold text-[13px] border"
             style={
               target.length === 0
-                ? { borderColor: C.dangerLine, color: C.muted }
+                ? { borderColor: C.dangerLine, color: "var(--c-disabled-fg)" }
                 : confirmDelete
                   ? { borderColor: C.dangerIcon, background: C.dangerSoft, color: C.danger }
                   : { borderColor: C.dangerLine, color: C.danger }
@@ -5667,7 +5812,7 @@ function WardRecipeChips({
 
   return (
     <div className="mb-2">
-      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Công thức pha — bấm để chuyển đổi</label>
+      <label className={`${T.label} text-slate-500 mb-1 block`}>Công thức pha — bấm để chuyển đổi</label>
       {wardList.length > 6 && (
         <input
           value={filter}
@@ -5745,7 +5890,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
   const danger = ysite.some((x) => x.rule.verdict === "incompatible") || interactions.some((x) => x.rule.severity === "cao")
   const style = danger
     ? { bg: "var(--c-danger-soft)", border: "var(--c-danger-line)", text: "var(--c-danger-deep)" }
-    : { bg: "var(--c-orange-soft)", border: "var(--c-orange-line)", text: "var(--c-orange)" }
+    : { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn)" }
 
   return (
     <div className="mt-2 px-3 py-2.5 rounded-xl" style={{ background: style.bg, border: `1px solid ${style.border}` }}>
@@ -6104,7 +6249,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
 
       {!isFixed && (
         <>
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Dung môi</label>
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             {allowedDiluents.map((d) => (
               <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(diluent === d)}>
@@ -6136,7 +6281,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
 
       {/* Đường dùng: mặc định suy theo `drug.route`, nhưng khoa nào pha khác (TTM ở khoa này, TMC ở
           khoa kia) thì đổi ở đây rồi lưu — mỗi công thức đã lưu nhớ đúng đường dùng của khoa đó. */}
-      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Đường dùng</label>
+      <label className={`${T.label} text-slate-500 mb-1 block`}>Đường dùng</label>
       <div className="flex gap-1.5 mb-2">
         {(["TTM", "TMC"] as const).map((r) => (
           <button
@@ -6159,7 +6304,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
           (pumpRateMlPerHour) và lib/usageText.ts. */}
       {routeShort === "TTM" && (
         <>
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thiết bị truyền</label>
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Thiết bị truyền</label>
           <div className="flex gap-1.5 mb-2">
             {(
               [
@@ -6186,7 +6331,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
       {/* Vài khoa hoàn nguyên/gộp nhiều lọ-chai rồi rút bớt dung dịch dư ra (cho phép số lọ lẻ như
           1,5 lọ), vài khoa chỉ dùng NGUYÊN số lọ/chai đã mở — quyết định này ảnh hưởng thẳng tới gợi
           ý số lọ/chai bên dưới, nên đặt ngay trước "Dạng chế phẩm". */}
-      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Cho phép rút dung dịch sau pha?</label>
+      <label className={`${T.label} text-slate-500 mb-1 block`}>Cho phép rút dung dịch sau pha?</label>
       <div className="flex gap-1.5 mb-2">
         {(
           [
@@ -6218,7 +6363,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
         ))}
       </div>
 
-      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Dạng chế phẩm</label>
+      <label className={`${T.label} text-slate-500 mb-1 block`}>Dạng chế phẩm</label>
       <div className="flex gap-1.5 mb-2">
         {(
           [
@@ -6243,7 +6388,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
               MỌI đường dùng/thiết bị truyền, không riêng bơm tiêm điện. */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Hàm lượng 1 chai</label>
+              <label className={`${T.label} text-slate-500 mb-1 block`}>Hàm lượng 1 chai</label>
               <input
                 value={vialAmount}
                 onChange={(e) => {
@@ -6259,7 +6404,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
               />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích 1 chai (mL)</label>
+              <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích 1 chai (mL)</label>
               <input
                 value={vialVolume}
                 onChange={(e) => {
@@ -6276,7 +6421,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             </div>
           </div>
           <div className="mb-2">
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Số chai</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Số chai</label>
             <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
           </div>
           {/* Gợi ý số chai (+ thể tích rút gộp nếu khoa cho rút) — bấm để áp dụng lại nếu vừa sửa tay
@@ -6339,7 +6484,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
               nhãn dài có đủ chỗ, không phải đứng cạnh nhãn ngắn. */}
           <div className={`grid ${vialForm === "solution" ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-2`}>
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Hàm lượng 1 {vialLabel}</label>
+              <label className={`${T.label} text-slate-500 mb-1 block`}>Hàm lượng 1 {vialLabel}</label>
               <input
                 value={vialAmount}
                 onChange={(e) => {
@@ -6356,12 +6501,12 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             </div>
             {vialForm === "solution" && (
               <div>
-                <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích 1 {vialLabel} (mL)</label>
+                <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích 1 {vialLabel} (mL)</label>
                 <input value={vialVolume} onChange={(e) => setVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="2" className={FIELD} style={FIELD_STYLE} />
               </div>
             )}
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Số {vialLabel}</label>
+              <label className={`${T.label} text-slate-500 mb-1 block`}>Số {vialLabel}</label>
               <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
             </div>
           </div>
@@ -6407,18 +6552,18 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
           {vialForm === "powder" && (
             <div className="space-y-2 mb-2">
               <div>
-                <label className="text-[11px] font-medium text-slate-500 mb-1 block">Pha ban đầu với (mL/{vialLabel})</label>
+                <label className={`${T.label} text-slate-500 mb-1 block`}>Pha ban đầu với (mL/{vialLabel})</label>
                 <input value={reconstitute} onChange={(e) => setReconstitute(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="10" className={FIELD} style={FIELD_STYLE} />
               </div>
               <div>
-                <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích bột tăng sau pha (mL/{vialLabel})</label>
+                <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích bột tăng sau pha (mL/{vialLabel})</label>
                 <input value={displacement} onChange={(e) => setDisplacement(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="0,5" className={FIELD} style={FIELD_STYLE} />
               </div>
             </div>
           )}
 
           <div className="mb-2">
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Pha loãng tới (mL)</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Pha loãng tới (mL)</label>
             <input value={volume} onChange={(e) => setVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="100" className={FIELD} style={FIELD_STYLE} />
           </div>
 
@@ -6439,7 +6584,7 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
       {routeShort === "TTM" && infuseVolumeMl != null && infuseVolumeMl > 0 && (
         <div className="grid grid-cols-2 gap-2 mb-2">
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Truyền trong (phút)</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Truyền trong (phút)</label>
             <input value={infuseMinutes} onChange={(e) => setInfuseMinutes(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="60" className={FIELD} style={FIELD_STYLE} />
           </div>
           {usePump ? (
@@ -6447,14 +6592,14 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             // biến mất hoàn toàn lúc rateMlPerHour còn null, để lại một hàng lệch (chỉ "Truyền trong
             // (phút)" một mình, nửa lưới bên phải trống trơn) thay vì đứng cân đối như phía dây thường.
             <div className="flex flex-col justify-end">
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Tốc độ bơm</label>
+              <label className={`${T.label} text-slate-500 mb-1 block`}>Tốc độ bơm</label>
               <p className={`${FIELD} flex items-center font-bold`} style={{ ...FIELD_STYLE, color: rateMlPerHour != null ? "var(--c-accent-deep)" : "var(--c-muted)" }}>
                 {rateMlPerHour != null ? `BTĐ ${trim(rateMlPerHour)} ml/h` : "Nhập số phút để tính"}
               </p>
             </div>
           ) : (
             <div>
-              <label className="text-[11px] font-medium text-slate-500 mb-1 block">Bộ dây (giọt/mL)</label>
+              <label className={`${T.label} text-slate-500 mb-1 block`}>Bộ dây (giọt/mL)</label>
               <div className="flex h-11 rounded-2xl overflow-hidden border" style={{ borderColor: "var(--c-line)" }}>
                 {[DEFAULT_DROP_FACTOR, MICRO_DROP_FACTOR].map((f) => (
                   <button
@@ -6509,28 +6654,31 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
             </p>
             {mix?.infuseNote && <p className="text-[11px] leading-[1.45] mt-2" style={{ color: "var(--c-text-soft)" }}>Truyền: {mix.infuseNote}</p>}
 
+            {/* Chỉ còn HAI mức màu, không phải ba: nguy hiểm (đỏ) / thận trọng (hổ phách). Trước đây
+                "warn" tô cam riêng tách khỏi "note" tô hổ phách — trong buồng tối cam #c2410c và
+                hổ phách #92400e gần như không phân biệt được, mà lại đang mang hai mức nghiêm
+                trọng khác nhau mà chỉ dựa vào màu để phân biệt. Chữ (headline/detail) vẫn nói rõ
+                mức độ; màu chỉ còn giữ hai bậc thật sự phân biệt được. */}
             {grade.severity !== "ok" && (
               <div
                 className="mt-2 px-2.5 py-2 rounded-xl flex items-start gap-2"
                 style={
                   grade.severity === "danger"
                     ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
-                    : grade.severity === "warn"
-                      ? { background: "var(--c-orange-soft)", border: "1px solid var(--c-orange-line)" }
-                      : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }
+                    : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }
                 }
               >
-                <span className="mt-0.5 flex-none" style={{ color: grade.severity === "danger" ? "var(--c-danger-icon)" : grade.severity === "warn" ? "var(--c-orange)" : "var(--c-warn)" }}>
+                <span className="mt-0.5 flex-none" style={{ color: grade.severity === "danger" ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>
                   {icons.alert()}
                 </span>
                 <div>
                   {grade.headline && (
-                    <p className="text-[11px] font-extrabold leading-[1.3]" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : grade.severity === "warn" ? "var(--c-orange)" : "var(--c-warn)" }}>
+                    <p className="text-[11px] font-extrabold leading-[1.3]" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : "var(--c-warn)" }}>
                       {grade.headline}
                     </p>
                   )}
                   {grade.detail && (
-                    <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : grade.severity === "warn" ? "var(--c-orange)" : "var(--c-warn)" }}>
+                    <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : "var(--c-warn)" }}>
                       {grade.detail}
                     </p>
                   )}
@@ -6866,9 +7014,13 @@ function AntibioticDoseCard({
           ))}
         </div>
       </div>
-      <p className="text-[11px] font-semibold mb-1.5" style={{ color: "var(--c-accent)" }}>{drug.route}</p>
+      {/* drug.route và chip "Chỉ định" là CHÚ THÍCH TĨNH, không bấm được — trước đây tô cùng màu
+          teal với nút hành động/chip đang chọn khiến người dùng học nhầm "teal = bấm được" rồi
+          gặp ngay một chỗ teal không phản hồi gì khi chạm. Đổi sang --c-text-soft (chữ) / nền
+          trung tính (chip), giữ teal cho đúng vai trò hành động + trạng thái chọn. */}
+      <p className={`${T.meta} font-semibold mb-1.5`} style={{ color: "var(--c-text-soft)" }}>{drug.route}</p>
       {disease && (
-        <p className="text-[11px] font-semibold mb-1.5 px-2 py-0.5 rounded-full inline-block" style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}>
+        <p className={`${T.meta} font-semibold mb-1.5 px-2 py-0.5 rounded-full inline-block`} style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}>
           Chỉ định: {disease.name}
         </p>
       )}
@@ -6984,7 +7136,7 @@ function AntibioticDoseCard({
               {/* Trần liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
                   không để dưới đáy thẻ: chỗ người dùng đang nhìn là dòng mg/kg này. */}
               {doseCapText && (
-                <p className="text-[11px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-orange-soft)", color: "var(--c-orange)" }}>
+                <p className="text-[11px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
                   {doseCapText}
                 </p>
               )}
@@ -7016,7 +7168,7 @@ function AntibioticDoseCard({
       {/* Chỉ hiện "Liều chuẩn" khi nó KHÁC dòng liều ở trên — trước đây meropenem in ra "1 g mỗi 8h"
           rồi ngay dưới lại "Liều chuẩn: 1 g mỗi 8h (IV)", đọc như hai thông tin khác nhau. */}
       {standardDose && effectiveCrcl == null && !standardDose.startsWith(tier.dose) && (
-        <p className={`${T.meta} mt-1`} style={{ color: C.muted }}>Liều chuẩn: {standardDose}</p>
+        <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>Liều chuẩn: {standardDose}</p>
       )}
 
       {/* Cảnh báo mức cao luôn hiện; phần còn lại gấp lại giống thẻ thuốc truyền */}
@@ -7116,8 +7268,8 @@ function AntibioticDoseCard({
           ) : (
             drug.preparation && <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
           )}
-          {indication?.note && <p className={`${T.meta} mt-2`} style={{ color: C.muted }}>{indication.note}</p>}
-          {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.muted }}>{drug.note}</p>}
+          {indication?.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{indication.note}</p>}
+          {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
           {injectable && (
             <>
@@ -7306,8 +7458,10 @@ function AntibioticsScreen({
         placeholder="Tìm kháng sinh..."
       />
       <div className="flex flex-wrap gap-2 mb-3">
+        {/* index chỉ truyền khi CHƯA lọc (mới vào tab) — nếu không, mỗi lần gõ vào ô tìm là một lần
+            các chip khớp mới chạy lại stagger, làm cả hàng nhấp nháy trong lúc gõ. */}
         {filteredGroups.map((g, i) => (
-          <Chip key={g.name} index={i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
+          <Chip key={g.name} index={query.trim() ? undefined : i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
             {g.name}
             {g.entries.length > 1 && <span className="opacity-60"> · {g.entries.length}</span>}
           </Chip>
@@ -7357,7 +7511,7 @@ function AntibioticsScreen({
           />
         </div>
       ) : (
-        <p className={`${T.body} text-center px-4 py-6 ${R.card}`} style={{ background: C.surfaceAlt, color: C.muted }}>
+        <p className={`${T.body} text-center px-4 py-6 ${R.card}`} style={{ background: C.surfaceAlt, color: C.textSoft }}>
           {filteredGroups.length === 0
             ? "Không tìm thấy kháng sinh phù hợp."
             : !selectedGroup
@@ -7572,7 +7726,7 @@ function MixRunTime({ drug, calc, concValue, volumeMl }: { drug: InfusionDrug; c
   if (lo == null || hi == null) {
     if (unit.perWeight && weightKg == null) {
       return (
-        <p className={`${T.meta} mt-1`} style={{ color: C.muted }}>
+        <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>
           Nhập cân nặng ở khung Bệnh nhân để biết bơm này chạy được bao lâu.
         </p>
       )
@@ -7630,8 +7784,8 @@ function MixResultCard({
       <div className="px-3 py-2.5 rounded-xl mb-1 flex items-start gap-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
         <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
         <div>
-          <p className="text-[13px] font-extrabold leading-[1.3]" style={{ color: "var(--c-danger-deep)" }}>KHÔNG PHA ĐƯỢC</p>
-          <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
+          <p className={T.critical} style={{ color: "var(--c-danger-deep)" }}>Không pha được</p>
+          <p className={`${T.meta} mt-0.5`} style={{ color: "var(--c-danger-deep)" }}>
             {trim(outcome.vials)} {vialLabel} × {trim(per as number)} mL = {formatDoseNumber(drugVolume as number)} mL thuốc, đã nhiều hơn thể tích cuối {trim(outcome.volumeMl)} mL. Kiểm tra lại số {vialLabel}, thể tích 1 {vialLabel} hoặc thể tích cuối.
           </p>
         </div>
@@ -7642,9 +7796,7 @@ function MixResultCard({
   const gradeStyle =
     grade.severity === "danger"
       ? { bg: "var(--c-danger-soft)", border: "var(--c-danger-icon)", fg: "var(--c-danger-deep)" }
-      : grade.severity === "warn"
-        ? { bg: "var(--c-orange-soft)", border: "var(--c-orange-line)", fg: "var(--c-orange)" }
-        : { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", fg: "var(--c-warn)" }
+      : { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", fg: "var(--c-warn)" }
 
   return (
     <div className="px-3 py-2.5 rounded-xl mb-1" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
@@ -7847,7 +7999,7 @@ function MixPanel({
   return (
     <div className="mt-2.5 p-3 rounded-xl fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
       {/* Dung môi — thông tin sống còn với thuốc kén dung môi */}
-      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Dung môi</label>
+      <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
       <div className="flex flex-wrap gap-1.5 mb-1.5">
         {allowedDiluents.map((d) => (
           <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(diluent === d)}>
@@ -7879,7 +8031,7 @@ function MixPanel({
 
       {/* Ống dung dịch hay lọ bột — hai thao tác khác hẳn nhau, và chọn sai thì con số mL dung môi
           in ra bên dưới sai theo. */}
-      <label className="text-[11px] font-medium text-slate-500 mb-1 block">Dạng chế phẩm</label>
+      <label className={`${T.label} text-slate-500 mb-1 block`}>Dạng chế phẩm</label>
       <div className="flex gap-1.5 mb-2">
         {([
           { v: "solution" as VialForm, label: `Ống dung dịch` },
@@ -7892,7 +8044,7 @@ function MixPanel({
       </div>
 
       <div className="mb-2">
-        <label className="text-[11px] font-medium text-slate-500 mb-1 block">Tên công thức khi lưu (tuỳ chọn, vd: Khoa Hồi sức)</label>
+        <label className={`${T.label} text-slate-500 mb-1 block`}>Tên công thức khi lưu (tuỳ chọn, vd: Khoa Hồi sức)</label>
         <input value={saveTitle} onChange={(e) => setSaveTitle(e.target.value)} placeholder="Đặt tên để bấm nhanh đổi lại sau này" maxLength={40} className={fieldClass} style={fieldStyle} />
       </div>
 
@@ -7901,17 +8053,17 @@ function MixPanel({
           đẩy ô nhập tụt xuống so với hai ô bên cạnh (không còn ngang hàng). */}
       <div className={`grid ${vialForm === "solution" ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-2`}>
         <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Hàm lượng 1 {vialLabel}</label>
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Hàm lượng 1 {vialLabel}</label>
           <input value={vialAmount} onChange={(e) => setVialAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="250" className={fieldClass} style={fieldStyle} />
         </div>
         {vialForm === "solution" && (
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích 1 {vialLabel} (mL)</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích 1 {vialLabel} (mL)</label>
             <input value={vialVolume} onChange={(e) => setVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="5" className={fieldClass} style={fieldStyle} />
           </div>
         )}
         <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Số {vialLabel}</label>
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Số {vialLabel}</label>
           <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={fieldClass} style={fieldStyle} />
         </div>
       </div>
@@ -7922,20 +8074,20 @@ function MixPanel({
       {vialForm === "powder" && (
         <div className="space-y-2 mb-2">
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Pha ban đầu với (mL/{vialLabel})</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Pha ban đầu với (mL/{vialLabel})</label>
             <input value={reconstitute} onChange={(e) => setReconstitute(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="10" className={fieldClass} style={fieldStyle} />
           </div>
           <div>
             {/* Bột tan ra làm thể tích tăng thật: vancomycin 1 g tăng thêm ~0,7 mL. Bỏ qua là sai hệ
                 thống theo một chiều — nồng độ thực luôn loãng hơn con số in ra. */}
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích bột tăng sau pha (mL/{vialLabel})</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích bột tăng sau pha (mL/{vialLabel})</label>
             <input value={displacement} onChange={(e) => setDisplacement(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="0,7" className={fieldClass} style={fieldStyle} />
           </div>
         </div>
       )}
 
       <div className="mb-2">
-        <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích cuối sau pha (mL)</label>
+        <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích cuối sau pha (mL)</label>
         <input value={volume} onChange={(e) => setVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="50" className={fieldClass} style={fieldStyle} />
       </div>
 
@@ -7966,7 +8118,7 @@ function MixPanel({
 
       <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5 mt-3 text-slate-500">Tôi cần nồng độ này → lấy mấy {vialLabel}</p>
       <div className="mb-2">
-        <label className="text-[11px] font-medium text-slate-500 mb-1 block">Nồng độ mong muốn ({calc.concUnit})</label>
+        <label className={`${T.label} text-slate-500 mb-1 block`}>Nồng độ mong muốn ({calc.concUnit})</label>
         <input value={target} onChange={(e) => setTarget(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder={calc.concDefault != null ? String(calc.concDefault * 2) : ""} className={fieldClass} style={fieldStyle} />
       </div>
       {needsRounding && (
@@ -8083,6 +8235,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const [confirmClearWard, setConfirmClearWard] = useState(false)
   // Chỉ hiện con số tốc độ sau khi người dùng xác nhận, với các liều vượt xa khoảng khuyến cáo.
   const [confirmed, setConfirmed] = useState(false)
+  // usageLine là câu chuẩn để chép vào bệnh án — gần như chắc chắn là tính năng dùng nhiều nhất
+  // trong ngày, nhưng trước đây muốn lấy nó phải mở Nhật ký rồi sao chép cả mục. Nút chép nhỏ ngay
+  // cạnh câu, không cần rời khỏi thẻ thuốc.
+  const [usageCopied, setUsageCopied] = useState(false)
   const [savedNote, setSavedNote] = useState("")
   // Đếm số lần lưu, để dải xác nhận chạy lại hoạt ảnh kể cả khi chữ không đổi.
   const [savedTick, setSavedTick] = useState(0)
@@ -8262,12 +8418,16 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         ]).map((m) => (
           <button
             key={m.id}
-            onClick={() => setMode(m.id)}
-            className="flex-1 h-9 rounded-[10px] text-[12px] font-bold"
+            onClick={() => {
+              setMode(m.id)
+              tickHaptic()
+            }}
+            className="dose-press flex-1 h-9 rounded-[10px] text-[12px] font-bold"
+            aria-pressed={mode === m.id}
             style={
               mode === m.id
-                ? { background: "var(--c-surface)", color: "var(--c-primary)", boxShadow: "0 1px 3px rgba(15,23,42,.10)" }
-                : { background: "transparent", color: "var(--c-muted)" }
+                ? { background: "var(--c-surface)", color: "var(--c-primary)", boxShadow: "0 1px 3px var(--c-shadow)" }
+                : { background: "transparent", color: "var(--c-text-soft)" }
             }
           >
             {m.label}
@@ -8309,17 +8469,17 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
 
       <div className="grid grid-cols-2 gap-2 mb-1.5">
         <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Nồng độ ({calc.concUnit})</label>
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Nồng độ ({calc.concUnit})</label>
           <input value={conc} onChange={(e) => setConc(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder={calc.concUnit} className={fieldClass} style={fieldStyle} />
         </div>
         {mode === "doseToRate" ? (
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Liều</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Liều</label>
             <input value={dose} onChange={(e) => setDose(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder={unitId} className={fieldClass} style={fieldStyle} />
           </div>
         ) : (
           <div>
-            <label className="text-[11px] font-medium text-slate-500 mb-1 block">Tốc độ (mL/giờ)</label>
+            <label className={`${T.label} text-slate-500 mb-1 block`}>Tốc độ (mL/giờ)</label>
             <input value={rateInput} onChange={(e) => setRateInput(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="mL/giờ" className={fieldClass} style={fieldStyle} />
           </div>
         )}
@@ -8334,16 +8494,16 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           style={
             concGrade.severity === "danger"
               ? { background: C.dangerSoft, border: `1px solid ${C.dangerIcon}` }
-              : { background: "var(--c-orange-soft)", border: "1px solid var(--c-orange-line)" }
+              : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }
           }
         >
-          <span className="mt-0.5 flex-none" style={{ color: concGrade.severity === "danger" ? C.dangerIcon : "var(--c-orange)" }}>{icons.alert()}</span>
+          <span className="mt-0.5 flex-none" style={{ color: concGrade.severity === "danger" ? C.dangerIcon : "var(--c-warn-icon)" }}>{icons.alert()}</span>
           <div>
-            <p className={`${T.bodyStrong} font-extrabold leading-[1.3]`} style={{ color: concGrade.severity === "danger" ? C.danger : "var(--c-orange)" }}>
+            <p className={`${T.bodyStrong} font-extrabold leading-[1.3]`} style={{ color: concGrade.severity === "danger" ? C.danger : "var(--c-warn)" }}>
               {concGrade.headline}
             </p>
             {concGrade.detail && (
-              <p className={`${T.meta} mt-0.5`} style={{ color: concGrade.severity === "danger" ? C.danger : "var(--c-orange)" }}>{concGrade.detail}</p>
+              <p className={`${T.meta} mt-0.5`} style={{ color: concGrade.severity === "danger" ? C.danger : "var(--c-warn)" }}>{concGrade.detail}</p>
             )}
           </div>
         </div>
@@ -8365,13 +8525,13 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           sai chỗ. Nay chỉ hiện khi nồng độ ĐANG DÙNG thực sự vượt ngưỡng, nên nó không phải một
           dòng chữ thường trực để người ta học cách lướt qua. */}
       {peripheralWarn && (
-        <div className={`flex items-start gap-2 px-3 py-2.5 ${R.box} mb-2`} style={{ background: "var(--c-orange-soft)", border: "1px solid var(--c-orange-line)" }}>
-          <span className="mt-0.5 flex-none" style={{ color: "var(--c-orange)" }}>{icons.alert()}</span>
+        <div className={`flex items-start gap-2 px-3 py-2.5 ${R.box} mb-2`} style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <span className="mt-0.5 flex-none" style={{ color: "var(--c-warn-icon)" }}>{icons.alert()}</span>
           <div>
-            <p className={`${T.bodyStrong} font-extrabold leading-[1.3]`} style={{ color: "var(--c-orange)" }}>
-              ĐẶC HƠN NGƯỠNG CHO ĐƯỜNG NGOẠI BIÊN
+            <p className={`${T.bodyStrong} font-extrabold leading-[1.3]`} style={{ color: "var(--c-warn)" }}>
+              Đặc hơn ngưỡng cho đường ngoại biên
             </p>
-            <p className={`${T.meta} mt-0.5`} style={{ color: "var(--c-orange)" }}>
+            <p className={`${T.meta} mt-0.5`} style={{ color: "var(--c-warn)" }}>
               Đang pha {formatDoseNumber(peripheralWarn.conc)} {calc.concUnit}, gấp {formatDoseNumber(peripheralWarn.factor)} lần ngưỡng{" "}
               {formatDoseNumber(peripheralWarn.max)} {calc.concUnit} — nồng độ này thuộc nhóm ưu tiên tĩnh mạch trung tâm.
               {peripheralWarn.note ? ` ${peripheralWarn.note}` : ""}
@@ -8399,7 +8559,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
               style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}
             >
-              Về công thức của bạn
+              Dùng lại công thức của bạn
             </button>
           )}
           {calc.concDefault != null && (
@@ -8413,7 +8573,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
               style={{ borderColor: "var(--c-line)", color: "var(--c-text-soft)" }}
             >
-              Về công thức chuẩn của app
+              Dùng lại công thức chuẩn
             </button>
           )}
         </div>
@@ -8490,7 +8650,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         ) : (
           <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
         )}
-        {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.muted }}>{drug.note}</p>}
+        {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
         <button
           onClick={() => setShowMix((v) => !v)}
@@ -8516,7 +8676,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
 
       <div className="grid grid-cols-2 gap-2 mb-2 mt-2">
         <div>
-          <label className="text-[11px] font-medium text-slate-500 mb-1 block">Thể tích bơm/chai (mL)</label>
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích bơm/chai (mL)</label>
           <input value={bagVolume} onChange={(e) => setBagVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 50" className={fieldClass} style={fieldStyle} />
         </div>
         {bagAmount != null && (
@@ -8562,8 +8722,35 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
       ) : (
         // Con số duy nhất cần nhìn thấy từ xa. Đặt to hẳn một bậc so với mọi chữ khác trong thẻ,
         // dùng chữ số đều bề ngang (tabular) để hàng "đặt bơm" và hàng "thực nhận" thẳng cột nhau.
-        <div className={`px-3 py-3 ${R.box}`} style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}>
-          {usageLine && <p className={`${T.bodyStrong} mb-1.5`} style={{ color: severityStyle.text }}>{usageLine}</p>}
+        <div
+          className={`px-3 py-3 ${R.box}`}
+          style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
+          aria-live="polite"
+          role={severity === "extreme" ? "alert" : undefined}
+        >
+          {usageLine && (
+            <div className="flex items-start gap-1.5 mb-1.5">
+              <p className={`${T.bodyStrong} flex-1`} style={{ color: severityStyle.text }}>{usageLine}</p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(usageLine)
+                    setUsageCopied(true)
+                    setTimeout(() => setUsageCopied(false), 1500)
+                    tickHaptic()
+                  } catch {
+                    // Trình duyệt chặn clipboard: không làm gì, nút vẫn giữ nguyên nhãn.
+                  }
+                }}
+                aria-label={usageCopied ? "Đã chép" : "Chép câu Cách dùng"}
+                className="flex-none w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ color: severityStyle.text, opacity: 0.75 }}
+              >
+                {usageCopied ? icons.check() : icons.copy()}
+              </button>
+            </div>
+          )}
           <div className="flex items-baseline gap-2">
             {/* `key` đổi theo giá trị nên React dựng lại thẻ này mỗi lần con số đổi, kích hoạt lại
                 hoạt ảnh nảy — dấu hiệu "số đang nhìn là số MỚI", tránh đọc lại số cũ. */}
@@ -8580,7 +8767,9 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             )}
           </div>
           {mode === "doseToRate" && roundedRate != null && (
-            <p className={`${T.meta} ${NUM} mt-1.5`} style={{ color: severityStyle.text }}>
+            // Con số 24px bên trên là kết quả TÍNH; đây mới là con số thật sự đem đi đặt máy —
+            // nên đứng ở bậc T.critical (15px), không phải T.meta như một dòng chú thích phụ.
+            <p className={`${T.critical} ${NUM} mt-1.5`} style={{ color: severityStyle.text }}>
               Đặt bơm <b>{roundedRate.toFixed(rateDecimals)} mL/giờ</b> (bước {pumpStep})
               {deliveredDose != null && ` → thực nhận ${formatDoseNumber(deliveredDose)} ${unitId}`}
             </p>
@@ -8591,7 +8780,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             </p>
           )}
           {check?.severity === "unknown" && check.detail && (
-            <p className={`${T.meta} mt-0.5`} style={{ color: C.muted }}>{check.detail}</p>
+            <p className={`${T.meta} mt-0.5`} style={{ color: C.textSoft }}>{check.detail}</p>
           )}
           {/* Dấu "—" không bao giờ được đứng một mình: luôn kèm lý do và cách sửa. */}
           {missingReason &&
@@ -8600,7 +8789,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 {missingReason.text}
               </button>
             ) : (
-              <p className={`${T.meta} mt-1`} style={{ color: C.muted }}>{missingReason.text}</p>
+              <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>{missingReason.text}</p>
             ))}
         </div>
       )}
@@ -8717,9 +8906,9 @@ function InfusionDrugCard({
               </span>
             )}
           </div>
-          <p className={`${T.meta} mt-0.5`} style={{ color: C.accent }}>{drug.route}</p>
+          <p className={`${T.meta} mt-0.5`} style={{ color: C.textSoft }}>{drug.route}</p>
           {disease && (
-            <p className={`${T.meta} font-semibold mt-1 px-2 py-0.5 ${R.pill} inline-block`} style={{ background: C.primarySoft, color: C.primary }}>
+            <p className={`${T.meta} font-semibold mt-1 px-2 py-0.5 ${R.pill} inline-block`} style={{ background: "var(--c-line-soft)", color: C.textSoft }}>
               Chỉ định: {disease.name}
             </p>
           )}
@@ -8796,7 +8985,7 @@ function InfusionDrugCard({
       {!drug.calc && (
         <Disclosure label="Cách dùng · Pha thuốc">
           <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
-          {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.muted }}>{drug.note}</p>}
+          {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
         </Disclosure>
       )}
 
@@ -8930,8 +9119,9 @@ function InfusionCategoryScreen({
         placeholder={`Tìm ${categoryLabel.toLowerCase()}...`}
       />
       <div className="flex flex-wrap gap-2 mb-3">
+        {/* index chỉ truyền khi CHƯA lọc — xem ghi chú tương tự ở AntibioticsScreen. */}
         {filtered.map((d, i) => (
-          <Chip key={d.id} index={i} tone="accent" active={effectiveId === d.id} onClick={() => selectDrug(effectiveId === d.id ? null : d.id)}>
+          <Chip key={d.id} index={query.trim() ? undefined : i} tone="accent" active={effectiveId === d.id} onClick={() => selectDrug(effectiveId === d.id ? null : d.id)}>
             {shortDrugName(d.name)}
           </Chip>
         ))}
@@ -8961,7 +9151,7 @@ function InfusionCategoryScreen({
             <InfusionDrugCard drug={selected} disease={selectedDisease} isOverride={Boolean(selected.isCustom) && staticIds.has(selected.id)} onEdit={onEdit} onDelete={onDelete} />
           </div>
         ) : (
-          <p className={`${T.body} text-center px-4 py-6 ${R.card}`} style={{ background: C.surfaceAlt, color: C.muted }}>
+          <p className={`${T.body} text-center px-4 py-6 ${R.card}`} style={{ background: C.surfaceAlt, color: C.textSoft }}>
             {filtered.length === 0
               ? "Không tìm thấy thuốc phù hợp."
               : !selected
@@ -9065,13 +9255,33 @@ function DungThuocScreen({
 }) {
   // Tab đang mở phải sống sót qua việc rời màn hình rồi quay lại — xem lib/uiState.ts.
   const [tab, setTab] = useStickyState<MixingTab>("dungthuoc.tab", "antibiotics")
-  const { patient, setField, reset } = usePatientVitals()
+  const { patient, setField, reset, restore } = usePatientVitals()
   const [patientOpen, setPatientOpen] = useState(() => !patientHasData(patient))
   const [running, setRunning] = useState<RunningDrug[]>(loadRunning)
   const [log, setLog] = useState<CalcLogEntry[]>(loadCalcLog)
+  // Số cạnh nút "Nhật ký" trước đây là TỔNG số mục lưu từ trước tới nay (tối đa 200) — chỉ tăng
+  // dần qua nhiều ca trực, không nói gì về ca trực NÀY. Đổi sang số mục trong 12 giờ gần nhất.
+  const recentLogCount = useMemo(() => {
+    const cutoff = Date.now() - 12 * 60 * 60 * 1000
+    return log.filter((e) => e.at >= cutoff).length
+  }, [log])
   const [showLog, setShowLog] = useState(false)
   const [wardRecipes, setWardRecipes] = useState<Record<string, WardRecipe[]>>(loadWardRecipes)
+  // Bản sao 10 giây cho "Hoàn tác" sau "Bệnh nhân mới" — xoá bệnh nhân xoá LUÔN cả bảng đang dùng,
+  // là hành động phá huỷ nhất màn hình này nên phải có đường lùi lại.
+  const [resetUndo, setResetUndo] = useState<{ patient: PatientVitals; running: RunningDrug[] } | null>(null)
+  const resetUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current) }, [])
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const tabRowRef = useRef<HTMLDivElement | null>(null)
+  const activeTabRef = useRef<HTMLButtonElement | null>(null)
+  // Tab đang nhớ qua useStickyState có thể đứng thứ 7-8 trong 10 tab — mở app lên mà hàng tab vẫn
+  // đứng ở đầu thì không thấy tab nào đang chọn. Cuộn NGAY (không mượt) đúng một lần khi vào màn,
+  // không cuộn lại mỗi lần đổi tab bằng tay (người dùng tự thấy tab họ vừa bấm).
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ─── Tìm kiếm xuyên tab ────────────────────────────────────────────────────
   // Mỗi tab vốn có ô tìm riêng, chỉ tìm trong đúng tab đang mở: gõ "adrenaline" ở tab Kháng sinh
@@ -9154,12 +9364,26 @@ function DungThuocScreen({
       patient,
       setPatientField: setField,
       // "Bệnh nhân mới" phải xoá SẠCH: thông số cũ nằm nguyên đó là kiểu sai nguy hiểm nhất vì nhìn
-      // vẫn "có số". Bảng Đang truyền cũng thuộc về bệnh nhân cũ nên xoá cùng lúc.
+      // vẫn "có số". Bảng Đang truyền cũng thuộc về bệnh nhân cũ nên xoá cùng lúc. Giữ lại một bản
+      // sao 10 giây để "Hoàn tác" — đây là hành động phá huỷ nhất màn hình, không phải chỗ để im
+      // lặng mất dữ liệu nếu bấm nhầm.
       resetPatient: () => {
+        setResetUndo({ patient, running })
+        if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current)
+        resetUndoTimer.current = setTimeout(() => setResetUndo(null), 10_000)
         reset()
         setRunning([])
         saveRunning([])
         setPatientOpen(true)
+      },
+      resetUndo,
+      undoResetPatient: () => {
+        if (!resetUndo) return
+        if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current)
+        restore(resetUndo.patient)
+        setRunning(resetUndo.running)
+        saveRunning(resetUndo.running)
+        setResetUndo(null)
       },
       abwKg,
       heightCm,
@@ -9209,12 +9433,12 @@ function DungThuocScreen({
       clearWard: (drugId, recipeId) => setWardRecipes(removeWardRecipe(drugId, recipeId)),
       pinWard: (drugId, recipeId) => setWardRecipes(setPinnedWardRecipe(drugId, recipeId)),
     }),
-    [patient, setField, reset, abwKg, heightCm, ageYears, crcl, crclUsable, running, wardRecipes],
+    [patient, setField, reset, restore, abwKg, heightCm, ageYears, crcl, crclUsable, running, wardRecipes, resetUndo],
   )
 
   return (
     <DosingContext.Provider value={dosingCtx}>
-    <div className="h-full flex flex-col relative">
+    <div className="scr-dose h-full flex flex-col relative">
       <ScreenHeader
         title={MIXING_TITLES[tab]}
         actions={
@@ -9235,7 +9459,7 @@ function DungThuocScreen({
               className={`flex-none h-9 px-3 ${R.pill} ${T.label} border`}
               style={{ borderColor: C.line, color: C.textSoft }}
             >
-              Nhật ký{log.length > 0 ? ` · ${log.length}` : ""}
+              Nhật ký{recentLogCount > 0 ? ` · ${recentLogCount}` : ""}
             </button>
           </>
         }
@@ -9244,7 +9468,7 @@ function DungThuocScreen({
       {/* Ô tìm chung — chỉ hiện khi bấm kính lúp, tìm qua kháng sinh và cả 9 nhóm thuốc truyền. */}
       {searchOpen && (
         <div className="flex-none px-5 pb-3">
-          <SearchField value={globalQuery} onChange={setGlobalQuery} placeholder="Tìm thuốc trong mọi nhóm..." />
+          <SearchField value={globalQuery} onChange={setGlobalQuery} placeholder="Tìm thuốc trong mọi nhóm..." autoFocus />
           {globalQuery.trim() !== "" && (
             <div className={`${R.box} border overflow-hidden`} style={{ borderColor: C.line, background: C.surface }}>
               {searchResults.length === 0 ? (
@@ -9280,20 +9504,32 @@ function DungThuocScreen({
         </div>
       )}
 
-      {/* Hàng tab — cùng chiều cao với mọi chip khác trong màn (44px vùng chạm) */}
-      <div className="flex-none pb-3">
-        <div className="scroll-ios flex gap-2 px-5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+      {/* Hàng tab — cùng chiều cao với mọi chip khác trong màn (44px vùng chạm). 10 tab cuộn ngang;
+          tab đang nhớ (useStickyState) có thể là tab thứ 7-8, mở app lên thấy hàng tab đứng ở đầu
+          và KHÔNG thấy tab nào đang chọn — trông như chưa chọn gì. Cuộn tab đang chọn vào khung
+          nhìn ngay khi mount, và hai dải mờ hai mép báo hàng còn cuộn được. */}
+      <div className="flex-none pb-3 relative">
+        <div
+          ref={tabRowRef}
+          className="scroll-ios flex gap-2 px-5 overflow-x-auto"
+          style={{ scrollbarWidth: "none" }}
+        >
           {MIXING_TABS.map((t) => (
             <button
               key={t.id}
+              ref={tab === t.id ? activeTabRef : null}
               onClick={() => setTab(t.id)}
               className={`${CHIP} border-transparent`}
-              style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: "var(--c-text-muted)" }}
+              // --c-text-muted trên --c-line-soft chỉ ~4,1:1 ở 12px đậm — dưới ngưỡng AA 4,5:1.
+              // Đổi sang --c-text-soft cho tab CHƯA chọn (đọc nhiều, phải rõ).
+              style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
             >
               {t.label}
             </button>
           ))}
         </div>
+        <div className="absolute left-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to right, var(--c-page), transparent)" }} />
+        <div className="absolute right-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to left, var(--c-page), transparent)" }} />
       </div>
       {/* Một vùng cuộn duy nhất cho cả khung bệnh nhân, bảng Đang truyền và danh sách thuốc —
           để khung bệnh nhân cuộn đi được thay vì chiếm chỗ cố định trên màn hình điện thoại. */}
@@ -9330,6 +9566,23 @@ function DungThuocScreen({
           onRemove={(ids) => setLog(removeCalcLogEntries(ids))}
           onClose={() => setShowLog(false)}
         />
+      )}
+      {resetUndo && (
+        <div
+          className="toast-in-full absolute left-4 right-4 z-50 rounded-2xl px-4 py-3 flex items-center gap-3"
+          style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "rgba(9,32,33,.92)", boxShadow: "0 8px 24px rgba(9,32,33,.35)" }}
+        >
+          <p className="flex-1 text-[13px] font-semibold" style={{ color: "var(--c-on-bright)" }}>
+            Đã xoá bệnh nhân{resetUndo.running.length > 0 ? ` và ${resetUndo.running.length} thuốc đang dùng` : ""}
+          </p>
+          <button
+            onClick={() => dosingCtx.undoResetPatient()}
+            className="flex-none h-8 px-3 rounded-full text-[12px] font-bold"
+            style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+          >
+            Hoàn tác
+          </button>
+        </div>
       )}
       <DisclaimerGate />
     </div>

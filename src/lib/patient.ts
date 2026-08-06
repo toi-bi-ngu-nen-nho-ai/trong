@@ -110,7 +110,11 @@ export function usePatientVitals() {
 
   const reset = useCallback(() => setPatient({ ...EMPTY_PATIENT }), [])
 
-  return { patient, setField, reset }
+  // Nạp thẳng một bản ghi cũ — dùng cho "Hoàn tác" sau khi bấm "Bệnh nhân mới": khôi phục nguyên
+  // trạng thái đã lưu, không chỉ từng trường một.
+  const restore = useCallback((snapshot: PatientVitals) => setPatient(snapshot), [])
+
+  return { patient, setField, reset, restore }
 }
 
 // ─── Chức năng thận ───────────────────────────────────────────────────────────

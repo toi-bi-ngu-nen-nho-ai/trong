@@ -115,9 +115,11 @@
   --c-warn-soft: #fffbeb;
   --c-warn-line: #fde68a;
 
-  --c-orange: #c2410c;
-  --c-orange-soft: #fff7ed;
-  --c-orange-line: #fdba74;
+  /* --c-orange* (đã xoá): từng là một mức cảnh báo THỨ BA cam, tách khỏi hổ phách ở trên — trong
+     buồng tối #c2410c và #92400e gần như không phân biệt được, mà hai màu đó lại đang mang hai
+     mức nghiêm trọng khác nhau chỉ dựa vào màu. Mọi chỗ từng dùng cam (nồng độ vượt ngưỡng, đặc
+     hơn ngưỡng ngoại biên, liều trên khoảng khuyến cáo) nay dùng chung màu hổ phách ở trên — chữ
+     (headline/detail) vẫn nói rõ mức độ, màu chỉ còn hai bậc thật sự phân biệt được: đỏ/hổ phách. */
 
   /* #16a34a cũ chỉ đạt 3,28:1 và tươi gấp đôi primary — "thành công" hét to hơn hành động chính.
      Đổi sang sắc lá đậm hơn một bậc (giữ đúng hue), ~5,1:1, cùng trọng lượng thị giác với primary. */
@@ -215,10 +217,6 @@
     --c-warn-soft: #2a2113;
     --c-warn-line: #4d3c19;
 
-    --c-orange: #ffa76b;
-    --c-orange-soft: #2e1d12;
-    --c-orange-line: #5c3820;
-
     --c-green: #4ade80;
     --c-green-deep: #86efac;
     --c-green-soft: #122a1b;
@@ -291,10 +289,6 @@
   --c-warn: #f5c86b;
   --c-warn-soft: #2a2113;
   --c-warn-line: #4d3c19;
-
-  --c-orange: #ffa76b;
-  --c-orange-soft: #2e1d12;
-  --c-orange-line: #5c3820;
 
   --c-green: #4ade80;
   --c-green-deep: #86efac;
@@ -622,6 +616,55 @@ input, select, textarea {
   outline-offset: 1px;
 }
 
+/* Cùng lý do với .mind-btn/.mind-input ở trên, áp cho màn "Dùng thuốc" (`.scr-dose`, gán ở gốc
+   DungThuocScreen): input:focus tắt outline mặc định toàn app (quy tắc bên dưới) mà không có gì
+   thay thế ở đây — bàn phím ngoài/máy tính trạm ở buồng bệnh không có cách nào biết đang gõ vào ô
+   nào. Vi phạm WCAG 2.4.7 nếu bỏ trống. */
+.scr-dose button:focus-visible,
+.scr-dose input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Khối gấp/mở (Disclosure trong Dùng thuốc + PatientPanel): chiều cao co giãn KHÔNG cần đo bằng
+   JS — nội dung luôn được render (không unmount khi đóng), chỉ co qua max-height.
+   ĐÃ THỬ grid-template-rows 0fr→1fr trước (kỹ thuật "chuẩn" không cần magic number) nhưng animate
+   giá trị này bị KẸT ở trạng thái cũ trên chính trình duyệt dùng để kiểm thử — hỗ trợ animate
+   grid-template-rows chỉ mới có ở các bản Chromium/Safari gần đây (Safari ≥16.4), rủi ro thật với
+   app chạy nhiều trên iOS Safari. max-height kém "thuần" hơn (cần một trần đủ lớn) nhưng hoạt
+   động ổn định trên mọi trình duyệt — chọn đúng, chạy được, hơn đẹp mà có thể kẹt UI vĩnh viễn.
+   `visibility: hidden` khi đóng — không chỉ để ẩn mắt mà còn gỡ nội dung ra khỏi thứ tự Tab/trình
+   đọc màn hình; nếu chỉ dựa vào overflow hidden, nút/ô nhập bên trong vẫn nhận được Tab tới dù
+   không nhìn thấy gì. */
+.disc-body {
+  max-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  visibility: hidden;
+  transition: max-height .28s cubic-bezier(.25,.9,.35,1), margin-top .22s cubic-bezier(.25,.9,.35,1), visibility .28s;
+}
+.disc-body[data-open="true"] {
+  /* Trần cao rộng rãi: PatientPanel có thể cùng lúc hiện đủ 4 dòng cảnh báo (tuổi/cân nặng/chiều
+     cao/creatinin) + ô Qeff CRRT + dải "không dùng được" — cắt cụt nội dung THẬT (an toàn dữ liệu)
+     còn tệ hơn hẳn phần đầu hoạt ảnh hơi "nhanh" trên một Disclosure ngắn. */
+  max-height: 1400px;
+  margin-top: 10px;
+  visibility: visible;
+  transition: max-height .28s cubic-bezier(.25,.9,.35,1), margin-top .22s cubic-bezier(.25,.9,.35,1);
+}
+
+/* Biến thể không cộng thêm margin-top khi mở — dùng ở chỗ nội dung đã có đủ khoảng cách từ padding
+   của chính nó (PatientPanel), khác Disclosure vốn cần margin để tách khỏi dòng tiêu đề gấp/mở. */
+.disc-body--flush[data-open="true"] {
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disc-body {
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .term-highlight {
   border-bottom: 1.5px dotted var(--c-primary);
   color: var(--c-primary);
@@ -661,6 +704,23 @@ select {
   transform: scale(0.96);
 }
 
+/* Vòng đếm ngược quanh ConfirmIconButton (icon xoá cần chạm hai lần) — chạy từ đầy tới rỗng trong
+   đúng CONFIRM_ICON_RESET_MS, cho biết "đã nhận chạm, đang chờ lần hai, còn bấy nhiêu thời gian".
+   stroke-dasharray đặt trực tiếp trên phần tử (bằng chu vi vòng tròn) nên dashoffset 0→dasharray
+   vẽ từ đầy về rỗng bất kể bán kính cụ thể. */
+@keyframes confirmRing {
+  /* 97.39 = chu vi vòng tròn bán kính 15.5 (2 × π × 15.5) — đúng bằng stroke-dasharray đặt inline
+     trên phần tử, để vòng vẽ từ đầy về rỗng thay vì dừng giữa chừng. */
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 97.39; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  svg circle[style*="confirmRing"] {
+    animation-duration: 0.01ms !important;
+  }
+}
+
 /* Ô kết quả nảy một nhịp mỗi khi con số đổi. Ở ICU người dùng gõ liều rồi nhìn sang chỗ khác rồi
    nhìn lại — cái nảy này là dấu hiệu "số bạn đang nhìn là số MỚI", tránh đọc lại con số cũ. */
 @keyframes popValue {
@@ -694,7 +754,9 @@ select {
 
 .rise-in {
   animation: riseIn 0.22s cubic-bezier(0.25, 0.9, 0.35, 1) backwards;
-  animation-delay: calc(var(--i, 0) * 28ms);
+  /* Chặn ở 8: nhóm dài vài chục mục (vd "Kháng sinh") mà không chặn trần thì chip cuối hiện sau
+     hơn nửa giây — quá lâu để còn đọc là "thứ tự", chỉ còn đọc là "chậm". */
+  animation-delay: calc(min(var(--i, 0), 8) * 28ms);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -150,7 +150,10 @@ export const SEVERITY_STYLE: Record<DoseSeverity, SeverityStyle> = {
   "far-below": { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Quá thấp" },
   below: { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Dưới khoảng khuyến cáo" },
   ok: { bg: "var(--c-primary-soft)", border: "var(--c-primary-line)", text: "var(--c-primary)", label: "Trong khoảng khuyến cáo" },
-  above: { bg: "var(--c-orange-soft)", border: "var(--c-orange-line)", text: "var(--c-orange)", label: "Trên khoảng khuyến cáo" },
+  // "above" trước tô cam riêng khỏi "below"/"far-below" (hổ phách) — trong buồng tối hai màu gần
+  // như không phân biệt được, nên chỉ còn hai bậc màu thật sự: nguy hiểm (đỏ) và thận trọng (hổ
+  // phách). Nhãn ("Trên khoảng khuyến cáo") vẫn nói rõ khác với "Dưới khoảng khuyến cáo".
+  above: { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Trên khoảng khuyến cáo" },
   high: { bg: "var(--c-danger-soft)", border: "var(--c-danger-line-2)", text: "var(--c-danger)", label: "Vượt liều tối đa" },
   extreme: { bg: "var(--c-danger-soft)", border: "var(--c-danger-icon)", text: "var(--c-danger-deep)", label: "Vượt liều tối đa rất nhiều" },
 }

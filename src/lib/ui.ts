@@ -8,17 +8,28 @@
 // Nguyên tắc: CHỈ dùng các hằng số trong file này cho màn Dùng thuốc. Muốn thêm cỡ chữ mới thì sửa
 // ở đây, không viết class rời rạc tại chỗ.
 
-// ─── Thang chữ: đúng 6 bậc, không hơn ────────────────────────────────────────
+// ─── Thang chữ: 7 bậc ─────────────────────────────────────────────────────────
+// Trước đây khai 6 bậc nhưng `meta` (11px) và `body` (13px) gánh gần như toàn bộ nội dung — câu
+// cảnh báo tương tác thuốc, dòng "Ghim 14:05 · 3 giờ trước", tên nguồn tài liệu VÀ con số đặt bơm
+// đều 11px như nhau, tức là không còn thứ bậc thông tin nào cả. Màn hình này dùng trong buồng tối,
+// đôi khi qua kính bảo hộ — 11px là cỡ chữ của chân trang, không phải của nội dung lâm sàng. Nâng
+// nền của thang lên (meta 11→12, body 13→14) và thêm một bậc `critical` 15px riêng cho những con
+// số/tên KHÔNG được đọc nhầm: số đặt bơm, tên thuốc đang chạy, cảnh báo "KHÔNG tương hợp".
 export const T = {
-  // Nhãn mục (IN HOA) — mọi tiêu đề nhỏ trong màn đều dùng chung đúng bậc này
-  label: "text-[11px] font-bold uppercase tracking-[0.05em] leading-[1.4]",
+  // Nhãn mục — trước đây IN HOA + giãn chữ 0.05em ở 11px; với tiếng Việt, chữ hoa cỡ nhỏ làm dấu
+  // thanh/dấu mũ (Ầ, Ữ, Ỗ) dồn sát đường ascender và mất khả năng phân biệt. Bỏ hẳn uppercase,
+  // dùng chữ thường đậm vừa — đọc nhanh hơn mà vẫn giữ được vai trò "nhãn" nhờ cỡ nhỏ + đậm.
+  label: "text-[12px] font-semibold leading-[1.4]",
   // Chú thích, ghi chú phụ
-  meta: "text-[11px] leading-[1.45]",
+  meta: "text-[12px] leading-[1.45]",
   // Chữ chính
-  body: "text-[13px] leading-[1.5]",
-  bodyStrong: "text-[13px] font-semibold leading-[1.5]",
+  body: "text-[14px] leading-[1.5]",
+  bodyStrong: "text-[14px] font-semibold leading-[1.5]",
   // Chữ trên nút bấm / chip chọn — nhỉnh hơn nhãn một bậc cho dễ đọc khi bấm vội
   chip: "text-[12px] font-semibold",
+  // Số/tên KHÔNG được đọc nhầm: số đặt bơm thật sự đem đi chỉnh máy, tên thuốc đang chạy trên
+  // người bệnh, dòng "KHÔNG tương hợp" — tất cả đọc ở khoảng cách tay dài, đôi khi qua kính bảo hộ.
+  critical: "text-[15px] font-bold leading-[1.35]",
   // Tên thuốc / tiêu đề thẻ
   title: "text-[15px] font-bold leading-[1.3]",
   // Con số kết quả — luôn kèm tabular-nums để các hàng số thẳng cột với nhau
