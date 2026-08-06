@@ -776,6 +776,14 @@ function dist(x1: number, y1: number, x2: number, y2: number): number {
   return Math.hypot(x2 - x1, y2 - y1)
 }
 
+// Ghép một vòng viền (chọn/tìm/nối) với bóng đổ riêng của thẻ (paint.shadowCss) thành một khai báo
+// box-shadow nhiều lớp. Thẻ kiểu "plain" (chữ trần) có shadowCss = "none" — nối thẳng chuỗi
+// `"${ring}, none"` cho ra CSS không hợp lệ, trình duyệt bỏ qua CẢ khai báo, nên vòng viền cũng biến
+// mất theo. Chỉ nối thêm khi thật sự có một bóng để nối.
+function ringShadow(ring: string, base: string): string {
+  return base && base !== "none" ? `${ring}, ${base}` : ring
+}
+
 // Bỏ dấu tiếng Việt để tìm kiếm gõ không dấu vẫn ra kết quả.
 function noAccent(s: string): string {
   return s
@@ -1407,6 +1415,11 @@ export function MindmapBoard({
       if (toastTimer.current) clearTimeout(toastTimer.current)
       if (longPressTimer.current) clearTimeout(longPressTimer.current)
       if (foundTimer.current) clearTimeout(foundTimer.current)
+      if (chromeHideTimer.current) clearTimeout(chromeHideTimer.current)
+      if (radarHideTimer.current) clearTimeout(radarHideTimer.current)
+      if (zoomClusterTimer.current) clearTimeout(zoomClusterTimer.current)
+      if (holdTimer.current) clearTimeout(holdTimer.current)
+      if (holdLassoTimer.current) clearTimeout(holdLassoTimer.current)
       // Chỗ đang xem phải ghi NGAY khi rời màn hình, không chờ hết 500ms gộp lần ghi.
       if (viewSaveTimer.current) {
         clearTimeout(viewSaveTimer.current)
@@ -1428,10 +1441,15 @@ export function MindmapBoard({
       applyView()
       setZoomPct(Math.round(saved.zoom * 100))
     }
-    // Chờ một khung hình để ResizeObserver đo xong thẻ, rồi mới xét "có thấy gì không".
-    requestAnimationFrame(() => {
+    // Chờ một nhịp để ResizeObserver đo xong thẻ, rồi mới xét "có thấy gì không". setTimeout, không
+    // phải requestAnimationFrame: rAF chỉ chạy khi tab đang thật sự compositing khung hình — mở
+    // Mindmap từ một tab đang ở nền (ví dụ ứng dụng vừa được đưa lên nền trước khi màn kịp vẽ) có
+    // thể khiến rAF treo vô thời hạn, bảng đứng yên ở giấy trắng dù có nội dung ở đâu đó ngoài khung
+    // nhìn đã lưu. setTimeout luôn chạy qua hàng đợi sự kiện bình thường.
+    const t = setTimeout(() => {
       if (!contentVisible()) fitToContent()
-    })
+    }, 30)
+    return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
 
@@ -3220,6 +3238,9 @@ export function MindmapBoard({
   }
 
   function handleResizePointerDown(e: ReactPointerEvent, image: MindImage) {
+    // Chỉ đọc: tay cầm đổi cỡ vẫn hiện (nó không nằm trong thanh nổi bị ẩn), nhưng không được phép
+    // kéo — nếu không nội dung "chỉ xem" vẫn đổi kích thước được dưới ngón tay.
+    if (readOnly) return
     e.stopPropagation()
     stopAnim()
     reapStalePointers(e)
@@ -3355,7 +3376,10 @@ export function MindmapBoard({
       return
     }
 
-    if (act.kind === "drag") {
+    // Chỉ đọc: không cho thẻ/ảnh TRÔI theo ngón tay — bỏ qua hẳn khối này, `act.moved` không bao
+    // giờ thành true, nên lúc thả tay (xem pointerup) tự rơi đúng vào nhánh "chạm không kéo = chọn",
+    // không có bước nào ghi lại vị trí mới.
+    if (act.kind === "drag" && !readOnly) {
       const z = view.current.zoom
       if (!act.moved && (Math.abs(e.clientX - act.startX) > DRAG_SLOP || Math.abs(e.clientY - act.startY) > DRAG_SLOP)) {
         act.moved = true
@@ -3934,17 +3958,20 @@ export function MindmapBoard({
       const mod = e.ctrlKey || e.metaKey
       if (mod) {
         const k = e.key.toLowerCase()
-        if (k === "z") {
+        // Hoàn tác/làm lại/chọn hết đều SỬA dữ liệu (hoàn tác có thể lùi lại tới trước lúc bật Chỉ
+        // đọc, chọn hết mở ra thanh xoá cả nhóm) — chặn ở đây, cùng chỗ với mọi phím sửa khác bên
+        // dưới. "Tìm" (k === "f") không sửa gì nên vẫn cho dùng.
+        if (k === "z" && !readOnly) {
           e.preventDefault()
           if (e.shiftKey) redo()
           else undo()
-        } else if (k === "y") {
+        } else if (k === "y" && !readOnly) {
           e.preventDefault()
           redo()
         } else if (k === "f") {
           e.preventDefault()
           openFind()
-        } else if (k === "a") {
+        } else if (k === "a" && !readOnly) {
           e.preventDefault()
           selectAll()
         }
@@ -3973,13 +4000,13 @@ export function MindmapBoard({
       // Đang mở hộp thoại phủ lên bảng thì mọi phím khác không được đụng tới bảng phía dưới.
       if (pickLink || confirmClear || confirmDeleteEdge) return
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (sel || selGroup) {
+        if (!readOnly && (sel || selGroup)) {
           e.preventDefault()
           deleteSelection()
         }
         return
       }
-      if (e.key === "Enter" && sel?.kind === "node") {
+      if (e.key === "Enter" && !readOnly && sel?.kind === "node") {
         const n = nodes.find((x) => x.id === sel.id)
         if (n) {
           e.preventDefault()
@@ -3988,7 +4015,7 @@ export function MindmapBoard({
         return
       }
       // Tab thêm nhánh con cho thẻ đang chọn — giống cách mọi app sơ đồ tư duy trên máy tính làm.
-      if (e.key === "Tab" && sel?.kind === "node") {
+      if (e.key === "Tab" && !readOnly && sel?.kind === "node") {
         const n = nodes.find((x) => x.id === sel.id)
         if (n) {
           e.preventDefault()
@@ -5412,6 +5439,11 @@ export function MindmapBoard({
                   // hẹp và cao dần lên. Với max-content, bề rộng chỉ phụ thuộc nội dung và maxWidth.
                   width: "max-content",
                   maxWidth: m.maxWidth,
+                  // Chuỗi dài không có chỗ ngắt (tên thuốc ghép gạch chéo, URL dán nhầm...) thì
+                  // "normal" (mặc định) để nguyên một hàng dài tràn thẳng ra ngoài maxWidth, đè lên
+                  // thẻ bên cạnh. "anywhere" chỉ bẻ khi thật sự không còn chỗ ngắt tự nhiên nào khác,
+                  // không đụng tới cách ngắt dòng bình thường theo khoảng trắng.
+                  overflowWrap: "anywhere",
                   padding: `${m.padY}px ${m.padX}px`,
                   borderRadius: m.radius,
                   fontSize: m.fontSize,
@@ -5420,15 +5452,15 @@ export function MindmapBoard({
                   color: paint.color,
                   border: `${paint.borderWidth || 1}px solid ${paint.borderWidth ? paint.border : "transparent"}`,
                   boxShadow: selected
-                    ? `0 0 0 2.5px rgba(var(--c-primary-rgb),.55), ${paint.shadowCss}`
+                    ? ringShadow("0 0 0 2.5px rgba(var(--c-primary-rgb),.55)", paint.shadowCss)
                     : linking
-                      ? `0 0 0 2.5px rgba(var(--c-accent-2-rgb),.55), ${paint.shadowCss}`
+                      ? ringShadow("0 0 0 2.5px rgba(var(--c-accent-2-rgb),.55)", paint.shadowCss)
                       : inGroup
                         ? "0 0 0 2px rgba(var(--c-accent-2-rgb),.5)"
                         : // Thẻ khớp ô tìm: viền vàng, để nhìn một cái là thấy hết chỗ nào có chữ
                           // vừa gõ chứ không phải bấm "tiếp" từng thẻ mới biết bảng có bao nhiêu.
                           matched
-                          ? `0 0 0 2.5px rgba(217,119,6,.7), ${paint.shadowCss}`
+                          ? ringShadow("0 0 0 2.5px rgba(217,119,6,.7)", paint.shadowCss)
                           : paint.shadowCss,
                   // Chữ CĂN GIỮA. Thẻ dài quá một dòng bị ngắt xuống, căn trái thì dòng cuối cụt lủn
                   // lệch hẳn sang trái trong một cái khung bo tròn hai đầu — nhìn như ô nhập liệu bị
@@ -5672,7 +5704,9 @@ export function MindmapBoard({
           {/* Thanh nhỏ nổi trên phần tử đang chọn. Với thẻ ghi chú, thanh có hai trang: các thao tác,
               và hàng màu (bấm nút bảng màu để đổi trang) — đổi màu là việc làm nhiều nhất nên không
               nên bắt mở hẳn ô sửa chữ mới làm được. */}
-          {(selNode || selImage || selEdgeMid) && (
+          {/* Chỉ đọc: toàn bộ thao tác trên thanh này (sửa/xoá/nối/đổi màu/nhân đôi...) đều SỬA dữ
+              liệu — ẩn hẳn, không chỉ ẩn từng nút, để không sót nút mới nào thêm sau này. */}
+          {!readOnly && (selNode || selImage || selEdgeMid) && (
             <div
               ref={floatBarRef}
               onPointerDown={stopPointer}
@@ -5882,6 +5916,7 @@ export function MindmapBoard({
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
               boxShadow: "0 8px 26px var(--c-shadow)",
             }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -5923,18 +5958,14 @@ export function MindmapBoard({
             // thuộc tính `transform`, mà chính transform là thứ đang giữ vị trí của thanh này (xem
             // cách đặt left/top theo tỉ lệ bên dưới) — hoạt ảnh sẽ đè lên và ném thanh ra khỏi chỗ
             // của nó trong suốt 0,2 giây đầu. Hiện dần bằng độ mờ thì không đụng tới vị trí.
-            className={`fade-in absolute z-20 flex ${barVert ? "flex-col" : "flex-row"} items-center gap-0.5 border ${barVert ? "rounded-2xl px-1 py-1.5" : "px-1.5"}`}
+            className={`fade-in absolute z-20 border ${barVert ? "rounded-2xl" : ""}`}
             style={{
               ...barStyle,
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
               boxShadow: barVert ? "0 8px 26px var(--c-shadow)" : "0 4px 16px var(--c-shadow)",
-              // Máy hẹp hoặc thanh dựng dọc trên máy màn ngắn: cho cuộn bên trong thanh thay vì để
-              // nút cuối cùng bị cắt mất ra ngoài mép bảng.
-              ...(barVert
-                ? { maxHeight: "calc(100% - 12px)", overflowY: "auto", overflowX: "hidden" }
-                : { overflowX: "auto" }),
               // Thanh nằm ngang dính trọn một mép nên chỉ bo hai góc phía TRONG bảng — bo cả bốn góc
               // sẽ để lộ hai khe tam giác ở hai đầu, nhìn như thanh bị đặt lệch chứ không phải đang
               // gắn vào mép.
@@ -5950,6 +5981,23 @@ export function MindmapBoard({
             // thanh cũng là một lần đặt bút xuống bảng, để lại một chấm mực ngay dưới thanh.
             onPointerDown={(e) => e.stopPropagation()}
           >
+            {/* Lớp cuộn TÁCH RIÊNG khỏi lớp mờ (backdrop-filter) ở div cha — Safari/iOS có lỗi vẽ
+                lại đã biết: một phần tử vừa `backdrop-filter` vừa `overflow: auto/scroll` mà nội
+                dung bên trong nó đổi (ở đây là mũi tên cài đặt mọc/biến mất mỗi lần đổi cây bút
+                đang cầm) thì đôi khi không tự vẽ lại — cả thanh biến mất cho tới khi có một lần vẽ
+                lại khác buộc trình duyệt tính toán lại lớp. Để `overflow` ở lớp mờ ngoài chuyển
+                sang lớp trong SUÔNG (không blur, không nền riêng) thì Safari vẽ lại bình thường như
+                mọi phần tử khác, không còn dính lỗi này. */}
+            <div
+              className={`flex ${barVert ? "flex-col" : "flex-row"} items-center gap-0.5 ${barVert ? "px-1 py-1.5" : "px-1.5"}`}
+              style={
+                // Máy hẹp hoặc thanh dựng dọc trên máy màn ngắn: cho cuộn bên trong thanh thay vì để
+                // nút cuối cùng bị cắt mất ra ngoài mép bảng.
+                barVert
+                  ? { maxHeight: "calc(100% - 12px)", overflowY: "auto", overflowX: "hidden" }
+                  : { overflowX: "auto" }
+              }
+            >
             <button
               type="button"
               aria-label="Kéo để đưa thanh bút sang mép khác"
@@ -6162,6 +6210,7 @@ export function MindmapBoard({
                 {colorButton()}
               </>
             )}
+            </div>
 
             {/* Bảng cỡ nét / bảng hình vẽ — mở ra phía có chỗ trống: thanh dựng dọc thì bảng bung
                 sang NGANG (bên trong màn hình), thanh nằm ngang ở nửa dưới thì bảng bung LÊN. Không
@@ -6369,6 +6418,7 @@ export function MindmapBoard({
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
               touchAction: "none",
               cursor: "crosshair",
               // Mặc định ẨN — chỉ hiện khi showRadar() bật lên lúc pan/zoom, xem applyView().
@@ -6435,7 +6485,7 @@ export function MindmapBoard({
         <div className="absolute left-3 bottom-4 flex items-center gap-2" onPointerDown={stopPointer}>
           <div
             className={`flex items-center rounded-2xl border p-0.5 ${zoomClusterOpen ? "mind-pop" : ""}`}
-            style={{ borderColor: "var(--c-line)", background: "var(--c-float-bg)", backdropFilter: "blur(6px)" }}
+            style={{ borderColor: "var(--c-line)", background: "var(--c-float-bg)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
           >
             {zoomClusterOpen && (
               <IconBtn
@@ -6492,6 +6542,7 @@ export function MindmapBoard({
                   background: "var(--c-float-bg)",
                   color: "var(--c-text-soft)",
                   backdropFilter: "blur(6px)",
+                  WebkitBackdropFilter: "blur(6px)",
                 }}
               >
                 {mi.fit("w-[18px] h-[18px]")}
@@ -6515,6 +6566,7 @@ export function MindmapBoard({
                   background: zoomBox ? "var(--c-primary)" : "var(--c-float-bg)",
                   color: zoomBox ? "var(--c-on-bright)" : "var(--c-text-soft)",
                   backdropFilter: "blur(6px)",
+                  WebkitBackdropFilter: "blur(6px)",
                 }}
               >
                 {mi.writeBox("w-[18px] h-[18px]")}
@@ -6523,7 +6575,8 @@ export function MindmapBoard({
           )}
         </div>
 
-        {/* Thêm nội dung, góc dưới phải */}
+        {/* Thêm nội dung, góc dưới phải — chỉ hiện ở chế độ sửa, vì đây là hành động thêm dữ liệu. */}
+        {!readOnly && (
         <div className="absolute right-4 bottom-4 flex flex-col items-end gap-2" onPointerDown={stopPointer}>
           {addOpen && (
             <>
@@ -6587,6 +6640,7 @@ export function MindmapBoard({
             {addOpen ? "Đóng" : "Thêm"}
           </button>
         </div>
+        )}
 
         {/* Dải nhắc khi đang khoanh vùng — hiện cả lúc khoanh vùng TẠM bằng cách giữ bút rồi kéo (C3),
             không chỉ lúc chọn thẳng công cụ khoanh vùng. */}
@@ -6713,6 +6767,7 @@ export function MindmapBoard({
                       top: n.y,
                       width: "max-content",
                       maxWidth: m.maxWidth,
+                      overflowWrap: "anywhere",
                       padding: `${m.padY}px ${m.padX}px`,
                       borderRadius: m.radius,
                       fontSize: m.fontSize,
@@ -6744,7 +6799,7 @@ export function MindmapBoard({
           {/* Thanh điều khiển khung viết. Nằm đè góc phải để không ăn mất chiều rộng viết. */}
           <div
             className="absolute right-2 top-2 flex items-center gap-1 rounded-2xl border p-0.5"
-            style={{ borderColor: "var(--c-line)", background: "var(--c-float-bg)", backdropFilter: "blur(6px)" }}
+            style={{ borderColor: "var(--c-line)", background: "var(--c-float-bg)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
             onPointerDown={stopPointer}
           >
             <IconBtn icon={mi.chevronLeft} hint="Lùi khung viết sang trái" size={34} onClick={() => moveZoomBox(-0.78, 0)} />

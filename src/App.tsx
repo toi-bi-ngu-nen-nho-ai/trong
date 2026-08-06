@@ -69,7 +69,7 @@ import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
 import { THEME_LABELS, loadTheme, saveTheme, type ThemeMode } from "./lib/theme"
 import { useMindmap } from "./lib/useMindmap"
 import { useBoards, DEFAULT_BOARD_COLOR } from "./lib/boards"
-import { loadMindmap, saveMindmap, mergeMindmaps, loadAllMindmapNodes } from "./lib/mindmapStorage"
+import { loadMindmap, saveMindmap, mergeMindmaps, loadAllMindmapNodes, sanitizeMindmapData } from "./lib/mindmapStorage"
 import { stripInlineMarkers } from "./lib/richText"
 // Dùng cho ảnh xem trước của từng bảng trong danh sách Mindmap — vẽ lại bằng ĐÚNG bộ hàm mà bảng
 // thật và phần xuất ảnh PNG dùng, nên ảnh nhỏ không bao giờ khác hình dạng bảng thật.
@@ -3800,20 +3800,28 @@ function DataSyncScreen({
         let mindmapBoards: { board: MindBoard; mindmap: MindmapData }[] = []
         if (Array.isArray(d.mindmapBoards)) {
           mindmapBoards = (d.mindmapBoards as unknown[])
-            .map((row) => row as { board?: MindBoard; mindmap?: { nodes?: unknown; edges?: unknown } })
+            .map((row) => row as { board?: MindBoard; mindmap?: { nodes?: unknown; edges?: unknown; strokes?: unknown; images?: unknown } })
             .filter(
-              (row): row is { board: MindBoard; mindmap: MindmapData } =>
+              (row): row is { board: MindBoard; mindmap: { nodes: unknown[]; edges: unknown[]; strokes?: unknown[]; images?: unknown[] } } =>
                 !!row.board &&
                 typeof row.board.id === "string" &&
                 !!row.mindmap &&
                 Array.isArray(row.mindmap.nodes) &&
                 Array.isArray(row.mindmap.edges),
             )
+            // File sao lưu có thể bị sửa tay hoặc hỏng giữa chừng — một node/nét vẽ sai kiểu lọt
+            // xuống tới bảng vẽ sẽ làm sập cả cây React (xem sanitizeMindmapData). Lọc ngay tại cửa
+            // nhập, trước khi ghép vào dữ liệu hiện có.
+            .map((row) => ({ board: row.board, mindmap: sanitizeMindmapData(row.mindmap) }))
         } else {
-          const rawMindmap = d.mindmap as { nodes?: unknown; edges?: unknown } | undefined
+          const rawMindmap = d.mindmap as { nodes?: unknown; edges?: unknown; strokes?: unknown; images?: unknown } | undefined
           if (rawMindmap && Array.isArray(rawMindmap.nodes) && Array.isArray(rawMindmap.edges)) {
             const targetBoard = boards.find((b) => b.id === activeBoardId) ?? boards[0]
-            if (targetBoard) mindmapBoards = [{ board: targetBoard, mindmap: rawMindmap as MindmapData }]
+            if (targetBoard) {
+              mindmapBoards = [
+                { board: targetBoard, mindmap: sanitizeMindmapData(rawMindmap as { nodes: unknown[]; edges: unknown[]; strokes?: unknown[]; images?: unknown[] }) },
+              ]
+            }
           }
         }
 

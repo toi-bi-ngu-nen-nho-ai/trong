@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import { registerServiceWorker } from './lib/offline'
 import { applyTheme, loadTheme } from './lib/theme'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // Áp chủ đề TRƯỚC khi render: làm sau thì người dùng chọn nền tối vẫn thấy một nháy trắng mỗi lần
 // mở app — chói mắt đúng vào lúc muốn tránh nhất.
@@ -11,7 +12,9 @@ applyTheme(loadTheme())
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 )
 

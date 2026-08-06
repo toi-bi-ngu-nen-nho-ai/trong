@@ -567,14 +567,23 @@ export function hiddenByCollapse(
   const collapsed = nodes.filter((n) => n.collapsed)
   if (collapsed.length === 0) return { hidden, counts }
   const kids = childrenMap(edges)
-  collapsed.forEach((n) => {
-    const under = descendantsOf(n.id, kids)
-    counts.set(n.id, under.size)
-    under.forEach((id) => hidden.add(id))
+  const collapsedUnder = collapsed.map((n) => ({ id: n.id, under: descendantsOf(n.id, kids) }))
+  collapsedUnder.forEach(({ id, under }) => {
+    counts.set(id, under.size)
+    under.forEach((hid) => hidden.add(hid))
   })
-  // Thẻ đang gấp thì bản thân nó luôn hiện — nếu không, gấp một nhánh có vòng nối sẽ làm biến mất
-  // luôn cả thẻ vừa bấm và không còn cách nào mở lại.
-  collapsed.forEach((n) => hidden.delete(n.id))
+  // Thẻ đang gấp thì bản thân nó luôn hiện — NHƯNG chỉ khi không có thẻ gấp nào KHÁC đang giấu nó
+  // (gấp lồng nhau: gấp một nhánh con rồi gấp tiếp nhánh cha). Trước đây gỡ VÔ ĐIỀU KIỆN mọi thẻ
+  // đang gấp khỏi danh sách ẩn, nên gấp cha xong vẫn thấy con đang gấp lộ ra giữa nhánh — sai cả
+  // hình lẫn con số ghi trên dấu tròn "còn N thẻ nữa" của cha.
+  //
+  // Trường hợp hiếm còn sót: hai (hoặc nhiều) thẻ gấp nối vòng lại với nhau (A→B→A, cả hai đều đang
+  // gấp) có thể khiến CẢ HAI cùng ẩn, không thẻ nào lộ ra để bấm mở lại — hoàn tác (nút Hoàn tác)
+  // đưa ngay về trước lúc gấp, không mất dữ liệu.
+  collapsed.forEach((n) => {
+    const hiddenByOther = collapsedUnder.some(({ id, under }) => id !== n.id && under.has(n.id))
+    if (!hiddenByOther) hidden.delete(n.id)
+  })
   return { hidden, counts }
 }
 
