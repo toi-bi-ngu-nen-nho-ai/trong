@@ -6473,36 +6473,11 @@ export function MindmapBoard({
           </div>
         )}
 
-        {/* Gợi ý cử chỉ trên bảng TRỐNG — chỉ hiện lúc chưa có gì để mất công đọc hướng dẫn dài
-            (menu "…" đã có bảng phím tắt đầy đủ cho người cần tra lại). Tự mất ngay khi có nét/thẻ
-            đầu tiên, không cần cờ "đã xem" nào — điều kiện rỗng tự đúng lúc bảng còn trống và tự
-            sai ngay sau đó, không có trường hợp phải nhớ lại. */}
-        {strokes.length === 0 && nodes.length <= 1 && images.length === 0 && !readOnly && (
-          <div
-            className="absolute inset-0 flex items-center justify-center px-10 text-center"
-            style={{ pointerEvents: "none" }}
-          >
-            <div style={{ pointerEvents: "auto" }}>
-              <p style={{ color: "var(--c-muted)", fontSize: 12.5, lineHeight: 1.7 }}>
-                Hai ngón để di chuyển bảng
-                <br />
-                Giữ yên tay cuối nét để nắn thành hình
-                <br />
-                ＋ để thêm ghi chú, ảnh hoặc bài trong app
-              </p>
-              {/* Gợi ý rút gọn ở trên và hộp "4 cách chạm hay dùng nhất" (showCoach) nói cùng một
-                  chuyện — đặt lối tắt vào đây thay vì bắt người dùng tự mò menu "…" mới thấy. */}
-              <button
-                type="button"
-                onClick={() => setShowCoach(true)}
-                className="mind-btn mt-2 text-[12px] font-semibold underline"
-                style={{ color: "var(--c-primary)" }}
-              >
-                Xem lại hướng dẫn cử chỉ
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Trước đây có một khối chữ gợi ý cử chỉ nổi thường trực trên bảng TRỐNG ("Hai ngón để di
+            chuyển bảng"...) — trùng nội dung với hộp "4 cách chạm hay dùng nhất" (showCoach, tự hiện
+            lần đầu) và án ngữ mặt bảng mọi lần bảng trống, không chỉ lần đầu. Đã bỏ hẳn khối đó; lối
+            vào duy nhất cho hướng dẫn cử chỉ giờ là nút "?" → "Xem lại hướng dẫn cử chỉ" trong menu
+            "…" (xem showCoach ở khối JSX phía dưới cùng file này). */}
 
         {/* Radar góc trên phải — thu nhỏ toàn bộ nội dung để biết đang xem ở đâu, chạm/kéo để nhảy tới
             đó ngay. Ẩn khi bảng trống (mmMap null: chưa có gì để làm radar) hoặc lúc đang gõ tìm kiếm
