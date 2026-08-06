@@ -9185,7 +9185,9 @@ function MindmapGallery({
   onPurgeBoard,
 }: {
   boards: MindBoard[]
-  onOpen: (id: string, query?: string) => void
+  // `rect` — khung của thẻ vừa chạm (nếu mở từ MỘT THẺ, không phải từ kết quả tìm xuyên bảng) — cho
+  // MindmapScreen phóng khung xem trước lên đúng chỗ đó khi mở bảng (D3).
+  onOpen: (id: string, query?: string, rect?: DOMRect) => void
   onCreate: () => void
   onEditBoard: (board: MindBoard) => void
   previewTick: number
@@ -9425,13 +9427,13 @@ function MindmapGallery({
         ) : view === "grid" ? (
           <div className="grid grid-cols-2 gap-3">
             {shown.map((b) => (
-              <BoardCard key={b.id} board={b} previewTick={previewTick} onOpen={() => onOpen(b.id)} onEdit={() => onEditBoard(b)} />
+              <BoardCard key={b.id} board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
             ))}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
             {shown.map((b) => (
-              <BoardRow key={b.id} board={b} previewTick={previewTick} onOpen={() => onOpen(b.id)} onEdit={() => onEditBoard(b)} />
+              <BoardRow key={b.id} board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
             ))}
           </div>
         )}
@@ -9575,6 +9577,100 @@ function BoardPreviewFrame({ board, previewTick, className }: { board: MindBoard
   )
 }
 
+// ─── Chuyển cảnh danh sách ↔ bảng (D3) ─────────────────────────────────────────
+//
+// Đổi cảnh ĐỘT NGỘT giữa một thẻ nhỏ trong lưới và cả một mặt bảng full-screen khiến người dùng mất
+// một nhịp để định vị lại — "tôi đang ở đâu". Phóng khung xem trước từ ĐÚNG chỗ vừa chạm lên toàn
+// khung (và ngược lại lúc rời bảng) giữ liên tục một MỐC THỊ GIÁC xuyên suốt cú chuyển cảnh.
+//
+// Đây là một khung ảnh xem trước (BoardPreviewFrame) NỔI ĐÈ LÊN MindmapScreen trong lúc chuyển,
+// không phải bảng vẽ thật — bảng thật đã mount/unmount ngay bên dưới nó (tức thời, không đợi hoạt
+// ảnh); lớp phủ chỉ có việc CHE cú đổi cảnh đó lại bằng một hình ảnh mượt mắt, và tự dẹp đi khi xong.
+interface BoardTransition {
+  board: MindBoard
+  // Khung BẮT ĐẦU — khung thẻ (mở bảng) hoặc khung cả mặt bảng (rời bảng).
+  from: { x: number; y: number; w: number; h: number }
+  dir: "enter" | "exit"
+}
+
+// Máy đang xin giảm chuyển động (E) — bỏ hẳn lớp phủ phóng to/thu nhỏ, để lại đúng cú đổi cảnh
+// mặc định (React tự thay nhánh JSX, không có gì thêm) — "chỉ còn mờ/hiện" theo đúng nghĩa không
+// còn chuyển động vị trí/kích thước nào cả, chỉ còn việc nội dung mới xuất hiện.
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  } catch {
+    return false
+  }
+}
+
+function domRectToBox(r: DOMRect): { x: number; y: number; w: number; h: number } {
+  return { x: r.left, y: r.top, w: r.width, h: r.height }
+}
+
+function BoardTransitionOverlay({
+  transition,
+  targetRect,
+  onDone,
+}: {
+  transition: BoardTransition
+  // null = đích chưa đo được (đang đợi khung MỚI dựng xong trong DOM) — cứ đứng yên ở `from` tới khi
+  // có, không có gì để mà bắt đầu chạy tới.
+  targetRect: { x: number; y: number; w: number; h: number } | null
+  onDone: () => void
+}) {
+  const [box, setBox] = useState(transition.from)
+  const doneRef = useRef(false)
+
+  useEffect(() => {
+    if (!targetRect) return
+    // Đợi một nhịp rồi mới đổi (setTimeout, không phải requestAnimationFrame — xem ghi chú ở effect
+    // đo `transitionTarget` trong MindmapScreen về lý do): phải để trình duyệt VẼ XONG khung BẮT ĐẦU
+    // trước, nếu đổi ngay trong cùng một lượt vẽ thì CSS transition không có "trước" để so, chạy
+    // thẳng tới đích luôn, không thấy phóng to/thu nhỏ gì cả.
+    const t = setTimeout(() => setBox(targetRect), 20)
+    return () => clearTimeout(t)
+  }, [targetRect])
+
+  // Hết giờ dự phòng — quá thời lượng animation (0.28s) cộng một khoảng dư mà `transitionend` vẫn
+  // chưa bắn (tab bị ẩn giữa chừng, hoặc trình duyệt bỏ lỡ sự kiện): tự dẹp lớp phủ, đừng để nó che
+  // màn hình MÃI MÃI chỉ vì một hoạt ảnh trang trí trục trặc.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!doneRef.current) {
+        doneRef.current = true
+        onDone()
+      }
+    }, 600)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div
+      className="fixed z-50 overflow-hidden"
+      style={{
+        left: box.x,
+        top: box.y,
+        width: box.w,
+        height: box.h,
+        borderRadius: 12,
+        transition: "left .28s cubic-bezier(.22,1.1,.36,1), top .28s cubic-bezier(.22,1.1,.36,1), width .28s cubic-bezier(.22,1.1,.36,1), height .28s cubic-bezier(.22,1.1,.36,1)",
+        pointerEvents: "none",
+      }}
+      // Bốn thuộc tính cùng chạy một lúc, cùng thời lượng — chặn hết ba lần gọi dư, chỉ giữ một lần
+      // (khớp đúng thuộc tính "width") để onDone() không bị gọi bốn lần cho một lượt chuyển cảnh.
+      onTransitionEnd={(e) => {
+        if (e.propertyName !== "width" || doneRef.current) return
+        doneRef.current = true
+        onDone()
+      }}
+    >
+      <BoardPreviewFrame board={transition.board} previewTick={0} className="w-full h-full" />
+    </div>
+  )
+}
+
 // ─── Nhấn giữ để mở bảng tuỳ chọn ────────────────────────────────────────────
 //
 // Thay cho nút bút chì trên mỗi thẻ. Nút bút chì ăn mất chỗ của tên bảng (tên dài bị cắt sớm hơn),
@@ -9633,12 +9729,25 @@ function BoardCard({
 }: {
   board: MindBoard
   previewTick: number
-  onOpen: () => void
+  // Nhận khung của chính thẻ lúc chạm — MindmapScreen dùng để phóng khung xem trước lên đúng chỗ
+  // vừa chạm khi mở bảng (D3), thay vì đổi cảnh đột ngột.
+  onOpen: (rect: DOMRect) => void
   onEdit: () => void
 }) {
-  const hold = useHoldToEdit(onOpen, onEdit)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const hold = useHoldToEdit(() => onOpen(cardRef.current?.getBoundingClientRect() ?? new DOMRect()), onEdit)
   return (
-    <div className={`flex flex-col gap-1.5 ${TAP}`} {...hold} aria-label={`Mở bảng ${board.name}`} role="button" tabIndex={0}>
+    <div
+      ref={cardRef}
+      // Để MindmapScreen dò lại ĐÚNG thẻ này khi phóng khung xem trước NGƯỢC lại (rời bảng về danh
+      // sách) — lúc đó chỉ có id bảng trong tay, không có sẵn tham chiếu tới thẻ.
+      data-board-id={board.id}
+      className={`flex flex-col gap-1.5 ${TAP}`}
+      {...hold}
+      aria-label={`Mở bảng ${board.name}`}
+      role="button"
+      tabIndex={0}
+    >
       <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
       <div className="min-w-0">
         <p className={`${T.bodyStrong} leading-snug line-clamp-2`} style={{ color: C.text }}>
@@ -9660,13 +9769,16 @@ function BoardRow({
 }: {
   board: MindBoard
   previewTick: number
-  onOpen: () => void
+  onOpen: (rect: DOMRect) => void
   onEdit: () => void
 }) {
   const spec = board.specialtyId ? SPECIALTIES.find((s) => s.id === board.specialtyId) : undefined
-  const hold = useHoldToEdit(onOpen, onEdit)
+  const rowRef = useRef<HTMLDivElement>(null)
+  const hold = useHoldToEdit(() => onOpen(rowRef.current?.getBoundingClientRect() ?? new DOMRect()), onEdit)
   return (
     <div
+      ref={rowRef}
+      data-board-id={board.id}
       className={`flex items-center gap-3 p-2 ${R.card} border ${TAP}`}
       style={{ borderColor: C.line, background: C.surface }}
       {...hold}
@@ -9750,140 +9862,194 @@ function MindmapScreen({
     if (!boardProps.loading && hasContent) setShowBackupReminder(shouldRemindBackup())
   }, [boardProps.loading, hasContent])
 
-  // ─── Danh sách bảng ───────────────────────────────────────────────────────
-  if (openId == null) {
-    return (
-      <>
-        <MindmapGallery
-          boards={boards}
-          previewTick={previewTick}
-          trashedBoards={trashedBoards}
-          onRestoreBoard={onRestoreBoard}
-          onPurgeBoard={onPurgeBoard}
-          onOpen={(id, query) => {
-            onSwitchBoard(id)
-            setOpenQuery(query)
-            setOpenId(id)
-          }}
-          onCreate={() => {
-            setSheetBoardId(null)
-            setSheetMode("create")
-          }}
-          onEditBoard={(b) => {
-            setSheetBoardId(b.id)
-            setSheetMode("edit")
-          }}
-        />
-        {sheetMode && (
-          <BoardEditSheet
-            mode={sheetMode}
-            board={sheetMode === "edit" ? activeBoard : undefined}
-            canDelete={boards.length > 1}
-            onClose={() => {
-              setSheetMode(null)
-              setSheetBoardId(null)
-            }}
-            onCreate={(name, color, specialtyId) => {
-              setSheetMode(null)
-              setSheetBoardId(null)
-              // Tạo xong mở thẳng vào bảng mới — đó là việc người dùng định làm tiếp.
-              void onCreateBoard(name, color, specialtyId).then(setOpenId)
-            }}
-            onSave={(patch) => {
-              if (activeBoard) onUpdateBoard(activeBoard.id, patch)
-              setSheetMode(null)
-              setSheetBoardId(null)
-            }}
-            onDelete={() => {
-              if (activeBoard) onDeleteBoard(activeBoard.id)
-              setSheetMode(null)
-              setSheetBoardId(null)
-              setPreviewTick((n) => n + 1)
-            }}
-            onDuplicate={() => {
-              const id = activeBoard?.id
-              setSheetMode(null)
-              setSheetBoardId(null)
-              if (id) void onDuplicateBoard(id)
-            }}
-            onExport={() => {
-              // Xuất file nằm ở thanh trên CỦA BẢNG (nó cần nội dung bảng đang mở để vẽ ra ảnh),
-              // nên ở đây chỉ mở bảng ra rồi để người dùng chọn PNG/PDF tại đó.
-              const id = activeBoard?.id
-              setSheetMode(null)
-              setSheetBoardId(null)
-              if (id) {
-                onSwitchBoard(id)
-                setOpenId(id)
-              }
-            }}
-          />
-        )}
-      </>
-    )
+  // ─── Chuyển cảnh danh sách ↔ bảng (D3) ────────────────────────────────────
+  // `rootRef` đo khung CẢ MÀN HÌNH này — đích lúc mở bảng (enter), điểm xuất phát lúc rời bảng
+  // (exit). Không dùng window.innerWidth/Height: có thanh điều hướng dưới nằm NGOÀI component này,
+  // full window sẽ lấn qua cả phần đó.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [transition, setTransition] = useState<BoardTransition | null>(null)
+  const [transitionTarget, setTransitionTarget] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+
+  useEffect(() => {
+    if (!transition) {
+      setTransitionTarget(null)
+      return
+    }
+    // Đợi một nhịp: lúc effect này chạy, nhánh JSX mới (bảng vừa mount, hoặc danh sách vừa dựng lại)
+    // có thể chưa kịp có kích thước thật trong lượt vẽ đầu tiên.
+    //
+    // setTimeout, không phải requestAnimationFrame: rAF chỉ chắc chắn chạy khi tab đang thật sự vẽ
+    // khung hình (foreground, đang compositing) — tab bị ẩn/thu nhỏ đúng lúc này thì rAF có thể
+    // treo vô thời hạn, kẹt luôn lớp phủ che màn hình mãi không tự dẹp. setTimeout luôn chạy qua
+    // hàng đợi sự kiện bình thường, không phụ thuộc việc có đang vẽ khung hình hay không.
+    const t = setTimeout(() => {
+      if (transition.dir === "enter") {
+        const r = rootRef.current?.getBoundingClientRect()
+        if (r) setTransitionTarget(domRectToBox(r))
+        return
+      }
+      // "exit": đích là khung của ĐÚNG thẻ bảng này trong danh sách vừa dựng lại. Không tìm thấy
+      // (bộ lọc chuyên khoa đang ẩn nó, hoặc bảng vừa bị xoá) — dẹp lớp phủ ngay, khỏi treo màn.
+      const el = document.querySelector(`[data-board-id="${transition.board.id}"]`)
+      if (el) setTransitionTarget(domRectToBox(el.getBoundingClientRect()))
+      else setTransition(null)
+    }, 30)
+    return () => clearTimeout(t)
+  }, [transition])
+
+  function finishTransition() {
+    setTransition(null)
+    setTransitionTarget(null)
   }
 
-  // ─── Một bảng đang mở ─────────────────────────────────────────────────────
-  // KHÔNG có ScreenHeader ở đây: thanh trên của bảng (nút về danh sách, tên bảng, công tắc Chỉ đọc,
-  // xuất file, cài đặt) nằm trong chính MindmapBoard, vì nó điều khiển giấy nền/màu nền/căn chỉnh
-  // vốn là state của component đó. Thêm một tiêu đề nữa ở đây là hai thanh chồng nhau, ăn mất chiều
-  // cao của mặt vẽ trên màn hình điện thoại.
+  function openBoard(id: string, query: string | undefined, rect?: DOMRect) {
+    onSwitchBoard(id)
+    setOpenQuery(query)
+    const board = boards.find((b) => b.id === id)
+    // Chỉ dựng lớp phủ khi mở TỪ MỘT THẺ (có rect) và máy không xin giảm chuyển động — mở từ kết
+    // quả tìm xuyên bảng thì không có thẻ nào để phóng lên từ đó.
+    if (rect && board && !prefersReducedMotion()) setTransition({ board, from: domRectToBox(rect), dir: "enter" })
+    setOpenId(id)
+  }
+
+  function goHome() {
+    const board = activeBoard
+    const r = rootRef.current?.getBoundingClientRect()
+    if (board && r && !prefersReducedMotion()) setTransition({ board, from: domRectToBox(r), dir: "exit" })
+    setOpenId(null)
+    setSheetBoardId(null)
+    // Không mang từ khoá tìm sang lần mở TAY tiếp theo (mở bảng khác, hoặc mở lại đúng bảng này) —
+    // chỉ có ý nghĩa cho đúng lượt mở từ kết quả tìm xuyên-bảng.
+    setOpenQuery(undefined)
+    // Vẽ lại ảnh xem trước: bảng vừa đóng gần như chắc chắn đã khác lúc mở ra.
+    setPreviewTick((n) => n + 1)
+  }
+
   return (
-    <div className="h-full flex flex-col relative">
-      {/* Nổi ĐÈ lên canvas thay vì chiếm một hàng riêng trong luồng bố cục — bảng vẽ vốn đã eo hẹp
-          chiều cao trên điện thoại, một hàng nhắc nhở không liên quan gì tới nội dung đang xem/vẽ
-          không nên trừ thẳng vào đó mỗi lần hiện ra. Neo ở `64px` từ đáy: cụm phóng-thu/radar của
-          MindmapBoard đứng ở `bottom-4`/`bottom-[60px]`, nhắc nhở đứng cao hơn hẳn hai cụm đó nên
-          không chồng lên nút nào của chúng dù đang cùng hiện ra. */}
-      {showBackupReminder && (
-        <div
-          className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-30"
-          style={{ left: 12, right: 12, bottom: "calc(64px + var(--safe-bottom))", background: "rgba(15,23,42,.94)" }}
-        >
-          <span className="flex-1 text-[12.5px] text-white leading-snug">
-            Đã lâu chưa sao lưu — dữ liệu chỉ nằm trên máy này, mất máy là mất hết.
-          </span>
-          <button
-            onClick={() => {
-              snoozeBackupReminder()
-              setShowBackupReminder(false)
+    <div ref={rootRef} className="h-full relative overflow-hidden">
+      {openId == null ? (
+        // ─── Danh sách bảng ───────────────────────────────────────────────
+        <>
+          <MindmapGallery
+            boards={boards}
+            previewTick={previewTick}
+            trashedBoards={trashedBoards}
+            onRestoreBoard={onRestoreBoard}
+            onPurgeBoard={onPurgeBoard}
+            onOpen={openBoard}
+            onCreate={() => {
+              setSheetBoardId(null)
+              setSheetMode("create")
             }}
-            className="flex-none text-[12.5px] font-medium px-2 py-1 text-slate-300"
-          >
-            Để sau
-          </button>
-          <button
-            onClick={onOpenBackup}
-            className="flex-none text-[12.5px] font-bold px-3 py-1.5 rounded-full"
-            style={{ background: "var(--c-surface)", color: "var(--c-primary)" }}
-          >
-            Sao lưu
-          </button>
+            onEditBoard={(b) => {
+              setSheetBoardId(b.id)
+              setSheetMode("edit")
+            }}
+          />
+          {sheetMode && (
+            <BoardEditSheet
+              mode={sheetMode}
+              board={sheetMode === "edit" ? activeBoard : undefined}
+              canDelete={boards.length > 1}
+              onClose={() => {
+                setSheetMode(null)
+                setSheetBoardId(null)
+              }}
+              onCreate={(name, color, specialtyId) => {
+                setSheetMode(null)
+                setSheetBoardId(null)
+                // Tạo xong mở thẳng vào bảng mới — đó là việc người dùng định làm tiếp.
+                void onCreateBoard(name, color, specialtyId).then(setOpenId)
+              }}
+              onSave={(patch) => {
+                if (activeBoard) onUpdateBoard(activeBoard.id, patch)
+                setSheetMode(null)
+                setSheetBoardId(null)
+              }}
+              onDelete={() => {
+                if (activeBoard) onDeleteBoard(activeBoard.id)
+                setSheetMode(null)
+                setSheetBoardId(null)
+                setPreviewTick((n) => n + 1)
+              }}
+              onDuplicate={() => {
+                const id = activeBoard?.id
+                setSheetMode(null)
+                setSheetBoardId(null)
+                if (id) void onDuplicateBoard(id)
+              }}
+              onExport={() => {
+                // Xuất file nằm ở thanh trên CỦA BẢNG (nó cần nội dung bảng đang mở để vẽ ra ảnh),
+                // nên ở đây chỉ mở bảng ra rồi để người dùng chọn PNG/PDF tại đó.
+                const id = activeBoard?.id
+                setSheetMode(null)
+                setSheetBoardId(null)
+                if (id) {
+                  onSwitchBoard(id)
+                  setOpenId(id)
+                }
+              }}
+            />
+          )}
+        </>
+      ) : (
+        // ─── Một bảng đang mở ─────────────────────────────────────────────
+        // KHÔNG có ScreenHeader ở đây: thanh trên của bảng (nút về danh sách, tên bảng, công tắc
+        // Chỉ đọc, xuất file, cài đặt) nằm trong chính MindmapBoard, vì nó điều khiển giấy
+        // nền/màu nền/căn chỉnh vốn là state của component đó. Thêm một tiêu đề nữa ở đây là hai
+        // thanh chồng nhau, ăn mất chiều cao của mặt vẽ trên màn hình điện thoại.
+        <div className="h-full flex flex-col relative">
+          {/* Nổi ĐÈ lên canvas thay vì chiếm một hàng riêng trong luồng bố cục — bảng vẽ vốn đã eo
+              hẹp chiều cao trên điện thoại, một hàng nhắc nhở không liên quan gì tới nội dung đang
+              xem/vẽ không nên trừ thẳng vào đó mỗi lần hiện ra. Neo ở `64px` từ đáy: cụm phóng-thu/
+              radar của MindmapBoard đứng ở `bottom-4`/`bottom-[60px]`, nhắc nhở đứng cao hơn hẳn hai
+              cụm đó nên không chồng lên nút nào của chúng dù đang cùng hiện ra. */}
+          {showBackupReminder && (
+            <div
+              className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-30"
+              style={{ left: 12, right: 12, bottom: "calc(64px + var(--safe-bottom))", background: "rgba(15,23,42,.94)" }}
+            >
+              <span className="flex-1 text-[12.5px] text-white leading-snug">
+                Đã lâu chưa sao lưu — dữ liệu chỉ nằm trên máy này, mất máy là mất hết.
+              </span>
+              <button
+                onClick={() => {
+                  snoozeBackupReminder()
+                  setShowBackupReminder(false)
+                }}
+                className="flex-none text-[12.5px] font-medium px-2 py-1 text-slate-300"
+              >
+                Để sau
+              </button>
+              <button
+                onClick={onOpenBackup}
+                className="flex-none text-[12.5px] font-bold px-3 py-1.5 rounded-full"
+                style={{ background: "var(--c-surface)", color: "var(--c-primary)" }}
+              >
+                Sao lưu
+              </button>
+            </div>
+          )}
+          <div className="flex-1 overflow-hidden relative">
+            {/* key=boardId: đổi bảng phải là một lượt mount MỚI hoàn toàn — thẻ đang chọn/đang sửa,
+                lasso đang khoanh... của bảng cũ không có ý nghĩa gì trên bảng khác. Ngăn xếp hoàn
+                tác không mất theo vì nó không sống trong component này — xem undoStore ở
+                useMindmap.ts. */}
+            <MindmapBoard
+              key={activeBoardId}
+              {...boardProps}
+              boardName={activeBoard?.name}
+              boardId={activeBoardId}
+              initialFindQuery={openQuery}
+              onGoHome={goHome}
+            />
+          </div>
+          {/* Không có tấm sửa bảng ở đây: đổi tên/màu/chuyên khoa làm từ DANH SÁCH (nút bút chì trên
+              thẻ bảng). Thanh trên của bảng chỉ giữ những việc dùng ngay lúc đang xem/vẽ. */}
         </div>
       )}
-      <div className="flex-1 overflow-hidden relative">
-        {/* key=boardId: đổi bảng phải là một lượt mount MỚI hoàn toàn — thẻ đang chọn/đang sửa, lasso
-            đang khoanh... của bảng cũ không có ý nghĩa gì trên bảng khác. Ngăn xếp hoàn tác không mất
-            theo vì nó không sống trong component này — xem undoStore ở useMindmap.ts. */}
-        <MindmapBoard
-          key={activeBoardId}
-          {...boardProps}
-          boardName={activeBoard?.name}
-          boardId={activeBoardId}
-          initialFindQuery={openQuery}
-          onGoHome={() => {
-            setOpenId(null)
-            setSheetBoardId(null)
-            // Không mang từ khoá tìm sang lần mở TAY tiếp theo (mở bảng khác, hoặc mở lại đúng bảng
-            // này) — chỉ có ý nghĩa cho đúng lượt mở từ kết quả tìm xuyên-bảng.
-            setOpenQuery(undefined)
-            // Vẽ lại ảnh xem trước: bảng vừa đóng gần như chắc chắn đã khác lúc mở ra.
-            setPreviewTick((n) => n + 1)
-          }}
-        />
-      </div>
-      {/* Không có tấm sửa bảng ở đây: đổi tên/màu/chuyên khoa làm từ DANH SÁCH (nút bút chì trên
-          thẻ bảng). Thanh trên của bảng chỉ giữ những việc dùng ngay lúc đang xem/vẽ. */}
+
+      {transition && <BoardTransitionOverlay transition={transition} targetRect={transitionTarget} onDone={finishTransition} />}
     </div>
   )
 }

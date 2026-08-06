@@ -281,6 +281,10 @@ function eyeDropper(): EyeDropperCtor | null {
 
 // Vị trí thanh công cụ bút (kéo thả được) — xem phần dựng thanh bút ở dưới.
 const PENBAR_KEY = "drtrong:mindmap-penbar"
+// Cụm hoàn tác/làm lại — nổi RIÊNG, không phải một phần của thanh bút, nên bấm hoàn tác lúc đang
+// dùng tay/tẩy/khoanh vùng/nối vẫn thấy được ngay, không phải mở thanh bút ra trước (xem C2). Mặc
+// định dính mép TRÊN, đối diện phía thanh bút thường đứng, để hai cụm không đè lên nhau ngay từ đầu.
+const UNDOBAR_KEY = "drtrong:mindmap-undobar"
 
 // Cỡ nút trên hàng công cụ chính. 42 chứ không phải 36 như bản trước: hàng này chỉ còn năm công cụ
 // (bút gom lại một nút) và đã bỏ nút "…" trùng lặp, nên chỗ trống dôi ra được trả về cho chính các
@@ -331,6 +335,13 @@ const SNAP_DIST = 7
 const LONG_PRESS_MS = 480
 // Chạm trong khoảng này (px màn hình) tính là trúng đường nối.
 const EDGE_HIT_DIST = 12
+// Đang cầm bút, giữ yên trên chỗ trống lâu hơn mức này (ms) thì chuyển tạm sang khoanh vùng — xem
+// C3/startHoldLassoTimer(). Ngắn hơn LONG_PRESS_MS (tạo ghi chú, chỉ áp dụng với công cụ tay) một
+// chút: đây là cử chỉ của người đang vẽ liên tục, càng nhanh vào việc càng đỡ đứt mạch.
+const HOLD_LASSO_MS = 400
+// Tay/bút còn nhúc nhích quá mức này (px màn hình) trong lúc giữ thì KHÔNG tính là giữ yên — đang vẽ
+// một nét chậm chứ không phải đang chờ chuyển sang khoanh vùng.
+const HOLD_LASSO_TOLERANCE = 6
 
 const TOP_TOOLS: { id: TopTool; icon: (cls?: string) => React.ReactElement; hint: string }[] = [
   { id: "hand", icon: mi.hand, hint: "Di chuyển bảng và ghi chú" },
@@ -646,23 +657,26 @@ interface BarPos {
 
 const BAR_DOCKS: BarDock[] = ["top", "bottom", "left", "right"]
 
-function readBarPos(): BarPos | null {
+// Nhận `key` làm tham số vì có HAI thanh nổi kéo-thả-neo-mép độc lập trên bảng: thanh bút và cụm
+// hoàn tác/làm lại (xem UNDOBAR_KEY) — mỗi cụm nhớ vị trí RIÊNG, gắn tay một cụm không kéo cụm kia
+// theo.
+function readBarPos(key: string, defaultF: number): BarPos | null {
   try {
-    const raw = localStorage.getItem(PENBAR_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return null
     const v = JSON.parse(raw) as Partial<BarPos>
     if (!v.dock || !BAR_DOCKS.includes(v.dock)) return null
-    const f = typeof v.f === "number" && Number.isFinite(v.f) ? Math.min(1, Math.max(0, v.f)) : 0.12
+    const f = typeof v.f === "number" && Number.isFinite(v.f) ? Math.min(1, Math.max(0, v.f)) : defaultF
     return { dock: v.dock, f }
   } catch {
     return null
   }
 }
 
-function writeBarPos(v: BarPos | null): void {
+function writeBarPos(key: string, v: BarPos | null): void {
   try {
-    if (v) localStorage.setItem(PENBAR_KEY, JSON.stringify(v))
-    else localStorage.removeItem(PENBAR_KEY)
+    if (v) localStorage.setItem(key, JSON.stringify(v))
+    else localStorage.removeItem(key)
   } catch {
     // Như trên.
   }
@@ -985,7 +999,10 @@ export function MindmapBoard({
   const [chromeHidden, setChromeHidden] = useState(false)
   // Thanh bút gắn vào mép nào của bảng — xem BarPos. Mặc định dính mép TRÊN, ngay dưới hàng công cụ:
   // đó là chỗ mọi app ghi chép đặt thanh bút, và cũng là chỗ ít che phần giấy đang viết nhất.
-  const [barPos, setBarPos] = useState<BarPos>(() => readBarPos() ?? { dock: "top", f: 0.12 })
+  const [barPos, setBarPos] = useState<BarPos>(() => readBarPos(PENBAR_KEY, 0.12) ?? { dock: "top", f: 0.12 })
+  // Cụm hoàn tác/làm lại — nổi riêng khỏi thanh bút (xem C2/UNDOBAR_KEY). Mặc định dính mép PHẢI,
+  // để không chồng lên thanh bút (mép trên) ngay từ lần mở đầu tiên.
+  const [undoBarPos, setUndoBarPos] = useState<BarPos>(() => readBarPos(UNDOBAR_KEY, 0.14) ?? { dock: "right", f: 0.14 })
   // Bảng phụ đang mở trên thanh bút: cỡ nét, hoặc danh sách hình vẽ.
   const [penPop, setPenPop] = useState<null | "size" | "shape">(null)
   // Bảng màu bút (tấm trượt lên từ đáy). Ba tab như trong thiết kế: bảng có sẵn, tự pha, đã dùng.
@@ -1004,6 +1021,10 @@ export function MindmapBoard({
   const [eraserSize, setEraserSize] = useState(ERASER_SIZES[1])
   // Khoanh vùng bằng nét tay tự do, hay bằng một khung chữ nhật kéo từ góc này sang góc kia.
   const [lassoRect, setLassoRect] = useState(false)
+  // Đang ở giữa cử chỉ "giữ bút rồi kéo = khoanh vùng tạm" (C3) — chỉ dùng để bật dải nhắc "Khoanh
+  // một vòng…" giống lúc dùng tay công cụ khoanh vùng thật; KHÔNG đổi `tool`/`rawTool` (nhả tay ra
+  // là về lại đúng cây bút đang cầm, không cần chọn lại).
+  const [tempLassoActive, setTempLassoActive] = useState(false)
   // Tẩy cả nét hay chỉ tẩy phần chạm trúng. Mặc định tẩy MỘT PHẦN, giống cục tẩy thật và giống
   // GoodNotes: xoá được một chữ viết sai giữa một dòng dài mà không mất cả dòng.
   const [eraseWholeStroke, setEraseWholeStroke] = useState(false)
@@ -1053,7 +1074,6 @@ export function MindmapBoard({
   const [newEdgeKey, setNewEdgeKey] = useState<string | null>(null)
   // Đang xếp lại nhánh: bật transition cho left/top của thẻ để thấy chúng trượt về chỗ mới.
   const [sliding, setSliding] = useState(false)
-  const [savedFlash, setSavedFlash] = useState(false)
   const [selGroup, setSelGroup] = useState<GroupSel | null>(null)
   // Đang mở bảng chọn bài để gắn vào thẻ. "add" = tạo thẻ mới từ một bài; "edit" = gắn bài vào thẻ
   // đang sửa.
@@ -1087,6 +1107,8 @@ export function MindmapBoard({
   const surfaceRef = useRef<HTMLDivElement>(null)
   // Thanh công cụ bút — đo bề rộng/chiều cao thật của nó khi kéo, để thanh không đi lố ra ngoài bảng.
   const penBarRef = useRef<HTMLDivElement>(null)
+  // Cụm hoàn tác/làm lại nổi riêng — xem C2.
+  const undoBarRef = useRef<HTMLDivElement>(null)
   const minimapPanelRef = useRef<HTMLDivElement>(null)
   const minimapViewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
@@ -1106,6 +1128,9 @@ export function MindmapBoard({
   const vGuideRef = useRef<HTMLDivElement>(null)
   const hGuideRef = useRef<HTMLDivElement>(null)
   const lassoPathRef = useRef<SVGPathElement>(null)
+  // Khung nháy sáng lên phần dữ liệu vừa hoàn tác/làm lại — xem flashChangeGlow() (D1). Là một
+  // <rect> SVG (không phải div) để nằm cùng lớp toạ độ bảng với InkLayer, khỏi phải tự quy đổi.
+  const undoGlowRef = useRef<SVGRectElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const findInputRef = useRef<HTMLInputElement>(null)
@@ -1140,6 +1165,9 @@ export function MindmapBoard({
   const lassoPts = useRef<number[] | null>(null)
   // Điểm đặt tay của một vùng khoanh HÌNH CHỮ NHẬT — bốn góc tính lại từ điểm này và điểm hiện tại.
   const lassoAnchor = useRef({ x: 0, y: 0 })
+  // Đếm giờ + điểm mốc cho cử chỉ "giữ bút rồi kéo = khoanh vùng tạm" (C3) — xem startHoldLassoTimer().
+  const holdLassoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdLassoAnchor = useRef({ x: 0, y: 0, pointerId: -1 })
   const erased = useRef(new Set<string>())
   // Tẩy MỘT PHẦN: với mỗi nét bị chạm, bản điểm đã chia nhỏ (xem densify) cùng những điểm đã bị tẩy
   // và những chỗ phải cắt đôi.
@@ -1219,7 +1247,22 @@ export function MindmapBoard({
         el: HTMLElement | null
       }
     | { kind: "linkdrag"; from: string; moved: boolean }
-    | { kind: "pinch"; startDist: number; origZoom: number; anchorBoard: { x: number; y: number } }
+    | {
+        kind: "pinch"
+        startDist: number
+        origZoom: number
+        anchorBoard: { x: number; y: number }
+        // Xem C1 — chạm nhiều ngón mà không hề kéo/phóng-thu (giữ yên rồi buông ngay) là một cử chỉ
+        // KHÁC hẳn: hai ngón = hoàn tác, ba ngón = làm lại. `moved` bật lên ngay khi tâm hai ngón
+        // hoặc khoảng cách giữa chúng đổi quá một ngưỡng nhỏ; `maxPointers` nhớ số ngón NHIỀU NHẤT
+        // đã chạm cùng lúc trong suốt cử chỉ (không phải số ngón còn lại lúc nhấc tay — tay thường
+        // nhấc từng ngón một, không phải cùng lúc).
+        startTime: number
+        startCx: number
+        startCy: number
+        maxPointers: number
+        moved: boolean
+      }
   >({ kind: "none" })
 
   // ─── Khung nhìn (pan/zoom) ─────────────────────────────────────────────────
@@ -1605,11 +1648,114 @@ export function MindmapBoard({
     setCanRedo(false)
   }
 
+  // Phần dữ liệu THẬT SỰ khác nhau giữa hai bản ghi (trước/sau một lần hoàn tác hoặc làm lại) — chỉ
+  // đúng những nét/thẻ/ảnh vừa mất hoặc vừa hiện lại, không phải toàn bộ bảng. Dùng để khoanh vùng
+  // vừa đổi (D1): contentBounds() sẵn có đo khung bao của MỘT MindmapData, nên gói phần khác biệt
+  // vào một MindmapData giả rồi đưa thẳng cho nó, giống cách groupBounds() đo khung của một nhóm
+  // đang khoanh chọn.
+  function diffSubset(before: MindmapData, after: MindmapData): MindmapData {
+    const beforeStrokes = new Map((before.strokes ?? []).map((s) => [s.id, s]))
+    const afterStrokes = new Map((after.strokes ?? []).map((s) => [s.id, s]))
+    const strokesDiff: MindStroke[] = []
+    beforeStrokes.forEach((s, id) => {
+      if (!afterStrokes.has(id)) strokesDiff.push(s)
+    })
+    afterStrokes.forEach((s, id) => {
+      if (!beforeStrokes.has(id)) strokesDiff.push(s)
+    })
+
+    const beforeImages = new Map((before.images ?? []).map((im) => [im.id, im]))
+    const afterImages = new Map((after.images ?? []).map((im) => [im.id, im]))
+    const imagesDiff: MindImage[] = []
+    beforeImages.forEach((im, id) => {
+      if (!afterImages.has(id)) imagesDiff.push(im)
+    })
+    afterImages.forEach((im, id) => {
+      const b = beforeImages.get(id)
+      if (!b || b.x !== im.x || b.y !== im.y || b.w !== im.w || b.h !== im.h) imagesDiff.push(im)
+    })
+
+    const beforeNodes = new Map(before.nodes.map((n) => [n.id, n]))
+    const afterNodes = new Map(after.nodes.map((n) => [n.id, n]))
+    const nodesDiff: MindNode[] = []
+    beforeNodes.forEach((n, id) => {
+      if (!afterNodes.has(id)) nodesDiff.push(n)
+    })
+    afterNodes.forEach((n, id) => {
+      const b = beforeNodes.get(id)
+      if (!b || b.x !== n.x || b.y !== n.y || b.text !== n.text) nodesDiff.push(n)
+    })
+
+    return { nodes: nodesDiff, edges: [], strokes: strokesDiff, images: imagesDiff }
+  }
+
+  // Tâm khung có đang nằm trong khung nhìn hiện tại không — dùng để quyết định có cần lăn bảng tới
+  // đó trước khi nháy sáng hay không (D1). So TÂM, không so cả khung: một khung to hơn cả màn hình
+  // vẫn nên coi là "đang thấy" nếu tâm nó đang ở giữa mắt, không cần lăn thêm.
+  function boxCenterVisible(b: { x: number; y: number; w: number; h: number }): boolean {
+    const rect = surfaceRect()
+    const { x, y, zoom } = view.current
+    const cx = x + (b.x + b.w / 2) * zoom
+    const cy = y + (b.y + b.h / 2) * zoom
+    return cx >= 0 && cx <= rect.width && cy >= 0 && cy <= rect.height
+  }
+
+  // Nháy sáng một khung trên bảng (D1) — viết trực tiếp vào DOM (không qua state) và ép chạy lại
+  // animation từ đầu mỗi lần gọi (đọc offsetWidth để buộc reflow): hoàn tác/làm lại liên tiếp nhiều
+  // lần nhanh vẫn phải thấy nháy sáng ở MỖI lần, không phải animation cũ còn dang dở bị bỏ qua vì
+  // className không đổi.
+  function flashChangeGlow(b: { x: number; y: number; w: number; h: number }) {
+    const el = undoGlowRef.current
+    if (!el) return
+    const pad = 8
+    el.setAttribute("x", String(b.x - pad))
+    el.setAttribute("y", String(b.y - pad))
+    el.setAttribute("width", String(b.w + pad * 2))
+    el.setAttribute("height", String(b.h + pad * 2))
+    el.style.display = "block"
+    el.classList.remove("pulse-glow")
+    // Đọc getBBox() để ép trình duyệt tính lại bố cục ngay — nếu không, gọi liên tiếp (hoàn tác
+    // nhiều lần nhanh) sẽ không thấy nháy lần thứ hai vì trình duyệt gộp việc bỏ rồi thêm lại cùng
+    // một className vào một lượt vẽ duy nhất, animation coi như chưa từng bị gỡ ra.
+    void el.getBBox()
+    el.classList.add("pulse-glow")
+    // `.pulse-glow` không có fill-mode "forwards" (chủ ý — .mind-btn và các hoạt ảnh phản hồi chạm
+    // khác trong file này đều vậy) nên khi chạy xong, trình duyệt trả opacity về giá trị NỀN của
+    // chính rect — mà rect không đặt opacity riêng, nền đó là "hiện" (1). Không tự ẩn lại thì khung
+    // dính lại trên bảng mãi sau lần nháy đầu tiên. `once: true` để mỗi lần gọi lại chỉ đăng ký một
+    // lượt, không dồn thêm listener qua các lần hoàn tác liên tiếp.
+    el.addEventListener("animationend", () => (el.style.display = "none"), { once: true })
+  }
+
+  // Lăn bảng tới khung vừa đổi (nếu đang ở ngoài khung nhìn) rồi nháy sáng lên đó, kèm một dòng nhắc
+  // ngắn ở đáy — hoàn tác/làm lại đổi dữ liệu NGOÀI TẦM MẮT (cuộn xa, hay bị thẻ khác che) thì người
+  // dùng không hề biết vừa có gì xảy ra, bấm đi bấm lại tưởng nút không ăn (D1).
+  function announceHistoryJump(before: MindmapData, after: MindmapData, verb: string) {
+    const subset = diffSubset(before, after)
+    const box = contentBounds(subset, sizesRef.current)
+    if (box) {
+      if (!boxCenterVisible(box)) {
+        const rect = surfaceRect()
+        const zoom = view.current.zoom
+        animateView(
+          { x: rect.width / 2 - (box.x + box.w / 2) * zoom, y: rect.height / 2 - (box.y + box.h / 2) * zoom, zoom },
+          320,
+        )
+      }
+      flashChangeGlow(box)
+    }
+    const kind =
+      (subset.strokes?.length ?? 0) > 0 ? "nét vẽ" : (subset.images?.length ?? 0) > 0 ? "ảnh" : subset.nodes.length > 0 ? "ghi chú" : null
+    flashToast(kind ? `${verb}: ${kind}` : verb)
+  }
+
   function undo() {
     const prev = undoStore.undo.pop()
     if (!prev) return
-    undoStore.redo.push(snapshot())
+    const before = snapshot()
+    undoStore.redo.push(before)
     replaceAll(prev)
+    announceHistoryJump(before, prev, "Đã hoàn tác")
     setCanUndo(undoStore.undo.length > 0)
     setCanRedo(true)
     setEditingId(null)
@@ -1620,8 +1766,10 @@ export function MindmapBoard({
   function redo() {
     const next = undoStore.redo.pop()
     if (!next) return
-    undoStore.undo.push(snapshot())
+    const before = snapshot()
+    undoStore.undo.push(before)
     replaceAll(next)
+    announceHistoryJump(before, next, "Đã làm lại")
     setCanUndo(true)
     setCanRedo(undoStore.redo.length > 0)
     setEditingId(null)
@@ -2774,6 +2922,7 @@ export function MindmapBoard({
     const cy = (a.y + b.y) / 2 - rect.top
     const { x, y, zoom } = view.current
     cancelLongPress()
+    cancelHoldLassoTimer()
     hideGuides()
     endDraft()
     unhideErased()
@@ -2782,6 +2931,11 @@ export function MindmapBoard({
       startDist: dist(a.x, a.y, b.x, b.y),
       origZoom: zoom,
       anchorBoard: { x: (cx - x) / zoom, y: (cy - y) / zoom },
+      startTime: performance.now(),
+      startCx: cx,
+      startCy: cy,
+      maxPointers: 2,
+      moved: false,
     }
   }
 
@@ -2797,7 +2951,15 @@ export function MindmapBoard({
       startPinch()
       return
     }
-    if (pointers.current.size > 2) return
+    if (pointers.current.size > 2) {
+      // Ngón thứ ba (hoặc hơn) trong lúc đang phóng-thu: không đổi cách tính zoom (vẫn dùng đúng
+      // hai ngón đầu), chỉ NHỚ đã có bao nhiêu ngón — để lúc nhấc tay phân biệt được chạm hai ngón
+      // (hoàn tác) hay chạm ba ngón (làm lại), xem C1.
+      if (action.current.kind === "pinch") {
+        action.current.maxPointers = Math.max(action.current.maxPointers, pointers.current.size)
+      }
+      return
+    }
     if (loading) return
     setMenuOpen(false)
     setAddOpen(false)
@@ -2841,6 +3003,7 @@ export function MindmapBoard({
 
     if (freehand) {
       beginInk(e, p)
+      startHoldLassoTimer(e, p)
       return
     }
     // Băng dính đi chung đường với hình vẽ: cả hai đều là "kéo từ điểm này tới điểm kia rồi thả",
@@ -2852,6 +3015,7 @@ export function MindmapBoard({
       draftPts.current = [p.x, p.y]
       draftWidths.current = null
       beginDraft(activeWidth, activeInk, strokeAlpha(inkOf(tool)), false, strokeCap(inkOf(tool)))
+      startHoldLassoTimer(e, p)
       return
     }
     if (tool === "lasso") {
@@ -2906,6 +3070,52 @@ export function MindmapBoard({
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
+    }
+  }
+
+  // ─── Giữ bút rồi kéo = khoanh vùng tạm (C3) ────────────────────────────────
+  //
+  // Vì sao cần: đang vẽ dở một sơ đồ, muốn khoanh nhanh vài nét/thẻ để đổi màu hay xoá cả cụm — cách
+  // "đúng" là đổi sang công cụ khoanh vùng, khoanh, rồi đổi lại bút. Ba lần chạm cho một việc phụ,
+  // và đứt mạch tay đang cầm bút. Giữ yên bút một nhịp rồi kéo thì vào thẳng việc khoanh, nhả tay ra
+  // là bút cũ vẫn còn trong tay — không phải hai lần đổi công cụ nào cả.
+  //
+  // Gọi ngay sau khi ĐÃ bắt đầu vẽ bình thường (beginInk / bắt đầu hình), không phải THAY vào chỗ
+  // đó — nếu tay nhấc lên sớm hay kéo đi ngay, nét/hình vẽ vẫn chốt lại như thường, không có gì đổi
+  // khác với trước đây. Chỉ khi giữ ĐỦ LÂU mà KHÔNG NHÚC NHÍCH thì mới bỏ nét dở và chuyển hướng.
+  function startHoldLassoTimer(e: ReactPointerEvent, p: { x: number; y: number }) {
+    // So sánh THAM CHIẾU đối tượng action, không phải `.kind`: một cử chỉ mới (nhấc tay rồi chạm lại,
+    // hoặc đã chốt nét cũ) luôn tạo action MỚI, dù cùng kind — nhờ vậy hẹn giờ cũ hết hạn đúng lúc,
+    // không cần huỷ tay ở mọi nơi có thể kết thúc một nét.
+    const startedAction = action.current
+    holdLassoAnchor.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId }
+    if (holdLassoTimer.current) clearTimeout(holdLassoTimer.current)
+    holdLassoTimer.current = setTimeout(() => {
+      holdLassoTimer.current = null
+      if (action.current !== startedAction) return
+      const anchor = holdLassoAnchor.current
+      const cur = pointers.current.get(anchor.pointerId)
+      if (!cur || dist(cur.x, cur.y, anchor.x, anchor.y) > HOLD_LASSO_TOLERANCE) return
+      endDraft()
+      action.current = { kind: "lasso" }
+      lassoPts.current = [p.x, p.y]
+      lassoAnchor.current = { x: p.x, y: p.y }
+      setTempLassoActive(true)
+      const el = lassoPathRef.current
+      if (el) {
+        el.setAttribute("d", "")
+        el.style.display = "block"
+      }
+      // Rung để phân biệt với việc bắt đầu một nét — người dùng phải biết ngay là cử chỉ đã ĐỔI
+      // HƯỚNG, không phải bút vừa khựng lại một nhịp rồi vẫn đang vẽ.
+      tickHaptic()
+    }, HOLD_LASSO_MS)
+  }
+
+  function cancelHoldLassoTimer() {
+    if (holdLassoTimer.current) {
+      clearTimeout(holdLassoTimer.current)
+      holdLassoTimer.current = null
     }
   }
 
@@ -3041,6 +3251,11 @@ export function MindmapBoard({
       const z = clampZoom(act.origZoom * (d / act.startDist))
       const cx = (a.x + b.x) / 2 - rect.left
       const cy = (a.y + b.y) / 2 - rect.top
+      // Tâm hai ngón dịch, hoặc khoảng cách giữa chúng đổi, quá một ngưỡng nhỏ → đây là một cử chỉ
+      // kéo/phóng-thu THẬT, không phải chạm rồi buông ngay — loại khỏi diện "chạm nhiều ngón" (C1).
+      if (!act.moved && (dist(cx, cy, act.startCx, act.startCy) > 10 || Math.abs(d - act.startDist) > 10)) {
+        act.moved = true
+      }
       // Giữ đúng điểm trên bảng nằm dưới giữa hai ngón → cảm giác "bảng dính vào ngón tay".
       view.current = { x: cx - act.anchorBoard.x * z, y: cy - act.anchorBoard.y * z, zoom: z }
       applyView()
@@ -3282,6 +3497,19 @@ export function MindmapBoard({
     const act = action.current
 
     if (act.kind === "pinch") {
+      // ─── Chạm nhiều ngón (không kéo/phóng-thu) ──────────────────────────────
+      // Đặt xuống rồi buông ngay, gần như không dịch chuyển: đây không phải một cử chỉ phóng-thu
+      // dở, mà là CHẠM CÓ Ý — hai ngón để hoàn tác, ba ngón để làm lại. Không áp dụng ở chế độ chỉ
+      // đọc (không có gì để hoàn tác/làm lại theo cách người dùng mong đợi ở màn xem), và không áp
+      // dụng khi đang có nét dở — nhưng ngón thứ hai đặt xuống đã luôn HUỶ nét dở ngay từ
+      // startPinch(), nên tới đây thì điều kiện đó chắc chắn đã đúng.
+      const isTap = !act.moved && performance.now() - act.startTime < 300
+      if (isTap && !readOnly && (act.maxPointers === 2 || act.maxPointers === 3)) {
+        if (act.maxPointers === 2) undo()
+        else redo()
+        action.current = { kind: "none" }
+        return
+      }
       showZoom()
       if (pointers.current.size === 1) {
         // Nhấc một ngón nhưng ngón kia còn trên bảng → chuyển tiếp thành kéo bảng, để bảng vẫn dính
@@ -3306,6 +3534,7 @@ export function MindmapBoard({
 
     if (act.kind === "draw" || act.kind === "shape") {
       cancelHold()
+      cancelHoldLassoTimer()
       const pts = draftPts.current
       // Nét đã được nắn thành hình chuẩn (giữ yên tay giữa chừng) → chốt nó như một HÌNH: nối thẳng
       // các điểm, bề dày đều, không vuốt đuôi. Nắn xong mà vẫn vẽ như nét tay thì công sức nắn coi
@@ -3324,7 +3553,12 @@ export function MindmapBoard({
       } else endDraft()
     }
 
-    if (act.kind === "lasso") finishLasso()
+    if (act.kind === "lasso") {
+      finishLasso()
+      // Nhả tay ra khỏi cử chỉ khoanh vùng TẠM (C3): tắt dải nhắc, không đổi gì tới `tool` — cây bút
+      // đang cầm vẫn còn nguyên trong tay, không cần chọn lại.
+      if (tempLassoActive) setTempLassoActive(false)
+    }
 
     if (act.kind === "groupdrag" && selGroup) {
       const z = view.current.zoom
@@ -3790,14 +4024,6 @@ export function MindmapBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Dấu "đã lưu": hiện một nhịp ngắn mỗi lần dữ liệu bảng được ghi vào máy xong.
-  useEffect(() => {
-    if (savedTick === 0) return
-    setSavedFlash(true)
-    const t = setTimeout(() => setSavedFlash(false), 1300)
-    return () => clearTimeout(t)
-  }, [savedTick])
-
   // ─── Chrome tự ẩn khi đang vẽ ─────────────────────────────────────────────
   //
   // Thanh trên và thanh công cụ là hai dải viền/nút không liên quan gì tới nội dung đang viết — giữ
@@ -4050,7 +4276,62 @@ export function MindmapBoard({
     const d = barDrag.current
     if (!d) return
     barDrag.current = null
-    writeBarPos(d.pos)
+    writeBarPos(PENBAR_KEY, d.pos)
+    tickHaptic()
+  }
+
+  // ─── Kéo cụm hoàn tác/làm lại sang mép khác ────────────────────────────────
+  // Cùng cơ chế với thanh bút ở trên (gắn mép gần nhất), nhưng là một cụm ĐỘC LẬP — xem C2/UNDOBAR_KEY
+  // về lý do tách riêng khỏi thanh bút thay vì nhét vào trong nó.
+  //
+  // Khác thanh bút ở một điểm: cụm này CHỈ có hai nút, không đủ để chiếm trọn một mép (thanh bút
+  // nằm ngang chiếm trọn bề ngang vì nó có cả chục nút cần chỗ). Đứng nguyên nhỏ gọn ở mọi mép, và
+  // `f` trượt dọc theo ĐÚNG mép đang gắn — theo chiều ngang khi gắn mép trên/dưới, theo chiều dọc khi
+  // gắn mép trái/phải — nên cần nhớ CẢ dx và dy lúc bắt đầu kéo (thanh bút chỉ cần dy vì luôn dính
+  // trọn bề ngang, không có toạ độ ngang nào để nhớ).
+  const undoBarDrag = useRef<{ dx: number; dy: number; pos: BarPos } | null>(null)
+
+  function undoBarPointerDown(e: ReactPointerEvent) {
+    const bar = undoBarRef.current
+    if (!bar) return
+    e.stopPropagation()
+    const b = bar.getBoundingClientRect()
+    undoBarDrag.current = { dx: e.clientX - b.left, dy: e.clientY - b.top, pos: undoBarPos }
+    try {
+      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    } catch {
+      // Trình duyệt từ chối bắt con trỏ thì vẫn kéo được nhờ sự kiện nổi bọt.
+    }
+  }
+
+  function undoBarPointerMove(e: ReactPointerEvent) {
+    const d = undoBarDrag.current
+    const host = surfaceRef.current
+    const bar = undoBarRef.current
+    if (!d || !host || !bar) return
+    e.stopPropagation()
+    const r = host.getBoundingClientRect()
+    const px = e.clientX - r.left
+    const py = e.clientY - r.top
+    const cand: [BarDock, number][] = [
+      ["left", px / r.width],
+      ["right", (r.width - px) / r.width],
+      ["top", py / r.height],
+      ["bottom", (r.height - py) / r.height],
+    ]
+    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
+    const vert = dock === "left" || dock === "right"
+    const max = vert ? Math.max(1, r.height - bar.offsetHeight) : Math.max(1, r.width - bar.offsetWidth)
+    const along = vert ? py - d.dy : px - d.dx
+    d.pos = { dock, f: Math.min(1, Math.max(0, along / max)) }
+    setUndoBarPos(d.pos)
+  }
+
+  function undoBarPointerUp() {
+    const d = undoBarDrag.current
+    if (!d) return
+    undoBarDrag.current = null
+    writeBarPos(UNDOBAR_KEY, d.pos)
     tickHaptic()
   }
 
@@ -4165,6 +4446,22 @@ export function MindmapBoard({
         transform: `translateY(${-barPos.f * 100}%)`,
       }
     : { left: 0, right: 0, [barPos.dock === "top" ? "top" : "bottom"]: 0 }
+
+  // Cụm hoàn tác/làm lại: chỉ hai nút, không đủ để chiếm trọn một mép như thanh bút — đứng nhỏ gọn
+  // ở mọi mép, `f` trượt dọc theo ĐÚNG mép đang gắn (ngang khi gắn mép trên/dưới, dọc khi gắn mép
+  // trái/phải). Cùng mẹo phần trăm + translate ngược để không bao giờ lòi ra ngoài màn hình.
+  const undoBarVert = undoBarPos.dock === "left" || undoBarPos.dock === "right"
+  const undoBarStyle: React.CSSProperties = undoBarVert
+    ? {
+        [undoBarPos.dock === "left" ? "left" : "right"]: 6,
+        top: `${undoBarPos.f * 100}%`,
+        transform: `translateY(${-undoBarPos.f * 100}%)`,
+      }
+    : {
+        [undoBarPos.dock === "top" ? "top" : "bottom"]: 6,
+        left: `${undoBarPos.f * 100}%`,
+        transform: `translateX(${-undoBarPos.f * 100}%)`,
+      }
 
   // Đường kính chấm xem trước trên nút cỡ nét. Không vẽ chấm to đúng bằng cỡ nét thật (bút dạ 40 thì
   // chấm sẽ to hơn cả cái nút) mà quy về khoảng 4–10px THEO TỈ LỆ trong khoảng cỡ của chính cây bút
@@ -4361,9 +4658,22 @@ export function MindmapBoard({
           </div>
         ) : (
           <>
-            <p className="flex-1 min-w-0 truncate text-[14px] font-bold px-1" style={{ color: "var(--c-text)" }}>
-              {boardName ?? "Bảng"}
-            </p>
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 px-1">
+              <p className="min-w-0 truncate text-[14px] font-bold" style={{ color: "var(--c-text)" }}>
+                {boardName ?? "Bảng"}
+              </p>
+              {/* Dấu "đã lưu" — bảng vẽ tay là thứ dễ lo mất nhất, nên mỗi lần ghi xong nói một
+                  tiếng, ngay cạnh tên bảng chứ không phải một pill nổi riêng đè lên mặt vẽ (D2).
+                  `key={savedTick}` để mỗi lần ghi xong là một nút DOM MỚI — cách duy nhất bắt CSS
+                  animation chạy lại từ đầu khi lưu liên tiếp nhiều lần, không phải bật/tắt qua
+                  state như trước (đổi lại phải giữ THÊM một biến `savedFlash` chỉ để làm việc mà
+                  chính bản thân animation `.flash-ok` — có sẵn điểm dừng ở cuối — đã tự làm được). */}
+              {savedTick > 0 && (
+                <span key={savedTick} className="flash-ok flex-none text-[10.5px] font-semibold" style={{ color: "var(--c-muted)" }}>
+                  đã lưu
+                </span>
+              )}
+            </div>
             <IconBtn icon={mi.search} hint="Tìm thẻ trên bảng" onClick={openFind} />
           </>
         )}
@@ -4520,7 +4830,9 @@ export function MindmapBoard({
                   plainBg
                   onClick={() => pickTopTool(t.id)}
                 />
-                {/* Vạch màu dưới nút bút = màu mực của cây bút đang cầm. */}
+                {/* Vạch màu dưới nút bút = màu mực của cây bút đang cầm. Đổi màu có transition
+                    (D4) — cùng nhịp 0.16s với .mind-btn, để đổi màu bút không phải cú NHÁY cứng
+                    duy nhất không có transition giữa một hàng nút toàn có phản hồi mượt. */}
                 {t.id === "draw" && drawTool && (
                   <span
                     className="absolute rounded-full pointer-events-none"
@@ -4531,24 +4843,17 @@ export function MindmapBoard({
                       height: 3,
                       background: activeInk,
                       opacity: strokeAlpha(styleTool) < 1 ? 0.85 : 1,
+                      transition: "background-color 0.16s ease",
                     }}
                   />
                 )}
               </span>
             ))}
           </div>
-          <span className="flex-1 min-w-0" />
-          {/* Chỉ còn hoàn tác/làm lại. Nút "…" từng đứng ở đây đã bỏ: nó mở ĐÚNG cái bảng mà nút "…"
-              trên thanh tiêu đề mở, chỉ khác là bảng đó lại nằm neo theo nút trên kia — hai nút giống
-              hệt nhau cách nhau 40px là chỗ chỉ tổ làm người dùng phải thử xem chúng có khác gì
-              không. Chấm báo "đang lọc màu" chuyển theo sang nút "…" của thanh tiêu đề. */}
-          <div
-            className="flex-none flex items-center rounded-2xl border p-0.5"
-            style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
-          >
-            <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={TOOL_BTN} />
-            <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} size={TOOL_BTN} />
-          </div>
+          {/* Hoàn tác/làm lại không còn đứng ở đây — đã chuyển thành một cụm nổi riêng, kéo-thả-neo
+              mép được, luôn thấy dù đang cầm công cụ nào (xem C2 và cụm `undoBarRef` trên mặt bảng).
+              Nút "…" từng đứng cạnh đó cũng đã bỏ cùng lúc: nó mở ĐÚNG cái bảng mà nút "…" trên
+              thanh tiêu đề mở. Chấm báo "đang lọc màu" chuyển theo sang nút "…" của thanh tiêu đề. */}
         </div>
 
         {/* Hàng phụ của TẨY — chỉ tẩy mới còn hàng phụ ở đây. Mọi lựa chọn của bút (cây bút nào,
@@ -4934,6 +5239,18 @@ export function MindmapBoard({
         >
           {/* Nét vẽ và đường nối nằm DƯỚI ghi chú để chữ luôn đọc được */}
           <svg style={{ position: "absolute", overflow: "visible", pointerEvents: "none" }} width="1" height="1">
+            {/* Nháy sáng lên phần vừa hoàn tác/làm lại (D1) — nằm TRÊN cùng lớp SVG này (không phải
+                trong worldRef trực tiếp) để dùng chung toạ độ bảng với InkLayer, khỏi tự quy đổi. */}
+            <rect
+              ref={undoGlowRef}
+              rx={12}
+              // Alpha nằm NGAY TRONG màu tô (rgba), không đặt qua `opacity` riêng: `.pulse-glow` tự
+              // chạy opacity 0→1→0, đặt thêm opacity cố định ở đây sẽ nhân dồn hai lớp mờ, và lúc
+              // animation dừng (không có fill-mode "forwards") trình duyệt trả opacity về giá trị
+              // đặt tại đây — nếu đó là một số khác 0, khung nháy sáng sẽ dính lại trên bảng mãi.
+              fill="rgba(var(--c-primary-rgb), 0.35)"
+              style={{ display: "none", pointerEvents: "none" }}
+            />
             <InkLayer strokes={strokes} />
 
             {/* Các mẩu còn sống của những nét đang bị tẩy MỘT PHẦN. Nét gốc bị ẩn đi và thay tạm
@@ -5025,8 +5342,8 @@ export function MindmapBoard({
           <svg style={{ position: "absolute", overflow: "visible", pointerEvents: "none" }} width="1" height="1">
             <path
               ref={lassoPathRef}
-              fill="rgba(232,0,125,.08)"
-              stroke="#e8007d"
+              fill="rgba(var(--c-accent-2-rgb),.08)"
+              stroke="var(--c-accent-2)"
               strokeWidth={1.6}
               strokeDasharray="6 5"
               strokeLinejoin="round"
@@ -5058,7 +5375,7 @@ export function MindmapBoard({
                   boxShadow: selected
                     ? "0 0 0 2.5px rgba(var(--c-primary-rgb),.6), 0 8px 20px rgba(15,23,42,.2)"
                     : inGroup
-                      ? "0 0 0 2px rgba(232,0,125,.5)"
+                      ? "0 0 0 2px rgba(var(--c-accent-2-rgb),.5)"
                       : "0 4px 14px rgba(15,23,42,.14)",
                   pointerEvents: drawTool || tool === "eraser" ? "none" : "auto",
                   WebkitUserSelect: "none",
@@ -5105,9 +5422,9 @@ export function MindmapBoard({
                   boxShadow: selected
                     ? `0 0 0 2.5px rgba(var(--c-primary-rgb),.55), ${paint.shadowCss}`
                     : linking
-                      ? `0 0 0 2.5px rgba(232,0,125,.55), ${paint.shadowCss}`
+                      ? `0 0 0 2.5px rgba(var(--c-accent-2-rgb),.55), ${paint.shadowCss}`
                       : inGroup
-                        ? "0 0 0 2px rgba(232,0,125,.5)"
+                        ? "0 0 0 2px rgba(var(--c-accent-2-rgb),.5)"
                         : // Thẻ khớp ô tìm: viền vàng, để nhìn một cái là thấy hết chỗ nào có chữ
                           // vừa gõ chứ không phải bấm "tiếp" từng thẻ mới biết bảng có bao nhiêu.
                           matched
@@ -5297,9 +5614,9 @@ export function MindmapBoard({
                   top: groupBox.y - 8,
                   width: groupBox.w + 16,
                   height: groupBox.h + 16,
-                  border: "1.5px dashed #e8007d",
+                  border: "1.5px dashed var(--c-accent-2)",
                   borderRadius: 12,
-                  background: "rgba(232,0,125,.05)",
+                  background: "rgba(var(--c-accent-2-rgb),.05)",
                 }}
               />
               <div
@@ -5544,13 +5861,54 @@ export function MindmapBoard({
         <div
           ref={vGuideRef}
           className="absolute top-0 bottom-0 pointer-events-none"
-          style={{ display: "none", width: 1, background: "rgba(232,0,125,.75)" }}
+          style={{ display: "none", width: 1, background: "rgba(var(--c-accent-2-rgb),.75)" }}
         />
         <div
           ref={hGuideRef}
           className="absolute left-0 right-0 pointer-events-none"
-          style={{ display: "none", height: 1, background: "rgba(232,0,125,.75)" }}
+          style={{ display: "none", height: 1, background: "rgba(var(--c-accent-2-rgb),.75)" }}
         />
+
+        {/* ─── Cụm hoàn tác/làm lại ─────────────────────────────────────────
+            Nổi RIÊNG khỏi thanh bút, kéo-thả-neo mép được (xem C2) — luôn thấy được ở chế độ sửa dù
+            đang cầm công cụ nào (tay/bút/tẩy/khoanh vùng/nối), không phụ thuộc thanh bút đang
+            đóng/mở. Ẩn hẳn ở chế độ chỉ đọc: không có gì để hoàn tác/làm lại khi không sửa được gì. */}
+        {!readOnly && (
+          <div
+            ref={undoBarRef}
+            className={`fade-in absolute z-20 flex ${undoBarVert ? "flex-col" : "flex-row"} items-center gap-0.5 rounded-2xl border p-1`}
+            style={{
+              ...undoBarStyle,
+              borderColor: "var(--c-line)",
+              background: "var(--c-float-bg)",
+              backdropFilter: "blur(8px)",
+              boxShadow: "0 8px 26px var(--c-shadow)",
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Kéo để đưa cụm hoàn tác sang mép khác"
+              title="Kéo để đưa cụm hoàn tác sang mép khác"
+              onPointerDown={undoBarPointerDown}
+              onPointerMove={undoBarPointerMove}
+              onPointerUp={undoBarPointerUp}
+              onPointerCancel={undoBarPointerUp}
+              className="flex-none flex items-center justify-center rounded-lg"
+              style={{
+                width: undoBarVert ? TOOL_BTN : 20,
+                height: undoBarVert ? 20 : TOOL_BTN,
+                color: "var(--c-faint)",
+                touchAction: "none",
+                cursor: "grab",
+              }}
+            >
+              {mi.grip(undoBarVert ? "w-4 h-4 rotate-90" : "w-4 h-4")}
+            </button>
+            <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={TOOL_BTN} />
+            <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} size={TOOL_BTN} />
+          </div>
+        )}
 
         {/* ─── Thanh công cụ bút ────────────────────────────────────────────
             Nổi TRÊN mặt bảng và kéo thả được (xem barPointerDown). Chỉ hiện khi đang cầm bút và
@@ -5611,18 +5969,6 @@ export function MindmapBoard({
             >
               {mi.grip(barVert ? "w-4 h-4 rotate-90" : "w-4 h-4")}
             </button>
-
-            {/* Hoàn tác/làm lại CHỈ có ở thanh dựng dọc. Thanh nằm ngang dính mép trên thì nó nằm
-                ngay dưới hàng công cụ vốn đã có sẵn hai nút này — hai cặp nút giống hệt nhau cách
-                nhau vài chục pixel là thứ vừa phải bỏ đi ở lần sửa trước. Dựng dọc thì hàng công cụ
-                ở tận đầu kia màn hình, lúc đó nút hoàn tác ngay dưới ngón tay mới đáng giá. */}
-            {barVert && (
-              <>
-                <IconBtn icon={mi.undo} hint="Hoàn tác" disabled={!canUndo} onClick={undo} size={BAR_BTN} />
-                <IconBtn icon={mi.redo} hint="Làm lại" disabled={!canRedo} onClick={redo} size={BAR_BTN} />
-                <span className={barDivider} style={{ background: "var(--c-line)" }} />
-              </>
-            )}
 
             {/* ─── Bộ bút: cả năm cây luôn có mặt ───────────────────────────
                 Chỉ CÂY ĐANG CẦM mọc thêm mũi tên mở phần cài đặt của nó; bốn cây kia không có mũi
@@ -6242,8 +6588,9 @@ export function MindmapBoard({
           </button>
         </div>
 
-        {/* Dải nhắc khi đang khoanh vùng */}
-        {tool === "lasso" && !selGroup && (
+        {/* Dải nhắc khi đang khoanh vùng — hiện cả lúc khoanh vùng TẠM bằng cách giữ bút rồi kéo (C3),
+            không chỉ lúc chọn thẳng công cụ khoanh vùng. */}
+        {(tool === "lasso" || tempLassoActive) && !selGroup && (
           <div
             className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in flex items-center gap-1.5 whitespace-nowrap"
             style={{ background: "rgba(15,23,42,.86)", color: "#fff", pointerEvents: "none" }}
@@ -6295,23 +6642,6 @@ export function MindmapBoard({
             </div>
           </div>
         )}
-
-        {/* Dấu "đã lưu" — bảng vẽ tay là thứ dễ lo mất nhất, nên mỗi lần ghi xong nói một tiếng */}
-        <div
-          className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold"
-          style={{
-            background: "rgba(240,253,244,.95)",
-            color: "#15803d",
-            border: "1px solid #bbf7d0",
-            pointerEvents: "none",
-            opacity: savedFlash && !loading ? 1 : 0,
-            transform: savedFlash ? "translateY(0)" : "translateY(-6px)",
-            transition: "opacity .25s ease, transform .25s ease",
-          }}
-        >
-          {mi.check("w-3.5 h-3.5")}
-          Đã lưu
-        </div>
 
         {toast && (
           <div
@@ -6963,7 +7293,7 @@ export function MindmapBoard({
                         {colorEdit && (
                           <span
                             className="absolute flex items-center justify-center rounded-full pointer-events-none"
-                            style={{ top: -4, right: -4, width: 17, height: 17, background: "#e8007d", color: "#fff" }}
+                            style={{ top: -4, right: -4, width: 17, height: 17, background: "var(--c-accent-2)", color: "#fff" }}
                           >
                             {mi.close("w-[10px] h-[10px]")}
                           </span>

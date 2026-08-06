@@ -104,6 +104,9 @@
      mặt bảng đã đầy màu chủ đạo (chấm báo "đang lọc màu", khung khoanh vùng...), nơi một chấm teal
      sẽ chìm lẫn vào các nút primary khác quanh nó. */
   --c-accent-2: #e8007d;
+  /* Bộ ba R,G,B của accent-2 — cùng khuôn với --c-primary-rgb, để nhét vào rgba() cho viền/nền mờ
+     (khung khoanh vùng, vệt lasso) ăn theo sắc này mà vẫn tự đổi theo sáng/tối. */
+  --c-accent-2-rgb: 232, 0, 125;
 
   --c-danger-icon: #dc2626;
   --c-danger: #b91c1c;
@@ -192,6 +195,7 @@
     --c-accent-soft: #102b2a;
     --c-accent-line: #1f4a46;
     --c-accent-2: #ff6fae;
+    --c-accent-2-rgb: 255, 111, 174;
 
     --c-danger-icon: #ff6b6b;
     --c-danger: #ff8585;
@@ -266,6 +270,7 @@
   --c-accent-soft: #102b2a;
   --c-accent-line: #1f4a46;
   --c-accent-2: #ff6fae;
+  --c-accent-2-rgb: 255, 111, 174;
 
   --c-danger-icon: #ff6b6b;
   --c-danger: #ff8585;
@@ -578,7 +583,8 @@ input, select, textarea {
   .mind-tool-slider,
   .fade-in,
   .toast-in,
-  .toast-in-full {
+  .toast-in-full,
+  .pulse-glow {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
