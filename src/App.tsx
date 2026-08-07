@@ -10847,7 +10847,7 @@ const NAV_ITEMS: { id: Screen; navId?: string; label: string; icon: (active: boo
   { id: "library", label: "Thư viện", icon: icons.library },
   { id: "guideline", label: "Hướng dẫn", icon: icons.guideline },
   { id: "mindmap", label: "Mindmap", icon: icons.mindmap },
-  { id: "flashcard", label: "FlashCard", icon: icons.cards },
+  { id: "flashcard", label: "Thẻ ghi nhớ", icon: icons.cards },
 ]
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
@@ -11361,7 +11361,7 @@ export default function App() {
           {/* FlashcardScreen hoãn lại — UI hiện tại còn lỗi, đưa "sắp ra mắt" thay vì để người dùng
               thấy một tab lỗi tùm lum. Vẫn giữ nguyên tab dưới thanh nav (không phải NON_TAB_SCREENS)
               để không phá cấu trúc điều hướng — chỉ đổi nội dung bên trong. */}
-          {screen === "flashcard" && <ComingSoonScreen feature="FlashCard" />}
+          {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
           {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
           {screen === "specialty" && (
