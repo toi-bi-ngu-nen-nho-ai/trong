@@ -394,7 +394,7 @@ const icons = {
       className="w-6 h-6"
       style={{
         opacity: active ? 1 : 0.4,
-        transform: active ? "translateY(-2px) scale(1.3)" : "translateY(-2px) scale(1.183)",
+        transform: active ? "translateY(-1px) scale(1.1)" : "translateY(-1px) scale(1)",
         transition: "opacity 0.18s ease, transform 0.18s ease",
       }}
     >
