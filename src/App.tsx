@@ -3243,7 +3243,22 @@ function AddInfusionScreen({
     return null
   }, [addCalc, doseUnit, concUnit])
 
-  const calcValid = doseUnit.trim() && concUnit.trim() && doseMin.trim() && doseMax.trim() && !unitProblem
+  // Các ô số của công thức pha/máy tính liều dùng chuỗi tự do (chỉ đổi dấu phẩy → chấm qua
+  // normalizeDecimalInput), không ép kiểu số như input[type=number] — gõ nhầm "5oo" (chữ O) hay dán
+  // nhầm "250mg" vào ô chỉ-nên-có-số vẫn được chấp nhận, và handleSave từng gọi thẳng parseFloat():
+  // parseFloat("250mg") = 250 (coi như hợp lệ, im lặng cắt "mg") nhưng parseFloat("mg250") = NaN —
+  // NaN đó lọt vào cấu hình máy tính liều của một thuốc tự nhập mà không ai biết cho tới lúc dùng
+  // thật. Áp lại đúng `hasInvalidNumericInput` đã dùng cho khung Bệnh nhân (weight/height/age/scr)
+  // thay vì để mỗi màn tự có tiêu chuẩn parse riêng.
+  const numericFields = [doseMin, doseMax, concDefault, mixVialAmount, mixVials, mixVolume, mixVialVolume, mixReconstitute, mixDisplacement]
+  const numericProblem = addCalc && numericFields.some(hasInvalidNumericInput)
+    ? "Một hoặc nhiều ô số liệu (liều/nồng độ/công thức pha) có ký tự không phải số — sửa lại trước khi lưu, viền đỏ đánh dấu đúng ô."
+    : null
+
+  const calcValid = doseUnit.trim() && concUnit.trim() && doseMin.trim() && doseMax.trim() && !unitProblem && !numericProblem
+  // Viền đỏ đúng ô số bị gõ nhầm, không chỉ một dòng cảnh báo chung — 9 ô cùng dạng đứng cạnh nhau,
+  // nếu không chỉ thẳng ô nào thì người nhập phải dò lại toàn bộ để tìm chỗ sai.
+  const numFieldStyle = (v: string) => (hasInvalidNumericInput(v) ? { ...fieldStyle, borderColor: "var(--c-danger)" } : fieldStyle)
   const canSave = name.trim().length > 0 && route.trim().length > 0 && doseRange.trim().length > 0 && (!addCalc || Boolean(calcValid))
 
   function updateWarningText(idx: number, value: string) {
@@ -3520,15 +3535,15 @@ function AddInfusionScreen({
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Liều tối thiểu gợi ý</label>
-                  <input value={doseMin} onChange={(e) => setDoseMin(normalizeDecimalInput(e.target.value))} inputMode="decimal" className={fieldClass} style={fieldStyle} />
+                  <input value={doseMin} onChange={(e) => setDoseMin(normalizeDecimalInput(e.target.value))} inputMode="decimal" className={fieldClass} style={numFieldStyle(doseMin)} />
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Liều tối đa gợi ý</label>
-                  <input value={doseMax} onChange={(e) => setDoseMax(normalizeDecimalInput(e.target.value))} inputMode="decimal" className={fieldClass} style={fieldStyle} />
+                  <input value={doseMax} onChange={(e) => setDoseMax(normalizeDecimalInput(e.target.value))} inputMode="decimal" className={fieldClass} style={numFieldStyle(doseMax)} />
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Nồng độ pha mặc định (tuỳ chọn)</label>
-                  <input value={concDefault} onChange={(e) => setConcDefault(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="Để trống nếu tuỳ khoa" className={fieldClass} style={fieldStyle} />
+                  <input value={concDefault} onChange={(e) => setConcDefault(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="Để trống nếu tuỳ khoa" className={fieldClass} style={numFieldStyle(concDefault)} />
                 </div>
               </div>
 
@@ -3556,7 +3571,7 @@ function AddInfusionScreen({
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Hàm lượng 1 ống/lọ</label>
-                  <input value={mixVialAmount} onChange={(e) => setMixVialAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 250" className={fieldClass} style={fieldStyle} />
+                  <input value={mixVialAmount} onChange={(e) => setMixVialAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 250" className={fieldClass} style={numFieldStyle(mixVialAmount)} />
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Đơn vị của ống</label>
@@ -3564,16 +3579,16 @@ function AddInfusionScreen({
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Số ống của công thức chuẩn</label>
-                  <input value={mixVials} onChange={(e) => setMixVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={fieldClass} style={fieldStyle} />
+                  <input value={mixVials} onChange={(e) => setMixVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={fieldClass} style={numFieldStyle(mixVials)} />
                 </div>
                 <div>
                   <label className="text-[11px] text-slate-400 mb-1 block">Pha vừa đủ (mL)</label>
-                  <input value={mixVolume} onChange={(e) => setMixVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 50" className={fieldClass} style={fieldStyle} />
+                  <input value={mixVolume} onChange={(e) => setMixVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 50" className={fieldClass} style={numFieldStyle(mixVolume)} />
                 </div>
                 {mixForm === "solution" && (
                   <div>
                     <label className="text-[11px] text-slate-400 mb-1 block">Thể tích 1 ống (mL)</label>
-                    <input value={mixVialVolume} onChange={(e) => setMixVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 20" className={fieldClass} style={fieldStyle} />
+                    <input value={mixVialVolume} onChange={(e) => setMixVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 20" className={fieldClass} style={numFieldStyle(mixVialVolume)} />
                   </div>
                 )}
               </div>
@@ -3584,15 +3599,20 @@ function AddInfusionScreen({
                 <div className="space-y-2.5">
                   <div>
                     <label className="text-[11px] text-slate-400 mb-1 block">Pha ban đầu với (mL/lọ)</label>
-                    <input value={mixReconstitute} onChange={(e) => setMixReconstitute(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 10" className={fieldClass} style={fieldStyle} />
+                    <input value={mixReconstitute} onChange={(e) => setMixReconstitute(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 10" className={fieldClass} style={numFieldStyle(mixReconstitute)} />
                   </div>
                   <div>
                     <label className="text-[11px] text-slate-400 mb-1 block">Thể tích bột tăng sau pha (mL/lọ)</label>
-                    <input value={mixDisplacement} onChange={(e) => setMixDisplacement(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 0,7" className={fieldClass} style={fieldStyle} />
+                    <input value={mixDisplacement} onChange={(e) => setMixDisplacement(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 0,7" className={fieldClass} style={numFieldStyle(mixDisplacement)} />
                   </div>
                 </div>
               )}
 
+              {numericProblem && (
+                <p className="text-[11px] font-semibold leading-relaxed" style={{ color: "var(--c-danger-icon)" }}>
+                  {numericProblem}
+                </p>
+              )}
               {unitProblem ? (
                 <p className="text-[11px] leading-relaxed" style={{ color: "var(--c-danger-icon)" }}>
                   {unitProblem}
@@ -7377,6 +7397,9 @@ function AntibioticsScreen({
 
   // Nhóm các bản ghi theo hoạt chất (name) — cùng hoạt chất có thể có nhiều đường dùng (route)
   // khác nhau, mỗi đường dùng là một Antibiotic riêng (id riêng) để tránh đè dữ liệu lên nhau.
+  // Sắp theo alphabet (thứ tự nhập liệu trong antibiotics.ts không mang ý nghĩa ưu tiên lâm sàng nào
+  // — xác nhận trực tiếp, không phải suy đoán) để 22 mục đọc ra như một danh sách có trật tự thay vì
+  // một khối tên thuốc ngẫu nhiên; xem thêm nhãn chữ cái ở chỗ render (chỉ hiện khi chưa gõ tìm).
   const groups = useMemo(() => {
     const map = new Map<string, Antibiotic[]>()
     allAntibiotics.forEach((d) => {
@@ -7384,7 +7407,9 @@ function AntibioticsScreen({
       arr.push(d)
       map.set(d.name, arr)
     })
-    return Array.from(map.entries()).map(([name, entries]) => ({ name, entries }))
+    return Array.from(map.entries())
+      .map(([name, entries]) => ({ name, entries }))
+      .sort((a, b) => a.name.localeCompare(b.name, "vi", { sensitivity: "base" }))
   }, [allAntibiotics])
 
   const filteredGroups = useMemo(() => {
@@ -7504,15 +7529,33 @@ function AntibioticsScreen({
         }}
         placeholder="Tìm kháng sinh..."
       />
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 mb-3 items-center">
         {/* index chỉ truyền khi CHƯA lọc (mới vào tab) — nếu không, mỗi lần gõ vào ô tìm là một lần
-            các chip khớp mới chạy lại stagger, làm cả hàng nhấp nháy trong lúc gõ. */}
-        {filteredGroups.map((g, i) => (
-          <Chip key={g.name} index={query.trim() ? undefined : i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
-            {g.name}
-            {g.entries.length > 1 && <span className="opacity-60"> · {g.entries.length}</span>}
-          </Chip>
-        ))}
+            các chip khớp mới chạy lại stagger, làm cả hàng nhấp nháy trong lúc gõ.
+            Nhãn chữ cái: 22 kháng sinh xếp phẳng đọc như một khối tên thuốc liền mạch — chia theo
+            chữ cái đầu (tên đã sắp alphabet ở `groups`) cho mắt có điểm dừng, giống danh bạ điện
+            thoại. Chỉ hiện khi đang DUYỆT toàn bộ danh sách; ẩn lúc gõ tìm vì kết quả lọc không còn
+            liên tục theo alphabet nên nhãn sẽ đọc sai. `basis-full` ép mỗi nhãn xuống dòng riêng
+            trong hàng flex-wrap, không cần đổi sang layout dạng lưới/cột. */}
+        {filteredGroups.flatMap((g, i) => {
+          const letter = g.name.charAt(0).toUpperCase()
+          const prevLetter = i > 0 ? filteredGroups[i - 1].name.charAt(0).toUpperCase() : null
+          const nodes: React.ReactNode[] = []
+          if (!query.trim() && letter !== prevLetter) {
+            nodes.push(
+              <span key={`letter-${letter}`} className="basis-full text-[11px] font-bold uppercase tracking-wide mt-1 first:mt-0" style={{ color: "var(--c-text-muted)" }}>
+                {letter}
+              </span>,
+            )
+          }
+          nodes.push(
+            <Chip key={g.name} index={query.trim() ? undefined : i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
+              {g.name}
+              {g.entries.length > 1 && <span className="opacity-60"> · {g.entries.length}</span>}
+            </Chip>,
+          )
+          return nodes
+        })}
       </div>
 
       {/* Chỉ định — chỉ hiện khi hoạt chất có liều riêng theo bệnh lý, và luôn TRƯỚC bước đường dùng.
