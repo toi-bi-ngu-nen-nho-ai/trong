@@ -262,10 +262,6 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
     </svg>
   ),
-  // Bốn ô vuông = đang xem dạng lưới; ba dòng kẻ = đang xem dạng danh sách. Nút chỉ có MỘT icon và
-  // nó vẽ KIỂU SẼ CHUYỂN SANG khi bấm, không phải kiểu đang xem — nút một trạng thái mà vẽ trạng
-  // thái hiện tại thì không ai đoán được bấm vào sẽ ra gì.
-  // Nhân bản: hai tờ giấy chồng lệch nhau.
   copy: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.2" />
@@ -396,7 +392,7 @@ const icons = {
       className="w-6 h-6"
       style={{
         opacity: active ? 1 : 0.4,
-        transform: active ? "scale(1.1)" : "scale(1)",
+        transform: active ? "translateY(-2px) scale(1.3)" : "translateY(-2px) scale(1.183)",
         transition: "opacity 0.18s ease, transform 0.18s ease",
       }}
     >
