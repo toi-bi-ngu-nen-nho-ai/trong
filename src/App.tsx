@@ -86,7 +86,7 @@ import { BlockContent } from "./components/BlockContent"
 import { MindmapBoard } from "./components/MindmapBoard"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
-import { BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, R, T, TAP, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
+import { BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, R, T, TAP, inferRouteShort, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -5874,7 +5874,20 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
   )
 }
 
-function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTargetMg?: CappedDose | null }) {
+function AntibioticMixPanel({
+  drug,
+  doseTargetMg,
+  routeShort,
+  setRouteShort,
+}: {
+  drug: Antibiotic
+  doseTargetMg?: CappedDose | null
+  // "Đường dùng" (TTM/TMC) — TRƯỚC ĐÂY panel này tự giữ state riêng và hiện chip chọn ở đây (sau
+  // cả mục Dung môi), lấn át mục "Đường dùng" ngoài thẻ AntibioticDoseCard. Nay panel chỉ ĐỌC/GHI
+  // state của cha (nhấc lên AntibioticDoseCard) để cả thẻ dùng chung đúng một đường dùng.
+  routeShort: "TTM" | "TMC"
+  setRouteShort: (r: "TTM" | "TMC") => void
+}) {
   const { logCalc, wardRecipes, saveWard, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   // Công thức ĐANG XEM — có thể là một công thức đã lưu, hoặc công thức HỆ THỐNG (xem
@@ -5885,12 +5898,9 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
   const concUnit = mix?.concUnit ?? "mg/mL"
   const concMass = massOfConcUnit(concUnit)
   const vialLabel = mix?.vialLabel ?? "lọ"
-  // Đường dùng mặc định của thuốc — chỉ dùng khi CHƯA có công thức đã lưu nào tự khai đường riêng.
-  const defaultRoute: "TTM" | "TMC" = drug.route.includes("TMC") ? "TMC" : "TTM"
-  // Đường TMC không nhỏ giọt/không cần tính giọt/phút — TTM mới cần. Đây là STATE (không phải hằng
-  // suy ra thẳng từ drug.route) vì cùng một thuốc có khoa truyền TTM, có khoa tiêm TMC — mỗi công
-  // thức đã lưu (ward) mang đường dùng riêng của nó, xem loadWard()/saveWardFrom() bên dưới.
-  const [routeShort, setRouteShort] = useState<"TTM" | "TMC">(ward?.route ?? defaultRoute)
+  // Đường dùng mặc định của thuốc — chỉ dùng khi CHƯA có công thức đã lưu nào tự khai đường riêng
+  // (xem loadWard()/loadSystemDefault() bên dưới, vẫn cần hằng số này để reset khi đổi công thức).
+  const defaultRoute: "TTM" | "TMC" = inferRouteShort(drug.route) ?? "TTM"
 
   const [vialAmount, setVialAmount] = useState(String(ward?.vialAmount ?? mix?.vialAmount ?? ""))
   const [vialUnit, setVialUnit] = useState(ward?.vialUnit ?? mix?.vialUnit ?? concMass)
@@ -6234,25 +6244,6 @@ function AntibioticMixPanel({ drug, doseTargetMg }: { drug: Antibiotic; doseTarg
           )}
         </>
       )}
-
-      {/* Đường dùng: mặc định suy theo `drug.route`, nhưng khoa nào pha khác (TTM ở khoa này, TMC ở
-          khoa kia) thì đổi ở đây rồi lưu — mỗi công thức đã lưu nhớ đúng đường dùng của khoa đó. */}
-      <label className={`${T.label} text-slate-500 mb-1 block`}>Đường dùng</label>
-      <div className="flex gap-1.5 mb-2">
-        {(["TTM", "TMC"] as const).map((r) => (
-          <button
-            key={r}
-            onClick={() => {
-              setRouteShort(r)
-              tickHaptic()
-            }}
-            className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
-            style={pill(routeShort === r)}
-          >
-            {r === "TTM" ? "Truyền TM (TTM)" : "Tiêm TM chậm (TMC)"}
-          </button>
-        ))}
-      </div>
 
       {/* Chỉ TTM mới cần chọn thiết bị truyền — TMC là tiêm nhanh một lần, không có tốc độ. Một số
           kháng sinh (vancomycin liều cao, một số kháng sinh truyền kéo dài khác) BẮT BUỘC chạy bơm
@@ -6713,6 +6704,9 @@ function AntibioticDoseCard({
   const indication = disease ? drug.indications?.find((i) => i.diseaseId === disease.id) : undefined
   const tiers = indication?.tiers ?? drug.tiers
   const standardDose = indication?.standardDose ?? drug.standardDose
+  // Nguồn hiện ra: bệnh lý có tự khai nguồn riêng thì dùng nguồn đó (xem IndicationDose.source),
+  // không thì rơi về nguồn của thuốc — không còn gộp cứng một nguồn cho mọi bệnh lý như trước.
+  const sourceItem: SourceInfo = indication && (indication.source || indication.reviewedOn) ? indication : drug
   // Khi bệnh nhân lọc máu hoặc creatinin chưa ổn định thì KHÔNG được chọn bậc liều theo CrCl —
   // app quay về liều chuẩn (bậc thận bình thường) và nói rõ vì sao, thay vì đưa ra một bậc liều
   // trông chắc chắn mà thực ra không áp dụng được.
@@ -6739,9 +6733,22 @@ function AntibioticDoseCard({
   // tuyệt đối đứng đầu chuỗi) rồi quy đổi ra mL/chai theo công thức pha đã lưu (hoặc mặc định của
   // thuốc) — xem lib/perKgDose.ts (findFixedDose) và lib/mixing.ts (drawFromFixedVial/pickEasiestVolume).
   // Không tự bịa công thức pha: chỉ tính khi thuốc CÓ `mix`/công thức đã lưu, ngược lại im lặng.
+  // "Đường dùng" (TTM/TMC) — TRƯỚC ĐÂY nằm sâu bên trong bảng pha thuốc (sau cả mục Dung môi), giờ
+  // nhấc lên đây làm STATE DUY NHẤT của cả thẻ: vừa hiện ở mục "Đường dùng" ngay bên dưới, vừa
+  // quyết định nút "Bảng pha thuốc" có hiện hay không (chỉ hiện với TTM/TMC — đường tiêm bắp, dưới
+  // da... không có gì để pha), vừa truyền xuống AntibioticMixPanel thay cho state riêng của nó.
   // Công thức đã lưu (ward) có thể tự khai đường dùng riêng (khoa A truyền TTM, khoa B tiêm TMC cùng
   // một thuốc) — ưu tiên đường đó, chỉ suy từ `drug.route` khi chưa có công thức nào được lưu.
-  const routeShort: "TTM" | "TMC" = ward?.route ?? (drug.route.includes("TMC") ? "TMC" : "TTM")
+  const inferredRoute = inferRouteShort(drug.route)
+  const [routeShort, setRouteShort] = useState<"TTM" | "TMC">(ward?.route ?? inferredRoute ?? "TTM")
+  const pill = (on: boolean) =>
+    on
+      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+      : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+  // Chỉ có gì để "pha" khi câu chữ route thật sự nhắc tới tĩnh mạch (TTM hoặc TMC) — tiêm bắp, tiêm
+  // dưới da, nhỏ mắt... không có bảng pha kiểu này, hiện ra sẽ sai vì áp công thức TTM/TMC lên đường
+  // dùng không liên quan.
+  const canMixIv = inferredRoute != null
   const mixCfg = useMemo(() => {
     // `vials`/`volumeMl` là null khi CHƯA có công thức đã lưu — tự tính số lọ cần dùng ở autoUsage
     // bên dưới thay vì giả định cứng "đúng 1 lọ" như trước (khiến Amikacin/Vancomycin liều theo
@@ -6975,6 +6982,19 @@ function AntibioticDoseCard({
           gặp ngay một chỗ teal không phản hồi gì khi chạm. Đổi sang --c-text-soft (chữ) / nền
           trung tính (chip), giữ teal cho đúng vai trò hành động + trạng thái chọn. */}
       <p className={`${T.meta} font-semibold mb-1.5`} style={{ color: "var(--c-text-soft)" }}>{drug.route}</p>
+      {/* Chọn TTM/TMC ngay tại "Đường dùng" — TRƯỚC ĐÂY nằm sâu trong bảng pha thuốc (sau cả mục
+          Dung môi), khiến bảng pha "lấn át" luôn cả việc chọn đường dùng. Chỉ hiện khi thật sự có
+          đường tĩnh mạch để chọn (canMixIv) — cùng thuốc có khoa truyền TTM, có khoa tiêm TMC, nên
+          vẫn cho đổi dù `drug.route` chỉ ghi một đường. */}
+      {canMixIv && (
+        <div className="flex gap-2 mb-1.5">
+          {(["TTM", "TMC"] as const).map((r) => (
+            <button key={r} type="button" onClick={() => setRouteShort(r)} className={CHIP} style={pill(routeShort === r)}>
+              {r === "TTM" ? "TTM · Truyền tĩnh mạch" : "TMC · Tiêm tĩnh mạch chậm"}
+            </button>
+          ))}
+        </div>
+      )}
       {disease && (
         <p className={`${T.meta} font-semibold mb-1.5 px-2 py-0.5 rounded-full inline-block`} style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}>
           Chỉ định: {disease.name}
@@ -7227,7 +7247,10 @@ function AntibioticDoseCard({
           {indication?.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{indication.note}</p>}
           {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
-          {injectable && (
+          {/* Chỉ hiện bảng pha khi đường dùng THẬT SỰ là TTM/TMC (canMixIv) — trước đây hiện cho MỌI
+              đường không phải uống (kể cả tiêm bắp, tiêm dưới da...), lấn át hẳn mục "Đường dùng"
+              ở trên bằng một bảng pha TTM/TMC không liên quan gì tới đường dùng thật của thuốc. */}
+          {canMixIv && (
             <>
               <button
                 onClick={() => setShowMix((v) => !v)}
@@ -7236,7 +7259,7 @@ function AntibioticDoseCard({
               >
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
-              {showMix && <AntibioticMixPanel drug={drug} doseTargetMg={doseTargetMg} />}
+              {showMix && <AntibioticMixPanel drug={drug} doseTargetMg={doseTargetMg} routeShort={routeShort} setRouteShort={setRouteShort} />}
             </>
           )}
         </Disclosure>
@@ -7248,10 +7271,20 @@ function AntibioticDoseCard({
         </Disclosure>
       )}
 
-      {/* `alert` khi thuốc chưa ghi nguồn: trước đây phải MỞ khối này ra mới biết mục nào chưa được
-          rà soát, nên trên thực tế không ai biết. Nay tình trạng nằm ngay trên tiêu đề. */}
-      <Disclosure label={drug.source || drug.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — chưa ghi nguồn"} alert={!drug.source && !drug.reviewedOn}>
-        <SourceLine item={drug} bare />
+      {/* Nguồn dữ liệu: ưu tiên nguồn RIÊNG của bệnh lý đang chọn (indication.source/reviewedOn) —
+          liều theo bệnh lý cụ thể (vd viêm màng não) thường lấy từ một khuyến cáo khác hẳn nguồn
+          chung của thuốc, nên không thể gộp chung một nguồn cho mọi bệnh lý như trước. Bệnh lý nào
+          CHƯA tự khai nguồn riêng thì rơi về nguồn của thuốc, không bắt buộc điền lại toàn bộ dữ
+          liệu cũ. `alert` khi mục đang hiện chưa ghi nguồn: trước đây phải MỞ khối này ra mới biết,
+          nên trên thực tế không ai biết. Nay tình trạng nằm ngay trên tiêu đề. */}
+      <Disclosure label={sourceItem.source || sourceItem.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — chưa ghi nguồn"} alert={!sourceItem.source && !sourceItem.reviewedOn}>
+        {indication && (indication.source || indication.reviewedOn) && (
+          <p className={`${T.meta} mb-1.5`} style={{ color: C.textSoft }}>Nguồn riêng cho chỉ định {disease?.name}:</p>
+        )}
+        <SourceLine item={sourceItem} bare />
+        {indication && !(indication.source || indication.reviewedOn) && (drug.source || drug.reviewedOn) && (
+          <p className={`${T.meta} mt-1.5`} style={{ color: C.textSoft }}>Bệnh lý này chưa tự khai nguồn riêng — đang hiện nguồn chung của thuốc.</p>
+        )}
       </Disclosure>
     </div>
   )
@@ -7424,7 +7457,10 @@ function AntibioticsScreen({
         ))}
       </div>
 
-      {/* Chỉ định — chỉ hiện khi hoạt chất có liều riêng theo bệnh lý, và luôn TRƯỚC bước đường dùng */}
+      {/* Chỉ định — chỉ hiện khi hoạt chất có liều riêng theo bệnh lý, và luôn TRƯỚC bước đường dùng.
+          KHÔNG còn chip "Liều chung": liều mặc định của thuốc không đại diện cho một bệnh lý cụ thể
+          nào, để chọn được coi như liều đúng cho MỌI bệnh lý là nguồn sai liều nguy hiểm nhất — bắt
+          buộc chọn đúng bệnh lý trong danh sách bên dưới. */}
       {selectedGroup && hasDiseaseStep && (
         <div key={selectedGroup.name} className="fade-in mb-3">
           <SectionLabel>Chỉ định</SectionLabel>
@@ -7434,9 +7470,6 @@ function AntibioticsScreen({
                 {ds.name}
               </Chip>
             ))}
-            <Chip active={diseaseChoice === DISEASE_SKIP} onClick={() => chooseDisease(DISEASE_SKIP)}>
-              Liều chung
-            </Chip>
           </div>
         </div>
       )}
@@ -7473,7 +7506,7 @@ function AntibioticsScreen({
             : !selectedGroup
               ? "Chọn một kháng sinh ở trên để xem liều theo CrCl."
               : hasDiseaseStep && diseaseChoice === null
-                ? "Chọn chỉ định ở trên (hoặc Liều chung) để tiếp tục."
+                ? "Chọn chỉ định ở trên để tiếp tục."
                 : "Chọn đường dùng ở trên để xem liều."}
         </p>
       )}
@@ -8840,6 +8873,9 @@ function InfusionDrugCard({
         boluses: indication.boluses ?? baseDrug.boluses,
       }
     : baseDrug
+  // Nguồn hiện ra: bệnh lý có tự khai nguồn riêng thì ưu tiên nguồn đó — cùng lý do với
+  // AntibioticDoseCard (liều theo bệnh lý cụ thể thường lấy từ nguồn khác hẳn nguồn chung).
+  const sourceItem: SourceInfo = indication && (indication.source || indication.reviewedOn) ? indication : baseDrug
   // Cảnh báo mức "cao" là thứ duy nhất không được phép gấp lại; mức trung bình và mọi nội dung
   // tham khảo khác đều nằm sau tiêu đề gấp/mở để phần máy tính luôn nằm trong tầm mắt.
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
@@ -8951,10 +8987,17 @@ function InfusionDrugCard({
         </Disclosure>
       )}
 
-      {/* `alert` khi thuốc chưa ghi nguồn: trước đây phải MỞ khối này ra mới biết mục nào chưa được
-          rà soát, nên trên thực tế không ai biết. Nay tình trạng nằm ngay trên tiêu đề. */}
-      <Disclosure label={drug.source || drug.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — chưa ghi nguồn"} alert={!drug.source && !drug.reviewedOn}>
-        <SourceLine item={drug} bare />
+      {/* Nguồn dữ liệu: ưu tiên nguồn riêng của bệnh lý đang chọn, rơi về nguồn chung của thuốc nếu
+          bệnh lý chưa tự khai — xem chú thích ở AntibioticDoseCard. `alert` khi mục đang hiện chưa
+          ghi nguồn: trước đây phải MỞ khối này ra mới biết, nên trên thực tế không ai biết. */}
+      <Disclosure label={sourceItem.source || sourceItem.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — chưa ghi nguồn"} alert={!sourceItem.source && !sourceItem.reviewedOn}>
+        {indication && (indication.source || indication.reviewedOn) && (
+          <p className={`${T.meta} mb-1.5`} style={{ color: C.textSoft }}>Nguồn riêng cho chỉ định {disease?.name}:</p>
+        )}
+        <SourceLine item={sourceItem} bare />
+        {indication && !(indication.source || indication.reviewedOn) && (baseDrug.source || baseDrug.reviewedOn) && (
+          <p className={`${T.meta} mt-1.5`} style={{ color: C.textSoft }}>Bệnh lý này chưa tự khai nguồn riêng — đang hiện nguồn chung của thuốc.</p>
+        )}
       </Disclosure>
     </div>
   )
@@ -9084,7 +9127,8 @@ function InfusionCategoryScreen({
       </div>
 
       {/* Chỉ định — chỉ hiện khi thuốc đang chọn có khai báo liều riêng theo bệnh lý, giống hệt bước
-          "Chỉ định" ở AntibioticsScreen. */}
+          "Chỉ định" ở AntibioticsScreen. KHÔNG còn chip "Liều chung" — cùng lý do: liều mặc định
+          không đại diện cho một bệnh lý cụ thể, bắt buộc chọn đúng bệnh lý. */}
       {selected && hasDiseaseStep && (
         <div key={selected.id} className="fade-in mb-3">
           <SectionLabel>Chỉ định</SectionLabel>
@@ -9094,9 +9138,6 @@ function InfusionCategoryScreen({
                 {ds.name}
               </Chip>
             ))}
-            <Chip active={diseaseChoice === DISEASE_SKIP} onClick={() => setDiseaseChoice(DISEASE_SKIP)}>
-              Liều chung
-            </Chip>
           </div>
         </div>
       )}

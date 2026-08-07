@@ -134,6 +134,21 @@ export function shortRoute(route: string): string {
   return m ? m[1] : route
 }
 
+// Đường TIÊM/TRUYỀN tĩnh mạch có thể suy ra được từ câu chữ `route` hay không — chỉ hai đường này
+// mới có bảng pha (nồng độ, tốc độ giọt/phút hoặc mL/giờ) để tính; các đường khác (uống, tiêm bắp,
+// tiêm dưới da, nhỏ mắt...) không có gì để pha theo kiểu đó nên KHÔNG được hiện "Bảng pha thuốc".
+// Trả về null khi câu chữ không nhắc gì tới tĩnh mạch — đây là cổng duy nhất quyết định nút "Bảng
+// pha thuốc" có hiện hay không (xem AntibioticDoseCard). Khi câu chữ nhắc CẢ HAI (vd "Tiêm/truyền
+// tĩnh mạch (IV)"), mặc định TTM — người dùng vẫn đổi được qua nút "Đường dùng" ở đầu thẻ.
+export function inferRouteShort(route: string): "TTM" | "TMC" | null {
+  const r = route.toLowerCase()
+  const hasTtm = r.includes("ttm") || r.includes("truyền tĩnh mạch")
+  const hasTmc = r.includes("tmc") || r.includes("tiêm tĩnh mạch")
+  if (hasTtm) return "TTM"
+  if (hasTmc) return "TMC"
+  return null
+}
+
 // Cuộn tới một phần tử. Tách ra thành hàm riêng vì hai lý do, cả hai đều đã cắn một lần:
 //   1. "Giảm chuyển động" của hệ điều hành phải được tôn trọng — app đã tắt hoạt ảnh chip theo cờ
 //      này thì không có lý do gì cú cuộn lại vẫn trượt dài.

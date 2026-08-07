@@ -129,7 +129,13 @@ export interface AntibioticWarning {
 // Liều riêng theo TỪNG bệnh lý (indication) — ghi đè lên `tiers` mặc định của thuốc khi bệnh lý
 // đó đòi hỏi liều khác biệt về mặt lâm sàng (ví dụ viêm màng não cần liều cao hơn để thấm qua
 // hàng rào máu não). `diseaseId` khớp với `DiseaseEntry.id`.
-export interface IndicationDose {
+// `extends SourceInfo`: liều theo TỪNG bệnh lý thường lấy từ một khuyến cáo/y văn khác hẳn liều
+// chuẩn chung của thuốc (vd viêm màng não thường theo hướng dẫn riêng cho thần kinh trung ương,
+// không phải tài liệu dược lý tổng quát của thuốc) — trước đây mọi bệnh lý của một thuốc phải dùng
+// CHUNG một `source`/`reviewedOn` ở cấp thuốc, nên hiện đúng nguồn cho bệnh lý này lại sai/thiếu
+// cho bệnh lý khác. Để trống thì màn hình rơi về `source`/`reviewedOn` của thuốc (xem
+// AntibioticDoseCard) — không bắt buộc phải điền lại ngay cho mọi bệnh lý cũ.
+export interface IndicationDose extends SourceInfo {
   diseaseId: string
   standardDose?: string
   tiers: DoseTier[]
@@ -334,7 +340,10 @@ export interface BolusDose {
 // là truyền liên tục chỉnh theo đáp ứng). Khác IndicationDose ở chỗ thuốc truyền không có "tiers"
 // theo CrCl mà có `calc`/`boluses` riêng — nên đè (override) từng phần lên dữ liệu gốc của thuốc,
 // phần nào không khai báo thì giữ nguyên dữ liệu gốc. `diseaseId` khớp DiseaseEntry.id như trên.
-export interface InfusionIndicationDose {
+// `extends SourceInfo`: cùng lý do với IndicationDose bên trên — liều theo bệnh lý cụ thể (vd
+// Adrenaline ngừng tim/phản vệ/sốc nhiễm khuẩn) thường lấy từ nguồn khác hẳn liều chung của thuốc.
+// Để trống thì rơi về `source`/`reviewedOn` của thuốc.
+export interface InfusionIndicationDose extends SourceInfo {
   diseaseId: string
   doseRange?: string
   note?: string
