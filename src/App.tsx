@@ -10847,7 +10847,7 @@ function UpdateBanner({ offsetBottom }: { offsetBottom: number | string }) {
 const NAV_ITEMS: { id: Screen; navId?: string; label: string; icon: (active: boolean) => ReactElement }[] = [
   { id: "home", label: "Trang chủ", icon: icons.home },
   { id: "library", label: "Thư viện", icon: icons.library },
-  { id: "comingSoon", navId: "Hướng dẫn lâm sàng", label: "Hướng dẫn lâm sàng", icon: () => icons.guideline() },
+  { id: "comingSoon", navId: "Lâm sàng", label: "Lâm sàng", icon: () => icons.guideline() },
   { id: "mindmap", label: "Mindmap", icon: icons.mindmap },
   { id: "flashcard", label: "FlashCard", icon: icons.cards },
 ]

@@ -24,7 +24,6 @@ export const PAPER_LINE = "rgba(148,163,184,.20)"
 export const PAPER_DOT = "rgba(100,116,139,.30)"
 
 // ─── Màu mặt giấy ─────────────────────────────────────────────────────────────
-//
 // Trắng để đọc ban ngày, đen cho ca trực đêm (bảng trắng toàn màn lúc 2 giờ sáng trong buồng bệnh
 // tắt đèn thì chói và đánh thức người bệnh), vàng ngà đỡ mỏi mắt khi nhìn lâu.
 //
@@ -53,10 +52,7 @@ export function paperTone(id: PaperTone | undefined): PaperPalette {
   return PAPER_TONES.find((t) => t.id === id) ?? PAPER_TONES[0]
 }
 
-// ─── Bảng màu (theo hệ màu của Notion) ────────────────────────────────────────
-//
-// Mười sắc màu, mỗi sắc là MỘT BỘ BA chứ không phải một mã màu rời:
-//
+// ─── Bảng màu ────────────────────────────────────────
 //   text      — màu đậm: nền thẻ "Nền đặc", chữ của thẻ "Viền"/"Chữ trần", và màu mực.
 //   bg        — màu nhạt: nền thẻ "Nền nhạt". Lấy đúng màu nền khối của Notion.
 //   highlight — vệt bút dạ. Cùng sắc với `bg` nhưng ĐẬM HƠN (pha 45% về phía `text`), vì vệt bút dạ
