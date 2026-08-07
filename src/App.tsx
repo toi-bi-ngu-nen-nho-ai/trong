@@ -15,6 +15,7 @@ import {
   SCR_UMOL_PER_MGDL,
   crclReliability,
   estimateCrCl,
+  isRenalStatusStale,
   needsCrrtFlow,
   patientHasData,
   scrToMgDl,
@@ -5097,6 +5098,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           <div
             className={`flex items-center gap-3 px-3 h-14 ${R.box} mt-3 mb-2`}
             style={{ background: crclUsable ? "var(--c-primary-soft)" : C.surface }}
+            // Con số này tự tính lại mỗi khi gõ cân nặng/creatinin, và nó quyết định bậc liều — người
+            // dùng trình đọc màn hình gõ xong một ô mà không có gì báo "CrCl vừa đổi" thì không biết
+            // giá trị dùng để tính liều là bao nhiêu. aria-atomic để đọc lại TRỌN dải (số + nhãn),
+            // không chỉ phần chữ vừa đổi — tránh đọc mỗi "53" trơn không rõ là số gì.
+            aria-live="polite"
+            aria-atomic="true"
           >
             {/* Trước đây khi crclUsable=false vẫn hiện to con số CrCl thật, chỉ đổi màu xám — quá
                 yếu để nói "con số này KHÔNG được dùng chọn bậc liều". Đổi hẳn sang "—": im lặng
@@ -5184,6 +5191,24 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 </button>
               ))}
           </div>
+
+          {/* Chức năng thận đã xác nhận lâu rồi mà chưa ai chạm lại — lọc máu có thể đã bắt đầu/kết
+              thúc giữa ca mà tra cứu sau đó vẫn âm thầm dùng bậc liều cũ. Chỉ hiện khi đã từng được
+              xác nhận ít nhất một lần (isRenalStatusStale loại bệnh nhân mới, chưa ai chạm tới). */}
+          {isRenalStatusStale(patient) && (
+            <div className="flex items-center gap-2 mb-2 px-2.5 py-2 rounded-xl fade-in" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+              <p className="flex-1 text-[11px] font-bold leading-[1.4]" style={{ color: "var(--c-warn)" }}>
+                Chức năng thận chưa được xác nhận lại từ đầu ca — còn đúng không?
+              </p>
+              <button
+                onClick={() => setPatientField("rrt", patient.rrt)}
+                className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[11px] font-bold`}
+                style={{ background: "var(--c-warn)", color: "var(--c-on-bright)" }}
+              >
+                Vẫn đúng
+              </button>
+            </div>
+          )}
 
           {/* Tốc độ dịch thải: thiếu con số này thì mọi khuyến cáo "liều CRRT" đều thiếu vế điều kiện */}
           {needsCrrtFlow(patient.rrt) && (
@@ -9483,20 +9508,25 @@ function DungThuocScreen({
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
               }}
-              // Vòng tròn 36px (bằng "Nhật ký" cạnh nó) với icon 24px gốc bên trong to hẳn so với
-              // tiêu đề 20px — thu cả vòng tròn (32px) lẫn icon xuống cho cân với chữ, chấp nhận
-              // lệch 4px so với "Nhật ký" (căn giữa theo chiều dọc nhờ items-center của hàng ngoài).
-              className={`flex-none w-8 h-8 ${R.pill} border flex items-center justify-center`}
-              style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
+              // Vòng tròn NHÌN THẤY vẫn 32px (cân với tiêu đề 20px, xem lý do ở span con) nhưng vùng
+              // CHẠM ĐƯỢC của chính button giờ là 44px — dưới 44px trượt khỏi ngưỡng WCAG 2.5.8, và
+              // đây lại là nút quan trọng nhất màn hình lúc cấp cứu (tìm xuyên tab). Đệm vô hình quanh
+              // vòng tròn thay vì phóng to vòng tròn để không phá cân đối thị giác đã tính toán.
+              className="flex-none w-11 h-11 flex items-center justify-center"
               aria-label="Tìm thuốc trong mọi nhóm"
             >
-              {/* Icon luôn ở dạng nét (không tô đặc): path này vẽ cho outline, tô đặc theo `active`
-                  làm phần tay cầm (một nét thẳng không khép kín) biến mất — chỉ còn vòng tròn đặc,
-                  trông như ảnh vỡ. Trạng thái đang mở đã có màu/nền riêng ở nút bọc ngoài.
-                  icons.search() vẽ cỡ 24px cố định (w-6 h-6) — thu nhỏ bằng `scale` ở đây thay vì sửa
-                  icon dùng chung: chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc của nó. */}
-              <span className="flex items-center justify-center" style={{ transform: "scale(0.62)" }}>
-                {icons.search(false)}
+              <span
+                className={`w-8 h-8 ${R.pill} border flex items-center justify-center`}
+                style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
+              >
+                {/* Icon luôn ở dạng nét (không tô đặc): path này vẽ cho outline, tô đặc theo `active`
+                    làm phần tay cầm (một nét thẳng không khép kín) biến mất — chỉ còn vòng tròn đặc,
+                    trông như ảnh vỡ. Trạng thái đang mở đã có màu/nền riêng ở vòng tròn bên trong.
+                    icons.search() vẽ cỡ 24px cố định (w-6 h-6) — thu nhỏ bằng `scale` ở đây thay vì sửa
+                    icon dùng chung: chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc của nó. */}
+                <span className="flex items-center justify-center" style={{ transform: "scale(0.62)" }}>
+                  {icons.search(false)}
+                </span>
               </span>
             </button>
             <button
@@ -9556,7 +9586,11 @@ function DungThuocScreen({
       <div className="flex-none pb-3 relative">
         <div
           ref={tabRowRef}
-          className="scroll-ios flex gap-2 px-5 overflow-x-auto"
+          // gap-3 (12px, trước là gap-2/8px): mỗi tab đã cao đủ 44px nhưng đứng SÁT nhau thì ngón
+          // tay run/vuốt một tay vẫn dễ trượt sang tab kế bên — 10 tab dồn trên một điện thoại 375px
+          // là đúng tình huống đó. Thêm khoảng trống thay vì phóng to từng tab để không đẩy hàng tab
+          // cuộn xa hơn.
+          className="scroll-ios flex gap-3 px-5 overflow-x-auto"
           style={{ scrollbarWidth: "none" }}
         >
           {MIXING_TABS.map((t) => (

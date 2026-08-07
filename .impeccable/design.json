@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-07T16:00:00Z",
+  "generatedAt": "2026-08-07T17:00:00Z",
   "title": "Design System: Bác sĩ Trọng",
   "extensions": {
     "colorMeta": {
@@ -38,7 +38,9 @@
     "typographyMeta": {
       "body": { "displayName": "Body", "purpose": "Default reading text throughout the app." },
       "mono-dose": { "displayName": "Dose Mono", "purpose": "Reserved for numeric doses/concentrations in Mindmap-formatted notes; primary UI uses Inter tabular figures for on-screen dose numbers." },
-      "label": { "displayName": "Label", "purpose": "Bottom nav labels and small chip text, 10-12px, checked independently for AA at that size." }
+      "label": { "displayName": "Label", "purpose": "Bottom nav labels and small chip text, 10-12px, checked independently for AA at that size." },
+      "mindmap-emphasis": { "displayName": "Mindmap Emphasis", "purpose": "Formal emphasis inside Mindmap note formatting only, never in main app chrome." },
+      "mindmap-heading": { "displayName": "Mindmap Heading", "purpose": "Headings/emphasis inside Mindmap note formatting only, never in main app chrome." }
     },
     "shadows": [
       { "name": "floating-layer", "value": "0 8px 24px var(--c-shadow)", "purpose": "Reserved for genuinely elevated layers: pickers, toasts, modals, sheets. Never used on resting cards." }

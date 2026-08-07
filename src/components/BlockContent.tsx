@@ -151,7 +151,10 @@ export function BlockContent({
               <figure key={block.id} className="m-0 mt-4">
                 <img
                   src={block.dataUrl}
-                  alt={block.caption ?? ""}
+                  // alt="" chỉ đúng cho ảnh THUẦN TRANG TRÍ — ảnh chèn trong bài KHÔNG có chú thích
+                  // vẫn mang nội dung thật, chỉ là chưa được mô tả bằng chữ. Rơi về "" khiến trình đọc
+                  // màn hình bỏ qua hẳn ảnh, coi như bài không hề có hình đó.
+                  alt={block.caption || "Hình ảnh trong bài"}
                   className="w-full rounded-2xl border"
                   style={{ borderColor: "var(--c-line)" }}
                 />

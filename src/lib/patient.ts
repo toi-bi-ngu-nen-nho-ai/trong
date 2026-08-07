@@ -55,6 +55,11 @@ export interface PatientVitals {
   // này, nên không có nó thì mọi khuyến cáo "liều CRRT" đều thiếu vế điều kiện.
   crrtFlowLPerH: string
   updatedAt: number
+  // Mốc giờ lần cuối CHẠM vào akiUnstable hoặc rrt — tách riêng khỏi updatedAt (đổi theo MỌI
+  // trường, kể cả cân nặng) vì "tình trạng thận còn đúng không" là câu hỏi cần trả lời riêng: một
+  // ca lọc máu bắt đầu giữa ca trực mà quên cập nhật thì mọi tra cứu kháng sinh sau đó âm thầm
+  // dùng sai bậc liều. 0 nghĩa là chưa từng chạm — không nhắc nhở một trạng thái chưa ai xác nhận.
+  renalUpdatedAt: number
 }
 
 export const EMPTY_PATIENT: PatientVitals = {
@@ -68,6 +73,7 @@ export const EMPTY_PATIENT: PatientVitals = {
   rrt: "none",
   crrtFlowLPerH: "",
   updatedAt: 0,
+  renalUpdatedAt: 0,
 }
 
 const PATIENT_KEY = "drtrong:patient"
@@ -105,7 +111,12 @@ export function usePatientVitals() {
   }, [patient])
 
   const setField = useCallback(<K extends keyof PatientVitals>(key: K, value: PatientVitals[K]) => {
-    setPatient((prev) => ({ ...prev, [key]: value, updatedAt: Date.now() }))
+    setPatient((prev) => ({
+      ...prev,
+      [key]: value,
+      updatedAt: Date.now(),
+      ...(key === "rrt" || key === "akiUnstable" ? { renalUpdatedAt: Date.now() } : {}),
+    }))
   }, [])
 
   const reset = useCallback(() => setPatient({ ...EMPTY_PATIENT }), [])
@@ -118,6 +129,18 @@ export function usePatientVitals() {
 }
 
 // ─── Chức năng thận ───────────────────────────────────────────────────────────
+
+// 4 giờ ~ nửa ca trực thông thường. Không có ngưỡng "đúng" tuyệt đối cho việc này — chọn một mốc
+// đủ ngắn để bắt được thay đổi trong CÙNG một ca (vd bắt đầu lọc máu giữa ca), đủ dài để không nhắc
+// nhở phiền khi bệnh nhân chưa có gì thay đổi.
+export const RENAL_STALE_MS = 4 * 60 * 60 * 1000
+
+// true khi tình trạng thận đã từng được xác nhận (renalUpdatedAt > 0) NHƯNG quá lâu chưa xác nhận
+// lại. Bệnh nhân vừa tạo, chưa ai chạm vào chức năng thận, không được tính là "cũ" — im lặng còn
+// đúng hơn nhắc nhở về một trạng thái chưa ai xác nhận.
+export function isRenalStatusStale(p: PatientVitals, now: number = Date.now()): boolean {
+  return p.renalUpdatedAt > 0 && now - p.renalUpdatedAt > RENAL_STALE_MS
+}
 
 // 1 mg/dL = 88.42 µmol/L
 export const SCR_UMOL_PER_MGDL = 88.42
