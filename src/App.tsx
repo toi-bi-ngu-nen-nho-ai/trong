@@ -10845,7 +10845,7 @@ function UpdateBanner({ offsetBottom }: { offsetBottom: number | string }) {
 const NAV_ITEMS: { id: Screen; navId?: string; label: string; icon: (active: boolean) => ReactElement }[] = [
   { id: "home", label: "Trang chủ", icon: icons.home },
   { id: "library", label: "Thư viện", icon: icons.library },
-  { id: "comingSoon", navId: "Lâm sàng", label: "Lâm sàng", icon: () => icons.guideline() },
+  { id: "guideline", label: "Hướng dẫn", icon: icons.guideline },
   { id: "mindmap", label: "Mindmap", icon: icons.mindmap },
   { id: "flashcard", label: "FlashCard", icon: icons.cards },
 ]
@@ -11362,6 +11362,7 @@ export default function App() {
               thấy một tab lỗi tùm lum. Vẫn giữ nguyên tab dưới thanh nav (không phải NON_TAB_SCREENS)
               để không phá cấu trúc điều hướng — chỉ đổi nội dung bên trong. */}
           {screen === "flashcard" && <ComingSoonScreen feature="FlashCard" />}
+          {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
           {screen === "specialty" && (
             <SpecialtyScreen
