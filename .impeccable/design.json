@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T16:00:00Z",
+  "title": "Design System: Bác sĩ Trọng",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Deep Azure",
+        "canonical": "#003152",
+        "tonalRamp": ["#001a2c", "#00243d", "#003152", "#0d4a70", "#2f6d94", "#5f97bd", "#addff1", "#eaf6fc"]
+      },
+      "accent-2": {
+        "role": "secondary",
+        "displayName": "Mindmap Magenta",
+        "canonical": "#b8196f",
+        "tonalRamp": ["#4a0a2c", "#7a1148", "#b8196f", "#d13d8d", "#e06fa9", "#ee9cc5", "#f7c6e0", "#fce8f1"]
+      },
+      "danger": {
+        "role": "danger",
+        "displayName": "Hazard Red",
+        "canonical": "#b91c1c",
+        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fef2f2"]
+      },
+      "warn": {
+        "role": "warning",
+        "displayName": "Caution Amber",
+        "canonical": "#92400e",
+        "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f0b429", "#fde68a", "#fffbeb"]
+      },
+      "green": {
+        "role": "success",
+        "displayName": "Confirmation Green",
+        "canonical": "#15803d",
+        "tonalRamp": ["#052e16", "#14532d", "#15803d", "#16a34a", "#4ade80", "#86efac", "#bbf7d0", "#f0fdf4"]
+      }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Default reading text throughout the app." },
+      "mono-dose": { "displayName": "Dose Mono", "purpose": "Reserved for numeric doses/concentrations in Mindmap-formatted notes; primary UI uses Inter tabular figures for on-screen dose numbers." },
+      "label": { "displayName": "Label", "purpose": "Bottom nav labels and small chip text, 10-12px, checked independently for AA at that size." }
+    },
+    "shadows": [
+      { "name": "floating-layer", "value": "0 8px 24px var(--c-shadow)", "purpose": "Reserved for genuinely elevated layers: pickers, toasts, modals, sheets. Never used on resting cards." }
+    ],
+    "motion": [
+      { "name": "ease-bounce", "value": "cubic-bezier(0.34, 1.4, 0.64, 1)", "purpose": "Tap/selection feedback and delight entrances (tab pop, card rise-in, nav pill grow). Never applied to danger/warning states." },
+      { "name": "ease-standard", "value": "cubic-bezier(0.25, 0.9, 0.35, 1)", "purpose": "Disclosure expand/collapse and other functional (non-delight) transitions." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Tab Chip (active)",
+      "kind": "chip",
+      "refersTo": "tab-chip-active",
+      "description": "Selected tab in a horizontal-scroll tab row (e.g. Dùng thuốc screen). Plays a bounce pop on selection.",
+      "html": "<button class=\"ds-tab-chip ds-tab-chip--active\">Kháng sinh</button>",
+      "css": ".ds-tab-chip { height: 44px; padding: 0 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.16s ease, color 0.16s ease; } .ds-tab-chip:active { transform: scale(0.96); } .ds-tab-chip--active { background: #003152; color: #ffffff; animation: ds-pulse-scale 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); } @keyframes ds-pulse-scale { 0% { transform: scale(0.8); } 55% { transform: scale(1.12); } 100% { transform: scale(1); } }"
+    },
+    {
+      "name": "Primary Tab Chip (inactive)",
+      "kind": "chip",
+      "refersTo": "tab-chip-inactive",
+      "description": "Unselected tab in the same row.",
+      "html": "<button class=\"ds-tab-chip ds-tab-chip--inactive\">Vận mạch</button>",
+      "css": ".ds-tab-chip--inactive { background: #e9f3f3; color: #465d5d; }"
+    },
+    {
+      "name": "Resource Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Home-screen quick-access card. Flat at rest, no shadow; scales down on press; staggers in on mount.",
+      "html": "<button class=\"ds-card\"><span class=\"ds-card-icon\">💊</span><p class=\"ds-card-label\">Sử dụng thuốc</p></button>",
+      "css": ".ds-card { width: 136px; height: 152px; padding: 16px; border-radius: 16px; border: 1px solid #dae9e9; background: #ffffff; text-align: left; display: flex; flex-direction: column; transition: transform 0.1s; animation: ds-rise-in 0.22s cubic-bezier(0.25, 0.9, 0.35, 1) backwards; } .ds-card:active { transform: scale(0.97); } .ds-card:focus-visible { outline: 2px solid #003152; outline-offset: 2px; } .ds-card-icon { width: 36px; height: 36px; border-radius: 8px; background: #003152; color: #ffffff; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; } .ds-card-label { font-weight: 700; font-size: 14px; color: #0d2324; } @keyframes ds-rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid primary action button (e.g. 'Thêm vào danh sách đang dùng').",
+      "html": "<button class=\"ds-btn-primary\">Thêm vào danh sách đang dùng</button>",
+      "css": ".ds-btn-primary { background: #003152; color: #ffffff; padding: 12px 20px; border-radius: 9999px; font-weight: 700; font-size: 14px; border: none; transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.16s ease; } .ds-btn-primary:hover { background: #00243d; } .ds-btn-primary:active { transform: scale(0.96); } .ds-btn-primary:focus-visible { outline: 2px solid #003152; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Severity Banner",
+      "kind": "custom",
+      "refersTo": "danger-banner",
+      "description": "Highest-tier dose-safety warning. Flat, serious, no bounce or decorative motion — the system's protected zone.",
+      "html": "<div class=\"ds-danger-banner\"><strong>GẤP 10 LẦN LIỀU THƯỜNG DÙNG</strong><p>Kiểm tra lại dấu thập phân hoặc sai đơn vị.</p></div>",
+      "css": ".ds-danger-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 14px; color: #b91c1c; } .ds-danger-banner strong { display: block; text-transform: uppercase; font-size: 13px; font-weight: 800; margin-bottom: 4px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Bedside Precision Panel",
+    "overview": "Every screen exists to answer one question fast and correctly, then get out of the way. The system is token-driven end to end — every color in the app reads from a --c-* CSS custom property, never a hardcoded hex — so a single palette swap recolors the entire product without touching component code. The palette is Deep Azure, replacing an earlier teal identity. The system deliberately draws a hard line between two zones: decoration (navigation, tabs, cards, screen transitions) and diagnosis (dose numbers, safety-tier colors, warning language). Delight lives entirely in the first zone; the second is untouchable.",
+    "keyCharacteristics": [
+      "Every color is a CSS custom property; there are no hardcoded hex values in components.",
+      "Danger/warning/success semantics are colorblind-safe and are a separate, protected token family from the primary brand color.",
+      "Motion answers a specific question, with one exception zone (nav/tabs/cards) that now also carries brand personality.",
+      "Both light and dark mode are independently authored and contrast-verified, not generated by inverting one palette."
+    ],
+    "rules": [
+      { "name": "The Untouchable Signal Rule", "body": "--c-danger*, --c-warn*, and --c-green* are a separate token family from --c-primary*/--c-accent* and are never restyled, retinted, or animated as part of a brand refresh.", "section": "colors" },
+      { "name": "The Decoration/Diagnosis Split Rule", "body": "Delight is scoped to navigation, tabs, cards, and screen transitions. Dose numbers and safety-tier text stay calm by comparison.", "section": "colors" },
+      { "name": "The 16px Floor Rule", "body": "No input, textarea, or select ever renders below 16px font size, without exception.", "section": "typography" },
+      { "name": "The Floating-Layer-Only Rule", "body": "box-shadow appears only on elements genuinely elevated above the page (dropdowns, toasts, modals, sheets); a resting card never has one.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do read every color from a --c-* CSS custom property.",
+      "Do keep --c-danger*, --c-warn*, and --c-green* completely independent of the primary/accent palette.",
+      "Do verify new color pairs against WCAG AA before shipping them.",
+      "Do keep tap-confirmation motion working even under prefers-reduced-motion.",
+      "Do scope new delight/motion additions to navigation, tabs, cards, and transitions."
+    ],
+    "donts": [
+      "Don't add bounce, pop, or celebratory motion to a danger or warning state, ever.",
+      "Don't use the Mindmap-only magenta accent anywhere in the medication or dosing screens.",
+      "Don't let any input, textarea, or select render below 16px font size.",
+      "Don't invert one theme to produce the other."
+    ]
+  }
+}

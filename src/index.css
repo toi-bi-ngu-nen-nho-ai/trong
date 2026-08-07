@@ -70,18 +70,19 @@
   --c-muted: #7c9191;
   --c-faint: #bccfcf;
 
-  /* Chủ đạo giữ nguyên sắc mòng két nhưng đổi đúng hue 196 (thay vì 186/181 lệch nhau vài độ giữa
-     các token) để mọi mảng "teal" trong app — nền, viền, chữ — cùng một họ tuyệt đối. Chữ trắng
-     trên nền primary đạt 5,5:1, primary làm chữ/icon trên nền sáng đạt 5,1:1 — cả hai vượt ngưỡng
-     AA 4,5:1. `--c-primary-rgb` theo đúng khuôn `--c-fog` bên dưới: bộ ba R,G,B để nhét vào rgba()
-     cho các đổ bóng/viền mờ ăn theo chủ đạo, tự đổi theo sáng/tối như mọi biến --c-* khác. */
-  --c-primary: #00766e;
-  --c-primary-strong: #00615a;
-  --c-primary-deep: #004c46;
-  --c-primary-soft: #e0f9f7;
-  --c-primary-line: #b2e7e1;
-  --c-primary-line-2: #78d0c7;
-  --c-primary-rgb: 0, 118, 110;
+  /* Chủ đạo là xanh azure đậm, không còn mòng két. Chữ trắng trên nền primary đạt 13,5:1, primary
+     làm chữ/icon trên nền sáng cũng đạt 13,5:1 — cả hai vượt xa ngưỡng AA 4,5:1 (dư nhiều hơn hẳn
+     mức tối thiểu vì primary được chọn đậm chủ động, không chỉ vừa đủ ngưỡng). `--c-primary-line`
+     dùng đúng sắc xanh nhạt làm viền nhấn. `--c-primary-rgb` theo đúng khuôn `--c-fog` bên dưới: bộ
+     ba R,G,B để nhét vào rgba() cho các đổ bóng/viền mờ ăn theo chủ đạo, tự đổi theo sáng/tối như
+     mọi biến --c-* khác. */
+  --c-primary: #003152;
+  --c-primary-strong: #00243d;
+  --c-primary-deep: #001a2c;
+  --c-primary-soft: #eaf6fc;
+  --c-primary-line: #addff1;
+  --c-primary-line-2: #7ec3e8;
+  --c-primary-rgb: 0, 49, 82;
 
   /* --c-accent* trước đây là một bộ giá trị RIÊNG trùng khít --c-primary* — hai nguồn sự thật cho
      cùng một màu, sửa primary mà quên sửa accent là sẽ lệch ngay. Giờ trỏ thẳng vào primary, giữ
@@ -161,9 +162,9 @@
 
   --c-nav-bg: rgba(246, 253, 253, 0.94);
   --c-nav-border: #dae9e9;
-  /* Cùng hue với --c-primary-soft (196°) — trước đây #e0faff ở hue 211°, lệch 30° so với chip
-     primary đứng ngay cạnh trong cùng khung nhìn. */
-  --c-nav-active-bg: #d6f6f4;
+  /* Cùng họ xanh với --c-primary-soft, đậm hơn một chút để viên nền mục đang chọn còn đọc ra được
+     cạnh icon/chữ primary đứng ngay bên trong. */
+  --c-nav-active-bg: #d9edf9;
   --c-float-bg: rgba(255, 255, 255, 0.94);
   --c-fog: 255, 255, 255;
 }
@@ -175,11 +176,9 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Cùng hue 196° với khối light ở trên (xem ghi chú tại :root) — trước đây bản tối lấy teal
-       tươi hơn/sáng hơn hẳn (H183, C0.123) đặt lên nền xanh dương-xám kiểu slate (H212-214),
-       khiến bản sáng và bản tối đọc ra như hai app khác nhau. Primary tối giờ hạ chroma về đúng
-       mức bản sáng (C0.090) — thứ làm hai chế độ đọc ra là MỘT thương hiệu, không phải mint chói
-       trực đêm. */
+    /* Primary tối dùng đúng sắc xanh nhạt của bản sáng (--c-primary-line) làm gốc — sáng/bão hoà đủ
+       để đọc rõ trên nền tối mà vẫn cùng một họ azure với bản sáng, không đổi hẳn sang mint/cyan
+       như một hue khác sẽ tạo cảm giác hai app riêng biệt. */
     --c-surface: #162525;
     --c-surface-alt: #1e2f2f;
     --c-page: #0c1919;
@@ -194,13 +193,13 @@
     --c-muted: #728584;
     --c-faint: #425757;
 
-    --c-primary: #61bdb3;
-    --c-primary-strong: #86d5cc;
-    --c-primary-deep: #ace9e1;
-    --c-primary-soft: #0e2c2a;
-    --c-primary-line: #154642;
-    --c-primary-line-2: #1d655e;
-    --c-primary-rgb: 97, 189, 179;
+    --c-primary: #addff1;
+    --c-primary-strong: #c7ebfa;
+    --c-primary-deep: #e0f4fc;
+    --c-primary-soft: #0d2433;
+    --c-primary-line: #163a52;
+    --c-primary-line-2: #1f4f70;
+    --c-primary-rgb: 173, 223, 241;
 
     --c-accent: var(--c-primary);
     --c-accent-deep: var(--c-primary-strong);
@@ -242,7 +241,7 @@
 
     --c-nav-bg: rgba(24, 40, 40, 0.94);
     --c-nav-border: #324747;
-    --c-nav-active-bg: #163d3a;
+    --c-nav-active-bg: #163650;
     --c-float-bg: rgba(30, 47, 47, 0.94);
     --c-fog: 18, 37, 37;
   }
@@ -267,13 +266,13 @@
   --c-muted: #728584;
   --c-faint: #425757;
 
-  --c-primary: #61bdb3;
-  --c-primary-strong: #86d5cc;
-  --c-primary-deep: #ace9e1;
-  --c-primary-soft: #0e2c2a;
-  --c-primary-line: #154642;
-  --c-primary-line-2: #1d655e;
-  --c-primary-rgb: 97, 189, 179;
+  --c-primary: #addff1;
+  --c-primary-strong: #c7ebfa;
+  --c-primary-deep: #e0f4fc;
+  --c-primary-soft: #0d2433;
+  --c-primary-line: #163a52;
+  --c-primary-line-2: #1f4f70;
+  --c-primary-rgb: 173, 223, 241;
 
   --c-accent: var(--c-primary);
   --c-accent-deep: var(--c-primary-strong);
@@ -313,7 +312,7 @@
 
   --c-nav-bg: rgba(24, 40, 40, 0.94);
   --c-nav-border: #324747;
-  --c-nav-active-bg: #163d3a;
+  --c-nav-active-bg: #163650;
   --c-float-bg: rgba(30, 47, 47, 0.94);
   --c-fog: 18, 37, 37;
 }

@@ -1128,12 +1128,12 @@ function HomeScreen({
       <div className="mb-6">
         <h2 className="px-5 text-lg font-bold text-slate-900 mb-3">Truy cập nhanh</h2>
         <div className="flex gap-3 overflow-x-auto pl-5 pr-5 pb-1">
-          {resourceCards.map((c) => (
+          {resourceCards.map((c, i) => (
             <button
               key={c.label}
               onClick={() => onNavigate(c.target.screen, c.target.id)}
-              className="flex-none w-[136px] h-[152px] p-4 rounded-2xl border card-press text-left flex flex-col"
-              style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
+              className="flex-none w-[136px] h-[152px] p-4 rounded-2xl border card-press text-left flex flex-col rise-in"
+              style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", "--i": i } as React.CSSProperties}
             >
               <div
                 className="flex-none w-9 h-9 rounded-lg flex items-center justify-center"
@@ -9564,7 +9564,9 @@ function DungThuocScreen({
               key={t.id}
               ref={tab === t.id ? activeTabRef : null}
               onClick={() => setTab(t.id)}
-              className={`${CHIP} border-transparent`}
+              // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
+              // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
+              className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
               // --c-text-muted trên --c-line-soft chỉ ~4,1:1 ở 12px đậm — dưới ngưỡng AA 4,5:1.
               // Đổi sang --c-text-soft cho tab CHƯA chọn (đọc nhiều, phải rõ).
               style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
