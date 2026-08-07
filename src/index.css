@@ -570,9 +570,12 @@ input, select, textarea {
   animation: mindFound 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) 2;
 }
 
-/* Con trượt sáng chạy theo công cụ đang chọn trong thanh công cụ */
+/* Con trượt sáng chạy theo công cụ đang chọn trong thanh công cụ. Chỉ animate transform: width của
+   phần tử này luôn bằng TOOL_BTN (hằng số, xem MindmapBoard.tsx), không bao giờ đổi lúc chạy, nên
+   trước đây có thêm "width 0.2s ease" trong transition là animate một thứ không hề thay đổi giá trị
+   — không gây lỗi gì nhưng cũng không làm gì, chỉ là phí một khai báo. */
 .mind-tool-slider {
-  transition: transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1), width 0.2s ease;
+  transition: transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 /* Người bật "Giảm chuyển động" ở hệ điều hành thường vì lý do sức khoẻ (rối loạn tiền đình, dễ say
@@ -648,11 +651,17 @@ input, select, textarea {
 
 /* Khối gấp/mở (Disclosure trong Dùng thuốc + PatientPanel): chiều cao co giãn KHÔNG cần đo bằng
    JS — nội dung luôn được render (không unmount khi đóng), chỉ co qua max-height.
-   ĐÃ THỬ grid-template-rows 0fr→1fr trước (kỹ thuật "chuẩn" không cần magic number) nhưng animate
-   giá trị này bị KẸT ở trạng thái cũ trên chính trình duyệt dùng để kiểm thử — hỗ trợ animate
-   grid-template-rows chỉ mới có ở các bản Chromium/Safari gần đây (Safari ≥16.4), rủi ro thật với
-   app chạy nhiều trên iOS Safari. max-height kém "thuần" hơn (cần một trần đủ lớn) nhưng hoạt
-   động ổn định trên mọi trình duyệt — chọn đúng, chạy được, hơn đẹp mà có thể kẹt UI vĩnh viễn.
+   ĐÃ THỬ LẠI grid-template-rows 0fr→1fr (2026-08) sau khi cho rằng lý do cũ (Safari <16.4) đã hết
+   thời sự — và TỰ TAY TÁI HIỆN ĐƯỢC lỗi kẹt UI, ngay trên Chromium hiện đại, không phải chuyện
+   Safari cũ: `.disc-body` không có chiều cao xác định từ phần tử cha (chỉ auto theo nội dung), mà
+   theo đặc tả CSS Grid, khi container auto-height thì track kiểu `fr` bị xử lý như "auto" bất kể
+   viết 0fr hay 1fr hay minmax(0, Nfr) — track khi đó chỉ còn phụ thuộc overflow của grid item: item
+   overflow:hidden → luôn kẹt ở ~0 (đo được), item overflow:visible → luôn kẹt ở đúng chiều cao nội
+   dung (cũng đo được) — cả hai trường hợp đều KHÔNG phản ứng với việc đổi 0fr/1fr. Nói cách khác:
+   kỹ thuật này không dùng được với đúng cấu trúc auto-height của `.disc-body`, không phải vấn đề đời
+   trình duyệt. max-height vẫn là lựa chọn đúng — chạy được trên mọi trình duyệt dù kém "thuần" hơn
+   (cần một trần đủ lớn). ĐỪNG thử lại grid-template-rows nữa trừ khi đổi hẳn cấu trúc DOM (vd container
+   cha có chiều cao xác định) để track fr không còn bị coi là "auto".
    `visibility: hidden` khi đóng — không chỉ để ẩn mắt mà còn gỡ nội dung ra khỏi thứ tự Tab/trình
    đọc màn hình; nếu chỉ dựa vào overflow hidden, nút/ô nhập bên trong vẫn nhận được Tab tới dù
    không nhìn thấy gì. */

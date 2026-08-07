@@ -9508,25 +9508,29 @@ function DungThuocScreen({
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
               }}
-              // Vòng tròn NHÌN THẤY vẫn 32px (cân với tiêu đề 20px, xem lý do ở span con) nhưng vùng
-              // CHẠM ĐƯỢC của chính button giờ là 44px — dưới 44px trượt khỏi ngưỡng WCAG 2.5.8, và
-              // đây lại là nút quan trọng nhất màn hình lúc cấp cứu (tìm xuyên tab). Đệm vô hình quanh
-              // vòng tròn thay vì phóng to vòng tròn để không phá cân đối thị giác đã tính toán.
-              className="flex-none w-11 h-11 flex items-center justify-center"
+              // Trước đây chỉ là một vòng tròn icon-only 32px — nút nhanh nhất tới hơn 100 thuốc mà
+              // không có chữ nào gọi tên nó, người lần đầu dùng không biết nó làm gì cho tới khi lỡ
+              // bấm. Giờ có chữ "Tìm" đi kèm icon, khớp hình dạng pill với "Nhật ký" đứng cạnh — một
+              // hàng nút phụ nhất quán thay vì một icon lẻ loi.
+              //
+              // Pill NHÌN THẤY vẫn cao 36px (bằng "Nhật ký", không phá hàng tiêu đề min-h-9 cố định)
+              // nhưng vùng CHẠM của chính button là 44px nhờ đệm dọc vô hình — dưới 44px là trượt khỏi
+              // ngưỡng chạm đã áp cho các nút khác trong màn.
+              className="flex-none flex items-center justify-center py-1"
               aria-label="Tìm thuốc trong mọi nhóm"
             >
               <span
-                className={`w-8 h-8 ${R.pill} border flex items-center justify-center`}
+                className={`h-9 pl-2.5 pr-3 ${R.pill} ${T.label} border flex items-center gap-1.5`}
                 style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
               >
                 {/* Icon luôn ở dạng nét (không tô đặc): path này vẽ cho outline, tô đặc theo `active`
                     làm phần tay cầm (một nét thẳng không khép kín) biến mất — chỉ còn vòng tròn đặc,
-                    trông như ảnh vỡ. Trạng thái đang mở đã có màu/nền riêng ở vòng tròn bên trong.
-                    icons.search() vẽ cỡ 24px cố định (w-6 h-6) — thu nhỏ bằng `scale` ở đây thay vì sửa
-                    icon dùng chung: chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc của nó. */}
-                <span className="flex items-center justify-center" style={{ transform: "scale(0.62)" }}>
+                    trông như ảnh vỡ. icons.search() vẽ cỡ 24px cố định (w-6 h-6) — thu nhỏ bằng `scale`
+                    ở đây thay vì sửa icon dùng chung: chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc. */}
+                <span className="flex items-center justify-center" style={{ transform: "scale(0.7)" }}>
                   {icons.search(false)}
                 </span>
+                Tìm
               </span>
             </button>
             <button
