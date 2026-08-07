@@ -86,7 +86,7 @@ import { BlockContent } from "./components/BlockContent"
 import { MindmapBoard } from "./components/MindmapBoard"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
-import { BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, R, T, TAP, inferRouteShort, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
+import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, R, T, TAP, adminRouteLabel, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2182,7 +2182,10 @@ function AddAntibioticScreen({
   // Sửa có mục này, thêm nhanh kháng sinh mới hoàn toàn không khai báo được.
   const [boluses, setBoluses] = useState<BolusDraft[]>([])
 
-  const isIvInfusion = routeId === "iv-infusion"
+  // "Cách dùng / Pha thuốc" có ích cho CẢ BỐN đường tiêm/truyền (TTM/TMC/IM/SC) — không chỉ truyền
+  // tĩnh mạch. Trước đây chỉ hiện cho "iv-infusion" nên tiêm tĩnh mạch chậm/tiêm bắp/tiêm dưới da
+  // không có chỗ ghi cách pha, dù các đường đó cũng cần hoàn nguyên/pha loãng như truyền tĩnh mạch.
+  const isInjectableRoute = routeId === "iv-infusion" || routeId === "iv-slow" || routeId === "im" || routeId === "sc"
   const isOtherRoute = routeId === "other"
   const finalRoute = isOtherRoute ? routeOther.trim() : ANTIBIOTIC_ROUTE_OPTIONS.find((r) => r.id === routeId)?.label ?? ""
 
@@ -2231,7 +2234,7 @@ function AddAntibioticScreen({
       id: `custom-abx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: name.trim(),
       route: finalRoute,
-      preparation: isIvInfusion && preparation.trim() ? preparation.trim() : undefined,
+      preparation: isInjectableRoute && preparation.trim() ? preparation.trim() : undefined,
       note: note.trim() || undefined,
       tiers,
       warnings: warningText.trim() ? [{ text: warningText.trim(), severity: warningSeverity }] : undefined,
@@ -2377,7 +2380,7 @@ function AddAntibioticScreen({
           )}
         </div>
 
-        {isIvInfusion && (
+        {isInjectableRoute && (
           <div className="fade-in">
             <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Cách dùng / Pha thuốc (tuỳ chọn)</label>
             <textarea value={preparation} onChange={(e) => setPreparation(e.target.value)} placeholder="VD: Pha với Natri Clorid 0,9%, truyền trong 30–60 phút" rows={3} className={fieldClass} style={fieldStyle} />
@@ -2711,7 +2714,11 @@ function EditAntibioticScreen({
               <div key={idx} className="p-3 rounded-2xl border" style={{ borderColor: "var(--c-line)" }}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex-1">
-                    <label className="text-[10px] text-slate-400 mb-1 block">CrCl tối thiểu (mL/phút)</label>
+                    {/* min-h-[3em] (issue "CrCl tối thiểu không ngay hàng"): nhãn này dài hơn "Nhãn
+                        hiển thị" nên xuống 2 dòng ở cột hẹp trong khi nhãn kia chỉ 1 dòng, đẩy ô nhập
+                        bên dưới tụt xuống lệch nhau. Đặt trước chiều cao ĐÚNG 2 dòng (line-height 1.5
+                        ở cỡ chữ 10px) trên cả hai nhãn cùng hàng để hai ô nhập luôn ngang hàng. */}
+                    <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">CrCl tối thiểu (mL/phút)</label>
                     <input
                       value={t.min}
                       onChange={(e) => updateTier(idx, "min", normalizeDecimalInput(e.target.value))}
@@ -2722,7 +2729,7 @@ function EditAntibioticScreen({
                     />
                   </div>
                   <div className="flex-[2]">
-                    <label className="text-[10px] text-slate-400 mb-1 block">Nhãn hiển thị</label>
+                    <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">Nhãn hiển thị</label>
                     <input
                       value={t.label}
                       onChange={(e) => updateTier(idx, "label", e.target.value)}
@@ -2895,7 +2902,11 @@ function EditAntibioticScreen({
                         <div key={idx} className="p-2.5 rounded-xl border" style={{ borderColor: "var(--c-warn-line)", background: "var(--c-surface)" }}>
                           <div className="flex items-center gap-2 mb-2">
                             <div className="flex-1">
-                              <label className="text-[10px] text-slate-400 mb-1 block">CrCl tối thiểu (mL/phút)</label>
+                              {/* min-h-[3em] (issue "CrCl tối thiểu không ngay hàng"): nhãn này dài hơn "Nhãn
+                        hiển thị" nên xuống 2 dòng ở cột hẹp trong khi nhãn kia chỉ 1 dòng, đẩy ô nhập
+                        bên dưới tụt xuống lệch nhau. Đặt trước chiều cao ĐÚNG 2 dòng (line-height 1.5
+                        ở cỡ chữ 10px) trên cả hai nhãn cùng hàng để hai ô nhập luôn ngang hàng. */}
+                    <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">CrCl tối thiểu (mL/phút)</label>
                               <input
                                 value={t.min}
                                 onChange={(e) => updateIndicationTier(row.key, idx, "min", normalizeDecimalInput(e.target.value))}
@@ -2906,7 +2917,7 @@ function EditAntibioticScreen({
                               />
                             </div>
                             <div className="flex-[2]">
-                              <label className="text-[10px] text-slate-400 mb-1 block">Nhãn hiển thị</label>
+                              <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">Nhãn hiển thị</label>
                               <input
                                 value={t.label}
                                 onChange={(e) => updateIndicationTier(row.key, idx, "label", e.target.value)}
@@ -5882,11 +5893,11 @@ function AntibioticMixPanel({
 }: {
   drug: Antibiotic
   doseTargetMg?: CappedDose | null
-  // "Đường dùng" (TTM/TMC) — TRƯỚC ĐÂY panel này tự giữ state riêng và hiện chip chọn ở đây (sau
-  // cả mục Dung môi), lấn át mục "Đường dùng" ngoài thẻ AntibioticDoseCard. Nay panel chỉ ĐỌC/GHI
-  // state của cha (nhấc lên AntibioticDoseCard) để cả thẻ dùng chung đúng một đường dùng.
-  routeShort: "TTM" | "TMC"
-  setRouteShort: (r: "TTM" | "TMC") => void
+  // "Đường dùng" (TTM/TMC/IM/SC) — TRƯỚC ĐÂY panel này tự giữ state riêng và hiện chip chọn ở đây
+  // (sau cả mục Dung môi), lấn át mục "Đường dùng" ngoài thẻ AntibioticDoseCard. Nay panel chỉ
+  // ĐỌC/GHI state của cha (nhấc lên AntibioticDoseCard) để cả thẻ dùng chung đúng một đường dùng.
+  routeShort: AdminRoute
+  setRouteShort: (r: AdminRoute) => void
 }) {
   const { logCalc, wardRecipes, saveWard, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
@@ -5900,7 +5911,7 @@ function AntibioticMixPanel({
   const vialLabel = mix?.vialLabel ?? "lọ"
   // Đường dùng mặc định của thuốc — chỉ dùng khi CHƯA có công thức đã lưu nào tự khai đường riêng
   // (xem loadWard()/loadSystemDefault() bên dưới, vẫn cần hằng số này để reset khi đổi công thức).
-  const defaultRoute: "TTM" | "TMC" = inferRouteShort(drug.route) ?? "TTM"
+  const defaultRoute: AdminRoute = inferAdminRoutes(drug.route)[0] ?? "TTM"
 
   const [vialAmount, setVialAmount] = useState(String(ward?.vialAmount ?? mix?.vialAmount ?? ""))
   const [vialUnit, setVialUnit] = useState(ward?.vialUnit ?? mix?.vialUnit ?? concMass)
@@ -5933,7 +5944,10 @@ function AntibioticMixPanel({
   const [allowWithdraw, setAllowWithdraw] = useState(ward?.allowWithdraw ?? false)
   const [saveTitle, setSaveTitle] = useState("")
 
-  const allowedDiluents = mix?.diluents ?? ["NaCl 0,9%", "Glucose 5%"]
+  // Không khai `diluents` riêng (đa số kháng sinh tự nhập, chưa ai điền công thức pha chuẩn) thì cho
+  // chọn cả ba dung môi thường gặp nhất — trước đây chỉ có NaCl 0,9%/Glucose 5%, thiếu hẳn Nước cất
+  // pha tiêm (dung môi hoàn nguyên rất phổ biến cho lọ bột trước khi pha loãng tiếp).
+  const allowedDiluents = mix?.diluents ?? ["NaCl 0,9%", "Glucose 5%", "Nước cất pha tiêm"]
   const avoidDiluents = mix?.avoidDiluents ?? []
   const diluentBlocked = avoidDiluents.includes(diluent)
   const unitChoices = useMemo(() => MIX_UNIT_CHOICES.filter((u) => massFactor(u, concMass) != null), [concMass])
@@ -6333,9 +6347,14 @@ function AntibioticMixPanel({
               lọ/ống" ở hai dạng kia (WardRecipe.vials), mặc định 1 nên không đổi hành vi cũ. Tự tính
               số chai + thể tích rút (làm tròn tới hàng trăm mL) khi biết khoảng liều — áp dụng cho
               MỌI đường dùng/thiết bị truyền, không riêng bơm tiêm điện. */}
+          {/* min-h-[2.8em] trên nhãn (issue "bảng pha không ngay hàng"): "Hàm lượng 1 chai" và "Thể
+              tích 1 chai (mL)" dài ngắn khác nhau nên xuống dòng khác nhau ở cột hẹp — nhãn dài 2 dòng
+              đẩy ô nhập tụt xuống so với ô cạnh bên chỉ có nhãn 1 dòng. Đặt trước chiều cao cho ĐÚNG 2
+              dòng (12px × 1.4 × 2, xem T.label) trên mọi nhãn cùng hàng để ô nhập luôn ngang hàng dù
+              nhãn dài ngắn khác nhau. */}
           <div className="grid grid-cols-2 gap-2 mb-2">
             <div>
-              <label className={`${T.label} text-slate-500 mb-1 block`}>Hàm lượng 1 chai</label>
+              <label className={`${T.label} text-slate-500 mb-1 block min-h-[2.8em]`}>Hàm lượng 1 chai</label>
               <input
                 value={vialAmount}
                 onChange={(e) => {
@@ -6351,7 +6370,7 @@ function AntibioticMixPanel({
               />
             </div>
             <div>
-              <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích 1 chai (mL)</label>
+              <label className={`${T.label} text-slate-500 mb-1 block min-h-[2.8em]`}>Thể tích 1 chai (mL)</label>
               <input
                 value={vialVolume}
                 onChange={(e) => {
@@ -6428,10 +6447,14 @@ function AntibioticMixPanel({
           {/* Ống dung dịch: 3 ô ngắn vừa khít một hàng. Lọ bột thì KHÔNG dùng chung hàng đó — nhãn "Pha
               ban đầu với (mL/lọ)" dài hơn hẳn "Thể tích 1 ống (mL)", nhét vào 1/3 hàng sẽ xuống dòng và
               đẩy ô nhập tụt xuống so với hai ô bên cạnh (không còn ngang hàng). Tách thành hàng riêng để
-              nhãn dài có đủ chỗ, không phải đứng cạnh nhãn ngắn. */}
+              nhãn dài có đủ chỗ, không phải đứng cạnh nhãn ngắn.
+              `min-h-[2.8em]` trên cả ba nhãn: ở cột hẹp (grid-cols-3), "Hàm lượng 1 {vialLabel}" và
+              "Thể tích 1 {vialLabel} (mL)" xuống 2 dòng còn "Số {vialLabel}" chỉ 1 dòng — đặt trước
+              chiều cao ĐÚNG 2 dòng (12px × 1.4 × 2, xem T.label) trên mọi nhãn cùng hàng để ba ô nhập
+              luôn ngang hàng bất kể nhãn dài ngắn khác nhau theo từng thuốc. */}
           <div className={`grid ${vialForm === "solution" ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-2`}>
             <div>
-              <label className={`${T.label} text-slate-500 mb-1 block`}>Hàm lượng 1 {vialLabel}</label>
+              <label className={`${T.label} text-slate-500 mb-1 block min-h-[2.8em]`}>Hàm lượng 1 {vialLabel}</label>
               <input
                 value={vialAmount}
                 onChange={(e) => {
@@ -6448,12 +6471,12 @@ function AntibioticMixPanel({
             </div>
             {vialForm === "solution" && (
               <div>
-                <label className={`${T.label} text-slate-500 mb-1 block`}>Thể tích 1 {vialLabel} (mL)</label>
+                <label className={`${T.label} text-slate-500 mb-1 block min-h-[2.8em]`}>Thể tích 1 {vialLabel} (mL)</label>
                 <input value={vialVolume} onChange={(e) => setVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="2" className={FIELD} style={FIELD_STYLE} />
               </div>
             )}
             <div>
-              <label className={`${T.label} text-slate-500 mb-1 block`}>Số {vialLabel}</label>
+              <label className={`${T.label} text-slate-500 mb-1 block min-h-[2.8em]`}>Số {vialLabel}</label>
               <input value={vials} onChange={(e) => setVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={FIELD} style={FIELD_STYLE} />
             </div>
           </div>
@@ -6733,22 +6756,30 @@ function AntibioticDoseCard({
   // tuyệt đối đứng đầu chuỗi) rồi quy đổi ra mL/chai theo công thức pha đã lưu (hoặc mặc định của
   // thuốc) — xem lib/perKgDose.ts (findFixedDose) và lib/mixing.ts (drawFromFixedVial/pickEasiestVolume).
   // Không tự bịa công thức pha: chỉ tính khi thuốc CÓ `mix`/công thức đã lưu, ngược lại im lặng.
-  // "Đường dùng" (TTM/TMC) — TRƯỚC ĐÂY nằm sâu bên trong bảng pha thuốc (sau cả mục Dung môi), giờ
-  // nhấc lên đây làm STATE DUY NHẤT của cả thẻ: vừa hiện ở mục "Đường dùng" ngay bên dưới, vừa
-  // quyết định nút "Bảng pha thuốc" có hiện hay không (chỉ hiện với TTM/TMC — đường tiêm bắp, dưới
-  // da... không có gì để pha), vừa truyền xuống AntibioticMixPanel thay cho state riêng của nó.
+  // "Đường dùng" (TTM/TMC/IM/SC) — TRƯỚC ĐÂY nằm sâu bên trong bảng pha thuốc (sau cả mục Dung môi),
+  // giờ nhấc lên đây làm STATE DUY NHẤT của cả thẻ: vừa hiện ở mục "Đường dùng" ngay bên dưới, vừa
+  // quyết định nút "Bảng pha thuốc" có hiện hay không (chỉ hiện với bốn đường tiêm/truyền — uống,
+  // nhỏ mắt... không có gì để pha), vừa truyền xuống AntibioticMixPanel thay cho state riêng của nó.
+  // `mixableRoutes` đọc THẲNG từ câu chữ `route` của thuốc (xem inferAdminRoutes trong lib/ui.ts):
+  // route ghi CHỈ "(TTM)" hay CHỈ "(TMC)" thì thuốc đó CHỈ được dùng đúng một đường — không cho đổi
+  // qua đường còn lại, vì nhiều thuốc bắt buộc truyền chậm (TTM), tiêm nhanh (TMC) là sai lầm nguy
+  // hiểm (vd Vancomycin gây hội chứng người đỏ). Chỉ khi route ghi chung chung "(IV)" (chưa phân biệt
+  // trong dữ liệu) mới thật sự có hai lựa chọn để bác sĩ tự chọn.
+  const mixableRoutes = useMemo(() => inferAdminRoutes(drug.route), [drug.route])
   // Công thức đã lưu (ward) có thể tự khai đường dùng riêng (khoa A truyền TTM, khoa B tiêm TMC cùng
-  // một thuốc) — ưu tiên đường đó, chỉ suy từ `drug.route` khi chưa có công thức nào được lưu.
-  const inferredRoute = inferRouteShort(drug.route)
-  const [routeShort, setRouteShort] = useState<"TTM" | "TMC">(ward?.route ?? inferredRoute ?? "TTM")
+  // một thuốc) — ưu tiên đường đó, chỉ suy từ `drug.route` khi chưa có công thức nào được lưu. Nếu
+  // đường đã lưu không còn nằm trong `mixableRoutes` (vd dữ liệu thuốc vừa được sửa lại) thì bỏ qua,
+  // tránh khoá thẻ vào một đường không còn hợp lệ.
+  const [routeShort, setRouteShort] = useState<AdminRoute>(
+    (ward?.route && mixableRoutes.includes(ward.route) ? ward.route : undefined) ?? mixableRoutes[0] ?? "TTM",
+  )
   const pill = (on: boolean) =>
     on
       ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-  // Chỉ có gì để "pha" khi câu chữ route thật sự nhắc tới tĩnh mạch (TTM hoặc TMC) — tiêm bắp, tiêm
-  // dưới da, nhỏ mắt... không có bảng pha kiểu này, hiện ra sẽ sai vì áp công thức TTM/TMC lên đường
-  // dùng không liên quan.
-  const canMixIv = inferredRoute != null
+  // Chỉ có gì để "pha" khi câu chữ route thật sự là một trong bốn đường tiêm/truyền — uống, nhỏ
+  // mắt... không có bảng pha kiểu này, hiện ra sẽ sai vì áp công thức pha lên đường dùng không liên quan.
+  const hasMixPanel = mixableRoutes.length > 0
   const mixCfg = useMemo(() => {
     // `vials`/`volumeMl` là null khi CHƯA có công thức đã lưu — tự tính số lọ cần dùng ở autoUsage
     // bên dưới thay vì giả định cứng "đúng 1 lọ" như trước (khiến Amikacin/Vancomycin liều theo
@@ -6982,15 +7013,16 @@ function AntibioticDoseCard({
           gặp ngay một chỗ teal không phản hồi gì khi chạm. Đổi sang --c-text-soft (chữ) / nền
           trung tính (chip), giữ teal cho đúng vai trò hành động + trạng thái chọn. */}
       <p className={`${T.meta} font-semibold mb-1.5`} style={{ color: "var(--c-text-soft)" }}>{drug.route}</p>
-      {/* Chọn TTM/TMC ngay tại "Đường dùng" — TRƯỚC ĐÂY nằm sâu trong bảng pha thuốc (sau cả mục
-          Dung môi), khiến bảng pha "lấn át" luôn cả việc chọn đường dùng. Chỉ hiện khi thật sự có
-          đường tĩnh mạch để chọn (canMixIv) — cùng thuốc có khoa truyền TTM, có khoa tiêm TMC, nên
-          vẫn cho đổi dù `drug.route` chỉ ghi một đường. */}
-      {canMixIv && (
-        <div className="flex gap-2 mb-1.5">
-          {(["TTM", "TMC"] as const).map((r) => (
+      {/* Chọn TTM/TMC/IM/SC ngay tại "Đường dùng" — TRƯỚC ĐÂY nằm sâu trong bảng pha thuốc (sau cả
+          mục Dung môi), khiến bảng pha "lấn át" luôn cả việc chọn đường dùng. CHỈ hiện chip khi thật
+          sự có nhiều hơn một đường hợp lệ (route ghi chung chung "(IV)") — route đã ghi rõ đúng MỘT
+          đường (vd Vancomycin "Truyền tĩnh mạch (TTM)") thì KHOÁ CỨNG, không hiện chip để đổi, tránh
+          đổi nhầm sang đường tiêm không phù hợp với thuốc đó (xem mixableRoutes ở trên). */}
+      {mixableRoutes.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-1.5">
+          {mixableRoutes.map((r) => (
             <button key={r} type="button" onClick={() => setRouteShort(r)} className={CHIP} style={pill(routeShort === r)}>
-              {r === "TTM" ? "TTM · Truyền tĩnh mạch" : "TMC · Tiêm tĩnh mạch chậm"}
+              {adminRouteLabel(r)}
             </button>
           ))}
         </div>
@@ -7247,10 +7279,11 @@ function AntibioticDoseCard({
           {indication?.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{indication.note}</p>}
           {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
-          {/* Chỉ hiện bảng pha khi đường dùng THẬT SỰ là TTM/TMC (canMixIv) — trước đây hiện cho MỌI
-              đường không phải uống (kể cả tiêm bắp, tiêm dưới da...), lấn át hẳn mục "Đường dùng"
-              ở trên bằng một bảng pha TTM/TMC không liên quan gì tới đường dùng thật của thuốc. */}
-          {canMixIv && (
+          {/* Hiện bảng pha cho CẢ BỐN đường tiêm/truyền (TTM/TMC/IM/SC, xem mixableRoutes) — trước đây
+              chỉ hiện cho TTM/TMC, khiến tiêm bắp/tiêm dưới da không có gì để pha dù cũng cần hoàn
+              nguyên/pha loãng như hai đường kia (chỉ khác là không có tốc độ truyền). Đường uống thì
+              mixableRoutes rỗng nên vẫn không hiện. */}
+          {hasMixPanel && (
             <>
               <button
                 onClick={() => setShowMix((v) => !v)}
@@ -7490,7 +7523,12 @@ function AntibioticsScreen({
 
       <div ref={cardRef} style={{ scrollMarginTop: 8 }}>
       {selectedGroup && selectedEntry ? (
-        <div key={`${selectedEntry.id}-${selectedDisease?.id ?? "none"}`} className="fade-in">
+        // `key` chỉ theo selectedEntry.id — KHÔNG kèm selectedDisease.id như trước. Kèm theo disease
+        // khiến CẢ THẺ (và AntibioticMixPanel bên trong) bị GỠ RỒI DỰNG LẠI TỪ ĐẦU mỗi khi đổi "Chỉ
+        // định" dù vẫn cùng một thuốc — mất sạch đường dùng (TTM/TMC) và công thức pha đang gõ dở chỉ
+        // vì bấm sang một chip chỉ định khác để so sánh. Đổi thuốc (entry.id đổi) mới thật sự cần dựng
+        // lại thẻ; đổi chỉ định trên CÙNG một thuốc thì thẻ phải giữ nguyên trạng thái đang có.
+        <div key={selectedEntry.id} className="fade-in">
           <AntibioticDoseCard
             drug={selectedEntry}
             disease={selectedDisease}

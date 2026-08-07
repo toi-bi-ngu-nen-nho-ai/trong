@@ -134,19 +134,43 @@ export function shortRoute(route: string): string {
   return m ? m[1] : route
 }
 
-// Đường TIÊM/TRUYỀN tĩnh mạch có thể suy ra được từ câu chữ `route` hay không — chỉ hai đường này
-// mới có bảng pha (nồng độ, tốc độ giọt/phút hoặc mL/giờ) để tính; các đường khác (uống, tiêm bắp,
-// tiêm dưới da, nhỏ mắt...) không có gì để pha theo kiểu đó nên KHÔNG được hiện "Bảng pha thuốc".
-// Trả về null khi câu chữ không nhắc gì tới tĩnh mạch — đây là cổng duy nhất quyết định nút "Bảng
-// pha thuốc" có hiện hay không (xem AntibioticDoseCard). Khi câu chữ nhắc CẢ HAI (vd "Tiêm/truyền
-// tĩnh mạch (IV)"), mặc định TTM — người dùng vẫn đổi được qua nút "Đường dùng" ở đầu thẻ.
-export function inferRouteShort(route: string): "TTM" | "TMC" | null {
-  const r = route.toLowerCase()
-  const hasTtm = r.includes("ttm") || r.includes("truyền tĩnh mạch")
-  const hasTmc = r.includes("tmc") || r.includes("tiêm tĩnh mạch")
-  if (hasTtm) return "TTM"
-  if (hasTmc) return "TMC"
-  return null
+// Đường TIÊM/TRUYỀN có thể suy ra được từ câu chữ `route` hay không — CHỈ bốn đường này mới cần
+// hoàn nguyên/pha loãng (bảng pha): truyền tĩnh mạch (TTM), tiêm tĩnh mạch chậm (TMC), tiêm bắp (IM),
+// tiêm dưới da (SC). Đường khác (uống, nhỏ mắt...) không có gì để pha nên KHÔNG được hiện "Bảng pha
+// thuốc". Đây là cổng duy nhất quyết định nút đó có hiện hay không (xem AntibioticDoseCard).
+export type AdminRoute = "TTM" | "TMC" | "IM" | "SC"
+
+// Đọc CHỮ VIẾT TẮT cuối chuỗi (trong ngoặc, xem shortRoute) thay vì dò cả câu — dò cả câu sẽ hiểu
+// nhầm "Tiêm/truyền tĩnh mạch (IV)" (chứa sẵn cụm "truyền tĩnh mạch") thành CHỈ truyền được, mất hẳn
+// khả năng tiêm chậm mà câu chữ đó thật ra cho phép.
+// - "(TTM)" → CHỈ truyền tĩnh mạch. "(TMC)" → CHỈ tiêm tĩnh mạch chậm. Một kháng sinh ghi rõ một
+//   trong hai đường này (vd Vancomycin "Truyền tĩnh mạch (TTM)") thì KHÔNG được phép đổi sang đường
+//   còn lại — nhiều thuốc tiêm nhanh (TMC) là sai lầm nguy hiểm (vd Vancomycin gây hội chứng người đỏ).
+// - "(IV)" chung chung (chưa phân biệt) → cho cả hai, để bác sĩ tự chọn theo từng thuốc thật.
+// - "(TB)"/"(IM)" → tiêm bắp. "(TDD)"/"(SC)" → tiêm dưới da.
+// - Không khớp gì (uống, nhỏ mắt, vị trí khác...) → mảng rỗng, không có bảng pha.
+export function inferAdminRoutes(route: string): AdminRoute[] {
+  const abbr = shortRoute(route).trim().toUpperCase()
+  if (abbr === "TTM") return ["TTM"]
+  if (abbr === "TMC") return ["TMC"]
+  if (abbr === "IV") return ["TTM", "TMC"]
+  if (abbr === "TB" || abbr === "IM") return ["IM"]
+  if (abbr === "TDD" || abbr === "SC") return ["SC"]
+  return []
+}
+
+// Nhãn hiển thị đầy đủ cho một đường dùng — dùng chung cho chip chọn đường và câu chữ "Cách dùng".
+export function adminRouteLabel(r: AdminRoute): string {
+  switch (r) {
+    case "TTM":
+      return "TTM · Truyền tĩnh mạch"
+    case "TMC":
+      return "TMC · Tiêm tĩnh mạch chậm"
+    case "IM":
+      return "IM · Tiêm bắp"
+    case "SC":
+      return "SC · Tiêm dưới da"
+  }
 }
 
 // Cuộn tới một phần tử. Tách ra thành hàm riêng vì hai lý do, cả hai đều đã cắn một lần:

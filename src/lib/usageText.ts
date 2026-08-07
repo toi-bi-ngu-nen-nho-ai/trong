@@ -45,7 +45,7 @@ export function formatVialUsage(params: {
   // — bỏ trống cho lọ bột chưa có thể tích tới khi hoàn nguyên (Cefoperazol, mẫu 3b).
   vialVolumeMl?: number
   diluentName: string
-  route: "TTM" | "TMC"
+  route: "TTM" | "TMC" | "IM" | "SC"
   // Pha loãng đủ finalVolumeMl rồi RÚT MỘT PHẦN drawMl ra dùng (mẫu 4b: đủ 100 ml lấy 50 ml) — bỏ
   // trống nếu liều cần đúng bằng trọn lượng vừa pha, không cần rút riêng (mẫu 3b).
   finalVolumeMl?: number
@@ -61,7 +61,9 @@ export function formatVialUsage(params: {
   const countPart = vialsUsed != null && vialsUsed > 1 ? ` ${trim(vialsUsed, 0)} ${vialLabel ?? "ống"}` : ""
   const drawPart = finalVolumeMl != null && drawMl != null ? ` đủ ${trim(finalVolumeMl)} ml lấy ${trim(drawMl)} ml` : ""
   const base = `${name} ${strength}${countPart} pha với ${diluentName}${drawPart} (${route})`
-  if (route === "TMC") return base
+  // Chỉ đường TTM mới có tốc độ truyền (giọt/phút hoặc BTĐ) — TMC là tiêm thẳng một lần, IM/SC
+  // không có khái niệm tốc độ truyền.
+  if (route !== "TTM") return base
   if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
   if (dropsPerMin == null) return base
   return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
@@ -79,7 +81,7 @@ export function formatFixedUsage(params: {
   // Trọn chai: bỏ trống doseAmount/drawMl. Lấy một phần: truyền đủ doseAmount + drawMl + đơn vị liều.
   doseAmount?: number
   doseUnit?: string
-  route?: "TTM" | "TMC"
+  route?: "TTM" | "TMC" | "IM" | "SC"
   dropsPerMin?: number | null
   rateMlPerHour?: number | null
 }): string {
@@ -93,7 +95,7 @@ export function formatFixedUsage(params: {
   const base = doseAmount == null
     ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : " 01 chai"}${route ? ` (${route})` : ""}`
     : `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : ""} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
-  if (route === "TMC") return base
+  if (route !== "TTM") return base
   if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
   if (dropsPerMin == null) return base
   return `${base} ${trim(dropsPerMin, 0)} giọt/phút`

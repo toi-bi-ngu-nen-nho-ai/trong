@@ -31,9 +31,10 @@ export interface WardRecipe {
   displacementMl?: number
   diluent?: string
   // Đường dùng của RIÊNG công thức này — cùng một thuốc nhưng khoa A truyền TTM, khoa B tiêm TMC là
-  // chuyện thường gặp (vd Cefoperazol). Bản ghi cũ không có `route` thì lúc hiển thị vẫn suy ra từ
-  // `Antibiotic.route` tĩnh của thuốc như hành vi trước đây — xem AntibioticMixPanel.
-  route?: "TTM" | "TMC"
+  // chuyện thường gặp (vd Cefoperazol); cũng có thể là tiêm bắp (IM) hoặc tiêm dưới da (SC). Bản ghi
+  // cũ không có `route` thì lúc hiển thị vẫn suy ra từ `Antibiotic.route` tĩnh của thuốc như hành vi
+  // trước đây — xem AntibioticMixPanel.
+  route?: "TTM" | "TMC" | "IM" | "SC"
   // Thời gian truyền dự kiến (phút) và bộ dây (giọt/mL) của RIÊNG công thức này — cần cả hai mới
   // tính được số giọt/phút. Không có thì "Cách dùng" tự tính theo CrCl (autoUsage) ẩn hẳn phần
   // giọt/phút thay vì bịa một thời gian truyền không có căn cứ — xem AntibioticDoseCard.
