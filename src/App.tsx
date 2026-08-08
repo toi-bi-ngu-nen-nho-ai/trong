@@ -10284,13 +10284,15 @@ function MindmapGallery({
           ) : (
             <div className="flex flex-col gap-2" style={{ opacity: searching ? 0.5 : 1, transition: "opacity .15s ease" }}>
               {groupedHits.map(({ board, hits }) => (
+                // Cùng nền tô màu theo bảng như danh sách duyệt bình thường (không phải vạch màu
+                // mép trái + thẻ trắng riêng như trước) — một khái niệm "thẻ bảng" chỉ nên có một
+                // cách trình bày, dù đang ở màn duyệt hay kết quả tìm.
                 <button
                   key={board.id}
                   onClick={() => onOpen(board.id, query.trim())}
-                  className={`w-full text-left flex items-center gap-3 p-3 ${R.card} border ${TAP}`}
-                  style={{ borderColor: C.line, background: C.surface }}
+                  className={`w-full text-left flex items-center gap-3 p-3 ${R.card} ${TAP}`}
+                  style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
                 >
-                  <span className="flex-none w-1.5 self-stretch rounded-full" style={{ background: board.color }} />
                   <div className="flex-1 min-w-0">
                     <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
                       {board.name} · {hits.length} kết quả
@@ -10749,17 +10751,16 @@ function BoardCard({
       // Để MindmapScreen dò lại ĐÚNG thẻ này khi phóng khung xem trước NGƯỢC lại (rời bảng về danh
       // sách) — lúc đó chỉ có id bảng trong tay, không có sẵn tham chiếu tới thẻ.
       data-board-id={board.id}
-      className={`flex flex-col gap-1.5 p-2 ${R.card} border ${TAP}`}
-      // Trước đây chỉ một vạch 4px ở mép trái khung xem trước nói lên màu bảng — dễ bỏ sót khi
-      // lướt nhanh một lưới nhiều bảng. Giờ cả tấm thẻ mang màu: `color-mix` trộn thẳng từ
-      // `board.color` (có thể là mã hex CHUYÊN KHOA thật, hoặc `var(--c-primary)`/`var(--c-text-muted)`
-      // khi chưa gắn khoa — color-mix nhận cả hai dạng, không cần tự phân biệt). Trộn về phía
-      // `--c-surface`/`--c-line` (không phải "transparent") nên bản tối tự ra đúng sắc độ tối hơn
-      // mà không cần viết riêng một nhánh dark-mode.
-      style={{
-        background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))`,
-        borderColor: `color-mix(in srgb, ${board.color} 42%, var(--c-line))`,
-      }}
+      // KHÔNG viền: khung xem trước bên trong đã có viền riêng, thêm viền ở đây nữa là hai khối lồng
+      // nhau cùng vẽ đường bao — đúng kiểu "thẻ trong thẻ" mà hệ thiết kế của app cố tình tránh (xem
+      // "Flat by default... không cần viền hay shadow" trong DESIGN.md). Sắc thẻ vẫn nhận ra được
+      // qua nền tô màu — chỉ bớt một lớp đường viền thừa.
+      className={`flex flex-col gap-1.5 p-2 ${R.card} ${TAP}`}
+      // `color-mix` trộn thẳng từ `board.color` (có thể là mã hex CHUYÊN KHOA thật, hoặc
+      // `var(--c-primary)`/`var(--c-text-muted)` khi chưa gắn khoa — color-mix nhận cả hai dạng,
+      // không cần tự phân biệt). Trộn về phía `--c-surface` (không phải "transparent") nên bản tối
+      // tự ra đúng sắc độ tối hơn mà không cần viết riêng một nhánh dark-mode.
+      style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
       {...hold}
       // Có role="button" + tabIndex nên Tab tới được và trình đọc màn hình đọc là "nút", nhưng
       // trước đây chỉ gắn handler con trỏ — Enter/Space không làm gì cả. Enter/Space giờ mở bảng,
@@ -10824,11 +10825,9 @@ function BoardRow({
     <div
       ref={rowRef}
       data-board-id={board.id}
-      className={`flex items-center gap-3 p-2 ${R.card} border ${TAP}`}
-      style={{
-        background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))`,
-        borderColor: `color-mix(in srgb, ${board.color} 42%, var(--c-line))`,
-      }}
+      // KHÔNG viền — cùng lý do với BoardCard: khung xem trước bên trong đã có viền riêng.
+      className={`flex items-center gap-3 p-2 ${R.card} ${TAP}`}
+      style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
       {...hold}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
