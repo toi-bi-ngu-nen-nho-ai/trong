@@ -823,6 +823,21 @@ select {
   animation-timing-function: cubic-bezier(0.25, 0.9, 0.35, 1);
 }
 
+/* Mọi phần tử KHÔNG mang view-transition-name riêng (thanh điều hướng trên/dưới của App shell, tiêu
+   đề màn hình...) vẫn bị gộp vào ảnh chụp "root" mặc định của trình duyệt — và trình duyệt tự phát
+   một hiệu ứng mờ dần/hiện dần 0.25s CHO CẢ TRANG lên ảnh đó theo mặc định, dù những phần đó không
+   hề đổi gì. Kết quả: chạm một thuốc (kể cả chạm lại đúng thuốc đang chọn) làm cả thanh nav trên/dưới
+   nháy mờ đi một nhịp — không phải chủ đích, chỉ là hành vi mặc định chưa bị tắt.
+   Phải tắt trực tiếp trên ::view-transition-old/new(root) — đây mới là hai pseudo-element thật sự
+   mang animation crossfade mặc định của trình duyệt. ::view-transition-group(root) chỉ là khung bọc
+   ngoài lo phần kích thước/vị trí, animation đặt trên nó KHÔNG lan xuống hai pseudo-element con vì
+   cây pseudo-element của View Transitions không kế thừa animation như cây DOM thường. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+  mix-blend-mode: normal;
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(dose-tab-panel),
   ::view-transition-group(dose-card) {

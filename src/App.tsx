@@ -95,6 +95,10 @@ import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, N
 type Screen =
   | "home"
   | "library"
+  // Mục "Hướng dẫn" trên thanh điều hướng dưới — hiện rơi về ComingSoonScreen (chưa có nội dung
+  // thật), giống các thẻ "Truy cập nhanh" chưa xây khác. Thiếu tên này khỏi Screen là lỗi kiểu dữ
+  // liệu thuần tuý (hai chỗ dùng "guideline" đã khớp nhau từ trước) — không đổi hành vi khi thêm.
+  | "guideline"
   | "search"
   | "mindmap"
   | "flashcard"
@@ -5173,8 +5177,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             defaultOpen={patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
           >
             <PatientField label="Creatinin">
+              {/* flex-1 min-w-0: flex item mặc định min-width:auto (theo nội dung), nên ô nhập đứng
+                  cạnh khối chọn đơn vị flex-none sẽ không chịu co lại dưới độ rộng nội dung của nó —
+                  trên máy hẹp (iPhone), cả hàng tràn ra ngoài thẻ thay vì ô nhập co lại. Cùng lỗi và
+                  cùng cách sửa đã dùng cho ô "Đặt tên công thức" trong WardRecipeChips. */}
               <div className="flex gap-1.5">
-                <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={FIELD} style={FIELD_STYLE} />
+                <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={`${FIELD} flex-1 min-w-0`} style={FIELD_STYLE} />
                 {/* h-11 trên chính khung viền, không phải trên các nút bên trong — nếu không, viền
                     1px cộng thêm làm khối này cao 46px và lệch 2px so với ô nhập bên cạnh. */}
                 <div className={`flex h-11 ${R.input} overflow-hidden border flex-none`} style={{ borderColor: C.primaryLine }}>
@@ -6400,7 +6408,7 @@ function AntibioticMixPanel({
       {routeShort === "TTM" && (
         <>
           <label className={`${T.label} text-slate-500 mb-1 block`}>Thiết bị truyền</label>
-          <div className="flex gap-1.5 mb-2">
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {(
               [
                 { v: "drip" as const, label: "Dây thường (giọt/phút)" },
@@ -6427,7 +6435,7 @@ function AntibioticMixPanel({
           1,5 lọ), vài khoa chỉ dùng NGUYÊN số lọ/chai đã mở — quyết định này ảnh hưởng thẳng tới gợi
           ý số lọ/chai bên dưới, nên đặt ngay trước "Dạng chế phẩm". */}
       <label className={`${T.label} text-slate-500 mb-1 block`}>Cho phép rút dung dịch sau pha?</label>
-      <div className="flex gap-1.5 mb-2">
+      <div className="flex flex-wrap gap-1.5 mb-2">
         {(
           [
             { v: false, label: "Không — bắt buộc số nguyên" },
@@ -6459,7 +6467,7 @@ function AntibioticMixPanel({
       </div>
 
       <label className={`${T.label} text-slate-500 mb-1 block`}>Dạng chế phẩm</label>
-      <div className="flex gap-1.5 mb-2">
+      <div className="flex flex-wrap gap-1.5 mb-2">
         {(
           [
             { v: "powder" as VialForm, label: "Lọ bột" },
@@ -6567,7 +6575,7 @@ function AntibioticMixPanel({
             </div>
           )}
           {unitChoices.length > 1 && (
-            <div className="flex gap-1.5 mb-2.5">
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
                 <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
                   {u}
@@ -6672,7 +6680,7 @@ function AntibioticMixPanel({
           </div>
 
           {unitChoices.length > 1 && (
-            <div className="flex gap-1.5 mb-2.5">
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
                 <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
                   {u}
@@ -8222,7 +8230,7 @@ function MixPanel({
       {/* Ống dung dịch hay lọ bột — hai thao tác khác hẳn nhau, và chọn sai thì con số mL dung môi
           in ra bên dưới sai theo. */}
       <label className={`${T.label} text-slate-500 mb-1 block`}>Dạng chế phẩm</label>
-      <div className="flex gap-1.5 mb-2">
+      <div className="flex flex-wrap gap-1.5 mb-2">
         {([
           { v: "solution" as VialForm, label: `Ống dung dịch` },
           { v: "powder" as VialForm, label: `Lọ bột` },
@@ -8282,7 +8290,7 @@ function MixPanel({
       </div>
 
       {unitChoices.length > 1 && (
-        <div className="flex gap-1.5 mb-2.5">
+        <div className="flex flex-wrap gap-1.5 mb-2.5">
           {unitChoices.map((u) => (
             <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
               {u}
@@ -8585,7 +8593,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
       vialUnit: usageVial.vialUnit ?? massOfConcUnit(calc.concUnit),
       vialVolumeMl: usageVial.vialVolumeMl,
       vialsUsed: usageVial.vials ?? 1,
-      diluentName: ("diluent" in usageVial ? usageVial.diluent : usageVial.diluents?.[0]) ?? "NaCl 0,9%",
+      // `diluent` (WardRecipe, một chuỗi) và `diluents` (MixRecipe, một mảng) đều là optional — dò
+      // riêng từng khoá thay vì suy luận "không có diluent thì chắc là MixRecipe", vì một WardRecipe
+      // chưa từng gán `diluent` cũng trông giống hệt vậy dưới mắt TypeScript.
+      diluentName: ("diluent" in usageVial ? usageVial.diluent : "diluents" in usageVial ? usageVial.diluents?.[0] : undefined) ?? "NaCl 0,9%",
       finalVolumeMl: !isNaN(bagVol) ? bagVol : usageVial.volumeMl,
       rateMlPerHour: roundedRate,
     })

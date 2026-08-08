@@ -3,6 +3,7 @@
 // để App.tsx dùng lại khi cần khai báo props cho component.
 
 import type { WeightBasis } from "../lib/bodyWeight"
+import type { VialForm } from "../lib/mixing"
 
 // ─── Nội dung dạng "khối" (block) — kiểu soạn thảo tự do giống Notion ─────────
 // Mỗi dòng người dùng gõ là một block độc lập, nên có thể chèn ảnh xen giữa bất kỳ dòng nào
@@ -167,7 +168,7 @@ export interface AntibioticMix {
   // "fixed" = chai/túi pha sẵn hàm lượng CỐ ĐỊNH của nhà sản xuất (vd Levofloxacin 750 mg/150 mL) —
   // không pha loãng thêm, chỉ RÚT một phần hoặc dùng trọn chai. Khác "solution" (ống dung dịch đậm
   // đặc, còn phải pha loãng ra thể tích cuối mong muốn).
-  vialForm?: "solution" | "powder" | "fixed"
+  vialForm?: VialForm
   // Ống dung dịch / chai cố định: thể tích dung dịch có sẵn trong một ống/chai (mL).
   vialVolumeMl?: number
   // Lọ bột: thể tích dung môi hoàn nguyên một lọ, và thể tích bột chiếm chỗ sau khi tan.
@@ -286,9 +287,10 @@ export interface MixRecipe {
   vials?: number
   volumeMl: number
   // "solution" (mặc định) = ống dung dịch pha sẵn, rút thẳng ra. "powder" = lọ bột phải hoàn nguyên
-  // trước — hai thao tác khác hẳn nhau nên không dùng chung một con số thể tích được (xem VialSpec
-  // trong lib/mixing.ts).
-  vialForm?: "solution" | "powder"
+  // trước. "fixed" = chai/túi pha sẵn hàm lượng CỐ ĐỊNH của nhà sản xuất, không pha loãng thêm —
+  // ba thao tác khác hẳn nhau nên không dùng chung một con số thể tích được (xem VialSpec/VialForm
+  // trong lib/mixing.ts, và AntibioticMix.vialForm ở trên — cùng ba giá trị, không được lệch nhau).
+  vialForm?: VialForm
   // Thể tích DUNG DỊCH trong một ống (mL) — chỉ dùng cho ống dung dịch. Không có con số này thì app
   // không nói được câu duy nhất mà người đứng cạnh bàn pha thực sự thao tác — "rút 5 mL thuốc +
   // 45 mL dung môi" — và cũng không chặn được kiểu nhập vô lý như 4 ống pha vừa đủ 2 mL.
