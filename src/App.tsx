@@ -87,7 +87,7 @@ import { BlockContent } from "./components/BlockContent"
 import { MindmapBoard } from "./components/MindmapBoard"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
-import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, R, T, TAP, adminRouteLabel, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
+import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, R, T, TAP, adminRouteLabel, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1054,7 +1054,10 @@ function ScreenHeader({
       {/* min-h-9 (36px) = đúng chiều cao mọi nút phụ (h-9) trong các màn này — có nút hay không thì
           hàng vẫn cao như nhau, nên `items-center` không kéo chữ lệch theo chiều cao nút. */}
       <div className="min-h-9 flex items-center justify-between gap-3">
-        <h1 className="text-[20px] font-bold leading-[1.3] truncate" style={{ color: C.text }}>
+        {/* flex-1 min-w-0: flex item mặc định min-width:auto theo nội dung, nên `truncate` không
+            có tác dụng khi tiêu đề đủ dài đứng cạnh cụm nút "Tìm"/"Nhật ký" — chữ tràn ra ngoài
+            hàng thay vì bị cắt gọn. Cùng lỗi min-width đã gặp ở PatientPanel (ô Creatinin). */}
+        <h1 className="flex-1 min-w-0 text-[20px] font-bold leading-[1.3] truncate" style={{ color: C.text }}>
           {title}
         </h1>
         {actions && <div className="flex-none flex items-center gap-1.5">{actions}</div>}
@@ -4674,7 +4677,7 @@ function SearchField({ value, onChange, placeholder, autoFocus }: { value: strin
         className={`flex-1 h-full bg-transparent  outline-none`}
       />
       {value && (
-        <button onClick={() => onChange("")} className="w-8 h-8 flex items-center justify-center flex-none" style={{ color: C.muted }} aria-label="Xoá tìm kiếm">
+        <button onClick={() => onChange("")} className="w-11 h-11 flex items-center justify-center flex-none" style={{ color: C.muted }} aria-label="Xoá tìm kiếm">
           {icons.x()}
         </button>
       )}
@@ -4889,15 +4892,27 @@ function DisclaimerGate() {
       return false
     }
   })
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  // Không truyền onEscape: đây là màn xác nhận BẮT BUỘC đọc trước khi dùng, không có lối tắt Esc để
+  // né qua — chỉ đóng được bằng cách chạm "Tôi đã hiểu". Vẫn cần bẫy Tab để bàn phím không lọt ra
+  // ngoài tấm phủ vào nội dung màn hình đang bị che phía sau.
+  useDialogFocus(panelRef)
   if (ack) return null
   return (
     // Trước đây bung ra tức thì dù có rounded-t-3xl — trông như bottom sheet nhưng không có động
     // tác của bottom sheet. `.fade-in` cho nền phủ, `.mind-sheet` (trượt lên từ đáy) cho tấm sheet.
     <div className="absolute inset-0 z-50 flex items-end fade-in" style={{ background: "var(--c-scrim)" }}>
-      <div className="mind-sheet w-full rounded-t-3xl px-6 pt-6" style={{ background: "var(--c-surface)", paddingBottom: "var(--nav-pad-bottom)" }}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="disclaimer-gate-title"
+        className="mind-sheet w-full rounded-t-3xl px-6 pt-6"
+        style={{ background: "var(--c-surface)", paddingBottom: "var(--nav-pad-bottom)" }}
+      >
         <div className="flex items-center gap-2 mb-2" style={{ color: "var(--c-warn-icon)" }}>
           {icons.alert()}
-          <p className="text-[13px] font-bold">Trước khi dùng</p>
+          <p id="disclaimer-gate-title" className="text-[13px] font-bold">Trước khi dùng</p>
         </div>
         <p className="text-[13px] text-slate-700 leading-[1.45] mb-3">{DISCLAIMER_TEXT}</p>
         <p className="text-[12px] text-slate-500 leading-[1.45] mb-4">
@@ -5210,7 +5225,10 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                   làm đúng điều này (lý do + đường sửa), ô CrCl trước đây thì chưa: thiếu dữ liệu
                   chỉ hiện "—" trơn, không nói thiếu gì. */}
               {crclUsable && crcl == null && (
-                <p className={T.meta} style={{ color: C.muted }}>
+                // C.textSoft, không phải C.muted: đây là chữ hướng dẫn thật phải đọc được ("Cần nhập
+                // X để tính"), không phải icon/placeholder — cùng lỗi và cùng cách sửa RunningPanel
+                // đã tự áp dụng cho nhãn "Nòng" của chính nó (xem comment ở dưới).
+                <p className={T.meta} style={{ color: C.textSoft }}>
                   {ageYears == null
                     ? "Cần nhập tuổi để tính"
                     : abwKg == null
@@ -5616,6 +5634,10 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
   const [copied, setCopied] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  // Sheet này CÓ đường thoát rõ ràng (nút "Đóng" + chạm ra ngoài) nên Esc hợp lý ở đây, khác
+  // DisclaimerGate — bẫy Tab để không lọt ra danh sách thuốc đang bị che phía sau.
+  useDialogFocus(panelRef, { onEscape: onClose })
 
   // Mục đã chọn có thể bị xoá khỏi danh sách (hoặc rơi khỏi mốc 200) — bỏ id "mồ côi" khỏi vùng
   // chọn, nếu không số đếm trên nút sẽ nói dối.
@@ -5645,9 +5667,16 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
   return (
     <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng nhật ký" />
-      <div className="mind-sheet rounded-t-3xl flex flex-col" style={{ background: "var(--c-surface)", maxHeight: "78%" }}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="calclog-title"
+        className="mind-sheet rounded-t-3xl flex flex-col"
+        style={{ background: "var(--c-surface)", maxHeight: "78%" }}
+      >
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <p className="text-[13px] font-bold text-slate-900">Nhật ký tính toán</p>
+          <p id="calclog-title" className="text-[13px] font-bold text-slate-900">Nhật ký tính toán</p>
           <button onClick={onClose} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }} aria-label="Đóng">
             {icons.x()}
           </button>
@@ -9843,9 +9872,15 @@ function DungThuocScreen({
       {resetUndo && (
         <div
           className="toast-in-full absolute left-4 right-4 z-50 rounded-2xl px-4 py-3 flex items-center gap-3"
-          style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "rgba(9,32,33,.92)", boxShadow: "0 8px 24px rgba(9,32,33,.35)" }}
+          // --c-pill-dark/--c-shadow (không phải rgba viết tay): pill này cố ý LUÔN tối bất kể theme
+          // (đọc được ở mọi vị trí trên màn, không phải một lớp phủ mờ). Trước đây viết rgba(9,32,33,…)
+          // trùng khớp giá trị --c-pill-dark nhưng lại ghép với `color: var(--c-on-bright)` — token đó
+          // đổi thành GẦN ĐEN ở bản tối (dành cho chữ trên nền primary/accent sáng lên), nên chữ trên
+          // nền pill tối luôn-tối này thành gần như vô hình đúng lúc báo tin quan trọng nhất màn hình.
+          // Chữ ở đây dùng trắng cố định, khớp với nền cố định tối của chính nó, không đi theo theme.
+          style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow)" }}
         >
-          <p className="flex-1 text-[13px] font-semibold" style={{ color: "var(--c-on-bright)" }}>
+          <p className="flex-1 text-[13px] font-semibold" style={{ color: "#fff" }}>
             Đã xoá bệnh nhân{resetUndo.running.length > 0 ? ` và ${resetUndo.running.length} thuốc đang dùng` : ""}
           </p>
           <button

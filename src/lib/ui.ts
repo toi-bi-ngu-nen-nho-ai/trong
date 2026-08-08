@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+
 // ─── Bộ token giao diện cho màn "Dùng thuốc" ─────────────────────────────────
 //
 // Vì sao cần file này: màn pha thuốc trước đây trộn 7 cỡ chữ (10 / 10.5 / 11 / 12 / 13 / 14 / 18px),
@@ -179,6 +181,56 @@ export function adminRouteLabel(r: AdminRoute): string {
     case "SC":
       return "SC · Tiêm dưới da"
   }
+}
+
+// ─── Bẫy focus cho tấm phủ toàn màn (CalcLogSheet, DisclaimerGate) ───────────
+// Cả hai đều là lớp phủ CHE HẾT màn hình sau nhưng trước đây không có role="dialog"/aria-modal, không
+// khoá Tab bên trong, không tự đặt focus khi mở — người dùng bàn phím/trình đọc màn hình Tab xuyên
+// qua tấm phủ vào thẳng nội dung ẩn phía sau, hoặc không hề được báo là vừa có một lớp phủ mở ra.
+// `onEscape` để trống cho DisclaimerGate: đó là màn xác nhận BẮT BUỘC đọc, không được phép thoát bằng
+// phím Esc như một lối tắt né tránh.
+export function useDialogFocus(containerRef: { current: HTMLElement | null }, options: { onEscape?: () => void } = {}): void {
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
+    function focusable(): HTMLElement[] {
+      return Array.from(
+        container!.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      ).filter((el) => !el.hasAttribute("disabled"))
+    }
+
+    focusable()[0]?.focus()
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && options.onEscape) {
+        e.preventDefault()
+        options.onEscape()
+        return
+      }
+      if (e.key !== "Tab") return
+      const items = focusable()
+      if (items.length === 0) return
+      const activeIndex = items.indexOf(document.activeElement as HTMLElement)
+      if (e.shiftKey) {
+        if (activeIndex <= 0) {
+          e.preventDefault()
+          items[items.length - 1].focus()
+        }
+      } else if (activeIndex === items.length - 1 || activeIndex === -1) {
+        e.preventDefault()
+        items[0].focus()
+      }
+    }
+
+    container.addEventListener("keydown", onKeyDown)
+    return () => {
+      container.removeEventListener("keydown", onKeyDown)
+      previouslyFocused?.focus?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 }
 
 // Cuộn tới một phần tử. Tách ra thành hàm riêng vì hai lý do, cả hai đều đã cắn một lần:
