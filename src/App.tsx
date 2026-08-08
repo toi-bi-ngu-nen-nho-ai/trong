@@ -5956,20 +5956,23 @@ function WardRecipeChips({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Lọc theo tên công thức..."
-          className="w-full h-8 px-2.5 mb-1.5 rounded-full text-[12px] border outline-none"
+          className="w-full h-11 px-2.5 mb-1.5 rounded-full text-[12px] border outline-none"
           style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
         />
       )}
       <div className="flex flex-wrap gap-2">
         {/* Công thức HỆ THỐNG luôn là một lựa chọn để chuyển VỀ, không chỉ để xoá hẳn công thức đã
             lưu mới quay lại được — không lọc theo ô tìm ở trên vì nó không có tên để so khớp. */}
-        <button onClick={onSelectSystem} className="h-9 px-3 rounded-full text-[12px] font-semibold border" style={pill(activeId === "system")}>
+        <button onClick={onSelectSystem} className="h-11 px-3 rounded-full text-[12px] font-semibold border" style={pill(activeId === "system")}>
           Công thức hệ thống
         </button>
         {shown.map((w) => (
           <span
             key={w.id}
-            className="inline-flex items-center h-9 rounded-full border overflow-hidden"
+            // h-11 (không phải h-9): pill này gộp BA vùng chạm (chọn/ghim/xoá) trên cùng một chiều
+            // cao — chiều cao cha thấp thì hai nút phụ (ghim/xoá, chỉ rộng px-1.5/px-2.5) co xuống
+            // dưới 44px trên cả hai chiều, chạm nhầm dễ nhất trong cả cụm.
+            className="inline-flex items-center h-11 rounded-full border overflow-hidden"
             style={{ borderColor: activeId === w.id ? "var(--c-accent)" : "var(--c-accent-line)" }}
           >
             <button
@@ -6403,7 +6406,7 @@ function AntibioticMixPanel({
           <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             {allowedDiluents.map((d) => (
-              <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(diluent === d)}>
+              <button key={d} onClick={() => setDiluent(d)} className={CHIP} style={pill(diluent === d)}>
                 {d}
               </button>
             ))}
@@ -6411,7 +6414,7 @@ function AntibioticMixPanel({
               <button
                 key={d}
                 onClick={() => setDiluent(d)}
-                className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
+                className={CHIP}
                 style={
                   diluent === d
                     ? { background: "var(--c-danger-icon)", borderColor: "var(--c-danger-icon)", color: "var(--c-on-bright)" }
@@ -6450,7 +6453,7 @@ function AntibioticMixPanel({
                   setDeliveryDevice(opt.v)
                   tickHaptic()
                 }}
-                className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
+                className={CHIP}
                 style={pill(deliveryDevice === opt.v)}
               >
                 {opt.label}
@@ -6487,7 +6490,7 @@ function AntibioticMixPanel({
               }
               tickHaptic()
             }}
-            className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
+            className={CHIP}
             style={pill(allowWithdraw === opt.v)}
           >
             {opt.label}
@@ -6504,7 +6507,7 @@ function AntibioticMixPanel({
             { v: "fixed" as VialForm, label: "Chai cố định hàm lượng" },
           ]
         ).map((opt) => (
-          <button key={opt.v} onClick={() => setVialForm(opt.v)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialForm === opt.v)}>
+          <button key={opt.v} onClick={() => setVialForm(opt.v)} className={CHIP} style={pill(vialForm === opt.v)}>
             {opt.label}
           </button>
         ))}
@@ -6606,7 +6609,7 @@ function AntibioticMixPanel({
           {unitChoices.length > 1 && (
             <div className="flex flex-wrap gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
-                <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
+                <button key={u} onClick={() => setVialUnit(u)} className={CHIP} style={pill(vialUnit === u)}>
                   {u}
                 </button>
               ))}
@@ -6711,7 +6714,7 @@ function AntibioticMixPanel({
           {unitChoices.length > 1 && (
             <div className="flex flex-wrap gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
-                <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
+                <button key={u} onClick={() => setVialUnit(u)} className={CHIP} style={pill(vialUnit === u)}>
                   {u}
                 </button>
               ))}
@@ -6841,7 +6844,7 @@ function AntibioticMixPanel({
             ) : (
               <>
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  <button onClick={saveLog} className="h-8 px-3 rounded-full text-[12px] font-bold" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
+                  <button onClick={saveLog} className="h-9 px-3 rounded-full text-[12px] font-bold dose-press" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
                     Lưu vào nhật ký
                   </button>
                 </div>
@@ -6854,10 +6857,13 @@ function AntibioticMixPanel({
                     onChange={(e) => setSaveTitle(e.target.value)}
                     placeholder="Đặt tên công thức (tuỳ chọn, vd: Khoa Hồi sức)"
                     maxLength={40}
-                    className="flex-1 min-w-0 h-8 px-2.5 rounded-full text-[12px] border outline-none"
+                    className="flex-1 min-w-0 h-11 px-2.5 rounded-full text-[12px] border outline-none"
                     style={FIELD_STYLE}
                   />
-                  <button onClick={saveWardFrom} className="h-8 px-3 rounded-full text-[12px] font-bold border flex-none" style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}>
+                  {/* h-11, không phải h-9: đứng cùng hàng với ô nhập "Đặt tên công thức" (buộc phải
+                      cao 44px theo quy tắc sàn 16px/44px cho input) — hai chiều cao khác nhau trên
+                      cùng một hàng sẽ lệch đường đáy, trông như hai khối không liên quan. */}
+                  <button onClick={saveWardFrom} className="h-11 px-3 rounded-full text-[12px] font-bold border flex-none dose-press" style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}>
                     Lưu công thức mới
                   </button>
                 </div>
@@ -8060,12 +8066,12 @@ function MixResultCard({
         </button>
       ) : (
         <div className="flex flex-wrap gap-1.5 mt-2">
-          <button onClick={onUse} className="h-8 px-3 rounded-full text-[12px] font-bold" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
+          <button onClick={onUse} className="h-9 px-3 rounded-full text-[12px] font-bold dose-press" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
             Dùng nồng độ này
           </button>
           <button
             onClick={onSaveWard}
-            className="h-8 px-3 rounded-full text-[12px] font-bold border"
+            className="h-9 px-3 rounded-full text-[12px] font-bold border dose-press"
             style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}
           >
             Lưu công thức mới của bạn
@@ -8223,7 +8229,7 @@ function MixPanel({
       <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
       <div className="flex flex-wrap gap-1.5 mb-1.5">
         {allowedDiluents.map((d) => (
-          <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(diluent === d)}>
+          <button key={d} onClick={() => setDiluent(d)} className={CHIP} style={pill(diluent === d)}>
             {d}
           </button>
         ))}
@@ -8233,7 +8239,7 @@ function MixPanel({
           <button
             key={d}
             onClick={() => setDiluent(d)}
-            className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
+            className={CHIP}
             style={
               diluent === d
                 ? { background: "var(--c-danger-icon)", borderColor: "var(--c-danger-icon)", color: "var(--c-on-bright)" }
@@ -8258,7 +8264,7 @@ function MixPanel({
           { v: "solution" as VialForm, label: `Ống dung dịch` },
           { v: "powder" as VialForm, label: `Lọ bột` },
         ]).map((opt) => (
-          <button key={opt.v} onClick={() => setVialForm(opt.v)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialForm === opt.v)}>
+          <button key={opt.v} onClick={() => setVialForm(opt.v)} className={CHIP} style={pill(vialForm === opt.v)}>
             {opt.label}
           </button>
         ))}
@@ -8315,7 +8321,7 @@ function MixPanel({
       {unitChoices.length > 1 && (
         <div className="flex flex-wrap gap-1.5 mb-2.5">
           {unitChoices.map((u) => (
-            <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
+            <button key={u} onClick={() => setVialUnit(u)} className={CHIP} style={pill(vialUnit === u)}>
               {u}
             </button>
           ))}
@@ -8842,7 +8848,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                   }
                 }}
                 aria-label={usageCopied ? "Đã chép" : "Chép câu Cách dùng"}
-                className="flex-none w-7 h-7 rounded-lg flex items-center justify-center"
+                className="flex-none w-11 h-11 -m-2 rounded-lg flex items-center justify-center"
                 style={{ color: severityStyle.text, opacity: 0.75 }}
               >
                 {usageCopied ? icons.check() : icons.copy()}
@@ -9174,14 +9180,14 @@ function InfusionDrugCard({
         </div>
         <div className="flex items-center gap-1.5 flex-none">
           {onEdit && (
-            <button onClick={() => onEdit(drug)} className={`w-8 h-8 ${R.pill} flex items-center justify-center`} style={{ background: C.primarySoft, color: C.primary }} aria-label="Sửa thuốc">
+            <button onClick={() => onEdit(drug)} className={`w-11 h-11 ${R.pill} flex items-center justify-center`} style={{ background: C.primarySoft, color: C.primary }} aria-label="Sửa thuốc">
               {icons.edit()}
             </button>
           )}
           {drug.isCustom && onDelete && (isOverride ? (
             <button
               onClick={() => onDelete(drug.id)}
-              className={`w-8 h-8 ${R.pill} flex items-center justify-center`}
+              className={`w-11 h-11 ${R.pill} flex items-center justify-center`}
               style={{ background: C.lineSoft, color: C.textSoft }}
               aria-label="Khôi phục mặc định"
             >
@@ -9191,7 +9197,7 @@ function InfusionDrugCard({
             <ConfirmIconButton
               onConfirm={() => onDelete(drug.id)}
               ariaLabel="Xoá thuốc"
-              className={`w-8 h-8 ${R.pill} flex items-center justify-center`}
+              className={`w-11 h-11 ${R.pill} flex items-center justify-center`}
               style={{ background: C.dangerSoft, color: C.dangerIcon }}
             />
           ))}
@@ -9904,7 +9910,7 @@ function DungThuocScreen({
           <p className={`${T.meta} flex-1`} style={{ color: C.primary }}>
             Không thấy thuốc cần tìm trong {MIXING_TABS.length} nhóm? Bấm "Tìm" ở trên để tìm xuyên tất cả.
           </p>
-          <button onClick={dismissTabHint} className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[12px] font-bold`} style={{ background: C.primary, color: "var(--c-on-bright)" }}>
+          <button onClick={dismissTabHint} className={`flex-none h-11 px-3 ${R.pill} dose-press text-[12px] font-bold`} style={{ background: C.primary, color: "var(--c-on-bright)" }}>
             Đã hiểu
           </button>
         </div>
