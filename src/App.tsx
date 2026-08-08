@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
-import { flushSync } from "react-dom"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticWarning, DiseaseEntry, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, MindNode, MindEdge, MindImage, MindStroke, MindmapData, MindBoard, SourceInfo } from "./data/types"
 import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
@@ -4641,31 +4640,6 @@ function useCountUp(target: number | null, decimals: number, finalText: string, 
   return display
 }
 
-// Bọc một cập nhật state bằng View Transitions API khi trình duyệt hỗ trợ — đổi tab hay đổi thẻ
-// thuốc đang xem thành MỘT chuyển động liên tục (thẻ cũ mờ dần đúng lúc thẻ mới rõ dần) thay vì một
-// cú cắt cảnh cứng. `flushSync` bắt buộc vì startViewTransition cần DOM đã cập nhật XONG trong callback
-// của nó mới chụp được ảnh "sau" — React mặc định gộp cập nhật lại nên không dùng flushSync thì API
-// chụp nhầm ảnh "trước" cho cả hai. Trình duyệt chưa có API này thì chạy `update()` bình thường —
-// đúng hệt hành vi trước khi có hàm này, không có gì để mất.
-type ViewTransition = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> }
-
-function withViewTransition(update: () => void): void {
-  const doc = document as Document & { startViewTransition?: (callback: () => void) => ViewTransition }
-  if (typeof doc.startViewTransition !== "function") {
-    update()
-    return
-  }
-  const transition = doc.startViewTransition(() => {
-    flushSync(update)
-  })
-  // Chạm liên tiếp (đổi tab/đổi thuốc nhanh khi đang vội) là chuyện bình thường ở màn này — lần
-  // chạm SAU huỷ animation của lần TRƯỚC theo đúng đặc tả View Transitions, làm promise .ready/
-  // .finished của lần trước bị reject với InvalidStateError. Bắt ở đây để không rơi thành "Uncaught
-  // (in promise)" trên console — không phải lỗi thật, chỉ là chuyển động cũ nhường chỗ cho cái mới.
-  transition.ready.catch(() => {})
-  transition.finished.catch(() => {})
-}
-
 // ─── Mảnh giao diện dùng chung cho màn Dùng thuốc ────────────────────────────
 // Mọi tiêu đề mục, ô tìm kiếm, chip chọn thuốc và khối gấp/mở đều đi qua đây, để không còn chuyện
 // mỗi chỗ một cỡ chữ và một kiểu canh lề. Xem lib/ui.ts.
@@ -7582,22 +7556,18 @@ function AntibioticsScreen({
   const showRouteStep = readyForEntry && qualifyingEntries.length > 1
 
   function selectGroup(name: string | null) {
-    withViewTransition(() => {
-      setSelectedGroupName(name)
-      setDiseaseChoice(null)
-      setSelectedEntryId(null)
-    })
+    setSelectedGroupName(name)
+    setDiseaseChoice(null)
+    setSelectedEntryId(null)
   }
 
   function chooseDisease(id: string) {
-    withViewTransition(() => {
-      setDiseaseChoice(id)
-      setSelectedEntryId(null)
-    })
+    setDiseaseChoice(id)
+    setSelectedEntryId(null)
   }
 
   function chooseEntry(id: string) {
-    withViewTransition(() => setSelectedEntryId(id))
+    setSelectedEntryId(id)
   }
 
   // Giống bên thuốc truyền: cuộn thẳng tới thẻ liều thay vì bỏ nó dưới hai màn hình cuộn.
@@ -7620,14 +7590,12 @@ function AntibioticsScreen({
               return (
                 <button
                   key={d.id}
-                  onClick={() =>
-                    withViewTransition(() => {
-                      setQuery("")
-                      setSelectedGroupName(d.name)
-                      setDiseaseChoice(DISEASE_SKIP)
-                      setSelectedEntryId(d.id)
-                    })
-                  }
+                  onClick={() => {
+                    setQuery("")
+                    setSelectedGroupName(d.name)
+                    setDiseaseChoice(DISEASE_SKIP)
+                    setSelectedEntryId(d.id)
+                  }}
                   className={`text-left px-3 py-2.5 ${R.box} border ${TAP}`}
                   style={on ? { background: C.accentSoft, borderColor: C.accent } : { background: C.surface, borderColor: C.line }}
                 >
@@ -7722,7 +7690,7 @@ function AntibioticsScreen({
         // định" dù vẫn cùng một thuốc — mất sạch đường dùng (TTM/TMC) và công thức pha đang gõ dở chỉ
         // vì bấm sang một chip chỉ định khác để so sánh. Đổi thuốc (entry.id đổi) mới thật sự cần dựng
         // lại thẻ; đổi chỉ định trên CÙNG một thuốc thì thẻ phải giữ nguyên trạng thái đang có.
-        <div key={selectedEntry.id} className="fade-in" style={{ viewTransitionName: "dose-card" } as React.CSSProperties}>
+        <div key={selectedEntry.id} className="fade-in">
           <AntibioticDoseCard
             drug={selectedEntry}
             disease={selectedDisease}
@@ -9325,10 +9293,8 @@ function InfusionCategoryScreen({
     hasDiseaseStep && diseaseChoice && diseaseChoice !== DISEASE_SKIP ? diseases.find((d) => d.id === diseaseChoice) ?? null : null
 
   function selectDrug(id: string | null) {
-    withViewTransition(() => {
-      setSelectedId(id)
-      setDiseaseChoice(null)
-    })
+    setSelectedId(id)
+    setDiseaseChoice(null)
   }
 
   // Chọn xong thuốc mà thẻ kết quả nằm dưới hai màn hình cuộn thì thao tác chưa xong. Gấp khung
@@ -9403,7 +9369,7 @@ function InfusionCategoryScreen({
           <SectionLabel>Chỉ định</SectionLabel>
           <div className="flex flex-wrap gap-2">
             {diseasesForDrug.map((ds) => (
-              <Chip key={ds.id} active={diseaseChoice === ds.id} onClick={() => withViewTransition(() => setDiseaseChoice(ds.id))}>
+              <Chip key={ds.id} active={diseaseChoice === ds.id} onClick={() => setDiseaseChoice(ds.id)}>
                 {ds.name}
               </Chip>
             ))}
@@ -9413,7 +9379,7 @@ function InfusionCategoryScreen({
 
       <div ref={cardRef} style={{ scrollMarginTop: 8 }}>
         {selected && readyForCard ? (
-          <div key={`${selected.id}-${selectedDisease?.id ?? "none"}`} className="fade-in" style={{ viewTransitionName: "dose-card" } as React.CSSProperties}>
+          <div key={`${selected.id}-${selectedDisease?.id ?? "none"}`} className="fade-in">
             <InfusionDrugCard drug={selected} disease={selectedDisease} isOverride={Boolean(selected.isCustom) && staticIds.has(selected.id)} onEdit={onEdit} onDelete={onDelete} />
           </div>
         ) : (
@@ -9594,12 +9560,10 @@ function DungThuocScreen({
       writeStickyState<string | null>(`infusion.sel.${cat.categoryLabel}`, r.id)
       writeStickyState<string | null>(`infusion.disease.${cat.categoryLabel}`, null)
     }
-    withViewTransition(() => {
-      setTab(r.tab)
-      setJumpKey((n) => n + 1)
-      setSearchOpen(false)
-      setGlobalQuery("")
-    })
+    setTab(r.tab)
+    setJumpKey((n) => n + 1)
+    setSearchOpen(false)
+    setGlobalQuery("")
     tickHaptic()
   }
 
@@ -9816,7 +9780,7 @@ function DungThuocScreen({
               key={t.id}
               id={`mixing-tab-${t.id}`}
               ref={tab === t.id ? activeTabRef : null}
-              onClick={() => withViewTransition(() => setTab(t.id))}
+              onClick={() => setTab(t.id)}
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
               // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
               className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
@@ -9843,7 +9807,6 @@ function DungThuocScreen({
         <div
           key={`${tab}-${jumpKey}`}
           className="fade-in"
-          style={{ viewTransitionName: "dose-tab-panel" } as React.CSSProperties}
           role="tabpanel"
           id="mixing-tabpanel"
           aria-labelledby={`mixing-tab-${tab}`}
