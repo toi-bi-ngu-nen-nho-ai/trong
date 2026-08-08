@@ -10745,11 +10745,29 @@ function BoardCard({
           onOpen(cardRef.current?.getBoundingClientRect() ?? new DOMRect())
         }
       }}
-      aria-label={`Mở bảng ${board.name}`}
+      aria-label={`Mở bảng ${board.name}. Giữ để đổi tên, đổi màu, nhân bản, xuất file hoặc xoá.`}
       role="button"
       tabIndex={0}
     >
-      <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
+      <div className="relative">
+        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
+        {/* Gợi ý thụ động cho việc giữ để mở tuỳ chọn — KHÔNG phải một nút riêng (không có handler
+            con trỏ của chính nó): giữ nguyên lý do bỏ nút bút chì ở trên (một đích chạm nhỏ sát cạnh
+            vùng mở bảng dễ bấm nhầm trên điện thoại). Chỉ là một dấu hiệu nhìn thấy được cho biết
+            "còn có thao tác khác" — cả thẻ vẫn là MỘT vùng chạm duy nhất. */}
+        <div
+          aria-hidden="true"
+          className="absolute top-1.5 right-1.5 flex items-center gap-[2px] px-1.5 py-1 rounded-full pointer-events-none"
+          // --c-pill-dark: cố ý LUÔN tối bất kể theme (giống dải gợi ý cử chỉ trong MindmapBoard),
+          // nên chấm cũng dùng #fff cố định thay vì --c-on-bright — token đó lật sang gần đen ở bản
+          // tối, không đọc được trên nền luôn-tối này.
+          style={{ background: "var(--c-pill-dark)" }}
+        >
+          <span className="block w-[3px] h-[3px] rounded-full" style={{ background: "#fff" }} />
+          <span className="block w-[3px] h-[3px] rounded-full" style={{ background: "#fff" }} />
+          <span className="block w-[3px] h-[3px] rounded-full" style={{ background: "#fff" }} />
+        </div>
+      </div>
       <div className="min-w-0">
         <p className={`${T.bodyStrong} leading-snug line-clamp-2`} style={{ color: C.text }}>
           {board.name}
@@ -10790,7 +10808,7 @@ function BoardRow({
           onOpen(rowRef.current?.getBoundingClientRect() ?? new DOMRect())
         }
       }}
-      aria-label={`Mở bảng ${board.name}`}
+      aria-label={`Mở bảng ${board.name}. Giữ để đổi tên, đổi màu, nhân bản, xuất file hoặc xoá.`}
       role="button"
       tabIndex={0}
     >
@@ -10805,6 +10823,16 @@ function BoardRow({
           <BoardNoteCount board={board} tick={previewTick} />
         </p>
       </div>
+      {/* Gợi ý thụ động "giữ để mở tuỳ chọn" — cùng lý do với BoardCard: không phải nút riêng, chỉ
+          một dấu hiệu nhìn thấy được, cả hàng vẫn là một vùng chạm duy nhất. */}
+      <span
+        aria-hidden="true"
+        className="flex-none flex flex-col items-center gap-[3px] pointer-events-none px-1"
+      >
+        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: C.textSoft }} />
+        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: C.textSoft }} />
+        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: C.textSoft }} />
+      </span>
     </div>
   )
 }

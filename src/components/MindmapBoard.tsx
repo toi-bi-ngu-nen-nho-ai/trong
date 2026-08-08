@@ -27,6 +27,7 @@
 import {
   memo,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -393,6 +394,7 @@ const SHORTCUT_HINTS: [string, string][] = [
   ["Ctrl+A", "Chọn hết"],
   ["Enter", "Sửa thẻ"],
   ["Tab", "Thêm nhánh"],
+  ["↑↓←→", "Dời thẻ đang chọn"],
   ["Delete", "Xoá phần chọn"],
   ["Esc", "Bỏ chọn"],
   ["+ / −", "Phóng - thu"],
@@ -1100,8 +1102,13 @@ export function MindmapBoard({
   // Bật thì mọi lần chọn màu áp cho cả nhánh bên dưới thẻ, không chỉ riêng thẻ đó.
   const [applyToBranch, setApplyToBranch] = useState(false)
   // Bảng chọn màu chữ / font đang mở trong ô sửa ghi chú — xem hàng định dạng chữ cạnh textarea.
-  const [textColorOpen, setTextColorOpen] = useState(false)
-  const [textFontOpen, setTextFontOpen] = useState(false)
+  // Trước đây ba nút riêng (A+ / Màu chữ / Font) — gộp vào MỘT nút "Aa" mở một khay chung, để hàng
+  // định dạng chữ không vượt quá 4-5 lựa chọn nhìn thấy cùng lúc (xem ghi chú ở nơi render).
+  const [textStyleOpen, setTextStyleOpen] = useState(false)
+  // Màu/kiểu/cỡ thẻ + "áp cho cả nhánh" gộp sau một khối gấp/mở riêng (moreStyleOpen) — đóng theo
+  // mặc định vì phần lớn ghi chú chỉ cần gõ chữ, không cần chỉnh gì thêm; chỉ mở khi thật sự cần.
+  const [moreStyleOpen, setMoreStyleOpen] = useState(false)
+  const moreStyleId = useId()
   // Rỗng = không lọc, hiện hết. Có màu nào trong đây thì CHỈ những màu đó giữ độ đậm bình thường, thẻ
   // màu khác mờ đi — xem cách dùng ở chỗ vẽ thẻ ghi chú (dimmed) và menu "…" (mục "Lọc theo màu").
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set())
@@ -3836,6 +3843,8 @@ export function MindmapBoard({
     setSel({ kind: "node", id: node.id })
     setEditingId(node.id)
     setDraft(node.text)
+    setTextStyleOpen(false)
+    setMoreStyleOpen(false)
   }
 
   // Vùng chọn hiện tại trong ô sửa ghi chú — NHỚ LẠI qua ref (không phải chỉ đọc trực tiếp từ
@@ -4102,6 +4111,24 @@ export function MindmapBoard({
       }
       if (e.key === "0") {
         fitToContent()
+        return
+      }
+      // Dời thẻ đang chọn bằng phím mũi tên — chuột/bàn cảm ứng đã kéo được rồi, nhưng người dùng chỉ
+      // dùng bàn phím (xem vòng focus riêng cho .mind-btn/.mind-input ở index.css) không có cách nào
+      // khác để tinh chỉnh vị trí. Giữ phím lặp lại (auto-repeat) chỉ tính là MỘT lượt kéo cho hoàn
+      // tác — pushUndo() một lần lúc bắt đầu, giống lúc thả tay sau khi kéo chuột.
+      if (
+        !readOnly &&
+        sel?.kind === "node" &&
+        (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")
+      ) {
+        e.preventDefault()
+        const step = e.shiftKey ? 24 : 8
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0
+        const moveIds = new Set([sel.id, ...descendantsOf(sel.id, childrenMap(edges))])
+        if (!e.repeat) pushUndo()
+        updateNodes((ns) => ns.map((n) => (moveIds.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n)))
         return
       }
       const idx = Number(e.key)
@@ -6974,89 +7001,66 @@ export function MindmapBoard({
 
             <span className="flex-none w-px h-6 mx-0.5" style={{ background: "var(--c-line)" }} />
 
+            {/* Gộp cỡ chữ + màu chữ + font vào MỘT nút "Aa" mở một khay chung — trước đây ba nút
+                riêng (A+/Màu chữ/Font) làm cả hàng định dạng có tới bảy nút cùng lúc. */}
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => applyDraftStyle({ size: "lg" })}
-              aria-label="Cỡ chữ lớn hơn"
-              title="Cỡ chữ lớn hơn"
-              className="mind-btn flex-none px-2.5 h-9 rounded-xl border text-[15px] font-bold flex items-center justify-center"
+              onClick={() => setTextStyleOpen((v) => !v)}
+              aria-label="Thêm định dạng chữ: cỡ, màu, font"
+              title="Thêm định dạng chữ"
+              aria-expanded={textStyleOpen}
+              className="mind-btn flex-none px-2.5 h-9 rounded-xl border text-[14px] font-bold flex items-center justify-center gap-1"
               style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)", color: "var(--c-text-2)" }}
             >
-              A+
+              Aa
+              <span className="flex-none" style={{ transform: textStyleOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
+                {mi.chevronDown("w-3 h-3")}
+              </span>
             </button>
 
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setTextColorOpen((v) => !v)
-                setTextFontOpen(false)
-              }}
-              aria-label="Màu chữ"
-              title="Màu chữ"
-              className="mind-btn flex-none w-9 h-9 rounded-xl border flex items-center justify-center"
-              style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
-            >
-              <span className="w-4 h-4 rounded-full block" style={{ background: "conic-gradient(from 0deg, #D44C47, #D9730D, #CB912F, #448361, #337EA9, #9065B0, #D44C47)" }} />
-            </button>
-
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setTextFontOpen((v) => !v)
-                setTextColorOpen(false)
-              }}
-              aria-label="Font chữ"
-              title="Font chữ"
-              className="mind-btn flex-none px-2.5 h-9 rounded-xl border text-[14px] font-bold flex items-center justify-center"
-              style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)", color: "var(--c-text-2)" }}
-            >
-              Font
-            </button>
-
-            {textColorOpen && (
+            {textStyleOpen && (
               <>
-                <div className="fixed inset-0 z-40" onPointerDown={() => setTextColorOpen(false)} />
+                <div className="fixed inset-0 z-40" onPointerDown={() => setTextStyleOpen(false)} />
                 <div
-                  className="mind-pop absolute left-0 top-full mt-1 rounded-2xl border p-2 z-50 grid grid-cols-5 gap-1"
-                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", boxShadow: "0 12px 30px var(--c-shadow)" }}
-                >
-                  {NODE_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        applyDraftStyle({ color: c })
-                        setTextColorOpen(false)
-                      }}
-                      aria-label={`Màu chữ: ${colorName(c)}`}
-                      title={colorName(c)}
-                      className="mind-btn w-8 h-8 rounded-lg flex items-center justify-center"
-                    >
-                      <span className="w-6 h-6 rounded-full block" style={{ background: c, boxShadow: "0 1px 3px rgba(15,23,42,.2)" }} />
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {textFontOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onPointerDown={() => setTextFontOpen(false)} />
-                <div
-                  className="mind-pop absolute left-0 top-full mt-1 w-[168px] rounded-2xl border p-1.5 z-50"
+                  className="mind-pop absolute left-0 top-full mt-1 w-[220px] rounded-2xl border p-2.5 z-50"
                   style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", boxShadow: "0 12px 30px var(--c-shadow)" }}
                 >
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      applyDraftStyle({ font: "" })
-                      setTextFontOpen(false)
-                    }}
+                    onClick={() => applyDraftStyle({ size: "lg" })}
+                    className="mind-btn w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-[13px] font-semibold text-left"
+                    style={{ color: "var(--c-text-2)" }}
+                  >
+                    <span className="w-6 text-center text-[15px] font-bold">A+</span>
+                    Cỡ chữ lớn hơn
+                  </button>
+
+                  <span className="block h-px my-1.5" style={{ background: "var(--c-line)" }} />
+
+                  <div className="grid grid-cols-5 gap-1 px-0.5 pb-1.5">
+                    {NODE_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyDraftStyle({ color: c })}
+                        aria-label={`Màu chữ: ${colorName(c)}`}
+                        title={colorName(c)}
+                        className="mind-btn w-8 h-8 rounded-lg flex items-center justify-center"
+                      >
+                        <span className="w-6 h-6 rounded-full block" style={{ background: c, boxShadow: "0 1px 3px rgba(15,23,42,.2)" }} />
+                      </button>
+                    ))}
+                  </div>
+
+                  <span className="block h-px my-1.5" style={{ background: "var(--c-line)" }} />
+
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => applyDraftStyle({ font: "" })}
                     className="mind-btn w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-[13px] font-semibold"
                     style={{ color: "var(--c-text-2)" }}
                   >
@@ -7074,7 +7078,6 @@ export function MindmapBoard({
                         // `applyDraftStyle` gộp/xoá theo GIÁ TRỊ trùng — bấm lại đúng font đang chọn
                         // thì tự trở về mặc định, không cần một nút "Mặc định" riêng phải nhớ bấm.
                         applyDraftStyle({ font: f })
-                        setTextFontOpen(false)
                       }}
                       className="mind-btn w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-[13px] font-semibold"
                       style={{ color: "var(--c-text-2)" }}
@@ -7090,122 +7093,150 @@ export function MindmapBoard({
             )}
           </div>
 
-          {/* MỘT hàng mười sắc. Bảng màu nay theo hệ Notion: mỗi sắc đã gồm sẵn cả bản đậm lẫn bản
-              nhạt, chọn bản nào là do KIỂU thẻ ngay bên dưới quyết định — nên không còn phải chia hai
-              nhóm "đậm"/"sáng" như bản trước, và số ô phải nhớ giảm từ mười hai xuống mười. */}
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <div className="flex-1 flex flex-wrap items-center gap-0.5">
-              {NODE_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => applyColor(editingNode, c)}
-                  aria-label={`Màu thẻ: ${colorName(c)}`}
-                  title={colorName(c)}
-                  aria-pressed={editingNode.color === c}
-                  className="mind-btn flex-none flex items-center justify-center rounded-xl"
-                  style={{ width: 32, height: 32 }}
-                >
-                  <span
-                    className="rounded-full block"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      background: c,
-                      boxShadow:
-                        editingNode.color === c
-                          ? "0 0 0 2px var(--c-surface), 0 0 0 4px rgba(var(--c-primary-rgb),.5)"
-                          : "0 1px 3px rgba(15,23,42,.2)",
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Màu/kiểu/cỡ thẻ gấp sau một hàng tóm tắt — phần lớn ghi chú chỉ cần gõ chữ rồi lưu, không
+              đụng tới màu/kiểu/cỡ; front-load cả bốn khối này mỗi lần mở ô sửa (kể cả khi chỉ gõ một
+              dòng chữ) là quá nhiều lựa chọn cùng lúc. Hàng tóm tắt vẫn hiện sắc/kiểu hiện tại (chấm
+              tròn theo đúng màu thật của thẻ) để không mất "nhận ra ngay" khi đang gấp. */}
+          <button
+            type="button"
+            onClick={() => setMoreStyleOpen((v) => !v)}
+            aria-expanded={moreStyleOpen}
+            aria-controls={moreStyleId}
+            className="mind-btn w-full flex items-center justify-between gap-2 h-10 px-2 mb-1 rounded-xl border"
+            style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
+          >
+            <span className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: "var(--c-text-2)" }}>
+              <span
+                className="w-4 h-4 rounded-full block flex-none"
+                style={{ background: nodePaint(editingNode).background, boxShadow: "0 1px 3px rgba(15,23,42,.2)" }}
+              />
+              Màu · kiểu · cỡ thẻ
+            </span>
+            <span className="flex-none" style={{ color: "var(--c-text-muted)", transform: moreStyleOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
+              {mi.chevronDown("w-4 h-4")}
+            </span>
+          </button>
 
-          {/* Đổi màu CẢ NHÁNH — một sơ đồ thường tô màu theo nhánh chứ không theo từng thẻ, mà đổi
-              tay từng thẻ con thì nhánh mười thẻ là mười lần mở ô sửa. */}
-          {editingNodeHasChildren && (
-            <button
-              type="button"
-              onClick={() => {
-                setApplyToBranch((v) => !v)
-                tickHaptic()
-              }}
-              aria-pressed={applyToBranch}
-              className="mind-btn w-full flex items-center gap-2 h-9 px-3 mb-2 rounded-2xl border text-[12px] font-semibold"
-              style={
-                applyToBranch
-                  ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
-                  : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-muted)" }
-              }
-            >
-              <span className="flex-none">{applyToBranch ? mi.check("w-4 h-4") : mi.branch("w-4 h-4")}</span>
-              Áp màu cho cả nhánh bên dưới
-            </button>
-          )}
+          <div id={moreStyleId} className="disc-body" data-open={moreStyleOpen}>
+            <div>
+              {/* MỘT hàng mười sắc. Bảng màu nay theo hệ Notion: mỗi sắc đã gồm sẵn cả bản đậm lẫn bản
+                  nhạt, chọn bản nào là do KIỂU thẻ ngay bên dưới quyết định — nên không còn phải chia hai
+                  nhóm "đậm"/"sáng" như bản trước, và số ô phải nhớ giảm từ mười hai xuống mười. */}
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="flex-1 flex flex-wrap items-center gap-0.5">
+                  {NODE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => applyColor(editingNode, c)}
+                      aria-label={`Màu thẻ: ${colorName(c)}`}
+                      title={colorName(c)}
+                      aria-pressed={editingNode.color === c}
+                      className="mind-btn flex-none flex items-center justify-center rounded-xl"
+                      style={{ width: 32, height: 32 }}
+                    >
+                      <span
+                        className="rounded-full block"
+                        style={{
+                          width: 24,
+                          height: 24,
+                          background: c,
+                          boxShadow:
+                            editingNode.color === c
+                              ? "0 0 0 2px var(--c-surface), 0 0 0 4px rgba(var(--c-primary-rgb),.5)"
+                              : "0 1px 3px rgba(15,23,42,.2)",
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Kiểu thẻ hiện dưới dạng THẺ THẬT thu nhỏ, vẽ bằng đúng hàm nodePaint của bảng và đúng sắc
-              đang chọn. Bốn cái nhãn chữ ("Nền đặc", "Nền nhạt"…) không cho biết chúng khác nhau chỗ
-              nào cho tới khi bấm thử từng cái — nhất là từ khi mỗi sắc có tới hai sắc độ. */}
-          <div className="flex items-center gap-1.5 mb-2.5">
-            {NODE_STYLES.map((s) => {
-              const active = (editingNode.style ?? "solid") === s.id
-              const preview = nodePaint({ ...editingNode, style: s.id })
-              return (
+              {/* Đổi màu CẢ NHÁNH — một sơ đồ thường tô màu theo nhánh chứ không theo từng thẻ, mà đổi
+                  tay từng thẻ con thì nhánh mười thẻ là mười lần mở ô sửa. */}
+              {editingNodeHasChildren && (
                 <button
-                  key={s.id}
                   type="button"
-                  onClick={() => patchNode(editingNode.id, { style: s.id })}
-                  aria-pressed={active}
-                  aria-label={`Kiểu thẻ: ${s.label}`}
-                  className="mind-btn flex-1 min-w-0 flex flex-col items-center gap-1 py-1.5 rounded-2xl border"
+                  onClick={() => {
+                    setApplyToBranch((v) => !v)
+                    tickHaptic()
+                  }}
+                  aria-pressed={applyToBranch}
+                  className="mind-btn w-full flex items-center gap-2 h-9 px-3 mb-2 rounded-2xl border text-[12px] font-semibold"
                   style={
-                    active
-                      ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
-                      : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
+                    applyToBranch
+                      ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                      : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-muted)" }
                   }
                 >
-                  <span
-                    className="flex items-center justify-center"
-                    style={{
-                      width: 46,
-                      height: 24,
-                      borderRadius: 12,
-                      background: preview.background,
-                      border: `${preview.borderWidth || 1}px solid ${preview.borderWidth ? preview.border : "transparent"}`,
-                      color: preview.color,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      boxShadow: preview.shadow ? "0 1px 3px rgba(15,23,42,.16)" : "none",
-                    }}
-                  >
-                    Aa
-                  </span>
-                  <span className="text-[10.5px] font-semibold" style={{ color: active ? "var(--c-primary)" : "var(--c-text-muted)" }}>
-                    {s.label}
-                  </span>
+                  <span className="flex-none">{applyToBranch ? mi.check("w-4 h-4") : mi.branch("w-4 h-4")}</span>
+                  Áp màu cho cả nhánh bên dưới
                 </button>
-              )
-            })}
-          </div>
+              )}
 
-          <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto -mx-4 px-4">
-            {NODE_SIZES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => patchNode(editingNode.id, { size: s.id })}
-                className="mind-btn flex-none px-2.5 h-8 rounded-xl text-[11.5px] font-semibold border"
-                style={
-                  (editingNode.size ?? "md") === s.id
-                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
-                    : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-muted)" }
-                }
-              >
-                {s.label}
-              </button>
-            ))}
+              {/* Kiểu thẻ hiện dưới dạng THẺ THẬT thu nhỏ, vẽ bằng đúng hàm nodePaint của bảng và đúng sắc
+                  đang chọn. Bốn cái nhãn chữ ("Nền đặc", "Nền nhạt"…) không cho biết chúng khác nhau chỗ
+                  nào cho tới khi bấm thử từng cái — nhất là từ khi mỗi sắc có tới hai sắc độ. */}
+              <div className="flex items-center gap-1.5 mb-2.5">
+                {NODE_STYLES.map((s) => {
+                  const active = (editingNode.style ?? "solid") === s.id
+                  const preview = nodePaint({ ...editingNode, style: s.id })
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => patchNode(editingNode.id, { style: s.id })}
+                      aria-pressed={active}
+                      aria-label={`Kiểu thẻ: ${s.label}`}
+                      className="mind-btn flex-1 min-w-0 flex flex-col items-center gap-1 py-1.5 rounded-2xl border"
+                      style={
+                        active
+                          ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
+                          : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
+                      }
+                    >
+                      <span
+                        className="flex items-center justify-center"
+                        style={{
+                          width: 46,
+                          height: 24,
+                          borderRadius: 12,
+                          background: preview.background,
+                          border: `${preview.borderWidth || 1}px solid ${preview.borderWidth ? preview.border : "transparent"}`,
+                          color: preview.color,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          boxShadow: preview.shadow ? "0 1px 3px rgba(15,23,42,.16)" : "none",
+                        }}
+                      >
+                        Aa
+                      </span>
+                      <span className="text-[10.5px] font-semibold" style={{ color: active ? "var(--c-primary)" : "var(--c-text-muted)" }}>
+                        {s.label}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto -mx-4 px-4">
+                {NODE_SIZES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => patchNode(editingNode.id, { size: s.id })}
+                    className="mind-btn flex-none px-2.5 h-8 rounded-xl text-[11.5px] font-semibold border"
+                    style={
+                      (editingNode.size ?? "md") === s.id
+                        ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                        : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-muted)" }
+                    }
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Gắn thẻ này với một bài trong app — chạm vào thẻ trên bảng là mở thẳng bài đó ra đọc */}

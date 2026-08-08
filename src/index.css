@@ -639,7 +639,7 @@ input, select, textarea {
    CHẠM/BẤM CHUỘT — chỉ hiện khi thật sự dùng Tab, giống hành vi mặc định của trình duyệt. */
 .mind-btn:focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
 /* Input/textarea trong bảng: CSS toàn app tắt outline mặc định của input (index.css, quy tắc
