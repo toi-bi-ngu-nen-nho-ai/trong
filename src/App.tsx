@@ -4961,7 +4961,7 @@ function DisclaimerGate() {
             }
             setAck(true)
           }}
-          className="w-full py-3.5 rounded-2xl font-semibold text-[13px] mb-2"
+          className="w-full py-3.5 rounded-[20px] font-semibold text-[13px] mb-2"
           style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
         >
           Tôi đã hiểu
@@ -5065,7 +5065,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
     .join(" · ")
 
   return (
-    <div className="mx-5 mb-3 rounded-2xl" style={{ background: "var(--c-surface)" }}>
+    <div className="mx-5 mb-3 rounded-[20px]" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left">
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
@@ -5341,7 +5341,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               thúc giữa ca mà tra cứu sau đó vẫn âm thầm dùng bậc liều cũ. Chỉ hiện khi đã từng được
               xác nhận ít nhất một lần (isRenalStatusStale loại bệnh nhân mới, chưa ai chạm tới). */}
           {isRenalStatusStale(patient) && (
-            <div className="flex items-center gap-2 mb-2 px-2.5 py-2 rounded-xl fade-in" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+            <div className="flex items-center gap-2 mb-2 px-2.5 py-2 rounded-[14px] fade-in" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
               <p className="flex-1 text-[12px] font-bold leading-[1.4]" style={{ color: "var(--c-warn)" }}>
                 Chức năng thận chưa được xác nhận lại từ đầu ca — còn đúng không?
               </p>
@@ -5479,7 +5479,7 @@ function RunningPanel() {
   }
 
   return (
-    <div className="mx-5 mb-3 rounded-2xl border p-4" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
+    <div className="mx-5 mb-3 rounded-[20px] border p-4" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
       <p className={`${T.label} mb-2`} style={{ color: "var(--c-accent)" }}>
         {/* Trước đây tên là "Đang truyền", nhưng kháng sinh mỗi 8 giờ cũng nằm trong bảng này —
             gọi một liều ngắt quãng là "đang truyền" là mô tả sai thứ đang xảy ra trên người bệnh.
@@ -5499,7 +5499,7 @@ function RunningPanel() {
             .map((r) => (
               <div
                 key={r.id}
-                className="rise-in flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1"
+                className="rise-in flex items-start gap-2 px-2.5 py-2 rounded-[14px] mb-1"
                 style={{ background: C.surfaceAlt, opacity: pendingRemove[r.id] ? 0.45 : 1, transition: "opacity .2s ease" }}
               >
                 <div className="flex-1 min-w-0">
@@ -5608,7 +5608,7 @@ function RunningPanel() {
             return (
               <div
                 key={i}
-                className="fade-in flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1.5"
+                className="fade-in flex items-start gap-2 px-2.5 py-2 rounded-[14px] mb-1.5"
                 style={danger ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" } : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}
               >
                 <span className="mt-0.5 flex-none" style={{ color: danger ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>{icons.alert()}</span>
@@ -5634,7 +5634,7 @@ function RunningPanel() {
             return (
               <div
                 key={i}
-                className="fade-in flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1.5"
+                className="fade-in flex items-start gap-2 px-2.5 py-2 rounded-[14px] mb-1.5"
                 style={danger ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" } : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}
               >
                 <span className="mt-0.5 flex-none" style={{ color: danger ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>{icons.alert()}</span>
@@ -5748,7 +5748,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
                   key={e.id}
                   onClick={() => toggle(e.id)}
                   aria-pressed={on}
-                  className="w-full text-left p-3 rounded-2xl border mb-2 flex gap-2.5 items-start"
+                  className="w-full text-left p-3 rounded-[20px] border mb-2 flex gap-2.5 items-start"
                   style={on ? { borderColor: C.primary, background: C.primarySoft } : { borderColor: C.line }}
                 >
                   {/* Ô đánh dấu vẽ tay thay vì <input type=checkbox>: cả thẻ đã là vùng chạm 44px,
@@ -5800,7 +5800,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
               }
             }}
             disabled={target.length === 0}
-            className="flex-1 py-3 rounded-2xl font-semibold text-[13px] border"
+            className="flex-1 py-3 rounded-[20px] font-semibold text-[13px] border"
             style={{ borderColor: C.line, color: target.length === 0 ? C.muted : C.primary }}
           >
             {copied ? "Đã sao chép" : hasSelection ? `Sao chép ${selected.size} mục` : "Sao chép tất cả"}
@@ -5824,7 +5824,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
             }}
             onBlur={() => setConfirmDelete(false)}
             disabled={target.length === 0}
-            className="flex-1 py-3 rounded-2xl font-semibold text-[13px] border"
+            className="flex-1 py-3 rounded-[20px] font-semibold text-[13px] border"
             style={
               target.length === 0
                 ? { borderColor: C.dangerLine, color: "var(--c-disabled-fg)" }
@@ -5855,7 +5855,7 @@ function DrugWarnings({ warnings, bare }: { warnings?: AntibioticWarning[]; bare
       {!bare && <p className="text-[12px] font-bold" style={{ color: "var(--c-warn-icon)" }}>Lưu ý / tương tác</p>}
       {warnings.map((w, i) =>
         w.severity === "cao" ? (
-          <div key={i} className="flex items-start gap-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
+          <div key={i} className="flex items-start gap-2 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
             <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
             {/* Cảnh báo mức CAO dùng cỡ chữ chính (13px), không phải cỡ chú thích 11px như phần còn
                 lại: đây là dòng chữ mà việc bỏ sót gây hại nhất, nó không được nhỏ hơn chữ mô tả. */}
@@ -6068,7 +6068,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
     : { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn)" }
 
   return (
-    <div className="fade-in mt-2 px-3 py-2.5 rounded-xl" style={{ background: style.bg, border: `1px solid ${style.border}` }}>
+    <div className="fade-in mt-2 px-3 py-2.5 rounded-[14px]" style={{ background: style.bg, border: `1px solid ${style.border}` }}>
       <div className="flex items-start gap-2">
         <span className="mt-0.5 flex-none" style={{ color: style.text }}>{icons.alert()}</span>
         <div className="flex-1 min-w-0">
@@ -6423,7 +6423,7 @@ function AntibioticMixPanel({
   }
 
   return (
-    <div className="mt-2.5 p-3 rounded-xl fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
+    <div className="mt-2.5 p-3 rounded-[14px] fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
       {wardList.length > 0 && (
         <WardRecipeChips
           wardList={wardList}
@@ -6460,7 +6460,7 @@ function AntibioticMixPanel({
             ))}
           </div>
           {diluentBlocked && (
-            <p className="text-[12px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
+            <p className="text-[12px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
               {mix?.diluentWarning ?? `Không pha ${drug.name} với ${diluent}.`}
             </p>
           )}
@@ -6616,7 +6616,7 @@ function AntibioticMixPanel({
                   }
                   tickHaptic()
                 }}
-                className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-[14px] underline decoration-dotted"
                 style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
               >
                 {fixedPoolSuggestion.drawMl == null
@@ -6632,7 +6632,7 @@ function AntibioticMixPanel({
                     setFixedDoseAmount("")
                     tickHaptic()
                   }}
-                  className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                  className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-[14px] underline decoration-dotted"
                   style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
                 >
                   Hoặc {trim(fixedPoolSuggestion.alt.count, 0)} chai
@@ -6700,7 +6700,7 @@ function AntibioticMixPanel({
                   applySolutionSuggestion(va)
                   tickHaptic()
                 }}
-                className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-[14px] underline decoration-dotted"
                 style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
               >
                 Gợi ý {trim(vialCountSuggestion.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.totalInDoseUnit)} {doseTargetMg.unit} — khớp khoảng liều{" "}
@@ -6715,7 +6715,7 @@ function AntibioticMixPanel({
                     setVials(String(vialCountSuggestion.alt!.count))
                     tickHaptic()
                   }}
-                  className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                  className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-[14px] underline decoration-dotted"
                   style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
                 >
                   Hoặc {trim(vialCountSuggestion.alt.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.alt.totalInDoseUnit)} {doseTargetMg.unit})
@@ -6778,7 +6778,7 @@ function AntibioticMixPanel({
           ) : (
             <div>
               <label className={`${T.label} text-slate-500 mb-1 block`}>Bộ dây (giọt/mL)</label>
-              <div className="flex h-11 rounded-2xl overflow-hidden border" style={{ borderColor: "var(--c-line)" }}>
+              <div className="flex h-11 rounded-[20px] overflow-hidden border" style={{ borderColor: "var(--c-line)" }}>
                 {[DEFAULT_DROP_FACTOR, MICRO_DROP_FACTOR].map((f) => (
                   <button
                     key={f}
@@ -6796,7 +6796,7 @@ function AntibioticMixPanel({
       )}
 
       {fixedImpossible && (
-        <div className="px-3 py-2.5 rounded-xl flex items-start gap-2 mb-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
+        <div className="px-3 py-2.5 rounded-[14px] flex items-start gap-2 mb-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
           <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
           <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
             LIỀU CẦN LẤY VƯỢT HÀM LƯỢNG CẢ CHAI — kiểm tra lại liều cần lấy hoặc hàm lượng chai.
@@ -6806,14 +6806,14 @@ function AntibioticMixPanel({
 
       {conc != null && (isFixed ? !fixedImpossible : !isNaN(nv)) && (
         impossible ? (
-          <div className="px-3 py-2.5 rounded-xl flex items-start gap-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
+          <div className="px-3 py-2.5 rounded-[14px] flex items-start gap-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
             <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
             <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
               KHÔNG PHA ĐƯỢC — thể tích thuốc đã nhiều hơn thể tích pha loãng. Kiểm tra lại số {vialLabel}, thể tích 1 {vialLabel} hoặc thể tích pha loãng.
             </p>
           </div>
         ) : (
-          <div className="px-3 py-2.5 rounded-xl" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
+          <div className="px-3 py-2.5 rounded-[14px]" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
             {usageLine && <p className="text-[13px] font-bold text-slate-800 leading-[1.45]">{usageLine}</p>}
             {!isFixed && <p className="text-[12px] leading-[1.45] mt-1" style={{ color: "var(--c-text-soft)" }}>Nồng độ {formatDoseNumber(conc)} {concUnit}</p>}
             <p className="text-[12px] font-semibold leading-[1.45] mt-1" style={{ color: "var(--c-accent-deep)" }}>
@@ -6839,7 +6839,7 @@ function AntibioticMixPanel({
                 mức độ; màu chỉ còn giữ hai bậc thật sự phân biệt được. */}
             {grade.severity !== "ok" && (
               <div
-                className="mt-2 px-2.5 py-2 rounded-xl flex items-start gap-2"
+                className="mt-2 px-2.5 py-2 rounded-[14px] flex items-start gap-2"
                 style={
                   grade.severity === "danger"
                     ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
@@ -7167,7 +7167,7 @@ function AntibioticDoseCard({
     AdjBW: "cân nặng hiệu chỉnh (AdjBW)",
   }
   return (
-    <div className="p-4 rounded-2xl border" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
+    <div className="p-4 rounded-[20px] border" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
       <div className="flex items-center justify-between mb-0.5 gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <p className="font-bold text-slate-900 text-[13px] truncate">{drug.name}</p>
@@ -7220,9 +7220,9 @@ function AntibioticDoseCard({
         </div>
       </div>
       {/* drug.route và chip "Chỉ định" là CHÚ THÍCH TĨNH, không bấm được — trước đây tô cùng màu
-          teal với nút hành động/chip đang chọn khiến người dùng học nhầm "teal = bấm được" rồi
-          gặp ngay một chỗ teal không phản hồi gì khi chạm. Đổi sang --c-text-soft (chữ) / nền
-          trung tính (chip), giữ teal cho đúng vai trò hành động + trạng thái chọn. */}
+          primary với nút hành động/chip đang chọn khiến người dùng học nhầm "màu này = bấm được"
+          rồi gặp ngay một chỗ cùng màu nhưng không phản hồi gì khi chạm. Đổi sang --c-text-soft
+          (chữ) / nền trung tính (chip), giữ primary cho đúng vai trò hành động + trạng thái chọn. */}
       <p className={`${T.meta} font-semibold mb-1.5`} style={{ color: "var(--c-text-soft)" }}>{drug.route}</p>
       {/* Chọn TTM/TMC/IM/SC ngay tại "Đường dùng" — TRƯỚC ĐÂY nằm sâu trong bảng pha thuốc (sau cả
           mục Dung môi), khiến bảng pha "lấn át" luôn cả việc chọn đường dùng. CHỈ hiện chip khi thật
@@ -7244,7 +7244,7 @@ function AntibioticDoseCard({
         </p>
       )}
       {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && (
-        <div className="mb-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>          {dosingWeight.used != null && dosingWeight.usedLabel ? (
+        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>          {dosingWeight.used != null && dosingWeight.usedLabel ? (
             <>
               <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
                 Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1)} kg
@@ -7265,7 +7265,7 @@ function AntibioticDoseCard({
       {/* Lọc máu / CRRT: đây chính là nhóm bệnh nhân cần app nhất, và cũng là nhóm app dễ im lặng
           nhất. Bậc liều theo CrCl bị vô hiệu hoá, và nếu app không có dữ liệu thì phải nói thẳng. */}
       {patient.rrt !== "none" && (
-        <div className="mb-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
+        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
           <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
             {RRT_LABELS[patient.rrt]} — bậc liều theo CrCl KHÔNG áp dụng.
           </p>
@@ -7295,7 +7295,7 @@ function AntibioticDoseCard({
         </div>
       )}
       {patient.rrt === "none" && patient.akiUnstable && (
-        <div className="mb-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
           <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-warn)" }}>
             Tổn thương thận cấp (creatinin chưa ổn định) — Cockcroft-Gault không dùng được, app đang hiển thị liều bậc thận bình thường. Chỉnh liều theo lâm sàng, nồng độ thuốc đo được và ý kiến dược lâm sàng.
           </p>
@@ -7326,7 +7326,7 @@ function AntibioticDoseCard({
       {/* Nhân sẵn mg/kg × cân nặng — phần trước đây bắt người dùng tự nhẩm */}
       {perKgDoses.length > 0 && (
         <div
-          className="mt-1.5 px-2.5 py-2 rounded-xl"
+          className="mt-1.5 px-2.5 py-2 rounded-[14px]"
           style={
             weightImplausible
               ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
@@ -7376,7 +7376,7 @@ function AntibioticDoseCard({
       {/* Cách dùng tự tính theo mức liều CrCl hiện tại — chỉ hiện khi đọc được cả con số liều lẫn
           công thức pha, xem autoUsage ở trên. */}
       {autoUsage && (
-        <div className="mt-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
+        <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
           <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage}</p>
           <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
             Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
@@ -7869,7 +7869,7 @@ function BolusList({
         return (
           <div
             key={i}
-            className="px-3 py-2.5 rounded-xl mb-1.5"
+            className="px-3 py-2.5 rounded-[14px] mb-1.5"
             style={
               info.blocked
                 ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
@@ -8052,7 +8052,7 @@ function MixResultCard({
   if (impossible) {
     const per = volumePerVial(outcome.spec)
     return (
-      <div className="px-3 py-2.5 rounded-xl mb-1 flex items-start gap-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
+      <div className="px-3 py-2.5 rounded-[14px] mb-1 flex items-start gap-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
         <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
         <div>
           <p className={T.critical} style={{ color: "var(--c-danger-deep)" }}>Không pha được</p>
@@ -8070,7 +8070,7 @@ function MixResultCard({
       : { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", fg: "var(--c-warn)" }
 
   return (
-    <div className="px-3 py-2.5 rounded-xl mb-1" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
+    <div className="px-3 py-2.5 rounded-[14px] mb-1" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
       <p className="text-[13px] font-bold text-slate-800 leading-[1.45]">{headline}</p>
       {subline && <p className="text-[12px] text-slate-500 leading-[1.45] mt-0.5">{subline}</p>}
       {/* Câu duy nhất người đứng cạnh bàn pha thực sự thao tác */}
@@ -8088,7 +8088,7 @@ function MixResultCard({
       <MixRunTime drug={drug} calc={calc} concValue={outcome.concValue} volumeMl={outcome.volumeMl} />
 
       {grade.severity !== "ok" && (
-        <div className="mt-2 px-2.5 py-2 rounded-xl flex items-start gap-2" style={{ background: gradeStyle.bg, border: `1px solid ${gradeStyle.border}` }}>
+        <div className="mt-2 px-2.5 py-2 rounded-[14px] flex items-start gap-2" style={{ background: gradeStyle.bg, border: `1px solid ${gradeStyle.border}` }}>
           <span className="mt-0.5 flex-none" style={{ color: gradeStyle.fg }}>{icons.alert()}</span>
           <div>
             {grade.headline && <p className="text-[12px] font-extrabold leading-[1.3]" style={{ color: gradeStyle.fg }}>{grade.headline}</p>}
@@ -8268,7 +8268,7 @@ function MixPanel({
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
 
   return (
-    <div className="mt-2.5 p-3 rounded-xl fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
+    <div className="mt-2.5 p-3 rounded-[14px] fade-in" style={{ background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }}>
       {/* Dung môi — thông tin sống còn với thuốc kén dung môi */}
       <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
       <div className="flex flex-wrap gap-1.5 mb-1.5">
@@ -8295,7 +8295,7 @@ function MixPanel({
         ))}
       </div>
       {diluentBlocked && (
-        <p className="text-[12px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
+        <p className="text-[12px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
           {mix?.diluentWarning ?? `Không pha ${drug.name} với ${diluent}.`}
         </p>
       )}
@@ -8393,7 +8393,7 @@ function MixPanel({
         <input value={target} onChange={(e) => setTarget(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder={calc.concDefault != null ? String(calc.concDefault * 2) : ""} className={fieldClass} style={fieldStyle} />
       </div>
       {needsRounding && (
-        <div className="flex p-0.5 rounded-xl mb-2" style={{ background: "var(--c-line)" }}>
+        <div className="flex p-0.5 rounded-[14px] mb-2" style={{ background: "var(--c-line)" }}>
           {([
             { v: "keepConc" as MixRoundMode, label: "Giữ nồng độ", on: true },
             { v: "keepVolume" as MixRoundMode, label: "Giữ thể tích", on: true },
@@ -8403,7 +8403,7 @@ function MixPanel({
               key={opt.v}
               onClick={() => opt.on && setRoundMode(opt.v)}
               disabled={!opt.on}
-              className="flex-1 h-9 rounded-[10px] text-[12px] font-bold leading-[1.3]"
+              className="flex-1 h-9 rounded-[14px] text-[12px] font-bold leading-[1.3]"
               style={
                 mode === opt.v
                   ? { background: "var(--c-surface)", color: "var(--c-accent-deep)" }
@@ -8695,7 +8695,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   return (
     <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
       {/* Chọn chiều tính */}
-      <div className="flex p-0.5 rounded-xl mb-2.5" style={{ background: "var(--c-line-soft)" }}>
+      <div className="flex p-0.5 rounded-[14px] mb-2.5" style={{ background: "var(--c-line-soft)" }}>
         {([
           { id: "doseToRate" as const, label: "Liều → Tốc độ" },
           { id: "rateToDose" as const, label: "Tốc độ → Liều" },
@@ -8706,7 +8706,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               setMode(m.id)
               tickHaptic()
             }}
-            className="dose-press flex-1 h-9 rounded-[10px] text-[12px] font-bold"
+            className="dose-press flex-1 h-9 rounded-[14px] text-[12px] font-bold"
             aria-pressed={mode === m.id}
             style={
               mode === m.id
@@ -8837,7 +8837,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           cho tới khi người dùng xác nhận. */}
       {check?.headline && (
         <div
-          className="flex items-start gap-2 px-3 py-2.5 rounded-xl mb-2"
+          className="flex items-start gap-2 px-3 py-2.5 rounded-[14px] mb-2"
           style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
         >
           <span className="mt-0.5 flex-none" style={{ color: severityStyle.text }}>{icons.alert()}</span>
@@ -9563,9 +9563,8 @@ function DungThuocScreen({
 }: {
   customAntibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
-  // Danh sách thuốc TỰ NHẬP của từng nhóm, tra theo id nhóm. Trước đây mỗi nhóm là một prop riêng
-  // kèm ba prop thao tác (thêm/sửa/xoá) — 4 prop × số nhóm, tức là thêm một nhóm phải sửa đúng 4
-  // chỗ trong chữ ký, 4 chỗ ở nơi gọi và 1 chỗ khi vẽ. Nay mọi nhóm đi qua đúng một đường.
+  // Danh sách thuốc tự nhập của từng nhóm, tra theo id nhóm — một prop chung thay vì một prop
+  // riêng mỗi nhóm, để thêm nhóm mới không phải sửa nhiều chỗ.
   customInfusions: Record<InfusionCategory, InfusionDrug[]>
   onAddAntibiotic: () => void
   onAddInfusion: (category: InfusionCategory) => void
@@ -9580,44 +9579,36 @@ function DungThuocScreen({
   const [patientOpen, setPatientOpen] = useState(() => !patientHasData(patient))
   const [running, setRunning] = useState<RunningDrug[]>(loadRunning)
   const [log, setLog] = useState<CalcLogEntry[]>(loadCalcLog)
-  // Số cạnh nút "Nhật ký" trước đây là TỔNG số mục lưu từ trước tới nay (tối đa 200) — chỉ tăng
-  // dần qua nhiều ca trực, không nói gì về ca trực NÀY. Đổi sang số mục trong 12 giờ gần nhất.
+  // Số cạnh nút "Nhật ký": số mục trong 12 giờ gần nhất, không phải tổng luỹ kế toàn bộ lịch sử.
   const recentLogCount = useMemo(() => {
     const cutoff = Date.now() - 12 * 60 * 60 * 1000
     return log.filter((e) => e.at >= cutoff).length
   }, [log])
   const [showLog, setShowLog] = useState(false)
   const [wardRecipes, setWardRecipes] = useState<Record<string, WardRecipe[]>>(loadWardRecipes)
-  // Bản sao 10 giây cho "Hoàn tác" sau "Bệnh nhân mới" — xoá bệnh nhân xoá LUÔN cả bảng đang dùng,
-  // là hành động phá huỷ nhất màn hình này nên phải có đường lùi lại.
+  // Bản sao 10 giây cho "Hoàn tác" — xoá bệnh nhân là hành động phá huỷ nhất màn hình này.
   const [resetUndo, setResetUndo] = useState<{ patient: PatientVitals; running: RunningDrug[] } | null>(null)
   const resetUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current) }, [])
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const tabRowRef = useRef<HTMLDivElement | null>(null)
   const activeTabRef = useRef<HTMLButtonElement | null>(null)
-  // Tab đang nhớ qua useStickyState có thể đứng thứ 7-8 trong 10 tab — mở app lên mà hàng tab vẫn
-  // đứng ở đầu thì không thấy tab nào đang chọn. Cuộn NGAY (không mượt) đúng một lần khi vào màn,
-  // không cuộn lại mỗi lần đổi tab bằng tay (người dùng tự thấy tab họ vừa bấm).
+  // Tab nhớ qua useStickyState có thể đứng thứ 7-8/10 — cuộn nó vào khung nhìn một lần khi vào
+  // màn (không mượt), không cuộn lại mỗi lần đổi tab bằng tay.
   useEffect(() => {
     activeTabRef.current?.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ─── Tìm kiếm xuyên tab ────────────────────────────────────────────────────
-  // Mỗi tab vốn có ô tìm riêng, chỉ tìm trong đúng tab đang mở: gõ "adrenaline" ở tab Kháng sinh
-  // thì không ra gì, mà lúc cấp cứu không ai nhớ adrenaline nằm ở tab "Co bóp" hay "Vận mạch" —
-  // nó nằm ở CẢ HAI, dưới hai bản ghi khác nhau. Ô này tìm qua toàn bộ 10 nhóm cùng lúc.
-  //
-  // Mở bằng nút kính lúp trên tiêu đề chứ không chiếm sẵn một hàng: màn này cố ý giữ nội dung sát
-  // lên trên, thêm một hàng thường trực là đẩy phần máy tính xuống thấp ở mọi lần dùng.
+  // Tìm xuyên tab: một thuốc (vd adrenaline) có thể nằm ở nhiều nhóm — ô tìm riêng của từng tab
+  // không thấy được. Mở bằng nút kính lúp trên tiêu đề, không chiếm hàng riêng.
   const [searchOpen, setSearchOpen] = useState(false)
   const [globalQuery, setGlobalQuery] = useState("")
-  // Tăng lên mỗi lần nhảy tới một thuốc, để cây con được dựng lại KỂ CẢ khi thuốc đó nằm ngay
-  // trong tab đang mở — nếu không, giá trị sticky vừa ghi sẽ không được đọc lại.
+  // Tăng lên mỗi lần nhảy tới một thuốc để cây con dựng lại kể cả khi thuốc nằm ngay trong tab
+  // đang mở (nếu không, giá trị sticky vừa ghi sẽ không được đọc lại).
   const [jumpKey, setJumpKey] = useState(0)
-  // Gợi ý một lần cho nút Tìm — mặc định ẨN nếu không đọc được localStorage (ngược với
-  // DisclaimerGate: một gợi ý lặp lại mãi vì lỗi đọc storage gây khó chịu hơn là mất một lần gợi ý).
+  // Gợi ý một lần cho nút Tìm — mặc định ẨN nếu lỗi đọc localStorage (ngược DisclaimerGate: gợi ý
+  // lặp lại mãi phiền hơn mất một lần gợi ý).
   const [showTabHint, setShowTabHint] = useState(() => {
     try {
       return localStorage.getItem(TAB_SEARCH_HINT_KEY) !== "1"
@@ -9650,14 +9641,13 @@ function DungThuocScreen({
     return out.slice(0, 30)
   }, [globalQuery, customAntibiotics, customInfusions])
 
-  // Mở thẳng thuốc vừa chọn ở tab của nó. Đặt sẵn các bước chọn của tab đích (hoạt chất / bệnh lý /
-  // đường dùng) rồi mới đổi tab — xem writeStickyState trong lib/uiState.ts.
+  // Mở thẳng thuốc vừa chọn: đặt sẵn các bước chọn của tab đích rồi mới đổi tab (xem
+  // writeStickyState trong lib/uiState.ts).
   function openSearchResult(r: { tab: MixingTab; id: string; name: string }) {
     if (r.tab === "antibiotics") {
       writeStickyState("abx.query", "")
       writeStickyState<string | null>("abx.group", r.name)
-      // Bỏ qua bước chọn bệnh lý: người dùng vừa gọi đích danh một thuốc, bắt chọn thêm một bước
-      // nữa mới thấy liều là làm hỏng chính thao tác họ đang cố rút ngắn.
+      // Bỏ qua bước chọn bệnh lý: đã gọi đích danh một thuốc, không bắt chọn thêm bước nữa.
       writeStickyState<string | null>("abx.disease", DISEASE_SKIP)
       writeStickyState<string | null>("abx.entry", r.id)
     } else {
@@ -9701,17 +9691,13 @@ function DungThuocScreen({
     () => ({
       patient,
       setPatientField: setField,
-      // "Bệnh nhân mới" phải xoá SẠCH: thông số cũ nằm nguyên đó là kiểu sai nguy hiểm nhất vì nhìn
-      // vẫn "có số". Bảng Đang truyền cũng thuộc về bệnh nhân cũ nên xoá cùng lúc. Giữ lại một bản
-      // sao 10 giây để "Hoàn tác" — đây là hành động phá huỷ nhất màn hình, không phải chỗ để im
-      // lặng mất dữ liệu nếu bấm nhầm.
+      // "Bệnh nhân mới" phải xoá SẠCH (số cũ còn sót là sai nguy hiểm nhất — nhìn vẫn "có số"),
+      // gồm cả bảng Đang truyền. Giữ bản sao 10 giây để "Hoàn tác".
       resetPatient: () => {
         setResetUndo({ patient, running })
         if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current)
-        // Hoàn tác 10 giây trước đây không để lại dấu vết nào sau khi hết hạn — người dùng bị gián
-        // đoạn quá 10 giây (chuyện thường lúc trực) mất hẳn khả năng biết mình vừa xoá gì, lúc nào.
-        // Ghi vào Nhật ký ĐÚNG LÚC hết hạn (không phải lúc bấm xoá), để một lần bấm nhầm rồi bấm
-        // "Hoàn tác" ngay sau đó không tạo ra một dòng nhật ký thừa cho việc chưa từng thật sự xảy ra.
+        // Ghi vào Nhật ký ĐÚNG LÚC hết hạn hoàn tác, không phải lúc bấm xoá — để bấm nhầm rồi bấm
+        // "Hoàn tác" ngay sau đó không tạo dòng nhật ký thừa cho việc chưa từng thật sự xảy ra.
         const clearedSummary =
           [abwKg != null ? `${abwKg} kg` : null, heightCm != null ? `${heightCm} cm` : null, patient.sex === "male" ? "Nam" : "Nữ", ageYears != null ? `${ageYears} tuổi` : null]
             .filter(Boolean)
@@ -9781,10 +9767,8 @@ function DungThuocScreen({
       logCalc: (entry) => setLog(appendCalcLog({ ...entry, weightKg: abwKg })),
       wardRecipes,
       saveWard: (recipe) =>
-        // Trước đây id mới chỉ là `${drugId}-${Date.now()}` — độ phân giải mili-giây, nên bấm
-        // "Lưu công thức" hai lần liên tiếp thật nhanh (double-tap trên điện thoại là chuyện
-        // thường) có thể ra CÙNG một id, và công thức lưu sau âm thầm đè mất công thức lưu trước
-        // thay vì tạo thêm một công thức mới. Thêm hậu tố ngẫu nhiên để luôn phân biệt được.
+        // Hậu tố ngẫu nhiên: id chỉ theo `${drugId}-${Date.now()}` (độ phân giải mili-giây) có thể
+        // trùng khi double-tap "Lưu công thức" nhanh, đè mất công thức lưu trước.
         setWardRecipes(
           saveWardRecipe({ ...recipe, id: recipe.id ?? `${recipe.drugId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, savedAt: Date.now() }),
         ),
@@ -9807,14 +9791,8 @@ function DungThuocScreen({
                 setGlobalQuery("")
                 if (showTabHint) dismissTabHint()
               }}
-              // Trước đây chỉ là một vòng tròn icon-only 32px — nút nhanh nhất tới hơn 100 thuốc mà
-              // không có chữ nào gọi tên nó, người lần đầu dùng không biết nó làm gì cho tới khi lỡ
-              // bấm. Giờ có chữ "Tìm" đi kèm icon, khớp hình dạng pill với "Nhật ký" đứng cạnh — một
-              // hàng nút phụ nhất quán thay vì một icon lẻ loi.
-              //
-              // Pill NHÌN THẤY vẫn cao 36px (bằng "Nhật ký", không phá hàng tiêu đề min-h-9 cố định)
-              // nhưng vùng CHẠM của chính button là 44px nhờ đệm dọc vô hình — dưới 44px là trượt khỏi
-              // ngưỡng chạm đã áp cho các nút khác trong màn.
+              // Pill nhìn thấy cao 36px (khớp hàng tiêu đề min-h-9), vùng chạm thật 44px nhờ đệm
+              // dọc vô hình (py-1) — đúng ngưỡng chạm chung của màn.
               className="flex-none flex items-center justify-center py-1"
               aria-label="Tìm thuốc trong mọi nhóm"
             >
@@ -9822,10 +9800,9 @@ function DungThuocScreen({
                 className={`h-9 pl-2.5 pr-3 ${R.pill} ${T.label} border flex items-center gap-1.5`}
                 style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
               >
-                {/* Icon luôn ở dạng nét (không tô đặc): path này vẽ cho outline, tô đặc theo `active`
-                    làm phần tay cầm (một nét thẳng không khép kín) biến mất — chỉ còn vòng tròn đặc,
-                    trông như ảnh vỡ. icons.search() vẽ cỡ 24px cố định (w-6 h-6) — thu nhỏ bằng `scale`
-                    ở đây thay vì sửa icon dùng chung: chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc. */}
+                {/* icons.search() cố định 24px — thu nhỏ bằng scale ở đây, không sửa icon dùng chung
+                    (chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc). Giữ active=false: tô đặc làm
+                    mất nét tay cầm kính lúp, trông như ảnh vỡ. */}
                 <span className="flex items-center justify-center" style={{ transform: "scale(0.7)" }}>
                   {icons.search(false)}
                 </span>
@@ -9847,7 +9824,6 @@ function DungThuocScreen({
         }
       />
 
-      {/* Ô tìm chung — chỉ hiện khi bấm kính lúp, tìm qua kháng sinh và cả 9 nhóm thuốc truyền. */}
       {searchOpen && (
         <div className="fade-in flex-none px-5 pb-3">
           <SearchField value={globalQuery} onChange={setGlobalQuery} placeholder="Tìm thuốc trong mọi nhóm..." autoFocus />
@@ -9862,9 +9838,8 @@ function DungThuocScreen({
                   className="max-h-64 overflow-y-auto scroll-ios"
                   role="group"
                   aria-label={`${searchResults.length} kết quả tìm kiếm`}
-                  // Danh sách vốn chỉ Tab-qua-từng-nút được (đúng nhưng chậm khi có tới 30 kết quả) —
-                  // thêm mũi tên lên/xuống di chuyển giữa các nút mà không đổi hành vi kích hoạt của
-                  // chính nút (Enter/Space/chạm vẫn nguyên vẹn, không thay bằng vai trò option tự chế).
+                  // Mũi tên lên/xuống di chuyển focus giữa các nút, không đổi hành vi kích hoạt gốc
+                  // (Enter/Space/chạm vẫn nguyên vẹn).
                   onKeyDown={(e) => {
                     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return
                     const container = e.currentTarget
@@ -9903,17 +9878,11 @@ function DungThuocScreen({
         </div>
       )}
 
-      {/* Hàng tab — cùng chiều cao với mọi chip khác trong màn (44px vùng chạm). 10 tab cuộn ngang;
-          tab đang nhớ (useStickyState) có thể là tab thứ 7-8, mở app lên thấy hàng tab đứng ở đầu
-          và KHÔNG thấy tab nào đang chọn — trông như chưa chọn gì. Cuộn tab đang chọn vào khung
-          nhìn ngay khi mount, và hai dải mờ hai mép báo hàng còn cuộn được. */}
+      {/* 10 tab cuộn ngang, hai dải mờ hai mép báo còn cuộn được. */}
       <div className="flex-none pb-3 relative">
         <div
           ref={tabRowRef}
-          // gap-3 (12px, trước là gap-2/8px): mỗi tab đã cao đủ 44px nhưng đứng SÁT nhau thì ngón
-          // tay run/vuốt một tay vẫn dễ trượt sang tab kế bên — 10 tab dồn trên một điện thoại 375px
-          // là đúng tình huống đó. Thêm khoảng trống thay vì phóng to từng tab để không đẩy hàng tab
-          // cuộn xa hơn.
+          // gap-3: khoảng cách đủ để ngón tay run/vuốt không trượt sang tab kế bên.
           className="scroll-ios flex gap-3 px-5 overflow-x-auto"
           style={{ scrollbarWidth: "none" }}
           role="tablist"
@@ -9928,8 +9897,7 @@ function DungThuocScreen({
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
               // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
               className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
-              // --c-text-muted trên --c-line-soft chỉ ~4,1:1 ở 12px đậm — dưới ngưỡng AA 4,5:1.
-              // Đổi sang --c-text-soft cho tab CHƯA chọn (đọc nhiều, phải rõ).
+              // C.textSoft cho tab chưa chọn, không phải text-muted — text-muted dưới ngưỡng AA ở cỡ này.
               style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
               role="tab"
               aria-selected={tab === t.id}
@@ -9942,13 +9910,10 @@ function DungThuocScreen({
         <div className="absolute left-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to right, var(--c-page), transparent)" }} />
         <div className="absolute right-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to left, var(--c-page), transparent)" }} />
       </div>
-      {/* Gợi ý MỘT LẦN cho nút Tìm — 10 tab là quá nhiều để quét bằng mắt lúc vội, và bản thân hàng
-          tab không dạy người dùng lần đầu rằng lối tắt "Tìm xuyên nhóm" tồn tại. Biến mất vĩnh viễn
-          ngay khi mở ô tìm lần đầu (xem onClick nút Tìm) hoặc bấm "Đã hiểu" — không phải một hàng
-          thường trực, nên không phá nguyên tắc "không thêm hàng cố định" đã đặt cho nút Tìm. */}
+      {/* Gợi ý một lần cho nút Tìm, biến mất vĩnh viễn khi mở ô tìm hoặc bấm "Đã hiểu". */}
       {showTabHint && (
         <div
-          className="fade-in flex-none mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl"
+          className="fade-in flex-none mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-[14px]"
           style={{ background: C.primarySoft, border: `1px solid ${C.primaryLine}` }}
         >
           <p className={`${T.meta} flex-1`} style={{ color: C.primary }}>
@@ -10003,13 +9968,10 @@ function DungThuocScreen({
       )}
       {resetUndo && (
         <div
-          className="toast-in-full absolute left-4 right-4 z-50 rounded-2xl px-4 py-3 flex items-center gap-3"
-          // --c-pill-dark/--c-shadow (không phải rgba viết tay): pill này cố ý LUÔN tối bất kể theme
-          // (đọc được ở mọi vị trí trên màn, không phải một lớp phủ mờ). Trước đây viết rgba(9,32,33,…)
-          // trùng khớp giá trị --c-pill-dark nhưng lại ghép với `color: var(--c-on-bright)` — token đó
-          // đổi thành GẦN ĐEN ở bản tối (dành cho chữ trên nền primary/accent sáng lên), nên chữ trên
-          // nền pill tối luôn-tối này thành gần như vô hình đúng lúc báo tin quan trọng nhất màn hình.
-          // Chữ ở đây dùng trắng cố định, khớp với nền cố định tối của chính nó, không đi theo theme.
+          className="toast-in-full absolute left-4 right-4 z-50 rounded-[20px] px-4 py-3 flex items-center gap-3"
+          // --c-pill-dark: cố ý LUÔN tối bất kể theme. Chữ dùng #fff cố định thay vì --c-on-bright —
+          // token đó đổi gần-đen ở bản tối (dành cho chữ trên nền sáng lên), trở nên vô hình trên
+          // nền pill luôn-tối này.
           style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow), var(--c-shadow-glow)" }}
         >
           <p className="flex-1 text-[13px] font-semibold" style={{ color: "#fff" }}>
