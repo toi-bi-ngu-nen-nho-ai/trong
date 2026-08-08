@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
+import { flushSync } from "react-dom"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticWarning, DiseaseEntry, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, MindNode, MindEdge, MindImage, MindStroke, MindmapData, MindBoard, SourceInfo } from "./data/types"
 import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
@@ -4587,6 +4588,80 @@ function useDosing(): DosingContextValue {
   return ctx
 }
 
+// Số CrCl / tốc độ bơm ĐẾM CHẠY từ giá trị cũ sang giá trị mới thay vì bật thẳng vào số mới
+// (trước đây dùng `key` để dựng lại phần tử, kích hoạt lại hoạt ảnh `pop-value` nảy một nhịp).
+// Đếm chạy nói được NHIỀU hơn "số vừa đổi" — nó cho thấy đổi TĂNG hay GIẢM và đổi bao nhiêu, đúng
+// tinh thần "đừng đọc nhầm số cũ" mà pop-value đã theo đuổi, chỉ là rõ ràng hơn một bậc.
+//
+// `finalText` luôn là chuỗi ĐÃ ĐỊNH DẠNG THẬT (formatDoseNumber(...)/String(crcl)...) — hook này
+// không tự quyết định cách hiển thị số cuối cùng, chỉ nội suy MÀN HÌNH GIỮA CHỪNG bằng `decimals`
+// rồi khoá lại đúng `finalText` khi đếm xong. Nhờ vậy con số nghỉ (không đang đếm) không bao giờ
+// lệch khỏi con số mà phần tính liều thật sự tin dùng.
+function useCountUp(target: number | null, decimals: number, finalText: string, durationMs = 380): string {
+  const [display, setDisplay] = useState(finalText)
+  const prevValueRef = useRef<number | null>(target)
+  const rafRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    if (target == null) {
+      prevValueRef.current = null
+      setDisplay(finalText)
+      return
+    }
+    const from = prevValueRef.current
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (from == null || from === target || reduceMotion) {
+      prevValueRef.current = target
+      setDisplay(finalText)
+      return
+    }
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs)
+      // Cùng đường cong "đến nơi chắc chắn" dùng cho mọi hoạt ảnh xác nhận khác trong màn này.
+      const eased = 1 - Math.pow(1 - t, 3)
+      if (t < 1) {
+        setDisplay((from + (target - from) * eased).toFixed(decimals))
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        prevValueRef.current = target
+        setDisplay(finalText)
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, finalText, decimals, durationMs])
+  return display
+}
+
+// Bọc một cập nhật state bằng View Transitions API khi trình duyệt hỗ trợ — đổi tab hay đổi thẻ
+// thuốc đang xem thành MỘT chuyển động liên tục (thẻ cũ mờ dần đúng lúc thẻ mới rõ dần) thay vì một
+// cú cắt cảnh cứng. `flushSync` bắt buộc vì startViewTransition cần DOM đã cập nhật XONG trong callback
+// của nó mới chụp được ảnh "sau" — React mặc định gộp cập nhật lại nên không dùng flushSync thì API
+// chụp nhầm ảnh "trước" cho cả hai. Trình duyệt chưa có API này thì chạy `update()` bình thường —
+// đúng hệt hành vi trước khi có hàm này, không có gì để mất.
+type ViewTransition = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> }
+
+function withViewTransition(update: () => void): void {
+  const doc = document as Document & { startViewTransition?: (callback: () => void) => ViewTransition }
+  if (typeof doc.startViewTransition !== "function") {
+    update()
+    return
+  }
+  const transition = doc.startViewTransition(() => {
+    flushSync(update)
+  })
+  // Chạm liên tiếp (đổi tab/đổi thuốc nhanh khi đang vội) là chuyện bình thường ở màn này — lần
+  // chạm SAU huỷ animation của lần TRƯỚC theo đúng đặc tả View Transitions, làm promise .ready/
+  // .finished của lần trước bị reject với InvalidStateError. Bắt ở đây để không rơi thành "Uncaught
+  // (in promise)" trên console — không phải lỗi thật, chỉ là chuyển động cũ nhường chỗ cho cái mới.
+  transition.ready.catch(() => {})
+  transition.finished.catch(() => {})
+}
+
 // ─── Mảnh giao diện dùng chung cho màn Dùng thuốc ────────────────────────────
 // Mọi tiêu đề mục, ô tìm kiếm, chip chọn thuốc và khối gấp/mở đều đi qua đây, để không còn chuyện
 // mỗi chỗ một cỡ chữ và một kiểu canh lề. Xem lib/ui.ts.
@@ -4948,6 +5023,9 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
     setPatientField("scrUnit", next)
   }
 
+  const crclFinalText = crclUsable && crcl != null ? String(crcl) : "—"
+  const crclDisplay = useCountUp(crclUsable ? crcl : null, 0, crclFinalText)
+
   const summary = [
     abwKg != null ? `${abwKg} kg` : null,
     heightCm != null ? `${heightCm} cm` : null,
@@ -5138,8 +5216,8 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             {/* Trước đây khi crclUsable=false vẫn hiện to con số CrCl thật, chỉ đổi màu xám — quá
                 yếu để nói "con số này KHÔNG được dùng chọn bậc liều". Đổi hẳn sang "—": im lặng
                 còn an toàn hơn một con số đúng-về-mặt-tính-toán nhưng sai-về-mặt-lâm-sàng. */}
-            <span key={crcl ?? "none"} className={`${T.metric} pop-value flex-none`} style={{ color: crclUsable ? C.primary : C.muted }}>
-              {crclUsable && crcl != null ? crcl : "—"}
+            <span className={`${T.metric} flex-none ${NUM}`} style={{ color: crclUsable ? C.primary : C.muted }}>
+              {crclDisplay}
             </span>
             <div className="min-w-0">
               <p className={T.meta} style={{ color: C.textSoft }}>
@@ -7473,18 +7551,22 @@ function AntibioticsScreen({
   const showRouteStep = readyForEntry && qualifyingEntries.length > 1
 
   function selectGroup(name: string | null) {
-    setSelectedGroupName(name)
-    setDiseaseChoice(null)
-    setSelectedEntryId(null)
+    withViewTransition(() => {
+      setSelectedGroupName(name)
+      setDiseaseChoice(null)
+      setSelectedEntryId(null)
+    })
   }
 
   function chooseDisease(id: string) {
-    setDiseaseChoice(id)
-    setSelectedEntryId(null)
+    withViewTransition(() => {
+      setDiseaseChoice(id)
+      setSelectedEntryId(null)
+    })
   }
 
   function chooseEntry(id: string) {
-    setSelectedEntryId(id)
+    withViewTransition(() => setSelectedEntryId(id))
   }
 
   // Giống bên thuốc truyền: cuộn thẳng tới thẻ liều thay vì bỏ nó dưới hai màn hình cuộn.
@@ -7507,12 +7589,14 @@ function AntibioticsScreen({
               return (
                 <button
                   key={d.id}
-                  onClick={() => {
-                    setQuery("")
-                    setSelectedGroupName(d.name)
-                    setDiseaseChoice(DISEASE_SKIP)
-                    setSelectedEntryId(d.id)
-                  }}
+                  onClick={() =>
+                    withViewTransition(() => {
+                      setQuery("")
+                      setSelectedGroupName(d.name)
+                      setDiseaseChoice(DISEASE_SKIP)
+                      setSelectedEntryId(d.id)
+                    })
+                  }
                   className={`text-left px-3 py-2.5 ${R.box} border ${TAP}`}
                   style={on ? { background: C.accentSoft, borderColor: C.accent } : { background: C.surface, borderColor: C.line }}
                 >
@@ -7607,7 +7691,7 @@ function AntibioticsScreen({
         // định" dù vẫn cùng một thuốc — mất sạch đường dùng (TTM/TMC) và công thức pha đang gõ dở chỉ
         // vì bấm sang một chip chỉ định khác để so sánh. Đổi thuốc (entry.id đổi) mới thật sự cần dựng
         // lại thẻ; đổi chỉ định trên CÙNG một thuốc thì thẻ phải giữ nguyên trạng thái đang có.
-        <div key={selectedEntry.id} className="fade-in">
+        <div key={selectedEntry.id} className="fade-in" style={{ viewTransitionName: "dose-card" } as React.CSSProperties}>
           <AntibioticDoseCard
             drug={selectedEntry}
             disease={selectedDisease}
@@ -8394,6 +8478,12 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
     return checkInfusionDose(doseUnderCheck, unit, ownUnit, calc.doseMin, calc.doseMax, weightKg, calc.doseAbsMax)
   }, [unit, ownUnit, doseUnderCheck, calc.doseMin, calc.doseMax, calc.doseAbsMax, weightKg])
 
+  // Con số này chạy thẳng lên bơm thật — số lẻ khi đếm chạy phải khớp CHÍNH XÁC số lẻ mà
+  // formatDoseNumber() sẽ chốt lại lúc nghỉ, không tự bịa một quy tắc làm tròn riêng.
+  const resultFinalText = result != null ? formatDoseNumber(result) : "—"
+  const resultDecimals = result != null ? (formatDoseNumber(result).split(".")[1]?.length ?? 0) : 0
+  const resultDisplay = useCountUp(result, resultDecimals, resultFinalText)
+
   // Đổi bất kỳ đầu vào nào là phải xác nhận lại — không để một lần bấm xác nhận che cho mọi con số
   // gõ sau đó.
   useEffect(() => {
@@ -8858,10 +8948,11 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             </div>
           )}
           <div className="flex items-baseline gap-2">
-            {/* `key` đổi theo giá trị nên React dựng lại thẻ này mỗi lần con số đổi, kích hoạt lại
-                hoạt ảnh nảy — dấu hiệu "số đang nhìn là số MỚI", tránh đọc lại số cũ. */}
-            <span key={result ?? "none"} className={`${T.metric} pop-value`} style={{ color: severityStyle.text }}>
-              {result != null ? formatDoseNumber(result) : "—"}
+            {/* Đếm chạy từ số cũ sang số mới (useCountUp) thay vì bật thẳng vào số mới — số này
+                chạy lên bơm thật nên "đổi tăng hay giảm, đổi bao nhiêu" đáng nhìn thấy rõ hơn cả
+                "đã đổi". Khoá cứng về đúng formatDoseNumber() ngay khi đếm xong. */}
+            <span className={`${T.metric} ${NUM}`} style={{ color: severityStyle.text }}>
+              {resultDisplay}
             </span>
             <span className={T.body} style={{ color: C.textSoft }}>{mode === "doseToRate" ? "mL/giờ" : unitId}</span>
             {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai */}
@@ -9175,8 +9266,10 @@ function InfusionCategoryScreen({
     hasDiseaseStep && diseaseChoice && diseaseChoice !== DISEASE_SKIP ? diseases.find((d) => d.id === diseaseChoice) ?? null : null
 
   function selectDrug(id: string | null) {
-    setSelectedId(id)
-    setDiseaseChoice(null)
+    withViewTransition(() => {
+      setSelectedId(id)
+      setDiseaseChoice(null)
+    })
   }
 
   // Chọn xong thuốc mà thẻ kết quả nằm dưới hai màn hình cuộn thì thao tác chưa xong. Gấp khung
@@ -9251,7 +9344,7 @@ function InfusionCategoryScreen({
           <SectionLabel>Chỉ định</SectionLabel>
           <div className="flex flex-wrap gap-2">
             {diseasesForDrug.map((ds) => (
-              <Chip key={ds.id} active={diseaseChoice === ds.id} onClick={() => setDiseaseChoice(ds.id)}>
+              <Chip key={ds.id} active={diseaseChoice === ds.id} onClick={() => withViewTransition(() => setDiseaseChoice(ds.id))}>
                 {ds.name}
               </Chip>
             ))}
@@ -9261,7 +9354,7 @@ function InfusionCategoryScreen({
 
       <div ref={cardRef} style={{ scrollMarginTop: 8 }}>
         {selected && readyForCard ? (
-          <div key={`${selected.id}-${selectedDisease?.id ?? "none"}`} className="fade-in">
+          <div key={`${selected.id}-${selectedDisease?.id ?? "none"}`} className="fade-in" style={{ viewTransitionName: "dose-card" } as React.CSSProperties}>
             <InfusionDrugCard drug={selected} disease={selectedDisease} isOverride={Boolean(selected.isCustom) && staticIds.has(selected.id)} onEdit={onEdit} onDelete={onDelete} />
           </div>
         ) : (
@@ -9442,10 +9535,12 @@ function DungThuocScreen({
       writeStickyState<string | null>(`infusion.sel.${cat.categoryLabel}`, r.id)
       writeStickyState<string | null>(`infusion.disease.${cat.categoryLabel}`, null)
     }
-    setTab(r.tab)
-    setJumpKey((n) => n + 1)
-    setSearchOpen(false)
-    setGlobalQuery("")
+    withViewTransition(() => {
+      setTab(r.tab)
+      setJumpKey((n) => n + 1)
+      setSearchOpen(false)
+      setGlobalQuery("")
+    })
     tickHaptic()
   }
 
@@ -9655,7 +9750,7 @@ function DungThuocScreen({
             <button
               key={t.id}
               ref={tab === t.id ? activeTabRef : null}
-              onClick={() => setTab(t.id)}
+              onClick={() => withViewTransition(() => setTab(t.id))}
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
               // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
               className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
@@ -9676,7 +9771,7 @@ function DungThuocScreen({
         <DisclaimerBar />
         <PatientPanel open={patientOpen} onToggle={() => setPatientOpen((v) => !v)} />
         <RunningPanel />
-        <div key={`${tab}-${jumpKey}`} className="fade-in">
+        <div key={`${tab}-${jumpKey}`} className="fade-in" style={{ viewTransitionName: "dose-tab-panel" } as React.CSSProperties}>
           {tab === "antibiotics" ? (
             <AntibioticsScreen customDrugs={customAntibiotics} diseases={diseases} onAddNew={onAddAntibiotic} onEdit={onEditAntibiotic} onDelete={onDeleteAntibiotic} />
           ) : (

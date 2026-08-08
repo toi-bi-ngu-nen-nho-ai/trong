@@ -808,3 +808,24 @@ select {
 .nav-press:active {
   transform: scale(0.94);
 }
+
+/* ─── View Transitions: đổi tab / đổi thẻ thuốc đang xem ───────────────────────
+   App.tsx (withViewTransition) chỉ gọi document.startViewTransition() khi trình duyệt CÓ hàm này —
+   trình duyệt chưa hỗ trợ thì các quy tắc dưới đây không bao giờ được dùng tới (không cần @supports
+   ở đây, phần kiểm tra hỗ trợ đã nằm phía JS). Trình duyệt tự chụp ảnh "trước"/"sau" của phần tử
+   mang view-transition-name rồi tự crossfade — ghi đè lại đường cong mặc định (linear, hơi cứng)
+   bằng đúng đường cong "đến nơi chắc chắn" dùng chung cho mọi hoạt ảnh xác nhận khác trong màn này. */
+::view-transition-old(dose-tab-panel),
+::view-transition-new(dose-tab-panel),
+::view-transition-old(dose-card),
+::view-transition-new(dose-card) {
+  animation-duration: 0.32s;
+  animation-timing-function: cubic-bezier(0.25, 0.9, 0.35, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(dose-tab-panel),
+  ::view-transition-group(dose-card) {
+    animation: none !important;
+  }
+}
