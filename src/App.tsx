@@ -7695,33 +7695,43 @@ function AntibioticsScreen({
         }}
         placeholder="Tìm kháng sinh..."
       />
+      {/* Đã chọn một hoạt chất: gấp cả danh sách lại, chỉ còn ĐÚNG chip đang chọn — bước Chỉ định/
+          Đường dùng/thẻ liều kéo lên ngay sát ô tìm thay vì phải cuộn qua hết ~28 chip mới tới. Bấm
+          lại đúng chip đó (cùng onClick selectGroup toggle như cũ) để bỏ chọn, danh sách hiện lại. */}
       <div className="flex flex-wrap gap-2 mb-3 items-center">
-        {/* index chỉ truyền khi CHƯA lọc (mới vào tab) — nếu không, mỗi lần gõ vào ô tìm là một lần
-            các chip khớp mới chạy lại stagger, làm cả hàng nhấp nháy trong lúc gõ.
-            Nhãn chữ cái: 22 kháng sinh xếp phẳng đọc như một khối tên thuốc liền mạch — chia theo
-            chữ cái đầu (tên đã sắp alphabet ở `groups`) cho mắt có điểm dừng, giống danh bạ điện
-            thoại. Chỉ hiện khi đang DUYỆT toàn bộ danh sách; ẩn lúc gõ tìm vì kết quả lọc không còn
-            liên tục theo alphabet nên nhãn sẽ đọc sai. `basis-full` ép mỗi nhãn xuống dòng riêng
-            trong hàng flex-wrap, không cần đổi sang layout dạng lưới/cột. */}
-        {filteredGroups.flatMap((g, i) => {
-          const letter = g.name.charAt(0).toUpperCase()
-          const prevLetter = i > 0 ? filteredGroups[i - 1].name.charAt(0).toUpperCase() : null
-          const nodes: React.ReactNode[] = []
-          if (!query.trim() && letter !== prevLetter) {
+        {selectedGroup ? (
+          <Chip active onClick={() => selectGroup(null)}>
+            {selectedGroup.name}
+            {selectedGroup.entries.length > 1 && <span className="opacity-60"> · {selectedGroup.entries.length}</span>}
+          </Chip>
+        ) : (
+          /* index chỉ truyền khi CHƯA lọc (mới vào tab) — nếu không, mỗi lần gõ vào ô tìm là một lần
+             các chip khớp mới chạy lại stagger, làm cả hàng nhấp nháy trong lúc gõ.
+             Nhãn chữ cái: 22 kháng sinh xếp phẳng đọc như một khối tên thuốc liền mạch — chia theo
+             chữ cái đầu (tên đã sắp alphabet ở `groups`) cho mắt có điểm dừng, giống danh bạ điện
+             thoại. Chỉ hiện khi đang DUYỆT toàn bộ danh sách; ẩn lúc gõ tìm vì kết quả lọc không còn
+             liên tục theo alphabet nên nhãn sẽ đọc sai. `basis-full` ép mỗi nhãn xuống dòng riêng
+             trong hàng flex-wrap, không cần đổi sang layout dạng lưới/cột. */
+          filteredGroups.flatMap((g, i) => {
+            const letter = g.name.charAt(0).toUpperCase()
+            const prevLetter = i > 0 ? filteredGroups[i - 1].name.charAt(0).toUpperCase() : null
+            const nodes: React.ReactNode[] = []
+            if (!query.trim() && letter !== prevLetter) {
+              nodes.push(
+                <span key={`letter-${letter}`} className="basis-full text-[12px] font-bold uppercase tracking-wide mt-1 first:mt-0" style={{ color: "var(--c-text-muted)" }}>
+                  {letter}
+                </span>,
+              )
+            }
             nodes.push(
-              <span key={`letter-${letter}`} className="basis-full text-[12px] font-bold uppercase tracking-wide mt-1 first:mt-0" style={{ color: "var(--c-text-muted)" }}>
-                {letter}
-              </span>,
+              <Chip key={g.name} index={query.trim() ? undefined : i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
+                {g.name}
+                {g.entries.length > 1 && <span className="opacity-60"> · {g.entries.length}</span>}
+              </Chip>,
             )
-          }
-          nodes.push(
-            <Chip key={g.name} index={query.trim() ? undefined : i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
-              {g.name}
-              {g.entries.length > 1 && <span className="opacity-60"> · {g.entries.length}</span>}
-            </Chip>,
-          )
-          return nodes
-        })}
+            return nodes
+          })
+        )}
       </div>
 
       {/* Chỉ định — chỉ hiện khi hoạt chất có liều riêng theo bệnh lý, và luôn TRƯỚC bước đường dùng.

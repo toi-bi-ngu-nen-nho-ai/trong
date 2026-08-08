@@ -638,10 +638,16 @@ input, select, textarea {
    DungThuocScreen): input:focus tắt outline mặc định toàn app (quy tắc bên dưới) mà không có gì
    thay thế ở đây — bàn phím ngoài/máy tính trạm ở buồng bệnh không có cách nào biết đang gõ vào ô
    nào. Vi phạm WCAG 2.4.7 nếu bỏ trống. */
+/* outline-offset 1px (trước là 2px): vòng focus ôm sát khung hơn — vừa đúng yêu cầu hình ảnh, vừa
+   giảm khoảng vòng nhô ra ngoài viền ô nhập. Ô Creatinin (và các ô khác) nằm trong `.disc-body`
+   (khối gấp/mở của Disclosure — `overflow: hidden` cả lúc mở, xem index.css khu vực .disc-body):
+   viền 2px + offset 2px = 4px nhô ra có thể chạm mép overflow:hidden của khối cha khi ô nhập đứng
+   sát rìa, bị xén một phần — offset 1px giảm mức nhô còn 3px, giảm rủi ro này mà vẫn giữ rõ vòng
+   focus cho bàn phím ngoài (WCAG 2.4.7). */
 .scr-dose button:focus-visible,
 .scr-dose input:focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
 /* Ô tìm dạng viên thuốc (SearchField trong App.tsx): input con nằm bên trong một khối bo tròn riêng,
