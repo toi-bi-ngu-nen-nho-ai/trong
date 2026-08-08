@@ -122,7 +122,7 @@ type Screen =
   | "comingSoon"
 
 // Các mục con bên trong tab "Dùng thuốc": kháng sinh + toàn bộ các nhóm thuốc truyền khai trong
-// data/categories.ts (co bóp, vận mạch, giãn mạch, loạn nhịp, điện giải, an thần, thần kinh,
+// data/categories.ts (co bóp, vận mạch, giãn mạch, loạn nhịp, nội môi, an thần, thần kinh,
 // khác, giải độc).
 type MixingTab = "antibiotics" | InfusionCategory
 
@@ -2120,7 +2120,7 @@ function AddEntryScreen({
           <input
             value={tagsText}
             onChange={(e) => setTagsText(e.target.value)}
-            placeholder="VD: điện giải, cấp cứu"
+            placeholder="VD: nội môi, cấp cứu"
             className={fieldClass}
             style={fieldStyle}
           />
@@ -5148,7 +5148,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               </div>
             ))}
 
-          {/* Tuổi + Giới tính + Creatinin: chỉ cần cho CrCl (kháng sinh chỉnh theo chức năng thận) —
+          {/* Tuổi + Giới tính + Creatinin: chỉ cần cho CrCl (kháng sinh chỉnh theo Độ thanh thải thận) —
               nhóm lại thành cụm "để tính CrCl", đứng sau cụm cân nặng/chiều cao dùng chung cho mọi
               thuốc. */}
           <div className="grid grid-cols-2 gap-2 mb-2">
@@ -5189,13 +5189,13 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             )
           )}
 
-          {/* Creatinin/CrCl/chức năng thận chỉ có ý nghĩa cho liều kháng sinh theo CrCl — 9 nhóm
+          {/* Creatinin/CrCl/độ thanh thải thận chỉ có ý nghĩa cho liều kháng sinh theo CrCl — 9 nhóm
               thuốc truyền còn lại chỉ cần cân nặng/giới tính ở trên. Gấp lại theo mặc định để
               không chặn đường xuống danh sách thuốc trên các tab đó; tự mở khi đã có dữ liệu liên
-              quan (đang tra kháng sinh hoặc đã khai chức năng thận) để không giấu mất giá trị đã
+              quan (đang tra kháng sinh hoặc đã khai độ thanh thải thận) để không giấu mất giá trị đã
               nhập. */}
           <Disclosure
-            label="Creatinin · CrCl · Chức năng thận"
+            label="Creatinin · CrCl · Độ thanh thải thận"
             alert={!crclUsable}
             defaultOpen={patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
           >
@@ -5264,7 +5264,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               {crclUsable && crcl == null && (
                 // C.textSoft, không phải C.muted: đây là chữ hướng dẫn thật phải đọc được ("Cần nhập
                 // X để tính"), không phải icon/placeholder — cùng lỗi và cùng cách sửa RunningPanel
-                // đã tự áp dụng cho nhãn "Nòng" của chính nó (xem comment ở dưới).
+                // đã tự áp dụng cho nhãn "Đường truyền" của chính nó (xem comment ở dưới).
                 <p className={T.meta} style={{ color: C.textSoft }}>
                   {ageYears == null
                     ? "Cần nhập tuổi để tính"
@@ -5283,10 +5283,10 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             </div>
           </div>
 
-          {/* Chức năng thận: cờ tổn thương thận cấp và phương thức lọc gộp về MỘT hàng chip.
+          {/* Độ thanh thải thận: cờ tổn thương thận cấp và phương thức lọc gộp về MỘT hàng chip.
               "Không lọc" đứng đầu (trạng thái mặc định/phổ biến nhất) rồi mới tới AKI và các
               phương thức lọc máu — trước đây AKI đứng đầu khiến hàng chip đọc lộn thứ tự ưu tiên. */}
-          <SectionLabel>Chức năng thận</SectionLabel>
+          <SectionLabel>Độ thanh thải thận</SectionLabel>
           <div className="flex flex-wrap gap-1.5 mb-2">
             <button
               onClick={() => {
@@ -5337,13 +5337,13 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               ))}
           </div>
 
-          {/* Chức năng thận đã xác nhận lâu rồi mà chưa ai chạm lại — lọc máu có thể đã bắt đầu/kết
+          {/* Độ thanh thải thận đã xác nhận lâu rồi mà chưa ai chạm lại — lọc máu có thể đã bắt đầu/kết
               thúc giữa ca mà tra cứu sau đó vẫn âm thầm dùng bậc liều cũ. Chỉ hiện khi đã từng được
               xác nhận ít nhất một lần (isRenalStatusStale loại bệnh nhân mới, chưa ai chạm tới). */}
           {isRenalStatusStale(patient) && (
             <div className="flex items-center gap-2 mb-2 px-2.5 py-2 rounded-[14px] fade-in" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
               <p className="flex-1 text-[12px] font-bold leading-[1.4]" style={{ color: "var(--c-warn)" }}>
-                Chức năng thận chưa được xác nhận lại từ đầu ca — còn đúng không?
+                Độ thanh thải thận chưa được xác nhận lại từ đầu ca — còn đúng không?
               </p>
               <button
                 onClick={() => setPatientField("rrt", patient.rrt)}
@@ -5418,9 +5418,9 @@ function RunningPanel() {
   // không hề được báo. Bấm "×" chỉ ĐÁNH DẤU chờ xoá (hàng mờ đi + nút đổi thành "Hoàn tác") — xoá
   // thật sự chỉ xảy ra sau 5 giây, đủ để bấm nhầm còn kịp sửa.
   const [pendingRemove, setPendingRemove] = useState<Record<string, true>>({})
-  // Đổi nòng là thao tác HIẾM (hầu hết thuốc không bao giờ đổi nòng suốt ca), nhưng trước đây 4 chip
-  // nòng luôn mở sẵn trên MỌI dòng — 4×44px + nút xoá 44px = 236/375px, tên thuốc phải truncate.
-  // Nay mặc định chỉ hiện MỘT chip báo nòng hiện tại; chạm vào mới mở 4 lựa chọn, chọn xong tự đóng.
+  // Đổi Đường truyền là thao tác HIẾM (hầu hết thuốc không bao giờ đổi Đường truyền suốt ca), nhưng trước đây 4 chip
+  // Đường truyền luôn mở sẵn trên MỌI dòng — 4×44px + nút xoá 44px = 236/375px, tên thuốc phải truncate.
+  // Nay mặc định chỉ hiện MỘT chip báo Đường truyền hiện tại; chạm vào mới mở 4 lựa chọn, chọn xong tự đóng.
   // Chỉ một dòng mở rộng cùng lúc — mở dòng khác thì dòng cũ tự đóng, không cần nhớ đóng tay.
   const [expandedLineId, setExpandedLineId] = useState<string | null>(null)
   const pendingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -5491,7 +5491,7 @@ function RunningPanel() {
       {lines.map((line) => (
         <div key={line} className="mb-2.5">
           {/* text-slate-500 (→ --c-text-muted, ~5,8:1) chứ không phải -400 (→ --c-muted, ~3,1:1) —
-              đây là NHÃN MỤC thật phải đọc được ("Nòng 2"...), không phải icon/placeholder. Cùng
+              đây là NHÃN MỤC thật phải đọc được ("Đường truyền 2"...), không phải icon/placeholder. Cùng
               lỗi mà SectionLabel đã tự sửa cho chính nó nhưng chưa lan sang nhãn này. */}
           <p className="text-[12px] font-bold text-slate-500 mb-1">{lineLabel(line)}</p>
           {running
@@ -5528,9 +5528,9 @@ function RunningPanel() {
                   )}
                 </div>
                 <div className="flex items-center flex-none">
-                  {/* Trước đây 4 chip nòng LUÔN mở trên mọi dòng — 4×44px chiếm gần 2/3 bề ngang
-                      hàng, đẩy tên thuốc phải truncate dù đổi nòng là thao tác hiếm. Mặc định chỉ
-                      hiện MỘT chip báo nòng hiện tại (vẫn đủ 44px, vẫn tách khỏi nút xoá bằng
+                  {/* Trước đây 4 chip Đường truyền LUÔN mở trên mọi dòng — 4×44px chiếm gần 2/3 bề ngang
+                      hàng, đẩy tên thuốc phải truncate dù đổi Đường truyền là thao tác hiếm. Mặc định chỉ
+                      hiện MỘT chip báo Đường truyền hiện tại (vẫn đủ 44px, vẫn tách khỏi nút xoá bằng
                       khoảng trống rõ ràng — đeo găng/buồng tối không chạm hụt sang nút xoá đỏ);
                       chạm vào mới bung 4 lựa chọn, chọn xong tự đóng lại. */}
                   {expandedLineId === r.id ? (
@@ -5559,7 +5559,7 @@ function RunningPanel() {
                       onClick={() => setExpandedLineId(r.id)}
                       className="w-11 h-11 rounded-full text-[12px] font-bold border"
                       style={{ background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }}
-                      aria-label={`Đang ở ${lineLabel(r.line)} — chạm để đổi nòng`}
+                      aria-label={`Đang ở ${lineLabel(r.line)} — chạm để đổi Đường truyền`}
                     >
                       {r.line === 0 ? "NB" : r.line}
                     </button>
@@ -5598,7 +5598,7 @@ function RunningPanel() {
         </div>
       ) : (
       <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
-        <p className="text-[12px] font-bold mb-1.5 text-slate-500">Chạy chung nòng (Y-site)</p>
+        <p className="text-[12px] font-bold mb-1.5 text-slate-500">Chạy chung Đường truyền (Y-site)</p>
         {ysiteFindings.length === 0 ? (
           <p className="text-[12px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
         ) : (
@@ -6045,10 +6045,10 @@ function WardRecipeChips({
 }
 
 // Cảnh báo tương kỵ Y-site/tương tác NGAY LÚC ĐANG PHA — trước đây bảng tương hợp chỉ chạy ở màn
-// "Bệnh nhân đang dùng" (RunningPanel), so hai thuốc ĐÃ ghim cùng nòng. Vô dụng đúng lúc cần nhất:
-// người đang đứng pha Noradrenaline chưa ghim gì cả, nên không có "hai thuốc cùng nòng" nào để so —
+// "Bệnh nhân đang dùng" (RunningPanel), so hai thuốc ĐÃ ghim cùng Đường truyền. Vô dụng đúng lúc cần nhất:
+// người đang đứng pha Noradrenaline chưa ghim gì cả, nên không có "hai thuốc cùng Đường truyền" nào để so —
 // phải tự nhớ ra rồi mở màn khác kiểm tra. Ở đây so compatKey của thuốc đang xem với TỪNG thuốc đã
-// ghim (bất kể đang ở nòng nào — người dùng tự quyết định chọn nòng nào sau khi thấy cảnh báo), không
+// ghim (bất kể đang ở Đường truyền nào — người dùng tự quyết định chọn Đường truyền nào sau khi thấy cảnh báo), không
 // đợi đến lúc ghim xong mới biết.
 function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ownDrugId: string }) {
   const { running } = useDosing()
@@ -6073,7 +6073,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
         <span className="mt-0.5 flex-none" style={{ color: style.text }}>{icons.alert()}</span>
         <div className="flex-1 min-w-0">
           <p className="text-[12px] font-extrabold leading-[1.3]" style={{ color: style.text }}>
-            {danger ? "KHÔNG TƯƠNG HỢP VỚI THUỐC ĐANG DÙNG" : "THẬN TRỌNG VỚI THUỐC ĐANG DÙNG"} — kiểm tra nòng trước khi ghim
+            {danger ? "KHÔNG TƯƠNG HỢP VỚI THUỐC ĐANG DÙNG" : "THẬN TRỌNG VỚI THUỐC ĐANG DÙNG"} — kiểm tra Đường truyền trước khi ghim
           </p>
           {ysite.map(({ r, rule }, i) => (
             <p key={`y-${i}`} className="text-[12px] leading-[1.45] mt-1" style={{ color: style.text }}>
@@ -7315,7 +7315,7 @@ function AntibioticDoseCard({
               Chưa có CrCl — đang hiện liều bậc THẬN BÌNH THƯỜNG
             </span>
             <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
-              Thuốc này có {tiers.length} bậc liều theo chức năng thận. Nhập tuổi, cân nặng và creatinin ở khung "Bệnh nhân hiện tại" để app chọn đúng bậc.
+              Thuốc này có {tiers.length} bậc liều theo Độ thanh thải thận. Nhập tuổi, cân nặng và creatinin ở khung "Bệnh nhân hiện tại" để app chọn đúng bậc.
             </span>
           </span>
         </button>
@@ -9525,7 +9525,7 @@ function ThemeToggle() {
   )
 }
 
-// ─── Dùng thuốc — màn hình cha chứa Kháng sinh / Co bóp cơ tim / Vận mạch / Giãn mạch / Rối loạn nhịp / Điện giải ──────
+// ─── Dùng thuốc — màn hình cha chứa Kháng sinh / Co bóp cơ tim / Vận mạch / Giãn mạch / Rối loạn nhịp / Nội môi ──────
 
 // Hàng tab: kháng sinh đứng đầu, phần còn lại đọc thẳng từ danh mục nhóm thuốc truyền
 // (data/categories.ts) nên thêm một nhóm mới không phải sửa ở đây.

@@ -112,13 +112,6 @@ export const mindIcons: Record<string, IconFn> = {
         <path d="M11.4 20.6l-3-2.3 3.4-1.1-.4 3.4z" fill="currentColor" stroke="none" />
       </>,
     ),
-  link: (cls = "w-5 h-5") =>
-    svg(
-      cls,
-      1.7,
-      <path d="M9 15l6-6m-5-2l1.5-1.5a3.54 3.54 0 015 5L15 12M9 12l-1.5 1.5a3.54 3.54 0 105 5L14 17" />,
-    ),
-
   // ─── Hình vẽ ───────────────────────────────────────────────────────────────
   shapeLine: (cls = "w-5 h-5") => svg(cls, 1.8, <path d="M5 19L19 5" />),
   shapeArrow: (cls = "w-5 h-5") =>

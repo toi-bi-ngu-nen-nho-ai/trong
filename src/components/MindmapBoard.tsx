@@ -115,7 +115,7 @@ import { hasMindmapClip, readMindmapClip, writeMindmapClip } from "../lib/mindma
 import { applyStyleAt, parseInline, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
 import { mindIcons as mi } from "./MindmapIcons"
 
-type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso" | "link"
+type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso"
 
 // Bốn cây bút thật sự để lại mực. "shape" không nằm trong đây: nó vẽ bằng ĐÚNG mực của bút máy (một
 // hình vẽ ra phải cùng màu cùng cỡ nét với nét tay vừa vẽ cạnh nó), nên nó mượn màu/cỡ của "pen" chứ
@@ -129,9 +129,11 @@ type DrawTool = InkTool | "shape"
 // Vì sao gom lại: hàng cũ bày thẳng bảy công cụ (tay, bút, bút dạ, tẩy, hình, khoanh, nối) và mỗi
 // công cụ vẽ lại kéo theo một hàng phụ đầy ô màu — trên máy 375px thì hai hàng đó ăn gần hết chỗ
 // dành cho bảng, mà bốn phần năm số nút lúc nào cũng nằm đó dù đang không dùng tới. Nay hàng chính
-// chỉ còn năm nút của năm việc KHÁC HẲN NHAU (di chuyển / vẽ / tẩy / khoanh / nối), còn việc chọn
-// cây bút nào thì nằm trong thanh bút — chỉ hiện khi đang thật sự cầm bút.
-type TopTool = "hand" | "draw" | "eraser" | "lasso" | "link"
+// chỉ còn bốn nút của bốn việc KHÁC HẲN NHAU (di chuyển / vẽ / tẩy / khoanh), còn việc chọn
+// cây bút nào thì nằm trong thanh bút — chỉ hiện khi đang thật sự cầm bút. Nối hai thẻ (công cụ
+// "link" cũ) đã bỏ khỏi hàng công cụ — kéo thẻ này thả lên thẻ kia vẫn tự nối làm cha-con
+// (reparentTo trong onPointerUp), đủ dùng cho phần lớn trường hợp thực tế.
+type TopTool = "hand" | "draw" | "eraser" | "lasso"
 
 // Những gì đang được khoanh chọn cùng lúc (công cụ lasso). Chỉ giữ ID, còn khung bao thì tính lại từ
 // dữ liệu mỗi lần vẽ — nhờ vậy kéo cả nhóm xong khung tự chạy theo, không phải cập nhật hai nơi.
@@ -148,9 +150,9 @@ type Selection =
   | { kind: "edge"; from: string; to: string }
   | null
 
-// Các công cụ bị chặn với ngón tay khi đang ở chế độ chỉ-bút (chống tì tay). "hand" và "link" không
-// nằm ở đây: chúng không để lại mực nên tì tay không gây hậu quả gì, mà chặn chúng thì mất luôn
-// cách kéo thẻ bằng ngón tay.
+// Các công cụ bị chặn với ngón tay khi đang ở chế độ chỉ-bút (chống tì tay). "hand" không nằm ở
+// đây: nó không để lại mực nên tì tay không gây hậu quả gì, mà chặn nó thì mất luôn cách kéo thẻ
+// bằng ngón tay.
 const DRAW_TOOLS: Tool[] = ["pen", "pencil", "highlighter", "tape", "eraser", "shape", "lasso"]
 const PEN_ONLY_KEY = "drtrong:mindmap-pen-only"
 
@@ -349,7 +351,6 @@ const TOP_TOOLS: { id: TopTool; icon: (cls?: string) => React.ReactElement; hint
   { id: "draw", icon: mi.pen, hint: "Bút vẽ — chạm để mở thanh bút" },
   { id: "eraser", icon: mi.eraser, hint: "Tẩy nét vẽ" },
   { id: "lasso", icon: mi.lasso, hint: "Khoanh vùng để chọn nhiều nét, thẻ, ảnh" },
-  { id: "link", icon: mi.link, hint: "Nối hai ghi chú" },
 ]
 
 // Công cụ đang cầm thuộc về nút nào trên hàng chính — cả năm cây bút đều nằm dưới nút "draw".
@@ -388,7 +389,7 @@ const NODE_SIZES: { id: MindNodeSize; label: string }[] = [
 // Bảng phím tắt in trong menu "…" — cùng một danh sách với phần xử lý phím ở dưới, để không bao giờ
 // có chuyện app quảng cáo một phím mà bấm vào thì không có gì xảy ra.
 const SHORTCUT_HINTS: [string, string][] = [
-  ["1–5", "Đổi công cụ"],
+  ["1–4", "Đổi công cụ"],
   ["Ctrl+Z", "Hoàn tác"],
   ["Ctrl+F", "Tìm thẻ"],
   ["Ctrl+A", "Chọn hết"],
@@ -1056,7 +1057,6 @@ export function MindmapBoard({
   // File đã dựng xong, đang chờ người dùng bấm để giao đi — xem exportBoard().
   const [exportReady, setExportReady] = useState<{ blob: Blob; name: string; kind: "png" | "pdf" } | null>(null)
   const [sel, setSel] = useState<Selection>(null)
-  const [linkFrom, setLinkFrom] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
   // Sửa nhãn của một đường nối (vd. "gây ra", "chống chỉ định") — mở từ nút bút chì trên thanh nổi
@@ -1137,7 +1137,6 @@ export function MindmapBoard({
   // Xem toBoard().
   const drawMap = useRef<((cx: number, cy: number) => { x: number; y: number }) | null>(null)
   const edgeLayerRef = useRef<SVGGElement>(null)
-  const linkLineRef = useRef<SVGLineElement>(null)
   const eraserRingRef = useRef<HTMLDivElement>(null)
   const floatBarRef = useRef<HTMLDivElement>(null)
   const vGuideRef = useRef<HTMLDivElement>(null)
@@ -1258,7 +1257,6 @@ export function MindmapBoard({
         origH: number
         el: HTMLElement | null
       }
-    | { kind: "linkdrag"; from: string; moved: boolean }
     | {
         kind: "pinch"
         startDist: number
@@ -3128,12 +3126,6 @@ export function MindmapBoard({
       beginErase(e, p)
       return
     }
-    if (tool === "link") {
-      setLinkFrom(null)
-      action.current = { kind: "none" }
-      return
-    }
-
     action.current = {
       kind: "pan",
       startX: e.clientX,
@@ -3237,20 +3229,6 @@ export function MindmapBoard({
     // nó còn chạy, nên kéo thẻ ngay sau khi tạo (chưa hết 0.42s) sẽ thấy thẻ "đứng im" dưới tay, dù dữ
     // liệu vẫn nhận đúng khi thả tay ra — tắt animation NGAY khi bắt đầu kéo để nhường quyền lại.
     if (bornId === node.id) setBornId(null)
-
-    if (tool === "link") {
-      action.current = { kind: "linkdrag", from: node.id, moved: false }
-      const line = linkLineRef.current
-      const box = nodeBox(node, sizeOf(node.id))
-      if (line) {
-        line.setAttribute("x1", String(box.x + box.w / 2))
-        line.setAttribute("y1", String(box.y + box.h / 2))
-        line.setAttribute("x2", String(box.x + box.w / 2))
-        line.setAttribute("y2", String(box.y + box.h / 2))
-        line.style.display = "block"
-      }
-      return
-    }
 
     // Kéo một thẻ thì cả nhánh bên dưới nó phải đi theo — không ai muốn kéo "Suy tim" ra chỗ khác mà
     // "Furosemide"/"ACEi" đứng nguyên tại chỗ, dây nối chéo lung tung qua giữa bảng.
@@ -3441,17 +3419,6 @@ export function MindmapBoard({
       return
     }
 
-    if (act.kind === "linkdrag") {
-      act.moved = true
-      const p = toBoard(e.clientX, e.clientY)
-      const line = linkLineRef.current
-      if (line) {
-        line.setAttribute("x2", String(p.x))
-        line.setAttribute("y2", String(p.y))
-      }
-      return
-    }
-
     // Chỉ đọc: không cho thẻ/ảnh TRÔI theo ngón tay — bỏ qua hẳn khối này, `act.moved` không bao
     // giờ thành true, nên lúc thả tay (xem pointerup) tự rơi đúng vào nhánh "chạm không kéo = chọn",
     // không có bước nào ghi lại vị trí mới.
@@ -3559,15 +3526,6 @@ export function MindmapBoard({
       const next = worldRef.current?.querySelector(`[data-node-id="${id}"]`)
       if (next instanceof HTMLElement) next.style.boxShadow = "0 0 0 3px var(--c-primary), 0 0 0 6px rgba(var(--c-primary-rgb),.2)"
     }
-  }
-
-  function toggleEdge(from: string, to: string) {
-    pushUndo()
-    updateEdges((es) => {
-      const same = (ed: MindEdge) => (ed.from === from && ed.to === to) || (ed.from === to && ed.to === from)
-      return es.some(same) ? es.filter((ed) => !same(ed)) : [...es, { from, to }]
-    })
-    tickHaptic()
   }
 
   // Đường nối nằm gần điểm vừa chạm nhất (nếu có) — để chạm vào đường nối là chọn được nó.
@@ -3693,24 +3651,6 @@ export function MindmapBoard({
       erased.current.clear()
       parts.clear()
       clearErasePreview()
-    }
-
-    if (act.kind === "linkdrag") {
-      if (linkLineRef.current) linkLineRef.current.style.display = "none"
-      const targetId = act.moved ? nodeIdAtPoint(e.clientX, e.clientY) : null
-      if (targetId && targetId !== act.from) {
-        toggleEdge(act.from, targetId)
-        setLinkFrom(null)
-      } else if (!act.moved) {
-        // Chạm (không kéo): kiểu chọn hai lần — chạm thẻ đầu rồi chạm thẻ thứ hai.
-        if (linkFrom && linkFrom !== act.from) {
-          toggleEdge(linkFrom, act.from)
-          setLinkFrom(null)
-        } else {
-          setLinkFrom(linkFrom === act.from ? null : act.from)
-          tickHaptic()
-        }
-      } else setLinkFrom(null)
     }
 
     if (act.kind === "drag") {
@@ -4802,39 +4742,14 @@ export function MindmapBoard({
                 </span>
               )}
             </div>
-            <IconBtn icon={mi.search} hint="Tìm thẻ trên bảng" onClick={openFind} />
           </>
         )}
 
-        {/* Đang tìm thì nhường hết chỗ cho ô tìm — trên màn hình 375px, giữ cả ba nút này lại sẽ
-            bóp ô nhập xuống còn vài chữ. */}
+        {/* Đang tìm thì nhường hết chỗ cho ô tìm — trên màn hình 375px, giữ cả hai nút này lại sẽ
+            bóp ô nhập xuống còn vài chữ. Công tắc "Đang sửa"/"Chỉ đọc" và nút tìm đã chuyển xuống
+            chung hàng với công cụ vẽ bên dưới cho gọn (một hàng thay vì hai) — xem hàng công cụ. */}
         {!findOpen && (
         <>
-        {/* Công tắc chỉnh sửa. Nhãn nói TRẠNG THÁI ĐANG Ở, không nói việc sẽ làm — người dùng cần
-            biết ngay "bảng này có đang ăn nét vẽ của mình không", đó mới là câu hỏi thật. */}
-        <button
-          onClick={() => {
-            setReadOnly((v) => !v)
-            setMenuOpen(false)
-            setExportOpen(false)
-            setSel(null)
-            setSelGroup(null)
-            tickHaptic()
-          }}
-          aria-pressed={readOnly}
-          className="mind-btn flex-none h-9 pl-2 pr-3 rounded-2xl border flex items-center gap-1.5 text-[12.5px] font-bold"
-          style={
-            readOnly
-              ? { borderColor: "var(--c-line)", background: "var(--c-line-soft)", color: "var(--c-text-soft)" }
-              // Nền đặc chỉ dành cho nút "＋ Thêm" (hành động chính) và con trượt công cụ đang chọn —
-              // nút công tắc này chỉ BÁO TRẠNG THÁI, không phải một hành động nổi bật cần lôi mắt.
-              : { borderColor: "var(--c-primary)", background: "transparent", color: "var(--c-primary)" }
-          }
-        >
-          {readOnly ? mi.readOnly("w-[18px] h-[18px]") : mi.pen("w-[18px] h-[18px]")}
-          {readOnly ? "Chỉ đọc" : "Đang sửa"}
-        </button>
-
         <div className="flex-none relative">
           <IconBtn
             icon={mi.share}
@@ -4922,11 +4837,44 @@ export function MindmapBoard({
         )}
       </div>
 
-      {/* ─── Thanh công cụ vẽ — chỉ hiện khi ĐANG SỬA ─────────────────────
+      {/* ─── Thanh công cụ: công tắc chế độ + tìm + công cụ vẽ ─────────────
+          LUÔN hiện, kể cả chỉ đọc — công tắc chế độ phải bấm được để quay lại sửa. Trước đây công
+          tắc "Đang sửa" và nút tìm nằm ở thanh trên, tách hẳn khỏi hàng công cụ (hai hàng); nay gộp
+          chung một hàng cho gọn. Chỉ cụm công cụ vẽ (tay/bút/tẩy/khoanh) mới ẩn khi chỉ đọc — không
+          có gì để vẽ với các nút đó lúc này.
           Mờ đi khi đang vẽ, cùng nhịp với thanh trên — xem chromeStyle/noteDrawActivity(). */}
-      {!readOnly && (
       <div className="flex-none px-3 pb-2 relative z-30" style={chromeStyle}>
         <div className="flex items-center gap-1.5 overflow-x-auto -mx-3 px-3">
+          {/* Công tắc chỉnh sửa. Nhãn nói TRẠNG THÁI ĐANG Ở, không nói việc sẽ làm — người dùng cần
+              biết ngay "bảng này có đang ăn nét vẽ của mình không", đó mới là câu hỏi thật. */}
+          <button
+            onClick={() => {
+              setReadOnly((v) => !v)
+              setMenuOpen(false)
+              setExportOpen(false)
+              setSel(null)
+              setSelGroup(null)
+              tickHaptic()
+            }}
+            aria-pressed={readOnly}
+            className="mind-btn flex-none h-9 pl-2 pr-3 rounded-2xl border flex items-center gap-1.5 text-[12.5px] font-bold"
+            style={
+              readOnly
+                ? { borderColor: "var(--c-line)", background: "var(--c-line-soft)", color: "var(--c-text-soft)" }
+                // Nền đặc chỉ dành cho nút "＋ Thêm" (hành động chính) và con trượt công cụ đang chọn —
+                // nút công tắc này chỉ BÁO TRẠNG THÁI, không phải một hành động nổi bật cần lôi mắt.
+                : { borderColor: "var(--c-primary)", background: "transparent", color: "var(--c-primary)" }
+            }
+          >
+            {readOnly ? mi.readOnly("w-[18px] h-[18px]") : mi.pen("w-[18px] h-[18px]")}
+            {readOnly ? "Chỉ đọc" : "Đang sửa"}
+          </button>
+
+          {!findOpen && <IconBtn icon={mi.search} hint="Tìm thẻ trên bảng" onClick={openFind} />}
+
+          {!readOnly && (
+          <>
+          <span className="flex-none w-px h-6 mx-0.5" style={{ background: "var(--c-line)" }} />
           <div
             className="flex-none flex items-center rounded-2xl border p-0.5 relative"
             style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
@@ -4978,6 +4926,8 @@ export function MindmapBoard({
               </span>
             ))}
           </div>
+          </>
+          )}
           {/* Hoàn tác/làm lại không còn đứng ở đây — đã chuyển thành một cụm nổi riêng, kéo-thả-neo
               mép được, luôn thấy dù đang cầm công cụ nào (xem C2 và cụm `undoBarRef` trên mặt bảng).
               Nút "…" từng đứng cạnh đó cũng đã bỏ cùng lúc: nó mở ĐÚNG cái bảng mà nút "…" trên
@@ -5459,16 +5409,6 @@ export function MindmapBoard({
                 )
               })}
             </g>
-
-            {/* Đường "cao su" khi kéo từ thẻ này sang thẻ khác để nối */}
-            <line
-              ref={linkLineRef}
-              stroke="var(--c-primary)"
-              strokeWidth={2}
-              strokeDasharray="6 5"
-              strokeLinecap="round"
-              style={{ display: "none" }}
-            />
           </svg>
 
           {/* Vùng đang khoanh (lasso) — vẽ ngay trong lúc kéo ngón */}
@@ -5524,7 +5464,6 @@ export function MindmapBoard({
             const m = nodeMetrics(n)
             const paint = nodePaint(n)
             const selected = sel?.kind === "node" && sel.id === n.id
-            const linking = linkFrom === n.id
             const inGroup = selGroup?.nodes.includes(n.id) ?? false
             const matched = findMatchIds?.has(n.id) ?? false
             const linked = n.link ? resolveLink(n.link) : null
@@ -5559,20 +5498,18 @@ export function MindmapBoard({
                   border: `${paint.borderWidth || 1}px solid ${paint.borderWidth ? paint.border : "transparent"}`,
                   boxShadow: selected
                     ? ringShadow("0 0 0 2.5px rgba(var(--c-primary-rgb),.55)", paint.shadowCss)
-                    : linking
-                      ? ringShadow("0 0 0 2.5px rgba(var(--c-accent-2-rgb),.55)", paint.shadowCss)
-                      : inGroup
-                        ? "0 0 0 2px rgba(var(--c-accent-2-rgb),.5)"
-                        : // Thẻ khớp ô tìm: viền vàng, để nhìn một cái là thấy hết chỗ nào có chữ
-                          // vừa gõ chứ không phải bấm "tiếp" từng thẻ mới biết bảng có bao nhiêu.
-                          matched
-                          ? ringShadow("0 0 0 2.5px rgba(217,119,6,.7)", paint.shadowCss)
-                          : paint.shadowCss,
+                    : inGroup
+                      ? "0 0 0 2px rgba(var(--c-accent-2-rgb),.5)"
+                      : // Thẻ khớp ô tìm: viền vàng, để nhìn một cái là thấy hết chỗ nào có chữ
+                        // vừa gõ chứ không phải bấm "tiếp" từng thẻ mới biết bảng có bao nhiêu.
+                        matched
+                        ? ringShadow("0 0 0 2.5px rgba(217,119,6,.7)", paint.shadowCss)
+                        : paint.shadowCss,
                   // Chữ CĂN GIỮA. Thẻ dài quá một dòng bị ngắt xuống, căn trái thì dòng cuối cụt lủn
                   // lệch hẳn sang trái trong một cái khung bo tròn hai đầu — nhìn như ô nhập liệu bị
                   // bỏ dở. Căn giữa thì chữ ngồi cân trong thẻ, đúng kiểu nhãn dán của sơ đồ tư duy.
                   textAlign: "center",
-                  cursor: tool === "hand" ? "grab" : tool === "link" ? "pointer" : "default",
+                  cursor: tool === "hand" ? "grab" : "default",
                   // Công cụ vẽ: cho ngón tay xuyên qua ghi chú để vẽ đè lên được.
                   pointerEvents: drawTool || tool === "eraser" ? "none" : "auto",
                   touchAction: "none",
@@ -5868,17 +5805,6 @@ export function MindmapBoard({
                     onClick={() => {
                       setColorsForId(selNode.id)
                       tickHaptic()
-                    }}
-                  />
-                  <IconBtn
-                    icon={mi.link}
-                    hint="Nối sang thẻ khác"
-                    tone="dark"
-                    size={38}
-                    onClick={() => {
-                      setTool("link")
-                      setLinkFrom(selNode.id)
-                      setSel(null)
                     }}
                   />
                   <IconBtn icon={mi.copy} hint="Nhân đôi" tone="dark" size={38} onClick={() => duplicateNode(selNode)} />
@@ -6783,19 +6709,6 @@ export function MindmapBoard({
           >
             {mi.lasso("w-4 h-4")}
             Khoanh một vòng quanh phần muốn chọn
-          </div>
-        )}
-
-        {/* Dải nhắc khi đang nối */}
-        {tool === "link" && (
-          <div
-            className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in flex items-center gap-1.5 whitespace-nowrap"
-            // Chỉ là dải chữ nhắc việc: không được nhận chạm, nếu không chạm vào nó sẽ tính là chạm
-            // vào mặt bảng (kéo bảng, hoặc để lại dấu mực khi đang chọn bút).
-            style={{ background: "var(--c-pill-dark)", color: "#fff", pointerEvents: "none" }}
-          >
-            {mi.link("w-4 h-4")}
-            {linkFrom ? "Chạm thẻ thứ hai để nối" : "Kéo từ thẻ này sang thẻ khác"}
           </div>
         )}
 

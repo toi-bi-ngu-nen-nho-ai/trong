@@ -89,9 +89,9 @@ export const INFUSION_CATEGORIES: InfusionCategoryConfig[] = [
   },
   {
     id: "electrolyte",
-    tabLabel: "Điện giải",
-    title: "Điện giải / chuyển hoá",
-    categoryLabel: "thuốc điện giải",
+    tabLabel: "Nội môi",
+    title: "Cân bằng nội môi",
+    categoryLabel: "thuốc cân bằng nội môi",
     staticDrugs: ELECTROLYTES,
     storageKey: "customElectrolytes",
     backupKey: "electrolytes",
