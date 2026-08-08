@@ -345,6 +345,14 @@ const HOLD_LASSO_MS = 400
 // Tay/bút còn nhúc nhích quá mức này (px màn hình) trong lúc giữ thì KHÔNG tính là giữ yên — đang vẽ
 // một nét chậm chứ không phải đang chờ chuyển sang khoanh vùng.
 const HOLD_LASSO_TOLERANCE = 6
+// Khoảng trễ tối thiểu (ms) giữa hai lần đồng bộ cullView từ view.current — xem khai báo cullView.
+// Đủ ngắn để lọc theo khung nhìn bắt kịp mắt trong lúc kéo/phóng, đủ dài để không setState mỗi
+// khung hình (60 lần/giây) như applyView() đang cố tránh.
+const CULL_VIEW_THROTTLE_MS = 150
+// Đệm quanh khung nhìn khi lọc thẻ/đường nối, tính theo TỈ LỆ kích thước khung nhìn (0.75 = thêm
+// 75% bề rộng/cao mỗi phía) — đủ rộng để một cú kéo/vẩy nhanh trong một nhịp trễ (CULL_VIEW_THROTTLE_MS)
+// không làm thẻ hiện ra giữa chừng ngay trước mắt.
+const CULL_VIEW_PAD_RATIO = 0.75
 
 const TOP_TOOLS: { id: TopTool; icon: (cls?: string) => React.ReactElement; hint: string }[] = [
   { id: "hand", icon: mi.hand, hint: "Di chuyển bảng và ghi chú" },
@@ -1154,6 +1162,14 @@ export function MindmapBoard({
   // Đếm ngược lúc nào radar tự mờ đi — xem showRadar() trong applyView().
   const radarHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const view = useRef({ x: 24, y: 24, zoom: 1 })
+  // Bản sao CÓ TRỄ của view.current, chỉ dùng để tính "thẻ nào đang trong khung nhìn" (lọc theo
+  // khung nhìn cho lớp thẻ/đường nối chính — xem renderedNodeIds bên dưới). view.current tự nó CỐ Ý
+  // không phải React state (xem applyView()) để kéo/phóng mượt 60fps không phải dựng lại cây React
+  // mỗi khung hình — cullView đồng bộ lại từ đó nhưng có TRỄ (throttle, xem syncCullView trong
+  // applyView), nên việc lọc cập nhật vài lần mỗi giây trong lúc kéo, không phải mỗi khung hình.
+  const [cullView, setCullView] = useState(() => ({ ...view.current }))
+  const cullViewSyncedAt = useRef(0)
+  const cullViewTrailingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const paperRef = useRef(paper)
   // Màu giấy đọc trong applyView() — hàm đó chạy ngoài vòng vẽ của React (ghi thẳng vào style), nên
   // phải lấy qua ref chứ không dùng được biến state trực tiếp.
@@ -1297,6 +1313,29 @@ export function MindmapBoard({
     }
     drawMinimapViewport()
     showRadar()
+    syncCullView()
+  }
+
+  // Đồng bộ cullView từ view.current, có TRỄ (throttle với cạnh sau — trailing edge): đủ lâu từ lần
+  // đồng bộ trước thì cập nhật ngay; chưa đủ thì hẹn đúng MỘT lần cập nhật sau khi hết hạn trễ, để
+  // lần đổi khung nhìn CUỐI trong một cú kéo/vẩy luôn tới đích, không bị bỏ sót.
+  function syncCullView() {
+    const now = performance.now()
+    const elapsed = now - cullViewSyncedAt.current
+    if (elapsed >= CULL_VIEW_THROTTLE_MS) {
+      cullViewSyncedAt.current = now
+      if (cullViewTrailingTimer.current) {
+        clearTimeout(cullViewTrailingTimer.current)
+        cullViewTrailingTimer.current = null
+      }
+      setCullView({ ...view.current })
+    } else if (!cullViewTrailingTimer.current) {
+      cullViewTrailingTimer.current = setTimeout(() => {
+        cullViewTrailingTimer.current = null
+        cullViewSyncedAt.current = performance.now()
+        setCullView({ ...view.current })
+      }, CULL_VIEW_THROTTLE_MS - elapsed)
+    }
   }
 
   // Radar chỉ hiện trong lúc khung nhìn đang đổi và một nhịp ngắn sau đó — bảng ít nội dung hoặc
@@ -1421,6 +1460,7 @@ export function MindmapBoard({
       if (radarHideTimer.current) clearTimeout(radarHideTimer.current)
       if (holdTimer.current) clearTimeout(holdTimer.current)
       if (holdLassoTimer.current) clearTimeout(holdLassoTimer.current)
+      if (cullViewTrailingTimer.current) clearTimeout(cullViewTrailingTimer.current)
       // Chỗ đang xem phải ghi NGAY khi rời màn hình, không chờ hết 500ms gộp lần ghi.
       if (viewSaveTimer.current) {
         clearTimeout(viewSaveTimer.current)
@@ -4640,6 +4680,54 @@ export function MindmapBoard({
   )
   const nodeById = new Map(nodes.map((n) => [n.id, n]))
 
+  // ─── Lọc theo khung nhìn ────────────────────────────────────────────────────
+  //
+  // Trước đây MỌI thẻ/đường nối trên bảng đều được layout dù đang ở ngoài khung nhìn — tăng tuyến
+  // tính theo TỔNG số thẻ, không phải số thẻ đang thấy. `renderedNodes`/`renderedEdges` bên dưới chỉ
+  // dùng cho LỚP VẼ CHÍNH (thẻ + đường nối trên mặt bảng) — minimap và ô viết phóng to vẫn phải dùng
+  // `visibleNodes` gốc (không lọc), vì chúng cần thấy TOÀN BỘ bảng hoặc một vùng crop KHÁC, không
+  // phải đúng khung nhìn chính.
+  const cullRect = useMemo(() => {
+    const rect = surfaceRect()
+    const { x, y, zoom } = cullView
+    const w = rect.width / zoom
+    const h = rect.height / zoom
+    const padX = w * CULL_VIEW_PAD_RATIO
+    const padY = h * CULL_VIEW_PAD_RATIO
+    const left = -x / zoom - padX
+    const top = -y / zoom - padY
+    return { left, top, right: left + w + padX * 2, bottom: top + h + padY * 2 }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cullView])
+
+  const renderedNodeIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const n of visibleNodes) {
+      const box = nodeBoxes.get(n.id)
+      if (box && box.x + box.w >= cullRect.left && box.x <= cullRect.right && box.y + box.h >= cullRect.top && box.y <= cullRect.bottom) {
+        set.add(n.id)
+      }
+    }
+    // Luôn vẽ thẻ đang chọn/đang sửa/trong nhóm khoanh/đang chạy hoạt ảnh, BẤT KỂ có nằm trong khung
+    // nhìn hay không — nếu không, thanh nổi "Sửa/Thêm nhánh/Xoá" của thẻ đang chọn có thể trỏ vào
+    // một chỗ trống (thẻ bị lọc mất) sau khi cuộn bảng đi trong lúc thẻ đó vẫn đang được chọn.
+    if (sel?.kind === "node") set.add(sel.id)
+    if (selGroup) selGroup.nodes.forEach((id) => set.add(id))
+    if (editingId) set.add(editingId)
+    if (bornId) set.add(bornId)
+    if (foundId) set.add(foundId)
+    return set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleNodes, nodeBoxes, cullRect, sel, selGroup, editingId, bornId, foundId])
+
+  const renderedNodes = useMemo(() => visibleNodes.filter((n) => renderedNodeIds.has(n.id)), [visibleNodes, renderedNodeIds])
+  // Đường nối vẽ khi MỘT TRONG HAI đầu còn trong tập render — một đầu vừa cuộn khỏi khung nhìn thì
+  // đường nối vẫn còn vẽ tới sát mép, không biến mất đột ngột giữa chừng.
+  const renderedEdges = useMemo(
+    () => visibleEdges.filter((e) => renderedNodeIds.has(e.from) || renderedNodeIds.has(e.to)),
+    [visibleEdges, renderedNodeIds],
+  )
+
   // Thẻ khớp ô tìm — chỉ tính khi ô tìm đang mở, để lúc bình thường không quét cả bảng mỗi lần vẽ.
   const findMatches = findOpen ? matchingNodes() : []
   const findMatchIds = findOpen && findQuery.trim() ? new Set(findMatches.map((n) => n.id)) : null
@@ -5358,7 +5446,7 @@ export function MindmapBoard({
             <path ref={draftPathRef} fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
             <g ref={edgeLayerRef}>
-              {visibleEdges.map((e) => {
+              {renderedEdges.map((e) => {
                 const a = nodeBoxes.get(e.from)
                 const b = nodeBoxes.get(e.to)
                 if (!a || !b) return null
@@ -5478,7 +5566,7 @@ export function MindmapBoard({
           })}
 
           {/* Thẻ ghi chú */}
-          {visibleNodes.map((n) => {
+          {renderedNodes.map((n) => {
             const m = nodeMetrics(n)
             const paint = nodePaint(n)
             const selected = sel?.kind === "node" && sel.id === n.id
@@ -5605,7 +5693,7 @@ export function MindmapBoard({
           {/* Dấu tròn ở mép thẻ đang gấp: ghi số thẻ đang ẩn bên dưới, chạm vào là mở lại.
               Phải luôn hiện (không chỉ khi thẻ được chọn) vì nếu không, một nhánh gấp lại trông y hệt
               một thẻ chưa có nhánh con nào — người dùng sẽ tưởng mình vừa làm mất mấy chục thẻ. */}
-          {visibleNodes.map((n) => {
+          {renderedNodes.map((n) => {
             if (!n.collapsed) return null
             const count = hiddenCounts.get(n.id) ?? 0
             if (count === 0) return null
