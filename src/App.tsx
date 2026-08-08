@@ -5065,7 +5065,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
     .join(" · ")
 
   return (
-    <div className="mx-5 mb-3 rounded-[20px]" style={{ background: "var(--c-surface)" }}>
+    <div className="mx-5 mb-3" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left">
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
@@ -5200,12 +5200,13 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             defaultOpen={patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
           >
             <PatientField label="Creatinin">
-              {/* flex-1 min-w-0: flex item mặc định min-width:auto (theo nội dung), nên ô nhập đứng
-                  cạnh khối chọn đơn vị flex-none sẽ không chịu co lại dưới độ rộng nội dung của nó —
-                  trên máy hẹp (iPhone), cả hàng tràn ra ngoài thẻ thay vì ô nhập co lại. Cùng lỗi và
-                  cùng cách sửa đã dùng cho ô "Đặt tên công thức" trong WardRecipeChips. */}
-              <div className="flex gap-1.5">
-                <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={`${FIELD} flex-1 min-w-0`} style={FIELD_STYLE} />
+              {/* flex-wrap + min-w-[96px]: trên máy hẹp (iPhone SE, hoặc cỡ chữ hệ thống lớn), ô nhập
+                  co tới 96px rồi khối chọn đơn vị (mg/dL · µmol/L) tự XUỐNG DÒNG thay vì bị đẩy tràn
+                  ra ngoài thẻ và bị màn hình xén mất — min-w-0 trước đây co ô nhập về gần 0px, nhìn
+                  như lỗi méo ô chứ không giải quyết được tràn khi khối đơn vị đã đủ rộng để tự nó
+                  không vừa hàng. */}
+              <div className="flex flex-wrap gap-1.5">
+                <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={`${FIELD} flex-1 min-w-[96px]`} style={FIELD_STYLE} />
                 {/* h-11 trên chính khung viền, không phải trên các nút bên trong — nếu không, viền
                     1px cộng thêm làm khối này cao 46px và lệch 2px so với ô nhập bên cạnh. */}
                 <div className={`flex h-11 ${R.input} overflow-hidden border flex-none`} style={{ borderColor: C.primaryLine }}>
