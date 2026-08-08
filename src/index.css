@@ -6,6 +6,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
+/* DESIGN.md: JetBrains Mono dành riêng cho số liều/nồng độ/tốc độ bơm màn "Dùng thuốc" — đọc rõ
+   từng ký tự (1/l, 0/O dễ lẫn ở font thường), quan trọng khi đọc trong buồng tối/qua kính bảo hộ.
+   Font đã tải sẵn ở @import trên (trước đây chỉ nối dây cho định dạng ghi chú Sơ đồ tư duy — xem
+   STYLE_FONT_STACKS trong lib/mindmapStyle.ts — chưa từng áp cho số liều dù đã tải về). */
+.font-mono-dose {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 :root {
   /* ─── Vùng an toàn của máy (tai thỏ / Dynamic Island ở trên, thanh gạt Home ở dưới) ───────────
      Gom về hai biến để mọi nơi dùng chung MỘT nguồn, và để kiểm thử được: mở DevTools gán

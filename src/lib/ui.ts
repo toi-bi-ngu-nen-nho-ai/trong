@@ -40,6 +40,14 @@ export const T = {
 // các dòng lệch nhau từng chút một.
 export const NUM = "tabular-nums"
 
+// Font đơn cách dành RIÊNG cho số liều/nồng độ/tốc độ bơm — DESIGN.md quy định JetBrains Mono cho
+// đúng nhóm này để đọc rõ từng ký tự (buồng tối, qua kính bảo hộ, 1/l và 0/O dễ đọc nhầm ở font
+// thường). Cố ý KHÔNG gộp vào `NUM`: rất nhiều chỗ dùng `NUM` chỉ để canh cột tabular-nums cho một
+// câu tiếng Việt bình thường (vd "Ghim 14:05 · 3 giờ trước") — đổi cả câu đó sang monospace không
+// đúng mục đích của quy tắc. Chỉ ghép NUM_DOSE vào đúng span hiển thị con số liều/tốc độ QUYẾT ĐỊNH
+// việc đặt bơm, không phải mọi nơi có số.
+export const NUM_DOSE = "tabular-nums font-mono-dose"
+
 // ─── Bo góc: đúng 4 giá trị ──────────────────────────────────────────────────
 export const R = {
   input: "rounded-[10px]",

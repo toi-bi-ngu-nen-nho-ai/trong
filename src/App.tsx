@@ -88,7 +88,7 @@ import { BlockContent } from "./components/BlockContent"
 import { MindmapBoard } from "./components/MindmapBoard"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
-import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, R, T, TAP, adminRouteLabel, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
+import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, R, T, TAP, adminRouteLabel, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -5044,7 +5044,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   return (
     <div className="mx-5 mb-3 rounded-2xl" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
-        <button onClick={onToggle} className="flex-1 min-w-0 text-left">
+        <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left">
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
             Bệnh nhân hiện tại
           </p>
@@ -5064,7 +5064,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               resetPatient()
               tickHaptic()
             }}
-            className="flex-none h-8 px-2.5 rounded-full text-[12px] font-bold border"
+            className="flex-none min-h-[44px] px-2.5 rounded-full text-[12px] font-bold border"
             style={
               confirmReset
                 ? { background: "var(--c-danger)", borderColor: "var(--c-danger)", color: "var(--c-on-bright)" }
@@ -5224,7 +5224,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             {/* Trước đây khi crclUsable=false vẫn hiện to con số CrCl thật, chỉ đổi màu xám — quá
                 yếu để nói "con số này KHÔNG được dùng chọn bậc liều". Đổi hẳn sang "—": im lặng
                 còn an toàn hơn một con số đúng-về-mặt-tính-toán nhưng sai-về-mặt-lâm-sàng. */}
-            <span className={`${T.metric} flex-none ${NUM}`} style={{ color: crclUsable ? C.primary : C.muted }}>
+            <span className={`${T.metric} flex-none ${NUM_DOSE}`} style={{ color: crclUsable ? C.primary : C.muted }}>
               {crclDisplay}
             </span>
             <div className="min-w-0">
@@ -5389,6 +5389,11 @@ function RunningPanel() {
   // không hề được báo. Bấm "×" chỉ ĐÁNH DẤU chờ xoá (hàng mờ đi + nút đổi thành "Hoàn tác") — xoá
   // thật sự chỉ xảy ra sau 5 giây, đủ để bấm nhầm còn kịp sửa.
   const [pendingRemove, setPendingRemove] = useState<Record<string, true>>({})
+  // Đổi nòng là thao tác HIẾM (hầu hết thuốc không bao giờ đổi nòng suốt ca), nhưng trước đây 4 chip
+  // nòng luôn mở sẵn trên MỌI dòng — 4×44px + nút xoá 44px = 236/375px, tên thuốc phải truncate.
+  // Nay mặc định chỉ hiện MỘT chip báo nòng hiện tại; chạm vào mới mở 4 lựa chọn, chọn xong tự đóng.
+  // Chỉ một dòng mở rộng cùng lúc — mở dòng khác thì dòng cũ tự đóng, không cần nhớ đóng tay.
+  const [expandedLineId, setExpandedLineId] = useState<string | null>(null)
   const pendingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   useEffect(() => () => { Object.values(pendingTimers.current).forEach(clearTimeout) }, [])
   function requestUnpin(id: string) {
@@ -5456,7 +5461,10 @@ function RunningPanel() {
 
       {lines.map((line) => (
         <div key={line} className="mb-2.5">
-          <p className="text-[12px] font-bold text-slate-400 mb-1">{lineLabel(line)}</p>
+          {/* text-slate-500 (→ --c-text-muted, ~5,8:1) chứ không phải -400 (→ --c-muted, ~3,1:1) —
+              đây là NHÃN MỤC thật phải đọc được ("Nòng 2"...), không phải icon/placeholder. Cùng
+              lỗi mà SectionLabel đã tự sửa cho chính nó nhưng chưa lan sang nhãn này. */}
+          <p className="text-[12px] font-bold text-slate-500 mb-1">{lineLabel(line)}</p>
           {running
             .filter((r) => r.line === line)
             .map((r) => (
@@ -5491,27 +5499,42 @@ function RunningPanel() {
                   )}
                 </div>
                 <div className="flex items-center flex-none">
-                  {/* Trước đây 4 chip nòng 36×36px (dưới ngưỡng 44px mà chính app đặt ra ở
-                      CHIP/TAP) đứng SÁT nút "×" xoá 44px đỏ — đeo găng, buồng tối, chạm hụt một
-                      nòng là rơi vào nút xoá. Bơm đủ 44px cho chip nòng VÀ tách hẳn khỏi nút xoá
-                      bằng một khoảng trống rõ ràng thay vì chỉ cách nhau 4px như mọi chip khác. */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: MAX_LINES }, (_, i) => i).map((l) => (
-                      <button
-                        key={l}
-                        onClick={() => setRunningLine(r.id, l)}
-                        className="w-11 h-11 rounded-full text-[12px] font-bold border"
-                        style={
-                          r.line === l
-                            ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
-                            : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-                        }
-                        aria-label={`Chuyển sang ${lineLabel(l)}`}
-                      >
-                        {l === 0 ? "NB" : l}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Trước đây 4 chip nòng LUÔN mở trên mọi dòng — 4×44px chiếm gần 2/3 bề ngang
+                      hàng, đẩy tên thuốc phải truncate dù đổi nòng là thao tác hiếm. Mặc định chỉ
+                      hiện MỘT chip báo nòng hiện tại (vẫn đủ 44px, vẫn tách khỏi nút xoá bằng
+                      khoảng trống rõ ràng — đeo găng/buồng tối không chạm hụt sang nút xoá đỏ);
+                      chạm vào mới bung 4 lựa chọn, chọn xong tự đóng lại. */}
+                  {expandedLineId === r.id ? (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: MAX_LINES }, (_, i) => i).map((l) => (
+                        <button
+                          key={l}
+                          onClick={() => {
+                            setRunningLine(r.id, l)
+                            setExpandedLineId(null)
+                          }}
+                          className="w-11 h-11 rounded-full text-[12px] font-bold border"
+                          style={
+                            r.line === l
+                              ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                              : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+                          }
+                          aria-label={`Chuyển sang ${lineLabel(l)}`}
+                        >
+                          {l === 0 ? "NB" : l}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setExpandedLineId(r.id)}
+                      className="w-11 h-11 rounded-full text-[12px] font-bold border"
+                      style={{ background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }}
+                      aria-label={`Đang ở ${lineLabel(r.line)} — chạm để đổi nòng`}
+                    >
+                      {r.line === 0 ? "NB" : r.line}
+                    </button>
+                  )}
                   <div className="w-4 flex-none" aria-hidden="true" />
                   {pendingRemove[r.id] ? (
                     <button
@@ -5546,7 +5569,7 @@ function RunningPanel() {
         </div>
       ) : (
       <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
-        <p className="text-[12px] font-bold mb-1.5 text-slate-400">Chạy chung nòng (Y-site)</p>
+        <p className="text-[12px] font-bold mb-1.5 text-slate-500">Chạy chung nòng (Y-site)</p>
         {ysiteFindings.length === 0 ? (
           <p className="text-[12px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
         ) : (
@@ -5572,7 +5595,7 @@ function RunningPanel() {
           })
         )}
 
-        <p className="text-[12px] font-bold mb-1.5 mt-2.5 text-slate-400">Tương tác thuốc</p>
+        <p className="text-[12px] font-bold mb-1.5 mt-2.5 text-slate-500">Tương tác thuốc</p>
         {interactionFindings.length === 0 ? (
           <p className="text-[12px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
         ) : (
@@ -8427,6 +8450,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const [rateInput, setRateInput] = useState("")
   const [bagVolume, setBagVolume] = useState(ward ? String(ward.volumeMl) : calc.mix ? String(calc.mix.volumeMl) : "")
   const [showMix, setShowMix] = useState(false)
+  // Cảnh báo ngoại biên trước đây LUÔN vẽ đủ 2 câu (~257px) ngay khi vượt ngưỡng, đẩy khung kết quả
+  // ra xa ô nhập liều gần nửa màn hình. Mặc định chỉ hiện một dòng khẳng định + nút xem chi tiết —
+  // vẫn không bao giờ im lặng (đây là cảnh báo an toàn), chỉ không còn chiếm chỗ cố định.
+  const [showPeripheralDetail, setShowPeripheralDetail] = useState(false)
   // "Xoá công thức này" xoá dữ liệu ĐÃ LƯU (không phải dòng nháp) nên cần xác nhận hai chạm giống
   // ConfirmIconButton — nhãn tự đổi thành "Chắc chắn xoá?" ở chạm đầu, rời tay khỏi nút (blur) thì
   // huỷ, chạm lần hai mới thật sự xoá.
@@ -8732,20 +8759,195 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           sai chỗ. Nay chỉ hiện khi nồng độ ĐANG DÙNG thực sự vượt ngưỡng, nên nó không phải một
           dòng chữ thường trực để người ta học cách lướt qua. */}
       {peripheralWarn && (
-        <div className={`flex items-start gap-2 px-3 py-2.5 ${R.box} mb-2`} style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <span className="mt-0.5 flex-none" style={{ color: "var(--c-warn-icon)" }}>{icons.alert()}</span>
-          <div>
-            <p className={`${T.bodyStrong} font-extrabold leading-[1.3]`} style={{ color: "var(--c-warn)" }}>
+        <div className={`${R.box} mb-2 overflow-hidden`} style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <button
+            type="button"
+            onClick={() => setShowPeripheralDetail((v) => !v)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-left"
+            aria-expanded={showPeripheralDetail}
+          >
+            <span className="flex-none" style={{ color: "var(--c-warn-icon)" }}>{icons.alert()}</span>
+            <span className={`${T.bodyStrong} font-extrabold leading-[1.3] flex-1`} style={{ color: "var(--c-warn)" }}>
               Đặc hơn ngưỡng cho đường ngoại biên
-            </p>
-            <p className={`${T.meta} mt-0.5`} style={{ color: "var(--c-warn)" }}>
+            </span>
+            <span className="flex-none" style={{ color: "var(--c-warn)", transform: showPeripheralDetail ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
+              {icons.chevronDown()}
+            </span>
+          </button>
+          {showPeripheralDetail && (
+            <p className={`${T.meta} px-3 pb-2.5`} style={{ color: "var(--c-warn)" }}>
               Đang pha {formatDoseNumber(peripheralWarn.conc)} {calc.concUnit}, gấp {formatDoseNumber(peripheralWarn.factor)} lần ngưỡng{" "}
               {formatDoseNumber(peripheralWarn.max)} {calc.concUnit} — nồng độ này thuộc nhóm ưu tiên tĩnh mạch trung tâm.
               {peripheralWarn.note ? ` ${peripheralWarn.note}` : ""}
             </p>
+          )}
+        </div>
+      )}
+      {/* Cảnh báo vượt/thấp hơn khoảng liều — đổi màu, in hoa, và với mức nguy hiểm thì CHẶN kết quả
+          cho tới khi người dùng xác nhận. */}
+      {check?.headline && (
+        <div
+          className="flex items-start gap-2 px-3 py-2.5 rounded-xl mb-2"
+          style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
+        >
+          <span className="mt-0.5 flex-none" style={{ color: severityStyle.text }}>{icons.alert()}</span>
+          <div>
+            <p className="text-[13px] font-extrabold leading-[1.3]" style={{ color: severityStyle.text }}>{check.headline}</p>
+            {check.detail && <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: severityStyle.text }}>{check.detail}</p>}
           </div>
         </div>
       )}
+
+      {/* aria-live bọc CẢ HAI nhánh: trước đây chỉ nhánh "có kết quả" có aria-live, nên lúc kết quả
+          bị CHE (chuyển sang nút xác nhận) trình đọc màn hình im lặng hoàn toàn — người dùng không
+          biết con số vừa biến mất, chỉ có nút xác nhận thay vào đó. */}
+      <div aria-live="polite" aria-atomic="true">
+      {blocked ? (
+        <button
+          onClick={() => {
+            const reason = [check?.requiresConfirm ? check.headline : null, concGrade.requiresConfirm ? concGrade.headline : null]
+              .filter(Boolean)
+              .join(" + ")
+            setConfirmed(true)
+            logCurrent(`${reason} — người dùng đã bấm xác nhận để xem kết quả`)
+            confirmSaved("Đã ghi vào nhật ký kèm cảnh báo")
+            tickHaptic()
+          }}
+          className={`${BTN_TALL} border-transparent`}
+          style={{ background: severityStyle.text, color: "var(--c-on-bright)" }}
+        >
+          Tôi đã kiểm tra lại — vẫn muốn xem kết quả
+        </button>
+      ) : (
+        // Con số duy nhất cần nhìn thấy từ xa. Đặt to hẳn một bậc so với mọi chữ khác trong thẻ,
+        // dùng chữ số đều bề ngang (tabular) để hàng "đặt bơm" và hàng "thực nhận" thẳng cột nhau.
+        <div
+          className={`px-3 py-3 ${R.box}`}
+          style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
+          role={severity === "extreme" ? "alert" : undefined}
+        >
+          {usageLine && (
+            <div className="flex items-start gap-1.5 mb-1.5">
+              <p className={`${T.bodyStrong} flex-1`} style={{ color: severityStyle.text }}>{usageLine}</p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(usageLine)
+                    setUsageCopied(true)
+                    setTimeout(() => setUsageCopied(false), 1500)
+                    tickHaptic()
+                  } catch {
+                    // Trình duyệt chặn clipboard: không làm gì, nút vẫn giữ nguyên nhãn.
+                  }
+                }}
+                aria-label={usageCopied ? "Đã chép" : "Chép câu Cách dùng"}
+                className="flex-none w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ color: severityStyle.text, opacity: 0.75 }}
+              >
+                {usageCopied ? icons.check() : icons.copy()}
+              </button>
+            </div>
+          )}
+          <div className="flex items-baseline gap-2">
+            {/* Đếm chạy từ số cũ sang số mới (useCountUp) thay vì bật thẳng vào số mới — số này
+                chạy lên bơm thật nên "đổi tăng hay giảm, đổi bao nhiêu" đáng nhìn thấy rõ hơn cả
+                "đã đổi". Khoá cứng về đúng formatDoseNumber() ngay khi đếm xong. */}
+            <span className={`${T.metric} ${NUM_DOSE}`} style={{ color: severityStyle.text }}>
+              {resultDisplay}
+            </span>
+            <span className={T.body} style={{ color: C.textSoft }}>{mode === "doseToRate" ? "mL/giờ" : unitId}</span>
+            {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai */}
+            {severity === "ok" && result != null && check != null && (
+              <span className={`${T.meta} ml-auto flex items-center gap-1 flex-none`} style={{ color: C.accent }}>
+                <span className="scale-75">{icons.check()}</span>
+                Trong khoảng
+              </span>
+            )}
+          </div>
+          {mode === "doseToRate" && roundedRate != null && (
+            // Con số 24px bên trên là kết quả TÍNH; đây mới là con số thật sự đem đi đặt máy —
+            // nên đứng ở bậc T.critical (15px), không phải T.meta như một dòng chú thích phụ.
+            <p className={`${T.critical} ${NUM} mt-1.5`} style={{ color: severityStyle.text }}>
+              Đặt bơm <b className={NUM_DOSE}>{roundedRate.toFixed(rateDecimals)} mL/giờ</b> (bước {pumpStep})
+              {deliveredDose != null && ` → thực nhận ${formatDoseNumber(deliveredDose)} ${unitId}`}
+            </p>
+          )}
+          {duration != null && (
+            <p className={`${T.meta} ${NUM} mt-0.5`} style={{ color: C.textSoft }}>
+              {trim(bagVol)} mL ở {effectiveRate?.toFixed(rateDecimals)} mL/giờ → hết sau <b>{formatDuration(duration)}</b>
+            </p>
+          )}
+          {check?.severity === "unknown" && check.detail && (
+            <p className={`${T.meta} mt-0.5`} style={{ color: C.textSoft }}>{check.detail}</p>
+          )}
+          {/* Dấu "—" không bao giờ được đứng một mình: luôn kèm lý do và cách sửa. */}
+          {missingReason &&
+            (missingReason.fix ? (
+              <button onClick={missingReason.fix} className={`${T.meta} font-semibold text-left mt-1 underline`} style={{ color: C.warn }}>
+                {missingReason.text}
+              </button>
+            ) : (
+              <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>{missingReason.text}</p>
+            ))}
+        </div>
+      )}
+      </div>
+
+      {/* Hai hành động này KHÔNG ngang hàng nhau về tầm quan trọng, nên không còn vẽ thành hai nút
+          bằng nhau cạnh nhau nữa — cách cũ (flex-1 flex-1) chỉ chừa ~147px mỗi nút trên máy 375px,
+          đủ để "Thêm vào danh sách đang dùng" vỡ thành 3 dòng chữ chồng lên nhau, và người dùng
+          không có cách nào phân biệt hành động nào là chính giữa hai ô trông y hệt nhau.
+          Nay: MỘT nút chính (ghim thuốc — đặc màu, có icon, chiếm trọn hàng, luôn đủ chỗ cho một
+          dòng chữ) và một hành động phụ bên dưới (chỉ ghi nhật ký, không ghim — nhạt hơn hẳn về
+          màu sắc nhưng vẫn đủ 44px chiều cao để bấm được khi đeo găng). */}
+      {!blocked && result != null && (
+        <div className="flex flex-col gap-1.5 mt-2">
+          <button
+            onClick={() => {
+              pinRunning({
+                drugId: drug.id,
+                name: drug.name,
+                compatKey: drug.compatKey,
+                line: 1,
+                doseText,
+                rateText,
+                concText: `${conc} ${calc.concUnit}`,
+                kind: "infusion",
+                weightKgAtPin: weightKg,
+                concAtPin: conc,
+              })
+              logCurrent(activeFlag ? `${activeFlag} — vẫn ghim vào bảng đang dùng` : undefined)
+              confirmSaved("Đã thêm vào danh sách đang dùng")
+              tickHaptic()
+            }}
+            className={`${BTN_TALL} border-transparent flex items-center justify-center gap-1.5`}
+            style={{ background: C.accent, color: "var(--c-on-bright)" }}
+          >
+            <span className="flex-none scale-90">{icons.plus()}</span>
+            Thêm vào danh sách đang dùng
+          </button>
+          <button
+            onClick={() => {
+              logCurrent(activeFlag)
+              confirmSaved("Đã lưu vào nhật ký")
+              tickHaptic()
+            }}
+            className={`w-full min-h-[44px] px-3 py-2 ${R.box} ${T.chip} flex items-center justify-center gap-1.5 dose-press`}
+            style={{ background: C.lineSoft, color: C.textSoft }}
+          >
+            <span className="flex-none scale-90">{icons.doc()}</span>
+            Chỉ lưu vào nhật ký, không ghim
+          </button>
+        </div>
+      )}
+
+      {/* ─── Tham khảo pha thuốc — đứng SAU khung kết quả ─────────────────────────
+          Trước đây khối này (công thức đã lưu, bảng pha, thể tích bơm) nằm GIỮA ô nhập liều và
+          khung kết quả, đẩy chúng cách nhau tới 439px đo được trên máy 375px — gõ liều xong, bàn
+          phím ảo che nốt phần còn lại, không thấy con số. Không khối nào trong đây là INPUT bắt
+          buộc để tính tốc độ bơm (nồng độ đã có ô riêng ở trên); chúng chỉ hỗ trợ TRA CỨU/PHA
+          thuốc và tính thêm "hết sau bao lâu" — hợp lý đứng sau khi đã thấy câu trả lời chính. */}
       {calc.mix?.stability && (
         <p className={`${T.meta} mb-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.lineSoft, color: C.textSoft }}>
           Sau khi pha: {calc.mix.stability}
@@ -8895,160 +9097,6 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         )}
       </div>
 
-      {/* Cảnh báo vượt/thấp hơn khoảng liều — đổi màu, in hoa, và với mức nguy hiểm thì CHẶN kết quả
-          cho tới khi người dùng xác nhận. */}
-      {check?.headline && (
-        <div
-          className="flex items-start gap-2 px-3 py-2.5 rounded-xl mb-2"
-          style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
-        >
-          <span className="mt-0.5 flex-none" style={{ color: severityStyle.text }}>{icons.alert()}</span>
-          <div>
-            <p className="text-[13px] font-extrabold leading-[1.3]" style={{ color: severityStyle.text }}>{check.headline}</p>
-            {check.detail && <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: severityStyle.text }}>{check.detail}</p>}
-          </div>
-        </div>
-      )}
-
-      {blocked ? (
-        <button
-          onClick={() => {
-            const reason = [check?.requiresConfirm ? check.headline : null, concGrade.requiresConfirm ? concGrade.headline : null]
-              .filter(Boolean)
-              .join(" + ")
-            setConfirmed(true)
-            logCurrent(`${reason} — người dùng đã bấm xác nhận để xem kết quả`)
-            confirmSaved("Đã ghi vào nhật ký kèm cảnh báo")
-            tickHaptic()
-          }}
-          className={`${BTN_TALL} border-transparent`}
-          style={{ background: severityStyle.text, color: "var(--c-on-bright)" }}
-        >
-          Tôi đã kiểm tra lại — vẫn muốn xem kết quả
-        </button>
-      ) : (
-        // Con số duy nhất cần nhìn thấy từ xa. Đặt to hẳn một bậc so với mọi chữ khác trong thẻ,
-        // dùng chữ số đều bề ngang (tabular) để hàng "đặt bơm" và hàng "thực nhận" thẳng cột nhau.
-        <div
-          className={`px-3 py-3 ${R.box}`}
-          style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
-          aria-live="polite"
-          role={severity === "extreme" ? "alert" : undefined}
-        >
-          {usageLine && (
-            <div className="flex items-start gap-1.5 mb-1.5">
-              <p className={`${T.bodyStrong} flex-1`} style={{ color: severityStyle.text }}>{usageLine}</p>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(usageLine)
-                    setUsageCopied(true)
-                    setTimeout(() => setUsageCopied(false), 1500)
-                    tickHaptic()
-                  } catch {
-                    // Trình duyệt chặn clipboard: không làm gì, nút vẫn giữ nguyên nhãn.
-                  }
-                }}
-                aria-label={usageCopied ? "Đã chép" : "Chép câu Cách dùng"}
-                className="flex-none w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ color: severityStyle.text, opacity: 0.75 }}
-              >
-                {usageCopied ? icons.check() : icons.copy()}
-              </button>
-            </div>
-          )}
-          <div className="flex items-baseline gap-2">
-            {/* Đếm chạy từ số cũ sang số mới (useCountUp) thay vì bật thẳng vào số mới — số này
-                chạy lên bơm thật nên "đổi tăng hay giảm, đổi bao nhiêu" đáng nhìn thấy rõ hơn cả
-                "đã đổi". Khoá cứng về đúng formatDoseNumber() ngay khi đếm xong. */}
-            <span className={`${T.metric} ${NUM}`} style={{ color: severityStyle.text }}>
-              {resultDisplay}
-            </span>
-            <span className={T.body} style={{ color: C.textSoft }}>{mode === "doseToRate" ? "mL/giờ" : unitId}</span>
-            {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai */}
-            {severity === "ok" && result != null && check != null && (
-              <span className={`${T.meta} ml-auto flex items-center gap-1 flex-none`} style={{ color: C.accent }}>
-                <span className="scale-75">{icons.check()}</span>
-                Trong khoảng
-              </span>
-            )}
-          </div>
-          {mode === "doseToRate" && roundedRate != null && (
-            // Con số 24px bên trên là kết quả TÍNH; đây mới là con số thật sự đem đi đặt máy —
-            // nên đứng ở bậc T.critical (15px), không phải T.meta như một dòng chú thích phụ.
-            <p className={`${T.critical} ${NUM} mt-1.5`} style={{ color: severityStyle.text }}>
-              Đặt bơm <b>{roundedRate.toFixed(rateDecimals)} mL/giờ</b> (bước {pumpStep})
-              {deliveredDose != null && ` → thực nhận ${formatDoseNumber(deliveredDose)} ${unitId}`}
-            </p>
-          )}
-          {duration != null && (
-            <p className={`${T.meta} ${NUM} mt-0.5`} style={{ color: C.textSoft }}>
-              {trim(bagVol)} mL ở {effectiveRate?.toFixed(rateDecimals)} mL/giờ → hết sau <b>{formatDuration(duration)}</b>
-            </p>
-          )}
-          {check?.severity === "unknown" && check.detail && (
-            <p className={`${T.meta} mt-0.5`} style={{ color: C.textSoft }}>{check.detail}</p>
-          )}
-          {/* Dấu "—" không bao giờ được đứng một mình: luôn kèm lý do và cách sửa. */}
-          {missingReason &&
-            (missingReason.fix ? (
-              <button onClick={missingReason.fix} className={`${T.meta} font-semibold text-left mt-1 underline`} style={{ color: C.warn }}>
-                {missingReason.text}
-              </button>
-            ) : (
-              <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>{missingReason.text}</p>
-            ))}
-        </div>
-      )}
-
-      {/* Hai hành động này KHÔNG ngang hàng nhau về tầm quan trọng, nên không còn vẽ thành hai nút
-          bằng nhau cạnh nhau nữa — cách cũ (flex-1 flex-1) chỉ chừa ~147px mỗi nút trên máy 375px,
-          đủ để "Thêm vào danh sách đang dùng" vỡ thành 3 dòng chữ chồng lên nhau, và người dùng
-          không có cách nào phân biệt hành động nào là chính giữa hai ô trông y hệt nhau.
-          Nay: MỘT nút chính (ghim thuốc — đặc màu, có icon, chiếm trọn hàng, luôn đủ chỗ cho một
-          dòng chữ) và một hành động phụ bên dưới (chỉ ghi nhật ký, không ghim — nhạt hơn hẳn về
-          màu sắc nhưng vẫn đủ 44px chiều cao để bấm được khi đeo găng). */}
-      {!blocked && result != null && (
-        <div className="flex flex-col gap-1.5 mt-2">
-          <button
-            onClick={() => {
-              pinRunning({
-                drugId: drug.id,
-                name: drug.name,
-                compatKey: drug.compatKey,
-                line: 1,
-                doseText,
-                rateText,
-                concText: `${conc} ${calc.concUnit}`,
-                kind: "infusion",
-                weightKgAtPin: weightKg,
-                concAtPin: conc,
-              })
-              logCurrent(activeFlag ? `${activeFlag} — vẫn ghim vào bảng đang dùng` : undefined)
-              confirmSaved("Đã thêm vào danh sách đang dùng")
-              tickHaptic()
-            }}
-            className={`${BTN_TALL} border-transparent flex items-center justify-center gap-1.5`}
-            style={{ background: C.accent, color: "var(--c-on-bright)" }}
-          >
-            <span className="flex-none scale-90">{icons.plus()}</span>
-            Thêm vào danh sách đang dùng
-          </button>
-          <button
-            onClick={() => {
-              logCurrent(activeFlag)
-              confirmSaved("Đã lưu vào nhật ký")
-              tickHaptic()
-            }}
-            className={`w-full min-h-[44px] px-3 py-2 ${R.box} ${T.chip} flex items-center justify-center gap-1.5 dose-press`}
-            style={{ background: C.lineSoft, color: C.textSoft }}
-          >
-            <span className="flex-none scale-90">{icons.doc()}</span>
-            Chỉ lưu vào nhật ký, không ghim
-          </button>
-        </div>
-      )}
       {/* Xác nhận việc vừa làm đã xong — dải xanh có dấu tích, tự mờ đi sau ~1,8s. `key` để mỗi
           lần lưu lại là một lần hiện mới, kể cả khi nội dung không đổi. */}
       {savedNote && (
@@ -9374,7 +9422,7 @@ function InfusionCategoryScreen({
               ? "Không tìm thấy thuốc phù hợp."
               : !selected
                 ? "Chọn một thuốc ở trên để mở máy tính pha và liều."
-                : "Chọn chỉ định ở trên (hoặc Liều chung) để tiếp tục."}
+                : "Chọn chỉ định ở trên để tiếp tục."}
           </p>
         )}
       </div>
@@ -9693,12 +9741,16 @@ function DungThuocScreen({
                 Tìm
               </span>
             </button>
+            {/* Cùng kỹ thuật đệm dọc vô hình với nút "Tìm" cạnh nó: pill nhìn thấy vẫn cao 36px
+                (khớp hàng tiêu đề min-h-9), nhưng vùng CHẠM của chính button là 44px. */}
             <button
               onClick={() => setShowLog(true)}
-              className={`flex-none h-9 px-3 ${R.pill} ${T.label} border`}
-              style={{ borderColor: C.line, color: C.textSoft }}
+              className="flex-none flex items-center justify-center py-1"
+              aria-label={`Nhật ký${recentLogCount > 0 ? ` · ${recentLogCount} mục gần đây` : ""}`}
             >
-              Nhật ký{recentLogCount > 0 ? ` · ${recentLogCount}` : ""}
+              <span className={`h-9 px-3 ${R.pill} ${T.label} border flex items-center`} style={{ borderColor: C.line, color: C.textSoft }}>
+                Nhật ký{recentLogCount > 0 ? ` · ${recentLogCount}` : ""}
+              </span>
             </button>
           </>
         }
@@ -9756,10 +9808,13 @@ function DungThuocScreen({
           // cuộn xa hơn.
           className="scroll-ios flex gap-3 px-5 overflow-x-auto"
           style={{ scrollbarWidth: "none" }}
+          role="tablist"
+          aria-label="Nhóm thuốc"
         >
           {MIXING_TABS.map((t) => (
             <button
               key={t.id}
+              id={`mixing-tab-${t.id}`}
               ref={tab === t.id ? activeTabRef : null}
               onClick={() => withViewTransition(() => setTab(t.id))}
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
@@ -9768,6 +9823,9 @@ function DungThuocScreen({
               // --c-text-muted trên --c-line-soft chỉ ~4,1:1 ở 12px đậm — dưới ngưỡng AA 4,5:1.
               // Đổi sang --c-text-soft cho tab CHƯA chọn (đọc nhiều, phải rõ).
               style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
+              role="tab"
+              aria-selected={tab === t.id}
+              aria-controls="mixing-tabpanel"
             >
               {t.label}
             </button>
@@ -9782,7 +9840,14 @@ function DungThuocScreen({
         <DisclaimerBar />
         <PatientPanel open={patientOpen} onToggle={() => setPatientOpen((v) => !v)} />
         <RunningPanel />
-        <div key={`${tab}-${jumpKey}`} className="fade-in" style={{ viewTransitionName: "dose-tab-panel" } as React.CSSProperties}>
+        <div
+          key={`${tab}-${jumpKey}`}
+          className="fade-in"
+          style={{ viewTransitionName: "dose-tab-panel" } as React.CSSProperties}
+          role="tabpanel"
+          id="mixing-tabpanel"
+          aria-labelledby={`mixing-tab-${tab}`}
+        >
           {tab === "antibiotics" ? (
             <AntibioticsScreen customDrugs={customAntibiotics} diseases={diseases} onAddNew={onAddAntibiotic} onEdit={onEditAntibiotic} onDelete={onDeleteAntibiotic} />
           ) : (
@@ -11594,7 +11659,11 @@ export default function App() {
 
         {/* Vùng nội dung chiếm hết chiều cao còn lại SAU khi trừ thanh nav — nội dung dừng hẳn
             phía trên thanh nav, không thẻ nào bị cắt ngang. */}
-        <div className={`flex-1 overflow-hidden${isDetailScreen ? "" : " has-nav"}`}>
+        {/* Landmark <main>: trước đây toàn trang không có landmark ngữ nghĩa nào, trình đọc màn
+            hình không có cách "nhảy" qua phần đầu (disclaimer, khung bệnh nhân...) tới thẳng nội
+            dung chính. Đổi thẳng thẻ, không đổi class/style — main không có style mặc định khác
+            div nên an toàn với toàn bộ layout đang có. */}
+        <main className={`flex-1 overflow-hidden${isDetailScreen ? "" : " has-nav"}`}>
           {screen === "home" && <HomeScreen onNavigate={navigate} ecgCount={allEcgLessons.length} recentReads={recentReadItems} />}
           {screen === "library" && <LibraryScreen onNavigate={navigate} customArticles={customArticlesCol.items} />}
           {screen === "search" && (
@@ -11762,7 +11831,7 @@ export default function App() {
           )}
           {screen === "addFlashcard" && <AddFlashcardScreen onSave={handleSaveFlashcard} onBack={goBack} />}
           {screen === "comingSoon" && <ComingSoonScreen feature={comingSoonFeature} onBack={goBack} />}
-        </div>
+        </main>
 
         {/* Thanh điều hướng dưới. Mặt nền XÁM NHẠT (không phải trắng như nền trang) và kéo liền
             xuống hết vùng thanh gạt Home: đây là điểm mấu chốt của lỗi "dải trắng dưới thanh nav"
@@ -11770,8 +11839,9 @@ export default function App() {
             nhưng khi nó cùng màu trắng với nền trang thì nhìn thành một khoảng trống thừa; tô khác
             màu một chút là cả dải đó đọc thành phần thân của thanh nav, liền tới cạnh máy. */}
         {!isDetailScreen && (
-          <div
+          <nav
             className="flex-none"
+            aria-label="Điều hướng chính"
             style={{
               background: "var(--c-nav-bg)",
               backdropFilter: "blur(20px) saturate(1.8)",
@@ -11819,7 +11889,7 @@ export default function App() {
                 )
               })}
             </div>
-          </div>
+          </nav>
         )}
 
         {/* Ở màn chi tiết KHÔNG có thanh nav để tự "nuốt" giùm vùng thanh gạt Home, nên phải cộng
