@@ -2202,6 +2202,13 @@ function AddAntibioticScreen({
   const doseValid =
     doseMode === "fixed" ? fixedDose.trim().length > 0 : doseMode === "crcl3" ? Boolean(hasCrcl3Dose) : Boolean(hasCrcl4Dose)
   const canSave = name.trim().length > 0 && finalRoute.length > 0 && doseValid
+  // Nút Lưu tắt màu xám khi !canSave nhưng trước đây không nói lý do — người nhập điền tên+đường
+  // dùng xong quên điền liều (rất dễ khi form dài, chia nhiều khối) thì thấy nút xám mà không biết
+  // vì sao. Liệt kê đúng phần còn thiếu, không đoán chung chung "kiểm tra lại form".
+  const missingSaveReasons: string[] = []
+  if (!name.trim()) missingSaveReasons.push("Tên hoạt chất")
+  if (!finalRoute) missingSaveReasons.push(isOtherRoute ? "Đường dùng (mô tả)" : "Đường dùng")
+  if (!doseValid) missingSaveReasons.push("Liều theo CrCl (ít nhất một mức)")
 
   function toggleDisease(id: string) {
     setDiseaseIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
@@ -2442,6 +2449,11 @@ function AddAntibioticScreen({
       </div>
 
       <div className="flex-none px-6 pt-3 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
+        {!canSave && missingSaveReasons.length > 0 && (
+          <p className="text-[12px] font-semibold text-center mb-2" style={{ color: "var(--c-warn-icon)" }}>
+            Cần điền thêm: {missingSaveReasons.join(" · ")}
+          </p>
+        )}
         <button
           onClick={handleSave}
           disabled={!canSave}
@@ -2525,6 +2537,10 @@ function EditAntibioticScreen({
   const isOtherRoute = routeId === "other"
   const finalRoute = isOtherRoute ? routeOther.trim() : ANTIBIOTIC_ROUTE_OPTIONS.find((r) => r.id === routeId)?.label ?? ""
   const canSave = name.trim().length > 0 && finalRoute.length > 0 && tiers.some((t) => t.dose.trim())
+  const missingSaveReasons: string[] = []
+  if (!name.trim()) missingSaveReasons.push("Tên hoạt chất")
+  if (!finalRoute) missingSaveReasons.push(isOtherRoute ? "Đường dùng (mô tả)" : "Đường dùng")
+  if (!tiers.some((t) => t.dose.trim())) missingSaveReasons.push("Liều theo CrCl (ít nhất một mức)")
 
   function updateTier(idx: number, field: "min" | "label" | "dose", value: string) {
     setTiers((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)))
@@ -3021,6 +3037,11 @@ function EditAntibioticScreen({
       </div>
 
       <div className="flex-none px-6 pt-3 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
+        {!canSave && missingSaveReasons.length > 0 && (
+          <p className="text-[12px] font-semibold text-center mb-2" style={{ color: "var(--c-warn-icon)" }}>
+            Cần điền thêm: {missingSaveReasons.join(" · ")}
+          </p>
+        )}
         <button onClick={handleSave} disabled={!canSave} className="w-full py-3.5 rounded-2xl font-semibold text-sm" style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}>
           Lưu thay đổi
         </button>
@@ -3267,6 +3288,14 @@ function AddInfusionScreen({
   // nếu không chỉ thẳng ô nào thì người nhập phải dò lại toàn bộ để tìm chỗ sai.
   const numFieldStyle = (v: string) => (hasInvalidNumericInput(v) ? { ...fieldStyle, borderColor: "var(--c-danger)" } : fieldStyle)
   const canSave = name.trim().length > 0 && route.trim().length > 0 && doseRange.trim().length > 0 && (!addCalc || Boolean(calcValid))
+  // Bật "Thêm máy tính tốc độ truyền" xong quên điền đơn vị/khoảng liều trong đó là cách dễ nhất để
+  // rơi vào trạng thái này — unitProblem/numericProblem đã tự có dòng đỏ riêng khi giá trị SAI, nhưng
+  // khi các ô đó đơn giản là TRỐNG thì không có dòng nào cả, chỉ có nút Lưu xám không rõ lý do.
+  const missingSaveReasons: string[] = []
+  if (!name.trim()) missingSaveReasons.push("Tên thuốc")
+  if (!route.trim()) missingSaveReasons.push("Đường dùng")
+  if (!doseRange.trim()) missingSaveReasons.push("Khoảng liều (mô tả)")
+  if (addCalc && !calcValid) missingSaveReasons.push("Đơn vị/khoảng liều trong phần Máy tính tốc độ truyền")
 
   function updateWarningText(idx: number, value: string) {
     setWarnings((prev) => prev.map((w, i) => (i === idx ? { ...w, text: value } : w)))
@@ -3651,6 +3680,11 @@ function AddInfusionScreen({
       </div>
 
       <div className="flex-none px-6 pt-3 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
+        {!canSave && missingSaveReasons.length > 0 && (
+          <p className="text-[12px] font-semibold text-center mb-2" style={{ color: "var(--c-warn-icon)" }}>
+            Cần điền thêm: {missingSaveReasons.join(" · ")}
+          </p>
+        )}
         <button
           onClick={handleSave}
           disabled={!canSave}
