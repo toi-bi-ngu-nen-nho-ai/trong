@@ -149,7 +149,12 @@ export const SEVERITY_STYLE: Record<DoseSeverity, SeverityStyle> = {
   unknown: { bg: "var(--c-surface-alt)", border: "var(--c-line)", text: "var(--c-text-soft)", label: "Chưa kiểm tra được" },
   "far-below": { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Quá thấp" },
   below: { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)", label: "Dưới khoảng khuyến cáo" },
-  ok: { bg: "var(--c-primary-soft)", border: "var(--c-primary-line)", text: "var(--c-primary)", label: "Trong khoảng khuyến cáo" },
+  // text KHÔNG dùng --c-primary: đây là con số liều/tốc độ ĐẶT BƠM — DESIGN.md yêu cầu "thứ ồn nhất
+  // trên màn liều luôn là tín hiệu nguy hiểm, không bao giờ là thương hiệu". Trước đây "ok" tô con số
+  // 24px (T.metric, cỡ LỚN NHẤT toàn thang chữ) bằng đúng màu thương hiệu — một liều bình thường lại
+  // to và bão hoà màu hơn cảnh báo "KHÔNG tương hợp" đứng ngay gần đó. Nền/viền vẫn giữ primary-soft
+  // (chỉ là một dải nền dịu, đúng vai trò trang trí) — chỉ đổi màu CHỮ sang trung tính.
+  ok: { bg: "var(--c-primary-soft)", border: "var(--c-primary-line)", text: "var(--c-text)", label: "Trong khoảng khuyến cáo" },
   // "above" trước tô cam riêng khỏi "below"/"far-below" (hổ phách) — trong buồng tối hai màu gần
   // như không phân biệt được, nên chỉ còn hai bậc màu thật sự: nguy hiểm (đỏ) và thận trọng (hổ
   // phách). Nhãn ("Trên khoảng khuyến cáo") vẫn nói rõ khác với "Dưới khoảng khuyến cáo".

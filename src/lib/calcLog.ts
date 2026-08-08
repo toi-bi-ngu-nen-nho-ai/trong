@@ -11,7 +11,11 @@
 const LOG_KEY = "drtrong:calcLog"
 const MAX_ENTRIES = 200
 
-export type CalcKind = "doseToRate" | "rateToDose" | "bolus" | "mix"
+// "patientReset" không phải một phép tính — là một SỰ KIỆN hệ thống (xoá sạch bệnh nhân + bảng đang
+// dùng). Ghi vào cùng nhật ký này vì hoàn tác 10 giây (App.tsx) không để lại dấu vết nào sau khi hết
+// hạn: người dùng bị gián đoạn quá 10 giây (chuyện thường lúc trực) mất hẳn khả năng biết mình vừa
+// xoá gì, lúc nào — trừ khi có dòng này trong Nhật ký.
+export type CalcKind = "doseToRate" | "rateToDose" | "bolus" | "mix" | "patientReset"
 
 export interface CalcLogEntry {
   id: string
@@ -78,6 +82,7 @@ export const CALC_KIND_LABELS: Record<CalcKind, string> = {
   rateToDose: "Tốc độ → Liều",
   bolus: "Liều nạp / bolus",
   mix: "Pha thuốc",
+  patientReset: "Xoá bệnh nhân",
 }
 
 // Xuất ra chữ thuần để dán vào bệnh án/biên bản khi cần truy lại.

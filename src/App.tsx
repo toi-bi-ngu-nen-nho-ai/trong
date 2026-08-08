@@ -5212,8 +5212,11 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           >
             {/* Trước đây khi crclUsable=false vẫn hiện to con số CrCl thật, chỉ đổi màu xám — quá
                 yếu để nói "con số này KHÔNG được dùng chọn bậc liều". Đổi hẳn sang "—": im lặng
-                còn an toàn hơn một con số đúng-về-mặt-tính-toán nhưng sai-về-mặt-lâm-sàng. */}
-            <span className={`${T.metric} flex-none ${NUM_DOSE}`} style={{ color: crclUsable ? C.primary : C.muted }}>
+                còn an toàn hơn một con số đúng-về-mặt-tính-toán nhưng sai-về-mặt-lâm-sàng.
+                Màu chữ dùng C.text (trung tính) chứ không phải C.primary khi dùng được — cùng lý do
+                đã sửa cho SEVERITY_STYLE.ok trong lib/doseSafety.ts: con số 24px lớn nhất màn hình
+                không nên bão hoà màu thương hiệu hơn một cảnh báo nguy hiểm đứng gần đó. */}
+            <span className={`${T.metric} flex-none ${NUM_DOSE}`} style={{ color: crclUsable ? C.text : C.muted }}>
               {crclDisplay}
             </span>
             <div className="min-w-0">
@@ -9490,6 +9493,13 @@ const MIXING_TITLES: Record<MixingTab, string> = {
   ...(Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.id, c.title])) as Record<InfusionCategory, string>),
 }
 
+// Gợi ý MỘT LẦN DUY NHẤT cho nút "Tìm" xuyên tab — hàng 10 tab không tự dạy người dùng lần đầu rằng
+// lối tắt này tồn tại (họ chỉ thấy 10 nhãn viết tắt cuộn ngang). Khác DisclaimerBar (dải nhắc THƯỜNG
+// TRỰC), gợi ý này biến mất VĨNH VIỄN ngay khi người dùng mở ô tìm lần đầu — dù mở bằng cách bấm
+// đúng nút được gợi ý hay tự mình bấm trước khi đọc gợi ý — nên không vi phạm nguyên tắc "không thêm
+// một hàng thường trực" đã đặt ra cho nút Tìm (xem comment tại nút "Tìm" trong DungThuocScreen).
+const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
+
 function DungThuocScreen({
   customAntibiotics,
   diseases,
@@ -9556,6 +9566,23 @@ function DungThuocScreen({
   // Tăng lên mỗi lần nhảy tới một thuốc, để cây con được dựng lại KỂ CẢ khi thuốc đó nằm ngay
   // trong tab đang mở — nếu không, giá trị sticky vừa ghi sẽ không được đọc lại.
   const [jumpKey, setJumpKey] = useState(0)
+  // Gợi ý một lần cho nút Tìm — mặc định ẨN nếu không đọc được localStorage (ngược với
+  // DisclaimerGate: một gợi ý lặp lại mãi vì lỗi đọc storage gây khó chịu hơn là mất một lần gợi ý).
+  const [showTabHint, setShowTabHint] = useState(() => {
+    try {
+      return localStorage.getItem(TAB_SEARCH_HINT_KEY) !== "1"
+    } catch {
+      return false
+    }
+  })
+  function dismissTabHint() {
+    try {
+      localStorage.setItem(TAB_SEARCH_HINT_KEY, "1")
+    } catch {
+      // Không lưu được thì gợi ý có thể hiện lại lần sau — chấp nhận được, không chặn việc dùng app.
+    }
+    setShowTabHint(false)
+  }
 
   const searchResults = useMemo(() => {
     const q = normalizeSearch(globalQuery)
@@ -9631,7 +9658,27 @@ function DungThuocScreen({
       resetPatient: () => {
         setResetUndo({ patient, running })
         if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current)
-        resetUndoTimer.current = setTimeout(() => setResetUndo(null), 10_000)
+        // Hoàn tác 10 giây trước đây không để lại dấu vết nào sau khi hết hạn — người dùng bị gián
+        // đoạn quá 10 giây (chuyện thường lúc trực) mất hẳn khả năng biết mình vừa xoá gì, lúc nào.
+        // Ghi vào Nhật ký ĐÚNG LÚC hết hạn (không phải lúc bấm xoá), để một lần bấm nhầm rồi bấm
+        // "Hoàn tác" ngay sau đó không tạo ra một dòng nhật ký thừa cho việc chưa từng thật sự xảy ra.
+        const clearedSummary =
+          [abwKg != null ? `${abwKg} kg` : null, heightCm != null ? `${heightCm} cm` : null, patient.sex === "male" ? "Nam" : "Nữ", ageYears != null ? `${ageYears} tuổi` : null]
+            .filter(Boolean)
+            .join(" · ") || "Chưa có thông số"
+        const clearedRunningCount = running.length
+        resetUndoTimer.current = setTimeout(() => {
+          setResetUndo(null)
+          setLog(
+            appendCalcLog({
+              drug: "Bệnh nhân hiện tại",
+              kind: "patientReset",
+              inputs: [clearedSummary],
+              output: `Đã xoá${clearedRunningCount > 0 ? ` bệnh nhân và ${clearedRunningCount} thuốc đang dùng` : " bệnh nhân"} — không hoàn tác kịp trong 10 giây`,
+              weightKg: abwKg,
+            }),
+          )
+        }, 10_000)
         reset()
         setRunning([])
         saveRunning([])
@@ -9708,6 +9755,7 @@ function DungThuocScreen({
               onClick={() => {
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
+                if (showTabHint) dismissTabHint()
               }}
               // Trước đây chỉ là một vòng tròn icon-only 32px — nút nhanh nhất tới hơn 100 thuốc mà
               // không có chữ nào gọi tên nó, người lần đầu dùng không biết nó làm gì cho tới khi lỡ
@@ -9760,7 +9808,24 @@ function DungThuocScreen({
                   Không có thuốc nào khớp "{globalQuery.trim()}" trong danh mục.
                 </p>
               ) : (
-                <div className="max-h-64 overflow-y-auto scroll-ios">
+                <div
+                  className="max-h-64 overflow-y-auto scroll-ios"
+                  role="group"
+                  aria-label={`${searchResults.length} kết quả tìm kiếm`}
+                  // Danh sách vốn chỉ Tab-qua-từng-nút được (đúng nhưng chậm khi có tới 30 kết quả) —
+                  // thêm mũi tên lên/xuống di chuyển giữa các nút mà không đổi hành vi kích hoạt của
+                  // chính nút (Enter/Space/chạm vẫn nguyên vẹn, không thay bằng vai trò option tự chế).
+                  onKeyDown={(e) => {
+                    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return
+                    const container = e.currentTarget
+                    const items = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+                    const idx = items.indexOf(document.activeElement as HTMLButtonElement)
+                    if (idx === -1) return
+                    e.preventDefault()
+                    const next = e.key === "ArrowDown" ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0)
+                    items[next]?.focus()
+                  }}
+                >
                   {searchResults.map((r, i) => (
                     <button
                       key={`${r.tab}-${r.id}`}
@@ -9827,6 +9892,23 @@ function DungThuocScreen({
         <div className="absolute left-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to right, var(--c-page), transparent)" }} />
         <div className="absolute right-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to left, var(--c-page), transparent)" }} />
       </div>
+      {/* Gợi ý MỘT LẦN cho nút Tìm — 10 tab là quá nhiều để quét bằng mắt lúc vội, và bản thân hàng
+          tab không dạy người dùng lần đầu rằng lối tắt "Tìm xuyên nhóm" tồn tại. Biến mất vĩnh viễn
+          ngay khi mở ô tìm lần đầu (xem onClick nút Tìm) hoặc bấm "Đã hiểu" — không phải một hàng
+          thường trực, nên không phá nguyên tắc "không thêm hàng cố định" đã đặt cho nút Tìm. */}
+      {showTabHint && (
+        <div
+          className="fade-in flex-none mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl"
+          style={{ background: C.primarySoft, border: `1px solid ${C.primaryLine}` }}
+        >
+          <p className={`${T.meta} flex-1`} style={{ color: C.primary }}>
+            Không thấy thuốc cần tìm trong {MIXING_TABS.length} nhóm? Bấm "Tìm" ở trên để tìm xuyên tất cả.
+          </p>
+          <button onClick={dismissTabHint} className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[12px] font-bold`} style={{ background: C.primary, color: "var(--c-on-bright)" }}>
+            Đã hiểu
+          </button>
+        </div>
+      )}
       {/* Một vùng cuộn duy nhất cho cả khung bệnh nhân, bảng Đang truyền và danh sách thuốc —
           để khung bệnh nhân cuộn đi được thay vì chiếm chỗ cố định trên màn hình điện thoại. */}
       <div ref={scrollRef} className="scroll-ios flex-1">
