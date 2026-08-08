@@ -4252,7 +4252,6 @@ export function MindmapBoard({
   function pickPen(t: DrawTool) {
     setTool(t)
     setLastDraw(t)
-    setLinkFrom(null)
     setSel(null)
     setSelGroup(null)
     setMenuOpen(false)
@@ -4275,7 +4274,6 @@ export function MindmapBoard({
       return
     }
     setTool(id)
-    setLinkFrom(null)
     if (id !== "hand") setSel(null)
     // Nhóm đã khoanh chỉ dùng được với công cụ tay và khoanh vùng — đổi sang tẩy thì bỏ chọn luôn,
     // để khung nhóm không nằm chắn giữa bảng.
@@ -4939,7 +4937,7 @@ export function MindmapBoard({
             đang cầm bút với tới được mà không phải rời mắt khỏi chỗ đang vẽ.
             gap-2 (8px), không phải gap-1 (4px): đây là các ô bấm liên tiếp khi đang vẽ — dưới 8px là
             dưới ngưỡng khoảng cách chạm tối thiểu. */}
-        {tool === "eraser" && (
+        {!readOnly && tool === "eraser" && (
           <div className="mind-row flex items-center gap-2 mt-1.5 overflow-x-auto -mx-3 px-3 pb-0.5">
             {ERASER_SIZES.map((s, i) => (
                     <button
@@ -4994,7 +4992,7 @@ export function MindmapBoard({
         )}
 
         {/* Hàng phụ của KHOANH VÙNG: khoanh tay tự do hay kéo một khung chữ nhật. */}
-        {tool === "lasso" && (
+        {!readOnly && tool === "lasso" && (
           <div className="mind-row flex items-center gap-2 mt-1.5 overflow-x-auto -mx-3 px-3 pb-0.5">
             {([
               [false, mi.lasso, "Khoanh tay tự do"],
@@ -5023,7 +5021,6 @@ export function MindmapBoard({
           </div>
         )}
       </div>
-      )}
 
       {/* Bảng cài đặt bảng vẽ. Nằm NGOÀI khối thanh công cụ vì nút mở nó ở thanh trên, và thanh
           trên thì có ở cả chế độ chỉ đọc — để trong đó thì chỉ đọc sẽ bấm ba chấm mà không ra gì. */}
