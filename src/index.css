@@ -654,16 +654,17 @@ input, select, textarea {
    DungThuocScreen): input:focus tắt outline mặc định toàn app (quy tắc bên dưới) mà không có gì
    thay thế ở đây — bàn phím ngoài/máy tính trạm ở buồng bệnh không có cách nào biết đang gõ vào ô
    nào. Vi phạm WCAG 2.4.7 nếu bỏ trống. */
-/* outline-offset 0.2px (trước là 2px): vòng focus ôm sát khung hơn — vừa đúng yêu cầu hình ảnh, vừa
-   giảm khoảng vòng nhô ra ngoài viền ô nhập. Ô Creatinin (và các ô khác) nằm trong `.disc-body`
-   (khối gấp/mở của Disclosure — `overflow: hidden` cả lúc mở, xem index.css khu vực .disc-body):
-   viền 2px + offset 0.2px = 2.2px nhô ra có thể chạm mép overflow:hidden của khối cha khi ô nhập đứng
-   sát rìa, bị xén một phần — offset 0.2px giảm mức nhô còn 2.2px, giảm rủi ro này mà vẫn giữ rõ vòng
-   focus cho bàn phím ngoài (WCAG 2.4.7). */
+/* outline-offset ÂM (-2px, bằng đúng outline-width): vòng focus vẽ VÀO TRONG viền ô thay vì nhô ra
+   ngoài. Từng thử offset dương nhỏ dần (2px → 0.2px) nhưng vẫn nhô ra ngoài hộp — nút mg/dL·µmol/L
+   của Creatinin nằm sát mép trong khối bọc `overflow: hidden` (bo góc khối chọn đơn vị), nên phần
+   vòng nhô ra bị chính overflow:hidden đó CẮT MẤT 3 cạnh, chỉ còn một mẩu trông như viền bị hở/đứt.
+   Offset âm vẽ trọn vòng nằm trong biên của chính ô/nút, không bao giờ chạm ra ngoài nên không thể
+   bị cha nào cắt xén — hết hẳn kiểu lỗi này, dù ô nhập nằm sát rìa hay bên trong khối overflow:hidden
+   nào cũng vậy. Vẫn giữ rõ vòng focus cho bàn phím ngoài (WCAG 2.4.7). */
 .scr-dose button:focus-visible,
 .scr-dose input:focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 0.2px;
+  outline-offset: -2px;
 }
 
 /* Ô tìm dạng viên thuốc (SearchField trong App.tsx): input con nằm bên trong một khối bo tròn riêng,

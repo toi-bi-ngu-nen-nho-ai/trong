@@ -112,7 +112,7 @@ import {
 } from "../lib/mindmapStyle"
 import { buildOutlineText, copyOutlineText, deliverPng, downloadOutlineText, exportMindmapPdf, exportMindmapPng, safeFileName } from "../lib/mindmapExport"
 import { hasMindmapClip, readMindmapClip, writeMindmapClip } from "../lib/mindmapClipboard"
-import { applyStyleAt, parseInline, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
+import { applyStyleAt, parseInline, stripInlineMarkers, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
 import { mindIcons as mi } from "./MindmapIcons"
 
 type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso"
@@ -3969,10 +3969,12 @@ export function MindmapBoard({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)
-      if (typing) {
-        if (e.key === "Escape") t?.blur()
-        return
-      }
+      // Đang gõ mà bấm phím khác Escape thì bỏ qua hết — gõ số "1" vào nội dung ghi chú mà thành đổi
+      // công cụ thì hỏng việc. Riêng Escape: blur ô nhập RỒI CHẠY TIẾP xuống khối xử lý Escape bên
+      // dưới, để cùng một lần bấm vừa rời bàn phím vừa đóng luôn tấm đang mở (trước đây phải bấm hai
+      // lần — lần một chỉ blur, lần hai mới đóng được ô sửa ghi chú).
+      if (typing && e.key !== "Escape") return
+      if (typing) t?.blur()
       const mod = e.ctrlKey || e.metaKey
       if (mod) {
         const k = e.key.toLowerCase()
@@ -4033,7 +4035,12 @@ export function MindmapBoard({
         return
       }
       // Tab thêm nhánh con cho thẻ đang chọn — giống cách mọi app sơ đồ tư duy trên máy tính làm.
-      if (e.key === "Tab" && !readOnly && sel?.kind === "node") {
+      // CHỈ áp dụng khi focus đang ở mặt bảng hoặc ở đúng thẻ đang chọn (thẻ là <div>, không bao
+      // giờ khớp BUTTON/A), không phải một nút thật đang có focus (vd nút nổi Sửa/Thêm nhánh/Xoá
+      // cạnh thẻ) — nếu không, Tab từ nút này sang nút khác trên thanh nổi sẽ bị cướp thành "thêm
+      // nhánh", chặn mất đường di chuyển focus bình thường của người dùng bàn phím.
+      const focusOnControl = t?.tagName === "BUTTON" || t?.tagName === "A"
+      if (e.key === "Tab" && !readOnly && !focusOnControl && sel?.kind === "node") {
         const n = nodes.find((x) => x.id === sel.id)
         if (n) {
           e.preventDefault()
@@ -4619,7 +4626,18 @@ export function MindmapBoard({
 
   // Dùng sizesRef trước (số đo mới nhất, cập nhật ngay khi ResizeObserver báo); `sizes` chỉ là bản
   // sao trong state để React biết cần vẽ lại đường nối khi thẻ đổi kích thước.
-  const nodeBoxes = new Map(nodes.map((n) => [n.id, nodeBox(n, sizeOf(n.id))]))
+  //
+  // useMemo theo [nodes, sizes]: trước đây dựng lại Map này ở MỌI lượt render, kể cả những lượt chỉ
+  // đổi `draft` (gõ chữ trong ô sửa ghi chú) — nghĩa là mỗi phím gõ đều tính lại hình học của TOÀN
+  // BỘ thẻ trên bảng, không chỉ thẻ đang sửa. sizesRef luôn được đọc TRƯỚC (giá trị mới nhất), còn
+  // `sizes` là đúng phần phụ thuộc phản ứng thật sự cần theo dõi — mọi lần sizesRef đổi đều có
+  // commitSizes() bơm lại vào `sizes` ngay khung hình sau (xem registerNode/ensureObserver), nên
+  // không có khoảng trễ đáng kể.
+  const nodeBoxes = useMemo(
+    () => new Map(nodes.map((n) => [n.id, nodeBox(n, sizeOf(n.id))])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nodes, sizes],
+  )
   const nodeById = new Map(nodes.map((n) => [n.id, n]))
 
   // Thẻ khớp ô tìm — chỉ tính khi ô tìm đang mở, để lúc bình thường không quét cả bảng mỗi lần vẽ.
@@ -5149,7 +5167,10 @@ export function MindmapBoard({
                   aria-label={`Lọc màu: ${colorName(c)}`}
                   title={colorName(c)}
                   aria-pressed={colorFilter.has(c)}
+                  // minWidth/minHeight 24px: sàn tối thiểu WCAG 2.5.8 cho đích chạm — trước đây chỉ
+                  // dựa vào py-1 quanh chấm 18px, có thể hụt sàn tuỳ bề rộng cột lưới thật.
                   className="mind-btn flex items-center justify-center rounded-lg py-1"
+                  style={{ minWidth: 24, minHeight: 24 }}
                 >
                   <span
                     className="rounded-full block"
@@ -5471,6 +5492,20 @@ export function MindmapBoard({
                 data-node-id={n.id}
                 ref={(el) => registerNode(n.id, el)}
                 onPointerDown={(e) => handleNodePointerDown(e, n)}
+                // Trước đây thẻ hoàn toàn không nằm trong đường Tab (không role, không tabIndex) —
+                // cách DUY NHẤT chọn được thẻ bằng bàn phím là Ctrl+F rồi Enter. Giờ thêm "roving
+                // tabindex": chỉ đúng MỘT thẻ (đang chọn) nằm trong đường Tab tại một thời điểm —
+                // giống cách một danh sách/toolbar thật làm — để sau khi đã chọn một thẻ (bằng
+                // chạm, hoặc bằng Ctrl+F), Tab từ nút khác trên màn có thể quay lại đúng thẻ đó, và
+                // Enter/Delete (đã có sẵn ở handler window) áp dụng ngay. onFocus đồng bộ `sel` khi
+                // focus tới bằng bàn phím (vd Shift+Tab từ thanh nổi) chứ không chỉ bằng chạm.
+                role="button"
+                tabIndex={selected ? 0 : -1}
+                aria-pressed={selected}
+                aria-label={stripInlineMarkers(n.text).trim() || "Ghi chú trống"}
+                onFocus={() => {
+                  if (!(sel?.kind === "node" && sel.id === n.id)) setSel({ kind: "node", id: n.id })
+                }}
                 className={`absolute font-semibold whitespace-pre-wrap${bornId === n.id ? " mind-born" : ""}${foundId === n.id ? " mind-found" : ""}`}
                 style={{
                   left: n.x,
@@ -5715,8 +5750,10 @@ export function MindmapBoard({
                     onClick={() => recolorGroup(selGroup, c)}
                     aria-label={`Đổi cả nhóm sang ${colorName(c)}`}
                     title={colorName(c)}
+                    // 24x24 + margin 2: sàn tối thiểu WCAG 2.5.8 cho đích chạm (trước đây 22x22, dưới
+                    // sàn 24px) — giữ nguyên tổng khoảng cách giữa các nút (22+3+3 = 24+2+2 = 28px).
                     className="mind-btn flex-none rounded-full"
-                    style={{ width: 22, height: 22, margin: 3, background: c }}
+                    style={{ width: 24, height: 24, margin: 2, background: c }}
                   />
                 ))}
                 <IconBtn
@@ -5974,8 +6011,9 @@ export function MindmapBoard({
               onPointerCancel={undoBarPointerUp}
               className="flex-none flex items-center justify-center rounded-lg"
               style={{
-                width: undoBarVert ? TOOL_BTN : 20,
-                height: undoBarVert ? 20 : TOOL_BTN,
+                // 24px trên trục ngắn: sàn tối thiểu WCAG 2.5.8 (trước đây 20px, dưới sàn).
+                width: undoBarVert ? TOOL_BTN : 24,
+                height: undoBarVert ? 24 : TOOL_BTN,
                 color: "var(--c-faint)",
                 touchAction: "none",
                 cursor: "grab",
@@ -6021,11 +6059,13 @@ export function MindmapBoard({
               // gắn vào mép.
               // Dùng borderTopWidth (không phải `borderTop: none`): trộn thuộc tính viết tắt với
               // borderColor ở trên là kiểu React cảnh báo và có thể xoá nhầm màu viền.
+              // 16px khớp đúng rounded-2xl mà nhánh `barVert` dùng ở className phía trên — trước đây
+              // 18px là một giá trị lẻ, không khớp bậc bo góc nào của hệ thống.
               ...(barVert
                 ? {}
                 : barPos.dock === "top"
-                  ? { borderTopWidth: 0, borderRadius: "0 0 18px 18px" }
-                  : { borderBottomWidth: 0, borderRadius: "18px 18px 0 0" }),
+                  ? { borderTopWidth: 0, borderRadius: "0 0 16px 16px" }
+                  : { borderBottomWidth: 0, borderRadius: "16px 16px 0 0" }),
             }}
             // Chặn tại đây: nếu để sự kiện chạm rơi xuống mặt bảng phía dưới thì mỗi lần bấm nút trên
             // thanh cũng là một lần đặt bút xuống bảng, để lại một chấm mực ngay dưới thanh.
@@ -6865,6 +6905,12 @@ export function MindmapBoard({
       {/* ─── Ô sửa ghi chú ─────────────────────────────────────────────── */}
       {editingNode && (
         <div
+          // KHÔNG phải role="dialog": tấm này neo ở đáy, không phủ scrim che cả màn hình như các
+          // tấm trượt khác của bảng — mặt vẽ phía trên vẫn còn đó, không phải trạng thái modal thật.
+          // Gắn role="region" + aria-label để trình đọc màn hình vẫn nhận ra đây là MỘT vùng riêng,
+          // không tuyên bố nhầm là "chặn hết tương tác khác" như dialog thật.
+          role="region"
+          aria-label="Sửa ghi chú"
           className="mind-sheet flex-none border-t px-4 pt-3 pb-3 z-30"
           style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
         >
@@ -6892,7 +6938,9 @@ export function MindmapBoard({
                 { patch: { bold: true }, label: "B", hint: "Đậm", style: { fontWeight: 800 } },
                 { patch: { italic: true }, label: "I", hint: "Nghiêng", style: { fontStyle: "italic" } },
                 { patch: { underline: true }, label: "U", hint: "Gạch chân", style: { textDecoration: "underline" } },
-                { patch: { highlight: true }, label: "H", hint: "Tô sáng", style: { background: "rgba(0,0,0,.1)", borderRadius: 3 } },
+                // Trước đây rgba(0,0,0,.1) — một mảng xám không giống màu tô sáng THẬT dùng khi hiển
+                // thị ghi chú (--c-mark-bg). Đổi sang đúng token đó để nút xem trước đúng là xem trước.
+                { patch: { highlight: true }, label: "H", hint: "Tô sáng", style: { background: "var(--c-mark-bg)", color: "var(--c-mark-fg)", borderRadius: 3 } },
               ] as const
             ).map((b) => (
               <button
@@ -7233,6 +7281,9 @@ export function MindmapBoard({
           onPointerDown={() => setColorSheet(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Bảng màu bút"
             className="mind-sheet w-full rounded-t-3xl flex flex-col"
             style={{ background: "var(--c-surface)", maxHeight: "72%", boxShadow: "0 -10px 40px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -7588,6 +7639,9 @@ export function MindmapBoard({
           onPointerDown={() => setPickLink(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={pickLink === "add" ? "Thêm thẻ từ một bài" : "Gắn thẻ với một bài"}
             className="mind-sheet w-full rounded-t-3xl flex flex-col"
             style={{ background: "var(--c-surface)", maxHeight: "76%", boxShadow: "0 -10px 40px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -7656,6 +7710,9 @@ export function MindmapBoard({
           onPointerDown={() => setEditingEdgeLabel(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nhãn đường nối"
             className="mind-pop w-full max-w-[300px] rounded-3xl p-5"
             style={{ background: "var(--c-surface)", boxShadow: "0 20px 50px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -7748,6 +7805,9 @@ export function MindmapBoard({
           onPointerDown={() => setExportReady(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={exportReady.kind === "pdf" ? "File PDF đã sẵn sàng" : "Ảnh đã sẵn sàng"}
             className="mind-pop w-full max-w-[320px] rounded-3xl p-5"
             style={{ background: "var(--c-surface)", boxShadow: "0 18px 40px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -7790,6 +7850,9 @@ export function MindmapBoard({
           onPointerDown={() => setConfirmClear(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xoá toàn bộ bảng?"
             className="mind-pop w-full max-w-[300px] rounded-3xl p-5"
             style={{ background: "var(--c-surface)", boxShadow: "0 20px 50px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -7828,6 +7891,9 @@ export function MindmapBoard({
           onPointerDown={() => setConfirmDeleteEdge(null)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Bạn thật sự muốn xoá ${confirmDeleteEdge.kind === "algorithm" ? "bước phác đồ" : "quan hệ"} này?`}
             className="mind-pop w-full max-w-[300px] rounded-3xl p-5"
             style={{ background: "var(--c-surface)", boxShadow: "0 20px 50px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -7874,6 +7940,9 @@ export function MindmapBoard({
           onPointerDown={dismissCoach}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="4 cách chạm hay dùng nhất"
             className="mind-pop w-full max-w-[320px] rounded-3xl p-5"
             style={{ background: "var(--c-surface)", boxShadow: "0 20px 50px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}

@@ -75,7 +75,7 @@ import { stripInlineMarkers } from "./lib/richText"
 // Dùng cho ảnh xem trước của từng bảng trong danh sách Mindmap — vẽ lại bằng ĐÚNG bộ hàm mà bảng
 // thật và phần xuất ảnh PNG dùng, nên ảnh nhỏ không bao giờ khác hình dạng bảng thật.
 import { NODE_FALLBACK, contentBounds, strokeOutline, strokePath } from "./lib/mindmapGeometry"
-import { PAPER_BG } from "./lib/mindmapStyle"
+import { PAPER_BG, STYLE_FONT_STACKS } from "./lib/mindmapStyle"
 import { markBackupDone, shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
 import { diffImportCounts, formatDateTime, latestTimestamp } from "./lib/importPreview"
 import { countArticlesFor, countFlashcardsFor } from "./lib/specialtyStats"
@@ -5065,7 +5065,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
     .join(" · ")
 
   return (
-    <div className="mx-5 mb-3" style={{ background: "var(--c-surface)" }}>
+    <div className="mx-5 mb-3 rounded-[20px]" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left">
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
@@ -10254,7 +10254,12 @@ function MindmapGallery({
 
   return (
     <div className="h-full flex flex-col">
-      <ScreenHeader title="Mindmap" />
+      {/* Tiêu đề dùng Space Grotesk (STYLE_FONT_STACKS.display) — font này vốn dành riêng cho Mindmap
+          (DESIGN.md: "tiêu đề/nhấn mạnh mạnh tay"), nhưng trước giờ chỉ người dùng TỰ áp cho từng
+          đoạn chữ trong ghi chú mới thấy, còn khung màn thì dùng chung kiểu chữ trung tính như mọi
+          màn khác. Mindmap là màn DUY NHẤT được cấp font riêng — để nó thật sự trông khác biệt ngay
+          từ tiêu đề, không chỉ khi đã mở sâu vào một ghi chú đã định dạng. */}
+      <ScreenHeader title={<span style={{ fontFamily: STYLE_FONT_STACKS.display, fontWeight: 700, letterSpacing: "-0.01em" }}>Mindmap</span>} />
 
       {/* Tìm chữ trong ghi chú xuyên suốt MỌI bảng — trước đây ô tìm chỉ nằm trong từng bảng, phải
           nhớ đúng bảng nào mới mở ra tìm được. */}
@@ -10444,15 +10449,26 @@ function TrashSheet({
   onPurge: (id: string) => void
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // Cùng hook DisclaimerGate/CalcLogSheet đã dùng — bẫy Tab trong tấm, tự đưa focus vào lúc mở, trả
+  // lại focus cho chỗ cũ lúc đóng. Trước đây tấm này không có gì trong ba việc đó.
+  useDialogFocus(panelRef, { onEscape: onClose })
   return (
     // Trước đây `absolute inset-0` với rounded-t-3xl xuất hiện tức thì — trông như bottom sheet
     // nhưng không có động tác của bottom sheet, cùng lỗi với CalcLogSheet/DisclaimerGate ở màn
     // Dùng thuốc. `.mind-sheet` (đã có sẵn trong index.css) trượt lên từ đáy.
     <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng" />
-      <div className="mind-sheet rounded-t-3xl flex flex-col" style={{ background: C.surface, maxHeight: "82%" }}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trash-sheet-title"
+        className="mind-sheet rounded-t-3xl flex flex-col"
+        style={{ background: C.surface, maxHeight: "82%" }}
+      >
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <p className={T.bodyStrong} style={{ color: C.text }}>
+          <p id="trash-sheet-title" className={T.bodyStrong} style={{ color: C.text }}>
             Thùng rác · {boards.length}
           </p>
           <button
@@ -10550,8 +10566,6 @@ function BoardPreviewFrame({ board, previewTick, className }: { board: MindBoard
       style={{ background: PAPER_BG, border: `1px solid ${C.line}`, borderRadius: 12 }}
     >
       <BoardThumb board={board} tick={previewTick} />
-      {/* Vạch màu của bảng ở mép trái — nhận ra bảng bằng màu trước cả khi đọc tên. */}
-      <span className="absolute left-0 top-0 bottom-0 w-1" style={{ background: board.color }} />
     </div>
   )
 }
@@ -10735,7 +10749,17 @@ function BoardCard({
       // Để MindmapScreen dò lại ĐÚNG thẻ này khi phóng khung xem trước NGƯỢC lại (rời bảng về danh
       // sách) — lúc đó chỉ có id bảng trong tay, không có sẵn tham chiếu tới thẻ.
       data-board-id={board.id}
-      className={`flex flex-col gap-1.5 ${TAP}`}
+      className={`flex flex-col gap-1.5 p-2 ${R.card} border ${TAP}`}
+      // Trước đây chỉ một vạch 4px ở mép trái khung xem trước nói lên màu bảng — dễ bỏ sót khi
+      // lướt nhanh một lưới nhiều bảng. Giờ cả tấm thẻ mang màu: `color-mix` trộn thẳng từ
+      // `board.color` (có thể là mã hex CHUYÊN KHOA thật, hoặc `var(--c-primary)`/`var(--c-text-muted)`
+      // khi chưa gắn khoa — color-mix nhận cả hai dạng, không cần tự phân biệt). Trộn về phía
+      // `--c-surface`/`--c-line` (không phải "transparent") nên bản tối tự ra đúng sắc độ tối hơn
+      // mà không cần viết riêng một nhánh dark-mode.
+      style={{
+        background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))`,
+        borderColor: `color-mix(in srgb, ${board.color} 42%, var(--c-line))`,
+      }}
       {...hold}
       // Có role="button" + tabIndex nên Tab tới được và trình đọc màn hình đọc là "nút", nhưng
       // trước đây chỉ gắn handler con trỏ — Enter/Space không làm gì cả. Enter/Space giờ mở bảng,
@@ -10801,7 +10825,10 @@ function BoardRow({
       ref={rowRef}
       data-board-id={board.id}
       className={`flex items-center gap-3 p-2 ${R.card} border ${TAP}`}
-      style={{ borderColor: C.line, background: C.surface }}
+      style={{
+        background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))`,
+        borderColor: `color-mix(in srgb, ${board.color} 42%, var(--c-line))`,
+      }}
       {...hold}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -11159,9 +11186,22 @@ function BoardEditSheet({
   return (
     <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng" />
-      <div className="mind-sheet rounded-t-3xl flex flex-col" style={{ background: "var(--c-surface)", maxHeight: "82%" }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="board-edit-sheet-title"
+        // Escape đóng tấm — gắn ở cả tấm (không chỉ riêng ô tên) để bấm Escape dù đang ở nút chuyên
+        // khoa hay ô tên đều thoát ra được. Không dùng useDialogFocus ở đây: hook đó tự đưa focus vào
+        // PHẦN TỬ ĐẦU TIÊN trong tấm lúc mở (nút "×" đứng trước ô tên trong DOM), sẽ giành mất tiêu
+        // điểm khỏi ô tên — vốn đang tự động nhận focus riêng (autoFocus) khi tạo bảng mới.
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose()
+        }}
+        className="mind-sheet rounded-t-3xl flex flex-col"
+        style={{ background: "var(--c-surface)", maxHeight: "82%" }}
+      >
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <p className="text-[13px] font-bold text-slate-900">{mode === "create" ? "Bảng mới" : "Sửa bảng"}</p>
+          <p id="board-edit-sheet-title" className="text-[13px] font-bold text-slate-900">{mode === "create" ? "Bảng mới" : "Sửa bảng"}</p>
           <button onClick={onClose} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }} aria-label="Đóng">
             {icons.x()}
           </button>
