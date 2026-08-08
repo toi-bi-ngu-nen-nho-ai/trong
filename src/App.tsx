@@ -2315,7 +2315,7 @@ function AddAntibioticScreen({
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">Không chọn = thuốc dùng chung, không gắn với bệnh lý cụ thể nào.</p>
+          <p className="text-[12px] text-slate-400 mt-1.5">Không chọn = thuốc dùng chung, không gắn với bệnh lý cụ thể nào.</p>
         </div>
 
         <div>
@@ -2344,39 +2344,39 @@ function AddAntibioticScreen({
           {doseMode === "crcl3" && (
             <div className="space-y-2">
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl ≥ 50</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl ≥ 50</label>
                 <input value={tier50} onChange={(e) => setTier50(e.target.value)} placeholder="VD: 1 g mỗi 8h" className={fieldClass} style={fieldStyle} />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl 10–49</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl 10–49</label>
                 <input value={tier1049} onChange={(e) => setTier1049(e.target.value)} placeholder="VD: 1 g mỗi 12h" className={fieldClass} style={fieldStyle} />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl &lt; 10</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl &lt; 10</label>
                 <input value={tierBelow10} onChange={(e) => setTierBelow10(e.target.value)} placeholder="VD: 500 mg mỗi 24h" className={fieldClass} style={fieldStyle} />
               </div>
-              <p className="text-[11px] text-slate-400">Có thể bỏ trống mức không áp dụng — chỉ cần điền ít nhất một mức.</p>
+              <p className="text-[12px] text-slate-400">Có thể bỏ trống mức không áp dụng — chỉ cần điền ít nhất một mức.</p>
             </div>
           )}
           {doseMode === "crcl4" && (
             <div className="space-y-2">
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl &gt; 50</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl &gt; 50</label>
                 <input value={tier50} onChange={(e) => setTier50(e.target.value)} placeholder="VD: 1 g mỗi 8h" className={fieldClass} style={fieldStyle} />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl 31–50</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl 31–50</label>
                 <input value={tier3150} onChange={(e) => setTier3150(e.target.value)} placeholder="VD: 1 g mỗi 12h" className={fieldClass} style={fieldStyle} />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl 10–30</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl 10–30</label>
                 <input value={tier1030} onChange={(e) => setTier1030(e.target.value)} placeholder="VD: 500 mg mỗi 12h" className={fieldClass} style={fieldStyle} />
               </div>
               <div>
-                <label className="text-[11px] text-slate-400 mb-1 block">CrCl &lt; 10</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">CrCl &lt; 10</label>
                 <input value={tierBelow10} onChange={(e) => setTierBelow10(e.target.value)} placeholder="VD: 500 mg mỗi 24h" className={fieldClass} style={fieldStyle} />
               </div>
-              <p className="text-[11px] text-slate-400">Có thể bỏ trống mức không áp dụng — chỉ cần điền ít nhất một mức.</p>
+              <p className="text-[12px] text-slate-400">Có thể bỏ trống mức không áp dụng — chỉ cần điền ít nhất một mức.</p>
             </div>
           )}
         </div>
@@ -2424,7 +2424,7 @@ function AddAntibioticScreen({
           <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="VD: Phác đồ ICU BV X 2026 / Sanford Guide" className={fieldClass} style={fieldStyle} />
           <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Rà soát lần cuối (YYYY-MM)</label>
           <input value={reviewedOn} onChange={(e) => setReviewedOn(e.target.value)} placeholder="VD: 2026-07" className={fieldClass} style={fieldStyle} />
-          <p className="text-[11px] text-slate-400 leading-relaxed mt-1.5">
+          <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
             Bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát".
           </p>
         </div>
@@ -2719,7 +2719,7 @@ function EditAntibioticScreen({
                         hiển thị" nên xuống 2 dòng ở cột hẹp trong khi nhãn kia chỉ 1 dòng, đẩy ô nhập
                         bên dưới tụt xuống lệch nhau. Đặt trước chiều cao ĐÚNG 2 dòng (line-height 1.5
                         ở cỡ chữ 10px) trên cả hai nhãn cùng hàng để hai ô nhập luôn ngang hàng. */}
-                    <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">CrCl tối thiểu (mL/phút)</label>
+                    <label className="text-[12px] text-slate-400 mb-1 block min-h-[3em]">CrCl tối thiểu (mL/phút)</label>
                     <input
                       value={t.min}
                       onChange={(e) => updateTier(idx, "min", normalizeDecimalInput(e.target.value))}
@@ -2730,7 +2730,7 @@ function EditAntibioticScreen({
                     />
                   </div>
                   <div className="flex-[2]">
-                    <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">Nhãn hiển thị</label>
+                    <label className="text-[12px] text-slate-400 mb-1 block min-h-[3em]">Nhãn hiển thị</label>
                     <input
                       value={t.label}
                       onChange={(e) => updateTier(idx, "label", e.target.value)}
@@ -2750,7 +2750,7 @@ function EditAntibioticScreen({
                     </button>
                   )}
                 </div>
-                <label className="text-[10px] text-slate-400 mb-1 block">Liều</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">Liều</label>
                 <input
                   value={t.dose}
                   onChange={(e) => updateTier(idx, "dose", e.target.value)}
@@ -2761,7 +2761,7 @@ function EditAntibioticScreen({
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">Chỉ 1 mức với CrCl tối thiểu = 0 nghĩa là liều cố định, không cần chỉnh theo thận.</p>
+          <p className="text-[12px] text-slate-400 mt-1.5">Chỉ 1 mức với CrCl tối thiểu = 0 nghĩa là liều cố định, không cần chỉnh theo thận.</p>
         </div>
 
         {/* Liều nạp — vd Vancomycin cần 25–30 mg/kg trước khi vào liều duy trì theo CrCl. */}
@@ -2821,7 +2821,7 @@ function EditAntibioticScreen({
               + Thêm chỉ định
             </button>
           </div>
-          <p className="text-[11px] text-slate-400 mb-2 leading-relaxed">
+          <p className="text-[12px] text-slate-400 mb-2 leading-relaxed">
             Dùng khi thuốc cần liều khác cho một bệnh lý cụ thể (VD: viêm màng não cần liều cao hơn để thấm qua hàng rào
             máu não). Gõ tên bệnh lý có sẵn hoặc một tên mới — nếu tên không khớp bệnh lý nào đang có, app sẽ tự thêm
             bệnh lý đó vào danh mục khi lưu.
@@ -2838,7 +2838,7 @@ function EditAntibioticScreen({
                 <div key={row.key} className="p-3 rounded-2xl border" style={{ borderColor: "var(--c-warn-line)", background: "var(--c-warn-soft)" }}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="flex-1">
-                      <label className="text-[10px] text-slate-400 mb-1 block">Tên bệnh lý</label>
+                      <label className="text-[12px] text-slate-400 mb-1 block">Tên bệnh lý</label>
                       <input
                         value={row.diseaseName}
                         onChange={(e) => updateIndicationField(row.key, "diseaseName", e.target.value)}
@@ -2863,7 +2863,7 @@ function EditAntibioticScreen({
                         <button
                           key={d.id}
                           onClick={() => pickIndicationDisease(row.key, d.name)}
-                          className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors"
+                          className="px-2.5 py-1 rounded-full text-[12px] font-semibold border transition-colors"
                           style={
                             matched?.id === d.id
                               ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
@@ -2877,12 +2877,12 @@ function EditAntibioticScreen({
                   )}
 
                   {isNewDisease && (
-                    <p className="text-[11px] font-semibold mb-2" style={{ color: "var(--c-warn-icon)" }}>
+                    <p className="text-[12px] font-semibold mb-2" style={{ color: "var(--c-warn-icon)" }}>
                       Bệnh lý mới — khi lưu, "{trimmedName}" sẽ được tự thêm vào danh mục bệnh lý.
                     </p>
                   )}
 
-                  <label className="text-[10px] text-slate-400 mb-1 block">Liều chuẩn riêng cho bệnh lý này (tuỳ chọn)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Liều chuẩn riêng cho bệnh lý này (tuỳ chọn)</label>
                   <input
                     value={row.standardDose}
                     onChange={(e) => updateIndicationField(row.key, "standardDose", e.target.value)}
@@ -2892,8 +2892,8 @@ function EditAntibioticScreen({
                   />
 
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] text-slate-400">Mức liều theo CrCl riêng (tuỳ chọn — bỏ trống để dùng mức liều chung ở trên)</label>
-                    <button onClick={() => addIndicationTier(row.key)} className="text-[11px] font-semibold" style={{ color: "var(--c-primary)" }}>
+                    <label className="text-[12px] text-slate-400">Mức liều theo CrCl riêng (tuỳ chọn — bỏ trống để dùng mức liều chung ở trên)</label>
+                    <button onClick={() => addIndicationTier(row.key)} className="text-[12px] font-semibold" style={{ color: "var(--c-primary)" }}>
                       + Thêm mức
                     </button>
                   </div>
@@ -2907,7 +2907,7 @@ function EditAntibioticScreen({
                         hiển thị" nên xuống 2 dòng ở cột hẹp trong khi nhãn kia chỉ 1 dòng, đẩy ô nhập
                         bên dưới tụt xuống lệch nhau. Đặt trước chiều cao ĐÚNG 2 dòng (line-height 1.5
                         ở cỡ chữ 10px) trên cả hai nhãn cùng hàng để hai ô nhập luôn ngang hàng. */}
-                    <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">CrCl tối thiểu (mL/phút)</label>
+                    <label className="text-[12px] text-slate-400 mb-1 block min-h-[3em]">CrCl tối thiểu (mL/phút)</label>
                               <input
                                 value={t.min}
                                 onChange={(e) => updateIndicationTier(row.key, idx, "min", normalizeDecimalInput(e.target.value))}
@@ -2918,7 +2918,7 @@ function EditAntibioticScreen({
                               />
                             </div>
                             <div className="flex-[2]">
-                              <label className="text-[10px] text-slate-400 mb-1 block min-h-[3em]">Nhãn hiển thị</label>
+                              <label className="text-[12px] text-slate-400 mb-1 block min-h-[3em]">Nhãn hiển thị</label>
                               <input
                                 value={t.label}
                                 onChange={(e) => updateIndicationTier(row.key, idx, "label", e.target.value)}
@@ -2936,7 +2936,7 @@ function EditAntibioticScreen({
                               {icons.x()}
                             </button>
                           </div>
-                          <label className="text-[10px] text-slate-400 mb-1 block">Liều</label>
+                          <label className="text-[12px] text-slate-400 mb-1 block">Liều</label>
                           <input
                             value={t.dose}
                             onChange={(e) => updateIndicationTier(row.key, idx, "dose", e.target.value)}
@@ -2949,7 +2949,7 @@ function EditAntibioticScreen({
                     </div>
                   )}
 
-                  <label className="text-[10px] text-slate-400 mb-1 block">Ghi chú riêng (tuỳ chọn)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Ghi chú riêng (tuỳ chọn)</label>
                   <input
                     value={row.note}
                     onChange={(e) => updateIndicationField(row.key, "note", e.target.value)}
@@ -2960,39 +2960,39 @@ function EditAntibioticScreen({
               )
             })}
             {indications.length === 0 && (
-              <p className="text-[11px] text-slate-400">Chưa có chỉ định riêng nào — bấm "+ Thêm chỉ định" nếu cần.</p>
+              <p className="text-[12px] text-slate-400">Chưa có chỉ định riêng nào — bấm "+ Thêm chỉ định" nếu cần.</p>
             )}
           </div>
         </div>
 
         <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
           <p className="text-xs font-semibold text-slate-500 mt-3 mb-1.5">Liều khi lọc máu / CRRT (tuỳ chọn)</p>
-          <p className="text-[11px] text-slate-400 leading-relaxed mb-2">
+          <p className="text-[12px] text-slate-400 leading-relaxed mb-2">
             Bỏ trống mục nào thì với bệnh nhân đang dùng phương thức đó, app sẽ nói rõ là chưa có dữ liệu — không bao giờ tự suy ra từ bậc CrCl.
           </p>
           <div className="space-y-2">
             <div>
-              <label className="text-[11px] text-slate-400 mb-1 block">Chạy thận chu kỳ (IHD)</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Chạy thận chu kỳ (IHD)</label>
               <input value={rrtIhd} onChange={(e) => setRrtIhd(e.target.value)} placeholder="VD: 500 mg sau mỗi buổi lọc" className={fieldClass} style={fieldStyle} />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 mb-1 block">Lọc máu liên tục (CRRT) — ghi kèm tốc độ dịch thải của khuyến cáo</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Lọc máu liên tục (CRRT) — ghi kèm tốc độ dịch thải của khuyến cáo</label>
               <input value={rrtCrrt} onChange={(e) => setRrtCrrt(e.target.value)} placeholder="VD: 1 g mỗi 8h khi Qeff ≥ 2 L/giờ" className={fieldClass} style={fieldStyle} />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 mb-1 block">Lọc kéo dài chậm (SLED)</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Lọc kéo dài chậm (SLED)</label>
               <input value={rrtSled} onChange={(e) => setRrtSled(e.target.value)} className={fieldClass} style={fieldStyle} />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 mb-1 block">Lọc màng bụng (PD)</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Lọc màng bụng (PD)</label>
               <input value={rrtPd} onChange={(e) => setRrtPd(e.target.value)} className={fieldClass} style={fieldStyle} />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 mb-1 block">Ghi chú chung khi lọc máu</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Ghi chú chung khi lọc máu</label>
               <textarea value={rrtNote} onChange={(e) => setRrtNote(e.target.value)} rows={2} placeholder="VD: đo nồng độ đáy trước buổi lọc thứ ba" className={fieldClass} style={fieldStyle} />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 mb-1 block">Nguồn của liều lọc máu</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Nguồn của liều lọc máu</label>
               <input value={rrtSource} onChange={(e) => setRrtSource(e.target.value)} placeholder="VD: Phác đồ lọc máu khoa HSTC 2026" className={fieldClass} style={fieldStyle} />
             </div>
           </div>
@@ -3003,7 +3003,7 @@ function EditAntibioticScreen({
           <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="VD: Phác đồ ICU BV X 2026 / Sanford Guide" className={fieldClass} style={fieldStyle} />
           <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Rà soát lần cuối (YYYY-MM)</label>
           <input value={reviewedOn} onChange={(e) => setReviewedOn(e.target.value)} placeholder="VD: 2026-07" className={fieldClass} style={fieldStyle} />
-          <p className="text-[11px] text-slate-400 leading-relaxed mt-1.5">
+          <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
             Bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát".
           </p>
         </div>
@@ -3136,32 +3136,32 @@ function BolusEditorField({ boluses, setBoluses }: { boluses: BolusDraft[]; setB
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Liều{b.mode === "perKg" ? "/kg" : ""}</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Liều{b.mode === "perKg" ? "/kg" : ""}</label>
                   <input value={b.low} onChange={(e) => set({ low: normalizeDecimalInput(e.target.value) })} inputMode="decimal" placeholder="1" className={fieldClass} style={fieldStyle} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Đến (tuỳ chọn)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Đến (tuỳ chọn)</label>
                   <input value={b.high} onChange={(e) => set({ high: normalizeDecimalInput(e.target.value) })} inputMode="decimal" placeholder="1,5" className={fieldClass} style={fieldStyle} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Đơn vị</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Đơn vị</label>
                   <input value={b.unit} onChange={(e) => set({ unit: e.target.value })} placeholder="mg" className={fieldClass} style={fieldStyle} />
                 </div>
               </div>
               {b.mode === "perKg" && (
                 <div className="mt-2">
-                  <label className="text-[11px] text-slate-400 mb-1 block">Không vượt quá 1 lần (tuỳ chọn)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Không vượt quá 1 lần (tuỳ chọn)</label>
                   <input value={b.maxSingle} onChange={(e) => set({ maxSingle: normalizeDecimalInput(e.target.value) })} inputMode="decimal" placeholder="VD: 100" className={fieldClass} style={fieldStyle} />
                 </div>
               )}
               <div className="mt-2">
                 {/* Thời gian tiêm là thứ hay bị bỏ sót và là nguyên nhân tụt huyết áp/phản ứng truyền
                     nhanh khi nạp nhanh. */}
-                <label className="text-[11px] text-slate-400 mb-1 block">Cách dùng — tiêm/truyền trong bao lâu</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">Cách dùng — tiêm/truyền trong bao lâu</label>
                 <input value={b.over} onChange={(e) => set({ over: e.target.value })} placeholder="VD: truyền tĩnh mạch trong 60 phút" className={fieldClass} style={fieldStyle} />
               </div>
               <div className="mt-2">
-                <label className="text-[11px] text-slate-400 mb-1 block">Ghi chú (tuỳ chọn)</label>
+                <label className="text-[12px] text-slate-400 mb-1 block">Ghi chú (tuỳ chọn)</label>
                 <input value={b.note} onChange={(e) => set({ note: e.target.value })} className={fieldClass} style={fieldStyle} />
               </div>
             </div>
@@ -3384,7 +3384,7 @@ function AddInfusionScreen({
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1.5">
+          <p className="text-[12px] text-slate-400 mt-1.5">
             Chọn thì màn chọn thuốc hiện thêm bước "Chỉ định" cho thuốc này. Không chọn = thuốc dùng chung, không gắn với bệnh lý cụ thể nào.
           </p>
         </div>
@@ -3503,7 +3503,7 @@ function AddInfusionScreen({
                   (vd "mcg/kg/min" tiếng Anh sẽ không đọc được). Vẫn cho sửa tay bên dưới cho các
                   đơn vị lạ, kèm kiểm tra định dạng ngay tại chỗ. */}
               <div>
-                <label className="text-[11px] text-slate-400 mb-1.5 block">Đơn vị liều</label>
+                <label className="text-[12px] text-slate-400 mb-1.5 block">Đơn vị liều</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {COMMON_DOSE_UNITS.map((u) => (
                     <button
@@ -3512,7 +3512,7 @@ function AddInfusionScreen({
                         setDoseUnit(u)
                         setWeightBased(u.includes("/kg"))
                       }}
-                      className="px-2.5 py-1.5 rounded-full text-[11px] font-semibold border whitespace-nowrap"
+                      className="px-2.5 py-1.5 rounded-full text-[12px] font-semibold border whitespace-nowrap"
                       style={
                         doseUnit === u
                           ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
@@ -3526,29 +3526,29 @@ function AddInfusionScreen({
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Đơn vị liều (sửa tay nếu cần)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Đơn vị liều (sửa tay nếu cần)</label>
                   <input value={doseUnit} onChange={(e) => setDoseUnit(e.target.value)} placeholder="mcg/kg/phút" className={fieldClass} style={fieldStyle} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Đơn vị nồng độ</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Đơn vị nồng độ</label>
                   <input value={concUnit} onChange={(e) => setConcUnit(e.target.value)} placeholder="mg/mL" className={fieldClass} style={fieldStyle} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Liều tối thiểu gợi ý</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Liều tối thiểu gợi ý</label>
                   <input value={doseMin} onChange={(e) => setDoseMin(normalizeDecimalInput(e.target.value))} inputMode="decimal" className={fieldClass} style={numFieldStyle(doseMin)} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Liều tối đa gợi ý</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Liều tối đa gợi ý</label>
                   <input value={doseMax} onChange={(e) => setDoseMax(normalizeDecimalInput(e.target.value))} inputMode="decimal" className={fieldClass} style={numFieldStyle(doseMax)} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Nồng độ pha mặc định (tuỳ chọn)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Nồng độ pha mặc định (tuỳ chọn)</label>
                   <input value={concDefault} onChange={(e) => setConcDefault(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="Để trống nếu tuỳ khoa" className={fieldClass} style={numFieldStyle(concDefault)} />
                 </div>
               </div>
 
               {/* Công thức pha dạng số — có phần này thì bảng "ống ⇄ nồng độ" mới tính giúp được */}
-              <p className="text-[11px] font-semibold text-slate-500 mt-1">Công thức pha chuẩn (tuỳ chọn)</p>
+              <p className="text-[12px] font-semibold text-slate-500 mt-1">Công thức pha chuẩn (tuỳ chọn)</p>
               <div className="flex gap-2">
                 {([
                   { v: "solution" as VialForm, label: "Ống dung dịch" },
@@ -3570,24 +3570,24 @@ function AddInfusionScreen({
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Hàm lượng 1 ống/lọ</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Hàm lượng 1 ống/lọ</label>
                   <input value={mixVialAmount} onChange={(e) => setMixVialAmount(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 250" className={fieldClass} style={numFieldStyle(mixVialAmount)} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Đơn vị của ống</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Đơn vị của ống</label>
                   <input value={mixVialUnit} onChange={(e) => setMixVialUnit(e.target.value)} placeholder="mg" className={fieldClass} style={fieldStyle} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Số ống của công thức chuẩn</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Số ống của công thức chuẩn</label>
                   <input value={mixVials} onChange={(e) => setMixVials(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="1" className={fieldClass} style={numFieldStyle(mixVials)} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-slate-400 mb-1 block">Pha vừa đủ (mL)</label>
+                  <label className="text-[12px] text-slate-400 mb-1 block">Pha vừa đủ (mL)</label>
                   <input value={mixVolume} onChange={(e) => setMixVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 50" className={fieldClass} style={numFieldStyle(mixVolume)} />
                 </div>
                 {mixForm === "solution" && (
                   <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Thể tích 1 ống (mL)</label>
+                    <label className="text-[12px] text-slate-400 mb-1 block">Thể tích 1 ống (mL)</label>
                     <input value={mixVialVolume} onChange={(e) => setMixVialVolume(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 20" className={fieldClass} style={numFieldStyle(mixVialVolume)} />
                   </div>
                 )}
@@ -3598,27 +3598,27 @@ function AddInfusionScreen({
               {mixForm === "powder" && (
                 <div className="space-y-2.5">
                   <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Pha ban đầu với (mL/lọ)</label>
+                    <label className="text-[12px] text-slate-400 mb-1 block">Pha ban đầu với (mL/lọ)</label>
                     <input value={mixReconstitute} onChange={(e) => setMixReconstitute(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 10" className={fieldClass} style={numFieldStyle(mixReconstitute)} />
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-400 mb-1 block">Thể tích bột tăng sau pha (mL/lọ)</label>
+                    <label className="text-[12px] text-slate-400 mb-1 block">Thể tích bột tăng sau pha (mL/lọ)</label>
                     <input value={mixDisplacement} onChange={(e) => setMixDisplacement(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 0,7" className={fieldClass} style={numFieldStyle(mixDisplacement)} />
                   </div>
                 </div>
               )}
 
               {numericProblem && (
-                <p className="text-[11px] font-semibold leading-relaxed" style={{ color: "var(--c-danger-icon)" }}>
+                <p className="text-[12px] font-semibold leading-relaxed" style={{ color: "var(--c-danger-icon)" }}>
                   {numericProblem}
                 </p>
               )}
               {unitProblem ? (
-                <p className="text-[11px] leading-relaxed" style={{ color: "var(--c-danger-icon)" }}>
+                <p className="text-[12px] leading-relaxed" style={{ color: "var(--c-danger-icon)" }}>
                   {unitProblem}
                 </p>
               ) : (
-                <p className="text-[11px] text-slate-400 leading-relaxed">
+                <p className="text-[12px] text-slate-400 leading-relaxed">
                   Đơn vị liều phải kết thúc bằng <b>/phút</b> hoặc <b>/giờ</b>, thêm <b>/kg</b> nếu tính theo cân nặng. Đơn vị nồng độ dạng <b>&lt;đơn vị&gt;/mL</b>. Hệ số quy đổi không cần khai báo nữa — máy tính tự suy ra từ hai đơn vị này.
                 </p>
               )}
@@ -3631,7 +3631,7 @@ function AddInfusionScreen({
           <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="VD: Phác đồ ICU BV X 2026 / Sanford Guide / tờ HDSD" className={fieldClass} style={fieldStyle} />
           <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Rà soát lần cuối (YYYY-MM)</label>
           <input value={reviewedOn} onChange={(e) => setReviewedOn(e.target.value)} placeholder="VD: 2026-07" className={fieldClass} style={fieldStyle} />
-          <p className="text-[11px] text-slate-400 leading-relaxed mt-1.5">
+          <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
             Bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát" — để sau này biết mục nào còn phải kiểm chứng lại.
           </p>
         </div>
@@ -4847,7 +4847,7 @@ function DisclaimerGate() {
           <p className="text-[13px] font-bold">Trước khi dùng</p>
         </div>
         <p className="text-[13px] text-slate-700 leading-[1.45] mb-3">{DISCLAIMER_TEXT}</p>
-        <p className="text-[11px] text-slate-500 leading-[1.45] mb-4">
+        <p className="text-[12px] text-slate-500 leading-[1.45] mb-4">
           Mỗi mục đều ghi nguồn và ngày rà soát ngay trên thẻ thuốc; mục nào chưa có thì được đánh dấu rõ.
         </p>
         <button
@@ -4886,7 +4886,7 @@ function DisclaimerBar() {
 function InputWarning({ text, level }: { text: string; level: "check" | "implausible" }) {
   const color = level === "implausible" ? { bg: "var(--c-danger-soft)", fg: "var(--c-danger)" } : { bg: "var(--c-warn-soft)", fg: "var(--c-warn-icon)" }
   return (
-    <p className="text-[11px] font-semibold leading-[1.45] mt-1 px-2 py-1 rounded-lg" style={{ background: color.bg, color: color.fg }}>
+    <p className="text-[12px] font-semibold leading-[1.45] mt-1 px-2 py-1 rounded-lg" style={{ background: color.bg, color: color.fg }}>
       {text}
     </p>
   )
@@ -4963,10 +4963,10 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
     <div className="mx-5 mb-3 rounded-2xl" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={onToggle} className="flex-1 min-w-0 text-left">
-          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--c-primary)" }}>
+          <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
             Bệnh nhân hiện tại
           </p>
-          <p className="text-[11px] text-slate-600 truncate mt-0.5">{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</p>
+          <p className="text-[12px] text-slate-600 truncate mt-0.5">{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</p>
         </button>
         {hasData && (
           <button
@@ -4982,7 +4982,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               resetPatient()
               tickHaptic()
             }}
-            className="flex-none h-8 px-2.5 rounded-full text-[11px] font-bold border"
+            className="flex-none h-8 px-2.5 rounded-full text-[12px] font-bold border"
             style={
               confirmReset
                 ? { background: "var(--c-danger)", borderColor: "var(--c-danger)", color: "var(--c-on-bright)" }
@@ -5084,6 +5084,16 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             )
           )}
 
+          {/* Creatinin/CrCl/chức năng thận chỉ có ý nghĩa cho liều kháng sinh theo CrCl — 9 nhóm
+              thuốc truyền còn lại chỉ cần cân nặng/giới tính ở trên. Gấp lại theo mặc định để
+              không chặn đường xuống danh sách thuốc trên các tab đó; tự mở khi đã có dữ liệu liên
+              quan (đang tra kháng sinh hoặc đã khai chức năng thận) để không giấu mất giá trị đã
+              nhập. */}
+          <Disclosure
+            label="Creatinin · CrCl · Chức năng thận"
+            alert={!crclUsable}
+            defaultOpen={patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
+          >
             <PatientField label="Creatinin">
               <div className="flex gap-1.5">
                 <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={FIELD} style={FIELD_STYLE} />
@@ -5217,12 +5227,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               xác nhận ít nhất một lần (isRenalStatusStale loại bệnh nhân mới, chưa ai chạm tới). */}
           {isRenalStatusStale(patient) && (
             <div className="flex items-center gap-2 mb-2 px-2.5 py-2 rounded-xl fade-in" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-              <p className="flex-1 text-[11px] font-bold leading-[1.4]" style={{ color: "var(--c-warn)" }}>
+              <p className="flex-1 text-[12px] font-bold leading-[1.4]" style={{ color: "var(--c-warn)" }}>
                 Chức năng thận chưa được xác nhận lại từ đầu ca — còn đúng không?
               </p>
               <button
                 onClick={() => setPatientField("rrt", patient.rrt)}
-                className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[11px] font-bold`}
+                className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[12px] font-bold`}
                 style={{ background: "var(--c-warn)", color: "var(--c-on-bright)" }}
               >
                 Vẫn đúng
@@ -5259,6 +5269,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               </p>
             </div>
           )}
+          </Disclosure>
         </div>
       </div>
     </div>
@@ -5274,7 +5285,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
 // chung ở cuối bảng thì người đọc không phân biệt được mục nào chắc, mục nào còn phải kiểm.
 function CompatSource({ verified, source, color }: { verified: boolean; source?: string; color: string }) {
   return (
-    <p className="text-[11px] leading-[1.45] mt-1" style={{ color, opacity: 0.85 }}>
+    <p className="text-[12px] leading-[1.45] mt-1" style={{ color, opacity: 0.85 }}>
       {verified && source ? `Đã đối chiếu — nguồn: ${source}` : "CHƯA đối chiếu tài liệu gốc — dữ liệu khởi tạo của app, cần xác nhận với dược lâm sàng."}
     </p>
   )
@@ -5359,7 +5370,7 @@ function RunningPanel() {
 
       {lines.map((line) => (
         <div key={line} className="mb-2.5">
-          <p className="text-[11px] font-bold text-slate-400 mb-1">{lineLabel(line)}</p>
+          <p className="text-[12px] font-bold text-slate-400 mb-1">{lineLabel(line)}</p>
           {running
             .filter((r) => r.line === line)
             .map((r) => (
@@ -5403,7 +5414,7 @@ function RunningPanel() {
                       <button
                         key={l}
                         onClick={() => setRunningLine(r.id, l)}
-                        className="w-11 h-11 rounded-full text-[11px] font-bold border"
+                        className="w-11 h-11 rounded-full text-[12px] font-bold border"
                         style={
                           r.line === l
                             ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
@@ -5419,7 +5430,7 @@ function RunningPanel() {
                   {pendingRemove[r.id] ? (
                     <button
                       onClick={() => cancelUnpin(r.id)}
-                      className="h-11 px-3 rounded-full flex items-center justify-center flex-none text-[11px] font-bold"
+                      className="h-11 px-3 rounded-full flex items-center justify-center flex-none text-[12px] font-bold"
                       style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
                     >
                       Hoàn tác
@@ -5449,9 +5460,9 @@ function RunningPanel() {
         </div>
       ) : (
       <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
-        <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5 text-slate-400">Chạy chung nòng (Y-site)</p>
+        <p className="text-[12px] font-bold mb-1.5 text-slate-400">Chạy chung nòng (Y-site)</p>
         {ysiteFindings.length === 0 ? (
-          <p className="text-[11px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
+          <p className="text-[12px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
         ) : (
           ysiteFindings.map((f, i) => {
             const danger = f.rule.verdict === "incompatible"
@@ -5475,9 +5486,9 @@ function RunningPanel() {
           })
         )}
 
-        <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5 mt-2.5 text-slate-400">Tương tác thuốc</p>
+        <p className="text-[12px] font-bold mb-1.5 mt-2.5 text-slate-400">Tương tác thuốc</p>
         {interactionFindings.length === 0 ? (
-          <p className="text-[11px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
+          <p className="text-[12px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
         ) : (
           interactionFindings.map((f, i) => {
             const danger = f.rule.severity === "cao"
@@ -5490,10 +5501,10 @@ function RunningPanel() {
               >
                 <span className="mt-0.5 flex-none" style={{ color: danger ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>{icons.alert()}</span>
                 <div>
-                  <p className="text-[11px] font-bold leading-[1.45]" style={{ color: fg }}>
+                  <p className="text-[12px] font-bold leading-[1.45]" style={{ color: fg }}>
                     {f.a.name} + {f.b.name}
                   </p>
-                  <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: fg }}>{f.rule.text}</p>
+                  <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: fg }}>{f.rule.text}</p>
                   <CompatSource verified={f.rule.verified} source={f.rule.source} color={fg} />
                 </div>
               </div>
@@ -5501,7 +5512,7 @@ function RunningPanel() {
           })
         )}
 
-        <p className="text-[11px] leading-[1.45] mt-2 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-surface-alt)", color: "var(--c-text-muted)" }}>
+        <p className="text-[12px] leading-[1.45] mt-2 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-surface-alt)", color: "var(--c-text-muted)" }}>
           {COMPAT_DISCLAIMER}
         </p>
       </div>
@@ -5692,7 +5703,7 @@ function DrugWarnings({ warnings, bare }: { warnings?: AntibioticWarning[]; bare
   if (!warnings || warnings.length === 0) return null
   return (
     <div className={bare ? "space-y-1.5" : "mt-3 pt-3 border-t space-y-1.5"} style={bare ? undefined : { borderColor: "var(--c-line-soft)" }}>
-      {!bare && <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--c-warn-icon)" }}>Lưu ý / tương tác</p>}
+      {!bare && <p className="text-[12px] font-bold" style={{ color: "var(--c-warn-icon)" }}>Lưu ý / tương tác</p>}
       {warnings.map((w, i) =>
         w.severity === "cao" ? (
           <div key={i} className="flex items-start gap-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
@@ -5704,7 +5715,7 @@ function DrugWarnings({ warnings, bare }: { warnings?: AntibioticWarning[]; bare
         ) : (
           <div key={i} className="flex items-start gap-1.5">
             <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-none" style={{ background: "var(--c-warn-icon)" }} />
-            <p className="text-[11px] text-slate-600 leading-[1.45]">{w.text}</p>
+            <p className="text-[12px] text-slate-600 leading-[1.45]">{w.text}</p>
           </div>
         ),
       )}
@@ -5830,7 +5841,7 @@ function WardRecipeChips({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Lọc theo tên công thức..."
-          className="w-full h-8 px-2.5 mb-1.5 rounded-full text-[11px] border outline-none"
+          className="w-full h-8 px-2.5 mb-1.5 rounded-full text-[12px] border outline-none"
           style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
         />
       )}
@@ -5875,7 +5886,7 @@ function WardRecipeChips({
             />
           </span>
         ))}
-        {shown.length === 0 && <p className="text-[11px] text-slate-400 py-1.5">Không có công thức nào khớp "{filter}".</p>}
+        {shown.length === 0 && <p className="text-[12px] text-slate-400 py-1.5">Không có công thức nào khớp "{filter}".</p>}
       </div>
     </div>
   )
@@ -5913,13 +5924,13 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
             {danger ? "KHÔNG TƯƠNG HỢP VỚI THUỐC ĐANG DÙNG" : "THẬN TRỌNG VỚI THUỐC ĐANG DÙNG"} — kiểm tra nòng trước khi ghim
           </p>
           {ysite.map(({ r, rule }, i) => (
-            <p key={`y-${i}`} className="text-[11px] leading-[1.45] mt-1" style={{ color: style.text }}>
+            <p key={`y-${i}`} className="text-[12px] leading-[1.45] mt-1" style={{ color: style.text }}>
               <b>{r.name}</b> ({lineLabel(r.line)}){rule.verdict === "incompatible" ? " — KHÔNG tương hợp Y-site" : " — thận trọng Y-site"}: {rule.text}
               {!rule.verified && " (chưa đối chiếu tài liệu gốc)"}
             </p>
           ))}
           {interactions.map(({ r, rule }, i) => (
-            <p key={`i-${i}`} className="text-[11px] leading-[1.45] mt-1" style={{ color: style.text }}>
+            <p key={`i-${i}`} className="text-[12px] leading-[1.45] mt-1" style={{ color: style.text }}>
               <b>{r.name}</b> — tương tác mức {rule.severity}: {rule.text}
               {!rule.verified && " (chưa đối chiếu tài liệu gốc)"}
             </p>
@@ -6277,7 +6288,7 @@ function AntibioticMixPanel({
           <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
           <div className="flex flex-wrap gap-1.5 mb-1.5">
             {allowedDiluents.map((d) => (
-              <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(diluent === d)}>
+              <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(diluent === d)}>
                 {d}
               </button>
             ))}
@@ -6285,7 +6296,7 @@ function AntibioticMixPanel({
               <button
                 key={d}
                 onClick={() => setDiluent(d)}
-                className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
+                className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
                 style={
                   diluent === d
                     ? { background: "var(--c-danger-icon)", borderColor: "var(--c-danger-icon)", color: "var(--c-on-bright)" }
@@ -6297,7 +6308,7 @@ function AntibioticMixPanel({
             ))}
           </div>
           {diluentBlocked && (
-            <p className="text-[11px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
+            <p className="text-[12px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
               {mix?.diluentWarning ?? `Không pha ${drug.name} với ${diluent}.`}
             </p>
           )}
@@ -6324,7 +6335,7 @@ function AntibioticMixPanel({
                   setDeliveryDevice(opt.v)
                   tickHaptic()
                 }}
-                className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
+                className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
                 style={pill(deliveryDevice === opt.v)}
               >
                 {opt.label}
@@ -6361,7 +6372,7 @@ function AntibioticMixPanel({
               }
               tickHaptic()
             }}
-            className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
+            className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
             style={pill(allowWithdraw === opt.v)}
           >
             {opt.label}
@@ -6378,7 +6389,7 @@ function AntibioticMixPanel({
             { v: "fixed" as VialForm, label: "Chai cố định hàm lượng" },
           ]
         ).map((opt) => (
-          <button key={opt.v} onClick={() => setVialForm(opt.v)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(vialForm === opt.v)}>
+          <button key={opt.v} onClick={() => setVialForm(opt.v)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialForm === opt.v)}>
             {opt.label}
           </button>
         ))}
@@ -6453,7 +6464,7 @@ function AntibioticMixPanel({
                   }
                   tickHaptic()
                 }}
-                className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
                 style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
               >
                 {fixedPoolSuggestion.drawMl == null
@@ -6469,7 +6480,7 @@ function AntibioticMixPanel({
                     setFixedDoseAmount("")
                     tickHaptic()
                   }}
-                  className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                  className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
                   style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
                 >
                   Hoặc {trim(fixedPoolSuggestion.alt.count, 0)} chai
@@ -6480,7 +6491,7 @@ function AntibioticMixPanel({
           {unitChoices.length > 1 && (
             <div className="flex gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
-                <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(vialUnit === u)}>
+                <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
                   {u}
                 </button>
               ))}
@@ -6537,7 +6548,7 @@ function AntibioticMixPanel({
                   applySolutionSuggestion(va)
                   tickHaptic()
                 }}
-                className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
                 style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}
               >
                 Gợi ý {trim(vialCountSuggestion.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.totalInDoseUnit)} {doseTargetMg.unit} — khớp khoảng liều{" "}
@@ -6552,7 +6563,7 @@ function AntibioticMixPanel({
                     setVials(String(vialCountSuggestion.alt!.count))
                     tickHaptic()
                   }}
-                  className="text-left text-[11px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
+                  className="text-left text-[12px] leading-[1.45] font-semibold px-2.5 py-2 rounded-xl underline decoration-dotted"
                   style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
                 >
                   Hoặc {trim(vialCountSuggestion.alt.count)} {vialLabel} (≈ {formatDoseNumber(vialCountSuggestion.alt.totalInDoseUnit)} {doseTargetMg.unit})
@@ -6585,7 +6596,7 @@ function AntibioticMixPanel({
           {unitChoices.length > 1 && (
             <div className="flex gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
-                <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(vialUnit === u)}>
+                <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
                   {u}
                 </button>
               ))}
@@ -6620,7 +6631,7 @@ function AntibioticMixPanel({
                   <button
                     key={f}
                     onClick={() => setDropFactor(f)}
-                    className="flex-1 text-[11px] font-semibold"
+                    className="flex-1 text-[12px] font-semibold"
                     style={dropFactor === f ? { background: "var(--c-accent)", color: "var(--c-on-bright)" } : { background: "var(--c-surface)", color: "var(--c-text-soft)" }}
                   >
                     {f}
@@ -6635,7 +6646,7 @@ function AntibioticMixPanel({
       {fixedImpossible && (
         <div className="px-3 py-2.5 rounded-xl flex items-start gap-2 mb-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
           <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
-          <p className="text-[11px] leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
+          <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
             LIỀU CẦN LẤY VƯỢT HÀM LƯỢNG CẢ CHAI — kiểm tra lại liều cần lấy hoặc hàm lượng chai.
           </p>
         </div>
@@ -6645,15 +6656,15 @@ function AntibioticMixPanel({
         impossible ? (
           <div className="px-3 py-2.5 rounded-xl flex items-start gap-2" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }}>
             <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
-            <p className="text-[11px] leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
+            <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
               KHÔNG PHA ĐƯỢC — thể tích thuốc đã nhiều hơn thể tích pha loãng. Kiểm tra lại số {vialLabel}, thể tích 1 {vialLabel} hoặc thể tích pha loãng.
             </p>
           </div>
         ) : (
           <div className="px-3 py-2.5 rounded-xl" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
             {usageLine && <p className="text-[13px] font-bold text-slate-800 leading-[1.45]">{usageLine}</p>}
-            {!isFixed && <p className="text-[11px] leading-[1.45] mt-1" style={{ color: "var(--c-text-soft)" }}>Nồng độ {formatDoseNumber(conc)} {concUnit}</p>}
-            <p className="text-[11px] font-semibold leading-[1.45] mt-1" style={{ color: "var(--c-accent-deep)" }}>
+            {!isFixed && <p className="text-[12px] leading-[1.45] mt-1" style={{ color: "var(--c-text-soft)" }}>Nồng độ {formatDoseNumber(conc)} {concUnit}</p>}
+            <p className="text-[12px] font-semibold leading-[1.45] mt-1" style={{ color: "var(--c-accent-deep)" }}>
               {isFixed
                 ? fixedDoseNum != null
                   ? // Luôn nói rõ SỐ CHAI đã gộp — "rút 300 mL từ chai 750 mg/150 mL" đọc như đang rút
@@ -6667,7 +6678,7 @@ function AntibioticMixPanel({
                     : `Dùng trọn 1 chai ${trim(va)} ${vialUnit}/${trim(fixedVialVolume ?? 0)} mL`
                 : describeComposition(outcome(), vialLabel)}
             </p>
-            {mix?.infuseNote && <p className="text-[11px] leading-[1.45] mt-2" style={{ color: "var(--c-text-soft)" }}>Truyền: {mix.infuseNote}</p>}
+            {mix?.infuseNote && <p className="text-[12px] leading-[1.45] mt-2" style={{ color: "var(--c-text-soft)" }}>Truyền: {mix.infuseNote}</p>}
 
             {/* Chỉ còn HAI mức màu, không phải ba: nguy hiểm (đỏ) / thận trọng (hổ phách). Trước đây
                 "warn" tô cam riêng tách khỏi "note" tô hổ phách — trong buồng tối cam #c2410c và
@@ -6688,12 +6699,12 @@ function AntibioticMixPanel({
                 </span>
                 <div>
                   {grade.headline && (
-                    <p className="text-[11px] font-extrabold leading-[1.3]" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : "var(--c-warn)" }}>
+                    <p className="text-[12px] font-extrabold leading-[1.3]" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : "var(--c-warn)" }}>
                       {grade.headline}
                     </p>
                   )}
                   {grade.detail && (
-                    <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : "var(--c-warn)" }}>
+                    <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: grade.severity === "danger" ? "var(--c-danger-deep)" : "var(--c-warn)" }}>
                       {grade.detail}
                     </p>
                   )}
@@ -6715,7 +6726,7 @@ function AntibioticMixPanel({
             ) : (
               <>
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  <button onClick={saveLog} className="h-8 px-3 rounded-full text-[11px] font-bold" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
+                  <button onClick={saveLog} className="h-8 px-3 rounded-full text-[12px] font-bold" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
                     Lưu vào nhật ký
                   </button>
                 </div>
@@ -6728,10 +6739,10 @@ function AntibioticMixPanel({
                     onChange={(e) => setSaveTitle(e.target.value)}
                     placeholder="Đặt tên công thức (tuỳ chọn, vd: Khoa Hồi sức)"
                     maxLength={40}
-                    className="flex-1 min-w-0 h-8 px-2.5 rounded-full text-[11px] border outline-none"
+                    className="flex-1 min-w-0 h-8 px-2.5 rounded-full text-[12px] border outline-none"
                     style={FIELD_STYLE}
                   />
-                  <button onClick={saveWardFrom} className="h-8 px-3 rounded-full text-[11px] font-bold border flex-none" style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}>
+                  <button onClick={saveWardFrom} className="h-8 px-3 rounded-full text-[12px] font-bold border flex-none" style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}>
                     Lưu công thức mới
                   </button>
                 </div>
@@ -6741,7 +6752,7 @@ function AntibioticMixPanel({
         )
       )}
       {conc == null && (
-        <p className="text-[11px] leading-[1.45] text-slate-400">
+        <p className="text-[12px] leading-[1.45] text-slate-400">
           {isFixed ? `Nhập hàm lượng và thể tích cả chai để tính.` : `Nhập hàm lượng ${vialLabel}, số ${vialLabel} và thể tích pha loãng để tính nồng độ.`}
         </p>
       )}
@@ -7007,7 +7018,7 @@ function AntibioticDoseCard({
           <p className="font-bold text-slate-900 text-[13px] truncate">{drug.name}</p>
           {drug.isCustom && (
             <span
-              className="text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-none"
+              className="text-[12px] font-bold px-1.5 py-0.5 rounded-full flex-none"
               style={isOverride ? { background: "var(--c-primary-soft)", color: "var(--c-primary)" } : { background: "var(--c-green-soft)", color: "var(--c-green)" }}
             >
               {isOverride ? "Đã chỉnh sửa" : "Tự nhập"}
@@ -7080,17 +7091,17 @@ function AntibioticDoseCard({
       {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && (
         <div className="mb-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>          {dosingWeight.used != null && dosingWeight.usedLabel ? (
             <>
-              <p className="text-[11px] font-bold" style={{ color: "var(--c-warn)" }}>
+              <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
                 Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1)} kg
               </p>
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
+              <p className="text-[12px] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
                 ABW {dosingWeight.abw?.toFixed(1)} kg
                 {dosingWeight.ibw != null && ` · IBW ${dosingWeight.ibw.toFixed(1)} kg`}
                 {dosingWeight.adjBw != null && ` · AdjBW ${dosingWeight.adjBw.toFixed(1)} kg`}
               </p>
             </>
           ) : (
-            <p className="text-[11px] font-bold" style={{ color: "var(--c-warn)" }}>
+            <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
               Thuốc này cần cân nặng lý tưởng/hiệu chỉnh — nhập cân nặng và chiều cao ở trên để tính chính xác.
             </p>
           )}
@@ -7100,7 +7111,7 @@ function AntibioticDoseCard({
           nhất. Bậc liều theo CrCl bị vô hiệu hoá, và nếu app không có dữ liệu thì phải nói thẳng. */}
       {patient.rrt !== "none" && (
         <div className="mb-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
-          <p className="text-[11px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
+          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
             {RRT_LABELS[patient.rrt]} — bậc liều theo CrCl KHÔNG áp dụng.
           </p>
           {rrtDoseText ? (
@@ -7108,19 +7119,19 @@ function AntibioticDoseCard({
               <p className="text-[13px] font-bold leading-[1.45] mt-1" style={{ color: "var(--c-danger-deep)" }}>{rrtDoseText}</p>
               {/* Liều CRRT là con số CÓ ĐIỀU KIỆN — thiếu Qeff thì chưa đọc được nó thuộc cột nào */}
               {needsCrrtFlow(patient.rrt) && !((parseStrictNumber(patient.crrtFlowLPerH) ?? 0) > 0) && (
-                <button onClick={openPatientPanel} className="text-[11px] font-bold underline text-left leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
+                <button onClick={openPatientPanel} className="text-[12px] font-bold underline text-left leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
                   Chưa nhập tốc độ dịch thải (Qeff) — nhập ở khung "Bệnh nhân hiện tại" để biết khuyến cáo trên ứng với mức lọc nào.
                 </button>
               )}
             </>
           ) : (
-            <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
+            <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
               App CHƯA có dữ liệu liều cho phương thức lọc này với {drug.name}. Tra phác đồ lọc máu của cơ sở hoặc hỏi dược lâm sàng — liều và thời điểm dùng phụ thuộc phương thức lọc, liều lọc và lịch buổi lọc. Nhập được vào app qua nút Sửa để lần sau khỏi tra lại.
             </p>
           )}
-          {drug.rrt?.note && <p className="text-[11px] leading-[1.45] mt-1" style={{ color: "var(--c-danger-deep)" }}>{drug.rrt.note}</p>}
+          {drug.rrt?.note && <p className="text-[12px] leading-[1.45] mt-1" style={{ color: "var(--c-danger-deep)" }}>{drug.rrt.note}</p>}
           {(drug.rrt?.source || drug.rrt?.reviewedOn) && (
-            <p className="text-[11px] leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
+            <p className="text-[12px] leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
               {drug.rrt.source && <>Nguồn liều lọc máu: {drug.rrt.source}</>}
               {drug.rrt.source && drug.rrt.reviewedOn && " · "}
               {drug.rrt.reviewedOn && <>Rà soát: {formatReviewedOn(drug.rrt.reviewedOn)}</>}
@@ -7130,7 +7141,7 @@ function AntibioticDoseCard({
       )}
       {patient.rrt === "none" && patient.akiUnstable && (
         <div className="mb-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[11px] font-bold leading-[1.45]" style={{ color: "var(--c-warn)" }}>
+          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-warn)" }}>
             Tổn thương thận cấp (creatinin chưa ổn định) — Cockcroft-Gault không dùng được, app đang hiển thị liều bậc thận bình thường. Chỉnh liều theo lâm sàng, nồng độ thuốc đo được và ý kiến dược lâm sàng.
           </p>
         </div>
@@ -7171,17 +7182,17 @@ function AntibioticDoseCard({
             <>
               {/* CHẶN hẳn con số nhân sẵn — cân nặng cỡ này gần như chắc chắn gõ nhầm, không được
                   in ra một liều gam trông chắc chắn rồi để bác sĩ tự tin dùng luôn lúc gấp. */}
-              <p className="text-[11px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
+              <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
                 Không tính liều mg/kg: {checkWeight(dosingWeight.used)?.message}
               </p>
-              <button onClick={openPatientPanel} className="text-[11px] font-bold underline text-left leading-[1.45] mt-0.5" style={{ color: "var(--c-danger)" }}>
+              <button onClick={openPatientPanel} className="text-[12px] font-bold underline text-left leading-[1.45] mt-0.5" style={{ color: "var(--c-danger)" }}>
                 Sửa lại cân nặng ở khung "Bệnh nhân hiện tại"
               </button>
             </>
           ) : dosingWeight.used != null ? (
             <>
               {perKgDoses.map((d, i) => (
-                <p key={i} className="text-[11px] leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
+                <p key={i} className="text-[12px] leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
                   <b>{d.raw}</b> × {dosingWeight.used?.toFixed(1)} kg
                   {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
                 </p>
@@ -7189,18 +7200,18 @@ function AntibioticDoseCard({
               {/* Trần liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
                   không để dưới đáy thẻ: chỗ người dùng đang nhìn là dòng mg/kg này. */}
               {doseCapText && (
-                <p className="text-[11px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
+                <p className="text-[12px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
                   {doseCapText}
                 </p>
               )}
-              <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-accent)" }}>
+              <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-accent)" }}>
                 {doseCapText
                   ? "Còn phải làm tròn theo hàm lượng lọ/ống thực tế."
                   : "Còn phải làm tròn theo hàm lượng lọ/ống thực tế và ngưỡng liều tối đa của thuốc."}
               </p>
             </>
           ) : (
-            <button onClick={openPatientPanel} className="text-[11px] font-bold text-left leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
+            <button onClick={openPatientPanel} className="text-[12px] font-bold text-left leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
               Nhập cân nặng ở khung "Bệnh nhân hiện tại" để app nhân sẵn liều mg/kg.
             </button>
           )}
@@ -7211,8 +7222,8 @@ function AntibioticDoseCard({
           công thức pha, xem autoUsage ở trên. */}
       {autoUsage && (
         <div className="mt-1.5 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-          <p className="text-[11px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage}</p>
-          <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
+          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage}</p>
+          <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
             Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
           </p>
         </div>
@@ -7310,7 +7321,7 @@ function AntibioticDoseCard({
                     tickHaptic()
                   }}
                   onBlur={() => setConfirmClearWard(false)}
-                  className="flex items-center gap-1.5 text-[11px] font-bold mt-1.5"
+                  className="flex items-center gap-1.5 text-[12px] font-bold mt-1.5"
                   style={{ color: confirmClearWard ? "var(--c-on-bright)" : "var(--c-danger)", background: confirmClearWard ? "var(--c-danger-icon)" : "transparent", padding: confirmClearWard ? "4px 8px" : 0, borderRadius: 999 }}
                 >
                   <span className="scale-90">{confirmClearWard ? icons.alert() : icons.trash()}</span>
@@ -7543,7 +7554,7 @@ function AntibioticsScreen({
           const nodes: React.ReactNode[] = []
           if (!query.trim() && letter !== prevLetter) {
             nodes.push(
-              <span key={`letter-${letter}`} className="basis-full text-[11px] font-bold uppercase tracking-wide mt-1 first:mt-0" style={{ color: "var(--c-text-muted)" }}>
+              <span key={`letter-${letter}`} className="basis-full text-[12px] font-bold uppercase tracking-wide mt-1 first:mt-0" style={{ color: "var(--c-text-muted)" }}>
                 {letter}
               </span>,
             )
@@ -7700,26 +7711,26 @@ function BolusList({
                 : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }
             }
           >
-            <p className="text-[11px] font-bold leading-[1.45]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn)" }}>{b.label}</p>
-            {info.perKgText && <p className="text-[11px]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn-icon)" }}>Theo cân nặng: {info.perKgText}</p>}
+            <p className="text-[12px] font-bold leading-[1.45]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn)" }}>{b.label}</p>
+            {info.perKgText && <p className="text-[12px]" style={{ color: info.blocked ? "var(--c-danger-deep)" : "var(--c-warn-icon)" }}>Theo cân nặng: {info.perKgText}</p>}
             {info.needWeight ? (
-              <button onClick={openPatientPanel} className="text-[11px] font-bold underline mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
+              <button onClick={openPatientPanel} className="text-[12px] font-bold underline mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
                 Nhập cân nặng ở khung "Bệnh nhân hiện tại" để tính ra số mg
               </button>
             ) : info.blocked ? (
               <>
-                <p className="text-[11px] font-bold leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
+                <p className="text-[12px] font-bold leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
                   Không tính liều nạp: {weightWarn?.message}
                 </p>
-                <button onClick={openPatientPanel} className="text-[11px] font-bold underline mt-0.5" style={{ color: "var(--c-danger)" }}>
+                <button onClick={openPatientPanel} className="text-[12px] font-bold underline mt-0.5" style={{ color: "var(--c-danger)" }}>
                   Sửa lại cân nặng ở khung "Bệnh nhân hiện tại"
                 </button>
               </>
             ) : (
               <p className={`${T.title} ${NUM} mt-0.5`} style={{ color: C.warn }}>{info.text}</p>
             )}
-            {b.over && <p className="text-[11px] leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>Cách dùng: {b.over}</p>}
-            {b.note && <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>{b.note}</p>}
+            {b.over && <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>Cách dùng: {b.over}</p>}
+            {b.note && <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>{b.note}</p>}
             {!info.needWeight && !info.blocked && (
               <button
                 onClick={() => {
@@ -7731,7 +7742,7 @@ function BolusList({
                   })
                   tickHaptic()
                 }}
-                className="text-[11px] font-bold mt-1.5"
+                className="text-[12px] font-bold mt-1.5"
                 style={{ color: "var(--c-warn-icon)" }}
               >
                 Lưu vào nhật ký
@@ -7896,13 +7907,13 @@ function MixResultCard({
   return (
     <div className="px-3 py-2.5 rounded-xl mb-1" style={{ background: "var(--c-surface)", border: "1px solid var(--c-line-strong)" }}>
       <p className="text-[13px] font-bold text-slate-800 leading-[1.45]">{headline}</p>
-      {subline && <p className="text-[11px] text-slate-500 leading-[1.45] mt-0.5">{subline}</p>}
+      {subline && <p className="text-[12px] text-slate-500 leading-[1.45] mt-0.5">{subline}</p>}
       {/* Câu duy nhất người đứng cạnh bàn pha thực sự thao tác */}
-      <p className="text-[11px] font-semibold leading-[1.45] mt-1" style={{ color: "var(--c-accent-deep)" }}>
+      <p className="text-[12px] font-semibold leading-[1.45] mt-1" style={{ color: "var(--c-accent-deep)" }}>
         {describeComposition(outcome, vialLabel)}
       </p>
       {drugVolume == null && (
-        <p className="text-[11px] text-slate-500 leading-[1.45] mt-0.5">
+        <p className="text-[12px] text-slate-500 leading-[1.45] mt-0.5">
           {outcome.spec.form === "powder"
             ? `Nhập thể tích pha ban đầu 1 ${vialLabel} ở trên để app tính ra số mL dung môi phải thêm.`
             : `Nhập thể tích 1 ${vialLabel} ở trên để app tính ra số mL dung môi phải thêm.`}
@@ -7915,8 +7926,8 @@ function MixResultCard({
         <div className="mt-2 px-2.5 py-2 rounded-xl flex items-start gap-2" style={{ background: gradeStyle.bg, border: `1px solid ${gradeStyle.border}` }}>
           <span className="mt-0.5 flex-none" style={{ color: gradeStyle.fg }}>{icons.alert()}</span>
           <div>
-            {grade.headline && <p className="text-[11px] font-extrabold leading-[1.3]" style={{ color: gradeStyle.fg }}>{grade.headline}</p>}
-            {grade.detail && <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: gradeStyle.fg }}>{grade.detail}</p>}
+            {grade.headline && <p className="text-[12px] font-extrabold leading-[1.3]" style={{ color: gradeStyle.fg }}>{grade.headline}</p>}
+            {grade.detail && <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: gradeStyle.fg }}>{grade.detail}</p>}
           </div>
         </div>
       )}
@@ -7934,12 +7945,12 @@ function MixResultCard({
         </button>
       ) : (
         <div className="flex flex-wrap gap-1.5 mt-2">
-          <button onClick={onUse} className="h-8 px-3 rounded-full text-[11px] font-bold" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
+          <button onClick={onUse} className="h-8 px-3 rounded-full text-[12px] font-bold" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
             Dùng nồng độ này
           </button>
           <button
             onClick={onSaveWard}
-            className="h-8 px-3 rounded-full text-[11px] font-bold border"
+            className="h-8 px-3 rounded-full text-[12px] font-bold border"
             style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}
           >
             Lưu công thức mới của bạn
@@ -8097,7 +8108,7 @@ function MixPanel({
       <label className={`${T.label} text-slate-500 mb-1 block`}>Dung môi</label>
       <div className="flex flex-wrap gap-1.5 mb-1.5">
         {allowedDiluents.map((d) => (
-          <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(diluent === d)}>
+          <button key={d} onClick={() => setDiluent(d)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(diluent === d)}>
             {d}
           </button>
         ))}
@@ -8107,7 +8118,7 @@ function MixPanel({
           <button
             key={d}
             onClick={() => setDiluent(d)}
-            className="h-8 px-2.5 rounded-full text-[11px] font-semibold border"
+            className="h-8 px-2.5 rounded-full text-[12px] font-semibold border"
             style={
               diluent === d
                 ? { background: "var(--c-danger-icon)", borderColor: "var(--c-danger-icon)", color: "var(--c-on-bright)" }
@@ -8119,7 +8130,7 @@ function MixPanel({
         ))}
       </div>
       {diluentBlocked && (
-        <p className="text-[11px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
+        <p className="text-[12px] font-bold leading-[1.45] mb-2 px-2.5 py-2 rounded-xl" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-deep)" }}>
           {mix?.diluentWarning ?? `Không pha ${drug.name} với ${diluent}.`}
         </p>
       )}
@@ -8132,7 +8143,7 @@ function MixPanel({
           { v: "solution" as VialForm, label: `Ống dung dịch` },
           { v: "powder" as VialForm, label: `Lọ bột` },
         ]).map((opt) => (
-          <button key={opt.v} onClick={() => setVialForm(opt.v)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(vialForm === opt.v)}>
+          <button key={opt.v} onClick={() => setVialForm(opt.v)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialForm === opt.v)}>
             {opt.label}
           </button>
         ))}
@@ -8189,14 +8200,14 @@ function MixPanel({
       {unitChoices.length > 1 && (
         <div className="flex gap-1.5 mb-2.5">
           {unitChoices.map((u) => (
-            <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[11px] font-semibold border" style={pill(vialUnit === u)}>
+            <button key={u} onClick={() => setVialUnit(u)} className="h-8 px-2.5 rounded-full text-[12px] font-semibold border" style={pill(vialUnit === u)}>
               {u}
             </button>
           ))}
         </div>
       )}
 
-      <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5 text-slate-500">Tôi có {vialLabel} thuốc → nồng độ bao nhiêu</p>
+      <p className="text-[12px] font-bold mb-1.5 text-slate-500">Tôi có {vialLabel} thuốc → nồng độ bao nhiêu</p>
       {mixedConc != null && !isNaN(nv) && (
         <MixResultCard
           drug={drug}
@@ -8211,7 +8222,7 @@ function MixPanel({
         />
       )}
 
-      <p className="text-[11px] font-bold uppercase tracking-wide mb-1.5 mt-3 text-slate-500">Tôi cần nồng độ này → lấy mấy {vialLabel}</p>
+      <p className="text-[12px] font-bold mb-1.5 mt-3 text-slate-500">Tôi cần nồng độ này → lấy mấy {vialLabel}</p>
       <div className="mb-2">
         <label className={`${T.label} text-slate-500 mb-1 block`}>Nồng độ mong muốn ({calc.concUnit})</label>
         <input value={target} onChange={(e) => setTarget(normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder={calc.concDefault != null ? String(calc.concDefault * 2) : ""} className={fieldClass} style={fieldStyle} />
@@ -8227,7 +8238,7 @@ function MixPanel({
               key={opt.v}
               onClick={() => opt.on && setRoundMode(opt.v)}
               disabled={!opt.on}
-              className="flex-1 h-9 rounded-[10px] text-[11px] font-bold leading-[1.3]"
+              className="flex-1 h-9 rounded-[10px] text-[12px] font-bold leading-[1.3]"
               style={
                 mode === opt.v
                   ? { background: "var(--c-surface)", color: "var(--c-accent-deep)" }
@@ -8556,7 +8567,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           đường sửa đã nằm ngay trong ô kết quả bên dưới (xem missingReason), đúng chỗ người dùng
           đang nhìn khi thấy "—" mà không hiểu vì sao. */}
       {needWeight && weightKg != null && (
-        <p className="text-[11px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45]" style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}>
+        <p className="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45]" style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}>
           Cân nặng dùng để tính: <b>{weightKg.toFixed(1)} kg</b>
           {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} — lấy từ khung "Bệnh nhân hiện tại".
         </p>
@@ -8651,7 +8662,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 setBagVolume(String(ward.volumeMl))
                 tickHaptic()
               }}
-              className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
+              className="px-2.5 py-1 rounded-full text-[12px] font-bold border"
               style={{ borderColor: "var(--c-accent-line)", color: "var(--c-accent-deep)" }}
             >
               Dùng lại công thức của bạn
@@ -8665,7 +8676,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 if (calc.mix) setBagVolume(String(calc.mix.volumeMl))
                 tickHaptic()
               }}
-              className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
+              className="px-2.5 py-1 rounded-full text-[12px] font-bold border"
               style={{ borderColor: "var(--c-line)", color: "var(--c-text-soft)" }}
             >
               Dùng lại công thức chuẩn
@@ -8734,7 +8745,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                   tickHaptic()
                 }}
                 onBlur={() => setConfirmClearWard(false)}
-                className="flex items-center gap-1.5 text-[11px] font-bold mt-1.5"
+                className="flex items-center gap-1.5 text-[12px] font-bold mt-1.5"
                 style={{ color: confirmClearWard ? "var(--c-on-bright)" : "var(--c-danger)", background: confirmClearWard ? "var(--c-danger-icon)" : "transparent", padding: confirmClearWard ? "4px 8px" : 0, borderRadius: 999 }}
               >
                 <span className="scale-90">{confirmClearWard ? icons.alert() : icons.trash()}</span>
@@ -8776,7 +8787,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         </div>
         {bagAmount != null && (
           <div className="flex items-end">
-            <p className="text-[11px] text-slate-500 leading-[1.45] pb-2">
+            <p className="text-[12px] text-slate-500 leading-[1.45] pb-2">
               Trong bơm có {formatMass(bagAmount, massOfConcUnit(calc.concUnit))}
             </p>
           </div>
@@ -8793,7 +8804,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           <span className="mt-0.5 flex-none" style={{ color: severityStyle.text }}>{icons.alert()}</span>
           <div>
             <p className="text-[13px] font-extrabold leading-[1.3]" style={{ color: severityStyle.text }}>{check.headline}</p>
-            {check.detail && <p className="text-[11px] leading-[1.45] mt-0.5" style={{ color: severityStyle.text }}>{check.detail}</p>}
+            {check.detail && <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: severityStyle.text }}>{check.detail}</p>}
           </div>
         </div>
       )}
