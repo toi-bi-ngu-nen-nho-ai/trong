@@ -2,12 +2,12 @@
 name: Bác sĩ Trọng
 description: Thư viện kiến thức lâm sàng cá nhân — tra cứu bệnh học, liều thuốc theo CrCl/cân nặng, sơ đồ tư duy, thẻ ghi nhớ
 colors:
-  primary: "#003152"
-  primary-strong: "#00243d"
-  primary-deep: "#001a2c"
-  primary-soft: "#eaf6fc"
-  primary-line: "#addff1"
-  primary-line-2: "#7ec3e8"
+  primary: "#2d3a94"
+  primary-strong: "#212b70"
+  primary-deep: "#171e52"
+  primary-soft: "#eceefa"
+  primary-line: "#c3caf0"
+  primary-line-2: "#9aa6e6"
   accent-2: "#b8196f"
   danger: "#b91c1c"
   danger-icon: "#dc2626"
@@ -18,18 +18,18 @@ colors:
   green: "#15803d"
   green-soft: "#f0fdf4"
   surface: "#ffffff"
-  surface-alt: "#f5fcfc"
-  page: "#eef9f9"
-  text: "#0d2324"
-  text-muted: "#637979"
-  line: "#dae9e9"
-  line-soft: "#e9f3f3"
+  surface-alt: "#f6f7fd"
+  page: "#f1f2fb"
+  text: "#12142b"
+  text-muted: "#6b6e96"
+  line: "#d9ddf4"
+  line-soft: "#e9ebf9"
 typography:
   body:
-    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: "Plus Jakarta Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
     fontWeight: 400
   label:
-    fontFamily: "Inter"
+    fontFamily: "Plus Jakarta Sans"
     fontWeight: 700
   mono-dose:
     fontFamily: "JetBrains Mono"
@@ -41,7 +41,7 @@ typography:
     fontFamily: "Space Grotesk"
     fontWeight: 600
 rounded:
-  sm: "10px"
+  sm: "14px"
   pill: "9999px"
 spacing:
   sm: "8px"
@@ -66,48 +66,48 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Bedside Precision Panel"**
+**Creative North Star: "The Bedside Precision Panel" — now in Electric Indigo**
 
-Every screen exists to answer one question fast and correctly, then get out of the way. The system is token-driven end to end — every color in the app reads from a `--c-*` CSS custom property, never a hardcoded hex — so a single palette swap recolors the entire product without touching component code. That architecture is itself a design principle: it makes the system honest about what's decoration and what's load-bearing.
+Every screen exists to answer one question fast and correctly, then get out of the way. The system is token-driven end to end — every color in the app reads from a `--c-*` CSS custom property, never a hardcoded hex — so a single palette swap recolors the entire product without touching component code. That architecture is itself a design principle: it makes the system honest about what's decoration and what's load-bearing. It's also what made this rebrand (2026-08, Deep Azure → Electric Indigo) a token-file change rather than a component-by-component rewrite.
 
-The palette is Deep Azure, replacing an earlier teal identity. The system deliberately draws a hard line between two zones: **decoration** (navigation, tabs, cards, screen transitions) and **diagnosis** (dose numbers, safety-tier colors, warning language). Delight — spring/bounce motion, a livelier accent color — lives entirely in the first zone. The second zone is untouchable: red always means danger, amber always means caution, and neither one bounces, glows, or competes with a decorative accent for attention. This isn't timidity; it's the system's one non-negotiable rule, confirmed directly against real clinical stakes rather than assumed.
+The palette is Electric Indigo, replacing the earlier Deep Azure identity (which itself replaced an original teal). The system deliberately draws a hard line between two zones: **decoration** (navigation, tabs, cards, screen transitions) and **diagnosis** (dose numbers, safety-tier colors, warning language). Delight — spring/bounce motion, a livelier accent color — lives entirely in the first zone. The second zone is untouchable: red always means danger, amber always means caution, and neither one bounces, glows, or competes with a decorative accent for attention. This isn't timidity; it's the system's one non-negotiable rule, confirmed directly against real clinical stakes rather than assumed, and it survived the rebrand untouched — the whole reason indigo was chosen over a green/teal candidate palette was to keep the brand hue maximally distinct from all three safety hues, not just red and amber.
 
-Night-shift use is a first-class constraint, not an afterthought: a hand-tuned dark mode (not a blanket color-invert) ships with independently verified WCAG AA contrast in both directions, and a manual in-app override beats the OS preference, because clinicians often leave their phone in light mode system-wide but need this one app dark at 2am.
+Night-shift use is a first-class constraint, not an afterthought: dark mode is not a lightened/darkened mirror of light mode — it's an independently authored, deliberately more dramatic identity (near-OLED-black surfaces, a luminous glow accent) so light and dark read as two confident executions of one brand rather than one screen with an inverted filter. Both are independently contrast-verified (WCAG AA, most pairs well past AAA), and a manual in-app override beats the OS preference, because clinicians often leave their phone in light mode system-wide but need this one app dark at 2am.
 
 **Key Characteristics:**
 - Every color is a CSS custom property; there are no hardcoded hex values in components.
-- Danger/warning/success semantics are colorblind-safe (never color-only) and are a separate, protected token family from the primary brand color.
+- Danger/warning/success semantics are colorblind-safe (never color-only) and are a separate, protected token family from the primary brand color — unchanged across the 2026-08 rebrand.
 - Motion answers a specific question ("did my tap register," "did this number change," "did this action finish") — never pure decoration, with one exception zone (nav/tabs/cards) that now also carries brand personality.
-- Both light and dark mode are independently authored and contrast-verified, not generated by inverting one palette.
+- Both light and dark mode are independently authored and contrast-verified, not generated by inverting one palette — and now deliberately *not* the same lightness relationship either (dark is darker and more saturated-glow than a simple light-mode inversion would produce).
 
 ## Colors
 
-The palette reads as one calm, cool-toned system: deep azure as the single brand color, a teal-adjacent cool neutral for every surface and border, and a fully separate, untouched hazard-signal family for clinical safety states.
+The palette reads as one confident, cool-violet system: electric indigo as the single brand color, an indigo-tinted cool neutral for every surface and border, and a fully separate, untouched hazard-signal family for clinical safety states.
 
 ### Primary
-- **Deep Azure** (`#003152` light mode / `#addff1` dark mode): the app's one brand color — active tabs, primary buttons, links, focus rings, icons on light surfaces. Chosen for a 13:1+ contrast ratio in both directions, well past the AA 4.5:1 floor, so the accent can be used generously without ever becoming an accessibility risk. Light and dark mode use the *same hue family*, not independently invented colors, so switching themes reads as one brand, not two.
-- **Primary Soft** (`#eaf6fc` light / `#0d2433` dark): background tint for icon badges and secondary surfaces that want to feel "in the brand" without full-strength color.
-- **Primary Line** (`#addff1` light / `#163a52` dark): border/accent-line weight, one step down from full-strength primary.
+- **Electric Indigo** (`#2d3a94` light mode / `#6ea8fe` dark mode): the app's one brand color — active tabs, primary buttons, links, focus rings, icons on light surfaces. Light mode clears 9.8:1 contrast on white; dark mode's glow-blue clears 7.4:1 on the near-black surface — both well past the AA 4.5:1 floor. Deliberately chosen over a green/teal candidate specifically because indigo shares no hue family with any of the three safety colors (red/amber/green), so brand and clinical-signal color can never be mistaken for one another even at a glance under time pressure.
+- **Primary Soft** (`#eceefa` light / `#182140` dark): background tint for icon badges and secondary surfaces that want to feel "in the brand" without full-strength color.
+- **Primary Line** (`#c3caf0` light / `#33407a` dark): border/accent-line weight, one step down from full-strength primary.
 
 ### Secondary
-- **Mindmap Magenta** (`#b8196f` light / `#f175a6` dark): a second hue reserved exclusively for the Mindmap canvas (region highlights, lasso selection). **The One Other Place Rule.** This color appears nowhere outside the Mindmap board — not in the dosing screens, not in navigation — specifically so it never competes with the hazard-signal palette for visual priority.
+- **Mindmap Magenta** (`#b8196f` light / `#f175a6` dark): a second hue reserved exclusively for the Mindmap canvas (region highlights, lasso selection). **The One Other Place Rule.** This color appears nowhere outside the Mindmap board — not in the dosing screens, not in navigation — specifically so it never competes with the hazard-signal palette for visual priority. Unchanged by the 2026-08 rebrand.
 
 ### Neutral
-- **Cool Paper** (`#ffffff` surface / `#eef9f9` page, light mode): a barely-tinted cool neutral (same hue family as primary, near-zero chroma) so white cards visibly lift off a faintly-cool page background without needing a border or shadow.
-- **Night Surface** (`#162525` surface / `#0c1919` page, dark mode): independently tuned, not an inversion — text/background pairs were re-measured for AA rather than assumed to transfer.
+- **Cool Paper** (`#ffffff` surface / `#f1f2fb` page, light mode): a barely-tinted cool-violet neutral (same hue family as primary, near-zero chroma) so white cards visibly lift off a faintly-tinted page background without needing a border or shadow.
+- **Night Glass** (`#14162c` surface / `#0b0c1c` page, dark mode): near-OLED indigo-black, independently tuned — text/background pairs were re-measured for AA rather than assumed to transfer, and pushed noticeably darker than the old teal-gray dark surface for a more premium, more dramatic night identity.
 
 ### Named Rules
-**The Untouchable Signal Rule.** `--c-danger*`, `--c-warn*`, and `--c-green*` are a separate token family from `--c-primary*`/`--c-accent*` and are never restyled, retinted, or animated as part of a brand refresh. Red is always danger, amber is always caution, and neither one gets the bounce/pop treatment the rest of the UI uses for delight — a flat, serious presentation at the exact moment a clinician needs to trust the color without a second thought.
+**The Untouchable Signal Rule.** `--c-danger*`, `--c-warn*`, and `--c-green*` are a separate token family from `--c-primary*`/`--c-accent*` and are never restyled, retinted, or animated as part of a brand refresh — confirmed by surviving the 2026-08 Azure→Indigo rebrand completely unchanged, byte-for-byte. Red is always danger, amber is always caution, and neither one gets the bounce/pop/glow treatment the rest of the UI uses for delight — a flat, serious presentation at the exact moment a clinician needs to trust the color without a second thought.
 
-**The Decoration/Diagnosis Split Rule.** Delight (spring motion, brand color, playful entrance animation) is scoped to navigation, tabs, cards, and screen transitions. Dose numbers, calculated results, and safety-tier text are typographically and chromatically calm by comparison — the loudest thing on a dosing screen is always the danger signal, never the brand.
+**The Decoration/Diagnosis Split Rule.** Delight (spring motion, brand color, glow, playful entrance animation) is scoped to navigation, tabs, cards, and screen transitions. Dose numbers, calculated results, and safety-tier text are typographically and chromatically calm by comparison — the loudest thing on a dosing screen is always the danger signal, never the brand. A calm "ok" dose result reads in `--c-text`, not `--c-primary` — brand color is chrome, not a stamp of approval on a clinical number.
 
 ## Typography
 
-**Body Font:** Inter (with -apple-system, BlinkMacSystemFont, 'Segoe UI' fallback)
-**Dose/Number Font:** JetBrains Mono — reserved for numeric doses and concentrations, where reading each digit correctly matters more than anywhere else on screen.
+**Body Font:** Plus Jakarta Sans (with -apple-system, BlinkMacSystemFont, 'Segoe UI' fallback) — replaced Inter in the 2026-08 rebrand purely for visual identity (Inter reads as "internal tool"); kept the same reasoning Inter was originally chosen for — a geometric, highly legible grotesk with full Vietnamese diacritic support, weighted 300-800 — so the *reason* for the choice didn't change, only the typeface.
+**Dose/Number Font:** JetBrains Mono — reserved for numeric doses and concentrations, where reading each digit correctly matters more than anywhere else on screen. **Untouched by the rebrand** — this is a clinical-safety choice, not an aesthetic one, and the two are deliberately kept independent.
 **Mindmap-only Fonts:** Source Serif 4 (formal emphasis), Space Grotesk (headings/emphasis) — used exclusively inside Mindmap note formatting, never in the main app chrome.
 
-**Character:** A plain, highly legible system-adjacent sans for everything a clinician reads under time pressure, with monospace reserved as a signal: "this number is exact, read every character."
+**Character:** A confident, highly legible geometric sans for everything a clinician reads under time pressure, with monospace reserved as a signal: "this number is exact, read every character."
 
 ### Hierarchy
 - **Title** (700, ~22px): screen headers, kept to one line — a second descriptive line was deliberately removed because it pushed content down without helping a rushed reader.
@@ -124,38 +124,38 @@ Single-page app shell with a fixed bottom tab bar (`Trang chủ` / `Thư viện`
 
 Safe-area insets (`env(safe-area-inset-top/bottom)`) are read into two shared variables (`--safe-top`, `--safe-bottom`) rather than applied ad hoc, so the notch/home-indicator area is handled once and consistently across every screen. The body is pinned with `position: fixed; inset: 0` rather than `100dvh`, specifically because 100dvh under-measures on iOS PWA fullscreen mode and left a visible gap at the bottom edge.
 
-Density is high by domain necessity (a 10-tab medication picker, dense drug cards) — progressive disclosure (collapsible `Disclosure` sections) is the primary tool for managing that density rather than reducing information.
+Density is high by domain necessity (a 10-tab medication picker, dense drug cards) — progressive disclosure (collapsible `Disclosure` sections) is the primary tool for managing that density rather than reducing information. This is why the rebrand stayed a *skin* change (color, type, shape, shadow, motion) rather than a structural one — an airy marketing-style layout (bento grids, massive whitespace) would fight the actual job this screen does at 2am.
 
 ## Elevation & Depth
 
-Flat by default. Cards lift off the page purely through the surface/page color contrast (white card, faintly-tinted page) — no border or shadow needed at rest. Shadow is reserved for genuinely floating layers: pickers, toasts, modals, and sheets that visually sit *above* the page, using a tonal shadow color (`var(--c-shadow)`, a primary-tinted dark rather than pure black) rather than a generic drop shadow.
+Flat by default at rest. Cards lift off the page purely through the surface/page color contrast — no border or shadow needed. Shadow is reserved for genuinely floating layers: pickers, toasts, modals, and sheets that visually sit *above* the page, using a tonal shadow color (`var(--c-shadow)`, indigo-tinted dark rather than pure black in light mode, true black in dark mode for real depth) rather than a generic drop shadow. Dark-mode floating layers additionally use a soft primary-glow halo (`0 0 24px rgba(var(--c-primary-rgb), .18)`) alongside the drop shadow — the "Ethereal Glass" signature of the rebrand — reserved for the *same* floating-layer set the shadow rule already covers, never added to resting cards.
 
 ### Named Rules
-**The Floating-Layer-Only Rule.** `box-shadow` appears only on elements that are genuinely elevated above the page in z-order (dropdowns, toasts, modals, sheets). A card at rest never has a shadow; if something needs a shadow to look important, it should have moved into a floating layer instead.
+**The Floating-Layer-Only Rule.** `box-shadow` (and, in dark mode, the glow halo) appears only on elements that are genuinely elevated above the page in z-order (dropdowns, toasts, modals, sheets). A card at rest never has a shadow or a glow; if something needs one to look important, it should have moved into a floating layer instead.
 
 ## Shapes
 
-Global corner radius of 10px (`--radius`), pill-shaped (`rounded-full`) chips and buttons throughout for tap targets and filter/selection controls. Borders are thin (1px) and used sparingly — most separation comes from surface-color contrast rather than drawn lines.
+Global corner radius of 14px (`--radius`, up from 10px pre-rebrand — a deliberately softer, more premium curve), pill-shaped (`rounded-full`) chips and buttons throughout for tap targets and filter/selection controls. Borders are thin (1px) and used sparingly — most separation comes from surface-color contrast rather than drawn lines.
 
 ## Components
 
 ### Buttons / Chips
-- **Shape:** pill (`rounded-full`) for filters, chips, and most tappable controls; 10px radius for cards and larger containers.
+- **Shape:** pill (`rounded-full`) for filters, chips, and most tappable controls; 14px radius for cards and larger containers.
 - **Active/Selected:** solid primary-color fill with `var(--c-on-bright)` text (white in light mode, near-black in dark mode — deliberately flipped per theme so text-on-bright-fill always clears AA, rather than assuming white text works in both modes).
-- **Press feedback:** every interactive control presses to `scale(0.94–0.97)` on `:active` via a shared transition class (`dose-press`, `nav-press`, `card-press`, `mind-btn`) — this is universal and applies even under `prefers-reduced-motion` (only the *decorative* animations are disabled for reduced motion; tap confirmation always stays).
-- **Delight (new):** navigation tabs and the medication screen's tab row now play a `pulse-scale` bounce (0.8→1.12→1, 0.45s) when a tab becomes active — scoped entirely to navigation, never to dose-result values.
+- **Press feedback:** every interactive control presses to `scale(0.94–0.97)` on `:active` via a shared transition class (`dose-press`, `nav-press`, `card-press`, `mind-btn`) using a custom spring-style cubic-bezier (`cubic-bezier(0.34, 1.4, 0.64, 1)` family) rather than linear/ease — this is universal and applies even under `prefers-reduced-motion` (only the *decorative* animations are disabled for reduced motion; tap confirmation always stays).
+- **Delight:** navigation tabs and the medication screen's tab row play a `pulse-scale` bounce (0.8→1.12→1, 0.45s) when a tab becomes active — scoped entirely to navigation, never to dose-result values.
 
 ### Cards
-- **Corner Style:** 10px radius (`rounded-2xl` in Tailwind terms).
-- **Background:** `var(--c-surface)`, flat, no border at rest.
-- **Entrance (new):** home-screen resource cards stagger in with `rise-in` (translateY + fade, 22ms delay per index, capped at 8 steps so a long list doesn't feel sluggish).
+- **Corner Style:** 14px radius (`rounded-2xl` in Tailwind terms).
+- **Background:** `var(--c-surface)`, flat, no border or shadow at rest.
+- **Entrance:** home-screen resource cards stagger in with `rise-in` (translateY + fade, 22ms delay per index, capped at 8 steps so a long list doesn't feel sluggish).
 
 ### Disclosure (expand/collapse)
-- **Mechanism:** `max-height` transition rather than `grid-template-rows` — a deliberate compatibility tradeoff; the "cleaner" CSS-grid technique can get stuck mid-animation on the exact browser versions this app runs on most (older iOS Safari).
+- **Mechanism:** `max-height` transition rather than `grid-template-rows` — a deliberate compatibility tradeoff, reconfirmed 2026-08 by reproducing a real stuck-UI bug with grid-template-rows on modern Chromium (not just old iOS Safari, as first assumed) — the auto-height DOM structure here makes CSS Grid's `fr` track resolve as `auto` regardless of the value written, so it never animates. `max-height` remains the correct choice for this specific DOM shape.
 - **State:** closed sections use `visibility: hidden` in addition to `max-height: 0`, so keyboard/screen-reader focus can't land on hidden content — not just a visual hide.
 
 ### Focus Rings
-- **Style:** 2px solid `var(--ring)` (aliases primary), 1-2px offset, `:focus-visible` only (never on tap/click) — applied explicitly wherever the app's global `input:focus { outline: none }` reset would otherwise leave keyboard users with no visible focus indicator (the medication screen, the mindmap canvas, the search pill).
+- **Style:** 2px solid `var(--ring)` (aliases primary), 1px offset (tightened from 2px in 2026-08 — the wider offset was clipping against `overflow: hidden` disclosure containers on some inputs), `:focus-visible` only (never on tap/click) — applied explicitly wherever the app's global `input:focus { outline: none }` reset would otherwise leave keyboard users with no visible focus indicator (the medication screen, the mindmap canvas, the search pill).
 
 ### Navigation (bottom tab bar)
 - **Style:** frosted/blurred background (`backdrop-filter: blur(20px) saturate(1.8)`), active tab gets a pill-shaped background (`var(--c-nav-active-bg)`) that grows in width with a bounce easing on selection change, primary-colored icon/label, 700-weight label vs. 500 for inactive.
@@ -168,10 +168,12 @@ Global corner radius of 10px (`--radius`), pill-shaped (`rounded-full`) chips an
 - **Do** keep `--c-danger*`, `--c-warn*`, and `--c-green*` completely independent of the primary/accent palette, including through any future rebrand.
 - **Do** verify new color pairs against WCAG AA (4.5:1 for text, higher for small label text) before shipping them, the way every existing token was verified.
 - **Do** keep tap-confirmation motion (`:active` scale) working even under `prefers-reduced-motion`; only decorative motion should respect that media query.
-- **Do** scope new delight/motion additions to navigation, tabs, cards, and transitions — never to dose numbers or safety-tier text.
+- **Do** scope new delight/motion/glow additions to navigation, tabs, cards, and transitions — never to dose numbers or safety-tier text.
+- **Do** let dark mode be a *deliberately distinct* execution of the brand (deeper, more saturated-glow) rather than a mechanical inversion of light mode.
 
 ### Don't:
-- **Don't** add bounce, pop, or celebratory motion to a danger or warning state, ever — this is the system's one hard line, confirmed directly against clinical risk rather than a generic accessibility guess.
+- **Don't** add bounce, pop, glow, or celebratory motion to a danger or warning state, ever — this is the system's one hard line, confirmed directly against clinical risk rather than a generic accessibility guess.
 - **Don't** use the Mindmap-only magenta accent (`--c-accent-2`) anywhere in the medication or dosing screens.
 - **Don't** let any input, textarea, or select render below 16px font size.
 - **Don't** invert one theme to produce the other — light and dark are both independently authored and contrast-checked.
+- **Don't** let brand color (`--c-primary`) sit on a calm/"ok" clinical result — reserve it for chrome, navigation, and actions; a normal dose reads in `--c-text`.

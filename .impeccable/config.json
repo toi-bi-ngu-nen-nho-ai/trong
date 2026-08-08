@@ -35,9 +35,9 @@
       },
       {
         "rule": "overused-font",
-        "value": "inter",
-        "createdAt": "2026-08-07T16:00:14.257Z",
-        "reason": "Pre-existing body font documented in DESIGN.md; chosen for legibility under time pressure, not a default left unconsidered"
+        "value": "plus jakarta sans",
+        "createdAt": "2026-08-08T07:00:00.000Z",
+        "reason": "Body font documented in DESIGN.md, chosen 2026-08 to replace Inter for the Electric Indigo rebrand; same legibility/Vietnamese-diacritic reasoning as the font it replaced, only the typeface identity changed"
       },
       {
         "rule": "layout-transition",

@@ -1,9 +1,13 @@
-/* Inter: font chính của app. Ba font sau chỉ dùng cho chữ ĐỊNH DẠNG trong ghi chú Sơ đồ tư duy (xem
-   `f=` trong src/lib/richText.ts, STYLE_FONT_STACKS trong src/lib/mindmapStyle.ts) — Source Serif 4
-   cho nhấn mạnh trang trọng, JetBrains Mono cho số liệu/liều lượng cần đọc rõ từng ký tự, Space
-   Grotesk cho tiêu đề/nhấn mạnh mạnh tay. Gộp một lời gọi @import (không phải bốn) để chỉ tốn một
-   lượt xin phông chữ qua mạng. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+/* Plus Jakarta Sans: font chính của app — đổi từ Inter (2026-08) vì bảng màu mới chuyển sang hướng
+   thẩm mỹ cao cấp hơn, và Inter đọc quá "công cụ nội bộ/hệ thống" cho hướng đó. Vẫn là một grotesk
+   hình học rõ ràng, đủ trọng lượng (300-800) và có bộ dấu tiếng Việt đầy đủ trên Google Fonts — giữ
+   đúng lý do Inter từng được chọn (rõ ràng lúc đọc vội), chỉ đổi nhân dạng thị giác. Ba font sau chỉ
+   dùng cho chữ ĐỊNH DẠNG trong ghi chú Sơ đồ tư duy (xem `f=` trong src/lib/richText.ts,
+   STYLE_FONT_STACKS trong src/lib/mindmapStyle.ts) — Source Serif 4 cho nhấn mạnh trang trọng,
+   JetBrains Mono cho số liệu/liều lượng cần đọc rõ từng ký tự (KHÔNG đổi — đây là lựa chọn an toàn
+   lâm sàng, tách biệt khỏi quyết định thẩm mỹ), Space Grotesk cho tiêu đề/nhấn mạnh mạnh tay. Gộp
+   một lời gọi @import để chỉ tốn một lượt xin phông chữ qua mạng. */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,500;1,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
 /* DESIGN.md: JetBrains Mono dành riêng cho số liều/nồng độ/tốc độ bơm màn "Dùng thuốc" — đọc rõ
@@ -38,7 +42,9 @@
      dùng tới, và nó từng là một NGUỒN SỰ THẬT THỨ HAI cho primary/accent — mang giá trị #e8007d cho
      --accent trong khi --c-accent-2 (nguồn thật) đã đổi khác, chỉ chờ ai đó sửa nhầm chỗ. Giữ lại
      --radius (còn dùng) và --ring (trỏ thẳng sang --c-primary thay vì lặp lại mã màu). */
-  --radius: 10px;
+  /* 14px (trước 10px, đợt đổi bảng màu 2026-08) — bo góc mềm hơn, đi cùng hướng thẩm mỹ cao cấp
+     hơn của indigo. Vẫn đủ nhỏ để không phá dáng các khối dày đặc trên màn Dùng thuốc. */
+  --radius: 14px;
   --ring: var(--c-primary);
 }
 
@@ -58,39 +64,40 @@
 :root {
   color-scheme: light;
 
-  /* Nền và viền trung tính giờ dùng CHUNG MỘT hue 196° — nằm giữa primary (186°) và một xám lạnh
-     đáng tin, thay cho bảng "slate" gốc của Tailwind (hue ~215°, một họ màu khác hẳn primary).
-     Nền trang có sắc (chroma đủ để mắt đọc ra "có màu", không chỉ trắng vô sắc), mặt thẻ trắng
-     tinh — thẻ tự nổi lên khỏi nền mà không cần viền/đổ bóng. Chroma giảm dần theo độ sáng: nền
-     nhạt nhất → viền đậm hơn → chữ đậm nhất, cho nền trông "sạch" thay vì "ám màu". Màu ý nghĩa
-     (đỏ nguy hiểm, vàng cảnh báo, cam, xanh lá) KHÔNG đụng tới. */
+  /* Đổi hue trung tính từ teal (196°) sang tím-chàm (indigo, ~236°) để đi cùng --c-primary mới —
+     xem lý do đổi primary ở dưới. Cùng nguyên tắc cũ: nền trang có sắc, mặt thẻ trắng tinh, chroma
+     giảm dần theo độ sáng. Màu ý nghĩa (đỏ nguy hiểm, vàng cảnh báo, xanh lá an toàn) KHÔNG đụng
+     tới — xem "Untouchable Signal Rule" trong DESIGN.md, giữ nguyên bất kể đổi bảng màu chủ đạo. */
   --c-surface: #ffffff;
-  --c-surface-alt: #f5fcfc;
-  --c-page: #eef9f9;
-  --c-line-soft: #e9f3f3;
-  --c-line: #dae9e9;
-  --c-line-strong: #c0d6d6;
+  --c-surface-alt: #f6f7fd;
+  --c-page: #f1f2fb;
+  --c-line-soft: #e9ebf9;
+  --c-line: #d9ddf4;
+  --c-line-strong: #bfc5ea;
 
-  --c-text: #0d2324;
-  --c-text-2: #314747;
-  --c-text-soft: #465d5d;
-  --c-text-muted: #637979;
-  --c-muted: #7c9191;
-  --c-faint: #bccfcf;
+  --c-text: #12142b;
+  --c-text-2: #2e314f;
+  --c-text-soft: #454870;
+  --c-text-muted: #6b6e96;
+  /* #9497be ban đầu chỉ đạt 2,83:1 trên trắng — thấp hơn cả --c-muted CŨ (~3,32:1) mà một vài nơi
+     ngoài màn Dùng thuốc (vd HomeScreen "Sắp ra mắt") lại dùng cho chữ mô tả thật, không chỉ icon.
+     Đậm lại còn #8084ac (~3,6:1) — vẫn là bậc dưới AA có chủ đích (icon/placeholder), nhưng không
+     TỆ HƠN mức cũ. */
+  --c-muted: #8084ac;
+  --c-faint: #c7cae6;
 
-  /* Chủ đạo là xanh azure đậm, không còn mòng két. Chữ trắng trên nền primary đạt 13,5:1, primary
-     làm chữ/icon trên nền sáng cũng đạt 13,5:1 — cả hai vượt xa ngưỡng AA 4,5:1 (dư nhiều hơn hẳn
-     mức tối thiểu vì primary được chọn đậm chủ động, không chỉ vừa đủ ngưỡng). `--c-primary-line`
-     dùng đúng sắc xanh nhạt làm viền nhấn. `--c-primary-rgb` theo đúng khuôn `--c-fog` bên dưới: bộ
-     ba R,G,B để nhét vào rgba() cho các đổ bóng/viền mờ ăn theo chủ đạo, tự đổi theo sáng/tối như
-     mọi biến --c-* khác. */
-  --c-primary: #003152;
-  --c-primary-strong: #00243d;
-  --c-primary-deep: #001a2c;
-  --c-primary-soft: #eaf6fc;
-  --c-primary-line: #addff1;
-  --c-primary-line-2: #7ec3e8;
-  --c-primary-rgb: 0, 49, 82;
+  /* Đổi từ azure đậm (#003152) sang indigo điện quang (#2d3a94) — azure cũ bị đánh giá "kém sang",
+     và nằm quá gần hue trung tính lạnh khiến bảng màu đọc phẳng. Indigo tách hẳn khỏi cả ba màu ý
+     nghĩa (đỏ/vàng/lục — xem Untouchable Signal Rule) nên không có rủi ro lẫn tín hiệu an toàn với
+     tín hiệu thương hiệu, đồng thời đủ bão hoà để đọc "cao cấp" thay vì "công sở". Chữ trắng trên
+     nền primary đạt 9,8:1, primary làm chữ trên nền sáng cũng đạt 9,8:1 — dư xa ngưỡng AA 4,5:1. */
+  --c-primary: #2d3a94;
+  --c-primary-strong: #212b70;
+  --c-primary-deep: #171e52;
+  --c-primary-soft: #eceefa;
+  --c-primary-line: #c3caf0;
+  --c-primary-line-2: #9aa6e6;
+  --c-primary-rgb: 45, 58, 148;
 
   /* --c-accent* trước đây là một bộ giá trị RIÊNG trùng khít --c-primary* — hai nguồn sự thật cho
      cùng một màu, sửa primary mà quên sửa accent là sẽ lệch ngay. Giờ trỏ thẳng vào primary, giữ
@@ -146,14 +153,19 @@
   --c-mark-bg: #fdf0b8;
   --c-mark-fg: #3d2f00;
 
-  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm) — đen ngả teal, không phải navy. */
-  --c-scrim: rgba(9, 32, 33, 0.45);
-  --c-shadow: rgba(9, 32, 33, 0.1);
+  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm) — đen ngả indigo, theo đúng hue
+     --c-text mới (trước đây ngả teal, theo hue cũ). */
+  --c-scrim: rgba(18, 20, 43, 0.45);
+  --c-shadow: rgba(18, 20, 43, 0.1);
+  /* Vầng sáng "Ethereal Glass" quanh các lớp nổi — CHỈ có tác dụng ở bản tối (xem khối bản tối bên
+     dưới); ở bản sáng là một shadow rỗng hợp lệ (0 bán kính, alpha 0) để cú boxShadow ghép nhiều
+     lớp tại nơi dùng luôn hợp cú pháp CSS dù ở theme nào. Chỉ ghép thêm vào ĐÚNG các lớp nổi đã
+     dùng --c-shadow từ trước (toast, sheet, popover) — không thêm cho thẻ đứng yên, đúng Floating-
+     Layer-Only Rule. */
+  --c-shadow-glow: 0 0 0 rgba(0, 0, 0, 0);
   /* Dải/pill NỔI TRÊN MẶT BẢNG vẽ (gợi ý cử chỉ, toast) — đậm hơn --c-scrim (dải chữ trắng cần nền
-     đủ tối để đọc được ở mọi vị trí trên canvas, không phải một lớp phủ mờ phía sau modal). Trước
-     đây mỗi dải viết một giá trị rgba(15,23,42,...) riêng (.86/.92/.93) — cùng vai trò, khác màu,
-     đứng cạnh nhau trong cùng khung hình đọc ra như hai lớp phủ khác nhau. */
-  --c-pill-dark: rgba(9, 32, 33, 0.9);
+     đủ tối để đọc được ở mọi vị trí trên canvas, không phải một lớp phủ mờ phía sau modal). */
+  --c-pill-dark: rgba(18, 20, 43, 0.9);
 
   /* ─── Thanh điều hướng dưới & các phần tử NỔI ───────────────────────────────
      Tách riêng khỏi bảng màu chung vì đây là những chỗ trước đây viết mã màu cứng
@@ -168,11 +180,11 @@
      2,4:1, tức là trượt xa ngưỡng AA. Đổi thành mực gần đen thì mọi nền nói trên đều đạt >= 7:1. */
   --c-on-bright: #ffffff;
 
-  --c-nav-bg: rgba(246, 253, 253, 0.94);
-  --c-nav-border: #dae9e9;
-  /* Cùng họ xanh với --c-primary-soft, đậm hơn một chút để viên nền mục đang chọn còn đọc ra được
+  --c-nav-bg: rgba(247, 248, 253, 0.94);
+  --c-nav-border: #d9ddf4;
+  /* Cùng họ indigo với --c-primary-soft, đậm hơn một chút để viên nền mục đang chọn còn đọc ra được
      cạnh icon/chữ primary đứng ngay bên trong. */
-  --c-nav-active-bg: #d9edf9;
+  --c-nav-active-bg: #dee2f8;
   --c-float-bg: rgba(255, 255, 255, 0.94);
   --c-fog: 255, 255, 255;
 }
@@ -184,30 +196,31 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Primary tối dùng đúng sắc xanh nhạt của bản sáng (--c-primary-line) làm gốc — sáng/bão hoà đủ
-       để đọc rõ trên nền tối mà vẫn cùng một họ azure với bản sáng, không đổi hẳn sang mint/cyan
-       như một hue khác sẽ tạo cảm giác hai app riêng biệt. */
-    --c-surface: #162525;
-    --c-surface-alt: #1e2f2f;
-    --c-page: #0c1919;
-    --c-line-soft: #263636;
-    --c-line: #324747;
-    --c-line-strong: #445d5d;
+    /* Bản tối đổi hẳn sang OLED gần đen ngả indigo (thay vì xám-teal trước đây) — đúng tinh thần
+       "Ethereal Glass": tối sâu hơn hẳn bản sáng thay vì chỉ là bản sáng đảo màu, glow xanh điện
+       (#6ea8fe) làm primary thay vì một xanh dương nhạt đơn thuần, để sáng/tối đọc như hai bản sắc
+       khác nhau thật sự chứ không phải một cái chỉnh độ sáng của cái kia. */
+    --c-surface: #14162c;
+    --c-surface-alt: #1b1e3d;
+    --c-page: #0b0c1c;
+    --c-line-soft: #23264a;
+    --c-line: #2e3260;
+    --c-line-strong: #40447f;
 
-    --c-text: #e6f1f1;
-    --c-text-2: #ccdbdb;
-    --c-text-soft: #a9bcbb;
-    --c-text-muted: #899d9d;
-    --c-muted: #728584;
-    --c-faint: #425757;
+    --c-text: #eceffc;
+    --c-text-2: #d2d6f0;
+    --c-text-soft: #a8aeda;
+    --c-text-muted: #888eb8;
+    --c-muted: #7379a3; /* #5a5f86 ban đầu chỉ 2,89:1 trên nền mới — thấp hơn mức cũ (~4,08:1); nâng lại cho tương đương */
+    --c-faint: #363a5e;
 
-    --c-primary: #addff1;
-    --c-primary-strong: #c7ebfa;
-    --c-primary-deep: #e0f4fc;
-    --c-primary-soft: #0d2433;
-    --c-primary-line: #163a52;
-    --c-primary-line-2: #1f4f70;
-    --c-primary-rgb: 173, 223, 241;
+    --c-primary: #6ea8fe;
+    --c-primary-strong: #8fbeff;
+    --c-primary-deep: #b3d3ff;
+    --c-primary-soft: #182140;
+    --c-primary-line: #33407a;
+    --c-primary-line-2: #445397;
+    --c-primary-rgb: 110, 168, 254;
 
     --c-accent: var(--c-primary);
     --c-accent-deep: var(--c-primary-strong);
@@ -240,18 +253,20 @@
     --c-mark-bg: #5a4a12;
     --c-mark-fg: #f7ecc4;
 
-    --c-scrim: rgba(4, 14, 14, 0.62);
-    --c-shadow: rgba(0, 0, 0, 0.5);
+    --c-scrim: rgba(6, 7, 15, 0.62);
+    --c-shadow: rgba(0, 0, 0, 0.55);
+    /* Vầng sáng indigo quanh lớp nổi — chữ ký "Ethereal Glass" của bản tối, chỉ bật ở đây. */
+    --c-shadow-glow: 0 0 24px rgba(var(--c-primary-rgb), 0.18);
 
     /* Thanh nav ở bản tối: SÁNG HƠN nền trang một bậc (không tối hơn) để vẫn đọc ra là một thanh
        nổi lên phía trước, nhưng vẫn nằm hẳn trong dải tối — không còn là mảng trắng chói. */
-    --c-on-bright: #0c1919;
+    --c-on-bright: #0b0c1c;
 
-    --c-nav-bg: rgba(24, 40, 40, 0.94);
-    --c-nav-border: #324747;
-    --c-nav-active-bg: #163650;
-    --c-float-bg: rgba(30, 47, 47, 0.94);
-    --c-fog: 18, 37, 37;
+    --c-nav-bg: rgba(27, 30, 61, 0.94);
+    --c-nav-border: #2e3260;
+    --c-nav-active-bg: #223163;
+    --c-float-bg: rgba(27, 30, 61, 0.94);
+    --c-fog: 20, 22, 46;
   }
 }
 
@@ -260,27 +275,27 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --c-surface: #162525;
-  --c-surface-alt: #1e2f2f;
-  --c-page: #0c1919;
-  --c-line-soft: #263636;
-  --c-line: #324747;
-  --c-line-strong: #445d5d;
+  --c-surface: #14162c;
+  --c-surface-alt: #1b1e3d;
+  --c-page: #0b0c1c;
+  --c-line-soft: #23264a;
+  --c-line: #2e3260;
+  --c-line-strong: #40447f;
 
-  --c-text: #e6f1f1;
-  --c-text-2: #ccdbdb;
-  --c-text-soft: #a9bcbb;
-  --c-text-muted: #899d9d;
-  --c-muted: #728584;
-  --c-faint: #425757;
+  --c-text: #eceffc;
+  --c-text-2: #d2d6f0;
+  --c-text-soft: #a8aeda;
+  --c-text-muted: #888eb8;
+  --c-muted: #7379a3; /* #5a5f86 ban đầu chỉ 2,89:1 trên nền mới — thấp hơn mức cũ (~4,08:1); nâng lại cho tương đương */
+  --c-faint: #363a5e;
 
-  --c-primary: #addff1;
-  --c-primary-strong: #c7ebfa;
-  --c-primary-deep: #e0f4fc;
-  --c-primary-soft: #0d2433;
-  --c-primary-line: #163a52;
-  --c-primary-line-2: #1f4f70;
-  --c-primary-rgb: 173, 223, 241;
+  --c-primary: #6ea8fe;
+  --c-primary-strong: #8fbeff;
+  --c-primary-deep: #b3d3ff;
+  --c-primary-soft: #182140;
+  --c-primary-line: #33407a;
+  --c-primary-line-2: #445397;
+  --c-primary-rgb: 110, 168, 254;
 
   --c-accent: var(--c-primary);
   --c-accent-deep: var(--c-primary-strong);
@@ -313,16 +328,17 @@
   --c-mark-bg: #5a4a12;
   --c-mark-fg: #f7ecc4;
 
-  --c-scrim: rgba(4, 14, 14, 0.62);
-  --c-shadow: rgba(0, 0, 0, 0.5);
+  --c-scrim: rgba(6, 7, 15, 0.62);
+  --c-shadow: rgba(0, 0, 0, 0.55);
+  --c-shadow-glow: 0 0 24px rgba(var(--c-primary-rgb), 0.18);
 
-  --c-on-bright: #0c1919;
+  --c-on-bright: #0b0c1c;
 
-  --c-nav-bg: rgba(24, 40, 40, 0.94);
-  --c-nav-border: #324747;
-  --c-nav-active-bg: #163650;
-  --c-float-bg: rgba(30, 47, 47, 0.94);
-  --c-fog: 18, 37, 37;
+  --c-nav-bg: rgba(27, 30, 61, 0.94);
+  --c-nav-border: #2e3260;
+  --c-nav-active-bg: #223163;
+  --c-float-bg: rgba(27, 30, 61, 0.94);
+  --c-fog: 20, 22, 46;
 }
 
 /* Bảng slate của Tailwind được trỏ về cùng bộ biến trên. Nhờ khối này, ~280 chỗ đang viết
@@ -368,7 +384,7 @@ html {
 body {
   position: fixed;
   inset: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ. */
   background: var(--c-page);
@@ -638,16 +654,16 @@ input, select, textarea {
    DungThuocScreen): input:focus tắt outline mặc định toàn app (quy tắc bên dưới) mà không có gì
    thay thế ở đây — bàn phím ngoài/máy tính trạm ở buồng bệnh không có cách nào biết đang gõ vào ô
    nào. Vi phạm WCAG 2.4.7 nếu bỏ trống. */
-/* outline-offset 1px (trước là 2px): vòng focus ôm sát khung hơn — vừa đúng yêu cầu hình ảnh, vừa
+/* outline-offset 0.5px (trước là 2px): vòng focus ôm sát khung hơn — vừa đúng yêu cầu hình ảnh, vừa
    giảm khoảng vòng nhô ra ngoài viền ô nhập. Ô Creatinin (và các ô khác) nằm trong `.disc-body`
    (khối gấp/mở của Disclosure — `overflow: hidden` cả lúc mở, xem index.css khu vực .disc-body):
-   viền 2px + offset 2px = 4px nhô ra có thể chạm mép overflow:hidden của khối cha khi ô nhập đứng
-   sát rìa, bị xén một phần — offset 1px giảm mức nhô còn 3px, giảm rủi ro này mà vẫn giữ rõ vòng
+   viền 2px + offset 0.5px = 2.5px nhô ra có thể chạm mép overflow:hidden của khối cha khi ô nhập đứng
+   sát rìa, bị xén một phần — offset 0.5px giảm mức nhô còn 2.5px, giảm rủi ro này mà vẫn giữ rõ vòng
    focus cho bàn phím ngoài (WCAG 2.4.7). */
 .scr-dose button:focus-visible,
 .scr-dose input:focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 1px;
+  outline-offset: 0.5px;
 }
 
 /* Ô tìm dạng viên thuốc (SearchField trong App.tsx): input con nằm bên trong một khối bo tròn riêng,
@@ -657,7 +673,7 @@ input, select, textarea {
    outline trên input con để không còn cả hai chồng lên nhau. */
 .scr-dose .mind-search-pill:focus-within {
   outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline-offset: 0.5px;
 }
 .scr-dose .mind-search-pill input:focus-visible {
   outline: none;
@@ -716,7 +732,9 @@ input, select, textarea {
 
 .card-press:active {
   transform: scale(0.97);
-  transition: transform 0.1s;
+  /* Cùng họ cubic-bezier lò xo với .dose-press/.nav-press (trước đây transition: transform 0.1s
+     dùng ease mặc định của trình duyệt — lệch khỏi phần còn lại của hệ chuyển động). */
+  transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 /* ─── Ô nhập: 16px, không nhỏ hơn ─────────────────────────────────────────────

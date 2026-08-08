@@ -51,10 +51,14 @@ export const NUM = "tabular-nums"
 export const NUM_DOSE = "tabular-nums font-mono-dose"
 
 // ─── Bo góc: đúng 4 giá trị ──────────────────────────────────────────────────
+// Bo góc mềm hơn hẳn (đợt đổi bảng màu 2026-08, 10/12/16px → 14/14/20px) — cùng hướng cao cấp hơn
+// với --c-primary indigo mới. input/box dùng chung 14px để đường viền ô nhập và khối/thẻ nhỏ khớp
+// nhau khi đứng cạnh nhau (vd input + khối chọn đơn vị Creatinin); card nới rộng hơn một bậc rõ
+// rệt để phân biệt "khối lớn nhất màn" khỏi "khối vừa" bằng mắt, không chỉ bằng kích thước.
 export const R = {
-  input: "rounded-[10px]",
-  box: "rounded-xl",
-  card: "rounded-2xl",
+  input: "rounded-[14px]",
+  box: "rounded-[14px]",
+  card: "rounded-[20px]",
   pill: "rounded-full",
 } as const
 

@@ -9513,7 +9513,7 @@ function ThemeToggle() {
         backdropFilter: "blur(20px) saturate(1.6)",
         WebkitBackdropFilter: "blur(20px) saturate(1.6)",
         border: "1px solid var(--c-line)",
-        boxShadow: "0 2px 10px var(--c-shadow)",
+        boxShadow: "0 2px 10px var(--c-shadow), var(--c-shadow-glow)",
         color: C.textSoft,
         transition: "background .25s ease, color .25s ease, transform .12s ease",
       }}
@@ -10010,7 +10010,7 @@ function DungThuocScreen({
           // đổi thành GẦN ĐEN ở bản tối (dành cho chữ trên nền primary/accent sáng lên), nên chữ trên
           // nền pill tối luôn-tối này thành gần như vô hình đúng lúc báo tin quan trọng nhất màn hình.
           // Chữ ở đây dùng trắng cố định, khớp với nền cố định tối của chính nó, không đi theo theme.
-          style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow)" }}
+          style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow), var(--c-shadow-glow)" }}
         >
           <p className="flex-1 text-[13px] font-semibold" style={{ color: "#fff" }}>
             Đã xoá bệnh nhân{resetUndo.running.length > 0 ? ` và ${resetUndo.running.length} thuốc đang dùng` : ""}
@@ -10404,7 +10404,7 @@ function MindmapGallery({
                 không phải trong MindmapBoard) trước đây hiện tức thì, khác hẳn phần còn lại. */}
             <div
               className={`mind-pop absolute left-5 top-full z-40 w-[210px] ${R.card} border p-1.5 max-h-[320px] overflow-y-auto scroll-ios`}
-              style={{ borderColor: C.line, background: C.surface, boxShadow: "0 12px 30px var(--c-shadow)", transformOrigin: "top left" }}
+              style={{ borderColor: C.line, background: C.surface, boxShadow: "0 12px 30px var(--c-shadow), var(--c-shadow-glow)", transformOrigin: "top left" }}
             >
               <FilterRow label="Tất cả" count={boards.length} active={specialty === "all"} onClick={() => pick("all")} />
               {usedSpecialties.map((s) => (
