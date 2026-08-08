@@ -4886,7 +4886,7 @@ function DisclaimerBar() {
 function InputWarning({ text, level }: { text: string; level: "check" | "implausible" }) {
   const color = level === "implausible" ? { bg: "var(--c-danger-soft)", fg: "var(--c-danger)" } : { bg: "var(--c-warn-soft)", fg: "var(--c-warn-icon)" }
   return (
-    <p className="text-[12px] font-semibold leading-[1.45] mt-1 px-2 py-1 rounded-lg" style={{ background: color.bg, color: color.fg }}>
+    <p className="fade-in text-[12px] font-semibold leading-[1.45] mt-1 px-2 py-1 rounded-lg" style={{ background: color.bg, color: color.fg }}>
       {text}
     </p>
   )
@@ -5262,7 +5262,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           )}
 
           {!crclUsable && (
-            <div className={`px-3 py-2 ${R.box} flex items-start gap-2`} style={{ background: C.dangerSoft, border: `1px solid ${C.dangerLine}` }}>
+            <div className={`fade-in px-3 py-2 ${R.box} flex items-start gap-2`} style={{ background: C.dangerSoft, border: `1px solid ${C.dangerLine}` }}>
               <span className="mt-0.5 flex-none" style={{ color: C.dangerIcon }}>{icons.alert()}</span>
               <p className={`${T.meta} font-semibold`} style={{ color: C.danger }}>
                 {CRCL_RELIABILITY_TEXT[crclReliability(patient) as "aki" | "rrt"]}
@@ -5470,7 +5470,7 @@ function RunningPanel() {
             return (
               <div
                 key={i}
-                className="flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1.5"
+                className="fade-in flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1.5"
                 style={danger ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" } : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}
               >
                 <span className="mt-0.5 flex-none" style={{ color: danger ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>{icons.alert()}</span>
@@ -5496,7 +5496,7 @@ function RunningPanel() {
             return (
               <div
                 key={i}
-                className="flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1.5"
+                className="fade-in flex items-start gap-2 px-2.5 py-2 rounded-xl mb-1.5"
                 style={danger ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" } : { background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}
               >
                 <span className="mt-0.5 flex-none" style={{ color: danger ? "var(--c-danger-icon)" : "var(--c-warn-icon)" }}>{icons.alert()}</span>
@@ -5916,7 +5916,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
     : { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn)" }
 
   return (
-    <div className="mt-2 px-3 py-2.5 rounded-xl" style={{ background: style.bg, border: `1px solid ${style.border}` }}>
+    <div className="fade-in mt-2 px-3 py-2.5 rounded-xl" style={{ background: style.bg, border: `1px solid ${style.border}` }}>
       <div className="flex items-start gap-2">
         <span className="mt-0.5 flex-none" style={{ color: style.text }}>{icons.alert()}</span>
         <div className="flex-1 min-w-0">
@@ -9600,7 +9600,7 @@ function DungThuocScreen({
 
       {/* Ô tìm chung — chỉ hiện khi bấm kính lúp, tìm qua kháng sinh và cả 9 nhóm thuốc truyền. */}
       {searchOpen && (
-        <div className="flex-none px-5 pb-3">
+        <div className="fade-in flex-none px-5 pb-3">
           <SearchField value={globalQuery} onChange={setGlobalQuery} placeholder="Tìm thuốc trong mọi nhóm..." autoFocus />
           {globalQuery.trim() !== "" && (
             <div className={`${R.box} border overflow-hidden`} style={{ borderColor: C.line, background: C.surface }}>
@@ -9610,12 +9610,12 @@ function DungThuocScreen({
                 </p>
               ) : (
                 <div className="max-h-64 overflow-y-auto scroll-ios">
-                  {searchResults.map((r) => (
+                  {searchResults.map((r, i) => (
                     <button
                       key={`${r.tab}-${r.id}`}
                       onClick={() => openSearchResult(r)}
-                      className={`w-full text-left px-3 py-2.5 border-b ${TAP}`}
-                      style={{ borderColor: C.lineSoft }}
+                      className={`rise-in w-full text-left px-3 py-2.5 border-b ${TAP}`}
+                      style={{ borderColor: C.lineSoft, "--i": i } as React.CSSProperties}
                     >
                       <div className="flex items-center gap-2">
                         <p className={`${T.bodyStrong} truncate flex-1`} style={{ color: C.text }}>

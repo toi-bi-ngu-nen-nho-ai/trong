@@ -38,6 +38,15 @@
         "value": "inter",
         "createdAt": "2026-08-07T16:00:14.257Z",
         "reason": "Pre-existing body font documented in DESIGN.md; chosen for legibility under time pressure, not a default left unconsidered"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-08-08T03:27:27.125Z",
+        "reason": "Disclosure/.disc-body max-height transition is a documented intentional tradeoff (index.css:652-664) — grid-template-rows was tried and reproducibly broke on this auto-height DOM structure; user confirmed intentional"
       }
     ]
   }
