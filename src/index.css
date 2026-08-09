@@ -28,15 +28,15 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Bờ trên trừ bớt một chút so với vùng an toàn thật: --safe-top một mình để chỗ hơi rộng, phần
      đầu trang (tên app, nút chủ đề) nhìn trôi xa khỏi tai thỏ/Dynamic Island hơn cần thiết. Trừ
-     8px kéo nội dung lên gần viền máy hơn, vẫn còn dư khoảng cách so với tai thỏ (thường ≥44px)
-     nên không lo bị che. `max(0px, ...)` chặn không cho ÂM trên máy không tai thỏ (--safe-top=0). */
-  --safe-top-trim: max(0px, calc(var(--safe-top) - 8px));
+     12px (đợt chỉnh 2026-08 thứ hai, trước 8px) kéo nội dung lên gần viền máy hơn nữa, vẫn còn dư
+     khoảng cách so với tai thỏ (thường ≥44px) nên không lo bị che. `max(0px, ...)` chặn không cho
+     ÂM trên máy không tai thỏ (--safe-top=0). */
+  --safe-top-trim: max(0px, calc(var(--safe-top) - 12px));
 
   /* Chiều cao phần bấm được của thanh điều hướng dưới (chưa tính vùng thanh gạt Home).
-     Trước 52px — hơi cao so với năm mục chỉ có icon nhỏ + nhãn 10px, còn dư nhiều khoảng trống
-     trên dưới. Giảm còn 46px cho thanh gọn hơn, gần cạnh máy hơn; các mục bên trong tự canh giữa
-     theo flex nên không cần chỉnh gì thêm khi đổi con số này. */
-  --nav-body-h: 46px;
+     Trước 52px, sau chỉnh còn 46px thấy hơi thấp — nhích lại lên 48px (đợt chỉnh 2026-08 thứ hai);
+     các mục bên trong tự canh giữa theo flex nên không cần chỉnh gì thêm khi đổi con số này. */
+  --nav-body-h: 48px;
   /* Khoảng chừa dưới đáy các thanh dính đáy (thanh nav dưới, thanh nút "Lưu" ở màn soạn bài).
      PHẢI bằng đúng vùng thanh gạt Home, không được để 0.
      Trước đây để 0 với lý do "cho nội dung xuống sát cạnh máy". Trên iPhone X chạy toàn màn hình
