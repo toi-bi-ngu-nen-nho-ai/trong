@@ -12326,7 +12326,11 @@ export default function App() {
         {(screen === "home" || screen === "specialty") && (
           <div
             className="absolute z-50 flex items-center gap-2"
-            style={{ top: "calc(var(--safe-top) + 36px)", right: 18, transform: "translateY(-50%)" }}
+            // 30px, không phải 36px: từng khớp với dòng tiêu đề "Bs Trọng" khi khối đệm phía trên
+            // còn +6px thừa (che thanh trạng thái trong suốt cũ) — bỏ khoản đệm đó kéo tiêu đề lên
+            // 6px, nên mốc neo của cụm nút nổi này (tính độc lập, không nằm trong cùng flow với
+            // header) cũng phải trừ đi đúng 6px mới còn ngang hàng.
+            style={{ top: "calc(var(--safe-top) + 30px)", right: 18, transform: "translateY(-50%)" }}
           >
             {screen === "home" && <ThemeToggle />}
             <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
