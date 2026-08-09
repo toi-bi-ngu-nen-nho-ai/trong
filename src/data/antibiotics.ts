@@ -209,42 +209,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
     },
   },
   {
-    id: "amikacin-iv",
-    name: "Amikacin",
-    route: "Truyền tĩnh mạch (TTM)",
-    standardDose: "15 mg/kg mỗi 24h (IV)",
-    note: "Theo dõi nồng độ đỉnh/đáy — độc tính thận và tiền đình/ốc tai",
-    doseWeightBasis: "adjusted",
-    compatKey: COMPAT_KEYS.aminoglycoside,
-    rrt: {
-      crrt: "25 mg/kg mỗi 48h ở Qeff khoảng 30 mL/kg/giờ; chỉnh khoảng cách liều theo nồng độ đáy đo được.",
-      note: `${CRRT_NOTE} Với aminoglycosid, khoảng cách liều phải chỉnh theo nồng độ đáy chứ không theo bảng.`,
-      source: CRRT_SOURCE,
-      reviewedOn: "2026-07",
-    },
-    tiers: [
-      { min: 60, label: "CrCl ≥ 60", dose: "15 mg/kg mỗi 24h" },
-      { min: 40, label: "CrCl 40–59", dose: "15 mg/kg mỗi 36h" },
-      { min: 20, label: "CrCl 20–39", dose: "15 mg/kg mỗi 48h" },
-      { min: 0, label: "CrCl < 20", dose: "Liều đơn, giãn khoảng liều theo nồng độ đo được" },
-    ],
-    // 15 mg/kg × 110 kg = 1.650 mg — trên mức này phác đồ liều đơn hằng ngày không còn tăng liều
-    // tiếp mà chuyển sang giãn khoảng cách liều theo nồng độ đáy đo được.
-    maxSingleDose: { amount: 1500, unit: "mg", note: "trần một liều của phác đồ liều đơn hằng ngày; cao hơn phải theo nồng độ đo được" },
-    warnings: [{ text: "Độc tính thận và tai tăng đáng kể khi phối hợp với vancomycin hoặc lợi tiểu quai.", severity: "cao" }],
-    mix: {
-      vialForm: "solution",
-      vialLabel: "ống",
-      // Quy cách ống thông dụng nhất trên thị trường (500 mg/2 mL) — chỉ để bảng pha có số mặc định,
-      // sửa lại theo đúng ống thực tế đang dùng ở khoa.
-      vialAmount: 500,
-      vialUnit: "mg",
-      vialVolumeMl: 2,
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Pha loãng trong 50–100 mL, truyền tĩnh mạch trong 30–60 phút — không tiêm tĩnh mạch trực tiếp/nhanh.",
-    },
-  },
-  {
     id: "vancomycin-iv",
     name: "Vancomycin",
     route: "Truyền tĩnh mạch (TTM)",
