@@ -301,13 +301,14 @@ const PENBAR_KEY = "drtrong:mindmap-penbar"
 // định dính mép TRÊN, đối diện phía thanh bút thường đứng, để hai cụm không đè lên nhau ngay từ đầu.
 const UNDOBAR_KEY = "drtrong:mindmap-undobar"
 
-// Cỡ nút trên hàng công cụ chính. 42 chứ không phải 36 như bản trước: hàng này chỉ còn năm công cụ
-// (bút gom lại một nút) và đã bỏ nút "…" trùng lặp, nên chỗ trống dôi ra được trả về cho chính các
-// nút — 36px là sát mức tối thiểu cho một mục tiêu chạm, mà đây lại là những nút bấm nhiều nhất.
-const TOOL_BTN = 42
+// Cỡ nút trên hàng công cụ chính. 44 (không phải 36 như bản trước, hay 42 như một lần chỉnh trung
+// gian): hàng này chỉ còn năm công cụ (bút gom lại một nút) và đã bỏ nút "…" trùng lặp, nên chỗ
+// trống dôi ra được trả về cho chính các nút — đây lại là những nút bấm nhiều nhất (hoàn tác/làm
+// lại), nên đưa đúng lên mức mục tiêu chạm khuyến nghị 44px thay vì chỉ sát mức tối thiểu.
+const TOOL_BTN = 44
 // Cỡ nút trên thanh bút. Bằng đúng hàng công cụ chính — thanh bút mới là thứ tay chạm nhiều nhất
 // trong lúc vẽ, nút ở đây nhỏ hơn chỗ khác là vô lý.
-const BAR_BTN = 42
+const BAR_BTN = 44
 
 // Bán kính tẩy (theo pixel MÀN HÌNH — chia cho zoom khi đổi sang toạ độ bảng, để đầu tẩy luôn to
 // bằng đầu ngón tay dù đang phóng to hay thu nhỏ).
@@ -955,7 +956,7 @@ function IconBtn({
   disabled,
   onClick,
   tone = "plain",
-  size = 36,
+  size = 40,
   plainBg = false,
 }: {
   icon: (cls?: string) => React.ReactElement
@@ -5152,9 +5153,9 @@ export function MindmapBoard({
                   : `${findIdx >= 0 ? findIdx + 1 : "–"}/${findMatches.length}`}
               </span>
             )}
-            <IconBtn icon={mi.chevronUp} hint="Thẻ khớp trước đó" size={32} disabled={findMatches.length === 0} onClick={() => jumpToMatch(-1)} />
-            <IconBtn icon={mi.chevronDown} hint="Thẻ khớp tiếp theo" size={32} disabled={findMatches.length === 0} onClick={() => jumpToMatch(1)} />
-            <IconBtn icon={mi.close} hint="Đóng ô tìm" size={32} onClick={closeFind} />
+            <IconBtn icon={mi.chevronUp} hint="Thẻ khớp trước đó" size={36} disabled={findMatches.length === 0} onClick={() => jumpToMatch(-1)} />
+            <IconBtn icon={mi.chevronDown} hint="Thẻ khớp tiếp theo" size={36} disabled={findMatches.length === 0} onClick={() => jumpToMatch(1)} />
+            <IconBtn icon={mi.close} hint="Đóng ô tìm" size={36} onClick={closeFind} />
           </div>
         ) : (
           <>
@@ -6235,7 +6236,7 @@ export function MindmapBoard({
                   icon={mi.share}
                   hint="Sao chép để dán ở bảng khác"
                   tone="dark"
-                  size={38}
+                  size={42}
                   onClick={() => copyGroup(selGroup)}
                 />
                 {/* Vạch ngăn trước nút xoá: xoá là thao tác không lùi lại được (dù có hoàn tác) và
@@ -6246,14 +6247,14 @@ export function MindmapBoard({
                   icon={mi.trash}
                   hint="Xoá phần đã chọn"
                   tone="dark"
-                  size={38}
+                  size={42}
                   onClick={() => deleteGroup(selGroup)}
                 />
                 <IconBtn
                   icon={mi.close}
                   hint="Bỏ chọn"
                   tone="dark"
-                  size={38}
+                  size={42}
                   onClick={() => setSelGroup(null)}
                 />
               </div>
@@ -6286,14 +6287,14 @@ export function MindmapBoard({
             >
               {selNode && colorsForId !== selNode.id && (
                 <>
-                  <IconBtn icon={mi.pencil} hint="Sửa nội dung" tone="dark" size={38} onClick={() => openEditor(selNode)} />
-                  <IconBtn icon={mi.branch} hint="Thêm nhánh con" tone="dark" size={38} onClick={() => addBranch(selNode)} />
+                  <IconBtn icon={mi.pencil} hint="Sửa nội dung" tone="dark" size={42} onClick={() => openEditor(selNode)} />
+                  <IconBtn icon={mi.branch} hint="Thêm nhánh con" tone="dark" size={42} onClick={() => addBranch(selNode)} />
                   {selNodeHasChildren && !selNode.collapsed && (
                     <IconBtn
                       icon={mi.tidy}
                       hint="Xếp lại cả nhánh cho gọn"
                       tone="dark"
-                      size={38}
+                      size={42}
                       onClick={() => tidyBranches(selNode)}
                     />
                   )}
@@ -6302,7 +6303,7 @@ export function MindmapBoard({
                       icon={selNode.collapsed ? mi.expand : mi.collapse}
                       hint={selNode.collapsed ? "Mở lại nhánh con" : "Gấp nhánh con lại"}
                       tone="dark"
-                      size={38}
+                      size={42}
                       onClick={() => toggleCollapse(selNode)}
                     />
                   )}
@@ -6310,25 +6311,25 @@ export function MindmapBoard({
                     icon={mi.palette}
                     hint="Đổi màu thẻ"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => {
                       setColorsForId(selNode.id)
                       tickHaptic()
                     }}
                   />
-                  <IconBtn icon={mi.copy} hint="Nhân đôi" tone="dark" size={38} onClick={() => duplicateNode(selNode)} />
+                  <IconBtn icon={mi.copy} hint="Nhân đôi" tone="dark" size={42} onClick={() => duplicateNode(selNode)} />
                   <IconBtn
                     icon={mi.share}
                     hint="Sao chép cả nhánh sang bảng khác"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => copyBranch(selNode)}
                   />
                   {/* Vạch ngăn trước nút xoá — xem lý do ở thanh nút của nhóm đang khoanh chọn bên
                       trên. Ở đây còn quan trọng hơn: nút liền trước là "Nhân đôi", bấm nhiều lần liên
                       tiếp khi đang nhân bản ý tưởng, trượt tay là xoá luôn thẻ gốc. */}
                   <span className="flex-none w-px self-stretch my-1.5" style={{ background: "rgba(255,255,255,.18)" }} />
-                  <IconBtn icon={mi.trash} hint="Xoá ghi chú" tone="dark" size={38} onClick={() => deleteNode(selNode.id)} />
+                  <IconBtn icon={mi.trash} hint="Xoá ghi chú" tone="dark" size={42} onClick={() => deleteNode(selNode.id)} />
                 </>
               )}
 
@@ -6338,7 +6339,7 @@ export function MindmapBoard({
                     icon={mi.chevronLeft}
                     hint="Quay lại"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => setColorsForId(null)}
                   />
                   {/* Nút bật/tắt "áp cho cả nhánh", đứng NGAY TRƯỚC hàng màu để thấy rõ nó đổi ý
@@ -6348,7 +6349,7 @@ export function MindmapBoard({
                       icon={mi.branch}
                       hint={applyToBranch ? "Đang áp màu cho cả nhánh — chạm để tắt" : "Áp màu cho cả nhánh bên dưới"}
                       tone="dark"
-                      size={38}
+                      size={42}
                       active={applyToBranch}
                       onClick={() => {
                         setApplyToBranch((v) => !v)
@@ -6392,7 +6393,7 @@ export function MindmapBoard({
                     icon={mi.copy}
                     hint="Nhân đôi ảnh"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => {
                       const id = newId("im")
                       pushUndo()
@@ -6405,7 +6406,7 @@ export function MindmapBoard({
                     icon={mi.fit}
                     hint="Đưa ảnh lên trên cùng"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => {
                       pushUndo()
                       updateImages((ims) => [...ims.filter((i) => i.id !== selImage.id), selImage])
@@ -6413,7 +6414,7 @@ export function MindmapBoard({
                     }}
                   />
                   <span className="flex-none w-px self-stretch my-1.5" style={{ background: "rgba(255,255,255,.18)" }} />
-                  <IconBtn icon={mi.trash} hint="Xoá ảnh" tone="dark" size={38} onClick={() => deleteImage(selImage.id)} />
+                  <IconBtn icon={mi.trash} hint="Xoá ảnh" tone="dark" size={42} onClick={() => deleteImage(selImage.id)} />
                 </>
               )}
 
@@ -6423,7 +6424,7 @@ export function MindmapBoard({
                     icon={mi.pencil}
                     hint="Đặt nhãn và loại đường nối (quan hệ / phác đồ)"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => {
                       const cur = edges.find((ed) => ed.from === sel.from && ed.to === sel.to)
                       setEditingEdgeLabel({ from: sel.from, to: sel.to, text: cur?.label ?? "", kind: cur?.kind ?? "relationship" })
@@ -6433,7 +6434,7 @@ export function MindmapBoard({
                     icon={mi.trash}
                     hint="Bỏ đường nối này"
                     tone="dark"
-                    size={38}
+                    size={42}
                     onClick={() => {
                       const cur = edges.find((ed) => ed.from === sel.from && ed.to === sel.to)
                       setConfirmDeleteEdge({ from: sel.from, to: sel.to, kind: cur?.kind })
@@ -6841,7 +6842,7 @@ export function MindmapBoard({
                           icon={s.icon}
                           hint={s.hint}
                           active={shapeKind === s.id}
-                          size={38}
+                          size={42}
                           onClick={() => {
                             setShapeKind(s.id)
                             setPenPop(null)
@@ -7457,20 +7458,20 @@ export function MindmapBoard({
             style={{ borderColor: "var(--c-line)", background: "var(--c-float-bg)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
             onPointerDown={stopPointer}
           >
-            <IconBtn icon={mi.chevronLeft} hint="Lùi khung viết sang trái" size={34} onClick={() => moveZoomBox(-0.78, 0)} />
-            <IconBtn icon={mi.chevronRight} hint="Dịch khung viết sang phải" size={34} onClick={() => moveZoomBox(0.78, 0)} />
+            <IconBtn icon={mi.chevronLeft} hint="Lùi khung viết sang trái" size={36} onClick={() => moveZoomBox(-0.78, 0)} />
+            <IconBtn icon={mi.chevronRight} hint="Dịch khung viết sang phải" size={36} onClick={() => moveZoomBox(0.78, 0)} />
             {/* Xuống dòng: lùi hẳn về mép trái của dòng vừa viết rồi hạ xuống một khung — đúng thao
                 tác viết hết một dòng trên giấy. */}
             <IconBtn
               icon={mi.chevronDown}
               hint="Xuống dòng mới"
-              size={34}
+              size={36}
               onClick={() => {
                 setZoomBox((b) => (b ? { ...b, y: b.y + b.h * 0.82 } : b))
                 tickHaptic()
               }}
             />
-            <IconBtn icon={mi.close} hint="Đóng ô viết phóng to" size={34} onClick={() => setZoomBox(null)} />
+            <IconBtn icon={mi.close} hint="Đóng ô viết phóng to" size={36} onClick={() => setZoomBox(null)} />
           </div>
         </div>
       )}

@@ -10643,115 +10643,6 @@ interface MindmapSearchHit {
   snippet: string
 }
 
-// ─── Kính tối riêng cho màn danh sách Mindmap ───────────────────────────────────
-// Theo yêu cầu của người dùng: màn danh sách bảng (KHÔNG phải mặt giấy vẽ thật bên trong từng
-// bảng — nơi đó vẫn phải sáng để đọc đúng màu mực) được cấp một ngôn ngữ thị giác RIÊNG, tách hẳn
-// khỏi quy tắc "phẳng, không viền/bóng, nền sáng" mà DESIGN.md đặt ra cho toàn bộ phần còn lại của
-// app. Đây là nơi DUY NHẤT dùng nền OLED tối cố định + kính mờ (glassmorphism) + glow hai sắc —
-// chàm thương hiệu và hồng cánh sen dành riêng cho Mindmap ("The One Other Place Rule" trong
-// DESIGN.md) — không rò khỏi phạm vi các component bên dưới.
-const MM = {
-  bg: "#07060f",
-  panel: "rgba(255,255,255,0.055)",
-  panelStrong: "rgba(255,255,255,0.09)",
-  ring: "rgba(255,255,255,0.10)",
-  ringStrong: "rgba(255,255,255,0.20)",
-  text: "#f4f2fb",
-  textSoft: "rgba(244,242,251,0.62)",
-  textFaint: "rgba(244,242,251,0.4)",
-  indigo: "#7c8cf0",
-  magenta: "#ec5fa8",
-}
-
-// Nền lưới mây (mesh gradient) + hạt nhiễu cố định cho toàn màn danh sách Mindmap — gọi một lần ở
-// gốc MindmapGallery. Grain đặt trong lớp `fixed`, KHÔNG gắn vào container đang cuộn bên trong (xem
-// guard rail hiệu năng: backdrop-blur/hoạ tiết nhiễu chỉ nên nằm trên lớp cố định).
-function MindmapMeshBackdrop() {
-  return (
-    <div
-      aria-hidden="true"
-      className="absolute inset-0 pointer-events-none"
-      style={{
-        background: [
-          "radial-gradient(60% 42% at 14% -8%, rgba(124,140,240,0.34), transparent 60%)",
-          "radial-gradient(52% 40% at 106% 8%, rgba(236,95,168,0.22), transparent 60%)",
-          "radial-gradient(70% 52% at 50% 116%, rgba(124,140,240,0.16), transparent 62%)",
-          MM.bg,
-        ].join(", "),
-      }}
-    >
-      <div className="mind-grain" />
-    </div>
-  )
-}
-
-// Nhãn "eyebrow" nhỏ đứng trước tiêu đề lớn — quy ước của bản kính tối này (xem section 4C của
-// skill thiết kế cao cấp): một viên thuốc chữ hoa cực nhỏ, giãn chữ rộng, đứng tách biệt khỏi tiêu
-// đề để mắt đọc theo hai nhịp thay vì một khối chữ đơn điệu.
-function MindEyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-semibold uppercase"
-      style={{ letterSpacing: "0.2em", background: MM.panelStrong, color: MM.indigo, border: `1px solid ${MM.ring}` }}
-    >
-      {children}
-    </span>
-  )
-}
-
-// Trạng thái rỗng của danh sách bảng — trước đây chỉ một dòng chữ căn giữa, không điểm nhấn thị
-// giác nào, và không có lối tắt hành động (chỉ nói suông "bấm Mới" — người mới nhìn phải tự ngước
-// mắt lên hàng nút phía trên để tìm). Giờ có một huy hiệu kính hai lớp gợi đúng hình sơ đồ tư duy
-// (ba nút nối nhau), một câu ngắn, và nút hành động kiểu "nút-trong-nút" ngay tại đây.
-function EmptyBoards({ onCreate, filtered }: { onCreate: () => void; filtered: boolean }) {
-  return (
-    <div className="flex flex-col items-center text-center gap-4 pt-14 pb-6 px-6 mind-glass-in">
-      {/* Huy hiệu hai lớp (double-bezel): vỏ ngoài mờ + lõi trong glow — cùng kiến trúc lồng nhau
-          dùng cho mọi thẻ bảng bên dưới, thu nhỏ lại thành một biểu tượng. */}
-      <span
-        aria-hidden="true"
-        className="w-16 h-16 rounded-[1.35rem] p-1.5 flex items-center justify-center"
-        style={{ background: MM.panel, border: `1px solid ${MM.ring}` }}
-      >
-        <span
-          className="w-full h-full rounded-[1rem] flex items-center justify-center"
-          style={{
-            background: "linear-gradient(155deg, rgba(124,140,240,0.35), rgba(236,95,168,0.22))",
-            boxShadow: "inset 0 1px 1px rgba(255,255,255,0.2)",
-          }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
-            <circle cx="6" cy="7" r="2.4" />
-            <circle cx="18" cy="7" r="2.4" />
-            <circle cx="12" cy="18" r="2.4" />
-            <path d="M8.1 8.3L10.3 15.6M15.9 8.3L13.7 15.6M8.4 7H15.6" />
-          </svg>
-        </span>
-      </span>
-      <div>
-        <p className="text-[15px] font-semibold" style={{ color: MM.text }}>
-          {filtered ? "Chưa có bảng nào trong mục này" : "Chưa có bảng nào"}
-        </p>
-        <p className="text-[13px] mt-1 max-w-[240px] leading-[1.5]" style={{ color: MM.textSoft }}>
-          {filtered
-            ? "Đổi bộ lọc để xem bảng khác, hoặc tạo một bảng mới cho mục này."
-            : "Tạo bảng đầu tiên để bắt đầu vẽ sơ đồ tư duy."}
-        </p>
-      </div>
-      <button
-        onClick={onCreate}
-        className={`mind-glass-press mt-1 pl-5 pr-1.5 h-11 rounded-full flex items-center gap-2.5 ${TAP}`}
-        style={{ background: MM.indigo, color: "#08070f" }}
-      >
-        <span className="text-[13px] font-semibold">Tạo bảng mới</span>
-        <span className="w-8 h-8 rounded-full flex items-center justify-center flex-none" style={{ background: "rgba(0,0,0,0.16)" }}>
-          {icons.plus()}
-        </span>
-      </button>
-    </div>
-  )
-}
-
 function MindmapGallery({
   boards,
   onOpen,
@@ -10863,97 +10754,51 @@ function MindmapGallery({
   }
 
   return (
-    <div className="h-full flex flex-col relative" style={{ background: MM.bg }}>
-      <MindmapMeshBackdrop />
+    <div className="h-full flex flex-col">
+      {/* Tiêu đề dùng Space Grotesk (STYLE_FONT_STACKS.display) — font này vốn dành riêng cho Mindmap
+          (DESIGN.md: "tiêu đề/nhấn mạnh mạnh tay"), nhưng trước giờ chỉ người dùng TỰ áp cho từng
+          đoạn chữ trong ghi chú mới thấy, còn khung màn thì dùng chung kiểu chữ trung tính như mọi
+          màn khác. Mindmap là màn DUY NHẤT được cấp font riêng — để nó thật sự trông khác biệt ngay
+          từ tiêu đề, không chỉ khi đã mở sâu vào một ghi chú đã định dạng. */}
+      <ScreenHeader title={<span style={{ fontFamily: STYLE_FONT_STACKS.display, fontWeight: 700, letterSpacing: "-0.01em" }}>Mindmap</span>} />
 
-      {/* Tiêu đề: eyebrow nhỏ + chữ lớn Space Grotesk có gradient chàm→hồng — hai sắc riêng của
-          Mindmap (xem MM ở trên), đối lập rõ với chữ trung tính của phần còn lại của app. */}
-      <div className="flex-none relative px-5 pt-4 pb-3 mind-glass-in">
-        <MindEyebrow>Sơ đồ tư duy</MindEyebrow>
-        <h1
-          className="mt-2 text-[32px] leading-[1.05]"
-          style={{
-            fontFamily: STYLE_FONT_STACKS.display,
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            backgroundImage: `linear-gradient(100deg, ${MM.text} 35%, ${MM.indigo} 75%, ${MM.magenta})`,
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
-          }}
-        >
-          Mindmap
-        </h1>
-      </div>
-
-      {/* Tìm chữ trong ghi chú xuyên suốt MỌI bảng — ô kính riêng cho màn này (không dùng lại
-          SearchField dùng chung của app: ô đó có nền/chữ SÁNG, đặt lên nền OLED sẽ vỡ tương phản). */}
-      <div className="flex-none relative px-5 mind-glass-in" style={{ animationDelay: "60ms" }}>
-        <div
-          className="mind-search-pill flex items-center gap-2.5 px-4 h-12 rounded-full mb-2.5"
-          style={{ background: MM.panel, border: `1px solid ${MM.ring}` }}
-        >
-          <span style={{ color: MM.textFaint }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
-              <circle cx="10.5" cy="10.5" r="6.2" />
-              <path d="M15.4 15.4L20 20" />
-            </svg>
-          </span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm ghi chú trong mọi bảng…"
-            type="search"
-            enterKeyHint="search"
-            autoCapitalize="off"
-            autoCorrect="off"
-            className="flex-1 h-full bg-transparent outline-none text-[14px]"
-            style={{ color: MM.text }}
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="w-9 h-9 flex items-center justify-center flex-none rounded-full"
-              style={{ color: MM.textSoft }}
-              aria-label="Xoá tìm kiếm"
-            >
-              {icons.x()}
-            </button>
-          )}
-        </div>
+      {/* Tìm chữ trong ghi chú xuyên suốt MỌI bảng — trước đây ô tìm chỉ nằm trong từng bảng, phải
+          nhớ đúng bảng nào mới mở ra tìm được. */}
+      <div className="flex-none px-5">
+        <SearchField value={query} onChange={setQuery} placeholder="Tìm ghi chú trong mọi bảng…" />
       </div>
 
       {query.trim() ? (
-        <div className="scroll-ios flex-1 px-5 pb-6 relative">
+        <div className="scroll-ios flex-1 px-5 pb-6">
           {/* Trước đây `searching` thay CẢ vùng kết quả bằng một dòng "Đang tìm…" — một thao tác
               200ms mà thay hết nội dung cho ra cảm giác nháy liên tục khi gõ. Giữ kết quả CŨ
               (searchHits không bị xoá khi lượt tìm mới bắt đầu — xem effect phía trên), chỉ giảm
               opacity trong lúc chờ; "Đang tìm…" chỉ còn dành cho lượt tìm ĐẦU TIÊN chưa có gì. */}
           {searching && groupedHits.length === 0 ? (
-            <p className="text-[13px] text-center mt-10" style={{ color: MM.textSoft }}>
+            <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
               Đang tìm…
             </p>
           ) : groupedHits.length === 0 ? (
-            <p className="text-[13px] text-center mt-10" style={{ color: MM.textSoft }}>
+            <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
               Không tìm thấy "{query.trim()}" trong bất kỳ bảng nào.
             </p>
           ) : (
             <div className="flex flex-col gap-2" style={{ opacity: searching ? 0.5 : 1, transition: "opacity .15s ease" }}>
               {groupedHits.map(({ board, hits }) => (
-                // Cùng kiến trúc kính hai lớp như thẻ bảng ở danh sách duyệt bình thường — một khái
-                // niệm "thẻ bảng" chỉ nên có một cách trình bày, dù đang ở màn duyệt hay kết quả tìm.
+                // Cùng nền tô màu theo bảng như danh sách duyệt bình thường (không phải vạch màu
+                // mép trái + thẻ trắng riêng như trước) — một khái niệm "thẻ bảng" chỉ nên có một
+                // cách trình bày, dù đang ở màn duyệt hay kết quả tìm.
                 <button
                   key={board.id}
                   onClick={() => onOpen(board.id, query.trim())}
-                  className="mind-glass-press w-full text-left flex items-center gap-3 p-3 rounded-[1.35rem]"
-                  style={{ background: MM.panel, border: `1px solid ${MM.ring}` }}
+                  className={`w-full text-left flex items-center gap-3 p-3 ${R.card} ${TAP}`}
+                  style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
                 >
-                  <span aria-hidden="true" className="flex-none w-2 h-2 rounded-full" style={{ background: board.color, boxShadow: `0 0 10px ${board.color}` }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-semibold truncate" style={{ color: MM.text }}>
+                    <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
                       {board.name} · {hits.length} kết quả
                     </p>
-                    <p className="text-[12px] truncate mt-0.5" style={{ color: MM.textSoft }}>
+                    <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
                       {hits[0].snippet || "(ghi chú trống)"}
                     </p>
                   </div>
@@ -10964,23 +10809,34 @@ function MindmapGallery({
         </div>
       ) : (
       <>
-      {/* Hàng điều khiển: lọc bên trái, thêm mới và đổi kiểu xem bên phải — pill kính, nút "Mới"
-          theo kiến trúc nút-trong-nút (icon lồng trong vòng tròn riêng). */}
-      <div className="flex-none relative px-5 pb-3 flex items-center gap-2 mind-glass-in" style={{ animationDelay: "110ms" }}>
+      {/* Hàng điều khiển: lọc bên trái, thêm mới và đổi kiểu xem bên phải */}
+      <div className="flex-none px-5 pb-3 flex items-center gap-2 relative">
         <button
           onClick={() => setFilterOpen((v) => !v)}
-          className="mind-glass-press flex-none h-10 pl-3 pr-3.5 rounded-full text-[13px] font-semibold flex items-center gap-1.5"
+          className={`flex-none h-9 pl-2.5 pr-3 ${R.pill} ${T.bodyStrong} flex items-center gap-1.5`}
           style={
             specialty === "all"
-              ? { color: MM.textSoft, background: MM.panel, border: `1px solid ${MM.ring}` }
-              : { color: MM.indigo, background: "rgba(124,140,240,0.16)", border: `1px solid rgba(124,140,240,0.35)` }
+              ? { color: C.textSoft, background: "transparent" }
+              : { color: C.primary, background: C.primarySoft }
           }
         >
           {icons.filter()}
-          <span className="truncate max-w-[120px]">{filterLabel}</span>
+          <span className="truncate max-w-[140px]">{filterLabel}</span>
         </button>
 
         <span className="flex-1" />
+
+        <button
+          onClick={() => {
+            onCreate()
+            tickHaptic()
+          }}
+          className={`flex-none h-9 pl-3 pr-4 ${R.pill} ${T.bodyStrong} flex items-center gap-1`}
+          style={{ background: C.primary, color: "var(--c-on-bright)" }}
+        >
+          {icons.plus()}
+          Mới
+        </button>
 
         <button
           onClick={() => {
@@ -10991,8 +10847,8 @@ function MindmapGallery({
           }}
           aria-label={view === "grid" ? "Xem dạng danh sách" : "Xem dạng lưới"}
           title={view === "grid" ? "Xem dạng danh sách" : "Xem dạng lưới"}
-          className="mind-glass-press flex-none w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ color: MM.textSoft, background: MM.panel, border: `1px solid ${MM.ring}` }}
+          className="flex-none w-9 h-9 flex items-center justify-center"
+          style={{ color: "var(--c-text-soft)" }}
         >
           {view === "grid" ? icons.listView() : icons.gridView()}
         </button>
@@ -11004,30 +10860,13 @@ function MindmapGallery({
             onClick={() => setTrashOpen(true)}
             aria-label={`Thùng rác, ${trashedBoards.length} bảng`}
             title="Thùng rác"
-            className="mind-glass-press flex-none h-10 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 text-[12px] font-semibold"
-            style={{ color: MM.textSoft, background: MM.panel, border: `1px solid ${MM.ring}` }}
+            className={`flex-none h-9 pl-2 pr-2.5 ${R.pill} flex items-center gap-1`}
+            style={{ color: C.textSoft, background: "transparent" }}
           >
             {icons.trash()}
-            <span>{trashedBoards.length}</span>
+            <span className={T.meta}>{trashedBoards.length}</span>
           </button>
         )}
-
-        {/* Nút "Mới" đứng CUỐI hàng (kiểu nút-trong-nút, icon lồng trong vòng tròn riêng) — trọng
-            âm thị giác của cả hàng điều khiển, nên đặt sau cùng, gần vùng ngón cái nhất trên máy
-            cầm một tay. */}
-        <button
-          onClick={() => {
-            onCreate()
-            tickHaptic()
-          }}
-          className="mind-glass-press flex-none h-10 pl-4 pr-1.5 rounded-full flex items-center gap-2 text-[13px] font-semibold"
-          style={{ background: MM.indigo, color: "#08070f" }}
-        >
-          Mới
-          <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.16)" }}>
-            {icons.plus()}
-          </span>
-        </button>
 
         {filterOpen && (
           <>
@@ -11035,8 +10874,8 @@ function MindmapGallery({
             {/* Mọi popover trong bảng vẽ đều mind-pop bung ra từ nút — bảng này (ở danh sách gallery,
                 không phải trong MindmapBoard) trước đây hiện tức thì, khác hẳn phần còn lại. */}
             <div
-              className="mind-pop absolute left-5 top-full z-40 w-[210px] rounded-[1.35rem] p-1.5 max-h-[320px] overflow-y-auto scroll-ios backdrop-blur-2xl"
-              style={{ border: `1px solid ${MM.ringStrong}`, background: "rgba(15,13,26,0.86)", boxShadow: "0 20px 44px rgba(0,0,0,0.55)", transformOrigin: "top left" }}
+              className={`mind-pop absolute left-5 top-full z-40 w-[210px] ${R.card} border p-1.5 max-h-[320px] overflow-y-auto scroll-ios`}
+              style={{ borderColor: C.line, background: C.surface, boxShadow: "0 12px 30px var(--c-shadow), var(--c-shadow-glow)", transformOrigin: "top left" }}
             >
               <FilterRow label="Tất cả" count={boards.length} active={specialty === "all"} onClick={() => pick("all")} />
               {usedSpecialties.map((s) => (
@@ -11064,7 +10903,9 @@ function MindmapGallery({
 
       <div className="scroll-ios flex-1 px-5 pb-6">
         {shown.length === 0 ? (
-          <EmptyBoards onCreate={onCreate} filtered={specialty !== "all"} />
+          <p className={`${T.body} text-center mt-10`} style={{ color: C.textSoft }}>
+            Chưa có bảng nào trong mục này. Bấm "Mới" để tạo bảng đầu tiên.
+          </p>
         ) : view === "grid" ? (
           // key={view} buộc React dựng lại khối này khi đổi view — mỗi lần đổi kiểu xem là một lượt
           // hiệu ứng MỚI hoàn toàn (không chỉ layout đổi tức thì), xem mind-board-drop bên dưới.
@@ -11135,57 +10976,51 @@ function TrashSheet({
   return (
     // Trước đây `absolute inset-0` với rounded-t-3xl xuất hiện tức thì — trông như bottom sheet
     // nhưng không có động tác của bottom sheet, cùng lỗi với CalcLogSheet/DisclaimerGate ở màn
-    // Dùng thuốc. `.mind-sheet` (đã có sẵn trong index.css) trượt lên từ đáy. Kính tối nặng
-    // (backdrop-blur-3xl) thay cho nền phẳng C.surface — cùng phong cách với hàng điều khiển và
-    // thẻ bảng phía sau.
-    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "rgba(3,2,8,0.7)" }}>
+    // Dùng thuốc. `.mind-sheet` (đã có sẵn trong index.css) trượt lên từ đáy.
+    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="trash-sheet-title"
-        className="mind-sheet rounded-t-[1.75rem] flex flex-col backdrop-blur-2xl"
-        style={{ background: "rgba(17,15,28,0.92)", borderTop: `1px solid ${MM.ringStrong}`, maxHeight: "82%" }}
+        className="mind-sheet rounded-t-3xl flex flex-col"
+        style={{ background: C.surface, maxHeight: "82%" }}
       >
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <p id="trash-sheet-title" className="text-[14px] font-semibold" style={{ color: MM.text }}>
+          <p id="trash-sheet-title" className={T.bodyStrong} style={{ color: C.text }}>
             Thùng rác · {boards.length}
           </p>
           <button
             onClick={onClose}
-            className="mind-glass-press w-11 h-11 rounded-full flex items-center justify-center"
-            style={{ background: MM.panelStrong, color: MM.textSoft }}
+            className="w-11 h-11 rounded-full flex items-center justify-center"
+            style={{ background: C.lineSoft, color: C.textSoft }}
             aria-label="Đóng"
           >
             {icons.x()}
           </button>
         </div>
-        <p className="text-[12px] px-5 pb-2 leading-[1.5]" style={{ color: MM.textFaint }}>
+        <p className={`${T.meta} px-5 pb-2`} style={{ color: C.textSoft }}>
           Bảng trong đây không hiện ở danh sách nhưng dữ liệu vẫn còn nguyên. App không tự dọn thùng
           rác — xoá hẳn phải do bạn bấm.
         </p>
         <div className="scroll-ios px-5 pb-4 flex flex-col gap-2" style={{ paddingBottom: "var(--nav-pad-bottom)" }}>
           {boards.map((b) => (
-            <div key={b.id} className="p-3 rounded-[1.1rem]" style={{ background: MM.panel, border: `1px solid ${MM.ring}` }}>
-              <p className="text-[13.5px] font-semibold truncate" style={{ color: MM.text }}>
+            <div key={b.id} className={`p-3 ${R.card} border`} style={{ borderColor: C.line }}>
+              <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
                 {b.name}
               </p>
-              <p className="text-[11.5px] mb-2" style={{ color: MM.textFaint }}>
+              <p className={`${T.meta} mb-2`} style={{ color: C.textSoft }}>
                 Dời vào thùng rác {b.deletedAt ? boardWhen(b.deletedAt).toLowerCase() : ""}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => onRestore(b.id)}
-                  className="mind-glass-press flex-1 h-9 rounded-full text-[13px] font-semibold border"
-                  style={{ borderColor: "rgba(124,140,240,0.4)", color: MM.indigo, background: "rgba(124,140,240,0.14)" }}
+                  className={`flex-1 h-9 ${R.pill} ${T.bodyStrong} border`}
+                  style={{ borderColor: C.primaryLine, color: C.primary, background: C.primarySoft }}
                 >
                   Khôi phục
                 </button>
-                {/* Đỏ nguy hiểm KHÔNG đổi theo kính tối — "The Untouchable Signal Rule" trong
-                    DESIGN.md giữ nguyên dù cả màn này đã đổi hẳn thẩm mỹ: xoá hẳn là thao tác duy
-                    nhất trong toàn màn Mindmap không thể lấy lại, màu báo nguy vẫn phải là đỏ quen
-                    thuộc của cả app, không hoà vào bảng màu chàm/hồng trang trí. */}
                 <button
                   onClick={() => {
                     if (confirmId !== b.id) {
@@ -11196,7 +11031,7 @@ function TrashSheet({
                     setConfirmId(null)
                   }}
                   onBlur={() => setConfirmId(null)}
-                  className="mind-glass-press flex-1 h-9 rounded-full text-[13px] font-semibold border"
+                  className={`flex-1 h-9 ${R.pill} ${T.bodyStrong} border`}
                   style={
                     confirmId === b.id
                       ? { borderColor: C.dangerIcon, background: C.dangerSoft, color: C.danger }
@@ -11230,12 +11065,12 @@ function FilterRow({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-2 px-2.5 py-2.5 rounded-xl text-[13px]"
-      style={active ? { background: "rgba(124,140,240,0.18)", color: MM.indigo } : { color: MM.text }}
+      className={`w-full flex items-center gap-2 px-2.5 py-2 ${R.box} ${T.body}`}
+      style={active ? { background: C.primarySoft, color: C.primary } : { color: C.text }}
     >
-      <span className="flex-none w-2.5 h-2.5 rounded-full" style={{ background: color ?? MM.textFaint }} />
-      <span className="flex-1 text-left truncate font-medium">{label}</span>
-      <span className="text-[11px]" style={{ color: active ? MM.indigo : MM.textFaint }}>
+      <span className="flex-none w-2.5 h-2.5 rounded-full" style={{ background: color ?? C.muted }} />
+      <span className="flex-1 text-left truncate">{label}</span>
+      <span className={T.meta} style={{ color: active ? C.primary : C.muted }}>
         {count}
       </span>
     </button>
@@ -11244,16 +11079,11 @@ function FilterRow({
 
 // Khung ảnh xem trước dùng chung cho cả thẻ lưới lẫn dòng danh sách — cùng một mặt giấy, cùng một
 // cách vẽ, chỉ khác kích thước.
-// Mặt giấy CỐ Ý giữ nguyên màu sáng (PAPER_BG) dù nằm trong vỏ kính tối của thẻ bảng bên ngoài —
-// đây là bản thu nhỏ của giấy vẽ THẬT, mực màu trên giấy trắng mới đọc đúng màu; đổi nền preview
-// sang tối sẽ làm sai lệch màu mực người dùng thấy so với lúc vẽ thật. "Cửa sổ giấy sáng" lồng
-// trong khung kính tối vì vậy vừa đúng chức năng vừa hợp phong cách "vỏ máy quanh mặt kính" của
-// kiến trúc kính hai lớp (double-bezel) dùng cho mọi thẻ bảng bên dưới.
 function BoardPreviewFrame({ board, previewTick, className }: { board: MindBoard; previewTick: number; className: string }) {
   return (
     <div
       className={`relative overflow-hidden ${className}`}
-      style={{ background: PAPER_BG, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.06)", borderRadius: "0.9rem" }}
+      style={{ background: PAPER_BG, border: `1px solid ${C.line}`, borderRadius: 12 }}
     >
       <BoardThumb board={board} tick={previewTick} />
     </div>
@@ -11439,12 +11269,16 @@ function BoardCard({
       // Để MindmapScreen dò lại ĐÚNG thẻ này khi phóng khung xem trước NGƯỢC lại (rời bảng về danh
       // sách) — lúc đó chỉ có id bảng trong tay, không có sẵn tham chiếu tới thẻ.
       data-board-id={board.id}
-      // Kiến trúc kính HAI LỚP (double-bezel): vỏ ngoài mờ (padding + viền chỉ mảnh) bọc lấy lõi
-      // trong là chính khung xem trước — như một tấm kính đặt trong khay kim loại, thay cho quy tắc
-      // "phẳng, không viền/bóng" áp dụng cho phần còn lại của app (chỉ nơi này được miễn, theo yêu
-      // cầu riêng cho Mindmap).
-      className={`mind-glass-press flex flex-col gap-2 p-2 rounded-[1.6rem] ${TAP}`}
-      style={{ background: MM.panel, border: `1px solid ${MM.ring}` }}
+      // KHÔNG viền: khung xem trước bên trong đã có viền riêng, thêm viền ở đây nữa là hai khối lồng
+      // nhau cùng vẽ đường bao — đúng kiểu "thẻ trong thẻ" mà hệ thiết kế của app cố tình tránh (xem
+      // "Flat by default... không cần viền hay shadow" trong DESIGN.md). Sắc thẻ vẫn nhận ra được
+      // qua nền tô màu — chỉ bớt một lớp đường viền thừa.
+      className={`flex flex-col gap-1.5 p-2 ${R.card} ${TAP}`}
+      // `color-mix` trộn thẳng từ `board.color` (có thể là mã hex CHUYÊN KHOA thật, hoặc
+      // `var(--c-primary)`/`var(--c-text-muted)` khi chưa gắn khoa — color-mix nhận cả hai dạng,
+      // không cần tự phân biệt). Trộn về phía `--c-surface` (không phải "transparent") nên bản tối
+      // tự ra đúng sắc độ tối hơn mà không cần viết riêng một nhánh dark-mode.
+      style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
       {...hold}
       // Có role="button" + tabIndex nên Tab tới được và trình đọc màn hình đọc là "nút", nhưng
       // trước đây chỉ gắn handler con trỏ — Enter/Space không làm gì cả. Enter/Space giờ mở bảng,
@@ -11459,19 +11293,8 @@ function BoardCard({
       role="button"
       tabIndex={0}
     >
-      <div
-        className="relative rounded-[1.15rem] p-[3px]"
-        // `color-mix` (không phải nối chuỗi mã alpha vào hex): `board.color` có thể là mã hex CHUYÊN
-        // KHOA thật, hoặc `var(--c-primary)`/`var(--c-text-muted)` khi chưa gắn khoa — nối thẳng hậu
-        // tố alpha kiểu "#rrggbb2e" chỉ đúng với hex, sẽ ra CSS hỏng nếu là var(...). color-mix nhận
-        // được cả hai dạng.
-        style={{ background: `color-mix(in srgb, ${board.color} 18%, transparent)`, boxShadow: `0 0 22px -6px ${board.color}` }}
-      >
-        {/* aspect-[3/2] thay vì 4/3 cũ: ảnh xem trước thấp hơn ~10%, đỡ chiếm hình, đọc nhẹ nhàng hơn
-            trong lưới hai cột — vẫn đủ chỗ cho nội dung nhờ lề trong SVG đã nới ở BoardThumb. Màu
-            chuyên khoa của bảng giờ đọc được qua VIỀN GLOW quanh cửa sổ giấy, không phải nền tô màu
-            phẳng như bản sáng cũ. */}
-        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[3/2]" />
+      <div className="relative">
+        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
         {/* Gợi ý thụ động cho việc giữ để mở tuỳ chọn — KHÔNG phải một nút riêng (không có handler
             con trỏ của chính nó): giữ nguyên lý do bỏ nút bút chì ở trên (một đích chạm nhỏ sát cạnh
             vùng mở bảng dễ bấm nhầm trên điện thoại). Chỉ là một dấu hiệu nhìn thấy được cho biết
@@ -11479,6 +11302,9 @@ function BoardCard({
         <div
           aria-hidden="true"
           className="absolute top-1.5 right-1.5 flex items-center gap-[2px] px-1.5 py-1 rounded-full pointer-events-none"
+          // --c-pill-dark: cố ý LUÔN tối bất kể theme (giống dải gợi ý cử chỉ trong MindmapBoard),
+          // nên chấm cũng dùng #fff cố định thay vì --c-on-bright — token đó lật sang gần đen ở bản
+          // tối, không đọc được trên nền luôn-tối này.
           style={{ background: "var(--c-pill-dark)" }}
         >
           <span className="block w-[3px] h-[3px] rounded-full" style={{ background: "#fff" }} />
@@ -11486,11 +11312,11 @@ function BoardCard({
           <span className="block w-[3px] h-[3px] rounded-full" style={{ background: "#fff" }} />
         </div>
       </div>
-      <div className="min-w-0 px-1 pb-0.5">
-        <p className="text-[13.5px] font-semibold leading-snug line-clamp-2" style={{ color: MM.text }}>
+      <div className="min-w-0">
+        <p className={`${T.bodyStrong} leading-snug line-clamp-2`} style={{ color: C.text }}>
           {board.name}
         </p>
-        <p className="text-[11.5px] mt-0.5" style={{ color: MM.textFaint }}>
+        <p className={T.meta} style={{ color: C.textSoft }}>
           {boardWhen(board.updatedAt)}
           <BoardNoteCount board={board} tick={previewTick} />
         </p>
@@ -11517,10 +11343,9 @@ function BoardRow({
     <div
       ref={rowRef}
       data-board-id={board.id}
-      // Cùng kiến trúc kính hai lớp với BoardCard: vỏ ngoài mờ bọc lấy lõi trong (khung xem trước có
-      // viền glow riêng theo màu chuyên khoa).
-      className={`mind-glass-press flex items-center gap-3 p-2 rounded-[1.4rem] ${TAP}`}
-      style={{ background: MM.panel, border: `1px solid ${MM.ring}` }}
+      // KHÔNG viền — cùng lý do với BoardCard: khung xem trước bên trong đã có viền riêng.
+      className={`flex items-center gap-3 p-2 ${R.card} ${TAP}`}
+      style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
       {...hold}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -11532,17 +11357,12 @@ function BoardRow({
       role="button"
       tabIndex={0}
     >
-      <div
-        className="flex-none rounded-[0.85rem] p-[3px]"
-        style={{ background: `color-mix(in srgb, ${board.color} 18%, transparent)`, boxShadow: `0 0 16px -6px ${board.color}` }}
-      >
-        <BoardPreviewFrame board={board} previewTick={previewTick} className="w-[68px] h-[50px]" />
-      </div>
+      <BoardPreviewFrame board={board} previewTick={previewTick} className="flex-none w-[72px] h-[54px]" />
       <div className="flex-1 min-w-0">
-        <p className="text-[13.5px] font-semibold truncate" style={{ color: MM.text }}>
+        <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
           {board.name}
         </p>
-        <p className="text-[11.5px] truncate mt-0.5" style={{ color: MM.textFaint }}>
+        <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
           {boardWhen(board.updatedAt)}
           {spec ? ` · ${spec.name}` : ""}
           <BoardNoteCount board={board} tick={previewTick} />
@@ -11554,9 +11374,9 @@ function BoardRow({
         aria-hidden="true"
         className="flex-none flex flex-col items-center gap-[3px] pointer-events-none px-1"
       >
-        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: MM.textFaint }} />
-        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: MM.textFaint }} />
-        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: MM.textFaint }} />
+        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: C.textSoft }} />
+        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: C.textSoft }} />
+        <span className="block w-[3px] h-[3px] rounded-full" style={{ background: C.textSoft }} />
       </span>
     </div>
   )
@@ -11834,17 +11654,16 @@ function SheetAction({
       onBlur={onBlur}
       disabled={disabled}
       className="w-full flex items-center gap-3 px-3 py-3 text-left border-b last:border-b-0 disabled:opacity-45"
-      style={{ borderColor: MM.ring }}
+      style={{ borderColor: C.lineSoft }}
     >
-      {/* Đỏ nguy hiểm (danger) KHÔNG đổi theo kính tối — xem ghi chú ở TrashSheet. */}
-      <span className="flex-none w-5 h-5" style={{ color: danger ? C.danger : MM.textSoft }}>
+      <span className="flex-none w-5 h-5" style={{ color: danger ? C.danger : C.textSoft }}>
         {icon}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-[13.5px] font-semibold" style={{ color: danger ? C.danger : MM.text }}>
+        <span className={`block ${T.bodyStrong}`} style={{ color: danger ? C.danger : C.text }}>
           {label}
         </span>
-        <span className="block text-[11.5px] mt-0.5" style={{ color: MM.textFaint }}>
+        <span className={`block ${T.meta}`} style={{ color: C.textSoft }}>
           {hint}
         </span>
       </span>
@@ -11896,7 +11715,7 @@ function BoardEditSheet({
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "rgba(3,2,8,0.7)" }}>
+    <div className="absolute inset-0 z-40 flex flex-col fade-in" style={{ background: "var(--c-scrim)" }}>
       <button className="flex-1" onClick={onClose} aria-label="Đóng" />
       <div
         role="dialog"
@@ -11909,40 +11728,29 @@ function BoardEditSheet({
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose()
         }}
-        className="mind-sheet rounded-t-[1.75rem] flex flex-col backdrop-blur-2xl"
-        style={{ background: "rgba(17,15,28,0.92)", borderTop: `1px solid ${MM.ringStrong}`, maxHeight: "82%" }}
+        className="mind-sheet rounded-t-3xl flex flex-col"
+        style={{ background: "var(--c-surface)", maxHeight: "82%" }}
       >
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <p id="board-edit-sheet-title" className="text-[14px] font-semibold" style={{ color: MM.text }}>
-            {mode === "create" ? "Bảng mới" : "Sửa bảng"}
-          </p>
-          <button
-            onClick={onClose}
-            className="mind-glass-press w-11 h-11 rounded-full flex items-center justify-center"
-            style={{ background: MM.panelStrong, color: MM.textSoft }}
-            aria-label="Đóng"
-          >
+          <p id="board-edit-sheet-title" className="text-[13px] font-bold" style={{ color: C.text }}>{mode === "create" ? "Bảng mới" : "Sửa bảng"}</p>
+          <button onClick={onClose} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }} aria-label="Đóng">
             {icons.x()}
           </button>
         </div>
         <div className="scroll-ios px-5 pb-4 space-y-4">
           <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 block" style={{ color: MM.textFaint }}>
-              Tên bảng
-            </label>
+            <label className="text-xs font-semibold mb-1.5 block" style={{ color: C.textSoft }}>Tên bảng</label>
             <input
               autoFocus={mode === "create"}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="VD: Tim mạch, Thận, ECG…"
-              className="w-full h-12 px-4 rounded-2xl outline-none"
-              style={{ background: MM.panel, border: `1px solid ${MM.ring}`, color: MM.text }}
+              className={FIELD}
+              style={FIELD_STYLE}
             />
           </div>
           <div>
-            <label className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 block" style={{ color: MM.textFaint }}>
-              Gắn theo chuyên khoa (để đổi màu + icon)
-            </label>
+            <label className="text-xs font-semibold mb-1.5 block" style={{ color: C.textSoft }}>Gắn theo chuyên khoa (để đổi màu + icon)</label>
             <div className="grid grid-cols-4 gap-2">
               {swatches.map((sw) => {
                 const on = sw.id === specialtyId
@@ -11950,17 +11758,13 @@ function BoardEditSheet({
                   <button
                     key={sw.name}
                     onClick={() => pick(sw)}
-                    className="mind-glass-press flex flex-col items-center gap-1 py-2.5 rounded-xl border"
-                    style={
-                      on
-                        ? { borderColor: sw.color, background: `color-mix(in srgb, ${sw.color} 20%, transparent)` }
-                        : { borderColor: MM.ring, background: MM.panel }
-                    }
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl border"
+                    style={on ? { borderColor: sw.color, background: `${sw.color}14` } : { borderColor: "var(--c-line)" }}
                   >
                     <span className="w-5 h-5" style={{ color: sw.color }}>
                       {specialtyIcon(sw.id, "w-5 h-5")}
                     </span>
-                    <span className="text-[10.5px] font-medium text-center leading-tight" style={{ color: on ? sw.color : MM.textSoft }}>
+                    <span className="text-[10.5px] font-medium text-center leading-tight" style={{ color: on ? sw.color : "var(--c-text-soft)" }}>
                       {sw.name}
                     </span>
                   </button>
@@ -11972,10 +11776,8 @@ function BoardEditSheet({
           {/* Việc làm với cả bảng — chỉ có nghĩa khi đang SỬA một bảng đã tồn tại. */}
           {mode === "edit" && (
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wide mb-1.5 block" style={{ color: MM.textFaint }}>
-                Bảng này
-              </label>
-              <div className="rounded-[1.1rem] border overflow-hidden" style={{ borderColor: MM.ring, background: MM.panel }}>
+              <label className="text-xs font-semibold mb-1.5 block" style={{ color: C.textSoft }}>Bảng này</label>
+              <div className={`${R.card} border overflow-hidden`} style={{ borderColor: C.line }}>
                 <SheetAction icon={icons.copy()} label="Nhân bản" hint="Tạo một bản sao đầy đủ cả nội dung" onClick={onDuplicate} />
                 <SheetAction icon={icons.download()} label="Xuất file" hint="Mở bảng rồi chọn PNG hoặc PDF ở thanh trên" onClick={onExport} />
                 {/* LUÔN hiện, kể cả khi đang là bảng cuối cùng — lúc đó chỉ mờ đi kèm lý do. Ẩn hẳn
@@ -12010,12 +11812,12 @@ function BoardEditSheet({
             </div>
           )}
         </div>
-        <div className="flex-none flex gap-2 px-5 pt-2 border-t" style={{ borderColor: MM.ring, paddingBottom: "var(--nav-pad-bottom)" }}>
+        <div className="flex-none flex gap-2 px-5 pt-2 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="mind-glass-press flex-1 py-3 rounded-2xl font-semibold text-[13px] disabled:opacity-50"
-            style={{ background: MM.indigo, color: "#08070f" }}
+            className="flex-1 py-3 rounded-2xl font-semibold text-[13px] disabled:opacity-50"
+            style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
           >
             {mode === "create" ? "Tạo bảng" : "Lưu"}
           </button>
@@ -12543,11 +12345,13 @@ export default function App() {
         {(screen === "home" || screen === "specialty") && (
           <div
             className="absolute z-50 flex items-center gap-2"
-            // 30px, không phải 36px: từng khớp với dòng tiêu đề "Bs Trọng" khi khối đệm phía trên
-            // còn +6px thừa (che thanh trạng thái trong suốt cũ) — bỏ khoản đệm đó kéo tiêu đề lên
-            // 6px, nên mốc neo của cụm nút nổi này (tính độc lập, không nằm trong cùng flow với
-            // header) cũng phải trừ đi đúng 6px mới còn ngang hàng.
-            style={{ top: "calc(var(--safe-top) + 30px)", right: 18, transform: "translateY(-50%)" }}
+            // Đo THẬT bằng getBoundingClientRect() (không suy từ padding/line-height, quá nhiều lớp
+            // để tính tay cho đúng): tâm dòng "Bs Trọng" nằm ở y=28 khi --safe-top=0, còn công thức
+            // +30px trước đó đặt tâm cụm nút ở y=30 — lệch 2px, đủ để mắt tinh thấy hai hàng không
+            // thẳng. 28px khớp CHÍNH XÁC (đo lại xác nhận cy hai bên bằng nhau tuyệt đối, không phải
+            // suy diễn). Cụm nút không nằm trong cùng flow với header nên mốc neo này độc lập, không
+            // tự động khớp theo — mỗi lần đổi bố cục header (Bs Trọng) phải đo lại đúng số này.
+            style={{ top: "calc(var(--safe-top) + 28px)", right: 18, transform: "translateY(-50%)" }}
           >
             {screen === "home" && <ThemeToggle />}
             <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
@@ -12768,17 +12572,23 @@ export default function App() {
                     // bản tối, --c-muted chỉ được 4.33:1 (trượt), --c-text-muted đạt 5.8:1.
                     style={{ color: isActive ? "var(--c-primary)" : "var(--c-text-muted)", transition: "color .2s ease" }}
                   >
-                    <span
-                      className="flex items-center justify-center h-8 rounded-full"
-                      style={{
-                        width: isActive ? 58 : 44,
-                        // Viên nền của mục đang chọn đọc từ biến chủ đề. Mã cứng #e0edff cũ là một
-                        // viên xanh nhạt gần trắng — trên nền tối nó sáng chói hơn cả icon bên trong.
-                        background: isActive ? "var(--c-nav-active-bg)" : "transparent",
-                        transition: "width .28s cubic-bezier(.34,1.4,.64,1), background-color .2s ease",
-                      }}
-                    >
-                      {icon(isActive)}
+                    <span className="relative flex items-center justify-center h-8" style={{ width: 58 }}>
+                      {/* Viên nền tô riêng ở một lớp TUYỆT ĐỐI, phóng to bằng transform (không phải
+                          animate thuộc tính `width`) — width kích hoạt layout thrash mỗi khung hình,
+                          transform chỉ tốn compositor. Viên nền của mục đang chọn đọc từ biến chủ đề.
+                          Mã cứng #e0edff cũ là một viên xanh nhạt gần trắng — trên nền tối nó sáng
+                          chói hơn cả icon bên trong. */}
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          background: "var(--c-nav-active-bg)",
+                          opacity: isActive ? 1 : 0,
+                          transform: `scaleX(${isActive ? 1 : 44 / 58})`,
+                          transition: "transform .28s cubic-bezier(.34,1.4,.64,1), opacity .2s ease",
+                        }}
+                      />
+                      <span className="relative flex items-center justify-center">{icon(isActive)}</span>
                     </span>
                     <span
                       className="text-[10px] leading-none"

@@ -14,6 +14,21 @@
          đầu, đã bỏ qua hai lần đổi bảng màu: teal → azure → indigo), lệch hẳn với theme_color trong
          manifest.json lẫn màu thật của app. theme-color quyết định màu thanh trạng thái/thanh công
          cụ Android và màu nền task-switcher khi chưa cài PWA. -->
+    <!-- Trước đây chỉ MỘT thẻ theme-color tĩnh (#2d3a94, màu primary sáng) — hệ điều hành đọc thẻ
+         này SỚM HƠN bất kỳ dòng JS nào chạy được (áp cho màn hình khởi động/thanh trạng thái lúc cài
+         PWA mở lạnh), còn applyTheme() trong src/main.tsx dù đã chạy sớm nhất có thể (trước cả
+         ReactDOM.render) cũng KHÔNG kịp — hệ điều hành đã chụp màu tĩnh này trước đó. Máy đang bật
+         chế độ tối thấy một nháy màu primary sáng (#2d3a94) rồi mới đổi sang đúng --c-surface tối
+         (#14162c) — đúng dải màu "tràn lên trên" chỉ thấy LÚC CÓ LÚC KHÔNG, tuỳ máy đang ở chế độ gì
+         và tuỳ có phải mở lạnh (splash mới) hay chỉ quay lại app đang chạy nền.
+         Sửa: khai HAI biến thể tĩnh theo prefers-color-scheme, đúng --c-surface từng bản (xem
+         index.css) — hệ điều hành tự chọn đúng ngay từ đầu, không cần đợi JS. Thẻ theme-color
+         KHÔNG có `media` ở dưới vẫn giữ lại làm phương án dự phòng cho trình duyệt không hiểu cú
+         pháp nhiều thẻ theme-color, và applyTheme() vẫn cần chạy để xử lý trường hợp người dùng CHỌN
+         TAY một chế độ khác hẳn cài đặt hệ thống (data-theme) — prefers-color-scheme không biết gì
+         về lựa chọn thủ công đó. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14162c" />
     <meta name="theme-color" content="#2d3a94" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!-- ĐÃ BỎ `apple-mobile-web-app-status-bar-style=black-translucent` (2026-08) — đây là nguyên
