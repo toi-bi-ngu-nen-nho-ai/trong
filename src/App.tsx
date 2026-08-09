@@ -3268,7 +3268,9 @@ function draftToDoseCap(d: DoseCapDraft): DoseCap | undefined {
 }
 
 // Bản nháp của AntibioticMix (công thức pha/hoàn nguyên) — mọi ô số giữ dạng chuỗi, `diluents`/
-// `avoidDiluents` giữ dạng một chuỗi cách nhau bằng dấu phẩy để gõ tự nhiên rồi mới tách mảng lúc lưu.
+// `avoidDiluents` giữ dạng một chuỗi cách nhau bằng dấu CHẤM PHẨY (;) để gõ tự nhiên rồi mới tách
+// mảng lúc lưu. KHÔNG dùng dấu phẩy: số thập phân tiếng Việt viết bằng dấu phẩy (vd "NaCl 0,9%"),
+// tách theo "," sẽ bổ đôi "0,9%" thành "0" và "9%" — đúng lỗi đã xảy ra khi field này dùng dấu phẩy.
 interface MixDraft {
   vialAmount: string
   vialUnit: string
@@ -3313,8 +3315,8 @@ function mixToDraft(m?: AntibioticMix): MixDraft {
     vialVolumeMl: m.vialVolumeMl != null ? String(m.vialVolumeMl) : "",
     reconstituteMl: m.reconstituteMl != null ? String(m.reconstituteMl) : "",
     displacementMl: m.displacementMl != null ? String(m.displacementMl) : "",
-    diluents: (m.diluents ?? []).join(", "),
-    avoidDiluents: (m.avoidDiluents ?? []).join(", "),
+    diluents: (m.diluents ?? []).join("; "),
+    avoidDiluents: (m.avoidDiluents ?? []).join("; "),
     diluentWarning: m.diluentWarning ?? "",
     concUnit: m.concUnit ?? "",
     maxConc: m.maxConc != null ? String(m.maxConc) : "",
@@ -3329,8 +3331,8 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
   const reconstituteMl = parseFloat(d.reconstituteMl)
   const displacementMl = parseFloat(d.displacementMl)
   const maxConc = parseFloat(d.maxConc)
-  const diluents = d.diluents.split(",").map((s) => s.trim()).filter(Boolean)
-  const avoidDiluents = d.avoidDiluents.split(",").map((s) => s.trim()).filter(Boolean)
+  const diluents = d.diluents.split(";").map((s) => s.trim()).filter(Boolean)
+  const avoidDiluents = d.avoidDiluents.split(";").map((s) => s.trim()).filter(Boolean)
   const hasAny =
     !isNaN(vialAmount) ||
     d.vialForm !== "" ||
@@ -3519,11 +3521,11 @@ function AntibioticAdvancedFields({
             </div>
 
             <div>
-              <label className="text-[12px] text-slate-400 mb-1 block">Dung môi được phép (cách nhau bằng dấu phẩy)</label>
-              <input value={mix.diluents} onChange={(e) => updateMix("diluents", e.target.value)} placeholder="VD: NaCl 0,9%, Glucose 5%" className={smallFieldClass} style={fieldStyle} />
+              <label className="text-[12px] text-slate-400 mb-1 block">Dung môi được phép (cách nhau bằng dấu chấm phẩy ;)</label>
+              <input value={mix.diluents} onChange={(e) => updateMix("diluents", e.target.value)} placeholder="VD: NaCl 0,9%; Glucose 5%" className={smallFieldClass} style={fieldStyle} />
             </div>
             <div>
-              <label className="text-[12px] text-slate-400 mb-1 block">Dung môi KHÔNG được dùng (cách nhau bằng dấu phẩy)</label>
+              <label className="text-[12px] text-slate-400 mb-1 block">Dung môi KHÔNG được dùng (cách nhau bằng dấu chấm phẩy ;)</label>
               <input value={mix.avoidDiluents} onChange={(e) => updateMix("avoidDiluents", e.target.value)} placeholder="VD: Glucose 5%" className={smallFieldClass} style={fieldStyle} />
             </div>
             {mix.avoidDiluents.trim() && (
@@ -7535,10 +7537,22 @@ function AntibioticDoseCard({
     if (mixCfg.vials != null && mixCfg.volumeMl != null) {
       // Có công thức đã lưu (ward) — dùng ĐÚNG số lọ/ống và thể tích đã pha thật, không tự đoán
       // lại. Liều cần vượt quá tổng lượng thuốc thật có trong bơm/chai đã pha thì dừng — không tự
-      // ý cộng thêm lọ ngoài công thức người dùng đã xác nhận.
+      // ý cộng thêm lọ ngoài công thức người dùng đã xác nhận. Trước đây dừng bằng cách trả về
+      // null: "Cách dùng" im lặng biến mất, không nói vì sao — trông y hệt một lỗi hiển thị (đã
+      // lưu công thức xong mà "Cách dùng" không hiện/không cập nhật). Nói thẳng thiếu bao nhiêu
+      // thay vì im lặng.
       vials = mixCfg.vials
       volumeMl = mixCfg.volumeMl
-      if (neededHigh > vials * mixCfg.vialAmount + 1e-9) return null
+      if (neededHigh > vials * mixCfg.vialAmount + 1e-9) {
+        const haveDoseUnit = (vials * mixCfg.vialAmount) / f
+        const vialLabel = drug.mix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ")
+        return {
+          text: `Công thức đã lưu chỉ có ${formatDoseNumber(haveDoseUnit)} ${doseTargetMg.unit} (${vials} ${vialLabel}) — KHÔNG đủ cho liều cần ${formatDoseNumber(doseTargetMg.high ?? doseTargetMg.low)} ${doseTargetMg.unit}. Sửa số ${vialLabel} trong "Bảng pha thuốc" rồi lưu lại, hoặc chuyển về công thức hệ thống.`,
+          vialCount: vials,
+          vialForm: mixCfg.vialForm,
+          insufficient: true as const,
+        }
+      }
     } else {
       // Không có công thức đã lưu — tự tính số lọ/ống cần dùng (làm tròn LÊN) thay vì giả định cứng
       // "đúng 1 lọ" như trước (khiến liều theo cân nặng vượt 1 lọ luôn bị bỏ qua), pha theo tỉ lệ
@@ -7809,16 +7823,25 @@ function AntibioticDoseCard({
 
       {/* Cách dùng tự tính theo mức liều CrCl hiện tại — chỉ hiện khi đọc được cả con số liều lẫn
           công thức pha, xem autoUsage ở trên. Số lượng ống/lọ/chai vượt trần hợp lý (gradeVialCount)
-          thì KHÔNG in số ra ngay — thường là dấu hiệu gõ nhầm hàm lượng — chờ xác nhận trước. */}
-      {autoUsage && !vialGuard.blocked && (
-        <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage.text}</p>
-          <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
-            Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
-          </p>
+          thì KHÔNG in số ra ngay — thường là dấu hiệu gõ nhầm hàm lượng — chờ xác nhận trước.
+          Công thức đã lưu không đủ thuốc cho liều cần thì autoUsage.insufficient=true — hiện cảnh
+          báo màu vàng nói RÕ vì sao thay vì im lặng biến mất (trông y hệt lỗi hiển thị). */}
+      {autoUsage && autoUsage.insufficient ? (
+        <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>{autoUsage.text}</p>
         </div>
+      ) : (
+        autoUsage &&
+        !vialGuard.blocked && (
+          <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
+            <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage.text}</p>
+            <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
+              Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
+            </p>
+          </div>
+        )
       )}
-      {autoUsage && (
+      {autoUsage && !autoUsage.insufficient && (
         <VialCountWarning grade={vialGuard.grade} show={vialGuard.showWarning} onConfirm={vialGuard.confirm} />
       )}
 
