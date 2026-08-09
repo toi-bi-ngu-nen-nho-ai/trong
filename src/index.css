@@ -384,16 +384,23 @@ html {
   background: var(--c-nav-bg-solid);
 }
 
-/* Ghim body ĐÚNG BẰNG KHUNG NHÌN bằng inset: 0 thay vì tính chiều cao bằng 100dvh.
-   Lý do (lỗi nặng khi cài ra màn hình chính iPhone): ở chế độ toàn màn hình, iOS tính 100dvh
-   không khớp chiều cao thật của máy, làm cả app bị hụt một khoảng ở đáy — thanh điều hướng dưới
-   không xuống được tới cạnh dưới, để lộ một dải trắng và không danh sách nào chạm được đáy màn
-   hình. `position: fixed; inset: 0` lấy thẳng kích thước khung nhìn nên không bao giờ lệch.
-   (Cũng bỏ luôn `position: fixed` trên thẻ html — thừa, và là kiểu dùng dễ sinh lỗi lạ trên
-   WebKit.) */
+/* Ghim body ĐÚNG BẰNG KHUNG NHÌN. Từng dùng `inset: 0` thay vì `100dvh` (100dvh tính sai chiều
+   cao thật khi cài ra màn hình chính trên iPhone đời cũ) — nhưng ảnh chụp/video thật từ iPhone Air
+   cho thấy VẪN còn hụt một dải ở đáy dù đã đổi: `inset: 0` cũng chỉ bám theo "layout viewport" mà
+   WebKit tự tính, và trên máy đó, ngay lúc mở app từ icon màn hình chính, khung WebKit tính ra lại
+   NGẮN HƠN vùng vẽ thật — tức là bản thân con số "viewport" đã sai, không phải lỗi tô màu, nên
+   không cách đặt CSS thuần nào (kể cả inset:0) tự thoát khỏi số đo sai đó được.
+   `--vvh` (đặt trong src/lib/viewportHeight.ts, đo bằng `window.visualViewport.height` — API sinh
+   ra đúng để phân biệt "layout viewport" khỏi "vùng nhìn thấy thật" trên WebKit) ghi đè `height`
+   bằng số đo thật, và đo lại vài lần trong giây đầu vì WebKit có thể tự sửa số đo một nhịp sau lần
+   vẽ đầu. Còn `top/left/right: 0` (không dùng `bottom`) để height quyết định cạnh dưới, không bị
+   hai nguồn cùng ép một chiều. */
 body {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--vvh, 100%);
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ. */
