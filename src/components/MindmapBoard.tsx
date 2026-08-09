@@ -4961,7 +4961,7 @@ export function MindmapBoard({
               tickHaptic()
             }}
             aria-pressed={readOnly}
-            className="mind-btn flex-none h-9 pl-2 pr-3 rounded-2xl border flex items-center gap-1.5 text-[12.5px] font-bold"
+            className="mind-btn flex-none h-9 pl-2 pr-3 rounded-2xl border flex items-center gap-1.5 text-[13px] font-bold"
             style={
               readOnly
                 ? { borderColor: "var(--c-line)", background: "var(--c-line-soft)", color: "var(--c-text-soft)" }
@@ -5113,7 +5113,7 @@ export function MindmapBoard({
                 }}
                 aria-label={label}
                 aria-pressed={lassoRect === rect}
-                className="mind-btn flex-none h-10 pl-2.5 pr-3.5 rounded-xl border flex items-center gap-1.5 text-[12.5px] font-bold"
+                className="mind-btn flex-none h-10 pl-2.5 pr-3.5 rounded-xl border flex items-center gap-1.5 text-[13px] font-bold"
                 style={
                   lassoRect === rect
                     ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
@@ -5147,7 +5147,7 @@ export function MindmapBoard({
                     setPaper(p)
                     tickHaptic()
                   }}
-                  className="mind-btn text-[11.5px] font-semibold py-2 rounded-xl border"
+                  className="mind-btn text-[12px] font-semibold py-2 rounded-xl border"
                   style={
                     paper === p
                       ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
@@ -5212,10 +5212,10 @@ export function MindmapBoard({
                 className="mind-btn w-full flex items-center gap-2 px-1.5 py-2 rounded-xl text-left"
               >
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[12.5px] font-semibold" style={{ color: "var(--c-text-2)" }}>
+                  <span className="block text-[13px] font-semibold" style={{ color: "var(--c-text-2)" }}>
                     {row.label}
                   </span>
-                  <span className="block text-[10.5px]" style={{ color: "var(--c-muted)" }}>
+                  <span className="block text-[11px]" style={{ color: "var(--c-muted)" }}>
                     {row.hint}
                   </span>
                 </span>
@@ -5238,7 +5238,7 @@ export function MindmapBoard({
             <div className="flex items-center justify-between px-1.5 pt-0.5 pb-1.5">
               <p className="text-[12px] font-semibold text-slate-400">Lọc theo màu</p>
               {colorFilter.size > 0 && (
-                <button type="button" onClick={clearColorFilter} className="mind-btn text-[10.5px] font-bold" style={{ color: "var(--c-primary)" }}>
+                <button type="button" onClick={clearColorFilter} className="mind-btn text-[11px] font-bold" style={{ color: "var(--c-primary)" }}>
                   Xem tất cả
                 </button>
               )}
@@ -5375,7 +5375,7 @@ export function MindmapBoard({
                 <p className="text-[12px] font-semibold text-slate-400 px-1.5 pb-1.5">
                   Phím tắt
                 </p>
-                <div className="px-1.5 pb-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10.5px] text-slate-500">
+                <div className="px-1.5 pb-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-500">
                   {SHORTCUT_HINTS.map(([key, what]) => (
                     <span key={key} className="flex items-center gap-1.5 min-w-0">
                       <kbd
@@ -5613,6 +5613,11 @@ export function MindmapBoard({
                   borderRadius: m.radius,
                   fontSize: m.fontSize,
                   lineHeight: `${m.lineHeight}px`,
+                  // Phải khớp đúng NODE_FONT_STACK — đây là font mindmapExport.ts dùng để đo/vẽ chữ khi
+                  // xuất PNG/PDF. Thiếu dòng này, thẻ trên bảng thừa hưởng font chữ thường của cả app
+                  // (Plus Jakarta Sans) còn ảnh xuất ra lại là Inter — cùng một ghi chú, hai font khác
+                  // nhau giữa cái đang xem và cái vừa xuất.
+                  fontFamily: NODE_FONT_STACK,
                   background: paint.background,
                   color: paint.color,
                   border: `${paint.borderWidth || 1}px solid ${paint.borderWidth ? paint.border : "transparent"}`,
@@ -6505,7 +6510,7 @@ export function MindmapBoard({
                             }
                           >
                             {strokeSample({ w: activeWidth, ...(d.id ? { dash: d.id } : {}) }, activeInk, 40)}
-                            <span className="text-[9.5px] font-bold" style={{ color: on ? "var(--c-primary)" : "var(--c-text-muted)" }}>
+                            <span className="text-[10px] font-bold" style={{ color: on ? "var(--c-primary)" : "var(--c-text-muted)" }}>
                               {d.label}
                             </span>
                           </button>
@@ -6537,7 +6542,7 @@ export function MindmapBoard({
                             }
                           >
                             {strokeSample(sp, activeInk, 40)}
-                            <span className="text-[9.5px] font-bold tabular-nums" style={{ color: "var(--c-text-muted)" }}>
+                            <span className="text-[10px] font-bold tabular-nums" style={{ color: "var(--c-text-muted)" }}>
                               {sp.w}
                             </span>
                           </button>
@@ -6816,7 +6821,7 @@ export function MindmapBoard({
             }}
             aria-label={addOpen ? "Đóng" : "Thêm ghi chú hoặc ảnh"}
             aria-expanded={addOpen}
-            className="mind-btn h-12 pl-3.5 pr-4.5 rounded-full flex items-center gap-1.5 text-[13.5px] font-bold"
+            className="mind-btn h-12 pl-3.5 pr-4.5 rounded-full flex items-center gap-1.5 text-[14px] font-bold"
             style={{ background: "var(--c-primary)", color: "var(--c-on-bright)", boxShadow: "0 8px 22px rgba(var(--c-primary-rgb),.4)" }}
           >
             {addOpen ? mi.close("w-5 h-5") : mi.plus("w-5 h-5")}
@@ -6829,7 +6834,7 @@ export function MindmapBoard({
             không chỉ lúc chọn thẳng công cụ khoanh vùng. */}
         {(tool === "lasso" || tempLassoActive) && !selGroup && (
           <div
-            className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in flex items-center gap-1.5 whitespace-nowrap"
+            className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[12px] font-semibold fade-in flex items-center gap-1.5 whitespace-nowrap"
             style={{ background: "var(--c-pill-dark)", color: "#fff", pointerEvents: "none" }}
           >
             {mi.lasso("w-4 h-4")}
@@ -6839,7 +6844,7 @@ export function MindmapBoard({
 
         {(loading || busy) && (
           <div
-            className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[11.5px] font-semibold fade-in"
+            className="absolute top-3 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-full text-[12px] font-semibold fade-in"
             style={{ background: "var(--c-pill-dark)", color: "#fff", pointerEvents: "none" }}
           >
             {loading ? "Đang mở bảng…" : "Đang xử lý ảnh…"}
@@ -6941,7 +6946,10 @@ export function MindmapBoard({
                       padding: `${m.padY}px ${m.padX}px`,
                       borderRadius: m.radius,
                       fontSize: m.fontSize,
-                      lineHeight: 1.3,
+                      // Cùng đơn vị px với thẻ thật (không phải bội số 1.3 rời rạc) — khác đơn vị thì
+                      // cùng một ghi chú có thể XUỐNG DÒNG khác nhau giữa lớp xem trước lúc phóng to và
+                      // thẻ thật trên bảng, nhất là ở cỡ chữ lớn.
+                      lineHeight: `${m.lineHeight}px`,
                       fontFamily: NODE_FONT_STACK,
                       background: paint.background,
                       color: paint.color,
@@ -7151,7 +7159,7 @@ export function MindmapBoard({
             className="mind-btn w-full flex items-center justify-between gap-2 h-10 px-2 mb-1 rounded-xl border"
             style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
           >
-            <span className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: "var(--c-text-2)" }}>
+            <span className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: "var(--c-text-2)" }}>
               <span
                 className="w-4 h-4 rounded-full block flex-none"
                 style={{ background: nodePaint(editingNode).background, boxShadow: "0 1px 3px rgba(15,23,42,.2)" }}
@@ -7257,7 +7265,7 @@ export function MindmapBoard({
                       >
                         Aa
                       </span>
-                      <span className="text-[10.5px] font-semibold" style={{ color: active ? "var(--c-primary)" : "var(--c-text-muted)" }}>
+                      <span className="text-[11px] font-semibold" style={{ color: active ? "var(--c-primary)" : "var(--c-text-muted)" }}>
                         {s.label}
                       </span>
                     </button>
@@ -7271,7 +7279,7 @@ export function MindmapBoard({
                     key={s.id}
                     type="button"
                     onClick={() => patchNode(editingNode.id, { size: s.id })}
-                    className="mind-btn flex-none px-2.5 h-8 rounded-xl text-[11.5px] font-semibold border"
+                    className="mind-btn flex-none px-2.5 h-8 rounded-xl text-[12px] font-semibold border"
                     style={
                       (editingNode.size ?? "md") === s.id
                         ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
@@ -7293,7 +7301,7 @@ export function MindmapBoard({
                 setLinkQuery("")
                 setPickLink("edit")
               }}
-              className="mind-btn flex-1 min-w-0 flex items-center gap-2 h-10 px-3 rounded-2xl border text-[12.5px] font-semibold"
+              className="mind-btn flex-1 min-w-0 flex items-center gap-2 h-10 px-3 rounded-2xl border text-[13px] font-semibold"
               style={{
                 borderColor: editingNode.link ? "var(--c-primary-line)" : "var(--c-line)",
                 background: editingNode.link ? "var(--c-primary-soft)" : "var(--c-surface)",
@@ -7622,7 +7630,7 @@ export function MindmapBoard({
                           {mi.plus("w-[10px] h-[10px]")}
                         </span>
                       </span>
-                      <span className="text-[13.5px] font-bold whitespace-nowrap">Vào Bảng màu</span>
+                      <span className="text-[14px] font-bold whitespace-nowrap">Vào Bảng màu</span>
                     </button>
 
                     {/* Ô mã màu: gõ tay được, dùng khi cần đúng một mã lấy từ chỗ khác. */}
@@ -7687,7 +7695,7 @@ export function MindmapBoard({
 
               {colorTab === "history" &&
                 (colorHistory.length === 0 ? (
-                  <p className="text-[12.5px] text-center py-6" style={{ color: "var(--c-text-muted)" }}>
+                  <p className="text-[13px] text-center py-6" style={{ color: "var(--c-text-muted)" }}>
                     Chưa có màu nào được dùng. Chọn một màu ở tab Bảng màu, nó sẽ nằm lại đây.
                   </p>
                 ) : (
@@ -7781,7 +7789,7 @@ export function MindmapBoard({
                   <span className="flex-none text-slate-300">{mi.note("w-[18px] h-[18px]")}</span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-[14px] font-semibold text-slate-800 leading-snug">{t.label}</span>
-                    <span className="block text-[11.5px] text-slate-400 mt-0.5">{t.group}</span>
+                    <span className="block text-[12px] text-slate-400 mt-0.5">{t.group}</span>
                   </span>
                 </button>
               ))}
@@ -7806,7 +7814,7 @@ export function MindmapBoard({
             onPointerDown={(e) => e.stopPropagation()}
           >
             <p className="text-base font-bold text-slate-900 mb-1.5">Nhãn đường nối</p>
-            <p className="text-[12.5px] text-slate-500 leading-relaxed mb-3">
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-3">
               Giải thích quan hệ giữa hai thẻ, vd. "gây ra", "chống chỉ định". Để trống thì bỏ nhãn.
             </p>
             {/* Loại đường nối: "Quan hệ" (mặc định, nét đứt, ăn màu thẻ) cho liên hệ kiến thức thường
@@ -7854,7 +7862,7 @@ export function MindmapBoard({
                     key={w}
                     type="button"
                     onClick={() => setEditingEdgeLabel({ ...editingEdgeLabel, text: w })}
-                    className="px-2.5 py-1 rounded-full text-[11.5px] font-medium"
+                    className="px-2.5 py-1 rounded-full text-[12px] font-medium"
                     style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
                   >
                     {w}
@@ -7907,21 +7915,21 @@ export function MindmapBoard({
             <div className="flex flex-col gap-2 mt-4">
               <button
                 onClick={() => void deliverReady()}
-                className="w-full h-11 rounded-2xl text-[13.5px] font-bold"
+                className="w-full h-11 rounded-2xl text-[14px] font-bold"
                 style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
               >
                 Lưu / Chia sẻ
               </button>
               <button
                 onClick={openReadyInTab}
-                className="w-full h-11 rounded-2xl text-[13.5px] font-bold border"
+                className="w-full h-11 rounded-2xl text-[14px] font-bold border"
                 style={{ borderColor: "var(--c-line)", color: "var(--c-text-2)" }}
               >
                 Mở xem trước
               </button>
               <button
                 onClick={() => setExportReady(null)}
-                className="w-full h-9 text-[12.5px] font-semibold"
+                className="w-full h-9 text-[13px] font-semibold"
                 style={{ color: "var(--c-muted)" }}
               >
                 Huỷ
@@ -7946,7 +7954,7 @@ export function MindmapBoard({
             onPointerDown={(e) => e.stopPropagation()}
           >
             <p className="text-base font-bold text-slate-900 mb-1.5">Xoá toàn bộ bảng?</p>
-            <p className="text-[12.5px] text-slate-500 leading-relaxed mb-4">
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
               {nodes.length} ghi chú, {strokes.length} nét vẽ và {images.length} ảnh sẽ bị xoá khỏi bảng. Vẫn lấy lại
               được bằng nút hoàn tác ngay sau đó.
             </p>
@@ -7989,7 +7997,7 @@ export function MindmapBoard({
             <p className="text-base font-bold text-slate-900 mb-1.5">
               Bạn thật sự muốn xoá {confirmDeleteEdge.kind === "algorithm" ? "bước phác đồ" : "quan hệ"} này?
             </p>
-            <p className="text-[12.5px] text-slate-500 leading-relaxed mb-4">
+            <p className="text-[13px] text-slate-500 leading-relaxed mb-4">
               Đường nối {confirmDeleteEdge.kind === "algorithm" ? "và bước phác đồ" : "và nhãn quan hệ"} sẽ bị xoá.
               Vẫn lấy lại được bằng nút hoàn tác ngay sau đó.
             </p>

@@ -10409,8 +10409,13 @@ function MindmapGallery({
           // key={view} buộc React dựng lại khối này khi đổi view — bố cục trước đây nhảy tức thì
           // giữa lưới/danh sách; remount kích hoạt lại .fade-in cho cảm giác crossfade nhẹ.
           <div key="grid" className="grid grid-cols-2 gap-3 fade-in">
-            {shown.map((b) => (
-              <BoardCard key={b.id} board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
+            {shown.map((b, i) => (
+              // Bảng lẻ cuối cùng (số bảng lẻ) chiếm cả hai cột thay vì để trống nửa ô bên cạnh — một
+              // ô trống lộ liễu cạnh thẻ cuối trông như thiếu chứ không phải bố cục có chủ đích, nhất
+              // là ở trạng thái phổ biến nhất: người dùng mới chỉ có đúng MỘT bảng.
+              <div key={b.id} className={i === shown.length - 1 && shown.length % 2 === 1 ? "col-span-2" : undefined}>
+                <BoardCard board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
+              </div>
             ))}
           </div>
         ) : (
@@ -10964,10 +10969,13 @@ function MindmapScreen({
     setTransitionTarget(null)
   }
 
-  function openBoard(id: string, query: string | undefined, rect?: DOMRect) {
+  function openBoard(id: string, query: string | undefined, rect?: DOMRect, boardOverride?: MindBoard) {
     onSwitchBoard(id)
     setOpenQuery(query)
-    const board = boards.find((b) => b.id === id)
+    // `boardOverride`: bảng VỪA tạo chưa chắc đã có trong `boards` — state đó cập nhật qua một lượt
+    // dựng lại React, còn hàm này chạy ngay trong .then() của promise tạo bảng, sớm hơn lượt dựng lại
+    // đó. Tra trong `boards` (đang là bản CŨ, chưa có bảng mới) sẽ luôn ra "không tìm thấy".
+    const board = boardOverride ?? boards.find((b) => b.id === id)
     // Chỉ dựng lớp phủ khi mở TỪ MỘT THẺ (có rect) và máy không xin giảm chuyển động — mở từ kết
     // quả tìm xuyên bảng thì không có thẻ nào để phóng lên từ đó.
     if (rect && board && !prefersReducedMotion()) setTransition({ board, from: domRectToBox(rect), dir: "enter" })
@@ -11029,10 +11037,20 @@ function MindmapScreen({
                 setSheetBoardId(null)
               }}
               onCreate={(name, color, specialtyId) => {
+                // Tấm đặt tên vừa gõ xong "biến thành" chính bảng mới — cùng cách phóng-khung
+                // (D3) dùng cho mọi lượt mở bảng khác, chỉ khác điểm xuất phát là tấm này thay vì
+                // một thẻ trong danh sách. Trước đây tạo xong bảng bật ra đột ngột, khác hẳn cảm
+                // giác mượt của việc chạm mở một thẻ có sẵn.
+                const sheetRect = document.querySelector('[aria-labelledby="board-edit-sheet-title"]')?.getBoundingClientRect()
                 setSheetMode(null)
                 setSheetBoardId(null)
-                // Tạo xong mở thẳng vào bảng mới — đó là việc người dùng định làm tiếp.
-                void onCreateBoard(name, color, specialtyId).then(setOpenId)
+                void onCreateBoard(name, color, specialtyId).then((id) =>
+                  // Tự dựng board tạm để phóng khung: `boards` (state) chưa kịp có bảng này lúc
+                  // .then() chạy, tra trong đó sẽ luôn hụt — xem ghi chú ở openBoard(). Chỉ cần đúng
+                  // id (để BoardThumb tải đúng bảng, dù đang trống) và màu/tên để khung xem trước
+                  // không lệch màu với bảng thật hiện ra ngay sau đó.
+                  openBoard(id, undefined, sheetRect, { id, name, color, specialtyId, order: 0, createdAt: Date.now(), updatedAt: Date.now() }),
+                )
               }}
               onSave={(patch) => {
                 if (activeBoard) onUpdateBoard(activeBoard.id, patch)
@@ -11053,14 +11071,15 @@ function MindmapScreen({
               }}
               onExport={() => {
                 // Xuất file nằm ở thanh trên CỦA BẢNG (nó cần nội dung bảng đang mở để vẽ ra ảnh),
-                // nên ở đây chỉ mở bảng ra rồi để người dùng chọn PNG/PDF tại đó.
+                // nên ở đây chỉ mở bảng ra rồi để người dùng chọn PNG/PDF tại đó. Dùng openBoard()
+                // (không phải onSwitchBoard+setOpenId thẳng tay) để có đúng khung phóng-to (D3) từ
+                // thẻ trong danh sách — giống hệt việc chạm mở thẻ đó bình thường, không phải một
+                // lối tắt "mở bảng" riêng bị bỏ sót hiệu ứng.
                 const id = activeBoard?.id
+                const rect = id ? document.querySelector<HTMLElement>(`[data-board-id="${id}"]`)?.getBoundingClientRect() : undefined
                 setSheetMode(null)
                 setSheetBoardId(null)
-                if (id) {
-                  onSwitchBoard(id)
-                  setOpenId(id)
-                }
+                if (id) openBoard(id, undefined, rect)
               }}
             />
           )}
