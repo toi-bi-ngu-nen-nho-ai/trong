@@ -11867,112 +11867,6 @@ const NAV_ITEMS: { id: Screen; navId?: string; label: string; icon: (active: boo
   { id: "flashcard", label: "Thẻ ghi nhớ", icon: icons.cards },
 ]
 
-// ─── Bảng đo đạc khung nhìn (TẠM THỜI — chỉ để tìm nguyên nhân dải đen dưới thanh nav trên
-// iPhone/iPad thật, xoá đi khi đã tìm ra và vá xong) ────────────────────────────────────────────
-//
-// Hai lần vá dựa trên phỏng đoán (bỏ backdrop-filter, rồi đo lại --vvh bằng visualViewport) đều
-// không sửa được dải đen thật trên máy, lần sau còn gây thêm lỗi mới (bàn phím đẩy cả nav lên giữa
-// màn hình). Bảng này in thẳng các con số quyết định layout ra màn hình — chụp lại đúng lúc thấy
-// dải đen là biết ngay số nào sai, thay vì đoán tiếp. Bấm nút tròn góc dưới trái để mở/đóng.
-function ViewportDebugPanel() {
-  const [open, setOpen] = useState(false)
-  const [tick, setTick] = useState(0)
-  useEffect(() => {
-    if (!open) return
-    const id = window.setInterval(() => setTick((t) => t + 1), 400)
-    return () => window.clearInterval(id)
-  }, [open])
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Mở bảng đo đạc khung nhìn (gỡ lỗi)"
-        className="fixed z-[999] flex items-center justify-center rounded-full"
-        style={{
-          left: 10,
-          bottom: "calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 10px)",
-          width: 30,
-          height: 30,
-          background: "rgba(15,23,42,.55)",
-          color: "#fff",
-          fontSize: 13,
-          fontWeight: 700,
-        }}
-      >
-        i
-      </button>
-    )
-  }
-
-  const vv = typeof window !== "undefined" ? window.visualViewport : null
-  const navEl = document.querySelector('nav[aria-label="Điều hướng chính"]')
-  const navRect = navEl?.getBoundingClientRect()
-  const shellEl = document.getElementById("app-shell")
-  const shellRect = shellEl?.getBoundingClientRect()
-  const bodyRect = document.body.getBoundingClientRect()
-  const htmlEl = document.documentElement
-  const cs = getComputedStyle(htmlEl)
-  // Màu THẬT ĐÃ TÔ (không phải tên biến) của từng lớp, từ ngoài vào trong — nếu có khe hở lộ ra ở
-  // đáy, đây là cách biết chính xác lớp nào đang lộ ra qua khe đó.
-  const bgOf = (el: Element | null) => (el ? getComputedStyle(el).backgroundColor : "(không có)")
-  const rows: [string, string][] = [
-    ["tick", String(tick)],
-    // DÒNG QUAN TRỌNG NHẤT: số px màn hình thật nằm NGOÀI khung nhìn của web (không DOM nào với
-    // tới). Phải = 0. Khác 0 nghĩa là trang web bị thu ngắn hơn màn hình → thừa đúng chừng đó px
-    // ở đáy, chính là "khoảng trống khó chịu" dưới thanh nav. Xem index.html để biết nguyên nhân.
-    ["HỤT ĐÁY (screen−inner)", `${(window.screen?.height ?? 0) - window.innerHeight} px  ${(window.screen?.height ?? 0) - window.innerHeight === 0 ? "✓ ĐÚNG" : "✗ CÒN LỖI"}`],
-    ["window.innerW×H", `${window.innerWidth} × ${window.innerHeight}`],
-    ["visualViewport", vv ? `${vv.width.toFixed(1)} × ${vv.height.toFixed(1)} @${vv.offsetTop.toFixed(1)},${vv.offsetLeft.toFixed(1)} scale=${vv.scale}` : "(không có)"],
-    ["screen.width×height", `${window.screen?.width} × ${window.screen?.height}`],
-    ["devicePixelRatio", String(window.devicePixelRatio)],
-    ["html.clientW×H", `${htmlEl.clientWidth} × ${htmlEl.clientHeight}`],
-    ["body rect", `top=${bodyRect.top.toFixed(2)} bottom=${bodyRect.bottom.toFixed(2)} h=${bodyRect.height.toFixed(2)}`],
-    ["#app-shell rect", shellRect ? `top=${shellRect.top.toFixed(2)} bottom=${shellRect.bottom.toFixed(2)} h=${shellRect.height.toFixed(2)}` : "(không thấy #app-shell)"],
-    ["nav rect", navRect ? `top=${navRect.top.toFixed(2)} bottom=${navRect.bottom.toFixed(2)} h=${navRect.height.toFixed(2)}` : "(không có nav ở màn này)"],
-    ["màu nền html", bgOf(htmlEl)],
-    ["màu nền body", bgOf(document.body)],
-    ["màu nền #app-shell", bgOf(shellEl)],
-    ["màu nền nav", bgOf(navEl)],
-    ["--safe-top / --safe-bottom", `${cs.getPropertyValue("--safe-top").trim()} / ${cs.getPropertyValue("--safe-bottom").trim()}`],
-    ["display-mode: standalone", String(window.matchMedia?.("(display-mode: standalone)").matches)],
-    ["display-mode: fullscreen", String(window.matchMedia?.("(display-mode: fullscreen)").matches)],
-    ["orientation", String((window.screen as unknown as { orientation?: { type?: string } })?.orientation?.type ?? "?")],
-    ["UA", navigator.userAgent],
-  ]
-
-  return (
-    <div
-      className="fixed z-[999] overflow-auto"
-      style={{
-        left: 8,
-        right: 8,
-        bottom: "calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 10px)",
-        maxHeight: "60vh",
-        background: "rgba(15,23,42,.94)",
-        color: "#d7fae0",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        fontSize: 11,
-        lineHeight: 1.5,
-        padding: 10,
-        borderRadius: 10,
-      }}
-    >
-      <div className="flex items-center justify-between mb-1.5">
-        <b style={{ color: "#fff" }}>Đo khung nhìn (gỡ lỗi)</b>
-        <button onClick={() => setOpen(false)} style={{ color: "#fff", fontWeight: 700, padding: "0 6px" }}>
-          Đóng ×
-        </button>
-      </div>
-      {rows.map(([k, v]) => (
-        <div key={k} style={{ wordBreak: "break-all" }}>
-          <span style={{ color: "#7ee0ff" }}>{k}</span>: {v}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ─── App Shell ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -12417,8 +12311,10 @@ export default function App() {
         background: "var(--c-surface)",
       }}
     >
-        {/* Chừa chỗ cho tai thỏ / Dynamic Island. */}
-        <div className="flex-none" style={{ height: "calc(var(--safe-top) + 6px)" }} />
+        {/* Chừa chỗ cho tai thỏ / Dynamic Island. Trước đây cộng thêm 6px đệm vì thanh trạng thái
+            từng trong suốt (black-translucent) đè lên nội dung — giờ thanh trạng thái đã đục, nằm
+            hẳn ngoài khung nhìn của trang, nên --safe-top đã đủ, không cần đệm thêm nữa. */}
+        <div className="flex-none" style={{ height: "var(--safe-top)" }} />
 
         <OfflineBar />
 
@@ -12622,33 +12518,19 @@ export default function App() {
             Nền ĐẶC (--c-nav-bg-solid), KHÔNG backdrop-filter: thanh nav là phần tử cuối trong một
             cột flex (main rồi mới tới nav), không phải lớp phủ nổi lên trên nội dung cuộn — phía
             sau nó không bao giờ có gì để "làm mờ" cả, nên blur() trước đây chỉ là hiệu ứng treo
-            không tác dụng. Ảnh chụp thật từ iPhone Air/iPad cho thấy đúng vùng padding-bottom (an
-            toàn thanh gạt Home) bị bỏ trắng/đen thay vì lộ màu thanh nav — nghi WebKit không luôn
-            trải backdrop-filter phủ hết phần padding co giãn theo env(safe-area-inset-bottom) lúc
-            mới mở app từ màn hình chính. Bỏ backdrop-filter + nền đặc loại thẳng khả năng đó, và
-            nhìn ở trạng thái nghỉ (không có gì phía sau) thì không khác gì bản mờ trước đó. */}
+            không tác dụng, bỏ đi cho nhẹ. (Nguyên nhân thật của dải trống dưới nav hoá ra không nằm
+            ở đây — xem `apple-mobile-web-app-status-bar-style` đã bỏ trong index.html.) */}
         {!isDetailScreen && (
           <nav
             className="flex-none"
             aria-label="Điều hướng chính"
             style={{
-              position: "relative",
               background: "var(--c-nav-bg-solid)",
               borderTop: "1px solid var(--c-nav-border)",
               // Phần phủ lên vùng thanh gạt Home: chỉ là nền, không đặt nút bấm vào đây.
               paddingBottom: "var(--nav-pad-bottom)",
             }}
           >
-            {/* VẠCH THỬ TẠM THỜI — gỡ sau khi tìm ra nguyên nhân dải màu lạ dưới nav. Cắm cứng vào
-                ĐÚNG đáy trong cùng của nav (nằm trong vùng padding-bottom = vùng an toàn thanh gạt
-                Home). Số đo hình học (ViewportDebugPanel) cho thấy hộp của nav đã chạm đúng đáy màn
-                hình — nếu vạch đỏ này vẫn hiện trọn, không bị cắt, sát mép dưới cùng màn hình thật,
-                thì WebKit tô màu đúng và dải lạ trong ảnh chụp KHÔNG đến từ vùng này. Nếu vạch bị
-                cắt/biến mất, xác nhận đúng là lỗi tô màu (compositing) ở đúng vùng padding này. */}
-            <div
-              aria-hidden="true"
-              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 3, background: "#ff0040", zIndex: 1000 }}
-            />
             <div className="flex items-stretch" style={{ height: "var(--nav-body-h)" }}>
               {NAV_ITEMS.map(({ id, label, icon, navId }) => {
                 const isActive = activeTab === id
@@ -12755,8 +12637,6 @@ export default function App() {
             </button>
           </div>
         )}
-
-        <ViewportDebugPanel />
     </div>
   )
 }

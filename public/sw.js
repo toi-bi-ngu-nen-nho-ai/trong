@@ -19,7 +19,9 @@
 // v5: thêm vạch đỏ thử compositing vùng padding-bottom của nav.
 // v6: NGUYÊN NHÂN GỐC của khoảng trống đáy màn hình iPhone — bỏ meta `black-translucent`
 //     (xem index.html), và theme-color thôi ghi cứng màu teal chết trong theme.ts.
-const CACHE = "drtrong-v6"
+// v7: dọn hết ViewportDebugPanel/vạch đỏ thử nghiệm; bớt đệm 6px thừa trên đầu (không còn cần
+//     che thanh trạng thái từ khi bỏ black-translucent).
+const CACHE = "drtrong-v7"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
