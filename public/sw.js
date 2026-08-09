@@ -9,10 +9,14 @@
 // Toàn bộ dữ liệu thuốc nằm trong bundle JS (không gọi API), và mọi thứ người dùng tự nhập nằm
 // trong localStorage/IndexedDB — nên chỉ cần cache được phần tĩnh là app chạy đủ 100% offline.
 
-// Đổi số này mỗi lần muốn ép làm mới toàn bộ cache.
-// v2: icon-192/icon-512 đổi từ ảnh clipart cũ sang logo thật của app — máy đã cài trước đó vẫn giữ
-// icon cũ trong cache mãi mãi nếu không đổi số này (chiến lược fetch bên dưới ưu tiên cache).
-const CACHE = "drtrong-v2"
+// Đổi số này mỗi lần muốn ép làm mới toàn bộ cache — BẮT BUỘC mỗi khi đổi bundle JS/CSS, không chỉ
+// lúc đổi asset tĩnh (icon): chiến lược fetch bên dưới phát bản JS/CSS CŨ TRONG CACHE trước rồi mới
+// âm thầm tải bản mới về nền, nên nếu không đổi số này, máy đã từng mở app (đã cache "v2") sẽ tiếp
+// tục thấy đúng bản JS lúc đó mãi — kể cả khi server đã có bản mới từ lâu.
+// v2: icon-192/icon-512 đổi từ ảnh clipart cũ sang logo thật của app.
+// v3: main.tsx/index.css thêm cơ chế đo lại chiều cao khung nhìn thật (--vvh) cho iOS standalone —
+// đổi SAU v2 nhưng quên bump lúc đó, khiến máy đã cache v2 không bao giờ nhận được bản vá này.
+const CACHE = "drtrong-v3"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
