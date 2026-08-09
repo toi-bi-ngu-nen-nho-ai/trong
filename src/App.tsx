@@ -6517,11 +6517,17 @@ function VialCountWarning({ grade, show, onConfirm }: { grade: VialCountGrade; s
 function AntibioticMixPanel({
   drug,
   doseTargetMg,
+  doseNotComputable,
   routeShort,
   setRouteShort,
 }: {
   drug: Antibiotic
   doseTargetMg?: CappedDose | null
+  // true khi bậc CrCl hiện tại là liều phải cá thể hoá ("theo nồng độ đo được"...) — doseTargetMg
+  // null VÌ LÝ DO NÀY (không phải vì thiếu cân nặng/công thức) nên gợi ý số lọ/ống bên dưới im lặng
+  // không hiện được gì cả; dùng cờ này để nói rõ vì sao thay vì để trống khó hiểu (xem notComputableDose
+  // ở AntibioticDoseCard).
+  doseNotComputable?: boolean
   // "Đường dùng" (TTM/TMC/IM/SC) — TRƯỚC ĐÂY panel này tự giữ state riêng và hiện chip chọn ở đây
   // (sau cả mục Dung môi), lấn át mục "Đường dùng" ngoài thẻ AntibioticDoseCard. Nay panel chỉ
   // ĐỌC/GHI state của cha (nhấc lên AntibioticDoseCard) để cả thẻ dùng chung đúng một đường dùng.
@@ -7061,6 +7067,14 @@ function AntibioticMixPanel({
               )}
             </div>
           )}
+          {/* Đã nhập hàm lượng nhưng KHÔNG có gợi ý nào (và không phải vì thiếu dữ liệu — đã đủ hàm
+              lượng/thể tích) — bậc liều hiện tại là liều phải cá thể hoá, không có con số cố định để
+              gợi ý. Nói rõ thay vì để trống trông như mất gợi ý. */}
+          {!fixedPoolSuggestion && doseNotComputable && va > 0 && fixedVialVolume != null && fixedVialVolume > 0 && (
+            <p className="text-[12px] leading-[1.45] mb-2" style={{ color: "var(--c-warn)" }}>
+              Không gợi ý được số chai — liều DUY TRÌ ở bậc CrCl hiện tại phải cá thể hoá theo nồng độ đo được.
+            </p>
+          )}
           {unitChoices.length > 1 && (
             <div className="flex flex-wrap gap-1.5 mb-2.5">
               {unitChoices.map((u) => (
@@ -7143,6 +7157,14 @@ function AntibioticMixPanel({
                 </button>
               )}
             </div>
+          )}
+          {/* Đã nhập hàm lượng nhưng KHÔNG có gợi ý (và không phải vì thiếu dữ liệu) — bậc liều hiện
+              tại là liều phải cá thể hoá, không có con số cố định để gợi ý. Nói rõ thay vì để trống
+              trông như mất gợi ý (xem doseNotComputable). */}
+          {!vialCountSuggestion && doseNotComputable && va > 0 && (
+            <p className="text-[12px] leading-[1.45] mb-2" style={{ color: "var(--c-warn)" }}>
+              Không gợi ý được số {vialLabel} — liều DUY TRÌ ở bậc CrCl hiện tại phải cá thể hoá theo nồng độ đo được.
+            </p>
           )}
 
           {/* Xếp dọc, mỗi ô một hàng riêng — không ghép ngang: "Thể tích bột tăng sau pha" luôn dài hơn
@@ -7807,10 +7829,16 @@ function AntibioticDoseCard({
                   {doseCapText}
                 </p>
               )}
-              <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-accent)" }}>
-                {doseCapText
-                  ? "Còn phải làm tròn theo hàm lượng lọ/ống thực tế."
-                  : "Còn phải làm tròn theo hàm lượng lọ/ống thực tế và ngưỡng liều tối đa của thuốc."}
+              {/* notComputableDose: con số mg/kg vừa nhân ở trên là liều NẠP, còn liều DUY TRÌ (thứ
+                  "Cách dùng"/gợi ý số lọ bên dưới cần) lại "theo nồng độ đo được" — không có con số
+                  cố định để làm tròn. Nói rõ NGAY DƯỚI con số đó thay vì vẫn hứa "còn phải làm tròn"
+                  rồi để "Cách dùng"/gợi ý số lọ lặng lẽ biến mất phía dưới không giải thích. */}
+              <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: notComputableDose ? "var(--c-warn)" : "var(--c-accent)" }}>
+                {notComputableDose
+                  ? "Đây là liều NẠP — liều DUY TRÌ phải cá thể hoá theo nồng độ đo được, không có con số cố định để tự tính số lọ/ống hay \"Cách dùng\"."
+                  : doseCapText
+                    ? "Còn phải làm tròn theo hàm lượng lọ/ống thực tế."
+                    : "Còn phải làm tròn theo hàm lượng lọ/ống thực tế và ngưỡng liều tối đa của thuốc."}
               </p>
             </>
           ) : (
@@ -7964,7 +7992,9 @@ function AntibioticDoseCard({
               >
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
-              {showMix && <AntibioticMixPanel drug={drug} doseTargetMg={doseTargetMg} routeShort={routeShort} setRouteShort={setRouteShort} />}
+              {showMix && (
+                <AntibioticMixPanel drug={drug} doseTargetMg={doseTargetMg} doseNotComputable={notComputableDose} routeShort={routeShort} setRouteShort={setRouteShort} />
+              )}
             </>
           )}
         </Disclosure>
