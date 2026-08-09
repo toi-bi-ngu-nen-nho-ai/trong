@@ -505,12 +505,35 @@ input, select, textarea {
    Bảng vẽ là màn hình bấm nút liên tục nhất trong app (đổi bút, đổi màu, chọn thẻ), nên mọi nút ở
    đây có cùng một phản hồi chạm: thu nhẹ và đổi màu trong 0.16s. Trước đây nút không có phản hồi
    nào — bấm mà không biết máy đã nhận chưa. */
+
+/* Vân giấy (lớp nền CUỐI, xem paperBackground() trong mindmapStyle.ts) hoà vào lưới/chấm/kẻ dòng và
+   màu giấy bên dưới bằng soft-light thay vì đè lên bằng độ mờ CSS thường — soft-light tự sáng lên
+   trên nền tối, tối lại trên nền sáng, nên đúng MỘT hoạ tiết dùng được cho cả ba màu giấy (trắng/
+   đen/vàng ngà) mà không cần pha alpha riêng cho từng màu.
+
+   KHÔNG đặt background-blend-mode ở đây bằng class CSS: mặt bảng có `background: pal.bg` viết qua
+   style inline của React (đổi theo màu giấy), và việc gán rời `backgroundImage`/`backgroundSize`/
+   `backgroundPosition` qua ref trong applyView() (MindmapBoard.tsx) khiến trình duyệt GỘP LẠI cả
+   khối đó thành một khai báo `background` rút gọn trong style attribute — literal reset
+   background-blend-mode về "normal", đè lên đúng quy tắc class này dù style inline không hề nhắc
+   tới blend-mode. Phải gán background-blend-mode CÙNG chỗ, CÙNG cách (qua ref, trong applyView())
+   để nó nằm trong style attribute mà không bị cú gộp shorthand đó xoá mất. */
 .mind-btn {
   transition:
     transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1),
     background-color 0.16s ease,
     color 0.16s ease,
     box-shadow 0.16s ease;
+}
+
+/* Vân băng dính (xem StrokePath, mind-tape-weave/-stripe/-dot trong MindmapBoard.tsx) — overlay
+   TRUNG TÍNH hoà bằng multiply lên nét màu thật bên dưới, không mang màu riêng, nên đúng MỘT lớp
+   dùng được cho MỌI màu băng dính. Không đặt trực tiếp qua thuộc tính `style` của <path> (SVG presentation
+   attribute) vì mix-blend-mode không nằm trong danh sách presentation attribute chuẩn ở một số
+   engine cũ — class CSS là cách chắc chắn được hỗ trợ. */
+.mind-tape-overlay {
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 
 .mind-btn:active {
@@ -602,6 +625,18 @@ input, select, textarea {
   transition: transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
+/* Cùng ý tưởng ô sáng trượt ở trên, nhưng cho hàng chọn bút (PEN_KIT_ITEMS) — KHÔNG dùng chung class
+   với .mind-tool-slider vì đây là trường hợp NGƯỢC với lý do width bị bỏ khỏi transition phía trên:
+   cây bút đang cầm mọc thêm một nút mũi tên riêng (mở phần cài đặt), nên item đó THẬT SỰ đổi bề rộng/
+   cao mỗi lần đổi bút — animate width/height ở đây là animate đúng thứ có thay đổi giá trị, không
+   phải khai báo phí như ở trên. */
+.mind-penkit-slider {
+  transition:
+    transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
+    width 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
+    height 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
 /* Người bật "Giảm chuyển động" ở hệ điều hành thường vì lý do sức khoẻ (rối loạn tiền đình, dễ say
    chuyển động…) — bảng vẽ có nhiều hoạt ảnh hơn hẳn phần còn lại của app (thẻ bung ra, đường nối tô
    dần, con trượt chạy, thẻ nảy khi tìm thấy…) nên đáng để tắt riêng. Đổi sang mờ/hiện gần như tức
@@ -618,6 +653,7 @@ input, select, textarea {
   .mind-born,
   .mind-found,
   .mind-tool-slider,
+  .mind-penkit-slider,
   .fade-in,
   .toast-in,
   .toast-in-full,

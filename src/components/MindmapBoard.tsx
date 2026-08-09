@@ -28,6 +28,7 @@ import {
   memo,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -44,6 +45,7 @@ import type {
   MindNodeStyle,
   MindStroke,
   MindmapData,
+  TapePattern,
 } from "../data/types"
 import { fileToResizedDataUrl } from "../lib/imageResize"
 import { tickHaptic } from "../lib/haptics"
@@ -115,7 +117,7 @@ import { hasMindmapClip, readMindmapClip, writeMindmapClip } from "../lib/mindma
 import { applyStyleAt, parseInline, stripInlineMarkers, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
 import { mindIcons as mi } from "./MindmapIcons"
 
-type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso"
+type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso" | "laser"
 
 // Bốn cây bút thật sự để lại mực. "shape" không nằm trong đây: nó vẽ bằng ĐÚNG mực của bút máy (một
 // hình vẽ ra phải cùng màu cùng cỡ nét với nét tay vừa vẽ cạnh nó), nên nó mượn màu/cỡ của "pen" chứ
@@ -133,7 +135,7 @@ type DrawTool = InkTool | "shape"
 // cây bút nào thì nằm trong thanh bút — chỉ hiện khi đang thật sự cầm bút. Nối hai thẻ (công cụ
 // "link" cũ) đã bỏ khỏi hàng công cụ — kéo thẻ này thả lên thẻ kia vẫn tự nối làm cha-con
 // (reparentTo trong onPointerUp), đủ dùng cho phần lớn trường hợp thực tế.
-type TopTool = "hand" | "draw" | "eraser" | "lasso"
+type TopTool = "hand" | "draw" | "eraser" | "lasso" | "laser"
 
 // Những gì đang được khoanh chọn cùng lúc (công cụ lasso). Chỉ giữ ID, còn khung bao thì tính lại từ
 // dữ liệu mỗi lần vẽ — nhờ vậy kéo cả nhóm xong khung tự chạy theo, không phải cập nhật hai nơi.
@@ -206,6 +208,10 @@ const ZOOM_ADVANCE_KEEP = 0.22
 interface StrokeSpec {
   w: number
   dash?: MindDash
+  // Chỉ có ý nghĩa khi cây bút là băng dính — xem TapePattern. Nhớ CHUNG một mảng StrokeSpec với
+  // dash (không tách riêng) vì cùng một lý do dash đã đi cùng w: đổi hoạ tiết mà bề dày ở lại vẫn
+  // là MỘT lượt nhớ, không phải hai ô nhớ lệch nhau.
+  pattern?: TapePattern
 }
 
 interface InkStyle {
@@ -215,8 +221,14 @@ interface InkStyle {
 }
 
 function sameSpec(a: StrokeSpec, b: StrokeSpec): boolean {
-  return a.w === b.w && (a.dash ?? null) === (b.dash ?? null)
+  return a.w === b.w && (a.dash ?? null) === (b.dash ?? null) && (a.pattern ?? null) === (b.pattern ?? null)
 }
+
+const TAPE_PATTERN_ITEMS: { id: TapePattern | undefined; label: string }[] = [
+  { id: undefined, label: "Dệt chéo" },
+  { id: "stripe", label: "Kẻ sọc" },
+  { id: "dot", label: "Chấm bi" },
+]
 
 const DASH_ITEMS: { id: MindDash | undefined; label: string }[] = [
   { id: undefined, label: "Liền" },
@@ -359,6 +371,9 @@ const TOP_TOOLS: { id: TopTool; icon: (cls?: string) => React.ReactElement; hint
   { id: "draw", icon: mi.pen, hint: "Bút vẽ — chạm để mở thanh bút" },
   { id: "eraser", icon: mi.eraser, hint: "Tẩy nét vẽ" },
   { id: "lasso", icon: mi.lasso, hint: "Khoanh vùng để chọn nhiều nét, thẻ, ảnh" },
+  // Chạm giữ rồi rê ngón để chỉ vào bảng lúc thuyết trình — thả tay là đốm sáng biến mất, không để
+  // lại gì trên bảng cả (không phải một cây bút, xem moveLaser/hideLaser).
+  { id: "laser", icon: mi.laser, hint: "Bút con trỏ — chạm giữ để chỉ, không để lại vết" },
 ]
 
 // Công cụ đang cầm thuộc về nút nào trên hàng chính — cả năm cây bút đều nằm dưới nút "draw".
@@ -374,11 +389,17 @@ const PEN_KIT_ITEMS: { id: DrawTool; icon: (cls?: string) => React.ReactElement;
   { id: "shape", icon: mi.shapes, hint: "Hình vẽ" },
 ]
 
+// Hình thoi + viên nhộn: hai hình còn thiếu để vẽ được LƯU ĐỒ/PHÁC ĐỒ điều trị đúng quy ước (đã có
+// khung/vòng khoanh cho ghi chú thường, nhưng "quyết định" và "bắt đầu/kết thúc" — hai loại nút
+// phổ biến nhất của một lưu đồ — trước đây phải giả bằng khung chữ nhật, không phân biệt được với
+// một ghi chú thường trên bảng).
 const SHAPES: { id: ShapeKind; icon: (cls?: string) => React.ReactElement; hint: string }[] = [
   { id: "line", icon: mi.shapeLine, hint: "Đường thẳng" },
   { id: "arrow", icon: mi.shapeArrow, hint: "Mũi tên" },
   { id: "rect", icon: mi.shapeRect, hint: "Khung chữ nhật" },
   { id: "ellipse", icon: mi.shapeEllipse, hint: "Vòng khoanh" },
+  { id: "diamond", icon: mi.shapeDiamond, hint: "Hình thoi — nút quyết định" },
+  { id: "pill", icon: mi.shapePill, hint: "Hình viên nhộn — bắt đầu/kết thúc" },
 ]
 
 const NODE_STYLES: { id: MindNodeStyle; label: string }[] = [
@@ -397,7 +418,7 @@ const NODE_SIZES: { id: MindNodeSize; label: string }[] = [
 // Bảng phím tắt in trong menu "…" — cùng một danh sách với phần xử lý phím ở dưới, để không bao giờ
 // có chuyện app quảng cáo một phím mà bấm vào thì không có gì xảy ra.
 const SHORTCUT_HINTS: [string, string][] = [
-  ["1–4", "Đổi công cụ"],
+  ["1–5", "Đổi công cụ"],
   ["Ctrl+Z", "Hoàn tác"],
   ["Ctrl+F", "Tìm thẻ"],
   ["Ctrl+A", "Chọn hết"],
@@ -418,6 +439,42 @@ function detectKeyboard(): boolean {
   } catch {
     return false
   }
+}
+
+// ─── Cầm thẻ lên khỏi giấy ──────────────────────────────────────────────────
+// Kéo thẻ trước đây trượt 1:1 theo ngón tay tuyệt đối — đúng nhưng vô cảm, khác hẳn cảm giác "có
+// quán tính" của việc vẩy/kéo cả mặt bảng (xem startInertia). Nghiêng nhẹ theo TỐC ĐỘ ngang lúc kéo
+// (giống một tấm bìa thật hơi chao khi tay rê nhanh) và nảy nhẹ lúc thả tay — cùng ngôn ngữ vật lý,
+// áp cho đúng MỘT thẻ đang thật sự "trong tay" (không áp cho cả nhánh con đi theo, chúng chỉ trượt
+// theo vị trí, không nghiêng — chỉ thẻ đang CẦM mới phản ứng với tốc độ tay).
+const DRAG_TILT_MAX_DEG = 6
+// px/ms → độ nghiêng. Vẩy tay nhanh thật (~1.5px/ms, tốc độ vuốt màn hình bình thường) sẽ chạm ngay
+// trần 6°; đủ để mắt thấy "đang có lực" mà không tới mức chữ trên thẻ khó đọc trong lúc kéo.
+const DRAG_TILT_K = 4
+const DRAG_LIFT_SCALE = 1.035
+
+function prefersReducedMotionBoard(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  } catch {
+    return false
+  }
+}
+
+// Nảy nhẹ về 0 lúc thả tay — không dùng CSS keyframe cố định (mind-born kiểu vậy) vì góc nghiêng lúc
+// thả tay là một giá trị ĐỘNG (phụ thuộc tốc độ vừa kéo), không phải một hằng số biết trước lúc viết
+// CSS. `el.style.transform` đã được xoá về "" TRƯỚC khi gọi animate() — animate() chỉ overlay hiệu
+// ứng trong lúc chạy (fill mặc định "none"), nên animation tự "buông" sạch sau 260ms, không để lại
+// transform dính trên phần tử cho lượt kéo TIẾP THEO (phần tử thẻ được tái dùng giữa các lượt kéo,
+// không mount lại).
+function springSettleDrag(el: HTMLElement) {
+  const from = el.style.transform
+  el.style.transform = ""
+  if (!from || prefersReducedMotionBoard()) return
+  el.animate(
+    [{ transform: from }, { transform: "rotate(-1.1deg) scale(0.99)", offset: 0.55 }, { transform: "none" }],
+    { duration: 260, easing: "cubic-bezier(0.34, 1.45, 0.64, 1)" },
+  )
 }
 
 const NEW_NODE_TEXT = "Ghi chú mới"
@@ -464,18 +521,43 @@ function cachedPath(s: MindStroke): string {
 function StrokePath({ s }: { s: MindStroke }) {
   const filled = isFilled(s)
   const alpha = strokeAlpha(s.tool)
+  const d = cachedPath(s)
   return (
-    <path
-      data-stroke={s.id}
-      d={cachedPath(s)}
-      fill={filled ? s.color : "none"}
-      stroke={filled ? "none" : s.color}
-      strokeWidth={filled ? undefined : s.width}
-      strokeLinecap={filled ? undefined : s.dash === "dot" ? "round" : strokeCap(s.tool)}
-      strokeLinejoin={filled ? undefined : "round"}
-      strokeDasharray={filled ? undefined : strokeDashArray(s.dash, s.width)}
-      opacity={alpha === 1 ? undefined : alpha}
-    />
+    <>
+      <path
+        data-stroke={s.id}
+        d={d}
+        fill={filled ? s.color : "none"}
+        stroke={filled ? "none" : s.color}
+        strokeWidth={filled ? undefined : s.width}
+        strokeLinecap={filled ? undefined : s.dash === "dot" ? "round" : strokeCap(s.tool)}
+        strokeLinejoin={filled ? undefined : "round"}
+        strokeDasharray={filled ? undefined : strokeDashArray(s.dash, s.width)}
+        opacity={alpha === 1 ? undefined : alpha}
+        // Bút chì có vân RIÊNG (méo hình học, xem filter) — mực (pen, isFilled) đã có cảm giác vật
+        // liệu qua đường viền biến đổi bề rộng. Băng dính có vân của chính nó ở path phủ bên dưới.
+        filter={s.tool === "pencil" ? "url(#mind-pencil-grain)" : undefined}
+      />
+      {/* Vân băng dính — path PHỦ riêng cùng toạ độ (`d` giống hệt), không gộp vào path trên: pattern
+          tô qua `stroke` cần đúng NGUYÊN width/cap/dash mới trùng khít vùng nét thật, mà path trên
+          còn đang dùng `filter` cho một việc khác (vân chì) — hai cơ chế material khác nhau, không
+          ghép chung một phần tử được. `!filled`: băng dính thật không có bề dày đổi theo lực nhấn
+          (một dải phẳng cắt vuông đầu), nhưng đề phòng dữ liệu cũ/lạ có widths thì bỏ qua vân thay vì
+          vẽ sai — mất vân còn hơn vẽ lệch. */}
+      {s.tool === "tape" && !filled && (
+        <path
+          d={d}
+          fill="none"
+          className="mind-tape-overlay"
+          stroke={`url(#mind-tape-${s.pattern ?? "weave"})`}
+          strokeWidth={s.width}
+          strokeLinecap={s.dash === "dot" ? "round" : strokeCap(s.tool)}
+          strokeLinejoin="round"
+          strokeDasharray={strokeDashArray(s.dash, s.width)}
+          opacity={alpha === 1 ? undefined : alpha}
+        />
+      )}
+    </>
   )
 }
 
@@ -1022,6 +1104,11 @@ export function MindmapBoard({
   // Cụm hoàn tác/làm lại — nổi riêng khỏi thanh bút (xem C2/UNDOBAR_KEY). Mặc định dính mép PHẢI,
   // để không chồng lên thanh bút (mép trên) ngay từ lần mở đầu tiên.
   const [undoBarPos, setUndoBarPos] = useState<BarPos>(() => readBarPos(UNDOBAR_KEY, 0.14) ?? { dock: "right", f: 0.14 })
+  // Đang GIỮ một trong hai cụm nổi (thanh bút / cụm hoàn tác) hay không — tắt hẳn transition vị trí
+  // lúc đang kéo (bám thẳng ngón tay, không được trễ), chỉ bật lúc thả tay để cú neo mép cuối cùng
+  // được NẢY nhẹ vào chỗ thay vì khựng cứng tức thì. Cùng lúc còn dùng để nhấc nhẹ (scale) cụm đang
+  // cầm — "cầm lên khỏi giấy" đúng ngôn ngữ vật lý đã dùng cho thẻ ghi chú (xem springSettleDrag).
+  const [barDragging, setBarDragging] = useState<null | "pen" | "undo">(null)
   // Bảng phụ đang mở trên thanh bút: cỡ nét, hoặc danh sách hình vẽ.
   const [penPop, setPenPop] = useState<null | "size" | "shape">(null)
   // Bảng màu bút (tấm trượt lên từ đáy). Ba tab như trong thiết kế: bảng có sẵn, tự pha, đã dùng.
@@ -1132,6 +1219,11 @@ export function MindmapBoard({
   const penBarRef = useRef<HTMLDivElement>(null)
   // Cụm hoàn tác/làm lại nổi riêng — xem C2.
   const undoBarRef = useRef<HTMLDivElement>(null)
+  // Ô sáng trượt của hàng chọn bút — đo lại vị trí/kích thước THẬT của cây bút đang cầm (item đó
+  // rộng/cao hơn bốn cây kia vì có thêm nút mũi tên riêng), xem hiệu ứng ở useLayoutEffect bên dưới.
+  const penKitTrackRef = useRef<HTMLDivElement>(null)
+  const penKitSliderRef = useRef<HTMLDivElement>(null)
+  const penKitItemRefs = useRef<Map<string, HTMLElement>>(new Map())
   const minimapPanelRef = useRef<HTMLDivElement>(null)
   const minimapViewportRef = useRef<HTMLDivElement>(null)
   const worldRef = useRef<HTMLDivElement>(null)
@@ -1146,6 +1238,10 @@ export function MindmapBoard({
   const drawMap = useRef<((cx: number, cy: number) => { x: number; y: number }) | null>(null)
   const edgeLayerRef = useRef<SVGGElement>(null)
   const eraserRingRef = useRef<HTMLDivElement>(null)
+  // Đốm sáng của bút con trỏ (trình bày) — xem moveLaser/showLaser/hideLaser. KHÔNG lưu vào dữ liệu
+  // bảng (không phải MindStroke/MindNode nào cả): đây thuần là một lớp phủ đứng yên ngoài React
+  // state, giống hệt eraserRingRef.
+  const laserRef = useRef<HTMLDivElement>(null)
   const floatBarRef = useRef<HTMLDivElement>(null)
   const vGuideRef = useRef<HTMLDivElement>(null)
   const hGuideRef = useRef<HTMLDivElement>(null)
@@ -1232,6 +1328,7 @@ export function MindmapBoard({
     | { kind: "shape"; sx: number; sy: number }
     | { kind: "erase" }
     | { kind: "lasso" }
+    | { kind: "laser" }
     // Kéo cả nhóm đang khoanh chọn.
     | { kind: "groupdrag"; startX: number; startY: number; moved: boolean }
     | {
@@ -1263,6 +1360,11 @@ export function MindmapBoard({
         // LẦN lúc bắt đầu kéo để mỗi khung hình kéo không phải dò lại toàn bảng.
         moveIds: string[]
         descendantEls: HTMLElement[]
+        // Tốc độ ngang gần nhất (px/ms) — chỉ để tính độ nghiêng "cầm thẻ lên" (xem DRAG_TILT_K),
+        // không dùng cho việc tính vị trí (đã có snapDrag từ startX/origX).
+        vx: number
+        lastX: number
+        lastT: number
       }
     | {
         kind: "resize"
@@ -1309,7 +1411,15 @@ export function MindmapBoard({
       const bg = paperBackground(paperRef.current, zoom, toneRef.current)
       s.style.backgroundImage = bg.backgroundImage
       s.style.backgroundSize = bg.backgroundSize
-      s.style.backgroundPosition = `${x}px ${y}px`
+      // Vân giấy (lớp cuối, luôn có mặt — xem paperBackground()) đứng yên "0px 0px", không trôi theo
+      // toạ độ bảng như hai lớp lưới/chấm/kẻ dòng phía trước — đúng cảm giác một tờ giấy có kết cấu
+      // riêng của chính nó, không phải hoạ tiết "vẽ lên" mặt bảng và trôi theo khi kéo.
+      s.style.backgroundPosition = `${x}px ${y}px, ${x}px ${y}px, 0px 0px`
+      // PHẢI gán ở đây, không phải qua class CSS (xem ghi chú ở .mind-surface trong index.css) —
+      // việc gán backgroundImage/Size/Position rời qua ref khiến trình duyệt gộp lại thành một khai
+      // báo `background` rút gọn trong style attribute, tự xoá mất background-blend-mode nếu nó chỉ
+      // được khai ở stylesheet ngoài.
+      s.style.backgroundBlendMode = "normal, normal, soft-light"
     }
     drawMinimapViewport()
     showRadar()
@@ -2610,6 +2720,27 @@ export function MindmapBoard({
     if (zoomEraserRingRef.current) zoomEraserRingRef.current.style.display = "none"
   }
 
+  // ─── Bút con trỏ (trình bày) ────────────────────────────────────────────────
+  // Chạm giữ để hiện một đốm sáng theo ngón tay, thả tay là biến mất — không lưu lại gì cả. Dùng khi
+  // chỉ cho sinh viên/đồng nghiệp xem trực tiếp trên bảng, giống con trỏ laser thật lúc thuyết trình.
+  // Cùng cơ chế toBoard()+chia theo zoom với moveEraserRing ở trên, nên đốm luôn to bằng nhau trên
+  // MÀN HÌNH dù đang phóng bảng cỡ nào — một cây bút trỏ không thể lúc to lúc nhỏ tuỳ mức zoom.
+  const LASER_DOT_SCREEN_SIZE = 16
+  function moveLaser(clientX: number, clientY: number) {
+    const el = laserRef.current
+    if (!el) return
+    const p = toBoard(clientX, clientY)
+    const r = LASER_DOT_SCREEN_SIZE / 2 / view.current.zoom
+    el.style.display = "block"
+    el.style.left = `${p.x - r}px`
+    el.style.top = `${p.y - r}px`
+    el.style.width = `${r * 2}px`
+    el.style.height = `${r * 2}px`
+  }
+  function hideLaser() {
+    if (laserRef.current) laserRef.current.style.display = "none"
+  }
+
   // ─── Nét đang vẽ ──────────────────────────────────────────────────────────
 
   // Nét đang vẽ dở phải hiện ở CẢ HAI mặt: trên bảng chính và trong ô viết phóng to. Cùng một dữ
@@ -2722,6 +2853,7 @@ export function MindmapBoard({
       // lưu là "shape" sẽ tạo ra một loại nét thứ năm không có luật hiển thị riêng nào cả.
       tool: inkOf(tool),
       ...(activeDash ? { dash: activeDash } : {}),
+      ...(inkOf(tool) === "tape" && activePattern ? { pattern: activePattern } : {}),
       ...(straight ? { straight: true } : {}),
       // Làm tròn 0.1 để dữ liệu lưu không phình vì mấy chữ số thập phân vô nghĩa.
       ...(widths && widths.length > 1 ? { widths: widths.map((w) => Math.round(w * 10) / 10) } : {}),
@@ -3166,6 +3298,11 @@ export function MindmapBoard({
       beginErase(e, p)
       return
     }
+    if (tool === "laser") {
+      action.current = { kind: "laser" }
+      moveLaser(e.clientX, e.clientY)
+      return
+    }
     action.current = {
       kind: "pan",
       startX: e.clientX,
@@ -3297,6 +3434,9 @@ export function MindmapBoard({
       el: primaryEl,
       moveIds: [node.id, ...descendants],
       descendantEls,
+      vx: 0,
+      lastX: e.clientX,
+      lastT: performance.now(),
     }
   }
 
@@ -3328,6 +3468,9 @@ export function MindmapBoard({
       el: e.currentTarget as HTMLElement,
       moveIds: [image.id],
       descendantEls: [],
+      vx: 0,
+      lastX: e.clientX,
+      lastT: performance.now(),
     }
   }
 
@@ -3445,6 +3588,11 @@ export function MindmapBoard({
       return
     }
 
+    if (act.kind === "laser") {
+      moveLaser(e.clientX, e.clientY)
+      return
+    }
+
     if (act.kind === "groupdrag") {
       if (!selGroup) return
       const z = view.current.zoom
@@ -3472,7 +3620,15 @@ export function MindmapBoard({
       if (!act.moved) return
       const snapped = snapDrag(act, (e.clientX - act.startX) / z, (e.clientY - act.startY) / z)
       const transform = `translate3d(${snapped.dx}px, ${snapped.dy}px, 0)`
-      if (act.el) act.el.style.transform = transform
+      // Nghiêng nhẹ theo tốc độ ngang gần nhất (xem DRAG_TILT_K/springSettleDrag) — chỉ CHÍNH thẻ
+      // đang cầm, không áp cho nhánh con đi theo (chúng chỉ trượt vị trí, không "cầm" trong tay).
+      const now = performance.now()
+      const dt = Math.max(1, now - act.lastT)
+      act.vx = (e.clientX - act.lastX) / dt
+      act.lastX = e.clientX
+      act.lastT = now
+      const tilt = Math.max(-DRAG_TILT_MAX_DEG, Math.min(DRAG_TILT_MAX_DEG, act.vx * DRAG_TILT_K))
+      if (act.el) act.el.style.transform = `${transform} rotate(${tilt}deg) scale(${DRAG_LIFT_SCALE})`
       // Cả nhánh con đi theo thẻ cha đang kéo — cùng một độ dịch, để hình dạng cây không đổi giữa
       // chừng lúc kéo (chỉ trượt cả khối, không co giãn lệch lạc).
       act.descendantEls.forEach((el) => (el.style.transform = transform))
@@ -3693,6 +3849,10 @@ export function MindmapBoard({
       clearErasePreview()
     }
 
+    if (act.kind === "laser") {
+      hideLaser()
+    }
+
     if (act.kind === "drag") {
       const z = view.current.zoom
       // Đọc TRƯỚC khi setDropHighlight(null) xoá mất — đây là thẻ đang được thả lên trong lúc kéo,
@@ -3734,7 +3894,10 @@ export function MindmapBoard({
             }
           } else updateImages((ims) => ims.map((im) => (im.id === act.id ? { ...im, x: nx, y: ny } : im)))
         })
-        if (act.el) act.el.style.transform = ""
+        // springSettleDrag tự xoá style tạm NGAY (đồng bộ) trước khi phát hoạt ảnh nảy nhẹ — giữ
+        // đúng tính chất "cùng một khung hình" mà flushSync ở trên đang cố đảm bảo, chỉ thêm phần
+        // nảy về 0 CHẠY SAU đó, không làm trễ nhịp xoá.
+        if (act.el) springSettleDrag(act.el)
         act.descendantEls.forEach((el) => (el.style.transform = ""))
         setFloatBarHidden(false)
         if (reparentTo) {
@@ -4347,6 +4510,7 @@ export function MindmapBoard({
     e.stopPropagation()
     const b = bar.getBoundingClientRect()
     barDrag.current = { dy: e.clientY - b.top, pos: barPos }
+    setBarDragging("pen")
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {
@@ -4384,9 +4548,24 @@ export function MindmapBoard({
     const d = barDrag.current
     if (!d) return
     barDrag.current = null
+    setBarDragging(null)
     writeBarPos(PENBAR_KEY, d.pos)
     tickHaptic()
   }
+
+  // Đo lại vị trí/kích thước THẬT (offsetLeft/Top/Width/Height — toạ độ layout, không phải toạ độ
+  // màn hình, nên miễn nhiễm với việc thanh có đang cuộn hay không) của cây bút đang cầm mỗi khi đổi
+  // bút hoặc đổi hướng thanh dọc/ngang, rồi đặt thẳng vào style của ô sáng trượt qua ref — không qua
+  // state, cùng triết lý với applyView(): đây là một phép đo hình học của một khung hình, không phải
+  // dữ liệu cần React theo dõi.
+  useLayoutEffect(() => {
+    const el = penKitItemRefs.current.get(tool)
+    const slider = penKitSliderRef.current
+    if (!el || !slider) return
+    slider.style.width = `${el.offsetWidth}px`
+    slider.style.height = `${el.offsetHeight}px`
+    slider.style.transform = `translate(${el.offsetLeft}px, ${el.offsetTop}px)`
+  }, [tool, barPos.dock, penBarOpen])
 
   // ─── Kéo cụm hoàn tác/làm lại sang mép khác ────────────────────────────────
   // Cùng cơ chế với thanh bút ở trên (gắn mép gần nhất), nhưng là một cụm ĐỘC LẬP — xem C2/UNDOBAR_KEY
@@ -4405,6 +4584,7 @@ export function MindmapBoard({
     e.stopPropagation()
     const b = bar.getBoundingClientRect()
     undoBarDrag.current = { dx: e.clientX - b.left, dy: e.clientY - b.top, pos: undoBarPos }
+    setBarDragging("undo")
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch {
@@ -4439,6 +4619,7 @@ export function MindmapBoard({
     const d = undoBarDrag.current
     if (!d) return
     undoBarDrag.current = null
+    setBarDragging(null)
     writeBarPos(UNDOBAR_KEY, d.pos)
     tickHaptic()
   }
@@ -4533,6 +4714,8 @@ export function MindmapBoard({
   const activeSpec = inkStyle.strokes[0]
   const activeWidth = activeSpec.w
   const activeDash = activeSpec.dash
+  // Chỉ có ý nghĩa khi styleTool === "tape" — xem TapePattern.
+  const activePattern = activeSpec.pattern
   // Bút dạ và băng dính dùng bảng màu nhạt (màu tô sáng); bút mực và bút chì dùng bảng màu mực.
   const inkPalette = styleTool === "highlighter" || styleTool === "tape" ? HIGHLIGHT_PALETTE : INK_PALETTE
   const widthRange = WIDTH_RANGE[styleTool]
@@ -4541,6 +4724,14 @@ export function MindmapBoard({
   const barVert = barPos.dock === "left" || barPos.dock === "right"
   // Vạch ngăn giữa các cụm nút, xoay theo chiều của thanh.
   const barDivider = barVert ? "flex-none h-px w-7 my-1" : "flex-none w-px h-7 mx-1"
+  // "Nhấc lên khỏi giấy" lúc đang cầm kéo — cùng ngôn ngữ vật lý với springSettleDrag (thẻ ghi chú):
+  // phồng nhẹ + đổ bóng đậm hơn trong lúc kéo, xẹp êm về 1 lúc thả tay nhờ transition ở dưới.
+  const barPickedUp = barDragging === "pen" ? 1.025 : 1
+  const undoBarPickedUp = barDragging === "undo" ? 1.06 : 1
+  // Trước đây KHÔNG transition top/left/right/transform — đổi mép giữa chừng lúc kéo là một cú BẬT
+  // KHỰNG tức thì, khác hẳn phần còn lại của app. Chỉ bật easing khi KHÔNG (còn) đang kéo bằng chính
+  // cụm đó — đang kéo thật thì phải bám thẳng ngón tay, có trễ là cảm giác "ì" chứ không phải mượt.
+  const barSettleTransition = "top 0.24s cubic-bezier(0.34,1.4,0.64,1), left 0.24s cubic-bezier(0.34,1.4,0.64,1), right 0.24s cubic-bezier(0.34,1.4,0.64,1), transform 0.24s cubic-bezier(0.34,1.4,0.64,1), box-shadow 0.24s ease"
   // Chỗ đứng thật của thanh trên mặt bảng.
   //
   // Nằm ngang thì DÍNH TRỌN một mép (left:0, right:0) — không còn toạ độ ngang tự do nữa, nên không
@@ -4551,9 +4742,16 @@ export function MindmapBoard({
     ? {
         [barPos.dock === "left" ? "left" : "right"]: 6,
         top: `${barPos.f * 100}%`,
-        transform: `translateY(${-barPos.f * 100}%)`,
+        transform: `translateY(${-barPos.f * 100}%) scale(${barPickedUp})`,
+        transition: barDragging === "pen" ? undefined : barSettleTransition,
       }
-    : { left: 0, right: 0, [barPos.dock === "top" ? "top" : "bottom"]: 0 }
+    : {
+        left: 0,
+        right: 0,
+        [barPos.dock === "top" ? "top" : "bottom"]: 0,
+        transform: `scale(${barPickedUp})`,
+        transition: barDragging === "pen" ? undefined : barSettleTransition,
+      }
 
   // Cụm hoàn tác/làm lại: chỉ hai nút, không đủ để chiếm trọn một mép như thanh bút — đứng nhỏ gọn
   // ở mọi mép, `f` trượt dọc theo ĐÚNG mép đang gắn (ngang khi gắn mép trên/dưới, dọc khi gắn mép
@@ -4563,12 +4761,14 @@ export function MindmapBoard({
     ? {
         [undoBarPos.dock === "left" ? "left" : "right"]: 6,
         top: `${undoBarPos.f * 100}%`,
-        transform: `translateY(${-undoBarPos.f * 100}%)`,
+        transform: `translateY(${-undoBarPos.f * 100}%) scale(${undoBarPickedUp})`,
+        transition: barDragging === "undo" ? undefined : barSettleTransition,
       }
     : {
         [undoBarPos.dock === "top" ? "top" : "bottom"]: 6,
         left: `${undoBarPos.f * 100}%`,
-        transform: `translateX(${-undoBarPos.f * 100}%)`,
+        transform: `translateX(${-undoBarPos.f * 100}%) scale(${undoBarPickedUp})`,
+        transition: barDragging === "undo" ? undefined : barSettleTransition,
       }
 
   // Đường kính chấm xem trước trên nút cỡ nét. Không vẽ chấm to đúng bằng cỡ nét thật (bút dạ 40 thì
@@ -5398,7 +5598,7 @@ export function MindmapBoard({
       {/* ─── Mặt bảng ──────────────────────────────────────────────────── */}
       <div
         ref={surfaceRef}
-        className="flex-1 relative overflow-hidden"
+        className="mind-surface flex-1 relative overflow-hidden"
         style={{
           background: pal.bg,
           touchAction: "none",
@@ -5423,6 +5623,38 @@ export function MindmapBoard({
         >
           {/* Nét vẽ và đường nối nằm DƯỚI ghi chú để chữ luôn đọc được */}
           <svg style={{ position: "absolute", overflow: "visible", pointerEvents: "none" }} width="1" height="1">
+            <defs>
+              {/* Vân chì cho ĐÚNG bút chì (xem StrokePath) — làm méo nhẹ hình học của nét (không phải
+                  đổi alpha) bằng feDisplacementMap, ra đúng cảm giác nét chì hơi lệch/run tự nhiên
+                  trên giấy thay vì một đường toán học tuyệt đối thẳng. `scale` rất nhỏ (1.1px) — đủ để
+                  mắt cảm nhận được nét "sống", không đủ để trông như đường vẽ bị lỗi/răng cưa. Bút dạ/
+                  băng dính KHÔNG dùng filter này — hai thứ đó là vật liệu tổng hợp phẳng, mực chì mới
+                  cần vân giấy-than-chì.  Định nghĩa đúng MỘT lần ở đây; StrokePath ở bảng phóng to
+                  (zoomBox) tham chiếu lại đúng id này — filter phân giải theo id trên toàn tài liệu,
+                  không giới hạn trong đúng thẻ <svg> chứa nó. */}
+              <filter id="mind-pencil-grain" x="-15%" y="-15%" width="130%" height="130%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" seed="4" result="wobble" />
+                <feDisplacementMap in="SourceGraphic" in2="wobble" scale="1" xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+
+              {/* Hoạ tiết băng dính (xem StrokePath, chỉ tool === "tape") — MÀU TRUNG TÍNH (đen/trắng)
+                  ở alpha thấp, phủ bằng mix-blend-mode qua CSS (.mind-tape-overlay, index.css) thay vì
+                  mang màu riêng: nhờ vậy đúng MỘT bộ hoạ tiết dùng được cho MỌI màu băng dính người
+                  dùng chọn, không phải dựng lại pattern cho từng màu. "weave" là mặc định (không lưu
+                  gì vào MindStroke.pattern — xem TapePattern), "stripe"/"dot" là hai hoạ tiết chọn
+                  thêm. Ba pattern này vẽ ĐÈ LÊN nét màu thật bằng một <path> thứ hai cùng toạ độ, không
+                  thay thế nó — mất pattern (trình duyệt cũ) thì băng dính vẫn còn đúng màu, chỉ thiếu
+                  vân. */}
+              <pattern id="mind-tape-weave" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="6" stroke="#000" strokeWidth="1.4" opacity="0.16" />
+              </pattern>
+              <pattern id="mind-tape-stripe" width="11" height="11" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect x="0" y="0" width="5.5" height="11" fill="#fff" opacity="0.26" />
+              </pattern>
+              <pattern id="mind-tape-dot" width="9" height="9" patternUnits="userSpaceOnUse">
+                <circle cx="4.5" cy="4.5" r="1.3" fill="#000" opacity="0.2" />
+              </pattern>
+            </defs>
             {/* Nháy sáng lên phần vừa hoàn tác/làm lại (D1) — nằm TRÊN cùng lớp SVG này (không phải
                 trong worldRef trực tiếp) để dùng chung toạ độ bảng với InkLayer, khỏi tự quy đổi. */}
             <rect
@@ -5770,6 +6002,23 @@ export function MindmapBoard({
             }}
           />
 
+          {/* Đốm sáng của bút con trỏ — xem moveLaser/hideLaser. Dùng màu nhấn RIÊNG của Mindmap
+              (--c-accent-2, "The One Other Place Rule" trong DESIGN.md — không dùng ở bất kỳ đâu
+              ngoài mặt bảng này) thay vì --c-primary, để không lẫn với vòng tẩy/viền chọn vốn đã
+              dùng primary — hai thứ xuất hiện gần nhau trong cùng một buổi trình bày phải phân biệt
+              được ngay bằng màu. Quầng sáng qua box-shadow nhiều lớp, không phải blur filter (rẻ hơn,
+              không tạo layer hợp thành riêng phải theo dõi lúc di chuyển liên tục theo ngón tay). */}
+          <div
+            ref={laserRef}
+            className="absolute rounded-full"
+            style={{
+              display: "none",
+              background: "var(--c-accent-2)",
+              boxShadow: "0 0 0 4px rgba(var(--c-accent-2-rgb),.25), 0 0 16px 4px rgba(var(--c-accent-2-rgb),.55)",
+              pointerEvents: "none",
+            }}
+          />
+
           {/* Tay cầm đổi cỡ ảnh (góc dưới phải), luôn to bằng đầu ngón tay nhờ nhân nghịch đảo zoom */}
           {selImage && (
             <div
@@ -6090,7 +6339,10 @@ export function MindmapBoard({
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
-              boxShadow: "0 8px 26px var(--c-shadow)",
+              // Bóng đậm hơn hẳn lúc đang "cầm lên" (xem undoBarPickedUp) — cùng một dấu hiệu độ cao
+              // mà .mind-sheet/.mind-pop dùng cho lớp nổi, chỉ khác là ở đây ĐỘNG theo cử chỉ kéo chứ
+              // không cố định.
+              boxShadow: barDragging === "undo" ? "0 14px 34px var(--c-shadow)" : "0 8px 26px var(--c-shadow)",
             }}
             onPointerDown={(e) => e.stopPropagation()}
           >
@@ -6141,12 +6393,19 @@ export function MindmapBoard({
               // đây đã bị `barStyle` chiếm (gắn mép dọc) — gộp chung sẽ đè mất vị trí thanh.
               opacity: chromeHidden ? 0 : 1,
               pointerEvents: chromeHidden ? "none" : undefined,
-              transition: "opacity 0.18s ease",
+              // GHÉP với transition của barStyle (đứng TRƯỚC trong object nên bị object literal này
+              // đè mất nếu viết thẳng một chuỗi cố định ở đây) — không phải thay thế nó.
+              transition: [barStyle.transition, "opacity 0.18s ease"].filter(Boolean).join(", "),
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
               WebkitBackdropFilter: "blur(8px)",
-              boxShadow: barVert ? "0 8px 26px var(--c-shadow)" : "0 4px 16px var(--c-shadow)",
+              boxShadow:
+                barDragging === "pen"
+                  ? "0 16px 38px var(--c-shadow)"
+                  : barVert
+                    ? "0 8px 26px var(--c-shadow)"
+                    : "0 4px 16px var(--c-shadow)",
               // Thanh nằm ngang dính trọn một mép nên chỉ bo hai góc phía TRONG bảng — bo cả bốn góc
               // sẽ để lộ hai khe tam giác ở hai đầu, nhìn như thanh bị đặt lệch chứ không phải đang
               // gắn vào mép.
@@ -6204,15 +6463,32 @@ export function MindmapBoard({
             {/* ─── Bộ bút: cả năm cây luôn có mặt ───────────────────────────
                 Chỉ CÂY ĐANG CẦM mọc thêm mũi tên mở phần cài đặt của nó; bốn cây kia không có mũi
                 tên nào cả. Đổi bút vẫn là một lần chạm duy nhất — thứ phải giữ bằng mọi giá, vì trong
-                lúc ghi chép người ta đảo bút liên tục giữa mực và bút dạ. */}
-            {PEN_KIT_ITEMS.map((k) => {
+                lúc ghi chép người ta đảo bút liên tục giữa mực và bút dạ.
+
+                Ô sáng TRƯỢT giữa các cây bút (penKitSliderRef, đo lại ở useLayoutEffect) thay cho
+                việc mỗi span tự đổi nền — trước đây đổi bút là một cú NHÁY nền tức thì, khác hẳn hàng
+                công cụ chính ngay phía trên (đã có ô trượt mượt, xem .mind-tool-slider). Không dùng
+                lại đúng cách tính "index × bề rộng cố định" của hàng đó được: cây ĐANG CẦM ở đây rộng/
+                cao hơn bốn cây kia (có thêm nút mũi tên riêng), nên phải ĐO THẬT qua ref thay vì tính
+                suông — xem .mind-penkit-slider trong index.css về lý do nó cần animate cả width/height,
+                khác .mind-tool-slider. */}
+            <div ref={penKitTrackRef} className={`relative flex ${barVert ? "flex-col" : "flex-row"} items-center`}>
+              <div
+                ref={penKitSliderRef}
+                className="mind-penkit-slider absolute top-0 left-0 rounded-xl pointer-events-none"
+                style={{ background: "var(--c-primary-soft)" }}
+              />
+              {PEN_KIT_ITEMS.map((k) => {
               const on = tool === k.id
               const kInk = inkStyles[inkOf(k.id)]
               return (
                 <span
                   key={k.id}
-                  className={`flex-none flex ${barVert ? "flex-col" : "flex-row"} items-center rounded-xl overflow-hidden`}
-                  style={{ background: on ? "var(--c-primary-soft)" : "transparent" }}
+                  ref={(el) => {
+                    if (el) penKitItemRefs.current.set(k.id, el)
+                    else penKitItemRefs.current.delete(k.id)
+                  }}
+                  className={`relative flex-none flex ${barVert ? "flex-col" : "flex-row"} items-center rounded-xl overflow-hidden`}
                 >
                   <button
                     type="button"
@@ -6276,7 +6552,8 @@ export function MindmapBoard({
                   )}
                 </span>
               )
-            })}
+              })}
+            </div>
 
             <span className={barDivider} style={{ background: "var(--c-line)" }} />
 
@@ -6462,18 +6739,32 @@ export function MindmapBoard({
                       onPointerDown={() => {
                         widthBase.current = inkStyle.strokes.map((s) => ({ ...s }))
                       }}
-                      onChange={(e) => setCurrentSpec(styleTool, { w: Number(e.target.value), ...(activeDash ? { dash: activeDash } : {}) })}
+                      onChange={(e) =>
+                        setCurrentSpec(styleTool, {
+                          w: Number(e.target.value),
+                          ...(activeDash ? { dash: activeDash } : {}),
+                          ...(activePattern ? { pattern: activePattern } : {}),
+                        })
+                      }
                       onPointerUp={(e) =>
                         useStrokeSpec(
                           styleTool,
-                          { w: Number((e.target as HTMLInputElement).value), ...(activeDash ? { dash: activeDash } : {}) },
+                          {
+                            w: Number((e.target as HTMLInputElement).value),
+                            ...(activeDash ? { dash: activeDash } : {}),
+                            ...(activePattern ? { pattern: activePattern } : {}),
+                          },
                           widthBase.current ?? undefined,
                         )
                       }
                       onKeyUp={(e) =>
                         useStrokeSpec(
                           styleTool,
-                          { w: Number((e.target as HTMLInputElement).value), ...(activeDash ? { dash: activeDash } : {}) },
+                          {
+                            w: Number((e.target as HTMLInputElement).value),
+                            ...(activeDash ? { dash: activeDash } : {}),
+                            ...(activePattern ? { pattern: activePattern } : {}),
+                          },
                           widthBase.current ?? undefined,
                         )
                       }
@@ -6497,7 +6788,11 @@ export function MindmapBoard({
                             key={d.label}
                             type="button"
                             onClick={() => {
-                              useStrokeSpec(styleTool, { w: activeWidth, ...(d.id ? { dash: d.id } : {}) })
+                              useStrokeSpec(styleTool, {
+                                w: activeWidth,
+                                ...(d.id ? { dash: d.id } : {}),
+                                ...(activePattern ? { pattern: activePattern } : {}),
+                              })
                               tickHaptic()
                             }}
                             aria-label={`Kiểu nét: ${d.label}`}
@@ -6517,6 +6812,55 @@ export function MindmapBoard({
                         )
                       })}
                     </div>
+
+                    {/* ─── Hoạ tiết băng dính ─────────────────────────────
+                        CHỈ hiện khi đang cầm băng dính — dash/hình vẽ dùng chung cho mọi cây bút,
+                        nhưng "vân dệt/kẻ sọc/chấm bi" chỉ có nghĩa cho MỘT dải vật liệu dán đè lên
+                        nội dung, không phải cho mực hay than chì. Xem TapePattern + StrokePath. */}
+                    {styleTool === "tape" && (
+                      <>
+                        <p className="text-[12px] font-semibold px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
+                          Hoạ tiết
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          {TAPE_PATTERN_ITEMS.map((p) => {
+                            const on = (activePattern ?? undefined) === p.id
+                            return (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => {
+                                  useStrokeSpec(styleTool, {
+                                    w: activeWidth,
+                                    ...(activeDash ? { dash: activeDash } : {}),
+                                    ...(p.id ? { pattern: p.id } : {}),
+                                  })
+                                  tickHaptic()
+                                }}
+                                aria-label={`Hoạ tiết: ${p.label}`}
+                                aria-pressed={on}
+                                className="mind-btn flex-1 h-11 rounded-xl flex flex-col items-center justify-center gap-1 border overflow-hidden"
+                                style={
+                                  on
+                                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
+                                    : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
+                                }
+                              >
+                                {/* Xem trước THẬT bằng đúng pattern SVG sẽ vẽ trên bảng (không phải một
+                                    biểu tượng giả lập) — mắt thấy đúng vân trước khi chọn. */}
+                                <svg width="34" height="14" viewBox="0 0 34 14" aria-hidden="true">
+                                  <rect width="34" height="14" rx="4" fill={activeInk} opacity={strokeAlpha("tape") < 1 ? 0.85 : 1} />
+                                  <rect width="34" height="14" rx="4" fill={`url(#mind-tape-${p.id ?? "weave"})`} style={{ mixBlendMode: "multiply" }} />
+                                </svg>
+                                <span className="text-[10px] font-bold" style={{ color: on ? "var(--c-primary)" : "var(--c-text-muted)" }}>
+                                  {p.label}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
 
                     <p className="text-[12px] font-semibold px-0.5 pt-2 pb-1" style={{ color: "var(--c-text-muted)" }}>
                       Ba nét gần nhất

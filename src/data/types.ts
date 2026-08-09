@@ -455,6 +455,12 @@ export type MindStrokeTool = "pen" | "pencil" | "highlighter" | "tape"
 // phụ / là giả định / là đường liên hệ", mà nét liền không nói được.
 export type MindDash = "dash" | "dot"
 
+// Hoạ tiết CHỈ CÓ Ở băng dính — trước đây băng dính chỉ là một dải màu đặc mờ, không có gì phân
+// biệt nó với một vệt bút dạ đậm hơn. "weave" (mặc định, không lưu gì — nét cũ từ trước khi có
+// trường này tự nhận đúng hoạ tiết mới) là vân dệt chéo mảnh, giống mặt băng dính giấy thật ở MỌI
+// màu; "stripe"/"dot" là hai hoạ tiết washi tape rõ rệt hơn để chọn khi muốn nổi bật.
+export type TapePattern = "stripe" | "dot"
+
 export interface MindStroke {
   id: string
   points: number[]
@@ -464,6 +470,7 @@ export interface MindStroke {
   straight?: boolean
   widths?: number[]
   dash?: MindDash
+  pattern?: TapePattern
 }
 
 // Một ảnh dán trên bảng Sơ đồ tư duy (ảnh chụp X-quang, ECG, sơ đồ trong sách...).

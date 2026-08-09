@@ -572,8 +572,43 @@ export function nodePaint(node: MindNode): NodePaint {
   return paint
 }
 
+// ─── Vân giấy ────────────────────────────────────────────────────────────────
+// Trước đây "giấy" chỉ là một màu CSS phẳng tuyệt đối — không có gì phân biệt nó với một khối màu
+// nền thường, dù app gọi nó là "giấy" và cho chọn giữa trắng/đen/vàng ngà như đang chọn CHẤT LIỆU.
+// Lớp vân này là MỘT hoạ tiết nhiễu (feTurbulence) dùng chung cho mọi kiểu/màu giấy, phủ lên bằng
+// `mix-blend-mode: soft-light` ở độ mờ rất thấp — soft-light tự sáng lên trên nền tối, tối lại trên
+// nền sáng, nên đúng MỘT hoạ tiết này dùng được cho cả ba màu giấy mà không cần pha riêng cho từng
+// màu. Alpha từng đốm nhiễu bị nén xuống 12% ngay TRONG chính filter (feColorMatrix), không lùi
+// bằng CSS opacity riêng — để lớp này luôn ở đúng một cường độ, bất kể chỗ nào trong app lỡ tái
+// dùng data URI này sau này.
+//
+// Đứng YÊN trên MÀN HÌNH (backgroundPosition luôn "0 0", không đổi theo toạ độ bảng như lưới/chấm/
+// kẻ dòng) — đúng cảm giác nhìn QUA một tờ giấy có kết cấu riêng của chính nó, không phải một hoạ
+// tiết được "vẽ lên" mặt bảng và trôi theo khi kéo. `stitchTiles="stitch"` + khai rõ x/y/width/height
+// trùng khít khung 96×96 để hoạ tiết lặp lại liền mạch, không có đường nối lộ ra ở mép ô lặp.
+const PAPER_GRAIN_TILE = 96
+const PAPER_GRAIN_URI =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${PAPER_GRAIN_TILE}" height="${PAPER_GRAIN_TILE}">` +
+      `<filter id="g" x="0" y="0" width="${PAPER_GRAIN_TILE}" height="${PAPER_GRAIN_TILE}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" x="0" y="0" width="${PAPER_GRAIN_TILE}" height="${PAPER_GRAIN_TILE}" result="n"/>` +
+      `<feColorMatrix in="n" type="matrix" values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.12 0"/>` +
+      `</filter>` +
+      `<rect width="${PAPER_GRAIN_TILE}" height="${PAPER_GRAIN_TILE}" filter="url(#g)"/>` +
+      `</svg>`,
+  )
+const PAPER_GRAIN_LAYER = `url("${PAPER_GRAIN_URI}")`
+
 // Ảnh nền của mặt bảng, giãn theo mức phóng để lưới không bị rối khi thu nhỏ.
 // (Các hằng số của giấy nền khai báo ở đầu file — bảng màu cần chúng để tính tương phản.)
+//
+// LUÔN trả về ĐÚNG BA lớp — kể cả khi "dot"/"line"/"plain" chỉ dùng 1 hoặc 0 lớp hoạ tiết thật, hai
+// ô còn thiếu được lấp bằng "none" thay vì bỏ hẳn. Số lớp cố định (3) để `.mind-surface` trong
+// index.css gán được ĐÚNG MỘT bộ `background-blend-mode` tĩnh (soft-light chỉ ở lớp vân giấy — lớp
+// CUỐI) mà không cần biết đang là kiểu giấy nào; nơi gọi (applyView() trong MindmapBoard.tsx) cũng
+// khỏi phải tự đếm layer để ghép backgroundPosition. "none" ở một lớp thì size/position của đúng lớp
+// đó vô nghĩa (không có ảnh để đặt), nên cứ điền `${x}px ${y}px` như hai lớp lưới là an toàn.
 export function paperBackground(
   kind: PaperKind,
   zoom: number,
@@ -583,21 +618,23 @@ export function paperBackground(
   const pal = paperTone(tone)
   const PAPER_LINE = pal.line
   const PAPER_DOT = pal.dot
-  if (kind === "plain") return { backgroundImage: "none", backgroundSize: "auto" }
+  const grainSize = `${PAPER_GRAIN_TILE}px ${PAPER_GRAIN_TILE}px`
+  const stepSize = `${step}px ${step}px`
+  if (kind === "plain") return { backgroundImage: `none, none, ${PAPER_GRAIN_LAYER}`, backgroundSize: `auto, auto, ${grainSize}` }
   if (kind === "dot") {
     return {
-      backgroundImage: `radial-gradient(${PAPER_DOT} ${Math.max(0.9, 1.1 * zoom)}px, transparent ${Math.max(1, 1.2 * zoom)}px)`,
-      backgroundSize: `${step}px ${step}px`,
+      backgroundImage: `radial-gradient(${PAPER_DOT} ${Math.max(0.9, 1.1 * zoom)}px, transparent ${Math.max(1, 1.2 * zoom)}px), none, ${PAPER_GRAIN_LAYER}`,
+      backgroundSize: `${stepSize}, auto, ${grainSize}`,
     }
   }
   if (kind === "line") {
     return {
-      backgroundImage: `linear-gradient(to bottom, ${PAPER_LINE} 1px, transparent 1px)`,
-      backgroundSize: `${step}px ${step}px`,
+      backgroundImage: `linear-gradient(to bottom, ${PAPER_LINE} 1px, transparent 1px), none, ${PAPER_GRAIN_LAYER}`,
+      backgroundSize: `${stepSize}, auto, ${grainSize}`,
     }
   }
   return {
-    backgroundImage: `linear-gradient(to right, ${PAPER_LINE} 1px, transparent 1px), linear-gradient(to bottom, ${PAPER_LINE} 1px, transparent 1px)`,
-    backgroundSize: `${step}px ${step}px`,
+    backgroundImage: `linear-gradient(to right, ${PAPER_LINE} 1px, transparent 1px), linear-gradient(to bottom, ${PAPER_LINE} 1px, transparent 1px), ${PAPER_GRAIN_LAYER}`,
+    backgroundSize: `${stepSize}, ${stepSize}, ${grainSize}`,
   }
 }

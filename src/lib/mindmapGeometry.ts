@@ -5,7 +5,7 @@
 
 import type { MindEdge, MindImage, MindNode, MindmapData } from "../data/types"
 
-export type ShapeKind = "line" | "arrow" | "rect" | "ellipse"
+export type ShapeKind = "line" | "arrow" | "rect" | "ellipse" | "diamond" | "pill"
 
 export interface Box {
   x: number
@@ -95,6 +95,46 @@ export function shapePoints(kind: ShapeKind, x1: number, y1: number, x2: number,
 
   if (kind === "rect") {
     return [x1, y1, x2, y1, x2, y2, x1, y2, x1, y1]
+  }
+
+  // Hình thoi (nút "quyết định" trong lưu đồ/phác đồ điều trị) — bốn đỉnh là điểm GIỮA từng cạnh của
+  // khung kéo, không phải bốn góc khung như "rect".
+  if (kind === "diamond") {
+    const cx = (x1 + x2) / 2
+    const cy = (y1 + y2) / 2
+    return [cx, y1, x2, cy, cx, y2, x1, cy, cx, y1]
+  }
+
+  // Hình viên nhộn (nút "bắt đầu/kết thúc" trong lưu đồ) — một hình chữ nhật bo trọn hai đầu, bán
+  // kính bo LUÔN bằng đúng nửa cạnh ngắn hơn (bo hết cỡ, không phải một mức bo tuỳ chọn) nên hình
+  // luôn đọc ra là "viên thuốc/nhộn" dù khung kéo ngang hay dọc, không phải một hình chữ nhật bo góc
+  // thường. Dựng bằng CÙNG MỘT công thức bo góc chữ nhật tổng quát (đi qua 4 cung 90° xen giữa 4
+  // cạnh thẳng) thay vì tách riêng nhánh ngang/dọc — công thức này tự ra đúng hình viên nhộn ở CẢ
+  // hai hướng mà không cần biết trước hướng nào, nên không có nhánh nào bị bỏ sót khi kéo lệch trục.
+  if (kind === "pill") {
+    const bx = Math.min(x1, x2)
+    const by = Math.min(y1, y2)
+    const bw = Math.max(1, Math.abs(x2 - x1))
+    const bh = Math.max(1, Math.abs(y2 - y1))
+    const r = Math.min(bw, bh) / 2
+    const pts: number[] = []
+    const arcSteps = 12
+    const arc = (acx: number, acy: number, a0: number, a1: number) => {
+      for (let i = 0; i <= arcSteps; i++) {
+        const t = a0 + (a1 - a0) * (i / arcSteps)
+        pts.push(acx + Math.cos(t) * r, acy + Math.sin(t) * r)
+      }
+    }
+    pts.push(bx + r, by)
+    pts.push(bx + bw - r, by)
+    arc(bx + bw - r, by + r, -Math.PI / 2, 0)
+    pts.push(bx + bw, by + bh - r)
+    arc(bx + bw - r, by + bh - r, 0, Math.PI / 2)
+    pts.push(bx + r, by + bh)
+    arc(bx + r, by + bh - r, Math.PI / 2, Math.PI)
+    pts.push(bx, by + r)
+    arc(bx + r, by + r, Math.PI, (3 * Math.PI) / 2)
+    return pts
   }
 
   // Hình bầu dục nội tiếp khung người dùng kéo — lấy 44 điểm là đủ tròn ở mọi mức phóng thường dùng.

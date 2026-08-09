@@ -91,6 +91,16 @@ export const mindIcons: Record<string, IconFn> = {
         <path d="M5 20.6h14" strokeWidth={1.4} opacity={0.4} />
       </>,
     ),
+  // Bút con trỏ (trình bày) — đốm sáng toả tia, không phải một cây bút để lại mực.
+  laser: (cls = "w-5 h-5") =>
+    svg(
+      cls,
+      1.6,
+      <>
+        <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" />
+        <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1" />
+      </>,
+    ),
   shapes: (cls = "w-5 h-5") =>
     svg(
       cls,
@@ -125,6 +135,11 @@ export const mindIcons: Record<string, IconFn> = {
     ),
   shapeRect: (cls = "w-5 h-5") => svg(cls, 1.8, <rect x="4" y="6" width="16" height="12" rx="1.6" />),
   shapeEllipse: (cls = "w-5 h-5") => svg(cls, 1.8, <ellipse cx="12" cy="12" rx="8.4" ry="6.4" />),
+  // Hình thoi — nút "quyết định" trong lưu đồ/phác đồ điều trị.
+  shapeDiamond: (cls = "w-5 h-5") => svg(cls, 1.8, <path d="M12 4.5L19.5 12L12 19.5L4.5 12Z" />),
+  // Hình viên nhộn — nút "bắt đầu/kết thúc" trong lưu đồ. Bo TRỌN hai đầu (rx = nửa chiều cao),
+  // không phải một mức bo góc thường, để không lẫn với shapeRect.
+  shapePill: (cls = "w-5 h-5") => svg(cls, 1.8, <rect x="3.5" y="8" width="17" height="8" rx="4" />),
 
   // ─── Thao tác bảng ─────────────────────────────────────────────────────────
   undo: (cls = "w-5 h-5") =>
