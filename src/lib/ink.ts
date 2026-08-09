@@ -20,6 +20,8 @@
 // Phần làm mượt ĐƯỜNG ĐI (Catmull-Rom) nằm ở mindmapGeometry.ts vì nó dùng chung cho cả lúc vẽ,
 // lúc vẽ lại từ dữ liệu đã lưu, và lúc xuất ảnh PNG.
 
+import type { MindPenNib } from "../data/types"
+
 // ─── Bộ lọc One-Euro ──────────────────────────────────────────────────────────
 //
 // Bộ lọc thông thấp có tần số cắt THAY ĐỔI theo tốc độ:
@@ -122,7 +124,104 @@ function rawPressure(e: PointerEvent): number {
   return e.pressure
 }
 
-// ─── Bề dày nét ───────────────────────────────────────────────────────────────
+// ─── Bề dày nét: hồ sơ NGÒI BÚT ───────────────────────────────────────────────
+//
+// Trước đây đúng MỘT công thức bề dày dùng chung, và chỉ bút máy được dùng nó — ba cây còn lại vẽ nét
+// đều tăm tắp, khác nhau mỗi độ mờ. Kết quả là bộ bút không có cây nào NHẬN RA ĐƯỢC từ chính nét nó
+// để lại: nét chì chẳng giống chì, vệt bút dạ chẳng giống bút dạ, băng dính nhìn y hệt bút dạ to.
+//
+// Nay mỗi ngòi là một HỒ SƠ số liệu riêng, và bốn con số dưới đây là toàn bộ khác biệt về "cảm giác
+// viết" giữa chúng:
+//
+//   1. DẢI BỀ DÀY (min…max). Bút bi gần như không đổi (0,90–1,06 lần cỡ đặt) — đó chính là điều làm
+//      một cái bút bi là bút bi. Bút lông đổi gần chín lần (0,22–1,95).
+//   2. NGUỒN ĐIỀU KHIỂN. Bút cảm ứng cho lực nhấn thật; ngón tay/chuột thì phải suy từ TỐC ĐỘ.
+//      `speedK` là mức nhạy với tốc độ, `pressExp` là độ cong của đường cong lực nhấn.
+//   3. NGÒI DẸT (chisel). Ngòi bút máy và đầu nỉ bút dạ đều là một CẠNH THẲNG, không phải một điểm
+//      tròn: nét dày hay mảnh phụ thuộc HƯỚNG ĐI so với cạnh đó. Đây là thứ mắt nhận ra ngay lập tức
+//      và cũng là thứ không mô phỏng nổi bằng độ mờ — bút dạ quét ngang thì bản rộng hết cỡ, kéo dọc
+//      xuống thì chỉ còn một sợi mảnh. Không có nó thì bút dạ chỉ là một cây bút rất to.
+//   4. VUỐT ĐẦU/CUỐI. Bút mực nhấc lên là nét thon dần; bút dạ và băng dính thì KHÔNG — chúng cắt
+//      ngang phẳng lì, vì đó là vật liệu chứ không phải mực thấm vào giấy.
+export type PenNib = MindPenNib
+export type InkProfileId = PenNib | "pencil" | "highlighter" | "tape"
+
+export interface NibProfile {
+  // Dải hệ số bề dày quanh cỡ nét người dùng đặt.
+  min: number
+  max: number
+  // Mức nhạy với tốc độ (px/ms → hệ số). 0 = bề dày không phụ thuộc tốc độ.
+  speedK: number
+  // Độ cong của đường cong lực nhấn. <1 thì nhấn nhẹ đã ra nét rõ (viết nhẹ tay được).
+  pressExp: number
+  // Quãng đường (px màn hình) để nét đạt bề dày đầy đủ kể từ lúc đặt bút; 0 = không vuốt đầu.
+  taperIn: number
+  startFactor: number
+  // Vuốt cuối nét: tỉ lệ số điểm cuối bị vuốt, và mức thu nhỏ tại điểm cuối cùng. 0 = cắt phẳng.
+  tailFrac: number
+  tailDrop: number
+  // Góc CẠNH NGÒI (radian) và bề dày còn lại khi đi ĐÚNG dọc theo cạnh đó (1 = ngòi tròn, không dẹt).
+  chiselAngle: number
+  chiselRatio: number
+  // Bề dày đổi tối đa bao nhiêu phần về phía giá trị mới mỗi mẫu — chống nét gấp khúc chỗ dày chỗ mỏng.
+  smooth: number
+  // Rung bề dày ngẫu nhiên (±tỉ lệ) — mực ra không đều của bút bi, hạt than của bút chì.
+  jitter: number
+}
+
+export const NIB_PROFILES: Record<InkProfileId, NibProfile> = {
+  // Bút bi: gần như MỘT bề dày duy nhất. Chống lại mọi bản năng "thêm hiệu ứng" — cái làm nên bút bi
+  // chính là sự đều đặn không cảm xúc của nó, cộng một chút mực ra không đều (jitter).
+  ball: {
+    min: 0.88, max: 1.08, speedK: 0.04, pressExp: 0.4,
+    taperIn: 7, startFactor: 0.84, tailFrac: 0.08, tailDrop: 0.2,
+    chiselAngle: 0, chiselRatio: 1, smooth: 0.5, jitter: 0.045,
+  },
+  // Bút máy: ngòi dẹt cắt 45°. Nét kéo xuống-phải dày hết cỡ, nét hất lên-phải mảnh như sợi tóc —
+  // đúng chữ viết tay bằng bút máy thật, và là thứ khiến chữ nghiêng bỗng có nhịp.
+  fountain: {
+    min: 0.4, max: 1.32, speedK: 0.26, pressExp: 0.75,
+    taperIn: 24, startFactor: 0.45, tailFrac: 0.14, tailDrop: 0.68,
+    chiselAngle: -Math.PI / 4, chiselRatio: 0.5, smooth: 0.3, jitter: 0,
+  },
+  // Bút lông: dải bề dày rộng nhất, phản ứng chậm nhất (smooth thấp = bề dày còn "trôi" theo tay sau
+  // khi tay đã đổi tốc độ, đúng như một búi lông có quán tính), đuôi vuốt gần như mất hẳn.
+  brush: {
+    min: 0.2, max: 2, speedK: 0.55, pressExp: 0.55,
+    taperIn: 34, startFactor: 0.26, tailFrac: 0.22, tailDrop: 0.88,
+    chiselAngle: 0, chiselRatio: 1, smooth: 0.19, jitter: 0.02,
+  },
+  // Bút chì: bề dày gần đều (chì không phình ra vì nhấn mạnh, nó chỉ ĐẬM hơn), hơi dẹt vì đầu chì
+  // luôn mòn vẹt một bên, và rung mạnh nhất trong cả bộ — hạt than bám không đều lên vân giấy. Phần
+  // "giống chì" còn lại nằm ở lớp vân (filter mind-pencil-grain), không nằm ở hình học.
+  pencil: {
+    min: 0.76, max: 1.16, speedK: 0.1, pressExp: 0.5,
+    taperIn: 10, startFactor: 0.8, tailFrac: 0.1, tailDrop: 0.28,
+    chiselAngle: -Math.PI / 4, chiselRatio: 0.8, smooth: 0.42, jitter: 0.1,
+  },
+  // Bút dạ: đầu nỉ CẮT NGANG. Góc π/2 nghĩa là quét ngang được bản rộng nhất (đúng tư thế tô một
+  // dòng chữ), kéo dọc chỉ còn 28% — cái vệt hẹp lại ở khúc cua chính là chữ ký của bút dạ. Không
+  // vuốt đầu, không vuốt đuôi: vệt bắt đầu và kết thúc bằng một cạnh phẳng.
+  highlighter: {
+    min: 1, max: 1, speedK: 0, pressExp: 1,
+    taperIn: 0, startFactor: 1, tailFrac: 0, tailDrop: 0,
+    chiselAngle: Math.PI / 2, chiselRatio: 0.28, smooth: 0.55, jitter: 0,
+  },
+  // Băng dính: một dải vật liệu có bề rộng CỐ ĐỊNH. Không ngòi, không lực nhấn, không gì cả — mọi
+  // khác biệt của nó nằm ở vật liệu (vân, ánh bóng, bóng đổ), không ở đường nét.
+  tape: {
+    min: 1, max: 1, speedK: 0, pressExp: 1,
+    taperIn: 0, startFactor: 1, tailFrac: 0, tailDrop: 0,
+    chiselAngle: 0, chiselRatio: 1, smooth: 1, jitter: 0,
+  },
+}
+
+// Hồ sơ ngòi của một công cụ. Chỉ bút mực mới có nhiều ngòi để chọn; ba cây còn lại mỗi cây một hồ
+// sơ cố định, vì "bút chì ngòi lông" là một thứ không tồn tại.
+export function nibProfile(tool: string, nib: PenNib | undefined): NibProfile {
+  if (tool === "pencil" || tool === "highlighter" || tool === "tape") return NIB_PROFILES[tool]
+  return NIB_PROFILES[nib ?? "fountain"]
+}
 
 export interface InkWidthState {
   // Bề dày ở điểm trước — để làm trơn, nét không nhảy bậc.
@@ -133,55 +232,77 @@ export interface InkWidthState {
   y: number
   // Tổng chiều dài nét đã đi (px màn hình) — dùng cho vuốt mảnh đầu nét.
   travelled: number
+  // Hướng đi đã LỌC. Ngòi dẹt tính bề dày theo hướng, mà hướng thô giữa hai mẫu liền nhau nhiễu
+  // kinh khủng ở tốc độ chậm (hai điểm cách nhau 1px thì góc gần như ngẫu nhiên) — dùng thẳng sẽ ra
+  // một nét phập phồng dày mỏng loạn xạ thay vì một nét bút dẹt.
+  dx: number
+  dy: number
+  profile: NibProfile
 }
 
-export function initInkWidth(base: number, x: number, y: number, t: number): InkWidthState {
-  // Đặt bút xuống: bắt đầu từ nét mảnh rồi phình dần trong khoảng TAPER_IN đầu tiên.
-  return { width: base * START_FACTOR, t, x, y, travelled: 0 }
+export function initInkWidth(base: number, x: number, y: number, t: number, profile: NibProfile): InkWidthState {
+  // Đặt bút xuống: bắt đầu từ nét mảnh rồi phình dần trong khoảng taperIn đầu tiên.
+  return { width: base * profile.startFactor, t, x, y, travelled: 0, dx: 0, dy: 0, profile }
 }
 
-const START_FACTOR = 0.45
-// Chiều dài (px màn hình) để nét đạt bề dày đầy đủ kể từ lúc đặt bút.
-const TAPER_IN = 26
-// Bề dày đổi tối đa 30% về phía giá trị mới mỗi mẫu — chống nét gấp khúc chỗ dày chỗ mỏng.
-const SMOOTH = 0.3
+// Bề dày còn lại của một ngòi DẸT khi đi theo hướng (dx, dy). Cạnh ngòi nằm ở góc `chiselAngle`; đi
+// vuông góc với cạnh đó thì được cả bản, đi dọc theo nó thì chỉ còn `chiselRatio`.
+function chiselFactor(dx: number, dy: number, p: NibProfile): number {
+  if (p.chiselRatio >= 1) return 1
+  const len = Math.hypot(dx, dy)
+  if (len < 1e-6) return 1
+  const dir = Math.atan2(dy, dx)
+  const across = Math.abs(Math.sin(dir - p.chiselAngle))
+  return p.chiselRatio + (1 - p.chiselRatio) * across
+}
 
 export function nextInkWidth(sample: InkSample, base: number, st: InkWidthState): number {
+  const p = st.profile
   const dt = Math.max(4, sample.t - st.t)
-  const step = Math.hypot(sample.x - st.x, sample.y - st.y)
+  const mx = sample.x - st.x
+  const my = sample.y - st.y
+  const step = Math.hypot(mx, my)
   const speed = step / dt // px/ms trên MÀN HÌNH → cảm giác nét giống nhau ở mọi mức phóng
   st.travelled += step
   st.t = sample.t
   st.x = sample.x
   st.y = sample.y
+  // Lọc hướng bằng trung bình trượt có trọng số — xem ghi chú ở InkWidthState.dx.
+  if (step > 0.01) {
+    const a = 0.35
+    st.dx += (mx / step - st.dx) * a
+    st.dy += (my / step - st.dy) * a
+  }
 
   const factor =
     sample.pressure > 0
-      ? // Bút cảm ứng: lực nhấn thật. Đường cong hơi lồi (mũ 0.75) vì cảm nhận về độ đậm không
+      ? // Bút cảm ứng: lực nhấn thật. Đường cong hơi lồi (pressExp < 1) vì cảm nhận về độ đậm không
         // tuyến tính với lực — nhấn nhẹ mà nét đã hiện rõ thì viết mới nhẹ tay được.
-        0.35 + Math.pow(sample.pressure, 0.75) * 1.0
+        p.min + Math.pow(sample.pressure, p.pressExp) * (p.max - p.min)
       : // Ngón tay/chuột: suy từ tốc độ. Đi chậm/dừng → đậm, vung nhanh → mảnh, giống bút mực thật.
-        Math.max(0.5, Math.min(1.3, 1.3 - speed * 0.26))
+        Math.max(p.min, Math.min(p.max, p.max - speed * p.speedK))
 
+  const chisel = chiselFactor(st.dx, st.dy, p)
+  const noise = p.jitter > 0 ? 1 + (Math.random() * 2 - 1) * p.jitter : 1
   // Vuốt mảnh đầu nét, tắt dần theo quãng đường đã đi.
-  const intro = Math.min(1, st.travelled / TAPER_IN)
-  const target = base * factor * (START_FACTOR + (1 - START_FACTOR) * intro)
-  st.width += (target - st.width) * SMOOTH
+  const intro = p.taperIn > 0 ? Math.min(1, st.travelled / p.taperIn) : 1
+  const target = base * factor * chisel * noise * (p.startFactor + (1 - p.startFactor) * intro)
+  st.width += (target - st.width) * p.smooth
   return st.width
 }
 
 // Vuốt mảnh CUỐI nét — gọi một lần khi nhấc tay. Bút thật nhấc lên thì nét nhỏ dần chứ không cắt
-// ngang đột ngột; không có bước này, mọi nét đều kết thúc bằng một đầu tù bằng nhau.
-export function taperTail(widths: number[]): void {
+// ngang đột ngột; không có bước này, mọi nét đều kết thúc bằng một đầu tù bằng nhau. Bút dạ và băng
+// dính có tailDrop = 0 nên hàm này không đụng tới chúng — đúng chủ ý, xem NIB_PROFILES.
+export function taperTail(widths: number[], profile: NibProfile): void {
   const n = widths.length
-  if (n < 4) return
-  // Số điểm cuối được vuốt: tỉ lệ với độ dài nét nhưng không quá 8 điểm, để nét ngắn không bị vuốt
-  // gần hết chiều dài của chính nó.
-  const tail = Math.min(8, Math.max(2, Math.round(n * 0.14)))
+  if (n < 4 || profile.tailDrop <= 0) return
+  // Số điểm cuối được vuốt: tỉ lệ với độ dài nét nhưng có trần, để nét ngắn không bị vuốt gần hết
+  // chiều dài của chính nó.
+  const tail = Math.min(10, Math.max(2, Math.round(n * profile.tailFrac)))
   for (let i = 0; i < tail; i++) {
     const idx = n - tail + i
-    // Nhỏ dần về 35% bề dày tại điểm bắt đầu vuốt.
-    const k = 1 - (i / (tail - 1)) * 0.65
+    const k = 1 - (i / (tail - 1)) * profile.tailDrop
     widths[idx] = widths[idx] * k
   }
 }

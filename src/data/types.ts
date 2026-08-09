@@ -461,6 +461,14 @@ export type MindDash = "dash" | "dot"
 // màu; "stripe"/"dot" là hai hoạ tiết washi tape rõ rệt hơn để chọn khi muốn nổi bật.
 export type TapePattern = "stripe" | "dot"
 
+// NGÒI của cây bút mực — ba cây bút thật khác nhau nằm chung một công cụ, vì chúng khác nhau ở CÁCH
+// NGÒI PHẢN ỨNG chứ không ở việc dùng để làm gì (xem NIB_PROFILES trong lib/ink.ts):
+//   ball     — bút bi: bề dày gần như không đổi, mực ra hơi lấm tấm.
+//   fountain — bút máy (mặc định, không lưu gì; nét cũ từ trước khi có trường này tự nhận đúng ngòi
+//              này vì đó chính là cách bút mực vẫn vẽ từ đầu): ngòi dẹt 45°, nét xuống dày nét hất mảnh.
+//   brush    — bút lông: dải bề dày rộng nhất, đuôi nét vuốt gần như mất hẳn.
+export type MindPenNib = "ball" | "fountain" | "brush"
+
 export interface MindStroke {
   id: string
   points: number[]
@@ -471,6 +479,8 @@ export interface MindStroke {
   widths?: number[]
   dash?: MindDash
   pattern?: TapePattern
+  // Chỉ có ý nghĩa khi tool === "pen". Không lưu = bút máy, xem MindPenNib.
+  nib?: MindPenNib
 }
 
 // Một ảnh dán trên bảng Sơ đồ tư duy (ảnh chụp X-quang, ECG, sơ đồ trong sách...).

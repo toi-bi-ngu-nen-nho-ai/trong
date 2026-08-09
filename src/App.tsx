@@ -81,7 +81,7 @@ import { stripInlineMarkers } from "./lib/richText"
 // Dùng cho ảnh xem trước của từng bảng trong danh sách Mindmap — vẽ lại bằng ĐÚNG bộ hàm mà bảng
 // thật và phần xuất ảnh PNG dùng, nên ảnh nhỏ không bao giờ khác hình dạng bảng thật.
 import { NODE_FALLBACK, contentBounds, strokeOutline, strokePath } from "./lib/mindmapGeometry"
-import { PAPER_BG, STYLE_FONT_STACKS } from "./lib/mindmapStyle"
+import { PAPER_BG, STYLE_FONT_STACKS, strokeFlatCap } from "./lib/mindmapStyle"
 import { markBackupDone, shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
 import { diffImportCounts, formatDateTime, latestTimestamp } from "./lib/importPreview"
 import { countArticlesFor, countFlashcardsFor } from "./lib/specialtyStats"
@@ -10840,7 +10840,7 @@ function BoardThumb({ board, tick }: { board: MindBoard; tick: number }) {
         return (
           <path
             key={s.id}
-            d={filled ? strokeOutline(s.points, s.widths!) : strokePath(s.points, s.straight)}
+            d={filled ? strokeOutline(s.points, s.widths!, strokeFlatCap(s.tool)) : strokePath(s.points, s.straight)}
             fill={filled ? s.color : "none"}
             stroke={filled ? "none" : s.color}
             strokeWidth={filled ? undefined : s.width}
@@ -11341,11 +11341,27 @@ function FilterRow({
 
 // Khung ảnh xem trước dùng chung cho cả thẻ lưới lẫn dòng danh sách — cùng một mặt giấy, cùng một
 // cách vẽ, chỉ khác kích thước.
-function BoardPreviewFrame({ board, previewTick, className }: { board: MindBoard; previewTick: number; className: string }) {
+function BoardPreviewFrame({
+  board,
+  previewTick,
+  className,
+  // `frameless`: bỏ viền và bo góc của chính khung này. Dùng ở lớp phủ chuyển cảnh, nơi cái viền đã
+  // được vẽ ở lớp NGOÀI để nó phóng to lên được theo cú zoom — vẽ thêm một viền nữa ở đây là hai
+  // đường viền chồng nhau, một cái dày dần và một cái mãi 1px.
+  frameless,
+}: {
+  board: MindBoard
+  previewTick: number
+  className: string
+  frameless?: boolean
+}) {
   return (
     <div
       className={`relative overflow-hidden ${className}`}
-      style={{ background: PAPER_BG, border: `1px solid ${C.line}`, borderRadius: 12 }}
+      style={{
+        background: PAPER_BG,
+        ...(frameless ? {} : { border: `1px solid ${C.line}`, borderRadius: 12 }),
+      }}
     >
       <BoardThumb board={board} tick={previewTick} />
     </div>
@@ -11394,15 +11410,47 @@ function BoardTransitionOverlay({
   targetRect: { x: number; y: number; w: number; h: number } | null
   onDone: () => void
 }) {
-  const from = transition.from
-  // Khung DOM đứng yên ở `from` suốt cả lượt chuyển cảnh — chỉ `transform` (translate + scale) chạy
-  // hoạt ảnh. Trước đây animate thẳng left/top/width/height: mỗi khung hình trình duyệt phải tính
-  // lại layout rồi vẽ lại toàn bộ SVG bên trong BoardThumb (có thể tới 600 nét) ở một kích thước
-  // MỚI — vừa layout vừa paint lặp lại ~17 lần trong 0,28s là đúng lý do hiệu ứng phóng to/thu nhỏ bị
-  // sượng. `transform` chỉ tốn compositor (GPU dán lại đúng lớp đã vẽ sẵn ở kích thước `from`, không
-  // layout/paint lại), nên mượt bất kể bảng có bao nhiêu nét.
-  const [transform, setTransform] = useState("translate(0px, 0px) scale(1, 1)")
+  // Hai khung của cú chuyển cảnh, gọi theo VAI TRÒ chứ không theo chiều đi: `cage` là khung nhỏ hình
+  // cái thẻ (chuồng), `screen` là cả mặt bảng. Mở bảng thì đi từ cage ra screen, rời bảng thì ngược
+  // lại — nhưng hình học thì y hệt nhau, nên chỉ cần đảo hai đầu chứ không phải hai công thức.
+  const enter = transition.dir === "enter"
+  const cage = enter ? transition.from : targetRect
+  const screen = enter ? targetRect : transition.from
+
+  // ─── Vì sao phóng ĐỀU (một hệ số duy nhất) chứ không kéo giãn theo hai trục ───
+  //
+  // Bản trước scale(sx, sy) với sx = đích/nguồn theo TỪNG trục: thẻ 4:3 kéo thành màn hình 9:19,5 là
+  // hình trong thẻ bị bóp méo gần ba lần theo chiều dọc — nét vẽ tròn thành nét bầu dục, chữ thành
+  // vệt. Đó chính là chỗ "hình ảnh trớt quớt": không phải hiệu ứng quá mạnh, mà là ẢNH SAI.
+  //
+  // Nay dùng ĐÚNG MỘT hệ số cho cả hai trục, lấy theo kiểu "phủ kín" (max, không phải min): ảnh giữ
+  // nguyên tỉ lệ của chính nó, cứ thế to dần cho tới khi TRÀN ra ngoài mép màn hình. Cái khung bao
+  // quanh nó (viền + bo góc của thẻ) cũng to dần theo đúng hệ số đó — viền 1px thành 6px rồi trôi ra
+  // khỏi màn hình và tan đi. Con thú lớn dần cho tới khi cái chuồng không còn giữ nổi nó nữa.
+  const K = cage && screen ? Math.max(screen.w / cage.w, screen.h / cage.h) : 1
+
+  // Khung DOM được dựng sẵn ở kích thước LỚN NHẤT (cage × K) rồi thu nhỏ lại bằng transform, chứ
+  // không dựng ở cỡ thẻ rồi phóng to lên. Lý do là chuyện raster: trình duyệt vẽ lớp này ra bitmap
+  // MỘT LẦN ở đúng kích thước layout, transform sau đó chỉ là dán lại bitmap ấy — dựng ở cỡ thẻ rồi
+  // phóng 6 lần là nhìn thấy rõ từng pixel nhoè. Dựng lớn, thu nhỏ lại thì khung hình CUỐI (thứ người
+  // ta nhìn lâu nhất) luôn sắc nét.
+  const bigW = cage ? cage.w * K : 0
+  const bigH = cage ? cage.h * K : 0
+
+  // Hai đầu của hoạt ảnh, cùng một dạng transform (origin 0 0) để CSS nội suy được liền mạch.
+  const collapsed = `translate(0px, 0px) scale(${1 / K})`
+  const expanded =
+    cage && screen
+      ? `translate(${screen.x + screen.w / 2 - bigW / 2 - cage.x}px, ${screen.y + screen.h / 2 - bigH / 2 - cage.y}px) scale(1)`
+      : collapsed
+
+  const [open, setOpen] = useState(!enter)
   const doneRef = useRef(false)
+
+  // Mở: 520ms. Chậm hơn hẳn 280ms của bản trước, và đó là chủ ý — đây là khoảnh khắc được dàn dựng
+  // của cả màn hình này, không phải một cú đổi trạng thái cần cho xong. Rời bảng: 360ms, nhanh hơn
+  // lúc vào theo đúng luật "thoát nhanh hơn vào" — quay lại danh sách là việc người ta muốn xong sớm.
+  const DUR = enter ? 520 : 360
 
   useEffect(() => {
     if (!targetRect) return
@@ -11410,43 +11458,61 @@ function BoardTransitionOverlay({
     // đo `transitionTarget` trong MindmapScreen về lý do): phải để trình duyệt VẼ XONG khung BẮT ĐẦU
     // trước, nếu đổi ngay trong cùng một lượt vẽ thì CSS transition không có "trước" để so, chạy
     // thẳng tới đích luôn, không thấy phóng to/thu nhỏ gì cả.
-    const t = setTimeout(() => {
-      const dx = targetRect.x - from.x
-      const dy = targetRect.y - from.y
-      const sx = targetRect.w / from.w
-      const sy = targetRect.h / from.h
-      setTransform(`translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`)
-    }, 20)
+    const t = setTimeout(() => setOpen(enter), 20)
     return () => clearTimeout(t)
-  }, [targetRect, from])
+  }, [targetRect, enter])
 
-  // Hết giờ dự phòng — quá thời lượng animation (0.28s) cộng một khoảng dư mà `transitionend` vẫn
-  // chưa bắn (tab bị ẩn giữa chừng, hoặc trình duyệt bỏ lỡ sự kiện): tự dẹp lớp phủ, đừng để nó che
-  // màn hình MÃI MÃI chỉ vì một hoạt ảnh trang trí trục trặc.
+  // Hết giờ dự phòng — quá thời lượng animation cộng một khoảng dư mà `transitionend` vẫn chưa bắn
+  // (tab bị ẩn giữa chừng, hoặc trình duyệt bỏ lỡ sự kiện): tự dẹp lớp phủ, đừng để nó che màn hình
+  // MÃI MÃI chỉ vì một hoạt ảnh trang trí trục trặc.
   useEffect(() => {
     const t = setTimeout(() => {
       if (!doneRef.current) {
         doneRef.current = true
         onDone()
       }
-    }, 600)
+    }, DUR + 320)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  if (!cage) return null
+
+  // Lúc mở: ảnh xem trước tan dần ở CHẶNG CUỐI để lộ mặt bảng thật bên dưới. Không có bước này thì
+  // khung hình cuối cùng là một cú thay ảnh cứng — ảnh xem trước (chỉ có nét, không chữ, khung nhìn
+  // riêng) đổi phắt sang mặt bảng thật ở khung nhìn đã lưu của nó. Tan dần biến cú thay ảnh đó thành
+  // một lớp chồng lên nhau, mắt đọc ra là "cùng một bảng, đang rõ dần ra".
+  // Kết thúc ngay TRƯỚC lúc transform xong (0,96×DUR), không sau: onDone() gỡ lớp phủ đúng lúc
+  // transform kết thúc, tan chưa xong tới đó là lộ lại một khung hình ảnh xem trước rồi mới biến mất.
+  const fadeDelay = Math.round(DUR * 0.5)
+  const fadeDur = Math.round(DUR * 0.46)
 
   return (
     <div
       className="fixed z-50 overflow-hidden"
       style={{
-        left: from.x,
-        top: from.y,
-        width: from.w,
-        height: from.h,
-        borderRadius: 12,
+        left: cage.x,
+        top: cage.y,
+        width: bigW,
+        height: bigH,
+        // Viền và bo góc khai bằng đơn vị của khung LỚN, nên sau khi thu nhỏ 1/K ở đầu hoạt ảnh chúng
+        // ra đúng 1px và 12px — khớp khít cái thẻ đang nằm dưới. Càng phóng ra chúng càng dày và càng
+        // tròn, đúng như cái chuồng đang bị căng ra.
+        border: `${K}px solid ${open ? "transparent" : C.line}`,
+        borderRadius: 12 * K,
         transformOrigin: "0 0",
-        transform,
-        willChange: "transform",
-        transition: "transform .28s cubic-bezier(.22,1.1,.36,1)",
+        transform: open ? expanded : collapsed,
+        opacity: enter && open ? 0 : 1,
+        willChange: "transform, opacity",
+        transition: [
+          `transform ${DUR}ms cubic-bezier(.16,1,.3,1)`,
+          // Viền tan sớm hơn hình: cái chuồng phải biến mất TRƯỚC khi con thú ra hết, nếu không nó chỉ
+          // là một cái khung to dần chứ không phải một cái khung đang thua cuộc.
+          `border-color ${Math.round(DUR * 0.45)}ms ease-out ${Math.round(DUR * 0.22)}ms`,
+          enter ? `opacity ${fadeDur}ms ease-in ${fadeDelay}ms` : "",
+        ]
+          .filter(Boolean)
+          .join(", "),
         pointerEvents: "none",
       }}
       onTransitionEnd={(e) => {
@@ -11455,7 +11521,7 @@ function BoardTransitionOverlay({
         onDone()
       }}
     >
-      <BoardPreviewFrame board={transition.board} previewTick={0} className="w-full h-full" />
+      <BoardPreviewFrame board={transition.board} previewTick={0} className="w-full h-full" frameless />
     </div>
   )
 }

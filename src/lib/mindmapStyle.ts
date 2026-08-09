@@ -121,10 +121,17 @@ export function strokeAlpha(tool: MindStrokeTool | undefined): number {
   return 1
 }
 
-// Băng dính có đầu CẮT VUÔNG — đó là thứ duy nhất phân biệt một dải băng dính với một vệt bút dạ to
-// khi cả hai cùng nằm trên giấy. Các bút còn lại đầu tròn như bút thật.
+// Đầu nét CẮT VUÔNG. Băng dính và bút dạ đều là một CẠNH THẲNG áp xuống giấy (mép băng dính, đầu nỉ
+// cắt ngang) — bo tròn hai đầu là dấu hiệu của một cây bút đầu tròn và mắt nhận ra ngay lập tức, đó
+// là một trong hai lý do chính khiến vệt bút dạ cũ chỉ đọc ra là "một cây bút rất to" (lý do còn lại
+// là bề dày không đổi theo hướng đi — xem NIB_PROFILES trong lib/ink.ts). Bút mực và bút chì đầu tròn.
 export function strokeCap(tool: MindStrokeTool | undefined): "round" | "butt" {
-  return tool === "tape" ? "butt" : "round"
+  return tool === "tape" || tool === "highlighter" ? "butt" : "round"
+}
+
+// Cùng một luật, cho nét vẽ bằng VÙNG TÔ (bề dày thay đổi) — strokeOutline nhận thẳng cờ này.
+export function strokeFlatCap(tool: MindStrokeTool | undefined): boolean {
+  return tool === "tape" || tool === "highlighter"
 }
 
 // Thứ tự vẽ chồng lớp: băng dính dán dưới cùng, rồi bút dạ, trên cùng mới là nét chì/mực. Cùng lý do

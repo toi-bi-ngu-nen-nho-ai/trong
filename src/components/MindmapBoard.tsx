@@ -65,6 +65,7 @@ import {
   layoutSubtree,
   markErased,
   nodeBox,
+  shapeIsCurved,
   shapePoints,
   strokeHit,
   strokeMostlyInside,
@@ -75,12 +76,15 @@ import {
   type StrokeFragment,
 } from "../lib/mindmapGeometry"
 import {
+  NIB_PROFILES,
   PointerSmoother,
   coalescedSamples,
   initInkWidth,
   nextInkWidth,
+  nibProfile,
   taperTail,
   type InkWidthState,
+  type PenNib,
 } from "../lib/ink"
 import { SHAPE_LABELS, recognizeShape, type Recognized } from "../lib/shapeRecognize"
 import {
@@ -107,6 +111,7 @@ import {
   strokeAlpha,
   strokeCap,
   strokeDashArray,
+  strokeFlatCap,
   STYLE_FONT_STACKS,
   STYLE_FONT_LABELS,
   type PaperKind,
@@ -218,11 +223,77 @@ interface InkStyle {
   color: string
   // Ba nét gần nhất; phần tử đầu là nét đang dùng.
   strokes: StrokeSpec[]
+  // Chỉ dùng cho cây bút mực: ngòi đang gắn (bi/máy/lông). Ba ngòi này khác nhau ở CÁCH PHẢN ỨNG của
+  // nét chứ không ở việc dùng để làm gì, nên chúng là một thuộc tính của cây bút chứ không phải ba
+  // cây bút riêng trong bộ — thêm ba nút nữa vào thanh bút là làm hỏng chính cái nó đang giải quyết.
+  nib?: PenNib
 }
 
 function sameSpec(a: StrokeSpec, b: StrokeSpec): boolean {
   return a.w === b.w && (a.dash ?? null) === (b.dash ?? null) && (a.pattern ?? null) === (b.pattern ?? null)
 }
+
+// ─── Xem trước nét của một ngòi ───────────────────────────────────────────────
+//
+// Không vẽ một cái BIỂU TƯỢNG bút bi/bút máy/bút lông. Vẽ đúng NÉT mà ngòi đó sẽ để lại, bằng chính
+// engine bề dày (initInkWidth/nextInkWidth/taperTail) và chính hàm dựng vùng tô (strokeOutline) mà
+// mặt bảng dùng — chọn ngòi là một quyết định về cảm giác nét, mà cảm giác nét thì không có cái nhãn
+// chữ nào tả nổi. Nhìn ba mẫu cạnh nhau là quyết định xong trong một giây.
+//
+// Đường mẫu là một sóng sin trọn một chu kỳ: có đủ đoạn kéo xuống-phải, đoạn hất lên-phải và hai
+// khúc cua, nên ngòi DẸT lộ ra cả bản rộng nhất lẫn sợi mảnh nhất trong cùng một hình. Tốc độ được
+// dựng có nhịp thật (chậm ở hai đầu, nhanh nhất ở giữa) bằng cách cho các điểm mẫu THƯA DẦN rồi
+// mau lại — đúng cách tốc độ đi vào công thức khi vẽ thật.
+const NIB_SAMPLE_W = 76
+const NIB_SAMPLE_H = 30
+const nibSampleCache = new Map<string, { pts: number[]; widths: number[] }>()
+
+function nibSampleGeometry(nib: PenNib, base: number): { pts: number[]; widths: number[] } {
+  const key = `${nib}|${base}`
+  const hit = nibSampleCache.get(key)
+  // Nhớ lại: nextInkWidth có rung ngẫu nhiên (jitter) cho bút bi/bút chì — tính lại mỗi lượt render
+  // thì ba ô xem trước sẽ lăn tăn liên tục mỗi khi chạm vào bất cứ đâu trên thanh bút.
+  if (hit) return hit
+
+  const n = 34
+  const x0 = 6
+  const span = NIB_SAMPLE_W - 12
+  const amp = NIB_SAMPLE_H / 2 - 5
+  // Bước đi mỗi mẫu: 1px ở hai đầu, ~14px ở giữa. Với dt cố định 8ms thì đó là 0,12 → 1,75 px/ms —
+  // đúng dải tốc độ của một nét viết tay thật.
+  const steps: number[] = []
+  for (let i = 0; i < n; i++) steps.push(1 + 13 * Math.pow(Math.sin(((i + 0.5) / n) * Math.PI), 1.5))
+  const total = steps.reduce((a, b) => a + b, 0)
+
+  const pts: number[] = []
+  let acc = 0
+  for (let i = 0; i <= n; i++) {
+    const u = acc / total
+    pts.push(x0 + u * span, NIB_SAMPLE_H / 2 + Math.sin(u * Math.PI * 2) * amp)
+    if (i < n) acc += steps[i]
+  }
+
+  const p = NIB_PROFILES[nib]
+  const st = initInkWidth(base, pts[0], pts[1], 0, p)
+  const widths = [st.width]
+  for (let i = 1; i <= n; i++) {
+    widths.push(nextInkWidth({ x: pts[i * 2], y: pts[i * 2 + 1], pressure: 0, t: i * 8 }, base, st))
+  }
+  taperTail(widths, p)
+  const out = { pts, widths }
+  nibSampleCache.set(key, out)
+  return out
+}
+
+// Ba cây bút mực THẬT, gắn vào cùng một công cụ qua ô chọn ngòi. Thứ tự bày ra theo mức "hiền → dữ":
+// bút bi là cây viết chú thích hằng ngày, bút máy là cây viết chữ có nhịp, bút lông là cây để nhấn
+// mạnh một ý bằng chính sức nặng của nét. `hint` là thứ người dùng đọc để chọn — mô tả CẢM GIÁC nét,
+// không mô tả thông số, vì thông số (dải bề dày, góc ngòi) không giúp ai quyết định được gì.
+const PEN_NIBS: { id: PenNib; label: string; hint: string }[] = [
+  { id: "ball", label: "Bút bi", hint: "Nét đều tăm tắp, mực hơi lấm tấm" },
+  { id: "fountain", label: "Bút máy", hint: "Ngòi dẹt: nét xuống dày, nét hất mảnh" },
+  { id: "brush", label: "Bút lông", hint: "Nét phồng theo tay, đuôi vuốt thon hẳn" },
+]
 
 const TAPE_PATTERN_ITEMS: { id: TapePattern | undefined; label: string }[] = [
   { id: undefined, label: "Dệt chéo" },
@@ -245,7 +316,7 @@ const PRESETS_KEY = "drtrong:mindmap-pens"
 // ngay ô đang được chọn có vòng sáng, chứ không phải một bảng không ô nào được đánh dấu vì mã màu
 // mặc định lệch bảng vài đơn vị.
 const DEFAULT_INK: Record<InkTool, InkStyle> = {
-  pen: { color: INK_PALETTE[2][4].color, strokes: [{ w: 3.5 }, { w: 2 }, { w: 6, dash: "dash" }] },
+  pen: { color: INK_PALETTE[2][4].color, strokes: [{ w: 3.5 }, { w: 2 }, { w: 6, dash: "dash" }], nib: "fountain" },
   // Bút chì mặc định KHÔNG phải màu đen: nét chì đen tuyền nhìn y hệt bút mực, mất luôn lý do tồn
   // tại của cây bút này. Xám than là màu của chì thật.
   pencil: { color: INK_PALETTE[2][3].color, strokes: [{ w: 2.5 }, { w: 1.5 }, { w: 4, dash: "dot" }] },
@@ -508,7 +579,9 @@ function invalidatePaths(ids: string[]): void {
 function cachedPath(s: MindStroke): string {
   const hit = pathCache.get(s.id)
   if (hit !== undefined) return hit
-  const d = isFilled(s) ? strokeOutline(s.points, s.widths!) : strokePath(s.points, s.straight)
+  const d = isFilled(s)
+    ? strokeOutline(s.points, s.widths!, strokeFlatCap(s.tool))
+    : strokePath(s.points, s.straight)
   // Nét đã vẽ xong thì mảng điểm không bao giờ đổi nữa (hoàn tác cũng trả lại đúng nét cũ theo id),
   // nên nhớ theo id là an toàn. Chỉ dọn khi bộ nhớ đệm phình quá mức của một buổi vẽ bình thường.
   if (pathCache.size > 6000) pathCache.clear()
@@ -516,10 +589,26 @@ function cachedPath(s: MindStroke): string {
   return d
 }
 
+// Mỗi cây bút để lại một VẬT LIỆU khác nhau trên giấy, và vật liệu là thứ dựng bằng nhiều lớp chồng
+// lên nhau chứ không phải bằng một con số alpha. Bốn lớp dưới đây là toàn bộ khác biệt về CHẤT:
+//
+//   bút mực  — không lớp phụ nào cả. Mực thấm vào giấy: chỉ có hình dạng của chính vùng mực, mà hình
+//              dạng đó đã mang toàn bộ tính cách của ngòi (xem NIB_PROFILES).
+//   bút chì  — lớp vân than: nét bị méo nhẹ VÀ bị đục lấm tấm theo vân giấy (filter mind-pencil-grain).
+//   bút dạ   — một đường mảnh cùng màu chạy đúng theo BIÊN của vệt: chỗ mực nỉ đọng lại ở rìa. Đây là
+//              chi tiết nhỏ nhất nhưng là thứ làm vệt tô đọc ra "mực còn ướt" thay vì "một mảng màu".
+//   băng dính— vân dệt/sọc/chấm + một dải bóng chạy giữa + mép hơi rách + bóng đổ xuống giấy. Bốn thứ
+//              này cộng lại mới nói được "đây là một MIẾNG vật liệu nằm ĐÈ LÊN giấy", điều mà không
+//              độ mờ nào nói thay được — và đó chính là lý do bản trước băng dính nhìn y hệt bút dạ.
 function StrokePath({ s }: { s: MindStroke }) {
   const filled = isFilled(s)
   const alpha = strokeAlpha(s.tool)
   const d = cachedPath(s)
+  const cap = s.dash === "dot" ? "round" : strokeCap(s.tool)
+  // Hình vẽ (`straight`) nối GÓC NHỌN, nét tay nối tròn. Góc bo tròn ở đỉnh một hình chữ nhật hay
+  // một mũi tên làm hình mất hẳn độ dứt khoát — đúng chỗ "đường thô kệch" của bản trước: không phải
+  // nét xấu, mà là mọi góc đều bị mài cụt.
+  const join = s.straight ? "miter" : "round"
   return (
     <>
       <path
@@ -528,32 +617,57 @@ function StrokePath({ s }: { s: MindStroke }) {
         fill={filled ? s.color : "none"}
         stroke={filled ? "none" : s.color}
         strokeWidth={filled ? undefined : s.width}
-        strokeLinecap={filled ? undefined : s.dash === "dot" ? "round" : strokeCap(s.tool)}
-        strokeLinejoin={filled ? undefined : "round"}
+        strokeLinecap={filled ? undefined : cap}
+        strokeLinejoin={filled ? undefined : join}
+        strokeMiterlimit={filled || !s.straight ? undefined : 8}
         strokeDasharray={filled ? undefined : strokeDashArray(s.dash, s.width)}
         opacity={alpha === 1 ? undefined : alpha}
-        // Bút chì có vân RIÊNG (méo hình học, xem filter) — mực (pen, isFilled) đã có cảm giác vật
-        // liệu qua đường viền biến đổi bề rộng. Băng dính có vân của chính nó ở path phủ bên dưới.
-        filter={s.tool === "pencil" ? "url(#mind-pencil-grain)" : undefined}
+        filter={
+          s.tool === "pencil"
+            ? "url(#mind-pencil-grain)"
+            : s.tool === "tape"
+              ? "url(#mind-tape-material)"
+              : undefined
+        }
       />
+
+      {/* Mực đọng ở rìa vệt bút dạ. Chỉ khi vẽ bằng vùng tô — nét đứt/nét chấm của bút dạ vẫn là
+          đường kẻ, mà kẻ viền quanh từng gạch đứt thì ra một chuỗi khung rỗng, không phải vệt tô. */}
+      {s.tool === "highlighter" && filled && (
+        <path d={d} fill="none" stroke={s.color} strokeWidth={1.2} strokeLinejoin="round" opacity={0.42} />
+      )}
+
       {/* Vân băng dính — path PHỦ riêng cùng toạ độ (`d` giống hệt), không gộp vào path trên: pattern
           tô qua `stroke` cần đúng NGUYÊN width/cap/dash mới trùng khít vùng nét thật, mà path trên
-          còn đang dùng `filter` cho một việc khác (vân chì) — hai cơ chế material khác nhau, không
-          ghép chung một phần tử được. `!filled`: băng dính thật không có bề dày đổi theo lực nhấn
-          (một dải phẳng cắt vuông đầu), nhưng đề phòng dữ liệu cũ/lạ có widths thì bỏ qua vân thay vì
-          vẽ sai — mất vân còn hơn vẽ lệch. */}
+          còn đang dùng `filter` cho một việc khác. `!filled`: băng dính thật không có bề dày đổi theo
+          lực nhấn (một dải phẳng cắt vuông đầu), nhưng đề phòng dữ liệu cũ/lạ có widths thì bỏ qua
+          vân thay vì vẽ sai — mất vân còn hơn vẽ lệch. */}
       {s.tool === "tape" && !filled && (
-        <path
-          d={d}
-          fill="none"
-          className="mind-tape-overlay"
-          stroke={`url(#mind-tape-${s.pattern ?? "weave"})`}
-          strokeWidth={s.width}
-          strokeLinecap={s.dash === "dot" ? "round" : strokeCap(s.tool)}
-          strokeLinejoin="round"
-          strokeDasharray={strokeDashArray(s.dash, s.width)}
-          opacity={alpha === 1 ? undefined : alpha}
-        />
+        <>
+          {/* Dải bóng chạy dọc GIỮA miếng băng: nhựa/giấy bóng bắt sáng ở phần lồi nhất. 34% bề rộng
+              — hẹp hơn thì thành một vệt trắng lạ, rộng hơn thì cả miếng băng bạc màu. */}
+          <path
+            d={d}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={s.width * 0.34}
+            strokeLinecap={cap}
+            strokeLinejoin="round"
+            strokeDasharray={strokeDashArray(s.dash, s.width)}
+            opacity={0.2}
+          />
+          <path
+            d={d}
+            fill="none"
+            className="mind-tape-overlay"
+            stroke={`url(#mind-tape-${s.pattern ?? "weave"})`}
+            strokeWidth={s.width}
+            strokeLinecap={cap}
+            strokeLinejoin="round"
+            strokeDasharray={strokeDashArray(s.dash, s.width)}
+            opacity={alpha === 1 ? undefined : alpha}
+          />
+        </>
       )}
     </>
   )
@@ -625,7 +739,11 @@ function readPaper(): PaperKind {
 
 // Màu/nét của bốn cây bút. Đọc bản mới trước; chưa có thì cố vớt màu từ bộ "bút yêu thích" đời cũ.
 function readInkStyles(): Record<InkTool, InkStyle> {
-  const clone = (s: InkStyle): InkStyle => ({ color: s.color, strokes: s.strokes.map((x) => ({ ...x })) })
+  const clone = (s: InkStyle): InkStyle => ({
+    color: s.color,
+    strokes: s.strokes.map((x) => ({ ...x })),
+    ...(s.nib ? { nib: s.nib } : {}),
+  })
   const out: Record<InkTool, InkStyle> = {
     pen: clone(DEFAULT_INK.pen),
     pencil: clone(DEFAULT_INK.pencil),
@@ -637,11 +755,14 @@ function readInkStyles(): Record<InkTool, InkStyle> {
     if (raw) {
       // `widths` là dạng cũ (chỉ có bề dày, chưa có kiểu nét) — đọc lên rồi nâng thành StrokeSpec,
       // để người đã chỉnh cỡ nét quen tay không bị trả về mặc định chỉ vì app thêm nét đứt/nét chấm.
-      const v = JSON.parse(raw) as Partial<Record<InkTool, { color?: string; strokes?: StrokeSpec[]; widths?: number[] }>>
+      const v = JSON.parse(raw) as Partial<
+        Record<InkTool, { color?: string; strokes?: StrokeSpec[]; widths?: number[]; nib?: string }>
+      >
       INK_TOOLS.forEach((t) => {
         const s = v?.[t]
         if (!s) return
         if (typeof s.color === "string") out[t].color = s.color
+        if (PEN_NIBS.some((n) => n.id === s.nib)) out[t].nib = s.nib as PenNib
         const list: StrokeSpec[] = Array.isArray(s.strokes)
           ? s.strokes
               .filter((x) => x && typeof x.w === "number" && x.w > 0)
@@ -1269,6 +1390,8 @@ export function MindmapBoard({
   // Bề dày tại từng điểm của nét đang vẽ (chỉ bút mực) và trạng thái tính bề dày — xem lib/ink.ts.
   const draftWidths = useRef<number[] | null>(null)
   const inkState = useRef<InkWidthState | null>(null)
+  // Nét đang vẽ có cắt đầu phẳng không (bút dạ, băng dính) — xem beginDraft.
+  const draftFlatCap = useRef(false)
   // Bộ lọc rung One-Euro, tạo mới cho MỖI nét: bộ lọc mang trạng thái của nét trước, dùng lại thì
   // đầu nét mới bị kéo về phía cuối nét cũ.
   const smoother = useRef<PointerSmoother | null>(null)
@@ -2646,7 +2769,10 @@ export function MindmapBoard({
     frags.forEach((f) => {
       const path = document.createElementNS(ns, "path")
       const usesWidths = filled && f.widths && f.widths.length > 1
-      path.setAttribute("d", usesWidths ? strokeOutline(f.points, f.widths!) : strokePath(f.points, s.straight))
+      path.setAttribute(
+        "d",
+        usesWidths ? strokeOutline(f.points, f.widths!, strokeFlatCap(s.tool)) : strokePath(f.points, s.straight),
+      )
       if (usesWidths) {
         path.setAttribute("fill", s.color)
         path.setAttribute("stroke", "none")
@@ -2655,7 +2781,7 @@ export function MindmapBoard({
         path.setAttribute("stroke", s.color)
         path.setAttribute("stroke-width", String(s.width))
         path.setAttribute("stroke-linecap", s.dash === "dot" ? "round" : strokeCap(s.tool))
-        path.setAttribute("stroke-linejoin", "round")
+        path.setAttribute("stroke-linejoin", s.straight ? "miter" : "round")
         const da = strokeDashArray(s.dash, s.width)
         if (da) path.setAttribute("stroke-dasharray", da)
       }
@@ -2725,6 +2851,9 @@ export function MindmapBoard({
   // `filled`: nét nháp là vùng tô (bút mực có bề dày thay đổi) hay đường kẻ đều dày (bút chì, bút dạ,
   // băng dính, hình vẽ). `cap`: đầu nét — băng dính cắt vuông, còn lại đầu tròn (xem strokeCap).
   function beginDraft(width: number, color: string, opacity: number, filled: boolean, cap: "round" | "butt" = "round") {
+    // Nét nháp phải cắt đầu GIỐNG HỆT nét sẽ chốt lại — vệt bút dạ đang vẽ mà hai đầu tròn rồi nhấc
+    // tay mới hoá phẳng là một cú nhảy hình ngay trước mắt.
+    draftFlatCap.current = cap === "butt"
     // Nét nháp phải mang ĐÚNG kiểu nét sẽ chốt lại: vẽ liền rồi nhấc tay mới thấy nó hoá nét đứt thì
     // không canh được khoảng hở rơi vào đâu — mà đó chính là thứ người ta canh khi vẽ nét đứt.
     const da = strokeDashArray(activeDash, width)
@@ -2749,7 +2878,9 @@ export function MindmapBoard({
     if (!draftPts.current) return
     const w = draftWidths.current
     const d =
-      w && w.length > 1 && !straight ? strokeOutline(draftPts.current, w) : strokePath(draftPts.current, straight)
+      w && w.length > 1 && !straight
+        ? strokeOutline(draftPts.current, w, draftFlatCap.current)
+        : strokePath(draftPts.current, straight)
     draftPaths().forEach((p) => p.setAttribute("d", d))
   }
 
@@ -2824,6 +2955,11 @@ export function MindmapBoard({
       // Hình vẽ được chốt lại như một nét BÚT MÁY: nó dùng chung mực với bút máy (xem inkOf), nên
       // lưu là "shape" sẽ tạo ra một loại nét thứ năm không có luật hiển thị riêng nào cả.
       tool: inkOf(tool),
+      // Ngòi chỉ có ý nghĩa với bút mực, và chỉ lưu khi KHÁC mặc định — nét cũ không có trường này
+      // vẫn phải đọc ra đúng cây bút máy mà nó đã được vẽ bằng (xem MindPenNib trong data/types.ts).
+      ...(inkOf(tool) === "pen" && inkStyles.pen.nib && inkStyles.pen.nib !== "fountain"
+        ? { nib: inkStyles.pen.nib }
+        : {}),
       ...(activeDash ? { dash: activeDash } : {}),
       ...(inkOf(tool) === "tape" && activePattern ? { pattern: activePattern } : {}),
       ...(straight ? { straight: true } : {}),
@@ -3544,7 +3680,7 @@ export function MindmapBoard({
       const p = toBoard(e.clientX, e.clientY)
       draftPts.current =
         tool === "tape" ? [act.sx, act.sy, p.x, p.y] : shapePoints(shapeKind, act.sx, act.sy, p.x, p.y)
-      paintDraft(true)
+      paintDraft(!(tool !== "tape" && shapeIsCurved(shapeKind)))
       return
     }
 
@@ -3762,9 +3898,16 @@ export function MindmapBoard({
         if (isTinyShape) endDraft()
         else {
           const widths = wasSnapped ? null : draftWidths.current
-          // Vuốt mảnh đuôi nét: bút thật nhấc lên thì nét nhỏ dần, không cắt ngang bằng một đầu tù.
-          if (widths) taperTail(widths)
-          commitStroke(pts, act.kind === "shape" || wasSnapped, widths)
+          // Vuốt mảnh đuôi nét theo ĐÚNG hồ sơ ngòi đang cầm: bút lông gần như mất hẳn đuôi, bút bi
+          // chỉ thu lại một chút, bút dạ và băng dính không vuốt gì cả (tailDrop = 0, hàm tự bỏ qua).
+          if (widths && inkState.current) taperTail(widths, inkState.current.profile)
+          // Hình cong (bầu dục, viên nhộn) chốt lại như một nét MƯỢT chứ không phải chuỗi đoạn thẳng
+          // nối các điểm mẫu — xem shapeIsCurved. Nét vừa được NẮN từ chữ viết tay cũng vậy: hình bầu
+          // dục nắn ra mà nối thẳng thì vẫn còn thấy đa giác.
+          const curved =
+            (act.kind === "shape" && tool !== "tape" && shapeIsCurved(shapeKind)) ||
+            (wasSnapped && snapped.current?.kind === "ellipse")
+          commitStroke(pts, (act.kind === "shape" || wasSnapped) && !curved, widths)
         }
       } else endDraft()
     }
@@ -4308,15 +4451,27 @@ export function MindmapBoard({
     // ra gần như cùng một nét, và người dùng không còn lý do gì để chọn giữa chúng.
     // Bút máy đang để nét đứt/nét chấm thì cũng vẽ nét ĐỀU: bề dày thay đổi cộng với cắt khúc thành
     // ra một chuỗi mảnh vụn to nhỏ lộn xộn, không đọc ra là nét đứt nữa (xem isFilled).
-    const varied = tool === "pen" && !activeDash
+    // Ba trong bốn cây bút nay đều vẽ bằng VÙNG TÔ có bề dày thay đổi — mỗi cây theo một hồ sơ ngòi
+    // riêng (NIB_PROFILES trong lib/ink.ts). Băng dính thì không: một dải vật liệu có bề rộng cố định,
+    // cho nó bề dày thay đổi là mất luôn thứ làm nó ra băng dính.
+    // Bút đang để nét đứt/nét chấm thì cũng vẽ nét ĐỀU: bề dày thay đổi cộng với cắt khúc thành ra
+    // một chuỗi mảnh vụn to nhỏ lộn xộn, không đọc ra là nét đứt nữa (xem isFilled).
+    const ink = inkOf(tool)
+    const varied = ink !== "tape" && !activeDash
     if (varied) {
-      inkState.current = initInkWidth(activeWidth, e.clientX, e.clientY, e.timeStamp || performance.now())
+      inkState.current = initInkWidth(
+        activeWidth,
+        e.clientX,
+        e.clientY,
+        e.timeStamp || performance.now(),
+        nibProfile(ink, inkStyles.pen.nib),
+      )
       draftWidths.current = [inkState.current.width]
     } else {
       draftWidths.current = null
       inkState.current = null
     }
-    beginDraft(activeWidth, activeInk, strokeAlpha(inkOf(tool)), varied, strokeCap(inkOf(tool)))
+    beginDraft(activeWidth, activeInk, strokeAlpha(ink), varied, strokeCap(ink))
     paintDraft(false)
   }
 
@@ -4477,6 +4632,9 @@ export function MindmapBoard({
     startTop: number
     w: number
     h: number
+    // Có phải cú kéo THẬT chưa (đã đi quá ngưỡng rung tay) — dưới ngưỡng thì không bóc thanh khỏi mép,
+    // để một cú chạm nhầm vào tay cầm không làm cả thanh bật ra rồi rơi lại.
+    lifted: boolean
     // Toạ độ NGÓN TAY gần nhất (không phải tâm thanh) — thanh nằm ngang rộng gần hết bề ngang bảng,
     // lấy tâm THANH để tính mép gần nhất thì tâm đó luôn kẹt gần giữa màn hình bất kể kéo rìa thanh
     // tới đâu, không bao giờ "thắng" nổi về phía trái/phải. Tâm NGÓN TAY mới đúng là thứ người dùng
@@ -4490,13 +4648,110 @@ export function MindmapBoard({
   // Danh sách nét trước khi bắt đầu kéo con trượt — xem useStrokeSpec().
   const widthBase = useRef<StrokeSpec[] | null>(null)
 
-  // Bề rộng vùng SÁT MÉP (tỉ lệ theo bề ngang/cao mặt bảng) — vào trong vùng này lúc đang kéo thì
-  // thanh đổi NGAY hình dạng ngang/dọc để xem trước sẽ gắn vào đâu nếu buông tay ở đó. Ra khỏi vùng
-  // này (còn lại phần lớn ở giữa bảng) thì hình dạng vẫn ĐÓNG BĂNG như lúc mới cầm — xem ghi chú dài
-  // ở đầu file về lý do: đổi hình dạng ở MỌI điểm trong lúc kéo (bản trước đây) khiến cả cú kéo giật
-  // liên tục vì "mép gần nhất" đổi qua lại ngay cả ở giữa màn hình. Chỉ mỗi VÙNG SÁT MÉP mới đủ rõ
-  // ràng ý định "sắp thả ở đây" để đổi hình dạng ngay mà không tái diễn lỗi đó.
-  const BAR_EDGE_PREVIEW = 0.16
+  // ─── Từ trường của mép bảng ────────────────────────────────────────────────
+  //
+  // Một thanh nổi kéo-thả-được chỉ có hai trạng thái ĐÁNG TIN: đang gắn vào một mép, hoặc đang tự do
+  // giữa bảng. Bản trước không nói ra được trạng thái nào cả — thanh giữ nguyên hình dạng của mép cũ
+  // suốt cú kéo rồi lúc buông tay mới đột ngột nhảy về một mép mà người kéo không hề được báo trước.
+  // Ba luật dưới đây làm cho hình dạng của thanh LUÔN nói đúng nó đang ở đâu:
+  //
+  //   1. TỰ DO (xa mọi mép hơn BAR_SNAP_ZONE): bo tròn hết bốn góc. Một viên thuốc trôi lơ lửng —
+  //      không có mặt nào "thuộc về" phía nào cả.
+  //   2. SẮP DÍNH (vào trong BAR_SNAP_ZONE của một mép): thanh xoay ngay theo chiều của mép đó, VÀ
+  //      mặt áp vào mép chuyển từ bo tròn sang GÓC VUÔNG. Góc vuông là ngôn ngữ của "cạnh này sắp
+  //      thành một với cái mép kia".
+  //   3. LỰC HÚT: càng vào sâu trong vùng đó thì thanh càng bị kéo về mép, không đợi buông tay —
+  //      tới sát mép thì gần như đã dính rồi, buông ra chỉ là xác nhận. Đây là điều khác biệt lớn
+  //      nhất so với bản trước: cú "nhảy" lúc thả tay biến mất vì phần lớn quãng đường đã đi xong
+  //      TRONG lúc tay còn giữ.
+  //
+  // 20% (không phải 16% như bản trước): trên máy 390px thì 16% chỉ có 62px — hẹp tới mức kéo bình
+  // thường rất dễ lướt qua mà không kịp thấy thanh đổi hình. 20% cho một vùng đủ rộng để cảm nhận.
+  const BAR_SNAP_ZONE = 0.2
+  // Phần quãng đường bị lực hút "ăn" khi ngón tay ở SÁT mép. Không lấy 1.0: kéo tới đâu thanh vẫn
+  // phải còn nhúc nhích theo tay tới đó, dính cứng hoàn toàn trước khi buông là cảm giác treo máy.
+  const BAR_MAGNET_MAX = 0.88
+  // Bo tròn hết cỡ lúc tự do — trình duyệt tự kẹp xuống nửa cạnh ngắn, nên cùng một con số đúng cho
+  // cả thanh nằm ngang lẫn thanh dựng dọc.
+  const BAR_FREE_RADIUS = 999
+  const BAR_DOCK_RADIUS = 16
+  // Ngưỡng "đã thật sự kéo" (px màn hình) — dưới mức này coi như chỉ là rung tay khi chạm.
+  const BAR_LIFT_THRESHOLD = 4
+
+  // Mép gần NGÓN TAY nhất và khoảng cách tới nó tính theo TỈ LỆ mặt bảng (không phải pixel cố định)
+  // để vùng hút co giãn đúng theo kích cỡ bảng trên mọi máy.
+  function nearestEdge(px: number, py: number, r: DOMRect): { dock: BarDock; frac: number } {
+    const cand: [BarDock, number][] = [
+      ["left", px / r.width],
+      ["right", (r.width - px) / r.width],
+      ["top", py / r.height],
+      ["bottom", (r.height - py) / r.height],
+    ]
+    const [dock, frac] = cand.sort((a, b) => a[1] - b[1])[0]
+    return { dock, frac }
+  }
+
+  // Cường độ lực hút theo khoảng cách tới mép. Bình phương (không tuyến tính): ở rìa vùng hút thì
+  // gần như chưa cảm thấy gì, càng vào sâu càng bị kéo mạnh dần — đúng cách một nam châm thật hành
+  // xử, và cũng là thứ giữ cho vùng hút không "cắn" vào cú kéo đang chỉ đi ngang qua.
+  function magnetStrength(frac: number): number {
+    if (frac >= BAR_SNAP_ZONE) return 0
+    const t = 1 - frac / BAR_SNAP_ZONE
+    return t * t * BAR_MAGNET_MAX
+  }
+
+  // Bo góc của một thanh nổi theo trạng thái. `snap === null` là đang tự do.
+  function barRadiusFor(snap: BarDock | null): string {
+    const R = BAR_FREE_RADIUS
+    if (!snap) return `${R}px`
+    // Mặt áp vào mép thành góc vuông; ba mặt còn lại vẫn tròn.
+    if (snap === "left") return `0 ${R}px ${R}px 0`
+    if (snap === "right") return `${R}px 0 0 ${R}px`
+    if (snap === "top") return `0 0 ${R}px ${R}px`
+    return `${R}px ${R}px 0 0`
+  }
+
+  // Vị trí pixel lúc đang kéo, giữ ở ref để lượt render tiếp theo (do setBarPos/setBarSnap gây ra
+  // ngay giữa cú kéo) ghi lại ĐÚNG con số mà tay vừa viết vào DOM. Không có nó thì mỗi lần đổi hình
+  // dạng, React lại kéo thanh về vị trí "đã neo" đúng một khung hình — chính là cú giật mà bản trước
+  // vẫn còn.
+  const barLive = useRef<{ left: number; top: number } | null>(null)
+  const undoLive = useRef<{ left: number; top: number } | null>(null)
+
+  // Thanh đang "sắp dính" vào mép nào (null = đang tự do giữa bảng). Chỉ đổi khi vượt ngưỡng vùng
+  // hút, tức vài lần trong cả cú kéo — không phải mỗi khung hình.
+  const [barSnap, setBarSnap] = useState<BarDock | null>(null)
+  const [undoSnap, setUndoSnap] = useState<BarDock | null>(null)
+
+  // Kéo vị trí tự do về phía mép theo lực hút. Chỉ tác động lên trục VUÔNG GÓC với mép — trượt dọc
+  // theo mép vẫn hoàn toàn tự do, vì đó là thứ người ta đang thật sự chỉnh khi đã quyết định mép rồi.
+  function applyMagnet(
+    dock: BarDock,
+    k: number,
+    pos: { left: number; top: number },
+    size: { w: number; h: number },
+    r: DOMRect,
+    inset: number,
+  ): { left: number; top: number } {
+    const lerp = (a: number, b: number) => a + (b - a) * k
+    if (dock === "left") return { left: lerp(pos.left, inset), top: pos.top }
+    if (dock === "right") return { left: lerp(pos.left, Math.max(0, r.width - size.w - inset)), top: pos.top }
+    if (dock === "top") return { left: pos.left, top: lerp(pos.top, inset) }
+    return { left: pos.left, top: lerp(pos.top, Math.max(0, r.height - size.h - inset)) }
+  }
+
+  // Cú "dính" lúc buông tay: thanh ép nhẹ vào mép rồi bật lại — cùng ngôn ngữ vật lý với
+  // springSettleDrag (thẻ ghi chú) và mind-btn (nút bấm), chỉ khác là ép theo đúng trục vuông góc với
+  // mép vừa dính vào, nên mắt đọc ra "va vào một cái gì đó" chứ không phải "nảy chung chung".
+  function playDockSnap(el: HTMLElement | null, dock: BarDock) {
+    if (!el || prefersReducedMotionBoard()) return
+    const vert = dock === "left" || dock === "right"
+    const squash = vert ? "scale(0.955, 1.015)" : "scale(1.015, 0.955)"
+    el.animate([{ transform: squash }, { transform: "none" }], {
+      duration: 300,
+      easing: "cubic-bezier(0.22, 1.5, 0.36, 1)",
+    })
+  }
 
   function barPointerDown(e: ReactPointerEvent) {
     const bar = penBarRef.current
@@ -4512,10 +4767,12 @@ export function MindmapBoard({
       startTop: b.top - r.top,
       w: b.width,
       h: b.height,
+      lifted: false,
       lastPx: e.clientX - r.left,
       lastPy: e.clientY - r.top,
       frozenDock: barPos.dock,
     }
+    barLive.current = { left: b.left - r.left, top: b.top - r.top }
     setBarDragging("pen")
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -4530,31 +4787,45 @@ export function MindmapBoard({
     const bar = penBarRef.current
     if (!d || !host || !bar) return
     e.stopPropagation()
+    if (!d.lifted) {
+      if (Math.hypot(e.clientX - d.startClientX, e.clientY - d.startClientY) < BAR_LIFT_THRESHOLD) return
+      d.lifted = true
+    }
     const r = host.getBoundingClientRect()
-    // Kẹp trong mặt bảng — "tự do" là tự do TRONG bảng, không phải bay ra ngoài màn hình.
-    const left = Math.min(Math.max(0, d.startLeft + (e.clientX - d.startClientX)), Math.max(0, r.width - d.w))
-    const top = Math.min(Math.max(0, d.startTop + (e.clientY - d.startClientY)), Math.max(0, r.height - d.h))
-    bar.style.left = `${left}px`
-    bar.style.top = `${top}px`
-    bar.style.right = "auto"
-    bar.style.bottom = "auto"
-    bar.style.transform = `scale(${1.025})`
+    // Đo lại kích thước THẬT mỗi lần: thanh vừa xoay ngang↔dọc thì bề ngang/cao đã khác hẳn con số
+    // đo lúc bắt đầu kéo, dùng số cũ là kẹp sai biên và lực hút kéo tới sai chỗ.
+    const w = bar.offsetWidth || d.w
+    const h = bar.offsetHeight || d.h
     d.lastPx = e.clientX - r.left
     d.lastPy = e.clientY - r.top
 
-    // Gần mép nào đó (trong BAR_EDGE_PREVIEW) → xem trước NGAY hình dạng của mép đó. Xa mọi mép →
-    // về lại hình dạng đóng băng lúc mới cầm (frozenDock). So khoảng cách bằng TỈ LỆ (không phải
-    // pixel cố định) để vùng xem trước co giãn đúng theo kích cỡ mặt bảng trên mọi máy.
-    const cand: [BarDock, number][] = [
-      ["left", d.lastPx / r.width],
-      ["right", (r.width - d.lastPx) / r.width],
-      ["top", d.lastPy / r.height],
-      ["bottom", (r.height - d.lastPy) / r.height],
-    ]
-    const [nearestDock, nearestFrac] = cand.sort((a, b) => a[1] - b[1])[0]
-    const wantDock = nearestFrac < BAR_EDGE_PREVIEW ? nearestDock : d.frozenDock
-    if (wantDock !== barPos.dock) {
-      setBarPos((prev) => ({ dock: wantDock, f: prev.f }))
+    // Kẹp trong mặt bảng — "tự do" là tự do TRONG bảng, không phải bay ra ngoài màn hình.
+    const free = {
+      left: Math.min(Math.max(0, d.startLeft + (e.clientX - d.startClientX)), Math.max(0, r.width - w)),
+      top: Math.min(Math.max(0, d.startTop + (e.clientY - d.startClientY)), Math.max(0, r.height - h)),
+    }
+
+    const { dock, frac } = nearestEdge(d.lastPx, d.lastPy, r)
+    const k = magnetStrength(frac)
+    const snapping = k > 0
+    const pos = snapping ? applyMagnet(dock, k, free, { w, h }, r, 6) : free
+
+    bar.style.left = `${pos.left}px`
+    bar.style.top = `${pos.top}px`
+    bar.style.right = "auto"
+    bar.style.bottom = "auto"
+    barLive.current = pos
+
+    if (snapping) {
+      if (barSnap !== dock) setBarSnap(dock)
+      // Xoay theo chiều của mép NGAY khi vào vùng hút — xem luật 2 ở đầu khối.
+      if (dock !== barPos.dock) setBarPos((prev) => ({ dock, f: prev.f }))
+    } else {
+      if (barSnap !== null) setBarSnap(null)
+      // Ra khỏi mọi vùng hút: giữ đúng hình dạng ĐÓNG BĂNG lúc mới cầm. Tính lại "mép gần nhất" ở
+      // giữa bảng (bản đầu tiên) là thứ làm cả cú kéo giật liên tục, vì mép thắng cuộc đổi qua lại
+      // ngay cả khi tay chỉ nhích vài pixel quanh đường phân giác.
+      if (d.frozenDock !== barPos.dock) setBarPos((prev) => ({ dock: d.frozenDock, f: prev.f }))
     }
   }
 
@@ -4565,26 +4836,21 @@ export function MindmapBoard({
     if (!d || !host || !bar) return
     barDrag.current = null
     setBarDragging(null)
-    // Mép nào gần NGÓN TAY lúc buông (không phải tâm thanh) thì thanh về mép đó. Tâm thanh sai vì
-    // thanh nằm ngang rộng gần hết bề ngang bảng — tâm nó luôn kẹt gần giữa màn hình bất kể kéo rìa
-    // thanh sát mép nào, "thắng" nghiêng hẳn về trên/dưới mà không bao giờ nghiêng nổi về trái/phải.
     const r = host.getBoundingClientRect()
-    const curTop = Number.parseFloat(bar.style.top) || 0
-    const cx = d.lastPx
-    const cy = d.lastPy
-    const cand: [BarDock, number][] = [
-      ["left", cx / r.width],
-      ["right", (r.width - cx) / r.width],
-      ["top", cy / r.height],
-      ["bottom", (r.height - cy) / r.height],
-    ]
-    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
+    const curTop = barLive.current?.top ?? (Number.parseFloat(bar.style.top) || 0)
+    // Thả ở ĐÚNG mép mà thanh đang xem trước — không tính lại từ đầu. Thanh đã xoay theo mép đó, đã
+    // vuông góc ở mặt áp vào đó, và đã bị hút về phía đó trước mắt người kéo; chốt lại một mép KHÁC
+    // chỉ vì phép đo lúc buông tay lệch vài pixel là đúng cái "lộn xộn" phải bỏ. Thả ở giữa bảng
+    // (ngoài mọi vùng hút) thì về lại mép cũ — nơi duy nhất người kéo có lý do để trông đợi.
+    const dock = barSnap ?? d.frozenDock
     const vert = dock === "left" || dock === "right"
     // `f` tính từ ĐÚNG điểm vừa buông (không phải đưa về 0) — buông thanh ở nửa dưới màn hình thì nó
     // neo vào mép dọc gần nửa dưới, không nhảy ngược lên đầu mép.
-    const maxY = Math.max(1, r.height - d.h)
+    const maxY = Math.max(1, r.height - (bar.offsetHeight || d.h))
     const f = vert ? Math.min(1, Math.max(0, curTop / maxY)) : 0
     const pos: BarPos = { dock, f }
+    setBarSnap(null)
+    barLive.current = null
     // KHÔNG tự xoá style pixel vừa dùng lúc kéo ở đây — để nguyên, React sẽ tự ghi đè đúng giá trị
     // mới (barStyle bên dưới tính từ `pos`) ở lượt render tiếp theo, vì cả style cũ (do chính tay
     // viết) và style mới (React viết) đều là CÙNG những thuộc tính (left/top/transform) — xoá tay ở
@@ -4592,6 +4858,7 @@ export function MindmapBoard({
     // nháy trước khi vào đúng chỗ.
     setBarPos(pos)
     writeBarPos(PENBAR_KEY, pos)
+    playDockSnap(bar, dock)
     tickHaptic()
   }
 
@@ -4627,8 +4894,10 @@ export function MindmapBoard({
     startTop: number
     w: number
     h: number
+    lifted: boolean
     lastPx: number
     lastPy: number
+    frozenDock: BarDock
   } | null>(null)
 
   function undoBarPointerDown(e: ReactPointerEvent) {
@@ -4645,9 +4914,12 @@ export function MindmapBoard({
       startTop: b.top - r.top,
       w: b.width,
       h: b.height,
+      lifted: false,
       lastPx: e.clientX - r.left,
       lastPy: e.clientY - r.top,
+      frozenDock: undoBarPos.dock,
     }
+    undoLive.current = { left: b.left - r.left, top: b.top - r.top }
     setBarDragging("undo")
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -4662,16 +4934,33 @@ export function MindmapBoard({
     const bar = undoBarRef.current
     if (!d || !host || !bar) return
     e.stopPropagation()
+    if (!d.lifted) {
+      if (Math.hypot(e.clientX - d.startClientX, e.clientY - d.startClientY) < BAR_LIFT_THRESHOLD) return
+      d.lifted = true
+    }
     const r = host.getBoundingClientRect()
-    const left = Math.min(Math.max(0, d.startLeft + (e.clientX - d.startClientX)), Math.max(0, r.width - d.w))
-    const top = Math.min(Math.max(0, d.startTop + (e.clientY - d.startClientY)), Math.max(0, r.height - d.h))
-    bar.style.left = `${left}px`
-    bar.style.top = `${top}px`
-    bar.style.right = "auto"
-    bar.style.bottom = "auto"
-    bar.style.transform = `scale(${1.06})`
+    const w = bar.offsetWidth || d.w
+    const h = bar.offsetHeight || d.h
     d.lastPx = e.clientX - r.left
     d.lastPy = e.clientY - r.top
+    const free = {
+      left: Math.min(Math.max(0, d.startLeft + (e.clientX - d.startClientX)), Math.max(0, r.width - w)),
+      top: Math.min(Math.max(0, d.startTop + (e.clientY - d.startClientY)), Math.max(0, r.height - h)),
+    }
+    const { dock, frac } = nearestEdge(d.lastPx, d.lastPy, r)
+    const k = magnetStrength(frac)
+    const pos = k > 0 ? applyMagnet(dock, k, free, { w, h }, r, 6) : free
+    bar.style.left = `${pos.left}px`
+    bar.style.top = `${pos.top}px`
+    bar.style.right = "auto"
+    bar.style.bottom = "auto"
+    undoLive.current = pos
+    // Cụm này chỉ có hai nút nên nó KHÔNG đổi hình dạng ngang↔dọc khi tới gần mép (thanh bút thì có,
+    // vì nó dài và hướng của nó là thông tin thật). Ở đây chỉ còn hai dấu hiệu: mặt áp vào mép vuông
+    // lại, và lực hút.
+    if (k > 0) {
+      if (undoSnap !== dock) setUndoSnap(dock)
+    } else if (undoSnap !== null) setUndoSnap(null)
   }
 
   function undoBarPointerUp() {
@@ -4682,25 +4971,29 @@ export function MindmapBoard({
     undoBarDrag.current = null
     setBarDragging(null)
     const r = host.getBoundingClientRect()
-    const curLeft = Number.parseFloat(bar.style.left) || 0
-    const curTop = Number.parseFloat(bar.style.top) || 0
-    const cx = d.lastPx
-    const cy = d.lastPy
-    const cand: [BarDock, number][] = [
-      ["left", cx / r.width],
-      ["right", (r.width - cx) / r.width],
-      ["top", cy / r.height],
-      ["bottom", (r.height - cy) / r.height],
-    ]
-    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
+    const curLeft = undoLive.current?.left ?? (Number.parseFloat(bar.style.left) || 0)
+    const curTop = undoLive.current?.top ?? (Number.parseFloat(bar.style.top) || 0)
+    const dock = undoSnap ?? d.frozenDock
     const vert = dock === "left" || dock === "right"
     const f = vert
-      ? Math.min(1, Math.max(0, curTop / Math.max(1, r.height - d.h)))
-      : Math.min(1, Math.max(0, curLeft / Math.max(1, r.width - d.w)))
+      ? Math.min(1, Math.max(0, curTop / Math.max(1, r.height - (bar.offsetHeight || d.h))))
+      : Math.min(1, Math.max(0, curLeft / Math.max(1, r.width - (bar.offsetWidth || d.w))))
     const pos: BarPos = { dock, f }
+    setUndoSnap(null)
+    undoLive.current = null
     setUndoBarPos(pos)
     writeBarPos(UNDOBAR_KEY, pos)
+    playDockSnap(bar, dock)
     tickHaptic()
+  }
+
+  // Gắn ngòi khác vào cây bút mực. Chỉ cây bút mực có trường này — xem InkStyle.nib.
+  function setPenNib(nib: PenNib) {
+    setInkStyles((prev) => {
+      const next = { ...prev, pen: { ...prev.pen, nib } }
+      writeInkStyles(next)
+      return next
+    })
   }
 
   function setInkColorFor(t: InkTool, color: string) {
@@ -4810,7 +5103,7 @@ export function MindmapBoard({
   // Trước đây KHÔNG transition top/left/right/transform — đổi mép giữa chừng lúc kéo là một cú BẬT
   // KHỰNG tức thì, khác hẳn phần còn lại của app. Chỉ bật easing khi KHÔNG (còn) đang kéo bằng chính
   // cụm đó — đang kéo thật thì phải bám thẳng ngón tay, có trễ là cảm giác "ì" chứ không phải mượt.
-  const barSettleTransition = "top 0.24s cubic-bezier(0.34,1.4,0.64,1), left 0.24s cubic-bezier(0.34,1.4,0.64,1), right 0.24s cubic-bezier(0.34,1.4,0.64,1), transform 0.24s cubic-bezier(0.34,1.4,0.64,1), box-shadow 0.24s ease"
+  const barSettleTransition = "top 0.24s cubic-bezier(0.34,1.4,0.64,1), left 0.24s cubic-bezier(0.34,1.4,0.64,1), right 0.24s cubic-bezier(0.34,1.4,0.64,1), transform 0.24s cubic-bezier(0.34,1.4,0.64,1), border-radius 0.28s cubic-bezier(0.34,1.4,0.64,1), box-shadow 0.24s ease"
   // Chỗ đứng thật của thanh trên mặt bảng.
   //
   // Nằm ngang thì DÍNH TRỌN một mép (left:0, right:0). Dựng dọc thì dính mép trái/phải và trượt lên
@@ -4823,20 +5116,34 @@ export function MindmapBoard({
   const barSurfaceH = surfaceRect().height
   const barMeasuredH = penBarRef.current?.offsetHeight ?? 0
   const barVertMaxY = Math.max(1, barSurfaceH - barMeasuredH)
-  const barStyle: React.CSSProperties = barVert
-    ? {
-        [barPos.dock === "left" ? "left" : "right"]: 6,
-        top: barPos.f * barVertMaxY,
-        transform: `scale(${barPickedUp})`,
-        transition: barDragging === "pen" ? undefined : barSettleTransition,
-      }
-    : {
-        left: 0,
-        right: 0,
-        [barPos.dock === "top" ? "top" : "bottom"]: 0,
-        transform: `scale(${barPickedUp})`,
-        transition: barDragging === "pen" ? undefined : barSettleTransition,
-      }
+  // Đang kéo: vị trí do chính tay ghi vào DOM (barLive) làm chủ, và lượt render này chỉ việc lặp lại
+  // ĐÚNG con số đó — xem ghi chú ở barLive về lý do không để React tự tính lại vị trí giữa cú kéo.
+  const barStyle: React.CSSProperties =
+    barDragging === "pen" && barLive.current
+      ? {
+          left: barLive.current.left,
+          top: barLive.current.top,
+          right: "auto",
+          bottom: "auto",
+          transform: `scale(${barPickedUp})`,
+          // Bo góc VẪN chạy easing trong lúc kéo: đó là dấu hiệu duy nhất báo "sắp dính vào mép này",
+          // bật cứng thì mắt không kịp đọc ra sự chuyển trạng thái, chỉ thấy thanh đột nhiên khác đi.
+          transition: "border-radius 0.22s cubic-bezier(0.34,1.4,0.64,1), transform 0.18s ease",
+        }
+      : barVert
+        ? {
+            [barPos.dock === "left" ? "left" : "right"]: 6,
+            top: barPos.f * barVertMaxY,
+            transform: `scale(${barPickedUp})`,
+            transition: barSettleTransition,
+          }
+        : {
+            left: 0,
+            right: 0,
+            [barPos.dock === "top" ? "top" : "bottom"]: 0,
+            transform: `scale(${barPickedUp})`,
+            transition: barSettleTransition,
+          }
 
   // Cụm hoàn tác/làm lại: chỉ hai nút, không đủ để chiếm trọn một mép như thanh bút — đứng nhỏ gọn
   // ở mọi mép, `f` trượt dọc theo ĐÚNG mép đang gắn (ngang khi gắn mép trên/dưới, dọc khi gắn mép
@@ -4848,19 +5155,29 @@ export function MindmapBoard({
   const undoBarMeasuredH = undoBarRef.current?.offsetHeight ?? 0
   const undoBarMaxY = Math.max(1, barSurfaceH - undoBarMeasuredH)
   const undoBarMaxX = Math.max(1, surfaceRect().width - undoBarMeasuredW)
-  const undoBarStyle: React.CSSProperties = undoBarVert
-    ? {
-        [undoBarPos.dock === "left" ? "left" : "right"]: 6,
-        top: undoBarPos.f * undoBarMaxY,
-        transform: `scale(${undoBarPickedUp})`,
-        transition: barDragging === "undo" ? undefined : barSettleTransition,
-      }
-    : {
-        [undoBarPos.dock === "top" ? "top" : "bottom"]: 6,
-        left: undoBarPos.f * undoBarMaxX,
-        transform: `scale(${undoBarPickedUp})`,
-        transition: barDragging === "undo" ? undefined : barSettleTransition,
-      }
+  const undoBarStyle: React.CSSProperties =
+    barDragging === "undo" && undoLive.current
+      ? {
+          left: undoLive.current.left,
+          top: undoLive.current.top,
+          right: "auto",
+          bottom: "auto",
+          transform: `scale(${undoBarPickedUp})`,
+          transition: "border-radius 0.22s cubic-bezier(0.34,1.4,0.64,1), transform 0.18s ease",
+        }
+      : undoBarVert
+        ? {
+            [undoBarPos.dock === "left" ? "left" : "right"]: 6,
+            top: undoBarPos.f * undoBarMaxY,
+            transform: `scale(${undoBarPickedUp})`,
+            transition: barSettleTransition,
+          }
+        : {
+            [undoBarPos.dock === "top" ? "top" : "bottom"]: 6,
+            left: undoBarPos.f * undoBarMaxX,
+            transform: `scale(${undoBarPickedUp})`,
+            transition: barSettleTransition,
+          }
 
   // Đường kính chấm xem trước trên nút cỡ nét. Không vẽ chấm to đúng bằng cỡ nét thật (bút dạ 40 thì
   // chấm sẽ to hơn cả cái nút) mà quy về khoảng 4–10px THEO TỈ LỆ trong khoảng cỡ của chính cây bút
@@ -5725,9 +6042,57 @@ export function MindmapBoard({
                   cần vân giấy-than-chì.  Định nghĩa đúng MỘT lần ở đây; StrokePath ở bảng phóng to
                   (zoomBox) tham chiếu lại đúng id này — filter phân giải theo id trên toàn tài liệu,
                   không giới hạn trong đúng thẻ <svg> chứa nó. */}
-              <filter id="mind-pencil-grain" x="-15%" y="-15%" width="130%" height="130%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" seed="4" result="wobble" />
-                <feDisplacementMap in="SourceGraphic" in2="wobble" scale="1" xChannelSelector="R" yChannelSelector="G" />
+              <filter id="mind-pencil-grain" x="-20%" y="-20%" width="140%" height="140%">
+                {/* numOctaves giữ ở mức THẤP NHẤT còn ra được vân (1 cho méo hình, 2 cho hạt than):
+                    mỗi octave là một lượt nhiễu nữa phải tính, mà filter này chạy trên TỪNG nét chì
+                    của cả bảng. Đây là chỗ dễ nhất để một hiệu ứng đẹp giết chết tốc độ cuộn bảng. */}
+                <feTurbulence type="fractalNoise" baseFrequency="0.42" numOctaves="1" seed="4" result="wobble" />
+                <feDisplacementMap
+                  in="SourceGraphic"
+                  in2="wobble"
+                  scale="1.7"
+                  xChannelSelector="R"
+                  yChannelSelector="G"
+                  result="rough"
+                />
+                {/* Hạt than. feTurbulence tần số cao → feColorMatrix nén thành một mặt nạ ĐỘ ĐỤC lấm
+                    tấm (slope 1.25, dịch -0.34: quá nửa số đốm rơi hẳn về 0) → feComposite "in" giữ
+                    lại nét CHỈ Ở những chỗ mặt nạ còn đục. Đây mới là chỗ nét chì thành nét chì: than
+                    chì không phủ kín mặt giấy, nó bám vào các đỉnh vân và bỏ trống các rãnh. */}
+                <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="2" seed="9" result="grain" />
+                <feColorMatrix
+                  in="grain"
+                  type="matrix"
+                  values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.25 -0.34"
+                  result="grainMask"
+                />
+                <feComposite in="rough" in2="grainMask" operator="in" result="speckled" />
+                {/* Một lớp nền mờ của chính nét đó nằm DƯỚI lớp lấm tấm — không có nó thì nét chì đứt
+                    quãng tới mức đọc ra là nét bị lỗi. Chì thật cũng vậy: một lớp xám liền rất nhạt,
+                    trên đó là các hạt đậm. */}
+                <feComponentTransfer in="rough" result="ghost">
+                  <feFuncA type="linear" slope="0.42" />
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode in="ghost" />
+                  <feMergeNode in="speckled" />
+                </feMerge>
+              </filter>
+
+              {/* Vật liệu băng dính: mép hơi RÁCH (displacement biên độ nhỏ — mép băng dính xé tay
+                  không bao giờ thẳng tắp) cộng một cái BÓNG ĐỔ xuống mặt giấy. Bóng đổ là dấu hiệu
+                  quyết định: mực thấm VÀO giấy nên không có bóng, còn một miếng băng dính nằm ĐÈ LÊN
+                  giấy thì có — đó là thứ tách hẳn nó khỏi vệt bút dạ mà không cần đổi màu hay độ mờ. */}
+              <filter id="mind-tape-material" x="-25%" y="-25%" width="150%" height="150%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="1" seed="11" result="edge" />
+                <feDisplacementMap
+                  in="SourceGraphic"
+                  in2="edge"
+                  scale="1.4"
+                  xChannelSelector="R"
+                  yChannelSelector="G"
+                />
+                <feDropShadow dx="0" dy="1.4" stdDeviation="1.1" floodColor="#0f172a" floodOpacity="0.28" />
               </filter>
 
               {/* Hoạ tiết băng dính (xem StrokePath, chỉ tool === "tape") — MÀU TRUNG TÍNH (đen/trắng)
@@ -6408,9 +6773,11 @@ export function MindmapBoard({
         {!readOnly && (
           <div
             ref={undoBarRef}
-            className={`fade-in absolute z-20 flex ${undoBarVert ? "flex-col" : "flex-row"} items-center gap-0.5 rounded-2xl border p-1`}
+            className={`fade-in absolute z-20 flex ${undoBarVert ? "flex-col" : "flex-row"} items-center gap-0.5 border p-1`}
             style={{
               ...undoBarStyle,
+              // Cùng ngôn ngữ bo góc với thanh bút — xem borderRadius ở đó.
+              borderRadius: barDragging === "undo" ? barRadiusFor(undoSnap) : `${BAR_DOCK_RADIUS}px`,
               borderColor: "var(--c-line)",
               background: "var(--c-float-bg)",
               backdropFilter: "blur(8px)",
@@ -6460,9 +6827,21 @@ export function MindmapBoard({
             // thuộc tính `transform`, mà chính transform là thứ đang giữ vị trí của thanh này (xem
             // cách đặt left/top theo tỉ lệ bên dưới) — hoạt ảnh sẽ đè lên và ném thanh ra khỏi chỗ
             // của nó trong suốt 0,2 giây đầu. Hiện dần bằng độ mờ thì không đụng tới vị trí.
-            className={`fade-in absolute z-20 border ${barVert ? "rounded-2xl" : ""}`}
+            className="fade-in absolute z-20 border"
             style={{
               ...barStyle,
+              // Bo góc là NGÔN NGỮ TRẠNG THÁI của thanh này (xem khối "Từ trường của mép bảng"):
+              // tròn cả bốn góc = đang trôi tự do, vuông ở một mặt = mặt đó sắp dính vào mép, và khi
+              // đã neo thì đúng hình dạng của mép đang neo. Vì vậy nó tính ở MỘT chỗ duy nhất ở đây,
+              // không rải ra className.
+              borderRadius:
+                barDragging === "pen"
+                  ? barRadiusFor(barSnap)
+                  : barVert
+                    ? `${BAR_DOCK_RADIUS}px`
+                    : barPos.dock === "top"
+                      ? `0 0 ${BAR_DOCK_RADIUS}px ${BAR_DOCK_RADIUS}px`
+                      : `${BAR_DOCK_RADIUS}px ${BAR_DOCK_RADIUS}px 0 0`,
               // Mờ đi khi đang vẽ, cùng nhịp với thanh trên/thanh công cụ chính (chromeStyle) — trước
               // đây chỉ hai thanh đó ẩn, thanh bút vẫn đứng nguyên che một phần bảng suốt lúc đang vẽ.
               // Không dùng thẳng `chromeStyle`: nó có `transform: translateY(...)`, mà transform ở
@@ -6482,18 +6861,16 @@ export function MindmapBoard({
                   : barVert
                     ? "0 8px 26px var(--c-shadow)"
                     : "0 4px 16px var(--c-shadow)",
-              // Thanh nằm ngang dính trọn một mép nên chỉ bo hai góc phía TRONG bảng — bo cả bốn góc
-              // sẽ để lộ hai khe tam giác ở hai đầu, nhìn như thanh bị đặt lệch chứ không phải đang
-              // gắn vào mép.
+              // Thanh nằm ngang ĐÃ NEO thì dính trọn một mép, nên bỏ luôn đường viền ở mặt áp vào mép:
+              // một nét viền chạy dọc ngay sát cạnh máy đọc ra là "thanh bị đặt hụt", không phải "đã
+              // dính". Lúc đang KÉO thì giữ đủ bốn cạnh viền — nó đang trôi tự do, phải có đủ đường bao.
               // Dùng borderTopWidth (không phải `borderTop: none`): trộn thuộc tính viết tắt với
               // borderColor ở trên là kiểu React cảnh báo và có thể xoá nhầm màu viền.
-              // 16px khớp đúng rounded-2xl mà nhánh `barVert` dùng ở className phía trên — trước đây
-              // 18px là một giá trị lẻ, không khớp bậc bo góc nào của hệ thống.
-              ...(barVert
+              ...(barDragging === "pen" || barVert
                 ? {}
                 : barPos.dock === "top"
-                  ? { borderTopWidth: 0, borderRadius: "0 0 16px 16px" }
-                  : { borderBottomWidth: 0, borderRadius: "16px 16px 0 0" }),
+                  ? { borderTopWidth: 0 }
+                  : { borderBottomWidth: 0 }),
             }}
             // Chặn tại đây: nếu để sự kiện chạm rơi xuống mặt bảng phía dưới thì mỗi lần bấm nút trên
             // thanh cũng là một lần đặt bút xuống bảng, để lại một chấm mực ngay dưới thanh.
@@ -6848,6 +7225,68 @@ export function MindmapBoard({
                       style={{ accentColor: "var(--c-primary)" }}
                       aria-label="Cỡ nét"
                     />
+
+                    {/* ─── Ngòi bút ───────────────────────────────────────
+                        CHỈ hiện khi đang cầm bút mực. Ba ngòi này không phải ba cây bút riêng trong
+                        bộ: chúng dùng chung màu, chung cỡ nét, chung việc — khác nhau ở CÁCH NGÒI
+                        PHẢN ỨNG với tay. Bày thành ba nút to có nét mẫu thật, không phải một danh
+                        sách chữ, vì cái người ta chọn ở đây là một cảm giác chứ không phải một cái tên. */}
+                    {styleTool === "pen" && (
+                      <>
+                        <p className="text-[12px] font-semibold px-0.5 pb-1" style={{ color: "var(--c-text-muted)" }}>
+                          Ngòi bút
+                        </p>
+                        <div className="flex flex-col gap-1.5 pb-1">
+                          {PEN_NIBS.map((nb) => {
+                            const on = (inkStyle.nib ?? "fountain") === nb.id
+                            const g = nibSampleGeometry(nb.id, activeWidth)
+                            return (
+                              <button
+                                key={nb.id}
+                                type="button"
+                                onClick={() => {
+                                  setPenNib(nb.id)
+                                  tickHaptic()
+                                }}
+                                aria-label={`Ngòi ${nb.label} — ${nb.hint}`}
+                                aria-pressed={on}
+                                className="mind-btn w-full rounded-xl flex items-center gap-2.5 border px-2 py-1.5 text-left"
+                                style={
+                                  on
+                                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)" }
+                                    : { background: "var(--c-surface)", borderColor: "var(--c-line)" }
+                                }
+                              >
+                                <svg
+                                  width={NIB_SAMPLE_W}
+                                  height={NIB_SAMPLE_H}
+                                  viewBox={`0 0 ${NIB_SAMPLE_W} ${NIB_SAMPLE_H}`}
+                                  aria-hidden="true"
+                                  className="flex-none"
+                                  style={{ display: "block" }}
+                                >
+                                  <path d={strokeOutline(g.pts, g.widths)} fill={activeInk} />
+                                </svg>
+                                <span className="min-w-0">
+                                  <span
+                                    className="block text-[12px] font-bold leading-tight"
+                                    style={{ color: on ? "var(--c-primary)" : "var(--c-text)" }}
+                                  >
+                                    {nb.label}
+                                  </span>
+                                  <span
+                                    className="block text-[10.5px] leading-tight"
+                                    style={{ color: "var(--c-text-muted)" }}
+                                  >
+                                    {nb.hint}
+                                  </span>
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
 
                     {/* ─── Kiểu nét ───────────────────────────────────────
                         Chung cho mọi cây bút và cả hình vẽ: một khung chữ nhật nét đứt hay một mũi

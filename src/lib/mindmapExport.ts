@@ -20,6 +20,7 @@ import {
   STYLE_FONT_STACKS,
   strokeAlpha,
   strokeCap,
+  strokeFlatCap,
   strokeDashArray,
   edgeColor,
   nodeMetrics,
@@ -331,7 +332,6 @@ async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: Paper
   // Dữ liệu cũ (trước khi có bút chì/băng dính) chỉ có "pen"/"highlighter" nên vẫn rơi đúng vào hai
   // lượt tương ứng, không mất nét nào.
   const strokes = data.strokes ?? []
-  ctx.lineJoin = "round"
   for (const pass of STROKE_LAYERS) {
     strokes
       // Nét mang loại bút lạ (file sao lưu của một bản app mới hơn) vẫn được vẽ, gộp vào lượt mực —
@@ -340,13 +340,28 @@ async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: Paper
       .forEach((s) => {
         ctx.globalAlpha = strokeAlpha(pass)
         ctx.lineCap = s.dash === "dot" ? "round" : strokeCap(pass)
+        // Hình vẽ nối góc NHỌN, nét tay nối tròn — cùng luật với StrokePath trên bảng, nếu không thì
+        // đúng những cái góc vuông vắn trên màn hình lại ra bo tròn trong ảnh xuất.
+        ctx.lineJoin = s.straight ? "miter" : "round"
+        ctx.miterLimit = 8
         // Nét có bề dày thay đổi là một VÙNG TÔ, không phải đường kẻ — phải tô (fill) chứ không stroke,
         // nếu không ảnh xuất ra sẽ khác hẳn nét đang thấy trên bảng.
         if (s.widths && s.widths.length > 1 && !s.straight && !s.dash) {
-          const d = strokeOutline(s.points, s.widths)
+          const d = strokeOutline(s.points, s.widths, strokeFlatCap(pass))
           if (!d) return
           ctx.fillStyle = s.color
           ctx.fill(new Path2D(d))
+          // Mực đọng ở rìa vệt bút dạ — cùng lớp phụ mà StrokePath vẽ trên bảng. Không có nó thì vệt
+          // tô trong ảnh xuất phẳng hơn hẳn trên màn hình.
+          if (pass === "highlighter") {
+            ctx.save()
+            ctx.globalAlpha = strokeAlpha(pass) * 0.42
+            ctx.strokeStyle = s.color
+            ctx.lineWidth = 1.2
+            ctx.setLineDash([])
+            ctx.stroke(new Path2D(d))
+            ctx.restore()
+          }
           return
         }
         const d = strokePath(s.points, s.straight)
@@ -358,6 +373,17 @@ async function renderMindmapCanvas(data: MindmapData, sizes: Sizes, paper: Paper
         ctx.strokeStyle = s.color
         ctx.lineWidth = s.width
         ctx.stroke(new Path2D(d))
+        // Dải bóng chạy giữa miếng băng dính — xem StrokePath. Vân dệt/sọc/chấm thì KHÔNG dựng lại ở
+        // đây: chúng là SVG pattern phủ bằng mix-blend-mode, canvas 2d không có đường tương đương gọn
+        // gàng, và thiếu vân thì miếng băng vẫn đọc đúng là băng dính nhờ màu + đầu cắt vuông + ánh bóng.
+        if (pass === "tape") {
+          ctx.save()
+          ctx.globalAlpha = 0.2
+          ctx.strokeStyle = "#ffffff"
+          ctx.lineWidth = s.width * 0.34
+          ctx.stroke(new Path2D(d))
+          ctx.restore()
+        }
         ctx.setLineDash([])
       })
   }

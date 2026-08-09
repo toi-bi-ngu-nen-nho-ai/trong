@@ -69,6 +69,15 @@ export function strokePath(points: number[], straight = false): string {
 // Điểm của một hình vẽ, xuất ra cùng dạng "danh sách điểm" như nét viết tay — nhờ vậy hình vẽ dùng
 // lại được toàn bộ phần lưu trữ, tẩy, hoàn tác và xuất ảnh của nét thường, không cần kiểu dữ liệu
 // riêng. Mũi tên: vẽ thân rồi quay lại đầu mút để quét hai cạnh đầu mũi bằng cùng một đường.
+// Hình có cạnh CONG hay chỉ toàn đoạn thẳng. Hình cong được chốt lại như một nét MƯỢT (Catmull-Rom
+// đi qua các điểm mẫu) thay vì một chuỗi đoạn thẳng nối các điểm đó: một hình bầu dục 48 điểm nối
+// thẳng nhìn ở mức phóng bình thường thì tạm được, nhưng phóng lên là thấy rõ một đa giác 48 cạnh —
+// đúng chỗ "nét không rõ, đường thô kệch". Hình toàn cạnh thẳng thì NGƯỢC LẠI, phải giữ nối thẳng,
+// nếu không góc chữ nhật và mũi tên bị Catmull-Rom bo tròn mất.
+export function shapeIsCurved(kind: ShapeKind): boolean {
+  return kind === "ellipse" || kind === "pill"
+}
+
 export function shapePoints(kind: ShapeKind, x1: number, y1: number, x2: number, y2: number): number[] {
   if (kind === "line") return [x1, y1, x2, y2]
 
@@ -118,7 +127,7 @@ export function shapePoints(kind: ShapeKind, x1: number, y1: number, x2: number,
     const bh = Math.max(1, Math.abs(y2 - y1))
     const r = Math.min(bw, bh) / 2
     const pts: number[] = []
-    const arcSteps = 12
+    const arcSteps = 18
     const arc = (acx: number, acy: number, a0: number, a1: number) => {
       for (let i = 0; i <= arcSteps; i++) {
         const t = a0 + (a1 - a0) * (i / arcSteps)
@@ -137,13 +146,15 @@ export function shapePoints(kind: ShapeKind, x1: number, y1: number, x2: number,
     return pts
   }
 
-  // Hình bầu dục nội tiếp khung người dùng kéo — lấy 44 điểm là đủ tròn ở mọi mức phóng thường dùng.
+  // Hình bầu dục nội tiếp khung người dùng kéo. 64 điểm (không phải 44 như trước) và chốt lại như
+  // một nét MƯỢT — xem shapeIsCurved: hai thay đổi này đi cùng nhau, nhiều điểm hơn để Catmull-Rom
+  // bám sát đúng đường elip toán học, mượt để không còn thấy cạnh đa giác ở mức phóng cao.
   const cx = (x1 + x2) / 2
   const cy = (y1 + y2) / 2
   const rx = Math.abs(x2 - x1) / 2
   const ry = Math.abs(y2 - y1) / 2
   const pts: number[] = []
-  const steps = 44
+  const steps = 64
   for (let i = 0; i <= steps; i++) {
     const t = (i / steps) * Math.PI * 2
     pts.push(cx + Math.cos(t) * rx, cy + Math.sin(t) * ry)
@@ -176,13 +187,18 @@ function normalAt(points: number[], i: number): { nx: number; ny: number } {
   return { nx: -dy / len, ny: dx / len }
 }
 
-export function strokeOutline(points: number[], widths: number[]): string {
+// `flatCap`: hai đầu nét cắt PHẲNG thay vì bo nửa vòng tròn. Bút dạ và băng dính bắt buộc phải cắt
+// phẳng — đầu nỉ và mép băng dính đều là một cạnh thẳng, bo tròn hai đầu là dấu hiệu của một cây bút
+// đầu tròn và mắt nhận ra ngay. Đây là lý do tham số này tồn tại, không phải một tuỳ chọn trang trí.
+export function strokeOutline(points: number[], widths: number[], flatCap = false): string {
   const n = Math.min(points.length / 2, widths.length)
   if (n === 0) return ""
   if (n === 1) {
-    // Chạm một điểm rồi nhấc: một dấu chấm tròn đúng bề dày tại điểm đó.
     const r = Math.max(0.4, widths[0] / 2)
     const [x, y] = [points[0], points[1]]
+    // Chạm một điểm rồi nhấc: một dấu chấm đúng bề dày tại điểm đó — vuông với ngòi cắt phẳng, tròn
+    // với ngòi tròn.
+    if (flatCap) return `M ${x - r} ${y - r} L ${x + r} ${y - r} L ${x + r} ${y + r} L ${x - r} ${y + r} Z`
     return `M ${x - r} ${y} A ${r} ${r} 0 1 0 ${x + r} ${y} A ${r} ${r} 0 1 0 ${x - r} ${y} Z`
   }
 
@@ -205,15 +221,17 @@ export function strokeOutline(points: number[], widths: number[]): string {
 
   // Biên trái đi xuôi.
   let d = catmullRom(left)
-  // Bo tròn đầu cuối sang biên phải.
-  d += ` A ${rEnd} ${rEnd} 0 0 1 ${right[(n - 1) * 2]} ${right[(n - 1) * 2 + 1]}`
+  // Nối sang biên phải ở đầu CUỐI nét: một đoạn thẳng (cắt phẳng) hoặc nửa vòng tròn (đầu tròn).
+  d += flatCap
+    ? ` L ${right[(n - 1) * 2]} ${right[(n - 1) * 2 + 1]}`
+    : ` A ${rEnd} ${rEnd} 0 0 1 ${right[(n - 1) * 2]} ${right[(n - 1) * 2 + 1]}`
   // Biên phải đi NGƯỢC về — đảo mảng rồi mới mượt, không mượt xuôi rồi đọc ngược (đọc ngược một
   // chuỗi Bézier là sai: điểm điều khiển sẽ gắn nhầm đầu đoạn).
   const rightReversed: number[] = []
   for (let i = n - 1; i >= 0; i--) rightReversed.push(right[i * 2], right[i * 2 + 1])
   d += catmullRom(rightReversed, false)
-  // Bo tròn đầu bắt đầu, đóng hình.
-  d += ` A ${rStart} ${rStart} 0 0 1 ${left[0]} ${left[1]} Z`
+  // Đóng hình ở đầu ĐẶT BÚT, cùng kiểu đầu nét như trên.
+  d += flatCap ? " Z" : ` A ${rStart} ${rStart} 0 0 1 ${left[0]} ${left[1]} Z`
   return d
 }
 
