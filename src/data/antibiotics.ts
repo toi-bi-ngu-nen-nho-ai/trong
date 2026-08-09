@@ -35,7 +35,17 @@ export const ANTIBIOTICS: Antibiotic[] = [
     compatKey: COMPAT_KEYS.amikacin,                  
     route: "TTM",                        
     standardDose: "15-20 mg/kg mỗi 24h",
-    preparation: " 'Đối với người lớn, pha 500 mg amikacin vào 100-200ml dịch truyền thông thường như dung dịch NaCl 0.9% hoặc D5%. Thời gian truyền thích hợp amikacin là trong 30-60 phút",
+    tiers: 
+      [                             
+          { min: 80.01, label: "CrCl >80", dose: "15–20 mg/kg mỗi 24h" },
+          { min: 60.01, label: "CrCl >60–80 ", dose: "12 mg/kg mỗi 24h" },
+          { min: 40.01, label: "CrCl >40–60 ", dose: "7.5 mg/kg mỗi 24h" },
+          { min: 30.01, label: "CrCl >30–40 ", dose: "4 mg/kg mỗi 24h" },
+          { min: 20.01, label: "CrCl >20–30 ", dose: "7.5 mg/kg mỗi 48h" },
+          { min: 10.01, label: "CrCl >10–20 ", dose: "4 mg/kg mỗi 48h" },
+          { min: 0,  label: "CrCl 0 - 10",  dose: "3 mg/kg mỗi 72h (sau lọc máu)" },
+      ],
+    preparation: " 'Đối với người lớn, pha 500 mg amikacin vào 100-200ml dịch truyền thông thường như dung dịch NaCl 0.9% hoặc D5%. Thời gian truyền thích hợp amikacin là trong 30-60 phút' - Dược thư quốc gia 2022, tr.193",
     note: "Thời gian điều trị thường 7-10 ngày, không nên kéo dài quá 10 ngày",
     source: "Dược thư quốc gia 2022, tr.193",
     reviewedOn: "2026-08",
@@ -77,15 +87,28 @@ export const ANTIBIOTICS: Antibiotic[] = [
       source: "Bệnh viện Nhiệt đới - 2021",
       reviewedOn: "2026-08",
     },
-    mix: {
-      vialAmount: 1000,
-      vialUnit: "mg",
-      vialLabel: "ống",
-      vialForm: "solution", 
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
-      infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
-    },
+    mix: [
+      {
+        vialAmount: 1000,
+        vialUnit: "mg",
+        vialLabel: "ống",
+        vialForm: "solution",
+        vialVolumeMl: 4,
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
+        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
+      },
+      {
+        vialAmount: 500,
+        vialUnit: "mg",
+        vialLabel: "ống",
+        vialForm: "solution",
+        vialVolumeMl: 2,
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
+        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
+      },
+    ],
   },
 
   
@@ -115,12 +138,14 @@ export const ANTIBIOTICS: Antibiotic[] = [
         note: "Phối hợp thường quy khi nghi ngờ Listeria monocytogenes (người già, suy giảm miễn dịch, phụ nữ mang thai).",
       },
     ],
-    mix: {
+    mix: [
+    {
       vialForm: "powder",
       vialLabel: "lọ",
       diluents: ["NaCl 0,9%"],
       infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút. Pha xong nên dùng ngay — ampicillin kém bền theo thời gian, đặc biệt trong dung dịch glucose nên tránh dùng làm dung môi.",
     },
+    ],
   },
   {
     id: "cefotaxim-iv",
@@ -145,12 +170,14 @@ export const ANTIBIOTICS: Antibiotic[] = [
         ],
       },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
+      }
+    ],
   },
   {
     id: "ceftazidim-iv",
@@ -167,12 +194,14 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { min: 0, label: "CrCl < 6", dose: "500 mg mỗi 48h" },
     ],
     warnings: [{ text: "Phổ hẹp trên Gram dương — cân nhắc phối hợp nếu nghi ngờ tụ cầu.", severity: "trung bình" }],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
+      }
+    ],
   },
   {
     id: "meropenem-iv",
@@ -194,12 +223,14 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { min: 10, label: "CrCl 10–24", dose: "500 mg mỗi 12h" },
       { min: 0, label: "CrCl < 10", dose: "500 mg mỗi 24h" },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Truyền tĩnh mạch trong 15–30 phút theo liều chuẩn (hoặc tiêm tĩnh mạch chậm ≥ 5 phút với liều thấp); nhiều phác đồ ICU dùng truyền kéo dài 3 giờ để tối ưu hiệu quả diệt khuẩn (PK/PD) ở nhiễm khuẩn nặng/vi khuẩn kém nhạy.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Truyền tĩnh mạch trong 15–30 phút theo liều chuẩn (hoặc tiêm tĩnh mạch chậm ≥ 5 phút với liều thấp); nhiều phác đồ ICU dùng truyền kéo dài 3 giờ để tối ưu hiệu quả diệt khuẩn (PK/PD) ở nhiễm khuẩn nặng/vi khuẩn kém nhạy.",
+      }
+    ],
   },
   {
     id: "vancomycin-iv",
@@ -260,15 +291,17 @@ export const ANTIBIOTICS: Antibiotic[] = [
         note: "Viêm màng não cần đích phơi nhiễm cao hơn — theo AUC24/MIC ở đầu khoảng 400–600 trở lên theo đồng thuận 2020; nơi còn theo nồng độ đáy thì nhắm 15–20 mg/L.",
       },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      // Ngưỡng trên đã nêu trong `preparation` ở trên — nhắc lại ở đây dưới dạng số để bảng pha
-      // chặn được, không chỉ nằm trong câu chữ.
-      maxConc: 5,
-      infuseNote: "Truyền tĩnh mạch chậm, tối thiểu 60 phút cho mỗi 1 g (liều cao hơn thì kéo dài tương ứng) — truyền nhanh gây hội chứng \"Red man\". Không tiêm tĩnh mạch trực tiếp.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        // Ngưỡng trên đã nêu trong `preparation` ở trên — nhắc lại ở đây dưới dạng số để bảng pha
+        // chặn được, không chỉ nằm trong câu chữ.
+        maxConc: 5,
+        infuseNote: "Truyền tĩnh mạch chậm, tối thiểu 60 phút cho mỗi 1 g (liều cao hơn thì kéo dài tương ứng) — truyền nhanh gây hội chứng \"Red man\". Không tiêm tĩnh mạch trực tiếp.",
+      }
+    ],
   },
   {
     id: "pip-tazo-iv",
@@ -288,12 +321,14 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { min: 20, label: "CrCl 20–39", dose: "3.375 g mỗi 6h" },
       { min: 0, label: "CrCl < 20", dose: "2.25 g mỗi 6h" },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Truyền tĩnh mạch trong 30 phút theo liều chuẩn; nhiều phác đồ ICU dùng truyền kéo dài 3–4 giờ để tối ưu PK/PD ở nhiễm khuẩn nặng.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Truyền tĩnh mạch trong 30 phút theo liều chuẩn; nhiều phác đồ ICU dùng truyền kéo dài 3–4 giờ để tối ưu PK/PD ở nhiễm khuẩn nặng.",
+      }
+    ],
   },
   {
     id: "ciprofloxacin-iv",
@@ -335,16 +370,18 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { text: "Không nên dùng ở bệnh nhân động kinh — tăng nguy cơ co giật.", severity: "cao" },
       { text: "Có thể kéo dài khoảng QT — thận trọng khi phối hợp thuốc chống loạn nhịp.", severity: "trung bình" },
     ],
-    mix: {
-      // Chai truyền pha sẵn hàm lượng cố định của nhà sản xuất — không pha loãng thêm, chỉ rút một
-      // phần hoặc dùng trọn chai theo đúng liều mỗi mức CrCl.
-      vialForm: "fixed",
-      vialLabel: "chai",
-      vialAmount: 750,
-      vialUnit: "mg",
-      vialVolumeMl: 150,
-      infuseNote: "Truyền tĩnh mạch trong tối thiểu 60 phút (750 mg) hoặc 60 phút (500 mg) — không truyền nhanh hơn.",
-    },
+    mix: [
+      {
+        // Chai truyền pha sẵn hàm lượng cố định của nhà sản xuất — không pha loãng thêm, chỉ rút một
+        // phần hoặc dùng trọn chai theo đúng liều mỗi mức CrCl.
+        vialForm: "fixed",
+        vialLabel: "chai",
+        vialAmount: 750,
+        vialUnit: "mg",
+        vialVolumeMl: 150,
+        infuseNote: "Truyền tĩnh mạch trong tối thiểu 60 phút (750 mg) hoặc 60 phút (500 mg) — không truyền nhanh hơn.",
+      }
+    ],
   },
   {
     id: "gentamicin-iv",
@@ -361,12 +398,14 @@ export const ANTIBIOTICS: Antibiotic[] = [
     ],
     maxSingleDose: { amount: 700, unit: "mg", note: "trần một liều của phác đồ liều đơn hằng ngày; cao hơn phải theo nồng độ đo được" },
     warnings: [{ text: "Độc tính thận và tai — tránh phối hợp kéo dài với thuốc độc thận khác.", severity: "cao" }],
-    mix: {
-      vialForm: "solution",
-      vialLabel: "ống",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Pha loãng trong 50–100 mL, truyền tĩnh mạch trong 30–60 phút — không tiêm tĩnh mạch trực tiếp/nhanh.",
-    },
+    mix: [
+      {
+        vialForm: "solution",
+        vialLabel: "ống",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Pha loãng trong 50–100 mL, truyền tĩnh mạch trong 30–60 phút — không tiêm tĩnh mạch trực tiếp/nhanh.",
+      }
+    ],
   },
   {
     id: "ceftriaxone-iv",
@@ -382,14 +421,16 @@ export const ANTIBIOTICS: Antibiotic[] = [
         tiers: [{ min: 0, label: "Mọi mức CrCl", dose: "2 g mỗi 12h — không cần chỉnh liều thận" }],
       },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      // Không có Ringer lactat/dung dịch chứa calci trong bộ chọn — đúng cặp kết tủa đã ghi trong
-      // bảng Khóa chữ Y (COMPAT_KEYS.ceftriaxone), không lặp lại ở đây.
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        // Không có Ringer lactat/dung dịch chứa calci trong bộ chọn — đúng cặp kết tủa đã ghi trong
+        // bảng Khóa chữ Y (COMPAT_KEYS.ceftriaxone), không lặp lại ở đây.
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
+      }
+    ],
   },
   {
     id: "metronidazole-iv",
@@ -437,14 +478,16 @@ export const ANTIBIOTICS: Antibiotic[] = [
       },
       { text: "Phổ trên Gram dương hạn chế với MRSA — phối hợp thêm nếu nghi ngờ tụ cầu kháng methicillin.", severity: "trung bình" },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      vialAmount: 2,
-      vialUnit: "g",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Truyền tĩnh mạch trong 30 phút theo liều chuẩn; nhiều phác đồ ICU dùng truyền kéo dài 3–4 giờ để tối ưu PK/PD ở nhiễm khuẩn nặng.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        vialAmount: 2,
+        vialUnit: "g",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Truyền tĩnh mạch trong 30 phút theo liều chuẩn; nhiều phác đồ ICU dùng truyền kéo dài 3–4 giờ để tối ưu PK/PD ở nhiễm khuẩn nặng.",
+      }
+    ],
   },
   {
     id: "ampicillin-sulbactam-iv",
@@ -459,14 +502,16 @@ export const ANTIBIOTICS: Antibiotic[] = [
     ],
     note: "Liều 3 g gồm 2 g ampicillin + 1 g sulbactam. Phác đồ liều cao cho Acinetobacter baumannii dùng sulbactam liều rất cao — tra phác đồ riêng, không dùng bảng này.",
     warnings: [{ text: "Nguy cơ phát ban cao hơn ở bệnh nhân tăng bạch cầu đơn nhân nhiễm khuẩn.", severity: "trung bình" }],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      vialAmount: 3,
-      vialUnit: "g",
-      diluents: ["NaCl 0,9%"],
-      infuseNote: "Truyền tĩnh mạch trong 15–30 phút. Pha xong dùng ngay — kém bền theo thời gian, đặc biệt trong dung dịch glucose.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        vialAmount: 3,
+        vialUnit: "g",
+        diluents: ["NaCl 0,9%"],
+        infuseNote: "Truyền tĩnh mạch trong 15–30 phút. Pha xong dùng ngay — kém bền theo thời gian, đặc biệt trong dung dịch glucose.",
+      }
+    ],
   },
   {
     id: "ertapenem-iv",
@@ -481,16 +526,18 @@ export const ANTIBIOTICS: Antibiotic[] = [
     note:
       "KHÔNG phủ Pseudomonas aeruginosa, Acinetobacter hay Enterococcus — đây là điểm khác biệt quan trọng nhất so với meropenem và cũng là lý do không dùng ertapenem cho nhiễm khuẩn bệnh viện nặng chưa rõ căn nguyên.",
     warnings: [{ text: "Nguy cơ co giật, nhất là khi suy thận không giảm liều hoặc có bệnh lý thần kinh trung ương.", severity: "trung bình" }],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      vialAmount: 1,
-      vialUnit: "g",
-      diluents: ["NaCl 0,9%"],
-      avoidDiluents: ["Glucose 5%"],
-      diluentWarning: "Không hoàn nguyên hay pha loãng ertapenem bằng dung dịch chứa glucose — chỉ dùng Natri Clorid 0,9%.",
-      infuseNote: "Truyền tĩnh mạch trong 30 phút. Dùng trong 6 giờ sau pha nếu để nhiệt độ phòng.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        vialAmount: 1,
+        vialUnit: "g",
+        diluents: ["NaCl 0,9%"],
+        avoidDiluents: ["Glucose 5%"],
+        diluentWarning: "Không hoàn nguyên hay pha loãng ertapenem bằng dung dịch chứa glucose — chỉ dùng Natri Clorid 0,9%.",
+        infuseNote: "Truyền tĩnh mạch trong 30 phút. Dùng trong 6 giờ sau pha nếu để nhiệt độ phòng.",
+      }
+    ],
   },
   {
     id: "oxacillin-iv",
@@ -505,14 +552,16 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { text: "Viêm gan do thuốc và viêm thận kẽ khi dùng liều cao kéo dài — theo dõi men gan, creatinin và bạch cầu ái toan hằng tuần.", severity: "trung bình" },
       { text: "Gây hoại tử mô khi thoát mạch — dùng đường truyền chắc chắn.", severity: "trung bình" },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      vialAmount: 1,
-      vialUnit: "g",
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Truyền tĩnh mạch trong 30–60 phút.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        vialAmount: 1,
+        vialUnit: "g",
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Truyền tĩnh mạch trong 30–60 phút.",
+      }
+    ],
   },
   {
     id: "clindamycin-iv",
@@ -527,16 +576,18 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { text: "Nguy cơ viêm đại tràng do Clostridioides difficile cao nhất trong các kháng sinh thường dùng — cân nhắc kỹ chỉ định và thời gian dùng.", severity: "cao" },
       { text: "Có tác dụng ức chế thần kinh cơ nhẹ — có thể kéo dài tác dụng của thuốc giãn cơ.", severity: "trung bình" },
     ],
-    mix: {
-      vialForm: "solution",
-      vialLabel: "ống",
-      vialAmount: 600,
-      vialUnit: "mg",
-      vialVolumeMl: 4,
-      maxConc: 18,
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Pha loãng tới nồng độ không quá 18 mg/mL, truyền trong ít nhất 30 phút cho mỗi 600 mg — không tiêm tĩnh mạch trực tiếp (nguy cơ ngừng tim).",
-    },
+    mix: [
+      {
+        vialForm: "solution",
+        vialLabel: "ống",
+        vialAmount: 600,
+        vialUnit: "mg",
+        vialVolumeMl: 4,
+        maxConc: 18,
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Pha loãng tới nồng độ không quá 18 mg/mL, truyền trong ít nhất 30 phút cho mỗi 600 mg — không tiêm tĩnh mạch trực tiếp (nguy cơ ngừng tim).",
+      }
+    ],
   },
   {
     id: "doxycycline-iv",
@@ -551,15 +602,17 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { text: "Viêm thực quản nếu uống mà không đủ nước hoặc nằm ngay sau khi uống.", severity: "trung bình" },
       { text: "Nhạy cảm ánh sáng; giảm hấp thu rõ rệt khi uống cùng calci, magie, sắt hoặc thuốc kháng acid.", severity: "trung bình" },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      vialAmount: 100,
-      vialUnit: "mg",
-      maxConc: 1,
-      diluents: ["NaCl 0,9%", "Glucose 5%"],
-      infuseNote: "Pha loãng tới nồng độ 0,1–1 mg/mL, truyền trong 1–4 giờ. Tránh ánh sáng trong lúc truyền.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        vialAmount: 100,
+        vialUnit: "mg",
+        maxConc: 1,
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        infuseNote: "Pha loãng tới nồng độ 0,1–1 mg/mL, truyền trong 1–4 giờ. Tránh ánh sáng trong lúc truyền.",
+      }
+    ],
   },
   {
     id: "linezolid-iv",
@@ -579,14 +632,16 @@ export const ANTIBIOTICS: Antibiotic[] = [
       { text: "Ức chế tuỷ xương (giảm tiểu cầu, thiếu máu) khi dùng trên 10–14 ngày — kiểm tra công thức máu hằng tuần.", severity: "cao" },
       { text: "Toan lactic và bệnh thần kinh ngoại biên/thị giác khi dùng kéo dài.", severity: "trung bình" },
     ],
-    mix: {
-      vialForm: "fixed",
-      vialLabel: "túi",
-      vialAmount: 600,
-      vialUnit: "mg",
-      vialVolumeMl: 300,
-      infuseNote: "Túi pha sẵn 600 mg/300 mL — truyền trong 30–120 phút, không pha loãng thêm.",
-    },
+    mix: [
+      {
+        vialForm: "fixed",
+        vialLabel: "túi",
+        vialAmount: 600,
+        vialUnit: "mg",
+        vialVolumeMl: 300,
+        infuseNote: "Túi pha sẵn 600 mg/300 mL — truyền trong 30–120 phút, không pha loãng thêm.",
+      }
+    ],
   },
   {
     id: "colistin-iv",
@@ -616,13 +671,15 @@ export const ANTIBIOTICS: Antibiotic[] = [
         note: "9 triệu đơn vị quốc tế. Liều duy trì đầu tiên cách liều nạp 12 giờ.",
       },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      diluents: ["NaCl 0,9%"],
-      infuseNote:
-        "Hoàn nguyên nhẹ nhàng (lắc mạnh gây tạo bọt nhiều), pha loãng trong 50–100 mL NaCl 0,9%, truyền trong 30–60 phút. Pha xong dùng ngay — colistimethat tự thuỷ phân thành colistin có độc tính cao hơn nếu để lâu sau pha.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        diluents: ["NaCl 0,9%"],
+        infuseNote:
+          "Hoàn nguyên nhẹ nhàng (lắc mạnh gây tạo bọt nhiều), pha loãng trong 50–100 mL NaCl 0,9%, truyền trong 30–60 phút. Pha xong dùng ngay — colistimethat tự thuỷ phân thành colistin có độc tính cao hơn nếu để lâu sau pha.",
+      }
+    ],
   },
   {
     id: "fluconazole-iv",
@@ -649,14 +706,16 @@ export const ANTIBIOTICS: Antibiotic[] = [
         over: "Truyền tĩnh mạch, tốc độ không quá 200 mg/giờ.",
       },
     ],
-    mix: {
-      vialForm: "fixed",
-      vialLabel: "chai",
-      vialAmount: 200,
-      vialUnit: "mg",
-      vialVolumeMl: 100,
-      infuseNote: "Chai pha sẵn 2 mg/mL — truyền với tốc độ không quá 200 mg/giờ (tức không nhanh hơn 100 mL/giờ).",
-    },
+    mix: [
+      {
+        vialForm: "fixed",
+        vialLabel: "chai",
+        vialAmount: 200,
+        vialUnit: "mg",
+        vialVolumeMl: 100,
+        infuseNote: "Chai pha sẵn 2 mg/mL — truyền với tốc độ không quá 200 mg/giờ (tức không nhanh hơn 100 mL/giờ).",
+      }
+    ],
   },
   {
     id: "caspofungin-iv",
@@ -681,15 +740,17 @@ export const ANTIBIOTICS: Antibiotic[] = [
         over: "Truyền tĩnh mạch chậm trong khoảng 60 phút.",
       },
     ],
-    mix: {
-      vialForm: "powder",
-      vialLabel: "lọ",
-      vialAmount: 50,
-      vialUnit: "mg",
-      diluents: ["NaCl 0,9%"],
-      avoidDiluents: ["Glucose 5%"],
-      diluentWarning: "Không hoàn nguyên hay pha loãng caspofungin bằng dung dịch chứa glucose — chỉ dùng Natri Clorid 0,9%.",
-      infuseNote: "Hoàn nguyên rồi pha loãng trong 250 mL NaCl 0,9%, truyền chậm trong khoảng 60 phút — không tiêm tĩnh mạch trực tiếp.",
-    },
+    mix: [
+      {
+        vialForm: "powder",
+        vialLabel: "lọ",
+        vialAmount: 50,
+        vialUnit: "mg",
+        diluents: ["NaCl 0,9%"],
+        avoidDiluents: ["Glucose 5%"],
+        diluentWarning: "Không hoàn nguyên hay pha loãng caspofungin bằng dung dịch chứa glucose — chỉ dùng Natri Clorid 0,9%.",
+        infuseNote: "Hoàn nguyên rồi pha loãng trong 250 mL NaCl 0,9%, truyền chậm trong khoảng 60 phút — không tiêm tĩnh mạch trực tiếp.",
+      }
+    ],
   },
 ]

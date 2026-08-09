@@ -124,7 +124,7 @@ export interface RrtDose {
 // Cảnh báo / tương tác cần lưu ý khi dùng kháng sinh — không phụ thuộc CrCl.
 export interface AntibioticWarning {
   text: string
-  severity: "cao" | "trung bình"
+  severity: "cao" | "trung bình" | "thấp"
 }
 
 // Liều riêng theo TỪNG bệnh lý (indication) — ghi đè lên `tiers` mặc định của thuốc khi bệnh lý
@@ -204,7 +204,7 @@ export interface Antibiotic extends SourceInfo {
   doseWeightBasis?: WeightBasis
   rrt?: RrtDose
   compatKey?: string
-  mix?: AntibioticMix
+  mix?: AntibioticMix []
   // Liều nạp — vd Vancomycin cần liều nạp 25–30 mg/kg trước khi vào liều duy trì theo CrCl.
   // Cùng kiểu BolusDose với InfusionDrug.boluses (xem bên dưới), dùng chung component hiển thị/sửa.
   boluses?: BolusDose[]
