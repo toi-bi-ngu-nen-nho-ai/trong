@@ -4,23 +4,24 @@
   "description": "Thư viện kiến thức lâm sàng cá nhân cho bác sĩ và sinh viên y khoa",
   "lang": "vi",
   "categories": ["medical", "education"],
+  "id": "/",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#003152",
+  "theme_color": "#2d3a94",
   "orientation": "any",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
   "shortcuts": [

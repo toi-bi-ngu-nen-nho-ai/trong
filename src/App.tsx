@@ -12480,15 +12480,22 @@ export default function App() {
             xuống hết vùng thanh gạt Home: đây là điểm mấu chốt của lỗi "dải trắng dưới thanh nav"
             trên iPhone. Khoảng chừa cho thanh gạt vẫn phải có (không được đặt nút bấm vào đó),
             nhưng khi nó cùng màu trắng với nền trang thì nhìn thành một khoảng trống thừa; tô khác
-            màu một chút là cả dải đó đọc thành phần thân của thanh nav, liền tới cạnh máy. */}
+            màu một chút là cả dải đó đọc thành phần thân của thanh nav, liền tới cạnh máy.
+
+            Nền ĐẶC (--c-nav-bg-solid), KHÔNG backdrop-filter: thanh nav là phần tử cuối trong một
+            cột flex (main rồi mới tới nav), không phải lớp phủ nổi lên trên nội dung cuộn — phía
+            sau nó không bao giờ có gì để "làm mờ" cả, nên blur() trước đây chỉ là hiệu ứng treo
+            không tác dụng. Ảnh chụp thật từ iPhone Air/iPad cho thấy đúng vùng padding-bottom (an
+            toàn thanh gạt Home) bị bỏ trắng/đen thay vì lộ màu thanh nav — nghi WebKit không luôn
+            trải backdrop-filter phủ hết phần padding co giãn theo env(safe-area-inset-bottom) lúc
+            mới mở app từ màn hình chính. Bỏ backdrop-filter + nền đặc loại thẳng khả năng đó, và
+            nhìn ở trạng thái nghỉ (không có gì phía sau) thì không khác gì bản mờ trước đó. */}
         {!isDetailScreen && (
           <nav
             className="flex-none"
             aria-label="Điều hướng chính"
             style={{
-              background: "var(--c-nav-bg)",
-              backdropFilter: "blur(20px) saturate(1.8)",
-              WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+              background: "var(--c-nav-bg-solid)",
               borderTop: "1px solid var(--c-nav-border)",
               // Phần phủ lên vùng thanh gạt Home: chỉ là nền, không đặt nút bấm vào đây.
               paddingBottom: "var(--nav-pad-bottom)",

@@ -181,6 +181,9 @@
   --c-on-bright: #ffffff;
 
   --c-nav-bg: rgba(247, 248, 253, 0.94);
+  /* Bản đặc (không alpha) của --c-nav-bg — xem lý do dùng ở thanh nav trong App.tsx: tránh
+     backdrop-filter trên một dải có padding-bottom động theo safe-area. */
+  --c-nav-bg-solid: #f7f8fd;
   --c-nav-border: #d9ddf4;
   /* Cùng họ indigo với --c-primary-soft, đậm hơn một chút để viên nền mục đang chọn còn đọc ra được
      cạnh icon/chữ primary đứng ngay bên trong. */
@@ -263,6 +266,7 @@
     --c-on-bright: #0b0c1c;
 
     --c-nav-bg: rgba(27, 30, 61, 0.94);
+    --c-nav-bg-solid: #1b1e3d;
     --c-nav-border: #2e3260;
     --c-nav-active-bg: #223163;
     --c-float-bg: rgba(27, 30, 61, 0.94);
@@ -335,6 +339,7 @@
   --c-on-bright: #0b0c1c;
 
   --c-nav-bg: rgba(27, 30, 61, 0.94);
+  --c-nav-bg-solid: #1b1e3d;
   --c-nav-border: #2e3260;
   --c-nav-active-bg: #223163;
   --c-float-bg: rgba(27, 30, 61, 0.94);
@@ -370,8 +375,13 @@ html {
      khung nhìn khi bàn phím đóng/mở, thanh gạt Home hiện/ẩn) mà khung của body không phủ hết chiều
      cao vật lý, phần thừa ra sẽ để lộ nền của THẺ HTML này. Trước đây nó mang màu nền trang, tối
      hơn hẳn thanh nav, nên lộ ra thành một rãnh tối rõ mồn một. Cho nó mang đúng màu thanh nav thì
-     dù có lộ, mắt vẫn đọc đó là phần thân thanh nav kéo dài — không còn khoảng trống nào. */
-  background: var(--c-nav-bg);
+     dù có lộ, mắt vẫn đọc đó là phần thân thanh nav kéo dài — không còn khoảng trống nào.
+     Dùng bản ĐẶC (--c-nav-bg-solid), không phải bản trong suốt --c-nav-bg: thẻ html không có gì
+     ở phía sau để pha màu cùng (không như thanh nav, nằm trên nền thẻ App shell) — rgba trong suốt
+     ở đây pha với nền mặc định của khung nhìn (thường là đen), ra một sắc hơi lệch tông so với màu
+     thật của thanh nav, nên dải lộ ra vẫn nhận ra được là "chỗ khác màu" dù đã cùng họ tối. Ảnh chụp
+     thật từ iPhone Air/iPad cho thấy đúng dải hõm này. */
+  background: var(--c-nav-bg-solid);
 }
 
 /* Ghim body ĐÚNG BẰNG KHUNG NHÌN bằng inset: 0 thay vì tính chiều cao bằng 100dvh.

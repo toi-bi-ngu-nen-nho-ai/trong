@@ -10,10 +10,12 @@
 // trong localStorage/IndexedDB — nên chỉ cần cache được phần tĩnh là app chạy đủ 100% offline.
 
 // Đổi số này mỗi lần muốn ép làm mới toàn bộ cache.
-const CACHE = "drtrong-v1"
+// v2: icon-192/icon-512 đổi từ ảnh clipart cũ sang logo thật của app — máy đã cài trước đó vẫn giữ
+// icon cũ trong cache mãi mãi nếu không đổi số này (chiến lược fetch bên dưới ưu tiên cache).
+const CACHE = "drtrong-v2"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
-const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"]
+const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

@@ -10,18 +10,24 @@
     <title>Bác sĩ Trọng — Sổ tay lâm sàng</title>
     <meta name="description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#00766e" />
+    <!-- Khớp --c-primary bản sáng hiện tại (indigo, xem DESIGN.md) — trước đây để #00766e (teal đời
+         đầu, đã bỏ qua hai lần đổi bảng màu: teal → azure → indigo), lệch hẳn với theme_color trong
+         manifest.json lẫn màu thật của app. theme-color quyết định màu thanh trạng thái/thanh công
+         cụ Android và màu nền task-switcher khi chưa cài PWA. -->
+    <meta name="theme-color" content="#2d3a94" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Bác sĩ Trọng" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- 180×180 riêng cho apple-touch-icon (kích cỡ Apple khuyến nghị cho icon màn hình chính) thay
+         vì dùng chung file 192 rồi để iOS tự co giãn. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- Open Graph / link preview (iMessage, Zalo, Facebook...) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Bác sĩ Trọng" />
     <meta property="og:title" content="Bác sĩ Trọng — Sổ tay lâm sàng" />
     <meta property="og:description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
-    <meta property="og:image" content="/icon-192.png" />
+    <meta property="og:image" content="/icon-512.png" />
 
     <!-- Twitter card -->
     <meta name="twitter:card" content="summary" />

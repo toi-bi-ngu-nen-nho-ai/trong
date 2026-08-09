@@ -4499,17 +4499,53 @@ export function MindmapBoard({
   // chính vì định vẽ ở đó). Thêm nữa, thanh nằm bên phải thì người thuận tay trái phải vươn cả cánh
   // tay qua màn hình, tay áo quét lên mặt bảng.
   //
-  // Kéo tới đâu thì thanh GẮN VÀO MÉP gần đó nhất — xem BarPos về lý do không thả nổi tự do.
-  const barDrag = useRef<{ dy: number; pos: BarPos } | null>(null)
+  // Kéo tới đâu thì thanh GẮN VÀO MÉP gần đó nhất khi THẢ TAY — nhưng trong lúc đang kéo, thanh trôi
+  // TỰ DO theo đúng ngón tay (không tính lại mép gần nhất ở mỗi khung hình).
+  //
+  // Bản trước tính lại "mép nào gần nhất" ở MỖI lần pointermove rồi setBarPos() ngay — nghĩa là thanh
+  // có thể đổi cả hình dạng (cột dọc ↔ hàng ngang) NHIỀU LẦN ngay giữa một cú kéo, mỗi lần một cú
+  // BẬT KHỰNG tức thì (transition tắt lúc đang kéo, đúng để bám ngón tay, nhưng cũng đúng lý do cả
+  // cú kéo cảm giác cứng/thô — hình dạng thanh cứ giật liên tục trước khi tay kịp buông ra ở đâu).
+  //
+  // Nay: lúc bắt đầu kéo, ĐÓNG BĂNG hình dạng hiện tại (không gọi setBarPos nào cho tới khi thả tay)
+  // và cho thanh trôi tự do bằng toạ độ pixel thật (offsetLeft/Top của MẶT BẢNG, ghi thẳng qua ref —
+  // không qua state, cùng triết lý applyView()/springSettleDrag). Chỉ tới lúc THẢ TAY mới tính mép
+  // gần nhất từ đúng điểm vừa buông, gọi setBarPos() ĐÚNG MỘT LẦN — cú đổi hình dạng (nếu có) chỉ xảy
+  // ra một lần duy nhất, đúng lúc, và được easing (barSettleTransition) đưa vào êm.
+  const barDrag = useRef<{
+    startClientX: number
+    startClientY: number
+    startLeft: number
+    startTop: number
+    w: number
+    h: number
+    // Toạ độ NGÓN TAY gần nhất (không phải tâm thanh) — thanh nằm ngang rộng gần hết bề ngang bảng,
+    // lấy tâm THANH để tính mép gần nhất thì tâm đó luôn kẹt gần giữa màn hình bất kể kéo rìa thanh
+    // tới đâu, không bao giờ "thắng" nổi về phía trái/phải. Tâm NGÓN TAY mới đúng là thứ người dùng
+    // đang chỉ tới.
+    lastPx: number
+    lastPy: number
+  } | null>(null)
   // Danh sách nét trước khi bắt đầu kéo con trượt — xem useStrokeSpec().
   const widthBase = useRef<StrokeSpec[] | null>(null)
 
   function barPointerDown(e: ReactPointerEvent) {
     const bar = penBarRef.current
-    if (!bar) return
+    const host = surfaceRef.current
+    if (!bar || !host) return
     e.stopPropagation()
     const b = bar.getBoundingClientRect()
-    barDrag.current = { dy: e.clientY - b.top, pos: barPos }
+    const r = host.getBoundingClientRect()
+    barDrag.current = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startLeft: b.left - r.left,
+      startTop: b.top - r.top,
+      w: b.width,
+      h: b.height,
+      lastPx: e.clientX - r.left,
+      lastPy: e.clientY - r.top,
+    }
     setBarDragging("pen")
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -4525,31 +4561,52 @@ export function MindmapBoard({
     if (!d || !host || !bar) return
     e.stopPropagation()
     const r = host.getBoundingClientRect()
-    const px = e.clientX - r.left
-    const py = e.clientY - r.top
-    // Mép nào gần ngón tay nhất thì thanh về mép đó. So khoảng cách TƯƠNG ĐỐI (chia cho bề ngang/bề
-    // cao) chứ không so pixel thô: màn điện thoại cao gấp đôi bề ngang, so pixel thô thì mép
-    // trên/dưới gần như không bao giờ thắng nổi mép trái/phải.
-    const cand: [BarDock, number][] = [
-      ["left", px / r.width],
-      ["right", (r.width - px) / r.width],
-      ["top", py / r.height],
-      ["bottom", (r.height - py) / r.height],
-    ]
-    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
-    // Thanh dựng dọc còn trượt lên xuống dọc theo mép; thanh nằm ngang thì đã chiếm trọn bề ngang
-    // nên không còn gì để chỉnh.
-    const maxY = Math.max(1, r.height - bar.offsetHeight)
-    d.pos = { dock, f: Math.min(1, Math.max(0, (py - d.dy) / maxY)) }
-    setBarPos(d.pos)
+    // Kẹp trong mặt bảng — "tự do" là tự do TRONG bảng, không phải bay ra ngoài màn hình.
+    const left = Math.min(Math.max(0, d.startLeft + (e.clientX - d.startClientX)), Math.max(0, r.width - d.w))
+    const top = Math.min(Math.max(0, d.startTop + (e.clientY - d.startClientY)), Math.max(0, r.height - d.h))
+    bar.style.left = `${left}px`
+    bar.style.top = `${top}px`
+    bar.style.right = "auto"
+    bar.style.bottom = "auto"
+    bar.style.transform = `scale(${1.025})`
+    d.lastPx = e.clientX - r.left
+    d.lastPy = e.clientY - r.top
   }
 
   function barPointerUp() {
     const d = barDrag.current
-    if (!d) return
+    const host = surfaceRef.current
+    const bar = penBarRef.current
+    if (!d || !host || !bar) return
     barDrag.current = null
     setBarDragging(null)
-    writeBarPos(PENBAR_KEY, d.pos)
+    // Mép nào gần NGÓN TAY lúc buông (không phải tâm thanh) thì thanh về mép đó. Tâm thanh sai vì
+    // thanh nằm ngang rộng gần hết bề ngang bảng — tâm nó luôn kẹt gần giữa màn hình bất kể kéo rìa
+    // thanh sát mép nào, "thắng" nghiêng hẳn về trên/dưới mà không bao giờ nghiêng nổi về trái/phải.
+    const r = host.getBoundingClientRect()
+    const curTop = Number.parseFloat(bar.style.top) || 0
+    const cx = d.lastPx
+    const cy = d.lastPy
+    const cand: [BarDock, number][] = [
+      ["left", cx / r.width],
+      ["right", (r.width - cx) / r.width],
+      ["top", cy / r.height],
+      ["bottom", (r.height - cy) / r.height],
+    ]
+    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
+    const vert = dock === "left" || dock === "right"
+    // `f` tính từ ĐÚNG điểm vừa buông (không phải đưa về 0) — buông thanh ở nửa dưới màn hình thì nó
+    // neo vào mép dọc gần nửa dưới, không nhảy ngược lên đầu mép.
+    const maxY = Math.max(1, r.height - d.h)
+    const f = vert ? Math.min(1, Math.max(0, curTop / maxY)) : 0
+    const pos: BarPos = { dock, f }
+    // KHÔNG tự xoá style pixel vừa dùng lúc kéo ở đây — để nguyên, React sẽ tự ghi đè đúng giá trị
+    // mới (barStyle bên dưới tính từ `pos`) ở lượt render tiếp theo, vì cả style cũ (do chính tay
+    // viết) và style mới (React viết) đều là CÙNG những thuộc tính (left/top/transform) — xoá tay ở
+    // đây trước rồi mới setBarPos() sẽ để lộ đúng MỘT khung hình style trống giữa hai cái, một cú
+    // nháy trước khi vào đúng chỗ.
+    setBarPos(pos)
+    writeBarPos(PENBAR_KEY, pos)
     tickHaptic()
   }
 
@@ -4576,14 +4633,36 @@ export function MindmapBoard({
   // `f` trượt dọc theo ĐÚNG mép đang gắn — theo chiều ngang khi gắn mép trên/dưới, theo chiều dọc khi
   // gắn mép trái/phải — nên cần nhớ CẢ dx và dy lúc bắt đầu kéo (thanh bút chỉ cần dy vì luôn dính
   // trọn bề ngang, không có toạ độ ngang nào để nhớ).
-  const undoBarDrag = useRef<{ dx: number; dy: number; pos: BarPos } | null>(null)
+  // Cùng cách "đóng băng hình dạng, trôi tự do bằng pixel, chỉ tính mép lúc buông tay" như thanh bút
+  // ở trên — xem ghi chú đầy đủ tại barDrag.
+  const undoBarDrag = useRef<{
+    startClientX: number
+    startClientY: number
+    startLeft: number
+    startTop: number
+    w: number
+    h: number
+    lastPx: number
+    lastPy: number
+  } | null>(null)
 
   function undoBarPointerDown(e: ReactPointerEvent) {
     const bar = undoBarRef.current
-    if (!bar) return
+    const host = surfaceRef.current
+    if (!bar || !host) return
     e.stopPropagation()
     const b = bar.getBoundingClientRect()
-    undoBarDrag.current = { dx: e.clientX - b.left, dy: e.clientY - b.top, pos: undoBarPos }
+    const r = host.getBoundingClientRect()
+    undoBarDrag.current = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startLeft: b.left - r.left,
+      startTop: b.top - r.top,
+      w: b.width,
+      h: b.height,
+      lastPx: e.clientX - r.left,
+      lastPy: e.clientY - r.top,
+    }
     setBarDragging("undo")
     try {
       ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -4599,28 +4678,43 @@ export function MindmapBoard({
     if (!d || !host || !bar) return
     e.stopPropagation()
     const r = host.getBoundingClientRect()
-    const px = e.clientX - r.left
-    const py = e.clientY - r.top
-    const cand: [BarDock, number][] = [
-      ["left", px / r.width],
-      ["right", (r.width - px) / r.width],
-      ["top", py / r.height],
-      ["bottom", (r.height - py) / r.height],
-    ]
-    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
-    const vert = dock === "left" || dock === "right"
-    const max = vert ? Math.max(1, r.height - bar.offsetHeight) : Math.max(1, r.width - bar.offsetWidth)
-    const along = vert ? py - d.dy : px - d.dx
-    d.pos = { dock, f: Math.min(1, Math.max(0, along / max)) }
-    setUndoBarPos(d.pos)
+    const left = Math.min(Math.max(0, d.startLeft + (e.clientX - d.startClientX)), Math.max(0, r.width - d.w))
+    const top = Math.min(Math.max(0, d.startTop + (e.clientY - d.startClientY)), Math.max(0, r.height - d.h))
+    bar.style.left = `${left}px`
+    bar.style.top = `${top}px`
+    bar.style.right = "auto"
+    bar.style.bottom = "auto"
+    bar.style.transform = `scale(${1.06})`
+    d.lastPx = e.clientX - r.left
+    d.lastPy = e.clientY - r.top
   }
 
   function undoBarPointerUp() {
     const d = undoBarDrag.current
-    if (!d) return
+    const host = surfaceRef.current
+    const bar = undoBarRef.current
+    if (!d || !host || !bar) return
     undoBarDrag.current = null
     setBarDragging(null)
-    writeBarPos(UNDOBAR_KEY, d.pos)
+    const r = host.getBoundingClientRect()
+    const curLeft = Number.parseFloat(bar.style.left) || 0
+    const curTop = Number.parseFloat(bar.style.top) || 0
+    const cx = d.lastPx
+    const cy = d.lastPy
+    const cand: [BarDock, number][] = [
+      ["left", cx / r.width],
+      ["right", (r.width - cx) / r.width],
+      ["top", cy / r.height],
+      ["bottom", (r.height - cy) / r.height],
+    ]
+    const dock = cand.sort((a, b) => a[1] - b[1])[0][0]
+    const vert = dock === "left" || dock === "right"
+    const f = vert
+      ? Math.min(1, Math.max(0, curTop / Math.max(1, r.height - d.h)))
+      : Math.min(1, Math.max(0, curLeft / Math.max(1, r.width - d.w)))
+    const pos: BarPos = { dock, f }
+    setUndoBarPos(pos)
+    writeBarPos(UNDOBAR_KEY, pos)
     tickHaptic()
   }
 
@@ -4734,15 +4828,21 @@ export function MindmapBoard({
   const barSettleTransition = "top 0.24s cubic-bezier(0.34,1.4,0.64,1), left 0.24s cubic-bezier(0.34,1.4,0.64,1), right 0.24s cubic-bezier(0.34,1.4,0.64,1), transform 0.24s cubic-bezier(0.34,1.4,0.64,1), box-shadow 0.24s ease"
   // Chỗ đứng thật của thanh trên mặt bảng.
   //
-  // Nằm ngang thì DÍNH TRỌN một mép (left:0, right:0) — không còn toạ độ ngang tự do nữa, nên không
-  // còn cái cảm giác kéo cả đoạn dài mà thanh nhích được vài pixel. Dựng dọc thì dính mép trái/phải
-  // và trượt lên xuống theo `f`, đặt bằng đúng mẹo phần trăm cũ: top f% cộng translateY(-f%) cho ra
-  // f × (chiều cao bảng − chiều cao thanh), không bao giờ lòi ra ngoài dù màn hình cỡ nào.
+  // Nằm ngang thì DÍNH TRỌN một mép (left:0, right:0). Dựng dọc thì dính mép trái/phải và trượt lên
+  // xuống theo `f` — ĐO THẬT chiều cao mặt bảng/thanh (offsetHeight, không phải mẹo % + translateY
+  // cũ) để tính ra top bằng PIXEL. Lý do đổi: lúc kéo tự do (barPointerMove ở trên) thanh cũng đang
+  // định vị bằng pixel left/top thuần — nếu chỗ ĐỖ lại dùng % + transform khác hẳn, chuyển tiếp giữa
+  // hai cách định vị đó (CSS không nội suy được giữa hai DẠNG transform khác nhau) sẽ nhảy cứng đúng
+  // một khung hình ngay lúc thả tay. Cùng là pixel left/top + transform CHỈ scale (không translate)
+  // ở cả hai nơi thì easing (barSettleTransition) mới nối liền mạch được.
+  const barSurfaceH = surfaceRect().height
+  const barMeasuredH = penBarRef.current?.offsetHeight ?? 0
+  const barVertMaxY = Math.max(1, barSurfaceH - barMeasuredH)
   const barStyle: React.CSSProperties = barVert
     ? {
         [barPos.dock === "left" ? "left" : "right"]: 6,
-        top: `${barPos.f * 100}%`,
-        transform: `translateY(${-barPos.f * 100}%) scale(${barPickedUp})`,
+        top: barPos.f * barVertMaxY,
+        transform: `scale(${barPickedUp})`,
         transition: barDragging === "pen" ? undefined : barSettleTransition,
       }
     : {
@@ -4755,19 +4855,25 @@ export function MindmapBoard({
 
   // Cụm hoàn tác/làm lại: chỉ hai nút, không đủ để chiếm trọn một mép như thanh bút — đứng nhỏ gọn
   // ở mọi mép, `f` trượt dọc theo ĐÚNG mép đang gắn (ngang khi gắn mép trên/dưới, dọc khi gắn mép
-  // trái/phải). Cùng mẹo phần trăm + translate ngược để không bao giờ lòi ra ngoài màn hình.
+  // trái/phải). Đo pixel thật (không phải % + translate) — cùng lý do với barStyle ở trên: lúc kéo
+  // tự do cụm này cũng định vị bằng pixel left/top + transform CHỈ scale, chỗ đỗ phải cùng dạng mới
+  // nối easing liền mạch được, không nhảy cứng đúng lúc thả tay.
   const undoBarVert = undoBarPos.dock === "left" || undoBarPos.dock === "right"
+  const undoBarMeasuredW = undoBarRef.current?.offsetWidth ?? 0
+  const undoBarMeasuredH = undoBarRef.current?.offsetHeight ?? 0
+  const undoBarMaxY = Math.max(1, barSurfaceH - undoBarMeasuredH)
+  const undoBarMaxX = Math.max(1, surfaceRect().width - undoBarMeasuredW)
   const undoBarStyle: React.CSSProperties = undoBarVert
     ? {
         [undoBarPos.dock === "left" ? "left" : "right"]: 6,
-        top: `${undoBarPos.f * 100}%`,
-        transform: `translateY(${-undoBarPos.f * 100}%) scale(${undoBarPickedUp})`,
+        top: undoBarPos.f * undoBarMaxY,
+        transform: `scale(${undoBarPickedUp})`,
         transition: barDragging === "undo" ? undefined : barSettleTransition,
       }
     : {
         [undoBarPos.dock === "top" ? "top" : "bottom"]: 6,
-        left: `${undoBarPos.f * 100}%`,
-        transform: `translateX(${-undoBarPos.f * 100}%) scale(${undoBarPickedUp})`,
+        left: undoBarPos.f * undoBarMaxX,
+        transform: `scale(${undoBarPickedUp})`,
         transition: barDragging === "undo" ? undefined : barSettleTransition,
       }
 
