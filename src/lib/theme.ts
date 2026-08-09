@@ -82,6 +82,29 @@ export function saveTheme(mode: ThemeMode): void {
     // Không lưu được thì lần mở sau quay về "auto" — chấp nhận được, không chặn việc dùng app.
   }
   applyTheme(mode)
+  // ─── PWA cài ra màn hình chính: thanh trạng thái không tự vẽ lại khi app đang chạy ──────────
+  // applyTheme() ở trên đã ghi ĐÚNG màu vào cả ba thẻ theme-color, và mọi thứ TRONG trang đổi màu
+  // ngay lập tức — nhưng đo được thực tế: khi app chạy standalone (đã "Thêm vào màn hình chính"),
+  // bấm nút đổi chủ đề trong lúc app đang mở KHÔNG làm thanh trạng thái vẽ lại; phải tắt hẳn app rồi
+  // mở lại nó mới đúng màu. Hệ điều hành chỉ đọc theme-color lúc MỞ app, không nghe JS sửa nội dung
+  // thẻ meta khi app đang chạy — một giới hạn của chế độ standalone, không phải lỗi ở phép ghi trên.
+  //
+  // Tự động hoá đúng thao tác "tắt rồi mở lại" đó bằng reload. An toàn để làm NGAY Ở ĐÂY: nút đổi
+  // chủ đề (ThemeToggle) chỉ hiện trên Trang chủ — không có ô nhập nào đang dở để mất, và bệnh nhân/
+  // tab/thuốc đang chọn đều đã nằm trong localStorage/sessionStorage nên sau reload vẫn y nguyên
+  // (xem lib/patient.ts, lib/uiState.ts). KHÔNG gọi ở applyTheme(): applyTheme() còn được main.tsx
+  // gọi mỗi lần MỞ app — reload ở đó sẽ vòng lặp vô hạn ngay từ lúc mở.
+  if (isStandalonePwa()) window.location.reload()
+}
+
+// Đang chạy như PWA đã cài ra màn hình chính (display: standalone trong manifest.json), hay đang mở
+// trong một tab trình duyệt bình thường. `navigator.standalone` là API riêng của iOS Safari (media
+// query display-mode không được vài bản iOS cũ hỗ trợ đầy đủ) — kiểm tra cả hai cho chắc.
+function isStandalonePwa(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  )
 }
 
 export const THEME_LABELS: Record<ThemeMode, string> = {
