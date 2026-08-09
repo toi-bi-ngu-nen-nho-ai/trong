@@ -187,6 +187,23 @@ export function pickEasiestVolume(loMl: number, hiMl: number): number {
   return Math.round(((lo + hi) / 2) * 10) / 10
 }
 
+// Cùng ý tưởng pickEasiestVolume() nhưng cho thể tích RÚT RA từ một mẻ pha LỚN (nhiều lọ/chai chung
+// một túi, thường ≥100 mL) — thang mịn 0,1 mL của pickEasiestVolume() vô nghĩa ở quy mô này (không ai
+// đọc số mL lẻ trên một túi 200 mL), nên chỉ làm tròn tới mốc trăm/năm mươi mL, giống hệt
+// poolDrawVolume(). Có mốc rơi trong khoảng [lo,hi] thì lấy mốc gần cận trên nhất (đúng triết lý cũ);
+// khoảng quá hẹp để có mốc nào lọt vào thì làm tròn LÊN từ cận dưới — thà dư nhẹ thuốc còn hơn thiếu
+// liều (xem ghi chú "thà dư còn hơn thiếu" ở poolDrawVolume/pickEasiestVialCount).
+export function pickEasiestBatchVolume(loMl: number, hiMl: number): number {
+  const lo = Math.min(loMl, hiMl)
+  const hi = Math.max(loMl, hiMl)
+  for (const step of [100, 50]) {
+    const candidate = Math.floor(hi / step) * step
+    if (candidate >= lo - 1e-9 && candidate > 0) return candidate
+  }
+  const roundedUp = Math.ceil(lo / 50 - 1e-9) * 50
+  return roundedUp > 0 ? roundedUp : 50
+}
+
 // Cùng triết lý với pickEasiestVolume() nhưng chọn SỐ LỌ/ỐNG thay vì thể tích — người pha nhập hàm
 // lượng 1 lọ/ống, app gợi ý luôn số lọ khớp khoảng liều (theo CrCl hoặc AdjBW) thay vì bắt tự nhẩm
 // rồi gõ tay. Ưu tiên số NGUYÊN lọ (dễ lấy nhất) — chỉ lùi xuống bước 0,5 lọ khi `allowHalf` bật VÀ
@@ -306,7 +323,7 @@ export function resolveFixedDraw(loAmount: number, hiAmount: number, bottleAmoun
     const loMl = drawFromFixedVial(loAmount, "u", bottleAmount, "u", bottleVolumeMl)
     const hiMl = drawFromFixedVial(hiAmount, "u", bottleAmount, "u", bottleVolumeMl)
     if (loMl == null || hiMl == null) return null
-    return { bottleCount: 1, drawMl: pickEasiestVolume(loMl, hiMl) }
+    return { bottleCount: 1, drawMl: pickEasiestBatchVolume(loMl, hiMl) }
   }
   const drawMl = poolDrawVolume(hiAmount, count, bottleAmount, bottleVolumeMl)
   if (drawMl == null) return null
@@ -463,4 +480,40 @@ export function gradeConcentration(
     }
   }
   return CONC_OK
+}
+
+// ─── Trần số lượng ống/lọ/chai cần lấy ─────────────────────────────────────────
+// Số lượng ống/lọ/chai tính ra cho MỘT lần pha vượt xa mức thực tế gần như luôn là dấu hiệu gõ nhầm
+// hàm lượng (vd gõ 100 mg thay vì 1000 mg → tính ra cần "10 lọ") chứ không phải liều thật cần nhiều
+// đến vậy — trước đây không có trần nào nên một con số vô lý vẫn in thẳng ra "Cách dùng" như thể chắc
+// chắn. Ống dung dịch pha sẵn có thể hợp lý dùng nửa ống (trần dưới 0,5); chai/lọ luôn phải lấy
+// nguyên/gần nguyên một đơn vị (trần dưới 1) — dùng chưa tới nửa lọ thường là hàm lượng nhập quá cao.
+// Trần trên 5 áp dụng chung cho mọi dạng: quá 5 lọ/ống/chai cho một liều là bất thường.
+export interface VialCountGrade {
+  requiresConfirm: boolean
+  headline: string | null
+  detail: string | null
+}
+
+export const VIAL_COUNT_OK: VialCountGrade = { requiresConfirm: false, headline: null, detail: null }
+
+export function gradeVialCount(count: number, form: VialForm): VialCountGrade {
+  if (!(count > 0)) return VIAL_COUNT_OK
+  const min = form === "solution" ? 0.5 : 1
+  const max = 5
+  if (count > max) {
+    return {
+      requiresConfirm: true,
+      headline: "Bạn nhập sai hàm lượng rồi, số lượng quá cao!",
+      detail: "Bạn chắc với hàm lượng này chứ?",
+    }
+  }
+  if (count < min) {
+    return {
+      requiresConfirm: true,
+      headline: "Bạn nhập sai hàm lượng rồi, số lượng quá thấp!",
+      detail: "Bạn chắc với hàm lượng này chứ?",
+    }
+  }
+  return VIAL_COUNT_OK
 }

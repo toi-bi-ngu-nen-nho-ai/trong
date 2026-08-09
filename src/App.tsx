@@ -34,10 +34,11 @@ import {
   dropsPerMinute,
   formatDuration,
   gradeConcentration,
+  gradeVialCount,
   infusionDurationHours,
   partialDraw,
+  pickEasiestBatchVolume,
   pickEasiestVialCount,
-  pickEasiestVolume,
   pumpRateMlPerHour,
   resolveFixedDraw,
   roundToStep,
@@ -47,6 +48,8 @@ import {
   volumeForConcentration,
   volumePerVial,
   wholeCountOptions,
+  VIAL_COUNT_OK,
+  type VialCountGrade,
   type VialForm,
   type VialSpec,
 } from "./lib/mixing"
@@ -6434,6 +6437,49 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
   )
 }
 
+// Trần số lượng ống/lọ/chai (xem gradeVialCount trong lib/mixing.ts) — khi số lượng tính ra vượt
+// ngưỡng hợp lý, KHÔNG in số ra ngay: chờ 3 giây (đủ lâu để không nháy cảnh báo khi người dùng còn
+// đang gõ dở con số hàm lượng) rồi mới hiện cảnh báo, và chặn kết quả cho tới khi người dùng bấm xác
+// nhận "tôi chắc chắn" — cùng triết lý requiresConfirm của gradeConcentration, chỉ khác đối tượng
+// kiểm (số lượng thay vì nồng độ). `count`/`form` đổi (gõ số khác, đổi dạng đóng gói) thì phải xác
+// nhận lại từ đầu — không được "nhớ" xác nhận cũ cho một con số hoàn toàn khác.
+function useVialCountGuard(count: number | null, form: VialForm) {
+  const grade = useMemo(() => (count != null ? gradeVialCount(count, form) : VIAL_COUNT_OK), [count, form])
+  const key = count != null ? `${form}:${Math.round(count * 1000)}` : null
+  const [showWarning, setShowWarning] = useState(false)
+  const [confirmedKey, setConfirmedKey] = useState<string | null>(null)
+  useEffect(() => {
+    setShowWarning(false)
+    if (!grade.requiresConfirm || key == null) return
+    const t = setTimeout(() => setShowWarning(true), 3000)
+    return () => clearTimeout(t)
+  }, [grade.requiresConfirm, key])
+  const confirmed = key != null && confirmedKey === key
+  return {
+    grade,
+    showWarning,
+    blocked: grade.requiresConfirm && !confirmed,
+    confirm: () => setConfirmedKey(key),
+  }
+}
+
+function VialCountWarning({ grade, show, onConfirm }: { grade: VialCountGrade; show: boolean; onConfirm: () => void }) {
+  if (!grade.requiresConfirm || !show) return null
+  return (
+    <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
+      <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>{grade.headline}</p>
+      <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>{grade.detail}</p>
+      <button
+        onClick={onConfirm}
+        className="mt-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold"
+        style={{ background: "var(--c-danger-icon)", color: "var(--c-on-bright)" }}
+      >
+        Tôi chắc chắn
+      </button>
+    </div>
+  )
+}
+
 function AntibioticMixPanel({
   drug,
   doseTargetMg,
@@ -7430,18 +7476,22 @@ function AntibioticDoseCard({
         routeShort === "TTM" && !onPump && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
       const rateMlPerHourRaw = onPump && mixCfg.infuseMinutes != null ? pumpRateMlPerHour(pickedMl, mixCfg.infuseMinutes) : null
       const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
-      return formatFixedUsage({
-        name: drug.name,
-        vialAmount: mixCfg.vialAmount,
-        vialUnit: mixCfg.vialUnit,
-        vialVolumeMl: mixCfg.vialVolumeMl,
-        vialsUsed: bottleCount,
-        doseAmount: isWholeVial ? undefined : pickedDose,
-        doseUnit: doseTargetMg.unit,
-        route: routeShort,
-        dropsPerMin,
-        rateMlPerHour,
-      })
+      return {
+        text: formatFixedUsage({
+          name: drug.name,
+          vialAmount: mixCfg.vialAmount,
+          vialUnit: mixCfg.vialUnit,
+          vialVolumeMl: mixCfg.vialVolumeMl,
+          vialsUsed: bottleCount,
+          doseAmount: isWholeVial ? undefined : pickedDose,
+          doseUnit: doseTargetMg.unit,
+          route: routeShort,
+          dropsPerMin,
+          rateMlPerHour,
+        }),
+        vialCount: bottleCount,
+        vialForm: "fixed" as VialForm,
+      }
     }
     const f = massFactor(doseTargetMg.unit, mixCfg.vialUnit)
     if (f == null) return null
@@ -7469,7 +7519,13 @@ function AntibioticDoseCard({
     const loMl = neededLow / conc
     const hiMl = neededHigh / conc
     if (hiMl > volumeMl + 1e-9) return null
-    const pickedMl = doseTargetMg.high != null ? pickEasiestVolume(loMl, hiMl) : loMl
+    // Thể tích rút ra ở đây luôn nằm trong một mẻ pha ≥100 mL (100 mL/lọ trở lên) — thang mịn cỡ
+    // 0,1 mL vô nghĩa ở quy mô đó (không ai đọc "217 mL" như một con số dễ lấy), nên dùng thang
+    // trăm/năm mươi mL của pickEasiestBatchVolume() thay vì pickEasiestVolume() thang mịn. Chặn trần
+    // ở `volumeMl` — làm tròn LÊN (thà dư còn hơn thiếu) không được phép "rút" nhiều hơn cả thể tích
+    // thật đã pha, vượt trần thì coi như dùng trọn mẻ (isWholeBatch bên dưới tự xử lý đúng câu chữ).
+    const pickedMlRaw = doseTargetMg.high != null ? pickEasiestBatchVolume(loMl, hiMl) : pickEasiestBatchVolume(loMl, loMl)
+    const pickedMl = Math.min(pickedMlRaw, volumeMl)
     // Liều tính ra dùng ĐÚNG trọn lượng vừa pha (không cần rút riêng một phần) → câu gọn như mẫu
     // 3b, không lặp lại "đủ X ml lấy Y ml" một cách thừa thãi.
     const isWholeBatch = pickedMl >= volumeMl - 1e-6
@@ -7481,23 +7537,28 @@ function AntibioticDoseCard({
       routeShort === "TTM" && !onPump && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
     const rateMlPerHourRaw = onPump && mixCfg.infuseMinutes != null ? pumpRateMlPerHour(pickedMl, mixCfg.infuseMinutes) : null
     const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
-    return formatVialUsage({
-      name: drug.name,
-      vialAmount: mixCfg.vialAmount,
-      vialUnit: mixCfg.vialUnit,
-      vialsUsed: vials,
-      vialLabel: drug.mix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ"),
-      // Chỉ ống dung dịch mới có thể tích riêng đáng nói kiểu "1 g/4 ml" (mẫu 4b) — lọ bột chưa có
-      // thể tích tới khi hoàn nguyên, thể tích đó đã nằm trong "đủ X ml" bên dưới rồi.
-      vialVolumeMl: mixCfg.vialForm === "solution" ? mixCfg.vialVolumeMl ?? undefined : undefined,
-      diluentName: mixCfg.diluent,
-      route: routeShort,
-      finalVolumeMl: isWholeBatch ? undefined : volumeMl,
-      drawMl: isWholeBatch ? undefined : pickedMl,
-      dropsPerMin,
-      rateMlPerHour,
-    })
+    return {
+      text: formatVialUsage({
+        name: drug.name,
+        vialAmount: mixCfg.vialAmount,
+        vialUnit: mixCfg.vialUnit,
+        vialsUsed: vials,
+        vialLabel: drug.mix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ"),
+        // Chỉ ống dung dịch mới có thể tích riêng đáng nói kiểu "1 g/4 ml" (mẫu 4b) — lọ bột chưa có
+        // thể tích tới khi hoàn nguyên, thể tích đó đã nằm trong "đủ X ml" bên dưới rồi.
+        vialVolumeMl: mixCfg.vialForm === "solution" ? mixCfg.vialVolumeMl ?? undefined : undefined,
+        diluentName: mixCfg.diluent,
+        route: routeShort,
+        finalVolumeMl: isWholeBatch ? undefined : volumeMl,
+        drawMl: isWholeBatch ? undefined : pickedMl,
+        dropsPerMin,
+        rateMlPerHour,
+      }),
+      vialCount: vials,
+      vialForm: mixCfg.vialForm,
+    }
   }, [mixCfg, doseTargetMg, drug.name, drug.mix?.vialLabel, routeShort])
+  const vialGuard = useVialCountGuard(autoUsage?.vialCount ?? null, autoUsage?.vialForm ?? "powder")
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
   const otherWarnings = (drug.warnings ?? []).filter((w) => w.severity !== "cao")
   const rrtDoseText =
@@ -7715,14 +7776,18 @@ function AntibioticDoseCard({
       )}
 
       {/* Cách dùng tự tính theo mức liều CrCl hiện tại — chỉ hiện khi đọc được cả con số liều lẫn
-          công thức pha, xem autoUsage ở trên. */}
-      {autoUsage && (
+          công thức pha, xem autoUsage ở trên. Số lượng ống/lọ/chai vượt trần hợp lý (gradeVialCount)
+          thì KHÔNG in số ra ngay — thường là dấu hiệu gõ nhầm hàm lượng — chờ xác nhận trước. */}
+      {autoUsage && !vialGuard.blocked && (
         <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage}</p>
+          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage.text}</p>
           <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
             Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
           </p>
         </div>
+      )}
+      {autoUsage && (
+        <VialCountWarning grade={vialGuard.grade} show={vialGuard.showWarning} onConfirm={vialGuard.confirm} />
       )}
 
       {/* Chỉ hiện "Liều chuẩn" khi nó KHÁC dòng liều ở trên — trước đây meropenem in ra "1 g mỗi 8h"
@@ -8542,6 +8607,9 @@ function MixPanel({
   const tgt = parseFloat(target)
   const neededVialsRaw = vialsForConcentration(tgt, va, vol, vialUnit, calc.concUnit)
   const neededVials = neededVialsRaw != null ? Math.max(1, Math.ceil(neededVialsRaw - 1e-9)) : null
+  // Số ống/lọ tính ra vượt trần hợp lý (gradeVialCount) thường là dấu hiệu gõ nhầm "Hàm lượng 1
+  // {vialLabel}" ở trên chứ không phải liều thật cần nhiều đến vậy — chặn kết quả lại chờ xác nhận.
+  const vialGuard = useVialCountGuard(neededVials, vialForm)
   const concIfRounded = neededVials != null ? concentrationFromVials(va, neededVials, vol, vialUnit, calc.concUnit) : null
   // Giữ ĐÚNG nồng độ mong muốn bằng cách chỉnh thể tích cuối thay vì chịu lệch nồng độ.
   const volForExact = neededVials != null ? volumeForConcentration(tgt, va, neededVials, vialUnit, calc.concUnit) : null
@@ -8756,7 +8824,8 @@ function MixPanel({
           ))}
         </div>
       )}
-      {neededVials != null && neededVialsRaw != null && concIfRounded != null && (
+      <VialCountWarning grade={vialGuard.grade} show={vialGuard.showWarning} onConfirm={vialGuard.confirm} />
+      {neededVials != null && neededVialsRaw != null && concIfRounded != null && !vialGuard.blocked && (
         mode === "partial" && draw != null ? (
           <MixResultCard
             drug={drug}
