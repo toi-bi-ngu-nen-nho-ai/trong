@@ -11908,9 +11908,14 @@ function ViewportDebugPanel() {
   const vv = typeof window !== "undefined" ? window.visualViewport : null
   const navEl = document.querySelector('nav[aria-label="Điều hướng chính"]')
   const navRect = navEl?.getBoundingClientRect()
+  const shellEl = document.getElementById("app-shell")
+  const shellRect = shellEl?.getBoundingClientRect()
   const bodyRect = document.body.getBoundingClientRect()
   const htmlEl = document.documentElement
   const cs = getComputedStyle(htmlEl)
+  // Màu THẬT ĐÃ TÔ (không phải tên biến) của từng lớp, từ ngoài vào trong — nếu có khe hở lộ ra ở
+  // đáy, đây là cách biết chính xác lớp nào đang lộ ra qua khe đó.
+  const bgOf = (el: Element | null) => (el ? getComputedStyle(el).backgroundColor : "(không có)")
   const rows: [string, string][] = [
     ["tick", String(tick)],
     ["window.innerW×H", `${window.innerWidth} × ${window.innerHeight}`],
@@ -11918,8 +11923,13 @@ function ViewportDebugPanel() {
     ["screen.width×height", `${window.screen?.width} × ${window.screen?.height}`],
     ["devicePixelRatio", String(window.devicePixelRatio)],
     ["html.clientW×H", `${htmlEl.clientWidth} × ${htmlEl.clientHeight}`],
-    ["body rect", `top=${bodyRect.top.toFixed(1)} bottom=${bodyRect.bottom.toFixed(1)} h=${bodyRect.height.toFixed(1)}`],
-    ["nav rect", navRect ? `top=${navRect.top.toFixed(1)} bottom=${navRect.bottom.toFixed(1)} h=${navRect.height.toFixed(1)}` : "(không có nav ở màn này)"],
+    ["body rect", `top=${bodyRect.top.toFixed(2)} bottom=${bodyRect.bottom.toFixed(2)} h=${bodyRect.height.toFixed(2)}`],
+    ["#app-shell rect", shellRect ? `top=${shellRect.top.toFixed(2)} bottom=${shellRect.bottom.toFixed(2)} h=${shellRect.height.toFixed(2)}` : "(không thấy #app-shell)"],
+    ["nav rect", navRect ? `top=${navRect.top.toFixed(2)} bottom=${navRect.bottom.toFixed(2)} h=${navRect.height.toFixed(2)}` : "(không có nav ở màn này)"],
+    ["màu nền html", bgOf(htmlEl)],
+    ["màu nền body", bgOf(document.body)],
+    ["màu nền #app-shell", bgOf(shellEl)],
+    ["màu nền nav", bgOf(navEl)],
     ["--safe-top / --safe-bottom", `${cs.getPropertyValue("--safe-top").trim()} / ${cs.getPropertyValue("--safe-bottom").trim()}`],
     ["display-mode: standalone", String(window.matchMedia?.("(display-mode: standalone)").matches)],
     ["display-mode: fullscreen", String(window.matchMedia?.("(display-mode: fullscreen)").matches)],
@@ -12397,6 +12407,7 @@ export default function App() {
       // Sửa: cho div này ăn theo khung của body luôn (absolute + inset-0 lấy body — phần tử
       // position:fixed gần nhất — làm containing block) thay vì tự đo lại từ đầu. Chỉ còn MỘT nơi
       // duy nhất tính "viewport" ra sao, nên không thể vênh nhau nữa.
+      id="app-shell"
       className="absolute inset-0 flex flex-col overflow-hidden"
       style={{
         background: "var(--c-surface)",
