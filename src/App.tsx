@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
-import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticWarning, DiseaseEntry, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, MindNode, MindEdge, MindImage, MindStroke, MindmapData, MindBoard, SourceInfo } from "./data/types"
+import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, MindNode, MindEdge, MindImage, MindStroke, MindmapData, MindBoard, SourceInfo } from "./data/types"
 import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
@@ -2189,6 +2189,10 @@ function AddAntibioticScreen({
   // Liều nạp — vd Vancomycin cần liều nạp trước khi vào liều duy trì theo CrCl. Trước đây chỉ màn
   // Sửa có mục này, thêm nhanh kháng sinh mới hoàn toàn không khai báo được.
   const [boluses, setBoluses] = useState<BolusDraft[]>([])
+  const [weightBasis, setWeightBasis] = useState<WeightBasis | "">("")
+  const [cap, setCap] = useState<DoseCapDraft>(emptyDoseCapDraft())
+  const [compatKey, setCompatKey] = useState("")
+  const [mix, setMix] = useState<MixDraft>(emptyMixDraft())
 
   // "Cách dùng / Pha thuốc" có ích cho CẢ BỐN đường tiêm/truyền (TTM/TMC/IM/SC) — không chỉ truyền
   // tĩnh mạch. Trước đây chỉ hiện cho "iv-infusion" nên tiêm tĩnh mạch chậm/tiêm bắp/tiêm dưới da
@@ -2257,6 +2261,10 @@ function AddAntibioticScreen({
       boluses: cleanedBoluses.length > 0 ? cleanedBoluses : undefined,
       source: source.trim() || undefined,
       reviewedOn: reviewedOn.trim() || undefined,
+      doseWeightBasis: weightBasis || undefined,
+      maxSingleDose: draftToDoseCap(cap),
+      compatKey: compatKey.trim() || undefined,
+      mix: isInjectableRoute ? draftToMix(mix) : undefined,
       isCustom: true,
     }
     onSave(newDrug)
@@ -2443,6 +2451,18 @@ function AddAntibioticScreen({
           </p>
         </div>
 
+        <AntibioticAdvancedFields
+          showMix={isInjectableRoute}
+          weightBasis={weightBasis}
+          setWeightBasis={setWeightBasis}
+          cap={cap}
+          setCap={setCap}
+          compatKey={compatKey}
+          setCompatKey={setCompatKey}
+          mix={mix}
+          setMix={setMix}
+        />
+
         <p className="text-xs text-slate-400 leading-relaxed">
           Mục tự nhập được lưu trên máy (trình duyệt của bạn) nên vẫn còn sau khi tắt/mở lại app.
         </p>
@@ -2514,6 +2534,10 @@ function EditAntibioticScreen({
   const [rrtSource, setRrtSource] = useState(drug.rrt?.source ?? "")
   // Liều nạp — vd Vancomycin cần 25–30 mg/kg trước khi vào liều duy trì theo CrCl.
   const [boluses, setBoluses] = useState<BolusDraft[]>(() => (drug.boluses ?? []).map(bolusToDraft))
+  const [weightBasis, setWeightBasis] = useState<WeightBasis | "">(drug.doseWeightBasis ?? "")
+  const [cap, setCap] = useState<DoseCapDraft>(() => doseCapToDraft(drug.maxSingleDose))
+  const [compatKey, setCompatKey] = useState(drug.compatKey ?? "")
+  const [mix, setMix] = useState<MixDraft>(() => mixToDraft(drug.mix))
   const [tiers, setTiers] = useState<{ min: string; label: string; dose: string }[]>(
     drug.tiers.length > 0 ? drug.tiers.map((t) => ({ min: String(t.min), label: t.label, dose: t.dose })) : [{ min: "0", label: "Mọi mức CrCl", dose: "" }],
   )
@@ -2535,6 +2559,7 @@ function EditAntibioticScreen({
   )
 
   const isOtherRoute = routeId === "other"
+  const isInjectableRoute = routeId === "iv-infusion" || routeId === "iv-slow" || routeId === "im" || routeId === "sc"
   const finalRoute = isOtherRoute ? routeOther.trim() : ANTIBIOTIC_ROUTE_OPTIONS.find((r) => r.id === routeId)?.label ?? ""
   const canSave = name.trim().length > 0 && finalRoute.length > 0 && tiers.some((t) => t.dose.trim())
   const missingSaveReasons: string[] = []
@@ -2664,6 +2689,10 @@ function EditAntibioticScreen({
               reviewedOn: drug.rrt?.reviewedOn,
             }
           : undefined,
+      doseWeightBasis: weightBasis || undefined,
+      maxSingleDose: draftToDoseCap(cap),
+      compatKey: compatKey.trim() || undefined,
+      mix: isInjectableRoute ? draftToMix(mix) : undefined,
       isCustom: true,
     }
     onSave(updated, newDiseases)
@@ -3031,6 +3060,18 @@ function EditAntibioticScreen({
           </p>
         </div>
 
+        <AntibioticAdvancedFields
+          showMix={isInjectableRoute}
+          weightBasis={weightBasis}
+          setWeightBasis={setWeightBasis}
+          cap={cap}
+          setCap={setCap}
+          compatKey={compatKey}
+          setCompatKey={setCompatKey}
+          mix={mix}
+          setMix={setMix}
+        />
+
         <p className="text-xs text-slate-400 leading-relaxed">
           Nội dung sửa được lưu ngay trên máy này, không đổi dữ liệu gốc trong app.
         </p>
@@ -3196,6 +3237,305 @@ function BolusEditorField({ boluses, setBoluses }: { boluses: BolusDraft[]; setB
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// Bản nháp của DoseCap (trần liều một lần dùng) lúc nhập — amount giữ dạng chuỗi giống BolusDraft
+// để gõ dở dang không bị nhảy về NaN.
+interface DoseCapDraft {
+  amount: string
+  unit: string
+  note: string
+}
+
+function emptyDoseCapDraft(): DoseCapDraft {
+  return { amount: "", unit: "mg", note: "" }
+}
+
+function doseCapToDraft(c?: DoseCap): DoseCapDraft {
+  return c ? { amount: String(c.amount), unit: c.unit, note: c.note ?? "" } : emptyDoseCapDraft()
+}
+
+// undefined nếu chưa gõ số lượng — trần rỗng thì không lưu.
+function draftToDoseCap(d: DoseCapDraft): DoseCap | undefined {
+  const amount = parseFloat(d.amount)
+  if (isNaN(amount)) return undefined
+  return { amount, unit: d.unit.trim() || "mg", ...(d.note.trim() ? { note: d.note.trim() } : {}) }
+}
+
+// Bản nháp của AntibioticMix (công thức pha/hoàn nguyên) — mọi ô số giữ dạng chuỗi, `diluents`/
+// `avoidDiluents` giữ dạng một chuỗi cách nhau bằng dấu phẩy để gõ tự nhiên rồi mới tách mảng lúc lưu.
+interface MixDraft {
+  vialAmount: string
+  vialUnit: string
+  vialLabel: string
+  vialForm: VialForm | ""
+  vialVolumeMl: string
+  reconstituteMl: string
+  displacementMl: string
+  diluents: string
+  avoidDiluents: string
+  diluentWarning: string
+  concUnit: string
+  maxConc: string
+  infuseNote: string
+}
+
+function emptyMixDraft(): MixDraft {
+  return {
+    vialAmount: "",
+    vialUnit: "mg",
+    vialLabel: "",
+    vialForm: "",
+    vialVolumeMl: "",
+    reconstituteMl: "",
+    displacementMl: "",
+    diluents: "",
+    avoidDiluents: "",
+    diluentWarning: "",
+    concUnit: "",
+    maxConc: "",
+    infuseNote: "",
+  }
+}
+
+function mixToDraft(m?: AntibioticMix): MixDraft {
+  if (!m) return emptyMixDraft()
+  return {
+    vialAmount: m.vialAmount != null ? String(m.vialAmount) : "",
+    vialUnit: m.vialUnit ?? "mg",
+    vialLabel: m.vialLabel ?? "",
+    vialForm: m.vialForm ?? "",
+    vialVolumeMl: m.vialVolumeMl != null ? String(m.vialVolumeMl) : "",
+    reconstituteMl: m.reconstituteMl != null ? String(m.reconstituteMl) : "",
+    displacementMl: m.displacementMl != null ? String(m.displacementMl) : "",
+    diluents: (m.diluents ?? []).join(", "),
+    avoidDiluents: (m.avoidDiluents ?? []).join(", "),
+    diluentWarning: m.diluentWarning ?? "",
+    concUnit: m.concUnit ?? "",
+    maxConc: m.maxConc != null ? String(m.maxConc) : "",
+    infuseNote: m.infuseNote ?? "",
+  }
+}
+
+// undefined nếu mọi ô đều rỗng — không lưu một khối `mix` toàn undefined.
+function draftToMix(d: MixDraft): AntibioticMix | undefined {
+  const vialAmount = parseFloat(d.vialAmount)
+  const vialVolumeMl = parseFloat(d.vialVolumeMl)
+  const reconstituteMl = parseFloat(d.reconstituteMl)
+  const displacementMl = parseFloat(d.displacementMl)
+  const maxConc = parseFloat(d.maxConc)
+  const diluents = d.diluents.split(",").map((s) => s.trim()).filter(Boolean)
+  const avoidDiluents = d.avoidDiluents.split(",").map((s) => s.trim()).filter(Boolean)
+  const hasAny =
+    !isNaN(vialAmount) ||
+    d.vialForm !== "" ||
+    !isNaN(vialVolumeMl) ||
+    !isNaN(reconstituteMl) ||
+    !isNaN(displacementMl) ||
+    diluents.length > 0 ||
+    avoidDiluents.length > 0 ||
+    d.diluentWarning.trim() !== "" ||
+    d.concUnit.trim() !== "" ||
+    !isNaN(maxConc) ||
+    d.infuseNote.trim() !== ""
+  if (!hasAny) return undefined
+  return {
+    ...(isNaN(vialAmount) ? {} : { vialAmount }),
+    ...(d.vialUnit.trim() ? { vialUnit: d.vialUnit.trim() } : {}),
+    ...(d.vialLabel.trim() ? { vialLabel: d.vialLabel.trim() } : {}),
+    ...(d.vialForm ? { vialForm: d.vialForm } : {}),
+    ...(isNaN(vialVolumeMl) ? {} : { vialVolumeMl }),
+    ...(isNaN(reconstituteMl) ? {} : { reconstituteMl }),
+    ...(isNaN(displacementMl) ? {} : { displacementMl }),
+    ...(diluents.length > 0 ? { diluents } : {}),
+    ...(avoidDiluents.length > 0 ? { avoidDiluents } : {}),
+    ...(d.diluentWarning.trim() ? { diluentWarning: d.diluentWarning.trim() } : {}),
+    ...(d.concUnit.trim() ? { concUnit: d.concUnit.trim() } : {}),
+    ...(isNaN(maxConc) ? {} : { maxConc }),
+    ...(d.infuseNote.trim() ? { infuseNote: d.infuseNote.trim() } : {}),
+  }
+}
+
+const WEIGHT_BASIS_OPTIONS: { id: WeightBasis | ""; label: string }[] = [
+  { id: "", label: "Mặc định (cân nặng thực)" },
+  { id: "ideal", label: "Luôn dùng IBW" },
+  { id: "adjusted", label: "AdjBW nếu béo phì" },
+]
+
+const VIAL_FORM_OPTIONS: { id: VialForm | ""; label: string }[] = [
+  { id: "", label: "Chưa chọn" },
+  { id: "powder", label: "Bột — cần hoàn nguyên" },
+  { id: "solution", label: "Ống dung dịch" },
+  { id: "fixed", label: "Chai pha sẵn cố định" },
+]
+
+// Nhóm 4 trường "nâng cao" của kháng sinh mà trước đây chỉ có trong dữ liệu dựng sẵn, chưa có ô
+// nhập trong UI: cân nặng dùng tính liều, trần liều một lần dùng, khoá tương hợp Y-site, và công
+// thức pha/hoàn nguyên. Dùng chung cho cả AddAntibioticScreen lẫn EditAntibioticScreen.
+// `showMix`: chỉ hiện khối công thức pha khi đường dùng là tiêm/truyền — thuốc uống không có gì để pha.
+function AntibioticAdvancedFields({
+  showMix,
+  weightBasis,
+  setWeightBasis,
+  cap,
+  setCap,
+  compatKey,
+  setCompatKey,
+  mix,
+  setMix,
+}: {
+  showMix: boolean
+  weightBasis: WeightBasis | ""
+  setWeightBasis: (v: WeightBasis | "") => void
+  cap: DoseCapDraft
+  setCap: (fn: (prev: DoseCapDraft) => DoseCapDraft) => void
+  compatKey: string
+  setCompatKey: (v: string) => void
+  mix: MixDraft
+  setMix: (fn: (prev: MixDraft) => MixDraft) => void
+}) {
+  const fieldClass = "w-full px-4 py-3 rounded-2xl text-sm border outline-none"
+  const fieldStyle = { borderColor: "var(--c-line)", background: "var(--c-surface)" }
+  const smallFieldClass = "w-full px-3 py-2 rounded-xl text-sm border outline-none"
+  const chipStyle = (active: boolean) =>
+    active
+      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+      : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
+  function updateMix(field: keyof MixDraft, value: string) {
+    setMix((prev) => ({ ...prev, [field]: value }))
+  }
+
+  return (
+    <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
+      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Cân nặng dùng để tính liều (tuỳ chọn)</label>
+      <div className="flex flex-wrap gap-2">
+        {WEIGHT_BASIS_OPTIONS.map((o) => (
+          <button key={o.id || "actual"} onClick={() => setWeightBasis(o.id)} className="px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors" style={chipStyle(weightBasis === o.id)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
+        Chỉ đổi khi thuốc có khuyến cáo rõ ràng dùng cân nặng lý tưởng/hiệu chỉnh (VD aminoglycosid).
+      </p>
+
+      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Trần liều một lần dùng (tuỳ chọn)</label>
+      <div className="flex gap-2">
+        <input
+          value={cap.amount}
+          onChange={(e) => setCap((prev) => ({ ...prev, amount: normalizeDecimalInput(e.target.value) }))}
+          inputMode="decimal"
+          placeholder="VD: 2000"
+          className={`${smallFieldClass} flex-1`}
+          style={fieldStyle}
+        />
+        <input value={cap.unit} onChange={(e) => setCap((prev) => ({ ...prev, unit: e.target.value }))} placeholder="mg" className={`${smallFieldClass} w-20`} style={fieldStyle} />
+      </div>
+      {cap.amount.trim() && (
+        <input
+          value={cap.note}
+          onChange={(e) => setCap((prev) => ({ ...prev, note: e.target.value }))}
+          placeholder="Trần này lấy từ đâu — VD: khuyến cáo XYZ"
+          className={`${fieldClass} mt-2`}
+          style={fieldStyle}
+        />
+      )}
+      <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
+        Chặn liều tính theo mg/kg khi nhân với cân nặng lớn ra một con số vượt trần an toàn.
+      </p>
+
+      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Khoá tương hợp Y-site / tương tác (tuỳ chọn)</label>
+      <input
+        value={compatKey}
+        onChange={(e) => setCompatKey(e.target.value)}
+        placeholder="VD: vancomycin — khớp khoá trong bảng tương hợp"
+        className={fieldClass}
+        style={fieldStyle}
+      />
+
+      {showMix && (
+        <>
+          <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Công thức pha / hoàn nguyên (tuỳ chọn)</label>
+          <div className="p-3 rounded-2xl border space-y-2.5" style={{ borderColor: "var(--c-line)" }}>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-[12px] text-slate-400 mb-1 block">Hàm lượng / lọ</label>
+                <input value={mix.vialAmount} onChange={(e) => updateMix("vialAmount", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1000" className={smallFieldClass} style={fieldStyle} />
+              </div>
+              <div className="w-20">
+                <label className="text-[12px] text-slate-400 mb-1 block">Đơn vị</label>
+                <input value={mix.vialUnit} onChange={(e) => updateMix("vialUnit", e.target.value)} placeholder="mg" className={smallFieldClass} style={fieldStyle} />
+              </div>
+              <div className="w-20">
+                <label className="text-[12px] text-slate-400 mb-1 block">Gọi là</label>
+                <input value={mix.vialLabel} onChange={(e) => updateMix("vialLabel", e.target.value)} placeholder="lọ" className={smallFieldClass} style={fieldStyle} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[12px] text-slate-400 mb-1 block">Dạng đóng gói</label>
+              <div className="flex flex-wrap gap-2">
+                {VIAL_FORM_OPTIONS.map((o) => (
+                  <button key={o.id || "none"} onClick={() => updateMix("vialForm", o.id)} className="px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-colors" style={chipStyle(mix.vialForm === o.id)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {mix.vialForm === "powder" && (
+              <div className="flex gap-2 fade-in">
+                <div className="flex-1">
+                  <label className="text-[12px] text-slate-400 mb-1 block">Thể tích hoàn nguyên (mL)</label>
+                  <input value={mix.reconstituteMl} onChange={(e) => updateMix("reconstituteMl", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 20" className={smallFieldClass} style={fieldStyle} />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[12px] text-slate-400 mb-1 block">Thể tích bột chiếm chỗ (mL)</label>
+                  <input value={mix.displacementMl} onChange={(e) => updateMix("displacementMl", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 0,7" className={smallFieldClass} style={fieldStyle} />
+                </div>
+              </div>
+            )}
+            {(mix.vialForm === "solution" || mix.vialForm === "fixed") && (
+              <div className="fade-in">
+                <label className="text-[12px] text-slate-400 mb-1 block">Thể tích dung dịch trong ống/chai (mL)</label>
+                <input value={mix.vialVolumeMl} onChange={(e) => updateMix("vialVolumeMl", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 150" className={smallFieldClass} style={fieldStyle} />
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-[12px] text-slate-400 mb-1 block">Đơn vị nồng độ</label>
+                <input value={mix.concUnit} onChange={(e) => updateMix("concUnit", e.target.value)} placeholder="mg/mL" className={smallFieldClass} style={fieldStyle} />
+              </div>
+              <div className="flex-1">
+                <label className="text-[12px] text-slate-400 mb-1 block">Ngưỡng trên nồng độ</label>
+                <input value={mix.maxConc} onChange={(e) => updateMix("maxConc", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 5" className={smallFieldClass} style={fieldStyle} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[12px] text-slate-400 mb-1 block">Dung môi được phép (cách nhau bằng dấu phẩy)</label>
+              <input value={mix.diluents} onChange={(e) => updateMix("diluents", e.target.value)} placeholder="VD: NaCl 0,9%, Glucose 5%" className={smallFieldClass} style={fieldStyle} />
+            </div>
+            <div>
+              <label className="text-[12px] text-slate-400 mb-1 block">Dung môi KHÔNG được dùng (cách nhau bằng dấu phẩy)</label>
+              <input value={mix.avoidDiluents} onChange={(e) => updateMix("avoidDiluents", e.target.value)} placeholder="VD: Glucose 5%" className={smallFieldClass} style={fieldStyle} />
+            </div>
+            {mix.avoidDiluents.trim() && (
+              <div>
+                <label className="text-[12px] text-slate-400 mb-1 block">Lý do tránh dung môi trên</label>
+                <input value={mix.diluentWarning} onChange={(e) => updateMix("diluentWarning", e.target.value)} placeholder="VD: gây tủa" className={smallFieldClass} style={fieldStyle} />
+              </div>
+            )}
+            <div>
+              <label className="text-[12px] text-slate-400 mb-1 block">Thời gian/tốc độ truyền khuyến cáo</label>
+              <textarea value={mix.infuseNote} onChange={(e) => updateMix("infuseNote", e.target.value)} rows={2} placeholder="VD: truyền ≥60 phút" className={smallFieldClass} style={fieldStyle} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
