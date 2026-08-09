@@ -12625,7 +12625,7 @@ export default function App() {
         {/* Chừa chỗ cho tai thỏ / Dynamic Island. Trước đây cộng thêm 6px đệm vì thanh trạng thái
             từng trong suốt (black-translucent) đè lên nội dung — giờ thanh trạng thái đã đục, nằm
             hẳn ngoài khung nhìn của trang, nên --safe-top đã đủ, không cần đệm thêm nữa. */}
-        <div className="flex-none" style={{ height: "var(--safe-top)" }} />
+        <div className="flex-none" style={{ height: "var(--safe-top-trim)" }} />
 
         <OfflineBar />
 
@@ -12643,7 +12643,10 @@ export default function App() {
             // thẳng. 28px khớp CHÍNH XÁC (đo lại xác nhận cy hai bên bằng nhau tuyệt đối, không phải
             // suy diễn). Cụm nút không nằm trong cùng flow với header nên mốc neo này độc lập, không
             // tự động khớp theo — mỗi lần đổi bố cục header (Bs Trọng) phải đo lại đúng số này.
-            style={{ top: "calc(var(--safe-top) + 28px)", right: 18, transform: "translateY(-50%)" }}
+            // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
+            // trim, dòng "Bs Trọng" bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG
+            // MỘT LƯỢNG mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
+            style={{ top: "calc(var(--safe-top-trim) + 28px)", right: 18, transform: "translateY(-50%)" }}
           >
             {screen === "home" && <ThemeToggle />}
             <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
