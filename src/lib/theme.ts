@@ -25,7 +25,12 @@ export function loadTheme(): ThemeMode {
 // nguồn thật). Phải khớp đúng giá trị --c-surface của từng bản.
 const SURFACE_FALLBACK = { light: "#ffffff", dark: "#14162c" }
 
+// Chế độ đang áp — cần nhớ lại để chạy lại applyTheme() khi HỆ ĐIỀU HÀNH đổi sáng/tối trong lúc app
+// đang mở ở chế độ "auto" (xem watchSystemTheme bên dưới).
+let currentMode: ThemeMode = "auto"
+
 export function applyTheme(mode: ThemeMode): void {
+  currentMode = mode
   const root = document.documentElement
   if (mode === "auto") root.removeAttribute("data-theme")
   else root.setAttribute("data-theme", mode)
@@ -43,8 +48,31 @@ export function applyTheme(mode: ThemeMode): void {
   const dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)
   const surface =
     getComputedStyle(root).getPropertyValue("--c-surface").trim() || SURFACE_FALLBACK[dark ? "dark" : "light"]
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute("content", surface)
+  // querySelectorAll, KHÔNG phải querySelector: index.html khai BA thẻ theme-color (một cho
+  // prefers-color-scheme light, một cho dark, một không điều kiện làm dự phòng — xem lý do ở đó).
+  // querySelector trả về thẻ ĐẦU TIÊN, tức thẻ `media="(prefers-color-scheme: light)"` — nên chọn tay
+  // "Sáng" trong lúc máy đang để chế độ TỐI chỉ ghi màu trắng vào một thẻ mà hệ điều hành không hề
+  // đọc (nó đang khớp thẻ dark, giá trị #14162c cứng), còn chọn tay "Tối" trong lúc máy để chế độ
+  // SÁNG thì ngược lại. Kết quả: dải thanh trạng thái ở đỉnh màn hình kẹt lại ở bản màu của HỆ ĐIỀU
+  // HÀNH trong khi cả app đã đổi theo lựa chọn tay — nửa trên một màu, nửa dưới một màu.
+  //
+  // Ghi cùng một giá trị vào CẢ BA thẻ thì thẻ nào được hệ điều hành chọn cũng ra đúng màu, mà vẫn
+  // giữ nguyên tác dụng của `media` lúc mở lạnh (trước khi JS kịp chạy) — xem index.html.
+  const metas = document.querySelectorAll('meta[name="theme-color"]')
+  for (const meta of metas) meta.setAttribute("content", surface)
+}
+
+// Máy đổi sáng/tối trong lúc app đang mở: các biến --c-* tự đổi theo @media, nhưng thẻ theme-color thì
+// không — applyTheme() đã ghi đè cả ba thẻ bằng một giá trị cố định ở trên, nên `media` không còn tự
+// chọn giúp được nữa. Phải chạy lại để đọc --c-surface mới. Chỉ có ý nghĩa ở chế độ "auto"; hai chế độ
+// chốt cứng không quan tâm hệ điều hành đang ở đâu.
+export function watchSystemTheme(): () => void {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)")
+  const onChange = () => {
+    if (currentMode === "auto") applyTheme("auto")
+  }
+  mq.addEventListener("change", onChange)
+  return () => mq.removeEventListener("change", onChange)
 }
 
 export function saveTheme(mode: ThemeMode): void {

@@ -59,7 +59,16 @@ export function formatVialUsage(params: {
   const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin, rateMlPerHour } = params
   const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml` : formatMass(vialAmount, vialUnit)
   const countPart = vialsUsed != null && vialsUsed > 1 ? ` ${trim(vialsUsed, 0)} ${vialLabel ?? "ống"}` : ""
-  const drawPart = finalVolumeMl != null && drawMl != null ? ` đủ ${trim(finalVolumeMl)} ml lấy ${trim(drawMl)} ml` : ""
+  // Ba trường hợp, không phải hai:
+  //   - pha đủ X mL rồi RÚT một phần Y mL  → "đủ X ml lấy Y ml" (mẫu 4b)
+  //   - pha đủ X mL rồi truyền TRỌN mẻ đó  → "đủ X ml" — vẫn PHẢI nói thể tích pha loãng
+  //   - chưa biết thể tích cuối             → không nói gì
+  // Trước đây hai trường hợp đầu gộp làm một (đòi có CẢ finalVolumeMl lẫn drawMl), nên câu "dùng trọn
+  // mẻ" rơi thẳng xuống nhánh cuối và mất sạch thể tích: "Amikacin 1000 mg/4 ml pha với NaCl 0,9%
+  // (TTM)" — pha với bao nhiêu mL thì không ai biết. Với một kháng sinh bắt buộc pha loãng thì đó là
+  // thiếu đúng con số quan trọng nhất của câu.
+  const drawPart =
+    finalVolumeMl == null ? "" : drawMl != null ? ` đủ ${trim(finalVolumeMl)} ml lấy ${trim(drawMl)} ml` : ` đủ ${trim(finalVolumeMl)} ml`
   const base = `${name} ${strength}${countPart} pha với ${diluentName}${drawPart} (${route})`
   // Chỉ đường TTM mới có tốc độ truyền (giọt/phút hoặc BTĐ) — TMC là tiêm thẳng một lần, IM/SC
   // không có khái niệm tốc độ truyền.

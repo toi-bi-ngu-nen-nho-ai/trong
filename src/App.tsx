@@ -41,6 +41,7 @@ import {
   pickEasiestVialCount,
   pumpRateMlPerHour,
   resolveFixedDraw,
+  roundingExcess,
   roundToStep,
   totalAmountInBag,
   vialsForConcentration,
@@ -48,11 +49,13 @@ import {
   volumeForConcentration,
   volumePerVial,
   wholeCountOptions,
+  ROUND_WARN_RATIO,
   VIAL_COUNT_OK,
   type VialCountGrade,
   type VialForm,
   type VialSpec,
 } from "./lib/mixing"
+import { useRoundUp } from "./lib/roundingPref"
 import { formatAmpouleUsage, formatFixedUsage, formatVialUsage } from "./lib/usageText"
 import {
   formatSavedAt,
@@ -2189,7 +2192,7 @@ function AddAntibioticScreen({
   const [preparation, setPreparation] = useState("")
   const [note, setNote] = useState("")
   const [warningText, setWarningText] = useState("")
-  const [warningSeverity, setWarningSeverity] = useState<"cao" | "trung bình">("trung bình")
+  const [warningSeverity, setWarningSeverity] = useState<WarnSeverity>("trung bình")
   const [source, setSource] = useState("")
   const [reviewedOn, setReviewedOn] = useState("")
   // Liều nạp — vd Vancomycin cần liều nạp trước khi vào liều duy trì theo CrCl. Trước đây chỉ màn
@@ -2270,7 +2273,7 @@ function AddAntibioticScreen({
       doseWeightBasis: weightBasis || undefined,
       maxSingleDose: draftToDoseCap(cap),
       compatKey: compatKey.trim() || undefined,
-      mix: isInjectableRoute ? draftToMix(mix) : undefined,
+      mix: isInjectableRoute ? draftToMixList(mix) : undefined,
       isCustom: true,
     }
     onSave(newDrug)
@@ -2429,14 +2432,14 @@ function AddAntibioticScreen({
           <input value={warningText} onChange={(e) => setWarningText(e.target.value)} placeholder="VD: Thận trọng khi phối hợp với..." className={`${fieldClass} mb-2`} style={fieldStyle} />
           {warningText.trim() && (
             <div className="flex gap-2">
-              {(["trung bình", "cao"] as const).map((s) => (
+              {WARN_SEVERITIES.map((s) => (
                 <button
                   key={s}
                   onClick={() => setWarningSeverity(s)}
                   className="flex-1 py-2 rounded-xl text-xs font-semibold border"
                   style={
                     warningSeverity === s
-                      ? { background: s === "cao" ? "var(--c-danger-icon)" : "var(--c-warn-icon)", borderColor: "transparent", color: "var(--c-on-bright)" }
+                      ? { background: warnSeverityColor(s), borderColor: "transparent", color: "var(--c-on-bright)" }
                       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                   }
                 >
@@ -2543,11 +2546,13 @@ function EditAntibioticScreen({
   const [weightBasis, setWeightBasis] = useState<WeightBasis | "">(drug.doseWeightBasis ?? "")
   const [cap, setCap] = useState<DoseCapDraft>(() => doseCapToDraft(drug.maxSingleDose))
   const [compatKey, setCompatKey] = useState(drug.compatKey ?? "")
-  const [mix, setMix] = useState<MixDraft>(() => mixToDraft(drug.mix))
+  const [mix, setMix] = useState<MixDraft>(() => mixToDraft(drug.mix?.[0]))
   const [tiers, setTiers] = useState<{ min: string; label: string; dose: string }[]>(
-    drug.tiers.length > 0 ? drug.tiers.map((t) => ({ min: String(t.min), label: t.label, dose: t.dose })) : [{ min: "0", label: "Mọi mức CrCl", dose: "" }],
+    (drug.tiers ?? []).length > 0
+      ? (drug.tiers ?? []).map((t) => ({ min: String(t.min), label: t.label, dose: t.dose }))
+      : [{ min: "0", label: "Mọi mức CrCl", dose: "" }],
   )
-  const [warnings, setWarnings] = useState<{ text: string; severity: "cao" | "trung bình" }[]>(
+  const [warnings, setWarnings] = useState<{ text: string; severity: WarnSeverity }[]>(
     (drug.warnings ?? []).map((w) => ({ text: w.text, severity: w.severity })),
   )
   // Chỉ định riêng theo bệnh lý — trước đây chỉ xem, giờ cho sửa/thêm/xoá được ngay ở màn này.
@@ -2586,7 +2591,7 @@ function EditAntibioticScreen({
   function updateWarningText(idx: number, value: string) {
     setWarnings((prev) => prev.map((w, i) => (i === idx ? { ...w, text: value } : w)))
   }
-  function updateWarningSeverity(idx: number, severity: "cao" | "trung bình") {
+  function updateWarningSeverity(idx: number, severity: WarnSeverity) {
     setWarnings((prev) => prev.map((w, i) => (i === idx ? { ...w, severity } : w)))
   }
   function addWarning() {
@@ -2634,7 +2639,9 @@ function EditAntibioticScreen({
       })
     const cleanedWarnings: AntibioticWarning[] = warnings.filter((w) => w.text.trim()).map((w) => ({ text: w.text.trim(), severity: w.severity }))
     const cleanedBoluses = boluses.map(draftToBolus).filter((b): b is BolusDose => b != null)
-    const fallbackTiers = cleanedTiers.length > 0 ? cleanedTiers : drug.tiers
+    // `drug.tiers` đã thành optional — bậc liều rỗng thì để MẢNG RỖNG, không phải undefined:
+    // IndicationDose.tiers vẫn bắt buộc, và tierFor() đã tự xử lý danh sách rỗng.
+    const fallbackTiers = cleanedTiers.length > 0 ? cleanedTiers : drug.tiers ?? []
 
     // Với mỗi chỉ định theo bệnh lý: tìm bệnh lý trùng tên trong danh mục hiện có (không phân biệt
     // hoa/thường, không kể khoảng trắng thừa) để lấy đúng diseaseId; nếu tên không khớp mục nào,
@@ -2698,7 +2705,7 @@ function EditAntibioticScreen({
       doseWeightBasis: weightBasis || undefined,
       maxSingleDose: draftToDoseCap(cap),
       compatKey: compatKey.trim() || undefined,
-      mix: isInjectableRoute ? draftToMix(mix) : undefined,
+      mix: isInjectableRoute ? draftToMixList(mix) : undefined,
       isCustom: true,
     }
     onSave(updated, newDiseases)
@@ -2852,14 +2859,14 @@ function EditAntibioticScreen({
                   </button>
                 </div>
                 <div className="flex gap-2">
-                  {(["trung bình", "cao"] as const).map((s) => (
+                  {WARN_SEVERITIES.map((s) => (
                     <button
                       key={s}
                       onClick={() => updateWarningSeverity(idx, s)}
                       className="flex-1 py-1.5 rounded-xl text-xs font-semibold border"
                       style={
                         w.severity === s
-                          ? { background: s === "cao" ? "var(--c-danger-icon)" : "var(--c-warn-icon)", borderColor: "transparent", color: "var(--c-on-bright)" }
+                          ? { background: warnSeverityColor(s), borderColor: "transparent", color: "var(--c-on-bright)" }
                           : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                       }
                     >
@@ -3366,6 +3373,47 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
   }
 }
 
+// ─── Nhiều quy cách đóng gói dựng sẵn cho MỘT thuốc ───────────────────────────
+// `Antibiotic.mix` là một MẢNG: cùng một kháng sinh trên thị trường có nhiều hàm lượng/quy cách ống
+// khác nhau (Amikacin 1000 mg/4 mL và 500 mg/2 mL là hai mặt hàng riêng), và khoa nào có mặt hàng nào
+// thì không dữ liệu dựng sẵn nào biết trước được. Khai sẵn cả hai để app tính ra liều minh hoạ ngay
+// khi vừa có CrCl, người dùng chỉ cần bấm chọn — chỉ khi không quy cách nào khớp hàng thật ở khoa
+// mới phải sửa tay trong "Bảng pha thuốc".
+//
+// Trình soạn thảo kháng sinh tự nhập (Thêm/Sửa) vẫn chỉ sửa MỘT quy cách: một mục tự nhập là một
+// mặt hàng cụ thể người dùng đang cầm trên tay, không phải một danh mục thị trường. Hai hàm dưới đây
+// bọc/mở mảng để phần soạn thảo không phải biết tới chuyện đó.
+function draftToMixList(d: MixDraft): AntibioticMix[] | undefined {
+  const one = draftToMix(d)
+  return one ? [one] : undefined
+}
+
+// Nhãn ngắn trên chip chọn quy cách, vd "1000 mg/4 mL" (ống dung dịch có thể tích) hay "1 g" (lọ bột
+// chưa hoàn nguyên thì chưa có thể tích để nói). Đây đúng là cách người dùng gọi tên mặt hàng khi
+// đứng trước tủ thuốc, nên không thêm chữ nào khác vào.
+function mixOptionLabel(m: AntibioticMix): string {
+  const amount = m.vialAmount != null ? `${trim(m.vialAmount)} ${m.vialUnit ?? "mg"}` : "Chưa rõ hàm lượng"
+  return m.vialVolumeMl != null ? `${amount}/${trim(m.vialVolumeMl)} mL` : amount
+}
+
+// ─── Mức độ cảnh báo của kháng sinh ──────────────────────────────────────────
+// Lấy THẲNG từ kiểu dữ liệu (AntibioticWarning) thay vì chép lại một union thứ hai trong màn soạn
+// thảo: trước đây hai nơi khai riêng nên khi dữ liệu thêm mức "thấp", ba bộ chip chọn mức độ vẫn chỉ
+// có hai lựa chọn — một cảnh báo mức "thấp" mở ra sửa sẽ hiện KHÔNG chip nào sáng, và người dùng
+// không có cách nào chọn lại mức đó.
+type WarnSeverity = AntibioticWarning["severity"]
+
+// Thứ tự nhẹ → nặng, đúng chiều đọc của một thang mức độ.
+const WARN_SEVERITIES: readonly WarnSeverity[] = ["thấp", "trung bình", "cao"] as const
+
+// Màu nền chip khi mức đó đang được chọn. Ba bậc phải TÁCH HẲN nhau về màu — xem ghi chú "cao và
+// trung bình chỉ khác nhau ở một chấm 1.5px" ở phần hiển thị cảnh báo.
+function warnSeverityColor(s: WarnSeverity): string {
+  if (s === "cao") return "var(--c-danger-icon)"
+  if (s === "trung bình") return "var(--c-warn-icon)"
+  return "var(--c-muted)"
+}
+
 const WEIGHT_BASIS_OPTIONS: { id: WeightBasis | ""; label: string }[] = [
   { id: "", label: "Mặc định (cân nặng thực)" },
   { id: "ideal", label: "Luôn dùng IBW" },
@@ -3576,7 +3624,7 @@ function AddInfusionScreen({
   function toggleDisease(id: string) {
     setDiseaseIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
   }
-  const [warnings, setWarnings] = useState<{ text: string; severity: "cao" | "trung bình" }[]>(
+  const [warnings, setWarnings] = useState<{ text: string; severity: WarnSeverity }[]>(
     (initial?.warnings ?? []).map((w) => ({ text: w.text, severity: w.severity })),
   )
   // Liều nạp / bolus. Trước đây chỉ dữ liệu dựng sẵn mới có được mục này, nên một thuốc tự nhập
@@ -3648,7 +3696,7 @@ function AddInfusionScreen({
   function updateWarningText(idx: number, value: string) {
     setWarnings((prev) => prev.map((w, i) => (i === idx ? { ...w, text: value } : w)))
   }
-  function updateWarningSeverity(idx: number, severity: "cao" | "trung bình") {
+  function updateWarningSeverity(idx: number, severity: WarnSeverity) {
     setWarnings((prev) => prev.map((w, i) => (i === idx ? { ...w, severity } : w)))
   }
   function addWarning() {
@@ -3817,14 +3865,14 @@ function AddInfusionScreen({
                   </button>
                 </div>
                 <div className="flex gap-2">
-                  {(["trung bình", "cao"] as const).map((s) => (
+                  {WARN_SEVERITIES.map((s) => (
                     <button
                       key={s}
                       onClick={() => updateWarningSeverity(idx, s)}
                       className="flex-1 py-2 rounded-xl text-xs font-semibold border"
                       style={
                         w.severity === s
-                          ? { background: s === "cao" ? "var(--c-danger-icon)" : "var(--c-warn-icon)", borderColor: "transparent", color: "var(--c-on-bright)" }
+                          ? { background: warnSeverityColor(s), borderColor: "transparent", color: "var(--c-on-bright)" }
                           : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                       }
                     >
@@ -5118,6 +5166,51 @@ function Disclosure({
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(Boolean(defaultOpen))
+  // ─── Trần chiều cao 1400px của `.disc-body` ─────────────────────────────────
+  // Trần đó (index.css) chỉ là một con số "đủ lớn" để max-height có mốc mà chạy hoạt ảnh, nhưng nó
+  // CẮT CỤT thật khi nội dung cao hơn: bảng pha thuốc lưu vài công thức đã tới ~1950px, và 550px bị
+  // cắt rơi đúng vào ô "Đặt tên công thức mới" + nút "Lưu công thức mới" ở đáy — càng lưu nhiều công
+  // thức càng không lưu thêm được, mà không có dấu hiệu gì ngoài việc chúng biến mất.
+  //
+  // Gỡ trần (`max-height: none`) CHỈ khi nội dung thật sự vượt, và chỉ SAU khi hoạt ảnh mở chạy xong:
+  //   - gỡ sớm  → không còn mốc để nội suy, khối bung ra tức thì, mất đúng hoạt ảnh này sinh ra để có;
+  //   - gỡ luôn cho mọi khối → khối ngắn (đa số) mất hoạt ảnh ĐÓNG, vì `none` → 0 cũng không nội suy được.
+  // Nhờ điều kiện "thật sự vượt", chỉ những khối quá cao mới đóng tức thì — hiếm, và vẫn hơn hẳn việc
+  // không bao giờ với tới được nửa dưới nội dung.
+  // Ref đặt trên lớp TRONG (không phải `.disc-body`): `.disc-body` bị chính trần này kẹp lại nên
+  // chiều cao của nó không còn phản ánh nội dung, và ResizeObserver gắn lên nó sẽ im lặng đúng lúc
+  // nội dung vượt trần — tức đúng lúc cần biết.
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [uncapped, setUncapped] = useState(false)
+  useEffect(() => {
+    if (!open) {
+      setUncapped(false)
+      return
+    }
+    const el = innerRef.current
+    if (!el) return
+    // Chỉ đo SAU khi hoạt ảnh mở (.28s trong index.css) chạy xong — ResizeObserver bắn ngay lần
+    // observe() đầu tiên, đo lúc đó sẽ gỡ trần giữa chừng và khối bung ra tức thì.
+    let ready = false
+    const check = () => {
+      if (ready) setUncapped(el.offsetHeight > 1400)
+    }
+    // Hẹn giờ chứ KHÔNG nghe `transitionend`: sự kiện đó không bắn khi thẻ đang ở nền hay hoạt ảnh bị
+    // huỷ giữa chừng, mà nếu không bắn thì trần không bao giờ được gỡ — lại đúng lỗi cũ, chỉ hiếm hơn
+    // nên khó tìm hơn.
+    const t = setTimeout(() => {
+      ready = true
+      check()
+    }, 320)
+    // Đo lại mỗi khi nội dung đổi chiều cao (lưu thêm một công thức, mở một mục con...) — đo đúng một
+    // lần lúc mở là không đủ: khối vừa vượt trần sau khi lưu sẽ bị cắt mà không ai đo lại.
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => {
+      clearTimeout(t)
+      ro.disconnect()
+    }
+  }, [open])
   // C.muted (~3,1:1) chỉ đủ cho icon/placeholder — đây là tiêu đề mục thật, phải đọc được.
   const color = alert ? C.warn : C.textSoft
   const contentId = useId()
@@ -5139,10 +5232,23 @@ function Disclosure({
       </button>
       {/* Trước đây `{open && <div>}` — nội dung xuất hiện/biến mất TỨC THÌ và đẩy cả phần dưới
           nhảy theo, đặc biệt rõ trên thẻ có 4-5 Disclosure xếp chồng. `.disc-body` (index.css)
-          dùng grid-template-rows 0fr→1fr để chiều cao co giãn mượt mà không cần đo bằng JS —
-          luôn render children, chỉ ẩn bằng chiều cao 0 + overflow hidden khi đóng. */}
-      <div id={contentId} className="disc-body" data-open={open}>
-        <div>{children}</div>
+          co giãn bằng max-height nên chiều cao mượt mà không cần đo bằng JS — luôn render children,
+          chỉ ẩn bằng max-height 0 + overflow hidden khi đóng.
+
+          `max-height: none` sau khi mở XONG (xem settled bên dưới): trần 1400px của `.disc-body` chỉ
+          là con số đủ lớn cho hoạt ảnh, nhưng nó CẮT CỤT thật khi nội dung dài hơn — bảng pha thuốc
+          lưu vài công thức đã vượt 1900px, và phần bị cắt rơi đúng vào ô "Đặt tên công thức mới" +
+          nút "Lưu công thức mới" ở đáy: càng lưu nhiều công thức càng không lưu thêm được, mà không
+          có dấu hiệu gì ngoài việc chúng biến mất. */}
+      <div
+        id={contentId}
+        className="disc-body"
+        data-open={open}
+        // Xem khối useEffect ở đầu component: chỉ gỡ trần cho khối THẬT SỰ cao hơn 1400px, và chỉ sau
+        // khi hoạt ảnh mở đã chạy xong.
+        style={uncapped ? { maxHeight: "none" } : undefined}
+      >
+        <div ref={innerRef}>{children}</div>
       </div>
     </div>
   )
@@ -6344,6 +6450,10 @@ function WardRecipeChips({
   const [filter, setFilter] = useState("")
   const q = normalizeSearch(filter)
   const shown = q ? wardList.filter((w) => normalizeSearch(w.title || "công thức đã lưu").includes(q)) : wardList
+  // Ngưỡng bật ô lọc: 3 công thức, không phải 6. Mỗi chip cao 44px và hàng chip `flex-wrap` KHÔNG có
+  // trần chiều cao, nên trên màn hẹp chỉ 2–3 công thức đã ăn 3 hàng — đủ để đẩy ô "Đặt tên công thức
+  // mới" (nằm ở CUỐI bảng pha) ra khỏi tầm nhìn. Ngưỡng 6 cũ chỉ bật ô lọc SAU KHI chuyện đó đã xảy ra.
+  const showFilter = wardList.length > 3
   const pill = (on: boolean) =>
     on
       ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
@@ -6352,7 +6462,7 @@ function WardRecipeChips({
   return (
     <div className="mb-2">
       <label className={`${T.label} text-slate-500 mb-1 block`}>Công thức pha — bấm để chuyển đổi</label>
-      {wardList.length > 6 && (
+      {showFilter && (
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -6361,7 +6471,13 @@ function WardRecipeChips({
           style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
         />
       )}
-      <div className="flex flex-wrap gap-2">
+      {/* Trần chiều cao + cuộn DỌC RIÊNG cho hàng chip. Trước đây hàng này là `flex-wrap` không giới
+          hạn: lưu 2–3 công thức là bảng pha dài thêm mấy hàng 44px, đẩy ô "Đặt tên công thức mới" ở
+          cuối bảng trôi khỏi màn hình — càng lưu nhiều công thức càng khó lưu thêm công thức.
+          Trần ~3 hàng chip (10.5rem): còn thấy được là danh sách "còn nữa ở dưới" để mà cuộn, mà
+          phần dưới bảng pha vẫn nằm trong tầm với. `overscroll-contain` để cuộn hết danh sách này
+          không kéo luôn cả trang phía sau. */}
+      <div className="flex flex-wrap gap-2 max-h-[10.5rem] overflow-y-auto overscroll-contain">
         {/* Công thức HỆ THỐNG luôn là một lựa chọn để chuyển VỀ, không chỉ để xoá hẳn công thức đã
             lưu mới quay lại được — không lọc theo ô tìm ở trên vì nó không có tên để so khớp. */}
         <button onClick={onSelectSystem} className="h-11 px-3 rounded-full text-[12px] font-semibold border" style={pill(activeId === "system")}>
@@ -6517,14 +6633,92 @@ function VialCountWarning({ grade, show, onConfirm }: { grade: VialCountGrade; s
   )
 }
 
+// ─── Công tắc "Làm tròn lên" + lời giải thích con số vừa in ra ────────────────
+//
+// Vấn đề đang sửa: app làm tròn rất "thông minh" (gộp lọ, nâng thể tích pha lên mốc dễ đong) nhưng
+// KHÔNG nói một câu nào về việc đó — người dùng thấy 1000 mg thay vì 525 mg, hay 150 mL thay vì
+// 100 mL, không có cách nào biết vì đâu ra và cũng không có cách nào chọn khác. Ba việc gộp trong
+// một khối gọn: nói phần dư là bao nhiêu, cảnh báo khi dư quá nhiều (ROUND_WARN_RATIO), và cho tắt.
+//
+// TẮT rồi thì KHÔNG cảnh báo gì nữa: người dùng đã tự chọn liều thấp hơn khoảng khuyến cáo và tự
+// nhận trách nhiệm — lặp lại cảnh báo cho đúng cái họ vừa chọn chỉ dạy họ bỏ qua mọi cảnh báo.
+function RoundingSwitch({
+  on,
+  setOn,
+  excess,
+  delivered,
+  unit,
+}: {
+  on: boolean
+  setOn: (next: boolean) => void
+  // Số lần lượng thuốc thực nhận so với liều tính được — xem roundingExcess trong lib/mixing.ts.
+  excess: number
+  delivered: number
+  unit: string
+}) {
+  const over = on && excess > 1.001
+  const heavy = on && excess > ROUND_WARN_RATIO
+  const tone = heavy
+    ? { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)" }
+    : { bg: "var(--c-surface-alt)", border: "var(--c-line)", text: "var(--c-text-soft)" }
+
+  return (
+    <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: tone.bg, border: `1px solid ${tone.border}` }}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: tone.text }}>
+            {on ? "Làm tròn lên: ĐANG BẬT" : "Làm tròn lên: ĐANG TẮT"}
+          </p>
+          <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: tone.text }}>
+            {heavy
+              ? `Đang làm tròn cao hơn nhiều so với liều tính được — thực nhận ${formatDoseNumber(delivered)} ${unit}, gấp ${trim(excess, 2)} lần. Rút bớt dịch pha để bỏ phần dư, hoặc tắt công tắc này để lấy mức thấp hơn.`
+              : over
+                ? `Theo mức làm tròn lên gần nhất có thể — thực nhận ${formatDoseNumber(delivered)} ${unit}. Tắt công tắc nếu muốn lấy mức thấp hơn cho gọn.`
+                : on
+                  ? "Không có bậc nào phải làm tròn — con số ở trên đúng bằng liều tính được."
+                  : `Đang lấy mức thấp nhất dễ đong — thực nhận ${formatDoseNumber(delivered)} ${unit}, có thể thấp hơn khoảng khuyến cáo. Bạn đã tự chọn mức này.`}
+          </p>
+        </div>
+        {/* Công tắc thật (role=switch) chứ không phải một nút chữ: trạng thái bật/tắt phải đọc được
+            bằng trình đọc màn hình, và phải nhìn thấy ngay đang ở chiều nào mà không cần đọc chữ. */}
+        <button
+          role="switch"
+          aria-checked={on}
+          aria-label="Làm tròn lên khi không có bậc nào khớp khoảng liều"
+          onClick={() => {
+            setOn(!on)
+            tickHaptic()
+          }}
+          className="flex-none w-[52px] h-8 rounded-full relative transition-colors"
+          style={{ background: on ? "var(--c-accent)" : "var(--c-line-strong)" }}
+        >
+          <span
+            className="absolute top-1 w-6 h-6 rounded-full transition-all"
+            style={{ left: on ? 24 : 4, background: "var(--c-surface)" }}
+          />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AntibioticMixPanel({
   drug,
+  mixList,
+  mixIndex,
+  setMixIndex,
   doseTargetMg,
   doseNotComputable,
   routeShort,
   setRouteShort,
 }: {
   drug: Antibiotic
+  // Danh sách quy cách đóng gói DỰNG SẴN của thuốc và cái đang chọn — state nằm ở AntibioticDoseCard
+  // (cha) chứ không phải ở đây, vì "Cách dùng" tự tính ngoài thẻ đọc cùng một quy cách; hai nơi giữ
+  // hai state riêng thì cùng một màn hình sẽ hiện hai con số theo hai ống khác nhau. Xem mixOptionLabel.
+  mixList: AntibioticMix[]
+  mixIndex: number
+  setMixIndex: (i: number) => void
   doseTargetMg?: CappedDose | null
   // true khi bậc CrCl hiện tại là liều phải cá thể hoá ("theo nồng độ đo được"...) — doseTargetMg
   // null VÌ LÝ DO NÀY (không phải vì thiếu cân nặng/công thức) nên gợi ý số lọ/ống bên dưới im lặng
@@ -6543,7 +6737,9 @@ function AntibioticMixPanel({
   // useActiveWardRecipe phía trên) — bấm chip tương ứng để nạp lại giá trị của nó vào form đang mở
   // (xem loadWard()/loadSystemDefault() bên dưới).
   const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
-  const mix = drug.mix
+  const mix = mixList[mixIndex]
+  // Chỉ ĐỌC ở đây — công tắc bật/tắt nằm ngoài thẻ, ngay dưới khối "Cách dùng" (xem RoundingSwitch).
+  const [roundUp] = useRoundUp()
   const concUnit = mix?.concUnit ?? "mg/mL"
   const concMass = massOfConcUnit(concUnit)
   const vialLabel = mix?.vialLabel ?? "lọ"
@@ -6668,7 +6864,7 @@ function AntibioticMixPanel({
     if (toVialUnit == null) return
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, vaValue, allow)
+    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, vaValue, allow, roundUp)
     if (count == null) return
     setVials(String(count))
     if (toConcMass == null) return
@@ -6689,7 +6885,7 @@ function AntibioticMixPanel({
     if (toVialUnit == null) return
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, vaValue, volValue, allow)
+    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, vaValue, volValue, allow, roundUp)
     if (result == null) return
     setVials(String(result.bottleCount))
     // Không rút được (drawMl null) — dùng TRỌN số chai, xoá "Liều cần lấy" để hiển thị "dùng trọn".
@@ -6712,7 +6908,7 @@ function AntibioticMixPanel({
     if (toVialUnit == null || toDoseUnit == null) return null
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, va, allowWithdraw)
+    const count = pickEasiestVialCount(loInVialUnit, hiInVialUnit, va, allowWithdraw, roundUp)
     if (count == null) return null
     // Không rút được VÀ không có số nguyên nào khớp hẳn khoảng liều — có hai phương án hợp lý (thấp
     // hơn/cao hơn), hiện cả hai để người dùng tự chọn thay vì chỉ đưa phương án app tự thiên vị chọn
@@ -6725,7 +6921,7 @@ function AntibioticMixPanel({
       totalInDoseUnit: count * va * toDoseUnit,
       alt: alt ? { count: alt.count, totalInDoseUnit: alt.totalAmount * toDoseUnit } : undefined,
     }
-  }, [isFixed, doseTargetMg, va, vialUnit, allowWithdraw])
+  }, [isFixed, doseTargetMg, va, vialUnit, allowWithdraw, roundUp])
 
   const fixedPoolSuggestion = useMemo(() => {
     if (!isFixed || !doseTargetMg || !(va > 0) || !(fixedVialVolume != null && fixedVialVolume > 0)) return null
@@ -6733,13 +6929,13 @@ function AntibioticMixPanel({
     if (toVialUnit == null) return null
     const loInVialUnit = doseTargetMg.low * toVialUnit
     const hiInVialUnit = (doseTargetMg.high ?? doseTargetMg.low) * toVialUnit
-    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, va, fixedVialVolume, allowWithdraw)
+    const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, va, fixedVialVolume, allowWithdraw, roundUp)
     if (result == null) return null
     const alt = !allowWithdraw
       ? wholeCountOptions(loInVialUnit, hiInVialUnit, va).find((o) => o.count !== result.bottleCount)
       : undefined
     return { count: result.bottleCount, drawMl: result.drawMl, alt: alt ? { count: alt.count } : undefined }
-  }, [isFixed, doseTargetMg, va, vialUnit, fixedVialVolume, allowWithdraw])
+  }, [isFixed, doseTargetMg, va, vialUnit, fixedVialVolume, allowWithdraw, roundUp])
 
   const pill = (on: boolean) =>
     on
@@ -6796,16 +6992,19 @@ function AntibioticMixPanel({
   // Quay lại công thức DỰNG SẴN của app — không xoá công thức đã lưu nào cả, chỉ đổi giá trị form
   // đang mở về đúng như lúc chưa lưu công thức nào (xem các useState phía trên dùng cùng fallback
   // `mix?.xxx`). Trước đây muốn "quay lại hệ thống" chỉ có một cách: XOÁ hẳn công thức đã lưu.
-  function loadSystemDefault() {
-    setVialAmount(String(mix?.vialAmount ?? ""))
-    setVialUnit(mix?.vialUnit ?? concMass)
+  // `m` mặc định là quy cách đang chọn; truyền tường minh khi NGƯỜI DÙNG vừa bấm sang một quy cách
+  // khác — lúc đó `mix` trong lượt render này vẫn còn là quy cách cũ (setMixIndex chưa kịp có hiệu
+  // lực), nạp theo nó sẽ điền lại đúng con số vừa bỏ đi.
+  function loadSystemDefault(m: AntibioticMix | undefined = mix) {
+    setVialAmount(String(m?.vialAmount ?? ""))
+    setVialUnit(m?.vialUnit ?? concMass)
     setVials("1")
-    setVialForm(mix?.vialForm ?? "powder")
-    setVialVolume(mix?.vialVolumeMl != null ? String(mix.vialVolumeMl) : "")
-    setReconstitute(mix?.reconstituteMl != null ? String(mix.reconstituteMl) : "")
-    setDisplacement(mix?.displacementMl != null ? String(mix.displacementMl) : "")
+    setVialForm(m?.vialForm ?? "powder")
+    setVialVolume(m?.vialVolumeMl != null ? String(m.vialVolumeMl) : "")
+    setReconstitute(m?.reconstituteMl != null ? String(m.reconstituteMl) : "")
+    setDisplacement(m?.displacementMl != null ? String(m.displacementMl) : "")
     setVolume("100")
-    setDiluent(mix?.diluents?.[0] ?? "NaCl 0,9%")
+    setDiluent(m?.diluents?.[0] ?? "NaCl 0,9%")
     setRouteShort(defaultRoute)
     setInfuseMinutes("")
     setDropFactor(DEFAULT_DROP_FACTOR)
@@ -6858,11 +7057,38 @@ function AntibioticMixPanel({
         <WardRecipeChips
           wardList={wardList}
           activeId={activeRecipeId}
-          onSelectSystem={loadSystemDefault}
+          // Bọc trong arrow: truyền thẳng `loadSystemDefault` vào onClick sẽ đưa ĐỐI TƯỢNG SỰ KIỆN
+          // vào tham số `m` (quy cách cần nạp) và xoá sạch bảng pha.
+          onSelectSystem={() => loadSystemDefault()}
           onSelectWard={loadWard}
           onDelete={(id) => clearWard(drug.id, id)}
           onPin={(id) => pinWard(drug.id, id)}
         />
+      )}
+
+      {/* Quy cách đóng gói DỰNG SẴN — chỉ hiện khi thuốc khai từ hai quy cách trở lên (một quy cách
+          thì hàng chip này không có gì để chọn, chỉ tốn một dòng). Bấm là nạp thẳng hàm lượng/thể
+          tích ống của quy cách đó vào bảng bên dưới; hàng thật ở khoa khác hẳn thì vẫn sửa tay được
+          như trước — xem mixOptionLabel. */}
+      {mixList.length > 1 && (
+        <div className="mb-2">
+          <label className={`${T.label} text-slate-500 mb-1 block`}>Quy cách đóng gói — bấm để đổi</label>
+          <div className="flex flex-wrap gap-1.5">
+            {mixList.map((m, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setMixIndex(i)
+                  loadSystemDefault(m)
+                }}
+                className={CHIP}
+                style={pill(i === mixIndex)}
+              >
+                {mixOptionLabel(m)}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {!isFixed && (
@@ -7382,7 +7608,9 @@ function AntibioticDoseCard({
   // Đường uống không cần hoàn nguyên/pha loãng — bảng pha chỉ có ý nghĩa với đường tiêm/truyền.
   const injectable = !drug.route.includes("Uống")
   const indication = disease ? drug.indications?.find((i) => i.diseaseId === disease.id) : undefined
-  const tiers = indication?.tiers ?? drug.tiers
+  // `drug.tiers` là optional (thuốc chỉ có liều chuẩn, không phân bậc theo CrCl) — quy về mảng
+  // rỗng ngay tại đây để mọi chỗ đọc `tiers.length` bên dưới không phải tự phòng thân từng chỗ.
+  const tiers = indication?.tiers ?? drug.tiers ?? []
   const standardDose = indication?.standardDose ?? drug.standardDose
   // Nguồn hiện ra: bệnh lý có tự khai nguồn riêng thì dùng nguồn đó (xem IndicationDose.source),
   // không thì rơi về nguồn của thuốc — không còn gộp cứng một nguồn cho mọi bệnh lý như trước.
@@ -7423,6 +7651,15 @@ function AntibioticDoseCard({
   // hiểm (vd Vancomycin gây hội chứng người đỏ). Chỉ khi route ghi chung chung "(IV)" (chưa phân biệt
   // trong dữ liệu) mới thật sự có hai lựa chọn để bác sĩ tự chọn.
   const mixableRoutes = useMemo(() => inferAdminRoutes(drug.route), [drug.route])
+  // Quy cách đóng gói dựng sẵn đang chọn. State ở ĐÂY (không phải trong AntibioticMixPanel) vì cả
+  // "Cách dùng" tự tính của thẻ này lẫn bảng pha bên trong đều phải đọc cùng một quy cách — xem
+  // mixOptionLabel/draftToMixList. Mặc định quy cách đầu tiên trong dữ liệu thuốc.
+  const mixList = useMemo(() => drug.mix ?? [], [drug.mix])
+  const [mixIndex, setMixIndex] = useState(0)
+  // Dữ liệu thuốc vừa được sửa (bớt quy cách) thì chỉ số cũ có thể trỏ ra ngoài mảng — rơi về quy
+  // cách đầu thay vì để `mixList[mixIndex]` thành undefined và mọi phép tính im lặng biến mất.
+  const activeMix = mixList[mixIndex] ?? mixList[0]
+  const [roundUp, setRoundUp] = useRoundUp()
   // Công thức đã lưu (ward) có thể tự khai đường dùng riêng (khoa A truyền TTM, khoa B tiêm TMC cùng
   // một thuốc) — ưu tiên đường đó, chỉ suy từ `drug.route` khi chưa có công thức nào được lưu. Nếu
   // đường đã lưu không còn nằm trong `mixableRoutes` (vd dữ liệu thuốc vừa được sửa lại) thì bỏ qua,
@@ -7460,7 +7697,7 @@ function AntibioticDoseCard({
         // Mặc định KHÔNG cho rút (số nguyên) khi công thức cũ chưa từng khai — xem WardRecipe.allowWithdraw.
         allowWithdraw: ward.allowWithdraw ?? false,
       }
-    const mix = drug.mix
+    const mix = activeMix
     if (mix != null && mix.vialAmount != null)
       return {
         vialAmount: mix.vialAmount,
@@ -7476,7 +7713,7 @@ function AntibioticDoseCard({
         allowWithdraw: false,
       }
     return null
-  }, [ward, drug.mix])
+  }, [ward, activeMix])
   // Một số mức liều viết dạng "Liều nạp 20–25 mg/kg, sau đó theo nồng độ đáy" — con số mg/kg ở đây
   // là liều NẠP một lần, còn liều DUY TRÌ (thứ cần tính lặp lại mỗi lần pha) được nói thẳng là
   // "theo nồng độ đo được", tức KHÔNG có con số cố định. Nếu cứ lấy đại con số mg/kg đứng trước rồi
@@ -7518,7 +7755,7 @@ function AntibioticDoseCard({
       // làm tròn mịn 5/1/0,5/0,1 mL cho trường hợp một chai thường gặp nhất, chỉ chuyển sang thang
       // trăm/năm mươi mL khi thật sự phải gộp — xem lib/mixing.ts). Không cho rút (allowWithdraw
       // false) thì drawMl null — dùng TRỌN thể tích đã gộp, không có "lấy X mg" riêng.
-      const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, mixCfg.vialAmount, mixCfg.vialVolumeMl, mixCfg.allowWithdraw)
+      const result = resolveFixedDraw(loInVialUnit, hiInVialUnit, mixCfg.vialAmount, mixCfg.vialVolumeMl, mixCfg.allowWithdraw, roundUp)
       if (result == null) return null
       const { bottleCount } = result
       const pooledVolume = bottleCount * mixCfg.vialVolumeMl
@@ -7550,6 +7787,10 @@ function AntibioticDoseCard({
         }),
         vialCount: bottleCount,
         vialForm: "fixed" as VialForm,
+        // Số lần lượng thuốc thực nhận so với liều tính được — dùng để giải thích/cảnh báo phần dư
+        // do làm tròn, xem roundingExcess và khối RoundingNote bên dưới.
+        excess: roundingExcess(pickedDose, doseTargetMg.high ?? doseTargetMg.low),
+        deliveredDose: pickedDose,
       }
     }
     const f = massFactor(doseTargetMg.unit, mixCfg.vialUnit)
@@ -7570,7 +7811,7 @@ function AntibioticDoseCard({
       volumeMl = mixCfg.volumeMl
       if (neededHigh > vials * mixCfg.vialAmount + 1e-9) {
         const haveDoseUnit = (vials * mixCfg.vialAmount) / f
-        const vialLabel = drug.mix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ")
+        const vialLabel = activeMix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ")
         return {
           text: `Công thức đã lưu chỉ có ${formatDoseNumber(haveDoseUnit)} ${doseTargetMg.unit} (${vials} ${vialLabel}) — KHÔNG đủ cho liều cần ${formatDoseNumber(doseTargetMg.high ?? doseTargetMg.low)} ${doseTargetMg.unit}. Sửa số ${vialLabel} trong "Bảng pha thuốc" rồi lưu lại, hoặc chuyển về công thức hệ thống.`,
           vialCount: vials,
@@ -7582,24 +7823,35 @@ function AntibioticDoseCard({
       // Không có công thức đã lưu — tự tính số lọ/ống cần dùng (làm tròn LÊN) thay vì giả định cứng
       // "đúng 1 lọ" như trước (khiến liều theo cân nặng vượt 1 lọ luôn bị bỏ qua), pha theo tỉ lệ
       // mặc định 100 mL cho mỗi lọ khi chưa biết quy cách pha thật của khoa.
-      vials = Math.max(1, Math.ceil(neededHigh / mixCfg.vialAmount - 1e-9))
+      // Chiều làm tròn theo công tắc của người dùng (xem lib/roundingPref.ts): LÊN = đủ liều chắc
+      // chắn nhưng có lúc dư nhiều; XUỐNG = số lọ lớn nhất không vượt cận trên, thiếu một chút.
+      // Sàn 1 lọ ở cả hai chiều — "0 lọ" không phải một câu trả lời.
+      vials = roundUp
+        ? Math.max(1, Math.ceil(neededHigh / mixCfg.vialAmount - 1e-9))
+        : Math.max(1, Math.floor(neededHigh / mixCfg.vialAmount + 1e-9))
       volumeMl = vials * 100
     }
     const conc = (vials * mixCfg.vialAmount) / volumeMl
     if (!(conc > 0)) return null
     const loMl = neededLow / conc
     const hiMl = neededHigh / conc
-    if (hiMl > volumeMl + 1e-9) return null
+    // Chốt chặn này chỉ có nghĩa ở chiều làm tròn LÊN: ở đó "rút nhiều hơn cả thể tích đã pha" là một
+    // phép tính bất khả thi, phải dừng. Ở chiều XUỐNG thì thiếu so với cận trên chính là điều người
+    // dùng vừa chủ động chọn — giữ nguyên chốt này sẽ khiến cả khối "Cách dùng" IM LẶNG BIẾN MẤT ngay
+    // khi tắt công tắc (vd Amikacin 1050–1400 mg: 1 ống 1000 mg pha 100 mL, hiMl = 140 > 100).
+    if (roundUp && hiMl > volumeMl + 1e-9) return null
     // Thể tích rút ra ở đây luôn nằm trong một mẻ pha ≥100 mL (100 mL/lọ trở lên) — thang mịn cỡ
     // 0,1 mL vô nghĩa ở quy mô đó (không ai đọc "217 mL" như một con số dễ lấy), nên dùng thang
     // trăm/năm mươi mL của pickEasiestBatchVolume() thay vì pickEasiestVolume() thang mịn. Chặn ngưỡng
     // ở `volumeMl` — làm tròn LÊN (thà dư còn hơn thiếu) không được phép "rút" nhiều hơn cả thể tích
     // thật đã pha, vượt ngưỡng thì coi như dùng trọn mẻ (isWholeBatch bên dưới tự xử lý đúng câu chữ).
-    const pickedMlRaw = doseTargetMg.high != null ? pickEasiestBatchVolume(loMl, hiMl) : pickEasiestBatchVolume(loMl, loMl)
+    const pickedMlRaw = doseTargetMg.high != null ? pickEasiestBatchVolume(loMl, hiMl, roundUp) : pickEasiestBatchVolume(loMl, loMl, roundUp)
     const pickedMl = Math.min(pickedMlRaw, volumeMl)
     // Liều tính ra dùng ĐÚNG trọn lượng vừa pha (không cần rút riêng một phần) → câu gọn như mẫu
     // 3b, không lặp lại "đủ X ml lấy Y ml" một cách thừa thãi.
     const isWholeBatch = pickedMl >= volumeMl - 1e-6
+    // Lượng thuốc bệnh nhân THỰC SỰ nhận sau khi làm tròn, quy về đúng đơn vị của liều tính được.
+    const deliveredDose = (pickedMl * conc) / f
     // Chỉ tính tốc độ khi công thức ĐÃ LƯU có khai thời gian truyền dự kiến — không có thì ẩn hẳn
     // phần này thay vì bịa một thời gian truyền không ai xác nhận (xem mixCfg ở trên). Bơm tiêm điện
     // thì ra mL/giờ, dây thường thì ra giọt/phút.
@@ -7614,21 +7866,25 @@ function AntibioticDoseCard({
         vialAmount: mixCfg.vialAmount,
         vialUnit: mixCfg.vialUnit,
         vialsUsed: vials,
-        vialLabel: drug.mix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ"),
+        vialLabel: activeMix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ"),
         // Chỉ ống dung dịch mới có thể tích riêng đáng nói kiểu "1 g/4 ml" (mẫu 4b) — lọ bột chưa có
         // thể tích tới khi hoàn nguyên, thể tích đó đã nằm trong "đủ X ml" bên dưới rồi.
         vialVolumeMl: mixCfg.vialForm === "solution" ? mixCfg.vialVolumeMl ?? undefined : undefined,
         diluentName: mixCfg.diluent,
         route: routeShort,
-        finalVolumeMl: isWholeBatch ? undefined : volumeMl,
+        // Thể tích pha loãng LUÔN nói ra — kể cả khi truyền trọn mẻ (xem drawPart trong usageText.ts).
+        // Chỉ phần "lấy Y ml" mới bỏ đi khi không phải rút riêng, để câu không thừa "đủ 100 ml lấy 100 ml".
+        finalVolumeMl: volumeMl,
         drawMl: isWholeBatch ? undefined : pickedMl,
         dropsPerMin,
         rateMlPerHour,
       }),
       vialCount: vials,
       vialForm: mixCfg.vialForm,
+      excess: roundingExcess(deliveredDose, doseTargetMg.high ?? doseTargetMg.low),
+      deliveredDose,
     }
-  }, [mixCfg, doseTargetMg, drug.name, drug.mix?.vialLabel, routeShort])
+  }, [mixCfg, doseTargetMg, drug.name, activeMix?.vialLabel, routeShort, roundUp])
   const vialGuard = useVialCountGuard(autoUsage?.vialCount ?? null, autoUsage?.vialForm ?? "powder")
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
   const otherWarnings = (drug.warnings ?? []).filter((w) => w.severity !== "cao")
@@ -7875,6 +8131,12 @@ function AntibioticDoseCard({
       {autoUsage && !autoUsage.insufficient && (
         <VialCountWarning grade={vialGuard.grade} show={vialGuard.showWarning} onConfirm={vialGuard.confirm} />
       )}
+      {/* Công tắc làm tròn + lời giải thích cho con số vừa in ra. Đặt NGAY DƯỚI khối "Cách dùng" chứ
+          không nhét vào Cài đặt: con số gây thắc mắc nằm ở trên, chỗ trả lời phải ở ngay cạnh nó —
+          và người dùng phải đổi được chiều làm tròn ngay tại đây, không phải đi tìm. */}
+      {autoUsage && !autoUsage.insufficient && !vialGuard.blocked && (
+        <RoundingSwitch on={roundUp} setOn={setRoundUp} excess={autoUsage.excess} delivered={autoUsage.deliveredDose} unit={doseTargetMg?.unit ?? "mg"} />
+      )}
 
       {/* Chỉ hiện "Liều chuẩn" khi nó KHÁC dòng liều ở trên — trước đây meropenem in ra "1 g mỗi 8h"
           rồi ngay dưới lại "Liều chuẩn: 1 g mỗi 8h (IV)", đọc như hai thông tin khác nhau. */}
@@ -7996,7 +8258,7 @@ function AntibioticDoseCard({
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
               {showMix && (
-                <AntibioticMixPanel drug={drug} doseTargetMg={doseTargetMg} doseNotComputable={notComputableDose} routeShort={routeShort} setRouteShort={setRouteShort} />
+                <AntibioticMixPanel drug={drug} mixList={mixList} mixIndex={mixIndex} setMixIndex={setMixIndex} doseTargetMg={doseTargetMg} doseNotComputable={notComputableDose} routeShort={routeShort} setRouteShort={setRouteShort} />
               )}
             </>
           )}
@@ -11211,22 +11473,28 @@ function useHoldToEdit(onOpen: () => void, onEdit: () => void) {
   // tuỳ chọn vừa mở bảng ra sau lưng nó.
   const held = useRef(false)
   const start = useRef({ x: 0, y: 0 })
+  // Cho vòng tiến trình bên ngoài biết đang giữ hay không, để tay lạnh/đeo găng nhả sớm vẫn thấy
+  // được là đã "gần được" chứ không phải hoàn toàn không có phản hồi cho tới khi đủ 450ms.
+  const [holding, setHolding] = useState(false)
 
   const cancel = () => {
     if (timer.current) {
       clearTimeout(timer.current)
       timer.current = null
     }
+    setHolding(false)
   }
 
-  return {
+  const handlers = {
     onPointerDown: (e: ReactPointerEvent) => {
       held.current = false
       start.current = { x: e.clientX, y: e.clientY }
       cancel()
+      setHolding(true)
       timer.current = setTimeout(() => {
         timer.current = null
         held.current = true
+        setHolding(false)
         tickHaptic()
         onEdit()
       }, CARD_HOLD_MS)
@@ -11246,6 +11514,28 @@ function useHoldToEdit(onOpen: () => void, onEdit: () => void) {
     // Chặn menu chuột phải trên máy tính: giữ chuột lâu ở đó cũng phải ra bảng tuỳ chọn của app.
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
   }
+
+  return { holding, handlers }
+}
+
+// Vòng viền mỏng lấp dần quanh thẻ trong đúng 450ms (CARD_HOLD_MS) của một lần giữ — không có nó,
+// tay buông ở mili-giây thứ 400 không cách nào biết là "gần xong" hay "chưa bấm trúng gì cả".
+// `holding=false` chỉ đổi transition sang mờ nhanh (không transition box-shadow) nên vòng biến mất
+// ngay thay vì tự chạy tiếp cho hết quãng đường còn lại.
+function HoldProgressRing({ holding }: { holding: boolean }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute inset-0 rounded-[inherit] pointer-events-none"
+      style={{
+        boxShadow: holding ? "inset 0 0 0 2.5px var(--c-primary)" : "inset 0 0 0 0px var(--c-primary)",
+        opacity: holding ? 1 : 0,
+        transition: holding
+          ? `box-shadow ${CARD_HOLD_MS}ms linear, opacity 60ms ease-out`
+          : "opacity 150ms ease-out",
+      }}
+    />
+  )
 }
 
 function BoardCard({
@@ -11273,13 +11563,13 @@ function BoardCard({
       // nhau cùng vẽ đường bao — đúng kiểu "thẻ trong thẻ" mà hệ thiết kế của app cố tình tránh (xem
       // "Flat by default... không cần viền hay shadow" trong DESIGN.md). Sắc thẻ vẫn nhận ra được
       // qua nền tô màu — chỉ bớt một lớp đường viền thừa.
-      className={`flex flex-col gap-1.5 p-2 ${R.card} ${TAP}`}
+      className={`relative flex flex-col gap-1.5 p-2 ${R.card} ${TAP}`}
       // `color-mix` trộn thẳng từ `board.color` (có thể là mã hex CHUYÊN KHOA thật, hoặc
       // `var(--c-primary)`/`var(--c-text-muted)` khi chưa gắn khoa — color-mix nhận cả hai dạng,
       // không cần tự phân biệt). Trộn về phía `--c-surface` (không phải "transparent") nên bản tối
       // tự ra đúng sắc độ tối hơn mà không cần viết riêng một nhánh dark-mode.
       style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
-      {...hold}
+      {...hold.handlers}
       // Có role="button" + tabIndex nên Tab tới được và trình đọc màn hình đọc là "nút", nhưng
       // trước đây chỉ gắn handler con trỏ — Enter/Space không làm gì cả. Enter/Space giờ mở bảng,
       // giống hành vi mặc định của một <button> thật.
@@ -11293,6 +11583,7 @@ function BoardCard({
       role="button"
       tabIndex={0}
     >
+      <HoldProgressRing holding={hold.holding} />
       <div className="relative">
         <BoardPreviewFrame board={board} previewTick={previewTick} className="w-full aspect-[4/3]" />
         {/* Gợi ý thụ động cho việc giữ để mở tuỳ chọn — KHÔNG phải một nút riêng (không có handler
@@ -11344,9 +11635,9 @@ function BoardRow({
       ref={rowRef}
       data-board-id={board.id}
       // KHÔNG viền — cùng lý do với BoardCard: khung xem trước bên trong đã có viền riêng.
-      className={`flex items-center gap-3 p-2 ${R.card} ${TAP}`}
+      className={`relative flex items-center gap-3 p-2 ${R.card} ${TAP}`}
       style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
-      {...hold}
+      {...hold.handlers}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
@@ -11357,6 +11648,7 @@ function BoardRow({
       role="button"
       tabIndex={0}
     >
+      <HoldProgressRing holding={hold.holding} />
       <BoardPreviewFrame board={board} previewTick={previewTick} className="flex-none w-[72px] h-[54px]" />
       <div className="flex-1 min-w-0">
         <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>

@@ -187,18 +187,51 @@ export function pickEasiestVolume(loMl: number, hiMl: number): number {
   return Math.round(((lo + hi) / 2) * 10) / 10
 }
 
+// ─── Công tắc "Làm tròn lên" ──────────────────────────────────────────────────
+//
+// Vì sao phải có công tắc thay vì chọn cứng một chính sách: khi KHÔNG có bậc nào (số lọ, mốc mL) rơi
+// đúng vào khoảng liều tính được, chỉ còn hai lựa chọn và cả hai đều có lý:
+//   - làm tròn LÊN: đủ liều chắc chắn, nhưng có lúc dư rất nhiều (cần 525 mg, ống 500 mg → 2 ống =
+//     1000 mg, gấp 1,9 lần) — dư thì còn rút bớt dịch pha ra được;
+//   - làm tròn XUỐNG: thiếu một chút so với con số tính ra, nhưng lấy đúng bậc dễ đong nhất.
+// Trước đây app ÉP CỨNG chiều lên ở mọi hàm dưới đây mà không nói gì, nên người dùng thấy 1000 mg /
+// 150 mL nhảy ra không rõ vì đâu. Giờ chiều lên vẫn là MẶC ĐỊNH (mọi lời gọi cũ không truyền tham số
+// giữ nguyên hành vi), nhưng người dùng tắt được — và khi tắt thì họ đã tự nhận trách nhiệm về liều
+// thấp hơn khoảng khuyến cáo, nên app không cảnh báo "dưới liều tối thiểu" nữa.
+//
+// Ngưỡng cảnh báo: làm tròn LÊN mà lượng thuốc thực nhận vượt quá 1,3 lần liều tính được thì phải nói
+// thẳng ra (xem roundingExcess) — dưới mức đó thì phần dư nằm trong biên an toàn sẵn có của khoảng
+// liều, nói thêm chỉ thành tiếng ồn.
+export const ROUND_WARN_RATIO = 1.3
+
+// Số lần lượng thuốc thực nhận sau làm tròn so với liều tính được. ≤ 1 nghĩa là làm tròn xuống (không
+// bao giờ cảnh báo — chiều đó đã do người dùng chủ động bật).
+export function roundingExcess(deliveredAmount: number, targetAmount: number): number {
+  if (!(targetAmount > 0) || !(deliveredAmount > 0)) return 1
+  return deliveredAmount / targetAmount
+}
+
 // Cùng ý tưởng pickEasiestVolume() nhưng cho thể tích RÚT RA từ một mẻ pha LỚN (nhiều lọ/chai chung
 // một túi, thường ≥100 mL) — thang mịn 0,1 mL của pickEasiestVolume() vô nghĩa ở quy mô này (không ai
 // đọc số mL lẻ trên một túi 200 mL), nên chỉ làm tròn tới mốc trăm/năm mươi mL, giống hệt
 // poolDrawVolume(). Có mốc rơi trong khoảng [lo,hi] thì lấy mốc gần cận trên nhất (đúng triết lý cũ);
-// khoảng quá hẹp để có mốc nào lọt vào thì làm tròn LÊN từ cận dưới — thà dư nhẹ thuốc còn hơn thiếu
-// liều (xem ghi chú "thà dư còn hơn thiếu" ở poolDrawVolume/pickEasiestVialCount).
-export function pickEasiestBatchVolume(loMl: number, hiMl: number): number {
+// khoảng quá hẹp để có mốc nào lọt vào thì theo công tắc `roundUp`: LÊN từ cận dưới (mặc định, thà dư
+// nhẹ còn hơn thiếu liều), hoặc XUỐNG mốc lớn nhất không vượt cận trên. Sàn 50 mL ở cả hai chiều —
+// "rút 0 mL" không phải một câu trả lời.
+export function pickEasiestBatchVolume(loMl: number, hiMl: number, roundUp: boolean = true): number {
   const lo = Math.min(loMl, hiMl)
   const hi = Math.max(loMl, hiMl)
   for (const step of [100, 50]) {
     const candidate = Math.floor(hi / step) * step
     if (candidate >= lo - 1e-9 && candidate > 0) return candidate
+  }
+  if (!roundUp) {
+    // Mốc MỊN trước — con số sát dưới cận trên nhất, tức thiếu ít nhất (xem cùng lý do ở poolDrawVolume).
+    for (const step of [50, 100]) {
+      const candidate = Math.floor(hi / step + 1e-9) * step
+      if (candidate > 0) return candidate
+    }
+    return 50
   }
   const roundedUp = Math.ceil(lo / 50 - 1e-9) * 50
   return roundedUp > 0 ? roundedUp : 50
@@ -212,10 +245,19 @@ export function pickEasiestBatchVolume(loMl: number, hiMl: number): number {
 // không làm vậy thì "1,5 lọ" là một con số vô lý, không có cách đong ra nó.
 //
 // Không có lựa chọn nào rơi ĐÚNG trong khoảng (vd lọ 1000mg cho khoảng liều 1050–1400mg: 1 lọ thiếu,
-// 1,5 lọ nhỉnh hơn cận trên) thì làm tròn LÊN — chọn số lọ nhỏ nhất còn đạt đủ cận dưới, dù có nhỉnh
-// hơn cận trên một chút. Thà dư nhẹ còn hơn để mặc định là "không tính được gì cả": khoảng liều đã
-// có biên an toàn hai đầu, dư một bước làm tròn không đưa thêm rủi ro nào so với thiếu liều thật sự.
-export function pickEasiestVialCount(loAmount: number, hiAmount: number, vialAmount: number, allowHalf: boolean): number | null {
+// 1,5 lọ nhỉnh hơn cận trên) thì theo công tắc `roundUp` (xem ROUND_WARN_RATIO phía trên):
+//   - BẬT (mặc định): làm tròn LÊN — chọn số lọ nhỏ nhất còn đạt đủ cận dưới, dù nhỉnh hơn cận trên.
+//     Người gọi nên đối chiếu roundingExcess() để cảnh báo khi phần dư quá lớn (vd 525mg → 2 ống
+//     500mg = 1000mg, gấp 1,9 lần) — dư nhiều vẫn pha được nhưng phải RÚT BỚT dịch, không im lặng.
+//   - TẮT: làm tròn XUỐNG — số lọ lớn nhất không vượt cận trên, chấp nhận thiếu một chút. Sàn là 1
+//     bước nhỏ nhất: "0 lọ" không phải một câu trả lời, kể cả khi 1 lọ đã vượt cận trên.
+export function pickEasiestVialCount(
+  loAmount: number,
+  hiAmount: number,
+  vialAmount: number,
+  allowHalf: boolean,
+  roundUp: boolean = true,
+): number | null {
   if (!(vialAmount > 0) || !(hiAmount > 0)) return null
   const lo = Math.min(loAmount, hiAmount) / vialAmount
   const hi = Math.max(loAmount, hiAmount) / vialAmount
@@ -223,6 +265,16 @@ export function pickEasiestVialCount(loAmount: number, hiAmount: number, vialAmo
   for (const step of steps) {
     const within = Math.floor(hi / step + 1e-9) * step
     if (within > 0 && within >= lo - 1e-9) return Math.round(within * 100) / 100
+  }
+  if (!roundUp) {
+    // Bước MỊN trước (0,5 khi được phép): thiếu ít vẫn tốt hơn thiếu nhiều, đối xứng với logic "dư ít
+    // tốt hơn dư nhiều" của chiều lên bên dưới.
+    const underSteps = allowHalf ? [0.5, 1] : [1]
+    for (const step of underSteps) {
+      const under = Math.floor(hi / step + 1e-9) * step
+      if (under > 0) return Math.round(under * 100) / 100
+    }
+    return allowHalf ? 0.5 : 1
   }
   // Làm tròn LÊN từ cận dưới — thử bước 0,5 trước để phần dư ra sát cận trên nhất có thể (dư ít vẫn
   // tốt hơn dư nhiều), chỉ lùi về bước nguyên nếu 0,5 vẫn không tính ra được số dương nào (hoặc
@@ -265,10 +317,12 @@ export function wholeCountOptions(loAmount: number, hiAmount: number, unitAmount
 // liều cần vượt một chai thì GỘP thêm chai chứ không rút lẻ trong một chai duy nhất như trước.
 
 // Làm tròn LÊN theo cận TRÊN khoảng liều: thiếu một góc chai là thiếu liều thật sự (không rút bù
-// được), còn dư một góc chai thì rút bớt ra được (xem poolDrawVolume) — không có lý do gì làm tròn
-// xuống ở bước chọn SỐ CHAI.
-export function bottleCountForDose(doseHigh: number, bottleAmount: number): number | null {
+// được), còn dư một góc chai thì rút bớt ra được (xem poolDrawVolume) — đó là lý do chiều LÊN vẫn là
+// mặc định ở bước chọn SỐ CHAI. `roundUp` tắt thì lấy số chai lớn nhất không vượt cận trên (sàn 1
+// chai), đúng theo công tắc người dùng đã chủ động bật — xem ROUND_WARN_RATIO.
+export function bottleCountForDose(doseHigh: number, bottleAmount: number, roundUp: boolean = true): number | null {
   if (!(doseHigh > 0) || !(bottleAmount > 0)) return null
+  if (!roundUp) return Math.max(1, Math.floor(doseHigh / bottleAmount + 1e-9))
   return Math.max(1, Math.ceil(doseHigh / bottleAmount - 1e-9))
 }
 
@@ -278,11 +332,27 @@ export function bottleCountForDose(doseHigh: number, bottleAmount: number): numb
 // trên nhiều chai ~100-150 mL mỗi chai — khác thang với pickEasiestVolume() (bước 5/1/0,5/0,1 mL,
 // dùng cho thể tích PHA LOÃNG nhỏ của lọ bột/ống dung dịch). Làm tròn LÊN (ưu tiên liều cao hơn một
 // chút, cùng triết lý với pickEasiestVialCount), nhưng không bao giờ vượt quá thể tích thật đã gộp.
-export function poolDrawVolume(targetDose: number, count: number, bottleAmount: number, bottleVolumeMl: number): number | null {
+export function poolDrawVolume(
+  targetDose: number,
+  count: number,
+  bottleAmount: number,
+  bottleVolumeMl: number,
+  roundUp: boolean = true,
+): number | null {
   if (!(targetDose > 0) || !(count > 0) || !(bottleAmount > 0) || !(bottleVolumeMl > 0)) return null
   const pooledVolume = count * bottleVolumeMl
   const concPerMl = bottleAmount / bottleVolumeMl
   const rawMl = Math.min(targetDose / concPerMl, pooledVolume)
+  if (!roundUp) {
+    // Chiều XUỐNG duyệt mốc từ MỊN tới THÔ (ngược với chiều lên): mốc mịn cho ra con số SÁT dưới
+    // thể tích cần rút nhất, tức thiếu ít nhất — cần 180 mL thì 150 mL đúng hơn hẳn 100 mL. Chiều lên
+    // duyệt ngược lại vì ở đó mốc thô mới là mốc gần nhất còn ĐỦ liều.
+    for (const step of [50, 100]) {
+      const candidate = Math.floor(rawMl / step + 1e-9) * step
+      if (candidate > 0) return Math.min(candidate, Math.round(pooledVolume))
+    }
+    return Math.min(50, Math.round(pooledVolume))
+  }
   for (const step of [100, 50]) {
     const candidate = Math.ceil(rawMl / step - 1e-9) * step
     if (candidate > 0 && candidate <= pooledVolume + 1e-9) return candidate
@@ -307,14 +377,23 @@ export interface FixedDrawResult {
 // `allowWithdraw` = false: khoa không rút bớt dung dịch sau pha — không có "gộp rồi rút một phần"
 // nào cả, chỉ còn cách chọn SỐ CHAI NGUYÊN gần khoảng liều nhất (ưu tiên phương án khớp/cao hơn,
 // xem wholeCountOptions) rồi dùng TRỌN, không đo rút riêng mL nào.
-export function resolveFixedDraw(loAmount: number, hiAmount: number, bottleAmount: number, bottleVolumeMl: number, allowWithdraw: boolean): FixedDrawResult | null {
+export function resolveFixedDraw(
+  loAmount: number,
+  hiAmount: number,
+  bottleAmount: number,
+  bottleVolumeMl: number,
+  allowWithdraw: boolean,
+  roundUp: boolean = true,
+): FixedDrawResult | null {
   if (!allowWithdraw) {
     const options = wholeCountOptions(loAmount, hiAmount, bottleAmount)
     if (options.length === 0) return null
-    const picked = options[options.length - 1]
+    // wholeCountOptions trả về [thấp hơn, cao hơn] khi không phương án nguyên nào khớp khoảng liều —
+    // công tắc quyết định lấy đầu nào. Khớp hẳn khoảng thì chỉ có MỘT phương án, hai chế độ như nhau.
+    const picked = roundUp ? options[options.length - 1] : options[0]
     return { bottleCount: picked.count, drawMl: null }
   }
-  const count = bottleCountForDose(hiAmount, bottleAmount)
+  const count = bottleCountForDose(hiAmount, bottleAmount, roundUp)
   if (count == null) return null
   if (count <= 1) {
     // `loAmount`/`hiAmount` đã cùng đơn vị với `bottleAmount` (người gọi tự quy đổi trước) — truyền
@@ -323,9 +402,9 @@ export function resolveFixedDraw(loAmount: number, hiAmount: number, bottleAmoun
     const loMl = drawFromFixedVial(loAmount, "u", bottleAmount, "u", bottleVolumeMl)
     const hiMl = drawFromFixedVial(hiAmount, "u", bottleAmount, "u", bottleVolumeMl)
     if (loMl == null || hiMl == null) return null
-    return { bottleCount: 1, drawMl: pickEasiestBatchVolume(loMl, hiMl) }
+    return { bottleCount: 1, drawMl: pickEasiestBatchVolume(loMl, hiMl, roundUp) }
   }
-  const drawMl = poolDrawVolume(hiAmount, count, bottleAmount, bottleVolumeMl)
+  const drawMl = poolDrawVolume(hiAmount, count, bottleAmount, bottleVolumeMl, roundUp)
   if (drawMl == null) return null
   return { bottleCount: count, drawMl }
 }
