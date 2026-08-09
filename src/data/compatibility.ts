@@ -67,12 +67,7 @@ export const COMPAT_KEYS = {
   ceftriaxone: "ceftriaxone",
   ampicillin: "ampicillin",
   pipTazo: "pipTazo",
-  // ─── Bổ sung ───────────────────────────────────────────────────────────────
-  // Trước đây bảy khoá ở trên (propofol, midazolam, pantoprazole, heparin, bicarbonate, furosemide,
-  // phenytoin) được khai ở đây và có luật Khóa chữ Y hẳn hoi, nhưng KHÔNG thuốc nào trong app mang các
-  // khoá đó — nghĩa là không có cách nào ghim chúng vào bảng "Đang truyền", nên đúng những cặp kết
-  // tủa quan trọng nhất không bao giờ kích hoạt được. Nay các nhóm An thần / Thần kinh / Khác /
-  // Giải độc đã mang đủ khoá, và danh sách dưới đây là phần mở rộng cho các thuốc mới thêm.
+  amikacin: "amikacin",
   fentanyl: "fentanyl",
   morphine: "morphine",
   ketamine: "ketamine",
@@ -102,6 +97,7 @@ export const COMPAT_KEYS = {
   echinocandin: "echinocandin",
   tetracycline: "tetracycline",
   oxacillin: "oxacillin",
+
 } as const
 
 const K = COMPAT_KEYS
@@ -193,15 +189,9 @@ export const INTERACTION_RULES: InteractionRule[] = [
   { a: K.magnesium, b: K.nicardipine, severity: "trung bình", text: "Cộng gộp giãn mạch/tụt huyết áp và ức chế thần kinh cơ.", verified: false },
   { a: K.insulin, b: K.potassium, severity: "trung bình", text: "Insulin đẩy kali vào tế bào — theo dõi kali máu sát khi truyền đồng thời, tránh cả hạ lẫn tăng kali.", verified: false },
   { a: K.adenosine, b: K.esmolol, severity: "trung bình", text: "Cộng gộp ức chế dẫn truyền nút nhĩ thất — nguy cơ vô tâm thu kéo dài hơn thường lệ sau bolus.", verified: false },
-  {
-    a: K.vancomycin,
-    b: K.pipTazo,
-    severity: "cao",
-    text: "Phối hợp vancomycin + piperacillin/tazobactam làm tăng đáng kể nguy cơ tổn thương thận cấp so với vancomycin phối hợp cefepim hoặc meropenem (các phân tích gộp/mạng lưới ghi nhận OR khoảng 2–2,5). Theo dõi creatinin sát; cân nhắc đổi sang phối hợp khác nếu lâm sàng cho phép.",
+  { a: K.vancomycin, b: K.pipTazo, severity: "cao", text: "Phối hợp vancomycin + piperacillin/tazobactam làm tăng đáng kể nguy cơ tổn thương thận cấp so với vancomycin phối hợp cefepim hoặc meropenem (các phân tích gộp/mạng lưới ghi nhận OR khoảng 2–2,5). Theo dõi creatinin sát; cân nhắc đổi sang phối hợp khác nếu lâm sàng cho phép.",
     verified: true,
-    source: "Phân tích gộp/mạng lưới nguy cơ AKI khi phối hợp vancomycin + piperacillin-tazobactam (PubMed 29088001; J Antimicrob Chemother 2025;80:47)",
-  },
-  // ─── Tương tác bổ sung theo các nhóm thuốc mới ──────────────────────────────
+    source: "Phân tích gộp/mạng lưới nguy cơ AKI khi phối hợp vancomycin + piperacillin-tazobactam (PubMed 29088001; J Antimicrob Chemother 2025;80:47)",},
   // Linezolid là chất ức chế MAO không chọn lọc, có hồi phục — đây là tương tác hay bị bỏ sót nhất
   // vì người ta xếp nó vào "kháng sinh" chứ không nghĩ tới trục thần kinh.
   { a: K.linezolid, b: K.noradrenaline, severity: "cao", text: "Linezolid ức chế MAO — có thể gây đáp ứng tăng huyết áp quá mức với thuốc vận mạch giao cảm. Chỉnh liều vận mạch từng nấc nhỏ và theo dõi huyết áp sát hơn thường lệ.", verified: false },
@@ -231,6 +221,15 @@ export const INTERACTION_RULES: InteractionRule[] = [
   // Kháng đông.
   { a: K.heparin, b: K.tranexamic, severity: "cao", text: "Hai thuốc tác dụng ngược chiều lên đông máu — chỉ dùng cùng khi có chỉ định rõ ràng và hội chẩn; xem lại chỉ định của cả hai.", verified: false },
   { a: K.heparin, b: K.enoxaparin, severity: "cao", text: "Chồng liều kháng đông — không dùng đồng thời trừ giai đoạn chuyển đổi có kế hoạch rõ ràng.", verified: false },
+  // Amikacin.
+  { a: K.amikacin, b: K.vancomycin, severity: "trung bình", text: "Cộng gộp làm tăng độc tính thận — tai theo dõi creatinin hằng ngày, đo nồng độ thuốc, tránh phối hợp kéo dài.", verified: false },
+  { a: K.amikacin, b: K.colistin, severity: "cao", text: "Cộng gộp độc tính thận — theo dõi creatinin hằng ngày, đo nồng độ thuốc, tránh phối hợp kéo dài.", verified: false },
+  { a: K.amikacin, b: K.aminoglycoside, severity: "cao", text: "Cộng gộp độc tính thận — tránh phối hợp kéo dài; theo dõi creatinin hằng ngày.", verified: false },
+  { a: K.amikacin, b: K.rocuronium, severity: "cao", text: "Cộng gộp giãn cơ — theo dõi TOF trước khi cai máy.", verified: false },
+  { a: K.amikacin, b: K.cisatracurium, severity: "cao", text: "Cộng gộp giãn cơ — theo dõi TOF trước khi cai máy.", verified: false },
+  { a: K.amikacin, b: K.magnesium, severity: "cao", text: "Cộng gộp giãn cơ và độc tính thận — theo dõi TOF và creatinin hằng ngày.", verified: false },
+  { a: K.amikacin, b: K.furosemide, severity: "cao", text: "Cộng gộp độc tính thận — theo dõi creatinin hằng ngày.", verified: false },
+  { a: K.amikacin, b: K.ceftriaxone, severity: "trung bình", text: "Ceftriaxone làm giảm tác dụng của amikacin, và tăng nguy cơ độc thận.", verified: false },
 ]
 
 function pairMatches(rule: { a: string; b: string }, x: string, y: string): boolean {

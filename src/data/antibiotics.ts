@@ -30,6 +30,73 @@ const ARC_NOTE =
 
 export const ANTIBIOTICS: Antibiotic[] = [
   {
+    id: "Amikacin-iv",                 
+    name: "Amikacin",
+    compatKey: COMPAT_KEYS.amikacin,                  
+    route: "TTM",                        
+    tiers: [                             
+      { min: 80.01, label: "CrCl >80", dose: "15–20 mg/kg mỗi 24h" },
+      { min: 60.01, label: "CrCl >60–80 ", dose: "12 mg/kg mỗi 24h" },
+      { min: 40.01, label: "CrCl >40–60 ", dose: "7.5 mg/kg mỗi 24h" },
+      { min: 30.01, label: "CrCl >30–40 ", dose: "4 mg/kg mỗi 24h" },
+      { min: 20.01, label: "CrCl >20–30 ", dose: "7.5 mg/kg mỗi 48h" },
+      { min: 10.01, label: "CrCl >10–20 ", dose: "4 mg/kg mỗi 48h" },
+      { min: 0,  label: "CrCl 0 - 10",  dose: "3 mg/kg mỗi 72h (sau lọc máu)" },
+    ],
+    standardDose: "15-20 mg/kg mỗi 24h",
+    preparation: " 'Đối với người lớn, pha 500 mg amikacin vào 100-200ml dịch truyền thông thường như dung dịch NaCl 0.9% hoặc D5%. Thời gian truyền thích hợp amikacin là trong 30-60 phút",
+    note: "Thời gian điều trị thường 7-10 ngày, không nên kéo dài quá 10 ngày",
+    source: "Dược thư quốc gia 2022, tr.193",
+    reviewedOn: "2026-08",
+    warnings: [
+      { text: "Thận trọng: người cao tuổi, trẻ nhỏ. rối loạn/suy giảm chức năng thận do có nguy cơ độc tai và thận (tránh dùng chung các nhóm độc tính tương tự)", severity: "cao" },
+      { text: "Thận trọng: người bệnh rối loạn hoạt động cơ (nhược cơ hoặc Parkinson) - tác dụng kiểu cura (yếu cơ trầm trọng)", severity: "cao" },
+      { text: "Không dùng quá liều khuyến cáo, dùng đủ nước trong thời gian điều trị", severity: "cao" }
+    ],
+    indications: [
+      {
+        diseaseId: "cap",
+        standardDose: "15-20 mg/kg mỗi 24h",
+        tiers: [                             
+          { min: 80.01, label: "CrCl >80", dose: "15–20 mg/kg mỗi 24h" },
+          { min: 60.01, label: "CrCl >60–80 ", dose: "12 mg/kg mỗi 24h" },
+          { min: 40.01, label: "CrCl >40–60 ", dose: "7.5 mg/kg mỗi 24h" },
+          { min: 30.01, label: "CrCl >30–40 ", dose: "4 mg/kg mỗi 24h" },
+          { min: 20.01, label: "CrCl >20–30 ", dose: "7.5 mg/kg mỗi 48h" },
+          { min: 10.01, label: "CrCl >10–20 ", dose: "4 mg/kg mỗi 48h" },
+          { min: 0,  label: "CrCl 0 - 10",  dose: "3 mg/kg mỗi 72h (sau lọc máu)" },
+        ],
+        note: "Theo dõi chức năng thận thường xuyên, cân nhắc hiệu chỉnh liều thông qua định lượng nồng độ thuốc trong máu",
+        source: "Viêm phổi cộng đồng BYT 2026, tr. 61",
+        reviewedOn: "2026-08",
+      },
+    ],
+    maxSingleDose: {
+      amount: 1500,
+      unit: "mg",
+      note: "Ngưỡng tối đa ở người lớn - Dược thư quốc gia 2022",
+    },
+    doseWeightBasis: "actual",
+    rrt: {
+      ihd: "3 mg/kg mỗi 72h (sau lọc máu)",
+      crrt: "LD: 10mg/kg MD 7.5mg mỗi 24-48h khi Qeff (chưa rõ) L/giờ",
+      sled: "Chưa có số liệu",
+      pd: "Chưa có số liệu",
+      note: "Thẩm tách máu và thẩm tách màng bụng loại bỏ được amikacin, cần hiệu chỉnh liều theo Qeff và theo dõi nồng độ thuốc trong máu. Liều CRRT phụ thuộc trực tiếp tốc độ dịch thải (Qeff), MIC của vi khuẩn và chức năng thận tồn dư. Nhập Qeff ở khung Bệnh nhân và luôn đối chiếu phác đồ của cơ sở; ưu tiên đo nồng độ thuốc nếu có.",
+      source: "Bệnh viện Nhiệt đới - 2021",
+      reviewedOn: "2026-08",
+    },
+    mix: {
+      vialAmount: 1000,
+      vialUnit: "mg",
+      vialLabel: "ống",
+      vialForm: "solution", 
+      diluents: ["NaCl 0,9%", "Glucose 5%"],
+      maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
+      infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
+    },
+  },
+  {
     id: "ampicillin-iv",
     name: "Ampicillin",
     compatKey: COMPAT_KEYS.ampicillin,

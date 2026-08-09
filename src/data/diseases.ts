@@ -1,7 +1,7 @@
 import type { DiseaseEntry } from "./types"
 
 export const DISEASES: DiseaseEntry[] = [
-  { id: "cap", name: "Viêm phổi cộng đồng", antibiotics: ["ceftriaxone-iv", "azithromycin-po", "levofloxacin-iv"] },
+  { id: "cap", name: "Viêm phổi cộng đồng", antibiotics: [ "amikacin-iv" ,"ceftriaxone-iv", "azithromycin-po", "levofloxacin-iv"] },
   { id: "severe-cap", name: "Viêm phổi nặng / thở máy", antibiotics: ["pip-tazo-iv", "meropenem-iv", "levofloxacin-iv", "vancomycin-iv"] },
   { id: "sepsis", name: "Nhiễm khuẩn huyết / sốc nhiễm khuẩn", antibiotics: ["pip-tazo-iv", "meropenem-iv", "vancomycin-iv", "amikacin-iv"] },
   { id: "uti", name: "Nhiễm khuẩn tiết niệu phức tạp", antibiotics: ["ceftriaxone-iv", "ciprofloxacin-iv", "amikacin-iv"] },
