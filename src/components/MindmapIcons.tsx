@@ -91,16 +91,6 @@ export const mindIcons: Record<string, IconFn> = {
         <path d="M5 20.6h14" strokeWidth={1.4} opacity={0.4} />
       </>,
     ),
-  // Bút con trỏ (trình bày) — đốm sáng toả tia, không phải một cây bút để lại mực.
-  laser: (cls = "w-5 h-5") =>
-    svg(
-      cls,
-      1.6,
-      <>
-        <circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none" />
-        <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1" />
-      </>,
-    ),
   shapes: (cls = "w-5 h-5") =>
     svg(
       cls,

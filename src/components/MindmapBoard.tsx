@@ -117,7 +117,7 @@ import { hasMindmapClip, readMindmapClip, writeMindmapClip } from "../lib/mindma
 import { applyStyleAt, parseInline, stripInlineMarkers, STYLE_FONTS, type StyleAttrs } from "../lib/richText"
 import { mindIcons as mi } from "./MindmapIcons"
 
-type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso" | "laser"
+type Tool = "hand" | "pen" | "pencil" | "highlighter" | "tape" | "shape" | "eraser" | "lasso"
 
 // Bốn cây bút thật sự để lại mực. "shape" không nằm trong đây: nó vẽ bằng ĐÚNG mực của bút máy (một
 // hình vẽ ra phải cùng màu cùng cỡ nét với nét tay vừa vẽ cạnh nó), nên nó mượn màu/cỡ của "pen" chứ
@@ -135,7 +135,7 @@ type DrawTool = InkTool | "shape"
 // cây bút nào thì nằm trong thanh bút — chỉ hiện khi đang thật sự cầm bút. Nối hai thẻ (công cụ
 // "link" cũ) đã bỏ khỏi hàng công cụ — kéo thẻ này thả lên thẻ kia vẫn tự nối làm cha-con
 // (reparentTo trong onPointerUp), đủ dùng cho phần lớn trường hợp thực tế.
-type TopTool = "hand" | "draw" | "eraser" | "lasso" | "laser"
+type TopTool = "hand" | "draw" | "eraser" | "lasso"
 
 // Những gì đang được khoanh chọn cùng lúc (công cụ lasso). Chỉ giữ ID, còn khung bao thì tính lại từ
 // dữ liệu mỗi lần vẽ — nhờ vậy kéo cả nhóm xong khung tự chạy theo, không phải cập nhật hai nơi.
@@ -372,9 +372,6 @@ const TOP_TOOLS: { id: TopTool; icon: (cls?: string) => React.ReactElement; hint
   { id: "draw", icon: mi.pen, hint: "Bút vẽ — chạm để mở thanh bút" },
   { id: "eraser", icon: mi.eraser, hint: "Tẩy nét vẽ" },
   { id: "lasso", icon: mi.lasso, hint: "Khoanh vùng để chọn nhiều nét, thẻ, ảnh" },
-  // Chạm giữ rồi rê ngón để chỉ vào bảng lúc thuyết trình — thả tay là đốm sáng biến mất, không để
-  // lại gì trên bảng cả (không phải một cây bút, xem moveLaser/hideLaser).
-  { id: "laser", icon: mi.laser, hint: "Bút con trỏ — chạm giữ để chỉ, không để lại vết" },
 ]
 
 // Công cụ đang cầm thuộc về nút nào trên hàng chính — cả năm cây bút đều nằm dưới nút "draw".
@@ -1239,10 +1236,6 @@ export function MindmapBoard({
   const drawMap = useRef<((cx: number, cy: number) => { x: number; y: number }) | null>(null)
   const edgeLayerRef = useRef<SVGGElement>(null)
   const eraserRingRef = useRef<HTMLDivElement>(null)
-  // Đốm sáng của bút con trỏ (trình bày) — xem moveLaser/showLaser/hideLaser. KHÔNG lưu vào dữ liệu
-  // bảng (không phải MindStroke/MindNode nào cả): đây thuần là một lớp phủ đứng yên ngoài React
-  // state, giống hệt eraserRingRef.
-  const laserRef = useRef<HTMLDivElement>(null)
   const floatBarRef = useRef<HTMLDivElement>(null)
   const vGuideRef = useRef<HTMLDivElement>(null)
   const hGuideRef = useRef<HTMLDivElement>(null)
@@ -1329,7 +1322,6 @@ export function MindmapBoard({
     | { kind: "shape"; sx: number; sy: number }
     | { kind: "erase" }
     | { kind: "lasso" }
-    | { kind: "laser" }
     // Kéo cả nhóm đang khoanh chọn.
     | { kind: "groupdrag"; startX: number; startY: number; moved: boolean }
     | {
@@ -2721,27 +2713,6 @@ export function MindmapBoard({
     if (zoomEraserRingRef.current) zoomEraserRingRef.current.style.display = "none"
   }
 
-  // ─── Bút con trỏ (trình bày) ────────────────────────────────────────────────
-  // Chạm giữ để hiện một đốm sáng theo ngón tay, thả tay là biến mất — không lưu lại gì cả. Dùng khi
-  // chỉ cho sinh viên/đồng nghiệp xem trực tiếp trên bảng, giống con trỏ laser thật lúc thuyết trình.
-  // Cùng cơ chế toBoard()+chia theo zoom với moveEraserRing ở trên, nên đốm luôn to bằng nhau trên
-  // MÀN HÌNH dù đang phóng bảng cỡ nào — một cây bút trỏ không thể lúc to lúc nhỏ tuỳ mức zoom.
-  const LASER_DOT_SCREEN_SIZE = 16
-  function moveLaser(clientX: number, clientY: number) {
-    const el = laserRef.current
-    if (!el) return
-    const p = toBoard(clientX, clientY)
-    const r = LASER_DOT_SCREEN_SIZE / 2 / view.current.zoom
-    el.style.display = "block"
-    el.style.left = `${p.x - r}px`
-    el.style.top = `${p.y - r}px`
-    el.style.width = `${r * 2}px`
-    el.style.height = `${r * 2}px`
-  }
-  function hideLaser() {
-    if (laserRef.current) laserRef.current.style.display = "none"
-  }
-
   // ─── Nét đang vẽ ──────────────────────────────────────────────────────────
 
   // Nét đang vẽ dở phải hiện ở CẢ HAI mặt: trên bảng chính và trong ô viết phóng to. Cùng một dữ
@@ -3299,11 +3270,6 @@ export function MindmapBoard({
       beginErase(e, p)
       return
     }
-    if (tool === "laser") {
-      action.current = { kind: "laser" }
-      moveLaser(e.clientX, e.clientY)
-      return
-    }
     action.current = {
       kind: "pan",
       startX: e.clientX,
@@ -3589,11 +3555,6 @@ export function MindmapBoard({
       return
     }
 
-    if (act.kind === "laser") {
-      moveLaser(e.clientX, e.clientY)
-      return
-    }
-
     if (act.kind === "groupdrag") {
       if (!selGroup) return
       const z = view.current.zoom
@@ -3848,10 +3809,6 @@ export function MindmapBoard({
       erased.current.clear()
       parts.clear()
       clearErasePreview()
-    }
-
-    if (act.kind === "laser") {
-      hideLaser()
     }
 
     if (act.kind === "drag") {
@@ -5115,7 +5072,7 @@ export function MindmapBoard({
           file, và các cài đặt của bảng. Nhờ vậy ở chế độ chỉ đọc màn hình vẫn dùng được đầy đủ chứ
           không phải một bảng chết chỉ để nhìn. Mờ đi khi đang vẽ (chromeStyle) — xem noteDrawActivity(). */}
       <div className="flex-none flex items-center gap-1 px-3 py-2 relative z-40" style={chromeStyle}>
-        <IconBtn icon={mi.home} hint="Về danh sách bảng" onClick={() => onGoHome?.()} />
+        <IconBtn icon={mi.home} hint="Về danh sách bảng" onClick={() => onGoHome?.()} size={TOOL_BTN} />
 
         {/* Ô tìm CHIẾM CHỖ của tên bảng khi đang mở, không phải một lớp nổi đè lên mặt bảng: đang
             tìm thì tên bảng không còn là thứ cần đọc, mà một ô nổi thì luôn che mất đúng phần nội
@@ -5193,6 +5150,7 @@ export function MindmapBoard({
             icon={mi.share}
             hint="Xuất bảng ra file"
             active={exportOpen}
+            size={TOOL_BTN}
             onClick={() => {
               setExportOpen((v) => !v)
               setMenuOpen(false)
@@ -5257,6 +5215,7 @@ export function MindmapBoard({
             icon={mi.more}
             hint="Cài đặt bảng"
             active={menuOpen}
+            size={TOOL_BTN}
             onClick={() => {
               setMenuOpen((v) => !v)
               setExportOpen(false)
@@ -5308,7 +5267,7 @@ export function MindmapBoard({
             {readOnly ? "Chỉ đọc" : "Đang sửa"}
           </button>
 
-          {!findOpen && <IconBtn icon={mi.search} hint="Tìm thẻ trên bảng" onClick={openFind} />}
+          {!findOpen && <IconBtn icon={mi.search} hint="Tìm thẻ trên bảng" onClick={openFind} size={TOOL_BTN} />}
 
           {!readOnly && (
           <>
@@ -6136,23 +6095,6 @@ export function MindmapBoard({
             }}
           />
 
-          {/* Đốm sáng của bút con trỏ — xem moveLaser/hideLaser. Dùng màu nhấn RIÊNG của Mindmap
-              (--c-accent-2, "The One Other Place Rule" trong DESIGN.md — không dùng ở bất kỳ đâu
-              ngoài mặt bảng này) thay vì --c-primary, để không lẫn với vòng tẩy/viền chọn vốn đã
-              dùng primary — hai thứ xuất hiện gần nhau trong cùng một buổi trình bày phải phân biệt
-              được ngay bằng màu. Quầng sáng qua box-shadow nhiều lớp, không phải blur filter (rẻ hơn,
-              không tạo layer hợp thành riêng phải theo dõi lúc di chuyển liên tục theo ngón tay). */}
-          <div
-            ref={laserRef}
-            className="absolute rounded-full"
-            style={{
-              display: "none",
-              background: "var(--c-accent-2)",
-              boxShadow: "0 0 0 4px rgba(var(--c-accent-2-rgb),.25), 0 0 16px 4px rgba(var(--c-accent-2-rgb),.55)",
-              pointerEvents: "none",
-            }}
-          />
-
           {/* Tay cầm đổi cỡ ảnh (góc dưới phải), luôn to bằng đầu ngón tay nhờ nhân nghịch đảo zoom */}
           {selImage && (
             <div
@@ -6488,7 +6430,7 @@ export function MindmapBoard({
               onPointerMove={undoBarPointerMove}
               onPointerUp={undoBarPointerUp}
               onPointerCancel={undoBarPointerUp}
-              className="flex-none flex items-center justify-center rounded-lg"
+              className="mind-btn flex-none flex items-center justify-center rounded-lg"
               style={{
                 // 24px trên trục ngắn: sàn tối thiểu WCAG 2.5.8 (trước đây 20px, dưới sàn).
                 width: undoBarVert ? TOOL_BTN : 24,
@@ -7141,7 +7083,7 @@ export function MindmapBoard({
               <IconBtn
                 icon={mi.minus}
                 hint="Thu nhỏ"
-                size={36}
+                size={TOOL_BTN}
                 onClick={() => {
                   zoomAround(view.current.zoom / 1.35)
                   bumpZoomCluster()
@@ -7158,8 +7100,8 @@ export function MindmapBoard({
                 animateView({ x: view.current.x, y: view.current.y, zoom: 1 })
                 bumpZoomCluster()
               }}
-              className="mind-btn px-1 h-8 text-[11px] font-bold tabular-nums"
-              style={{ color: "var(--c-text-soft)", minWidth: 40 }}
+              className="mind-btn px-1 h-11 text-[11px] font-bold tabular-nums"
+              style={{ color: "var(--c-text-soft)", minWidth: TOOL_BTN }}
               title={zoomClusterOpen ? "Về tỉ lệ 100%" : "Mở cụm phóng-thu"}
             >
               {zoomPct}%
@@ -7168,7 +7110,7 @@ export function MindmapBoard({
               <IconBtn
                 icon={mi.plus}
                 hint="Phóng to"
-                size={36}
+                size={TOOL_BTN}
                 onClick={() => {
                   zoomAround(view.current.zoom * 1.35)
                   bumpZoomCluster()
@@ -7186,7 +7128,7 @@ export function MindmapBoard({
                 }}
                 title="Thu cả bảng vừa khung"
                 aria-label="Thu cả bảng vừa khung"
-                className="mind-btn mind-pop w-9 h-9 rounded-2xl border flex items-center justify-center"
+                className="mind-btn mind-pop w-11 h-11 rounded-2xl border flex items-center justify-center"
                 style={{
                   borderColor: "var(--c-line)",
                   background: "var(--c-float-bg)",
@@ -7210,7 +7152,7 @@ export function MindmapBoard({
                 title="Ô viết phóng to"
                 aria-label="Ô viết phóng to"
                 aria-pressed={zoomBox != null}
-                className="mind-btn mind-pop w-9 h-9 rounded-2xl border flex items-center justify-center"
+                className="mind-btn mind-pop w-11 h-11 rounded-2xl border flex items-center justify-center"
                 style={{
                   borderColor: zoomBox ? "var(--c-primary)" : "var(--c-line)",
                   background: zoomBox ? "var(--c-primary)" : "var(--c-float-bg)",
@@ -8517,16 +8459,17 @@ export function MindmapBoard({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="4 cách chạm hay dùng nhất"
+            aria-label="5 cách chạm hay dùng nhất"
             className="mind-pop w-full max-w-[320px] rounded-3xl p-5"
             style={{ background: "var(--c-surface)", boxShadow: "0 20px 50px var(--c-shadow)" }}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <p className="text-base font-bold text-slate-900 mb-3">4 cách chạm hay dùng nhất</p>
+            <p className="text-base font-bold text-slate-900 mb-3">5 cách chạm hay dùng nhất</p>
             <ul className="space-y-2.5 mb-4">
               {[
                 ["Giữ ngón trên chỗ trống", "Tạo ghi chú ngay tại đó"],
                 ["Hai ngón trên bảng", "Luôn là phóng to/thu nhỏ và di chuyển bảng"],
+                ["Chạm nhanh bằng hai/ba ngón (không kéo)", "Hai ngón để hoàn tác, ba ngón để làm lại"],
                 ["Kéo một thẻ chồng lên thẻ khác", "Nối làm nhánh con của thẻ đó"],
                 ["Chạm hai lần nhanh vào chỗ trống", "Phóng to gấp đôi, chạm lại để về 100%"],
               ].map(([title, detail]) => (

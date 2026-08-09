@@ -61,6 +61,31 @@ export function useMindmap(boardId: string) {
     }
   }, [boardId])
 
+  // App bị đưa xuống nền (chuyển app khác, có cuộc gọi tới, khoá màn hình) hoặc cả trang bị đóng có
+  // thể xảy ra bất cứ lúc nào trong khoảng debounce 400ms ở trên — và trình duyệt di động có thể tạm
+  // dừng/giết tab ngay sau đó, không đợi timer chạy xong. Ghi ngay lần thay đổi cuối còn treo khi đó
+  // xảy ra, thay vì chỉ ghi lúc unmount (rời màn hình trong app) như effect phía trên.
+  useEffect(() => {
+    const flushPending = () => {
+      if (saveTimer.current && ready.current) {
+        clearTimeout(saveTimer.current)
+        saveTimer.current = null
+        void saveMindmap(boardIdRef.current, dataRef.current).then((ok) => {
+          if (ok) setSavedTick((t) => t + 1)
+        })
+      }
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flushPending()
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    window.addEventListener("pagehide", flushPending)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+      window.removeEventListener("pagehide", flushPending)
+    }
+  }, [])
+
   useEffect(() => {
     ready.current = false
     setLoading(true)
