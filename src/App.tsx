@@ -12628,12 +12628,23 @@ export default function App() {
             className="flex-none"
             aria-label="Điều hướng chính"
             style={{
+              position: "relative",
               background: "var(--c-nav-bg-solid)",
               borderTop: "1px solid var(--c-nav-border)",
               // Phần phủ lên vùng thanh gạt Home: chỉ là nền, không đặt nút bấm vào đây.
               paddingBottom: "var(--nav-pad-bottom)",
             }}
           >
+            {/* VẠCH THỬ TẠM THỜI — gỡ sau khi tìm ra nguyên nhân dải màu lạ dưới nav. Cắm cứng vào
+                ĐÚNG đáy trong cùng của nav (nằm trong vùng padding-bottom = vùng an toàn thanh gạt
+                Home). Số đo hình học (ViewportDebugPanel) cho thấy hộp của nav đã chạm đúng đáy màn
+                hình — nếu vạch đỏ này vẫn hiện trọn, không bị cắt, sát mép dưới cùng màn hình thật,
+                thì WebKit tô màu đúng và dải lạ trong ảnh chụp KHÔNG đến từ vùng này. Nếu vạch bị
+                cắt/biến mất, xác nhận đúng là lỗi tô màu (compositing) ở đúng vùng padding này. */}
+            <div
+              aria-hidden="true"
+              style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 3, background: "#ff0040", zIndex: 1000 }}
+            />
             <div className="flex items-stretch" style={{ height: "var(--nav-body-h)" }}>
               {NAV_ITEMS.map(({ id, label, icon, navId }) => {
                 const isActive = activeTab === id
