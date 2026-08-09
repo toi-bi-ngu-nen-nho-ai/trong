@@ -5,7 +5,7 @@ import { COMPAT_KEYS } from "./compatibility"
 //
 // Đây là nhóm truyền liên tục và chỉnh liều NHIỀU NHẤT ở bất kỳ ICU nào, nhưng trước đây app không
 // có mục nào cho nó: bệnh nhân thở máy chạy propofol + fentanyl là hai bơm không tra được ở đâu.
-// Hệ quả thứ hai nghiêm trọng hơn — bảng tương hợp Y-site đã khai sẵn khoá `propofol`/`midazolam`
+// Hệ quả thứ hai nghiêm trọng hơn — bảng tương hợp Khóa chữ Y đã khai sẵn khoá `propofol`/`midazolam`
 // kèm các luật kết tủa quan trọng, nhưng không thuốc nào mang khoá đó nên các luật ấy không bao giờ
 // kích hoạt được (xem ghi chú trong data/compatibility.ts).
 //
@@ -69,7 +69,7 @@ export const SEDATIVES: InfusionDrug[] = [
         stability:
           "Dùng trong 12 GIỜ sau khi bóc lọ (ngắn hơn hẳn 24 giờ của các thuốc khác) — nhũ dịch không có chất bảo quản. Thay cả bơm và dây truyền mỗi 12 giờ. Bỏ ngay nếu thấy tách lớp hoặc lợn cợn.",
         peripheralNote:
-          "Truyền được qua đường ngoại biên nhưng gây đau nơi tiêm rõ rệt — ưu tiên tĩnh mạch lớn. Nhũ dịch lipid nên ưu tiên một nòng riêng.",
+          "Truyền được qua đường ngoại biên nhưng gây đau nơi tiêm rõ rệt — ưu tiên tĩnh mạch lớn. Nhũ dịch lipid nên ưu tiên một đường truyền riêng.",
       },
     },
   },
@@ -116,7 +116,7 @@ export const SEDATIVES: InfusionDrug[] = [
         vialForm: "solution",
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         stability: "Dùng trong 24 giờ sau pha, để dưới 25°C.",
-        peripheralNote: "Truyền được qua đường ngoại biên. Midazolam là dung dịch ACID — không dùng chung nòng với furosemide/pantoprazole (kết tủa).",
+        peripheralNote: "Truyền được qua đường ngoại biên. Midazolam là dung dịch ACID — không dùng chung đường truyền với furosemide/pantoprazole (kết tủa).",
       },
     },
   },
@@ -358,7 +358,7 @@ export const SEDATIVES: InfusionDrug[] = [
         vialForm: "solution",
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         stability: "Dùng trong 24 giờ sau pha, để dưới 25°C. Ống chưa dùng bảo quản lạnh 2–8°C theo tờ hướng dẫn.",
-        peripheralNote: "Truyền được qua đường ngoại biên, nhưng phải tráng dây bằng NaCl 0,9% trước/sau nếu nòng đó có dùng thuốc kiềm (bicarbonat, furosemide) — kết tủa làm mất giãn cơ giữa chừng.",
+        peripheralNote: "Truyền được qua đường ngoại biên, nhưng phải tráng dây bằng NaCl 0,9% trước/sau nếu đường truyền đó có dùng thuốc kiềm (bicarbonat, furosemide) — kết tủa làm mất giãn cơ giữa chừng.",
       },
     },
   },
@@ -404,7 +404,7 @@ export const SEDATIVES: InfusionDrug[] = [
         avoidDiluents: ["Ringer lactat"],
         diluentWarning: "Cisatracurium cần môi trường acid để bền — không pha với dung dịch kiềm (Ringer lactat, bicarbonat) vì mất hoạt lực.",
         stability: "Dùng trong 24 giờ sau pha. Ống chưa dùng bảo quản lạnh 2–8°C và tránh ánh sáng theo tờ hướng dẫn.",
-        peripheralNote: "Truyền được qua đường ngoại biên; tráng dây bằng NaCl 0,9% nếu nòng đó có dùng thuốc kiềm.",
+        peripheralNote: "Truyền được qua đường ngoại biên; tráng dây bằng NaCl 0,9% nếu đường truyền đó có dùng thuốc kiềm.",
       },
     },
   },

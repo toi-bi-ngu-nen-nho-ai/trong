@@ -3,10 +3,10 @@
 // Hai vấn đề được giải quyết cùng lúc ở đây:
 //   1. Không xem được hai thuốc cạnh nhau — bệnh nhân sốc chạy 3 vận mạch thì phải cuộn qua lại
 //      giữa 3 thẻ, không có chỗ nào nhìn thấy cả 3 tốc độ một lượt.
-//   2. Câu hỏi thường trực của ICU: "cái này chạy chung nòng với cái kia được không". Muốn trả lời
-//      được thì trước hết app phải BIẾT bệnh nhân đang chạy những gì và trên nòng nào.
+//   2. Câu hỏi thường trực của ICU: "cái này chạy chung đường truyền với cái kia được không". Muốn trả lời
+//      được thì trước hết app phải BIẾT bệnh nhân đang chạy những gì và trên đường truyền nào.
 //
-// Mỗi mục là một thuốc đã ghim kèm tốc độ/liều tại thời điểm ghim và số nòng (lumen) của catheter
+// Mỗi mục là một thuốc đã ghim kèm tốc độ/liều tại thời điểm ghim và số đường truyền (lumen) của catheter
 // trung tâm. Lưu trên máy để còn nguyên khi chuyển tab hay mở lại app; xoá cùng lúc với "Bệnh nhân
 // mới".
 
@@ -63,7 +63,7 @@ export function formatClock(at: number): string {
 // ghi ("liều co bóp" trong tab Co bóp và "liều vận mạch" trong tab Vận mạch) với hai `drugId` khác
 // nhau nhưng cùng `compatKey`. Chống trùng chỉ theo drugId (như trước) không bắt được cặp này, nên
 // ghim cả hai thì bảng báo "2 thuốc" trong khi bệnh nhân chỉ đang chạy một; tệ hơn, phép kiểm tra
-// tương hợp Y-site bỏ qua mọi cặp có cùng khoá (x === y) nên chỗ đó lặng thinh.
+// tương hợp Khóa chữ Y bỏ qua mọi cặp có cùng khoá (x === y) nên chỗ đó lặng thinh.
 function dedupe(items: RunningDrug[]): RunningDrug[] {
   const out: RunningDrug[] = []
   items.forEach((item) => {
@@ -88,15 +88,15 @@ export function loadRunning(): RunningDrug[] {
   }
 }
 
-// Thêm/cập nhật một thuốc, giữ nguyên số nòng và id của mục cũ nếu đó là cùng một thuốc thật.
+// Thêm/cập nhật một thuốc, giữ nguyên số đường truyền và id của mục cũ nếu đó là cùng một thuốc thật.
 export function upsertRunning(prev: RunningDrug[], item: Omit<RunningDrug, "id" | "at">): RunningDrug[] {
   const existing = prev.find(
     (r) => r.drugId === item.drugId || (r.compatKey != null && r.compatKey === item.compatKey),
   )
   const entry: RunningDrug = {
     ...item,
-    // Nòng đã gán là lựa chọn của người dùng, không phải giá trị mặc định của thẻ thuốc — cập nhật
-    // tốc độ không được âm thầm ném thuốc về nòng 1.
+    // Đường truyền đã gán là lựa chọn của người dùng, không phải giá trị mặc định của thẻ thuốc — cập nhật
+    // tốc độ không được âm thầm ném thuốc về đường truyền 1.
     line: existing?.line ?? item.line,
     id: existing?.id ?? `run-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     at: Date.now(),
@@ -113,5 +113,5 @@ export function saveRunning(items: RunningDrug[]): void {
 }
 
 export function lineLabel(line: number): string {
-  return line === 0 ? "Ngoại biên" : `Nòng ${line}`
+  return line === 0 ? "Ngoại biên" : `Đường truyền ${line}`
 }

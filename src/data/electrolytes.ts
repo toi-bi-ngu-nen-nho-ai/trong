@@ -181,7 +181,7 @@ export const ELECTROLYTES: InfusionDrug[] = [
     warnings: [
       {
         text:
-          "Dung dịch KIỀM MẠNH — phân huỷ catecholamin và kết tủa với calci, giãn cơ, phenytoin tại Y-site. Dùng nòng riêng và tráng dây bằng NaCl 0,9% trước/sau, nếu không sẽ mất vận mạch hoặc mất giãn cơ giữa chừng.",
+          "Dung dịch KIỀM MẠNH — phân huỷ catecholamin và kết tủa với calci, giãn cơ, phenytoin tại Khóa chữ Y. Dùng đường truyền riêng và tráng dây bằng NaCl 0,9% trước/sau, nếu không sẽ mất vận mạch hoặc mất giãn cơ giữa chừng.",
         severity: "cao",
       },
       {

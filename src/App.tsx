@@ -3244,7 +3244,7 @@ function BolusEditorField({ boluses, setBoluses }: { boluses: BolusDraft[]; setB
   )
 }
 
-// Bản nháp của DoseCap (trần liều một lần dùng) lúc nhập — amount giữ dạng chuỗi giống BolusDraft
+// Bản nháp của DoseCap (ngưỡng liều một lần dùng) lúc nhập — amount giữ dạng chuỗi giống BolusDraft
 // để gõ dở dang không bị nhảy về NaN.
 interface DoseCapDraft {
   amount: string
@@ -3260,7 +3260,7 @@ function doseCapToDraft(c?: DoseCap): DoseCapDraft {
   return c ? { amount: String(c.amount), unit: c.unit, note: c.note ?? "" } : emptyDoseCapDraft()
 }
 
-// undefined nếu chưa gõ số lượng — trần rỗng thì không lưu.
+// undefined nếu chưa gõ số lượng — ngưỡng rỗng thì không lưu.
 function draftToDoseCap(d: DoseCapDraft): DoseCap | undefined {
   const amount = parseFloat(d.amount)
   if (isNaN(amount)) return undefined
@@ -3377,7 +3377,7 @@ const VIAL_FORM_OPTIONS: { id: VialForm | ""; label: string }[] = [
 ]
 
 // Nhóm 4 trường "nâng cao" của kháng sinh mà trước đây chỉ có trong dữ liệu dựng sẵn, chưa có ô
-// nhập trong UI: cân nặng dùng tính liều, trần liều một lần dùng, khoá tương hợp Y-site, và công
+// nhập trong UI: cân nặng dùng tính liều, ngưỡng liều một lần dùng, khoá tra bảng tương hợp, và công
 // thức pha/hoàn nguyên. Dùng chung cho cả AddAntibioticScreen lẫn EditAntibioticScreen.
 // `showMix`: chỉ hiện khối công thức pha khi đường dùng là tiêm/truyền — thuốc uống không có gì để pha.
 function AntibioticAdvancedFields({
@@ -3426,7 +3426,7 @@ function AntibioticAdvancedFields({
         Chỉ đổi khi thuốc có khuyến cáo rõ ràng dùng cân nặng lý tưởng/hiệu chỉnh (VD aminoglycosid).
       </p>
 
-      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Trần liều một lần dùng (tuỳ chọn)</label>
+      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Ngưỡng liều một lần dùng (tuỳ chọn)</label>
       <div className="flex gap-2">
         <input
           value={cap.amount}
@@ -3442,16 +3442,16 @@ function AntibioticAdvancedFields({
         <input
           value={cap.note}
           onChange={(e) => setCap((prev) => ({ ...prev, note: e.target.value }))}
-          placeholder="Trần này lấy từ đâu — VD: khuyến cáo XYZ"
+          placeholder="Ngưỡng này lấy từ đâu — VD: khuyến cáo XYZ"
           className={`${fieldClass} mt-2`}
           style={fieldStyle}
         />
       )}
       <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
-        Chặn liều tính theo mg/kg khi nhân với cân nặng lớn ra một con số vượt trần an toàn.
+        Chặn liều tính theo mg/kg khi nhân với cân nặng lớn ra một con số vượt ngưỡng an toàn.
       </p>
 
-      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Khoá tương hợp Y-site / tương tác (tuỳ chọn)</label>
+      <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Khoá tra bảng tương hợp / tương tác (tuỳ chọn)</label>
       <input
         value={compatKey}
         onChange={(e) => setCompatKey(e.target.value)}
@@ -5755,7 +5755,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   )
 }
 
-// ─── Bảng "Đang truyền" — xem nhiều thuốc cạnh nhau + tương hợp Y-site ────────
+// ─── Bảng "Đang truyền" — xem nhiều thuốc cạnh nhau + tương hợp Khóa chữ Y ────────
 //
 // Quy tắc an toàn: app CHỈ kết luận "không tương hợp"/"thận trọng". Cặp nào không có trong bảng thì
 // nói rõ là chưa có dữ liệu — im lặng không bao giờ được hiểu thành "chạy chung được".
@@ -5778,7 +5778,7 @@ function RunningPanel() {
     const t = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(t)
   }, [])
-  // Bỏ ghim một thuốc làm mất luôn kết quả rà tương hợp Y-site/tương tác cho cặp đó, mà người dùng
+  // Bỏ ghim một thuốc làm mất luôn kết quả rà tương hợp Khóa chữ Y/tương tác cho cặp đó, mà người dùng
   // không hề được báo. Bấm "×" chỉ ĐÁNH DẤU chờ xoá (hàng mờ đi + nút đổi thành "Hoàn tác") — xoá
   // thật sự chỉ xảy ra sau 5 giây, đủ để bấm nhầm còn kịp sửa.
   const [pendingRemove, setPendingRemove] = useState<Record<string, true>>({})
@@ -5962,7 +5962,7 @@ function RunningPanel() {
         </div>
       ) : (
       <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
-        <p className="text-[12px] font-bold mb-1.5 text-slate-500">Chạy chung Đường truyền (Y-site)</p>
+        <p className="text-[12px] font-bold mb-1.5 text-slate-500">Chạy chung Đường truyền (Khóa chữ Y)</p>
         {ysiteFindings.length === 0 ? (
           <p className="text-[12px] text-slate-500 leading-[1.45]">Không tìm thấy cặp nào trong bảng dữ liệu của app.</p>
         ) : (
@@ -6408,7 +6408,7 @@ function WardRecipeChips({
   )
 }
 
-// Cảnh báo tương kỵ Y-site/tương tác NGAY LÚC ĐANG PHA — trước đây bảng tương hợp chỉ chạy ở màn
+// Cảnh báo tương kỵ Khóa chữ Y/tương tác NGAY LÚC ĐANG PHA — trước đây bảng tương hợp chỉ chạy ở màn
 // "Bệnh nhân đang dùng" (RunningPanel), so hai thuốc ĐÃ ghim cùng Đường truyền. Vô dụng đúng lúc cần nhất:
 // người đang đứng pha Noradrenaline chưa ghim gì cả, nên không có "hai thuốc cùng Đường truyền" nào để so —
 // phải tự nhớ ra rồi mở màn khác kiểm tra. Ở đây so compatKey của thuốc đang xem với TỪNG thuốc đã
@@ -6441,7 +6441,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
           </p>
           {ysite.map(({ r, rule }, i) => (
             <p key={`y-${i}`} className="text-[12px] leading-[1.45] mt-1" style={{ color: style.text }}>
-              <b>{r.name}</b> ({lineLabel(r.line)}){rule.verdict === "incompatible" ? " — KHÔNG tương hợp Y-site" : " — thận trọng Y-site"}: {rule.text}
+              <b>{r.name}</b> ({lineLabel(r.line)}){rule.verdict === "incompatible" ? " — KHÔNG tương hợp Khóa chữ Y" : " — thận trọng Khóa chữ Y"}: {rule.text}
               {!rule.verified && " (chưa đối chiếu tài liệu gốc)"}
             </p>
           ))}
@@ -6457,7 +6457,7 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
   )
 }
 
-// Độ trễ dùng chung cho MỌI cảnh báo "có thể đang gõ dở" trong app — từ trần số lượng ống/lọ tới
+// Độ trễ dùng chung cho MỌI cảnh báo "có thể đang gõ dở" trong app — từ ngưỡng số lượng ống/lọ tới
 // thông số bệnh nhân (cân nặng/chiều cao/tuổi/creatinin). Gõ "7" rồi mới thêm "0" thành "70" đi qua
 // một trạng thái trung gian trông như số bất thường trong chớp mắt; đợi người dùng NGỪNG gõ rồi mới
 // đánh giá tránh nháy cảnh báo sai suốt lúc đang nhập.
@@ -6477,7 +6477,7 @@ function useDelayedWarning(key: string | null, delay: number = WARNING_DELAY_MS)
   return key != null && show
 }
 
-// Trần số lượng ống/lọ/chai (xem gradeVialCount trong lib/mixing.ts) — khi số lượng tính ra vượt
+// Ngưỡng số lượng ống/lọ/chai (xem gradeVialCount trong lib/mixing.ts) — khi số lượng tính ra vượt
 // ngưỡng hợp lý, KHÔNG in số ra ngay: chờ (xem useDelayedWarning) rồi mới hiện cảnh báo, và chặn kết
 // quả cho tới khi người dùng bấm xác nhận "tôi chắc chắn" — cùng triết lý requiresConfirm của
 // gradeConcentration, chỉ khác đối tượng kiểm (số lượng thay vì nồng độ). `count`/`form` đổi (gõ số
@@ -7458,9 +7458,9 @@ function AntibioticDoseCard({
   // tính ra mL thì sẽ đưa ra một "Cách dùng" trông chắc chắn cho một liều thực ra phải cá thể hoá —
   // đúng kiểu tự suy diễn nguy hiểm mà app tránh ở mọi chỗ khác. Chỉ cần bỏ qua tier đó là đủ an toàn.
   const notComputableDose = /theo nồng độ|cá thể hoá|giãn khoảng liều/i.test(tier.dose)
-  // Trần liều một lần dùng của thuốc (nếu có khai báo) — áp NGAY TẠI ĐÂY, cùng chỗ với chặn cân
+  // Ngưỡng liều một lần dùng của thuốc (nếu có khai báo) — áp NGAY TẠI ĐÂY, cùng chỗ với chặn cân
   // nặng vô lý, để mọi thứ đọc từ doseTargetMg (bảng pha, "Cách dùng", số mL phải rút) đều đã nằm
-  // dưới trần. Xem applyDoseCap trong lib/perKgDose.ts.
+  // dưới ngưỡng. Xem applyDoseCap trong lib/perKgDose.ts.
   const doseTargetMg = useMemo(() => {
     if (notComputableDose) return null
     const perKg = perKgDoses[0]
@@ -7567,9 +7567,9 @@ function AntibioticDoseCard({
     if (hiMl > volumeMl + 1e-9) return null
     // Thể tích rút ra ở đây luôn nằm trong một mẻ pha ≥100 mL (100 mL/lọ trở lên) — thang mịn cỡ
     // 0,1 mL vô nghĩa ở quy mô đó (không ai đọc "217 mL" như một con số dễ lấy), nên dùng thang
-    // trăm/năm mươi mL của pickEasiestBatchVolume() thay vì pickEasiestVolume() thang mịn. Chặn trần
+    // trăm/năm mươi mL của pickEasiestBatchVolume() thay vì pickEasiestVolume() thang mịn. Chặn ngưỡng
     // ở `volumeMl` — làm tròn LÊN (thà dư còn hơn thiếu) không được phép "rút" nhiều hơn cả thể tích
-    // thật đã pha, vượt trần thì coi như dùng trọn mẻ (isWholeBatch bên dưới tự xử lý đúng câu chữ).
+    // thật đã pha, vượt ngưỡng thì coi như dùng trọn mẻ (isWholeBatch bên dưới tự xử lý đúng câu chữ).
     const pickedMlRaw = doseTargetMg.high != null ? pickEasiestBatchVolume(loMl, hiMl) : pickEasiestBatchVolume(loMl, loMl)
     const pickedMl = Math.min(pickedMlRaw, volumeMl)
     // Liều tính ra dùng ĐÚNG trọn lượng vừa pha (không cần rút riêng một phần) → câu gọn như mẫu
@@ -7800,7 +7800,7 @@ function AntibioticDoseCard({
                   {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
                 </p>
               ))}
-              {/* Trần liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
+              {/* Ngưỡng liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
                   không để dưới đáy thẻ: chỗ người dùng đang nhìn là dòng mg/kg này. */}
               {doseCapText && (
                 <p className="text-[12px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
@@ -7822,7 +7822,7 @@ function AntibioticDoseCard({
       )}
 
       {/* Cách dùng tự tính theo mức liều CrCl hiện tại — chỉ hiện khi đọc được cả con số liều lẫn
-          công thức pha, xem autoUsage ở trên. Số lượng ống/lọ/chai vượt trần hợp lý (gradeVialCount)
+          công thức pha, xem autoUsage ở trên. Số lượng ống/lọ/chai vượt ngưỡng hợp lý (gradeVialCount)
           thì KHÔNG in số ra ngay — thường là dấu hiệu gõ nhầm hàm lượng — chờ xác nhận trước.
           Công thức đã lưu không đủ thuốc cho liều cần thì autoUsage.insufficient=true — hiện cảnh
           báo màu vàng nói RÕ vì sao thay vì im lặng biến mất (trông y hệt lỗi hiển thị). */}
@@ -8662,7 +8662,7 @@ function MixPanel({
   const tgt = parseFloat(target)
   const neededVialsRaw = vialsForConcentration(tgt, va, vol, vialUnit, calc.concUnit)
   const neededVials = neededVialsRaw != null ? Math.max(1, Math.ceil(neededVialsRaw - 1e-9)) : null
-  // Số ống/lọ tính ra vượt trần hợp lý (gradeVialCount) thường là dấu hiệu gõ nhầm "Hàm lượng 1
+  // Số ống/lọ tính ra vượt ngưỡng hợp lý (gradeVialCount) thường là dấu hiệu gõ nhầm "Hàm lượng 1
   // {vialLabel}" ở trên chứ không phải liều thật cần nhiều đến vậy — chặn kết quả lại chờ xác nhận.
   const vialGuard = useVialCountGuard(neededVials, vialForm)
   const concIfRounded = neededVials != null ? concentrationFromVials(va, neededVials, vol, vialUnit, calc.concUnit) : null

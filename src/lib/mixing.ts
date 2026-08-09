@@ -482,13 +482,13 @@ export function gradeConcentration(
   return CONC_OK
 }
 
-// ─── Trần số lượng ống/lọ/chai cần lấy ─────────────────────────────────────────
+// ─── Ngưỡng số lượng ống/lọ/chai cần lấy ─────────────────────────────────────────
 // Số lượng ống/lọ/chai tính ra cho MỘT lần pha vượt xa mức thực tế gần như luôn là dấu hiệu gõ nhầm
 // hàm lượng (vd gõ 100 mg thay vì 1000 mg → tính ra cần "10 lọ") chứ không phải liều thật cần nhiều
-// đến vậy — trước đây không có trần nào nên một con số vô lý vẫn in thẳng ra "Cách dùng" như thể chắc
-// chắn. Ống dung dịch pha sẵn có thể hợp lý dùng nửa ống (trần dưới 0,5); chai/lọ luôn phải lấy
-// nguyên/gần nguyên một đơn vị (trần dưới 1) — dùng chưa tới nửa lọ thường là hàm lượng nhập quá cao.
-// Trần trên 5 áp dụng chung cho mọi dạng: quá 5 lọ/ống/chai cho một liều là bất thường.
+// đến vậy — trước đây không có ngưỡng nào nên một con số vô lý vẫn in thẳng ra "Cách dùng" như thể chắc
+// chắn. Ống dung dịch pha sẵn có thể hợp lý dùng nửa ống (ngưỡng dưới 0,5); chai/lọ luôn phải lấy
+// nguyên/gần nguyên một đơn vị (ngưỡng dưới 1) — dùng chưa tới nửa lọ thường là hàm lượng nhập quá cao.
+// Ngưỡng trên 5 áp dụng chung cho mọi dạng: quá 5 lọ/ống/chai cho một liều là bất thường.
 export interface VialCountGrade {
   requiresConfirm: boolean
   headline: string | null

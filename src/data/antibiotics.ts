@@ -362,7 +362,7 @@ export const ANTIBIOTICS: Antibiotic[] = [
       vialForm: "powder",
       vialLabel: "lọ",
       // Không có Ringer lactat/dung dịch chứa calci trong bộ chọn — đúng cặp kết tủa đã ghi trong
-      // bảng Y-site (COMPAT_KEYS.ceftriaxone), không lặp lại ở đây.
+      // bảng Khóa chữ Y (COMPAT_KEYS.ceftriaxone), không lặp lại ở đây.
       diluents: ["NaCl 0,9%", "Glucose 5%"],
       infuseNote: "Tiêm tĩnh mạch chậm trong 3–5 phút hoặc truyền trong 15–30 phút.",
     },

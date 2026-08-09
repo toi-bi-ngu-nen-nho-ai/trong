@@ -186,8 +186,8 @@ export interface AntibioticMix {
   infuseNote?: string
 }
 
-// `rrt`: liều khi bệnh nhân đang lọc máu/CRRT. `compatKey`: khoá tra bảng tương hợp Y-site và
-// tương tác thuốc (xem data/compatibility.ts) — cùng một khoá dùng chung cho kháng sinh và thuốc
+// `rrt`: liều khi bệnh nhân đang lọc máu/CRRT. `compatKey`: khoá tra bảng tương hợp qua Khóa chữ Y
+// và tương tác thuốc (xem data/compatibility.ts) — cùng một khoá dùng chung cho kháng sinh và thuốc
 // truyền, để bảng "Đang truyền" kiểm tra được cả hai nhóm với nhau. `mix`: công thức pha/hoàn
 // nguyên — chỉ có ý nghĩa với đường tiêm/truyền, bỏ trống với thuốc uống.
 export interface Antibiotic extends SourceInfo {
@@ -208,18 +208,18 @@ export interface Antibiotic extends SourceInfo {
   // Liều nạp — vd Vancomycin cần liều nạp 25–30 mg/kg trước khi vào liều duy trì theo CrCl.
   // Cùng kiểu BolusDose với InfusionDrug.boluses (xem bên dưới), dùng chung component hiển thị/sửa.
   boluses?: BolusDose[]
-  // Trần liều MỘT LẦN DÙNG. Xem ghi chú của DoseCap ngay bên dưới.
+  // Ngưỡng liều MỘT LẦN DÙNG. Xem ghi chú của DoseCap ngay bên dưới.
   maxSingleDose?: DoseCap
 }
 
-// ─── Trần liều một lần dùng ───────────────────────────────────────────────────
+// ─── Ngưỡng liều một lần dùng ───────────────────────────────────────────────────
 // Vì sao phải có: liều kháng sinh trong app viết dạng chuỗi "15–20 mg/kg mỗi 8–12h", và app nhân
 // thẳng con số đó với cân nặng (xem lib/perKgDose.ts). Phép nhân đó KHÔNG có điểm dừng — bệnh nhân
 // 140 kg cho ra "liều nạp Vancomycin 3.500 mg" trông hoàn toàn hợp lý trong khi mọi khuyến cáo đều
 // chặn ở 2–3 g. Bên thuốc truyền đã có doseAbsMax canh việc này rất kỹ; bên kháng sinh — nhóm dùng
 // nhiều hơn hẳn — thì trước đây không có lớp canh nào.
 //
-// `amount` tính theo `unit` (cùng họ đơn vị với liều: mg/g/mcg/đơn vị). `note` nói RÕ trần này từ
+// `amount` tính theo `unit` (cùng họ đơn vị với liều: mg/g/mcg/đơn vị). `note` nói RÕ ngưỡng này từ
 // đâu ra, vì một con số chặn mà không giải thích thì người dùng chỉ học cách bấm bỏ qua.
 export interface DoseCap {
   amount: number
@@ -410,7 +410,7 @@ export interface MindNode {
   collapsed?: boolean
 }
 
-// "plain" = chữ trần trên mặt giấy (không khung, không nền) — dùng cho mục "Chữ", để viết tiêu đề
+// "plain" = chữ ngưỡng trên mặt giấy (không khung, không nền) — dùng cho mục "Chữ", để viết tiêu đề
 // rồi tự vẽ trang trí quanh nó.
 export type MindNodeStyle = "solid" | "soft" | "outline" | "plain"
 export type MindNodeSize = "sm" | "md" | "lg"

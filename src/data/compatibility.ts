@@ -1,10 +1,10 @@
-// ─── Tương hợp Y-site & tương tác thuốc ───────────────────────────────────────
+// ─── Tương hợp Khóa chữ Y & tương tác thuốc ───────────────────────────────────────
 //
 // NGUYÊN TẮC AN TOÀN CỦA BẢNG NÀY — đọc trước khi thêm dữ liệu:
 //
 // App chỉ khẳng định theo MỘT chiều: "KHÔNG tương hợp" / "thận trọng". App không bao giờ nói một
 // cặp thuốc là "tương hợp, chạy chung được". Lý do: khẳng định sai chiều "không tương hợp" thì hậu
-// quả xấu nhất là dùng thừa một nòng; khẳng định sai chiều "tương hợp" thì hậu quả là kết tủa chạy
+// quả xấu nhất là dùng thừa một đường truyền; khẳng định sai chiều "tương hợp" thì hậu quả là kết tủa chạy
 // thẳng vào tĩnh mạch trung tâm. Cặp nào không có trong bảng, app phải nói rõ là CHƯA CÓ DỮ LIỆU —
 // tuyệt đối không để im lặng bị hiểu thành an toàn.
 //
@@ -69,7 +69,7 @@ export const COMPAT_KEYS = {
   pipTazo: "pipTazo",
   // ─── Bổ sung ───────────────────────────────────────────────────────────────
   // Trước đây bảy khoá ở trên (propofol, midazolam, pantoprazole, heparin, bicarbonate, furosemide,
-  // phenytoin) được khai ở đây và có luật Y-site hẳn hoi, nhưng KHÔNG thuốc nào trong app mang các
+  // phenytoin) được khai ở đây và có luật Khóa chữ Y hẳn hoi, nhưng KHÔNG thuốc nào trong app mang các
   // khoá đó — nghĩa là không có cách nào ghim chúng vào bảng "Đang truyền", nên đúng những cặp kết
   // tủa quan trọng nhất không bao giờ kích hoạt được. Nay các nhóm An thần / Thần kinh / Khác /
   // Giải độc đã mang đủ khoá, và danh sách dưới đây là phần mở rộng cho các thuốc mới thêm.
@@ -106,23 +106,23 @@ export const COMPAT_KEYS = {
 
 const K = COMPAT_KEYS
 
-// Chạy chung một nòng (Y-site) — chỉ liệt kê các cặp KHÔNG dùng chung được hoặc cần thận trọng.
+// Chạy chung một đường truyền (Khóa chữ Y) — chỉ liệt kê các cặp KHÔNG dùng chung được hoặc cần thận trọng.
 export const YSITE_RULES: CompatRule[] = [
   { a: K.calcium, b: K.bicarbonate, verdict: "incompatible", text: "Kết tủa calci carbonat — không bao giờ dùng chung đường; tráng dây bằng NaCl 0,9% giữa hai thuốc.", verified: false },
   {
     a: K.ceftriaxone,
     b: K.calcium,
     verdict: "incompatible",
-    text: "KHÔNG bao giờ truyền đồng thời qua cùng một đường (Y-site) ở mọi lứa tuổi — kết tủa ceftriaxone–calci. Trẻ sơ sinh (≤ 28 ngày): chống chỉ định dùng calci đường tĩnh mạch trong vòng 48 giờ quanh ceftriaxone. Trên 28 ngày: được dùng NỐI TIẾP nhau nếu tráng kỹ dây truyền bằng dịch tương hợp giữa hai thuốc.",
+    text: "KHÔNG bao giờ truyền đồng thời qua cùng một đường (Khóa chữ Y) ở mọi lứa tuổi — kết tủa ceftriaxone–calci. Trẻ sơ sinh (≤ 28 ngày): chống chỉ định dùng calci đường tĩnh mạch trong vòng 48 giờ quanh ceftriaxone. Trên 28 ngày: được dùng NỐI TIẾP nhau nếu tráng kỹ dây truyền bằng dịch tương hợp giữa hai thuốc.",
     verified: true,
     source: "Tờ thông tin kê đơn Ceftriaxone (FDA, NDA 050796) — cập nhật cảnh báo 14/4/2009",
   },
   { a: K.amiodarone, b: K.bicarbonate, verdict: "incompatible", text: "Không tương hợp — amiodarone cần môi trường acid, kết tủa khi gặp dung dịch kiềm.", verified: false },
   { a: K.amiodarone, b: K.heparin, verdict: "incompatible", text: "Kết tủa khi tiếp xúc trực tiếp — dùng đường riêng.", verified: false },
-  { a: K.amiodarone, b: K.furosemide, verdict: "incompatible", text: "Không tương hợp tại Y-site.", verified: false },
+  { a: K.amiodarone, b: K.furosemide, verdict: "incompatible", text: "Không tương hợp tại Khóa chữ Y.", verified: false },
   { a: K.furosemide, b: K.midazolam, verdict: "incompatible", text: "Kết tủa — furosemide kiềm, midazolam acid.", verified: false },
   { a: K.furosemide, b: K.noradrenaline, verdict: "incompatible", text: "Không tương hợp — catecholamin cần môi trường acid, bị phân huỷ/kết tủa với furosemide kiềm.", verified: false },
-  { a: K.furosemide, b: K.dobutamine, verdict: "incompatible", text: "Không tương hợp tại Y-site.", verified: false },
+  { a: K.furosemide, b: K.dobutamine, verdict: "incompatible", text: "Không tương hợp tại Khóa chữ Y.", verified: false },
   { a: K.furosemide, b: K.adrenaline, verdict: "incompatible", text: "Không tương hợp — cùng lý do với noradrenaline (pH đối nghịch).", verified: false },
   { a: K.pantoprazole, b: K.midazolam, verdict: "incompatible", text: "Kết tủa — pantoprazole là dung dịch kiềm.", verified: false },
   { a: K.pantoprazole, b: K.calcium, verdict: "incompatible", text: "Không tương hợp — tránh dùng chung đường.", verified: false },
@@ -135,7 +135,7 @@ export const YSITE_RULES: CompatRule[] = [
     a: K.pipTazo,
     b: K.aminoglycoside,
     verdict: "caution",
-    text: "Piperacillin/tazobactam có thể làm BẤT HOẠT aminoglycosid (tạo phức mất hoạt tính) nếu trộn chung dung dịch hoặc dùng chung Y-site ngoài đúng bảng nồng độ/dung môi đã kiểm định của nhà sản xuất. Ưu tiên hai đường truyền riêng biệt; chỉ dùng chung Y-site nếu đối chiếu đúng khuyến cáo trong tờ hướng dẫn.",
+    text: "Piperacillin/tazobactam có thể làm BẤT HOẠT aminoglycosid (tạo phức mất hoạt tính) nếu trộn chung dung dịch hoặc dùng chung Khóa chữ Y ngoài đúng bảng nồng độ/dung môi đã kiểm định của nhà sản xuất. Ưu tiên hai đường truyền riêng biệt; chỉ dùng chung Khóa chữ Y nếu đối chiếu đúng khuyến cáo trong tờ hướng dẫn.",
     verified: true,
     source: "Tờ thông tin kê đơn Piperacillin/Tazobactam (Pfizer, Zosyn) — mục tương kỵ với aminoglycosid",
   },
@@ -161,16 +161,16 @@ export const YSITE_RULES: CompatRule[] = [
   { a: K.pantoprazole, b: K.noradrenaline, verdict: "incompatible", text: "Pantoprazole là dung dịch kiềm — không dùng chung đường với catecholamin.", verified: false },
   { a: K.pantoprazole, b: K.adrenaline, verdict: "incompatible", text: "Cùng lý do với noradrenaline (pH đối nghịch).", verified: false },
   // Heparin: cặp kết tủa hay gặp nhất ngoài amiodarone.
-  { a: K.heparin, b: K.vancomycin, verdict: "incompatible", text: "Kết tủa tại Y-site — tráng dây bằng NaCl 0,9% giữa hai thuốc hoặc dùng nòng riêng.", verified: false },
+  { a: K.heparin, b: K.vancomycin, verdict: "incompatible", text: "Kết tủa tại Khóa chữ Y — tráng dây bằng NaCl 0,9% giữa hai thuốc hoặc dùng đường truyền riêng.", verified: false },
   { a: K.heparin, b: K.aminoglycoside, verdict: "caution", text: "Heparin có thể bất hoạt aminoglycosid khi trộn chung dung dịch — không pha chung, ưu tiên đường riêng.", verified: false },
-  { a: K.heparin, b: K.labetalol, verdict: "incompatible", text: "Không tương hợp tại Y-site — dùng đường riêng.", verified: false },
+  { a: K.heparin, b: K.labetalol, verdict: "incompatible", text: "Không tương hợp tại Khóa chữ Y — dùng đường riêng.", verified: false },
   // Furosemide (kiềm) — bổ sung các cặp còn thiếu so với danh sách catecholamin/an thần.
   { a: K.furosemide, b: K.dopamine, verdict: "incompatible", text: "Không tương hợp — cùng lý do pH đối nghịch với các catecholamin khác.", verified: false },
-  { a: K.furosemide, b: K.labetalol, verdict: "incompatible", text: "Kết tủa tại Y-site — furosemide kiềm, labetalol acid.", verified: false },
-  { a: K.furosemide, b: K.morphine, verdict: "incompatible", text: "Kết tủa tại Y-site — dùng đường riêng hoặc tráng dây giữa hai thuốc.", verified: false },
+  { a: K.furosemide, b: K.labetalol, verdict: "incompatible", text: "Kết tủa tại Khóa chữ Y — furosemide kiềm, labetalol acid.", verified: false },
+  { a: K.furosemide, b: K.morphine, verdict: "incompatible", text: "Kết tủa tại Khóa chữ Y — dùng đường riêng hoặc tráng dây giữa hai thuốc.", verified: false },
   // Giãn cơ: mất tác dụng giãn cơ giữa chừng do kết tủa là tình huống không được phép xảy ra.
   { a: K.rocuronium, b: K.bicarbonate, verdict: "incompatible", text: "Kết tủa trong môi trường kiềm — tráng dây bằng NaCl 0,9% trước và sau khi tiêm giãn cơ.", verified: false },
-  { a: K.rocuronium, b: K.furosemide, verdict: "incompatible", text: "Kết tủa tại Y-site — dùng đường riêng.", verified: false },
+  { a: K.rocuronium, b: K.furosemide, verdict: "incompatible", text: "Kết tủa tại Khóa chữ Y — dùng đường riêng.", verified: false },
   { a: K.cisatracurium, b: K.bicarbonate, verdict: "incompatible", text: "Cisatracurium cần môi trường acid để bền — dung dịch kiềm làm mất hoạt lực.", verified: false },
   { a: K.cisatracurium, b: K.propofol, verdict: "caution", text: "Ưu tiên đường riêng — cisatracurium kém bền khi pha loãng ngoài môi trường acid.", verified: false },
 ]

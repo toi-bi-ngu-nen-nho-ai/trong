@@ -11,7 +11,7 @@ import { COMPAT_KEYS } from "./compatibility"
 // chứ không phải máy tính mL/giờ. Thuốc nào không khai `calc` thì app tự ẩn máy tính tốc độ và vẫn
 // ghim được vào bảng "Đang truyền" (xem InfusionDrugCard trong App.tsx).
 //
-// Phenytoin còn là lý do kỹ thuật: bảng Y-site đã có sẵn luật "phenytoin kết tủa với hầu hết mọi
+// Phenytoin còn là lý do kỹ thuật: bảng Khóa chữ Y đã có sẵn luật "phenytoin kết tủa với hầu hết mọi
 // thứ" nhưng không thuốc nào mang khoá đó nên luật không bao giờ chạy.
 
 export const NEURO_DRUGS: InfusionDrug[] = [

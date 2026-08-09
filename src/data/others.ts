@@ -71,7 +71,7 @@ export const OTHER_DRUGS: InfusionDrug[] = [
         vialForm: "solution",
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         stability: "Dùng trong 24 giờ sau pha, để dưới 25°C.",
-        peripheralNote: "Truyền được qua đường ngoại biên. Heparin kết tủa với amiodarone và vancomycin tại Y-site — tráng dây hoặc dùng nòng riêng.",
+        peripheralNote: "Truyền được qua đường ngoại biên. Heparin kết tủa với amiodarone và vancomycin tại Khóa chữ Y — tráng dây hoặc dùng đường truyền riêng.",
       },
     },
   },
@@ -119,7 +119,7 @@ export const OTHER_DRUGS: InfusionDrug[] = [
     warnings: [
       { text: "Độc tai (ù tai, giảm thính lực, có thể không hồi phục) khi tiêm nhanh liều cao — không tiêm quá 4 mg/phút với liều trên 120 mg.", severity: "cao" },
       { text: "Hạ kali, hạ magie máu gây loạn nhịp — bù song song, đặc biệt khi bệnh nhân đang dùng digoxin hoặc thuốc kéo dài QT.", severity: "cao" },
-      { text: "Dung dịch KIỀM — kết tủa với catecholamin, midazolam, morphine tại Y-site. Dùng nòng riêng hoặc tráng dây bằng NaCl 0,9%.", severity: "cao" },
+      { text: "Dung dịch KIỀM — kết tủa với catecholamin, midazolam, morphine tại Khóa chữ Y. Dùng đường truyền riêng hoặc tráng dây bằng NaCl 0,9%.", severity: "cao" },
     ],
     compatKey: COMPAT_KEYS.furosemide,
     boluses: [
@@ -154,7 +154,7 @@ export const OTHER_DRUGS: InfusionDrug[] = [
         avoidDiluents: ["Glucose 5%"],
         diluentWarning: "Furosemide là dung dịch kiềm (pH khoảng 9) — kém bền và có thể tủa trong dung dịch acid. Ưu tiên pha với NaCl 0,9%.",
         stability: "Dùng trong 24 giờ sau pha, để dưới 25°C và TRÁNH ÁNH SÁNG — furosemide phân huỷ khi tiếp xúc ánh sáng (dung dịch ngả vàng thì bỏ).",
-        peripheralNote: "Truyền được qua đường ngoại biên. Là dung dịch kiềm — không dùng chung nòng với catecholamin, midazolam hay morphine.",
+        peripheralNote: "Truyền được qua đường ngoại biên. Là dung dịch kiềm — không dùng chung đường truyền với catecholamin, midazolam hay morphine.",
       },
     },
   },
@@ -169,7 +169,7 @@ export const OTHER_DRUGS: InfusionDrug[] = [
     note:
       "Truyền liên tục 8 mg/giờ sau nội soi cầm máu là phác đồ dành cho loét có nguy cơ chảy máu lại cao. Sau 72 giờ chuyển sang đường uống nếu bệnh nhân ăn được.",
     warnings: [
-      { text: "Dung dịch KIỀM — kết tủa với midazolam, calci và catecholamin tại Y-site. Dùng nòng riêng hoặc tráng dây bằng NaCl 0,9%.", severity: "cao" },
+      { text: "Dung dịch KIỀM — kết tủa với midazolam, calci và catecholamin tại Khóa chữ Y. Dùng đường truyền riêng hoặc tráng dây bằng NaCl 0,9%.", severity: "cao" },
       { text: "Dùng kéo dài liên quan tới nhiễm Clostridioides difficile, viêm phổi bệnh viện, hạ magie máu — rà lại chỉ định mỗi ngày, không để chạy theo quán tính.", severity: "trung bình" },
     ],
     compatKey: COMPAT_KEYS.pantoprazole,
@@ -202,7 +202,7 @@ export const OTHER_DRUGS: InfusionDrug[] = [
         avoidDiluents: ["Glucose 5%", "Ringer lactat"],
         diluentWarning: "Chỉ dùng Natri Clorid 0,9% để hoàn nguyên và pha loãng pantoprazole — các dung môi khác làm thuốc kém bền.",
         stability: "Dùng trong 12 giờ sau khi hoàn nguyên/pha loãng, để dưới 25°C.",
-        peripheralNote: "Truyền được qua đường ngoại biên. Là dung dịch kiềm — không dùng chung nòng với midazolam, calci hay catecholamin.",
+        peripheralNote: "Truyền được qua đường ngoại biên. Là dung dịch kiềm — không dùng chung đường truyền với midazolam, calci hay catecholamin.",
       },
     },
   },
@@ -326,7 +326,7 @@ export const OTHER_DRUGS: InfusionDrug[] = [
         vialForm: "solution",
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         stability: "Dùng trong 24 giờ sau pha, để dưới 25°C.",
-        peripheralNote: "Truyền được qua đường ngoại biên. Không dùng chung nòng với furosemide hay heparin (kết tủa).",
+        peripheralNote: "Truyền được qua đường ngoại biên. Không dùng chung đường truyền với furosemide hay heparin (kết tủa).",
       },
     },
   },
