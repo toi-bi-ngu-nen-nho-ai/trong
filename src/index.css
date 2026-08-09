@@ -384,23 +384,19 @@ html {
   background: var(--c-nav-bg-solid);
 }
 
-/* Ghim body ĐÚNG BẰNG KHUNG NHÌN. Từng dùng `inset: 0` thay vì `100dvh` (100dvh tính sai chiều
-   cao thật khi cài ra màn hình chính trên iPhone đời cũ) — nhưng ảnh chụp/video thật từ iPhone Air
-   cho thấy VẪN còn hụt một dải ở đáy dù đã đổi: `inset: 0` cũng chỉ bám theo "layout viewport" mà
-   WebKit tự tính, và trên máy đó, ngay lúc mở app từ icon màn hình chính, khung WebKit tính ra lại
-   NGẮN HƠN vùng vẽ thật — tức là bản thân con số "viewport" đã sai, không phải lỗi tô màu, nên
-   không cách đặt CSS thuần nào (kể cả inset:0) tự thoát khỏi số đo sai đó được.
-   `--vvh` (đặt trong src/lib/viewportHeight.ts, đo bằng `window.visualViewport.height` — API sinh
-   ra đúng để phân biệt "layout viewport" khỏi "vùng nhìn thấy thật" trên WebKit) ghi đè `height`
-   bằng số đo thật, và đo lại vài lần trong giây đầu vì WebKit có thể tự sửa số đo một nhịp sau lần
-   vẽ đầu. Còn `top/left/right: 0` (không dùng `bottom`) để height quyết định cạnh dưới, không bị
-   hai nguồn cùng ép một chiều. */
+/* Ghim body ĐÚNG BẰNG KHUNG NHÌN bằng inset: 0 thay vì tính chiều cao bằng 100dvh (100dvh tính sai
+   chiều cao thật khi cài ra màn hình chính trên iPhone đời cũ).
+   ĐÃ THỬ VÀ BỎ: từng đổi sang đo `--vvh` bằng `window.visualViewport.height` (nghi ngờ inset:0 vẫn
+   bám theo một "layout viewport" bị WebKit tính sai trên máy mới) — nhưng video thật cho thấy CÁCH
+   ĐÓ KHÔNG SỬA ĐƯỢC dải đen ở đáy (vẫn y nguyên), lại còn gây lỗi MỚI nặng hơn: `visualViewport`
+   bắn sự kiện `resize` mỗi khi bàn phím iOS mở/đóng (đúng thiết kế của nó — báo vùng nhìn thấy TRỪ
+   bàn phím), nên lúc gõ số cân nặng, `--vvh` co lại theo phần còn lại phía trên bàn phím, kéo cả
+   body (và thanh nav bên trong) nhảy lên giữa màn hình. Quay lại `inset: 0` — an toàn, đã xác nhận
+   không gây lỗi bàn phím — trong lúc chờ số đo thật từ ViewportDebugPanel (xem App.tsx) để tìm
+   đúng nguyên nhân dải đen thay vì đoán tiếp. */
 body {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--vvh, 100%);
+  inset: 0;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ. */

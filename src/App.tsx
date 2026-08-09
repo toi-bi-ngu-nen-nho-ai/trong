@@ -11867,6 +11867,98 @@ const NAV_ITEMS: { id: Screen; navId?: string; label: string; icon: (active: boo
   { id: "flashcard", label: "Thẻ ghi nhớ", icon: icons.cards },
 ]
 
+// ─── Bảng đo đạc khung nhìn (TẠM THỜI — chỉ để tìm nguyên nhân dải đen dưới thanh nav trên
+// iPhone/iPad thật, xoá đi khi đã tìm ra và vá xong) ────────────────────────────────────────────
+//
+// Hai lần vá dựa trên phỏng đoán (bỏ backdrop-filter, rồi đo lại --vvh bằng visualViewport) đều
+// không sửa được dải đen thật trên máy, lần sau còn gây thêm lỗi mới (bàn phím đẩy cả nav lên giữa
+// màn hình). Bảng này in thẳng các con số quyết định layout ra màn hình — chụp lại đúng lúc thấy
+// dải đen là biết ngay số nào sai, thay vì đoán tiếp. Bấm nút tròn góc dưới trái để mở/đóng.
+function ViewportDebugPanel() {
+  const [open, setOpen] = useState(false)
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (!open) return
+    const id = window.setInterval(() => setTick((t) => t + 1), 400)
+    return () => window.clearInterval(id)
+  }, [open])
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Mở bảng đo đạc khung nhìn (gỡ lỗi)"
+        className="fixed z-[999] flex items-center justify-center rounded-full"
+        style={{
+          left: 10,
+          bottom: "calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 10px)",
+          width: 30,
+          height: 30,
+          background: "rgba(15,23,42,.55)",
+          color: "#fff",
+          fontSize: 13,
+          fontWeight: 700,
+        }}
+      >
+        i
+      </button>
+    )
+  }
+
+  const vv = typeof window !== "undefined" ? window.visualViewport : null
+  const navEl = document.querySelector('nav[aria-label="Điều hướng chính"]')
+  const navRect = navEl?.getBoundingClientRect()
+  const bodyRect = document.body.getBoundingClientRect()
+  const htmlEl = document.documentElement
+  const cs = getComputedStyle(htmlEl)
+  const rows: [string, string][] = [
+    ["tick", String(tick)],
+    ["window.innerW×H", `${window.innerWidth} × ${window.innerHeight}`],
+    ["visualViewport", vv ? `${vv.width.toFixed(1)} × ${vv.height.toFixed(1)} @${vv.offsetTop.toFixed(1)},${vv.offsetLeft.toFixed(1)} scale=${vv.scale}` : "(không có)"],
+    ["screen.width×height", `${window.screen?.width} × ${window.screen?.height}`],
+    ["devicePixelRatio", String(window.devicePixelRatio)],
+    ["html.clientW×H", `${htmlEl.clientWidth} × ${htmlEl.clientHeight}`],
+    ["body rect", `top=${bodyRect.top.toFixed(1)} bottom=${bodyRect.bottom.toFixed(1)} h=${bodyRect.height.toFixed(1)}`],
+    ["nav rect", navRect ? `top=${navRect.top.toFixed(1)} bottom=${navRect.bottom.toFixed(1)} h=${navRect.height.toFixed(1)}` : "(không có nav ở màn này)"],
+    ["--safe-top / --safe-bottom", `${cs.getPropertyValue("--safe-top").trim()} / ${cs.getPropertyValue("--safe-bottom").trim()}`],
+    ["display-mode: standalone", String(window.matchMedia?.("(display-mode: standalone)").matches)],
+    ["display-mode: fullscreen", String(window.matchMedia?.("(display-mode: fullscreen)").matches)],
+    ["orientation", String((window.screen as unknown as { orientation?: { type?: string } })?.orientation?.type ?? "?")],
+    ["UA", navigator.userAgent],
+  ]
+
+  return (
+    <div
+      className="fixed z-[999] overflow-auto"
+      style={{
+        left: 8,
+        right: 8,
+        bottom: "calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 10px)",
+        maxHeight: "60vh",
+        background: "rgba(15,23,42,.94)",
+        color: "#d7fae0",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: 11,
+        lineHeight: 1.5,
+        padding: 10,
+        borderRadius: 10,
+      }}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <b style={{ color: "#fff" }}>Đo khung nhìn (gỡ lỗi)</b>
+        <button onClick={() => setOpen(false)} style={{ color: "#fff", fontWeight: 700, padding: "0 6px" }}>
+          Đóng ×
+        </button>
+      </div>
+      {rows.map(([k, v]) => (
+        <div key={k} style={{ wordBreak: "break-all" }}>
+          <span style={{ color: "#7ee0ff" }}>{k}</span>: {v}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── App Shell ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -12637,6 +12729,8 @@ export default function App() {
             </button>
           </div>
         )}
+
+        <ViewportDebugPanel />
     </div>
   )
 }

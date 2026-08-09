@@ -4,16 +4,11 @@ import App from './App'
 import './index.css'
 import { registerServiceWorker } from './lib/offline'
 import { applyTheme, loadTheme } from './lib/theme'
-import { fixViewportHeight } from './lib/viewportHeight'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 // Áp chủ đề TRƯỚC khi render: làm sau thì người dùng chọn nền tối vẫn thấy một nháy trắng mỗi lần
 // mở app — chói mắt đúng vào lúc muốn tránh nhất.
 applyTheme(loadTheme())
-
-// Đặt --vvh TRƯỚC khi render, cùng lý do với applyTheme ở trên: để lần vẽ đầu tiên đã dùng đúng
-// chiều cao, không phải chờ một effect chạy sau khi cây React đã lên.
-fixViewportHeight()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
