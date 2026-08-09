@@ -11918,6 +11918,10 @@ function ViewportDebugPanel() {
   const bgOf = (el: Element | null) => (el ? getComputedStyle(el).backgroundColor : "(không có)")
   const rows: [string, string][] = [
     ["tick", String(tick)],
+    // DÒNG QUAN TRỌNG NHẤT: số px màn hình thật nằm NGOÀI khung nhìn của web (không DOM nào với
+    // tới). Phải = 0. Khác 0 nghĩa là trang web bị thu ngắn hơn màn hình → thừa đúng chừng đó px
+    // ở đáy, chính là "khoảng trống khó chịu" dưới thanh nav. Xem index.html để biết nguyên nhân.
+    ["HỤT ĐÁY (screen−inner)", `${(window.screen?.height ?? 0) - window.innerHeight} px  ${(window.screen?.height ?? 0) - window.innerHeight === 0 ? "✓ ĐÚNG" : "✗ CÒN LỖI"}`],
     ["window.innerW×H", `${window.innerWidth} × ${window.innerHeight}`],
     ["visualViewport", vv ? `${vv.width.toFixed(1)} × ${vv.height.toFixed(1)} @${vv.offsetTop.toFixed(1)},${vv.offsetLeft.toFixed(1)} scale=${vv.scale}` : "(không có)"],
     ["screen.width×height", `${window.screen?.width} × ${window.screen?.height}`],

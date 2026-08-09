@@ -16,7 +16,20 @@
          cụ Android và màu nền task-switcher khi chưa cài PWA. -->
     <meta name="theme-color" content="#2d3a94" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- ĐÃ BỎ `apple-mobile-web-app-status-bar-style=black-translucent` (2026-08) — đây là nguyên
+         nhân gốc của "thanh nav nhô cao, chừa khoảng trống ở đáy" khi cài ra màn hình chính iPhone.
+         Đo trên iPhone Air (iOS 18.7 / Safari 26) bằng ViewportDebugPanel:
+             screen.height = 912, window.innerHeight = 844, chênh đúng 68 = env(safe-area-inset-top)
+         iOS rơi vào trạng thái lai nửa vời: TÍNH chiều cao khung nhìn theo kiểu "nằm dưới thanh
+         trạng thái" (912 − 68 = 844), nhưng lại ĐẶT khung nhìn ở mép trên (y=0) và vẫn báo
+         safe-area-inset-top = 68 theo kiểu "phủ dưới thanh trạng thái". Hệ quả: trang web kết thúc
+         ở y=844 còn màn hình dài tới 912 — thừa 68px KHÔNG phần tử DOM nào với tới được (đã xác
+         nhận bằng một vạch đỏ cắm ở đáy trong cùng thanh nav: vạch hiện đúng y=844, dưới nó vẫn
+         còn nền màn hình). Bỏ thẻ này thì iOS đặt khung nhìn xuống dưới thanh trạng thái, 68 + 844
+         = 912 khớp đúng đáy màn hình, và safe-area-inset-top về 0 nên khoảng chừa trên cũng tự
+         co lại đúng.
+         Đổi lại, thanh trạng thái không còn trong suốt mà lấy màu từ `theme-color` — nên màu đó
+         phải bám theo màu nền app, xem applyTheme() trong src/lib/theme.ts. -->
     <meta name="apple-mobile-web-app-title" content="Bác sĩ Trọng" />
     <!-- 180×180 riêng cho apple-touch-icon (kích cỡ Apple khuyến nghị cho icon màn hình chính) thay
          vì dùng chung file 192 rồi để iOS tự co giãn. -->
