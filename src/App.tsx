@@ -1496,7 +1496,10 @@ function SearchScreen({
           Quay lại
         </button>
         <h1 className="text-2xl font-bold text-slate-900 mb-3">Tìm kiếm</h1>
-        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: "var(--c-line-soft)" }}>
+        {/* mind-search-pill: chỉ mượn class này để ăn theo vòng focus "ôm sát" dùng chung cho mọi ô
+            tìm kiếm trong app (xem index.css) — ô này tự vẽ layout riêng (rounded-2xl, nền riêng),
+            không dùng component SearchField vì có thêm hàng bộ lọc bên dưới mà SearchField không có. */}
+        <div className="mind-search-pill flex items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: "var(--c-line-soft)" }}>
           {icons.search(false)}
           <input
             ref={inputRef}

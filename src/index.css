@@ -720,12 +720,16 @@ input, select, textarea {
    bản thân input không bo góc — outline vẽ thẳng lên input ra một hình chữ nhật góc vuông cắt
    ngang qua khối bo tròn đó mỗi khi chạm vào ô tìm (input luôn được coi là focus-visible ngay cả khi
    chạm, khác với nút bấm). Chuyển vòng focus sang khối bo tròn bọc ngoài cho đúng hình, và tắt hẳn
-   outline trên input con để không còn cả hai chồng lên nhau. */
-.scr-dose .mind-search-pill:focus-within {
+   outline trên input con để không còn cả hai chồng lên nhau.
+   ÁP DỤNG TOÀN APP (không riêng `.scr-dose`): SearchField là MỘT component dùng chung cho mọi ô
+   tìm (Dùng thuốc, tìm kháng sinh toàn nhóm, tìm ghi chú Mindmap, Trang tìm kiếm chung...) — từng
+   chỉ bật vòng ôm sát này trong `.scr-dose`, khiến các ô tìm khác trông như không phản hồi gì khi
+   chạm vào. Class `.mind-search-pill` đã đủ để trỏ đúng SearchField, không cần scope theo màn. */
+.mind-search-pill:focus-within {
   outline: 2px solid var(--ring);
   outline-offset: 0.2px;
 }
-.scr-dose .mind-search-pill input:focus-visible {
+.mind-search-pill input:focus-visible {
   outline: none;
 }
 

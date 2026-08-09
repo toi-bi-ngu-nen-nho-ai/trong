@@ -21,7 +21,9 @@
 //     (xem index.html), và theme-color thôi ghi cứng màu teal chết trong theme.ts.
 // v7: dọn hết ViewportDebugPanel/vạch đỏ thử nghiệm; bớt đệm 6px thừa trên đầu (không còn cần
 //     che thanh trạng thái từ khi bỏ black-translucent).
-const CACHE = "drtrong-v7"
+// v8: sửa lệch hàng nút chủ đề/chuyên khoa với tiêu đề (do bỏ đệm 6px ở v7); mở vòng focus "ôm sát"
+//     của ô tìm kiếm (trước chỉ có ở màn Dùng thuốc) ra mọi ô tìm trong app.
+const CACHE = "drtrong-v8"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]

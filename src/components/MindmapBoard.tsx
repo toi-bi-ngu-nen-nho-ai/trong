@@ -8211,7 +8211,8 @@ export function MindmapBoard({
                 value={linkQuery}
                 onChange={(e) => setLinkQuery(e.target.value)}
                 placeholder="Tìm theo tên bài…"
-                className="w-full px-3.5 py-2.5 rounded-2xl text-sm border outline-none"
+                // mind-search-pill: vòng focus "ôm sát" dùng chung cho mọi ô tìm trong app (index.css).
+                className="mind-search-pill w-full px-3.5 py-2.5 rounded-2xl text-sm border outline-none"
                 style={{ borderColor: "var(--c-line)", background: "var(--c-surface-alt)" }}
               />
             </div>

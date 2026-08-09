@@ -416,7 +416,8 @@ export function BlockEditor({
                     value={linkQuery}
                     onChange={(e) => setLinkQuery(e.target.value)}
                     placeholder="Tìm bài để liên kết…"
-                    className="w-full px-3 py-2 text-xs outline-none border-b"
+                    // mind-search-pill: vòng focus "ôm sát" dùng chung cho mọi ô tìm trong app (index.css).
+                    className="mind-search-pill w-full px-3 py-2 text-xs outline-none border-b"
                     style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
                   />
                   <div className="max-h-40 overflow-y-auto">
