@@ -14,9 +14,9 @@
 // âm thầm tải bản mới về nền, nên nếu không đổi số này, máy đã từng mở app (đã cache "v2") sẽ tiếp
 // tục thấy đúng bản JS lúc đó mãi — kể cả khi server đã có bản mới từ lâu.
 // v2: icon-192/icon-512 đổi từ ảnh clipart cũ sang logo thật của app.
-// v3: main.tsx/index.css thêm cơ chế đo lại chiều cao khung nhìn thật (--vvh) cho iOS standalone —
-// đổi SAU v2 nhưng quên bump lúc đó, khiến máy đã cache v2 không bao giờ nhận được bản vá này.
-const CACHE = "drtrong-v3"
+// v3: thêm cơ chế đo --vvh (sau đó xác nhận không sửa được lỗi, gây thêm lỗi bàn phím, đã revert).
+// v4: revert --vvh (quay lại inset:0) + thêm ViewportDebugPanel tạm thời để đo số liệu thật.
+const CACHE = "drtrong-v4"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
