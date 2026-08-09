@@ -5377,6 +5377,20 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   const ageInvalid = hasInvalidNumericInput(patient.age)
   const scrInvalid = hasInvalidNumericInput(patient.scr)
 
+  // Cảnh báo thông số bệnh nhân (ký tự lạ, số bất thường) chỉ hiện SAU khi người dùng ngừng gõ —
+  // xem useDelayedWarning. `key` gộp cả nội dung ô nhập lẫn mức cảnh báo, null nghĩa là không có gì
+  // để cảnh báo (ẩn ngay, không trễ).
+  const showWeightWarn = useDelayedWarning(
+    weightInvalid ? `winv:${patient.weight}` : weightWarn && weightWarn.severity !== "ok" ? `w:${weightWarn.severity}:${patient.weight}` : null,
+  )
+  const showHeightWarn = useDelayedWarning(
+    heightInvalid ? `hinv:${patient.height}` : heightWarn && heightWarn.severity !== "ok" ? `h:${heightWarn.severity}:${patient.height}` : null,
+  )
+  const showAgeWarn = useDelayedWarning(
+    ageInvalid ? `ainv:${patient.age}` : ageWarn && ageWarn.severity !== "ok" ? `a:${ageWarn.severity}:${patient.age}` : null,
+  )
+  const showScrWarn = useDelayedWarning(scrInvalid ? `sinv:${patient.scr}` : null)
+
   // Cân nặng dùng để ước tính CrCl: ABW nếu bình thường/thiếu cân, AdjBW nếu béo phì (ABW > 130% IBW).
   const crclWeight = useMemo(
     () => resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted"),
@@ -5472,16 +5486,20 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               (vd "70abc") ưu tiên hiện trước cảnh báo độ lớn, vì lúc đó con số còn chưa xác định được. */}
           {(
             [
-              weightInvalid
-                ? { key: "w", message: `Cân nặng "${patient.weight.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
-                : weightWarn && weightWarn.severity !== "ok"
-                  ? { key: "w", message: weightWarn.message, severity: weightWarn.severity }
-                  : null,
-              heightInvalid
-                ? { key: "h", message: `Chiều cao "${patient.height.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
-                : heightWarn && heightWarn.severity !== "ok"
-                  ? { key: "h", message: heightWarn.message, severity: heightWarn.severity }
-                  : null,
+              !showWeightWarn
+                ? null
+                : weightInvalid
+                  ? { key: "w", message: `Cân nặng "${patient.weight.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
+                  : weightWarn && weightWarn.severity !== "ok"
+                    ? { key: "w", message: weightWarn.message, severity: weightWarn.severity }
+                    : null,
+              !showHeightWarn
+                ? null
+                : heightInvalid
+                  ? { key: "h", message: `Chiều cao "${patient.height.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP.`, severity: "implausible" as const }
+                  : heightWarn && heightWarn.severity !== "ok"
+                    ? { key: "h", message: heightWarn.message, severity: heightWarn.severity }
+                    : null,
             ] as ({ key: string; message: string; severity: "check" | "implausible" } | null)[]
           )
             .filter((w): w is { key: string; message: string; severity: "check" | "implausible" } => w != null)
@@ -5520,7 +5538,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               </div>
             </PatientField>
           </div>
-          {ageInvalid ? (
+          {showAgeWarn && (ageInvalid ? (
             <div className="mb-2">
               <InputWarning text={`Tuổi "${patient.age.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP, không tính CrCl từ đây.`} level="implausible" />
             </div>
@@ -5530,7 +5548,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 <InputWarning text={ageWarn.message} level={ageWarn.severity} />
               </div>
             )
-          )}
+          ))}
 
           {/* Creatinin/CrCl/độ thanh thải thận chỉ có ý nghĩa cho liều kháng sinh theo CrCl — 9 nhóm
               thuốc truyền còn lại chỉ cần cân nặng/giới tính ở trên. Gấp lại theo mặc định để
@@ -5569,7 +5587,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 </div>
               </div>
             </PatientField>
-            {scrInvalid && (
+            {showScrWarn && scrInvalid && (
               <div className="mt-2">
                 <InputWarning text={`Creatinin "${patient.scr.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP, không tính CrCl từ đây.`} level="implausible" />
               </div>
@@ -6437,23 +6455,37 @@ function CompatWarningForDrug({ compatKey, ownDrugId }: { compatKey?: string; ow
   )
 }
 
+// Độ trễ dùng chung cho MỌI cảnh báo "có thể đang gõ dở" trong app — từ trần số lượng ống/lọ tới
+// thông số bệnh nhân (cân nặng/chiều cao/tuổi/creatinin). Gõ "7" rồi mới thêm "0" thành "70" đi qua
+// một trạng thái trung gian trông như số bất thường trong chớp mắt; đợi người dùng NGỪNG gõ rồi mới
+// đánh giá tránh nháy cảnh báo sai suốt lúc đang nhập.
+const WARNING_DELAY_MS = 2000
+
+// `key` đổi (giá trị vừa gõ, hoặc mức cảnh báo) → đếm lại từ đầu; `null` nghĩa là không có gì cần
+// cảnh báo, ẩn ngay lập tức (không có lý do gì phải trễ khi KHÔNG có cảnh báo). Chỉ sau `delay` mà
+// `key` không đổi mới coi là người dùng đã gõ xong và cho phép cảnh báo hiện ra.
+function useDelayedWarning(key: string | null, delay: number = WARNING_DELAY_MS): boolean {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    setShow(false)
+    if (key == null) return
+    const t = setTimeout(() => setShow(true), delay)
+    return () => clearTimeout(t)
+  }, [key, delay])
+  return key != null && show
+}
+
 // Trần số lượng ống/lọ/chai (xem gradeVialCount trong lib/mixing.ts) — khi số lượng tính ra vượt
-// ngưỡng hợp lý, KHÔNG in số ra ngay: chờ 3 giây (đủ lâu để không nháy cảnh báo khi người dùng còn
-// đang gõ dở con số hàm lượng) rồi mới hiện cảnh báo, và chặn kết quả cho tới khi người dùng bấm xác
-// nhận "tôi chắc chắn" — cùng triết lý requiresConfirm của gradeConcentration, chỉ khác đối tượng
-// kiểm (số lượng thay vì nồng độ). `count`/`form` đổi (gõ số khác, đổi dạng đóng gói) thì phải xác
-// nhận lại từ đầu — không được "nhớ" xác nhận cũ cho một con số hoàn toàn khác.
+// ngưỡng hợp lý, KHÔNG in số ra ngay: chờ (xem useDelayedWarning) rồi mới hiện cảnh báo, và chặn kết
+// quả cho tới khi người dùng bấm xác nhận "tôi chắc chắn" — cùng triết lý requiresConfirm của
+// gradeConcentration, chỉ khác đối tượng kiểm (số lượng thay vì nồng độ). `count`/`form` đổi (gõ số
+// khác, đổi dạng đóng gói) thì phải xác nhận lại từ đầu — không được "nhớ" xác nhận cũ cho một con
+// số hoàn toàn khác.
 function useVialCountGuard(count: number | null, form: VialForm) {
   const grade = useMemo(() => (count != null ? gradeVialCount(count, form) : VIAL_COUNT_OK), [count, form])
   const key = count != null ? `${form}:${Math.round(count * 1000)}` : null
-  const [showWarning, setShowWarning] = useState(false)
+  const showWarning = useDelayedWarning(grade.requiresConfirm ? key : null)
   const [confirmedKey, setConfirmedKey] = useState<string | null>(null)
-  useEffect(() => {
-    setShowWarning(false)
-    if (!grade.requiresConfirm || key == null) return
-    const t = setTimeout(() => setShowWarning(true), 3000)
-    return () => clearTimeout(t)
-  }, [grade.requiresConfirm, key])
   const confirmed = key != null && confirmedKey === key
   return {
     grade,
