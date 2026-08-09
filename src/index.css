@@ -874,11 +874,87 @@ select {
   animation-delay: calc(min(var(--i, 0), 8) * 28ms);
 }
 
+/* Danh sách bảng Mindmap (chế độ danh sách): mỗi hàng trồi lên từ dưới, nhưng THEO THỨ TỰ NGƯỢC —
+   hàng ở ĐÁY danh sách hiện trước, hàng trên cùng hiện sau cùng — cảm giác cả danh sách "dựng" dần
+   lên từ chân, khác hẳn nhịp trên-xuống của chế độ lưới bên dưới. Độ trễ qua biến --i, đặt NGƯỢC
+   chỉ số tại chỗ dùng (mục cuối mảng = --i nhỏ nhất, hiện trước). */
+@keyframes mindBoardRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mind-board-rise {
+  animation: mindBoardRise 0.6s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 10) * 48ms);
+}
+
+/* Lưới bảng Mindmap (chế độ ô vuông): rơi xuống từ trên, theo TỪNG HÀNG — hai thẻ cùng hàng (lưới
+   2 cột) rơi cùng lúc, hàng trên cùng rơi trước — ngược hướng và ngược nhịp với chế độ danh sách ở
+   trên, để đổi kiểu xem cảm nhận rõ là một hiệu ứng khác, không chỉ đổi bố cục. Độ trễ qua biến
+   --row (chỉ số hàng = index // 2), không phải --i, nên cả hàng cùng rơi một nhịp. */
+@keyframes mindBoardDrop {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mind-board-drop {
+  animation: mindBoardDrop 0.6s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+  animation-delay: calc(min(var(--row, 0), 6) * 70ms);
+}
+
+/* ─── Kính tối riêng cho màn danh sách Mindmap (gallery) ──────────────────────
+   Phạm vi CHỈ màn danh sách bảng — xem hằng số MM trong App.tsx. Không dùng ở bất kỳ màn nào khác. */
+
+/* Hạt nhiễu cố định phủ lên nền tối, phá vỡ độ phẳng kỹ thuật số — feTurbulence nhúng thẳng qua
+   data URI, không cần ảnh ngoài. Chỉ đặt trên LỚP NỀN CỐ ĐỊNH (không cuộn), không bao giờ gắn vào
+   container đang cuộn — tránh vẽ lại liên tục khi cuộn (xem mind-glass-in bên dưới về lý do tương
+   tự với backdrop-blur). */
+.mind-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Thẻ/nút kính nổi lên nhẹ khi bấm — vật lý "nam châm": lún nhẹ (scale) thay vì đổi màu nền đột
+   ngột, cùng tinh thần dose-press/card-press của app nhưng cong hơn (cubic-bezier phối theo công
+   thức fluid-island của bản kính tối này). CHỈ transform/opacity — an toàn GPU, không kích hoạt
+   layout hay repaint ngoài lớp compositor. */
+.mind-glass-press {
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.mind-glass-press:active {
+  transform: scale(0.97);
+}
+
+/* Hiện dần kiểu "nặng" hơn rise-in thường — dùng cho tiêu đề/nhãn của riêng khối kính tối Mindmap,
+   theo đúng đường cong fluid-island (0.32,0.72,0,1) thay vì họ spring/bounce còn lại của app. */
+@keyframes mindGlassIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mind-glass-in {
+  animation: mindGlassIn 0.6s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mind-glass-in {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transform: none !important;
+  }
+  .mind-glass-press:active {
+    transform: none !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Giữ .dose-press như .mind-btn: cái thu nhẹ lúc bấm là phản hồi chạm, không phải trang trí. */
   .pop-value,
   .flash-ok,
-  .rise-in {
+  .rise-in,
+  .mind-board-rise,
+  .mind-board-drop {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transform: none !important;

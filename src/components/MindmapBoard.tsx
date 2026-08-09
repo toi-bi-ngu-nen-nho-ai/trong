@@ -4525,9 +4525,20 @@ export function MindmapBoard({
     // đang chỉ tới.
     lastPx: number
     lastPy: number
+    // Hình dạng ĐÓNG BĂNG lúc bắt đầu kéo — dùng lại ở VÙNG TỰ DO giữa bảng (xa mọi mép), xem
+    // BAR_EDGE_PREVIEW bên dưới.
+    frozenDock: BarDock
   } | null>(null)
   // Danh sách nét trước khi bắt đầu kéo con trượt — xem useStrokeSpec().
   const widthBase = useRef<StrokeSpec[] | null>(null)
+
+  // Bề rộng vùng SÁT MÉP (tỉ lệ theo bề ngang/cao mặt bảng) — vào trong vùng này lúc đang kéo thì
+  // thanh đổi NGAY hình dạng ngang/dọc để xem trước sẽ gắn vào đâu nếu buông tay ở đó. Ra khỏi vùng
+  // này (còn lại phần lớn ở giữa bảng) thì hình dạng vẫn ĐÓNG BĂNG như lúc mới cầm — xem ghi chú dài
+  // ở đầu file về lý do: đổi hình dạng ở MỌI điểm trong lúc kéo (bản trước đây) khiến cả cú kéo giật
+  // liên tục vì "mép gần nhất" đổi qua lại ngay cả ở giữa màn hình. Chỉ mỗi VÙNG SÁT MÉP mới đủ rõ
+  // ràng ý định "sắp thả ở đây" để đổi hình dạng ngay mà không tái diễn lỗi đó.
+  const BAR_EDGE_PREVIEW = 0.16
 
   function barPointerDown(e: ReactPointerEvent) {
     const bar = penBarRef.current
@@ -4545,6 +4556,7 @@ export function MindmapBoard({
       h: b.height,
       lastPx: e.clientX - r.left,
       lastPy: e.clientY - r.top,
+      frozenDock: barPos.dock,
     }
     setBarDragging("pen")
     try {
@@ -4571,6 +4583,21 @@ export function MindmapBoard({
     bar.style.transform = `scale(${1.025})`
     d.lastPx = e.clientX - r.left
     d.lastPy = e.clientY - r.top
+
+    // Gần mép nào đó (trong BAR_EDGE_PREVIEW) → xem trước NGAY hình dạng của mép đó. Xa mọi mép →
+    // về lại hình dạng đóng băng lúc mới cầm (frozenDock). So khoảng cách bằng TỈ LỆ (không phải
+    // pixel cố định) để vùng xem trước co giãn đúng theo kích cỡ mặt bảng trên mọi máy.
+    const cand: [BarDock, number][] = [
+      ["left", d.lastPx / r.width],
+      ["right", (r.width - d.lastPx) / r.width],
+      ["top", d.lastPy / r.height],
+      ["bottom", (r.height - d.lastPy) / r.height],
+    ]
+    const [nearestDock, nearestFrac] = cand.sort((a, b) => a[1] - b[1])[0]
+    const wantDock = nearestFrac < BAR_EDGE_PREVIEW ? nearestDock : d.frozenDock
+    if (wantDock !== barPos.dock) {
+      setBarPos((prev) => ({ dock: wantDock, f: prev.f }))
+    }
   }
 
   function barPointerUp() {
