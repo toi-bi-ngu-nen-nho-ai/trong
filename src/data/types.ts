@@ -197,7 +197,7 @@ export interface Antibiotic extends SourceInfo {
   standardDose?: string
   preparation?: string
   note?: string
-  tiers: DoseTier[]
+  tiers?: DoseTier[]
   warnings?: AntibioticWarning[]
   indications?: IndicationDose[]
   isCustom?: boolean

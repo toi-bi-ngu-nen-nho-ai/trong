@@ -34,15 +34,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
     name: "Amikacin",
     compatKey: COMPAT_KEYS.amikacin,                  
     route: "TTM",                        
-    tiers: [                             
-      { min: 80.01, label: "CrCl >80", dose: "15–20 mg/kg mỗi 24h" },
-      { min: 60.01, label: "CrCl >60–80 ", dose: "12 mg/kg mỗi 24h" },
-      { min: 40.01, label: "CrCl >40–60 ", dose: "7.5 mg/kg mỗi 24h" },
-      { min: 30.01, label: "CrCl >30–40 ", dose: "4 mg/kg mỗi 24h" },
-      { min: 20.01, label: "CrCl >20–30 ", dose: "7.5 mg/kg mỗi 48h" },
-      { min: 10.01, label: "CrCl >10–20 ", dose: "4 mg/kg mỗi 48h" },
-      { min: 0,  label: "CrCl 0 - 10",  dose: "3 mg/kg mỗi 72h (sau lọc máu)" },
-    ],
     standardDose: "15-20 mg/kg mỗi 24h",
     preparation: " 'Đối với người lớn, pha 500 mg amikacin vào 100-200ml dịch truyền thông thường như dung dịch NaCl 0.9% hoặc D5%. Thời gian truyền thích hợp amikacin là trong 30-60 phút",
     note: "Thời gian điều trị thường 7-10 ngày, không nên kéo dài quá 10 ngày",
@@ -96,6 +87,8 @@ export const ANTIBIOTICS: Antibiotic[] = [
       infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
     },
   },
+
+  
   {
     id: "ampicillin-iv",
     name: "Ampicillin",
