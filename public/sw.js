@@ -16,7 +16,8 @@
 // v2: icon-192/icon-512 đổi từ ảnh clipart cũ sang logo thật của app.
 // v3: thêm cơ chế đo --vvh (sau đó xác nhận không sửa được lỗi, gây thêm lỗi bàn phím, đã revert).
 // v4: revert --vvh (quay lại inset:0) + thêm ViewportDebugPanel tạm thời để đo số liệu thật.
-const CACHE = "drtrong-v4"
+// v5: thêm vạch đỏ thử compositing vùng padding-bottom của nav.
+const CACHE = "drtrong-v5"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
