@@ -11406,6 +11406,23 @@ function domRectToBox(r: DOMRect): { x: number; y: number; w: number; h: number 
 // chỉnh thoải mái — không có ràng buộc hình học nào phụ thuộc vào nó.
 const BURST_OVERFLOW = 1.3
 
+// Đường cong chuyển động của cú phóng. Trước đây là cubic-bezier(.16,1,.3,1) — quá dốc ở đầu đến mức
+// chặng cuối không còn gì để nhìn. Đo tiến độ thật của hai đường cong (phần trăm quãng đường đã đi
+// được tại từng mốc thời lượng):
+//
+//     đường cong          t=0,3   t=0,5   t=0,7   t=0,9    đi được trong 30% cuối
+//     .16,1,.3,1 (cũ)      87,7    97,2    99,6   100,0    0,43%   ← đứng hình
+//     .22,.68,.24,1        75,8    91,7    97,7    99,8    2,26%
+//
+// 0,43% quãng đường trong 30% thời lượng cuối, với cú rời bảng 360ms, là 108ms cuối cùng nhích chưa
+// tới một pixel — đúng ba khung hình đứng yên đo được trên video (xem ghi chú ở fadeDelay). Người
+// dùng đọc ra là "khựng", và họ đúng: hoạt ảnh ĐÃ dừng thật, chỉ là chưa hết giờ.
+//
+// Đường cong mới vẫn dốc ở đầu (91,7% ngay giữa chặng — vẫn nhanh, vẫn dứt khoát) nhưng để lại gấp
+// hơn năm lần chuyển động cho chặng cuối, nên không còn quãng nào phẳng lì. Cùng với phép tan nay đã
+// chạy cho cả hai chiều, chặng cuối luôn có thứ đang đổi.
+const EASE = "cubic-bezier(.22,.68,.24,1)"
+
 function BoardTransitionOverlay({
   transition,
   targetRect,
@@ -11503,12 +11520,24 @@ function BoardTransitionOverlay({
 
   if (!cage) return null
 
-  // Lúc mở: ảnh xem trước tan dần ở CHẶNG CUỐI để lộ mặt bảng thật bên dưới. Không có bước này thì
-  // khung hình cuối cùng là một cú thay ảnh cứng — ảnh xem trước (chỉ có nét, không chữ, khung nhìn
-  // riêng) đổi phắt sang mặt bảng thật ở khung nhìn đã lưu của nó. Tan dần biến cú thay ảnh đó thành
-  // một lớp chồng lên nhau, mắt đọc ra là "cùng một bảng, đang rõ dần ra".
+  // Ảnh xem trước tan dần ở CHẶNG CUỐI để lộ thứ thật bên dưới. Không có bước này thì khung hình cuối
+  // cùng là một cú thay ảnh cứng — ảnh xem trước (chỉ có nét, không chữ, khung nhìn riêng) đổi phắt
+  // sang thứ thật. Tan dần biến cú thay ảnh đó thành một lớp chồng lên nhau, mắt đọc ra là "cùng một
+  // bảng, đang rõ dần ra".
   // Kết thúc ngay TRƯỚC lúc transform xong (0,96×DUR), không sau: onDone() gỡ lớp phủ đúng lúc
   // transform kết thúc, tan chưa xong tới đó là lộ lại một khung hình ảnh xem trước rồi mới biến mất.
+  //
+  // CHẠY CHO CẢ HAI CHIỀU. Trước đây chỉ chiều MỞ mới có (`enter ? ... : ""`), và đó là nguyên nhân
+  // gốc của cú khựng ở chiều RỜI bảng. Đo trên video quay màn hình thật (30 khung/giây), độ lệch
+  // trung bình giữa hai khung liên tiếp:
+  //     khung 105  0,0040   ← ba khung gần như y hệt nhau: màn hình ĐỨNG YÊN khoảng 100ms
+  //     khung 106  0,0040
+  //     khung 107  0,0143
+  //     khung 108  1,6415   ← rồi lộp một cái, ảnh xem trước biến mất, thẻ thật hiện ra
+  // Chiều MỞ không hề có quãng đứng yên nào (khung 53-60 đều 0,25-0,48) — khác biệt duy nhất giữa
+  // hai chiều chính là phép tan này. Lý do: đường cong chuyển động gần như đã đi hết đường TRƯỚC KHI
+  // hết giờ (xem EASE bên dưới), nên chặng cuối không còn gì nhúc nhích; chiều mở lấy phép tan lấp
+  // vào chỗ đó nên mắt vẫn thấy đang đổi, chiều rời bỏ trống nên thành ra đứng hình rồi giật.
   const fadeDelay = Math.round(DUR * 0.5)
   const fadeDur = Math.round(DUR * 0.46)
 
@@ -11527,17 +11556,17 @@ function BoardTransitionOverlay({
         borderRadius: 12 * K,
         transformOrigin: "0 0",
         transform: open ? expanded : collapsed,
-        opacity: enter && open ? 0 : 1,
+        // Cả hai chiều đều BẮT ĐẦU rõ rồi TAN ở chặng cuối — `open` khớp `enter` nghĩa là đã tới đầu
+        // bên kia, tức đúng lúc phải tan đi. (Mở: open false→true. Rời: open true→false.)
+        opacity: open === enter ? 0 : 1,
         willChange: "transform, opacity",
         transition: [
-          `transform ${DUR}ms cubic-bezier(.16,1,.3,1)`,
+          `transform ${DUR}ms ${EASE}`,
           // Viền tan sớm hơn hình: cái chuồng phải biến mất TRƯỚC khi con thú ra hết, nếu không nó chỉ
           // là một cái khung to dần chứ không phải một cái khung đang thua cuộc.
           `border-color ${Math.round(DUR * 0.45)}ms ease-out ${Math.round(DUR * 0.22)}ms`,
-          enter ? `opacity ${fadeDur}ms ease-in ${fadeDelay}ms` : "",
-        ]
-          .filter(Boolean)
-          .join(", "),
+          `opacity ${fadeDur}ms ease-in ${fadeDelay}ms`,
+        ].join(", "),
         pointerEvents: "none",
       }}
       onTransitionEnd={(e) => {
