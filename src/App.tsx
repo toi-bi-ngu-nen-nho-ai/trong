@@ -11399,6 +11399,13 @@ function domRectToBox(r: DOMRect): { x: number; y: number; w: number; h: number 
   return { x: r.left, y: r.top, w: r.width, h: r.height }
 }
 
+// Ảnh xem trước được phép tràn qua mép màn hình bao nhiêu trước khi tan đi (xem `K` trong
+// BoardTransitionOverlay). 1,0 = dừng đúng lúc vừa khít, không tràn chút nào — mất hẳn cảm giác "cái
+// chuồng không giữ nổi". 1,3 = tràn 30%, tức mỗi bên khoảng 60px trên khung 420px: đủ để đọc ra là
+// đang bung ra ngoài khuôn thẻ, còn ĐỦ NHỎ để mắt vẫn bám theo được cả hình. Đây là con số THẨM MỸ,
+// chỉnh thoải mái — không có ràng buộc hình học nào phụ thuộc vào nó.
+const BURST_OVERFLOW = 1.3
+
 function BoardTransitionOverlay({
   transition,
   targetRect,
@@ -11427,7 +11434,25 @@ function BoardTransitionOverlay({
   // nguyên tỉ lệ của chính nó, cứ thế to dần cho tới khi TRÀN ra ngoài mép màn hình. Cái khung bao
   // quanh nó (viền + bo góc của thẻ) cũng to dần theo đúng hệ số đó — viền 1px thành 6px rồi trôi ra
   // khỏi màn hình và tan đi. Con thú lớn dần cho tới khi cái chuồng không còn giữ nổi nó nữa.
-  const K = cage && screen ? Math.max(screen.w / cage.w, screen.h / cage.h) : 1
+  //
+  // ─── Nhưng "phủ kín" một mình thì KHÔNG CÓ TRẦN, và trên điện thoại hẹp nó nổ tung ───
+  //
+  // Hệ số phủ kín lấy theo TRỤC LỆCH NHẤT giữa thẻ và màn hình, nên tỉ lệ hai bên càng khác nhau thì
+  // nó càng lớn — không có gì chặn lại. Số đo thật trên khung 420×912 (iPhone Air):
+  //     thẻ lưới 380×332, mặt bảng 420×863  →  K = max(1,11; 2,60) = 2,60  →  khung rộng 989px
+  //     hàng danh sách 380×70                →  K = max(1,11; 12,3) = 12,3 →  khung rộng 4676px
+  // Tức là ở chế độ danh sách, ảnh xem trước bị phóng gấp MƯỜI HAI lần và chỉ còn thấy được 9% bề
+  // ngang của nó — phần còn lại quét ngang qua mép màn hình. Đó là chỗ "tràn, đập vào mắt": không
+  // phải ảnh sai như bản scale hai trục, mà là ĐÚNG ảnh ở sai cỡ.
+  //
+  // Chặn trên bằng hệ số "vừa khít" (min — cỡ lớn nhất mà thẻ còn nằm trọn trong màn hình) nhân một
+  // biên tràn cố định. Vẫn phóng ĐỀU nên ảnh không méo, vẫn tràn qua mép nên cái chuồng vẫn thua —
+  // chỉ là thua trong tầm mắt chứ không phải nổ ra ngoài vũ trụ. Không cần khung hình cuối phủ kín
+  // mặt bảng: ảnh xem trước đã tan hết ở 96% thời lượng (xem fadeDelay/fadeDur bên dưới), nên cú bàn
+  // giao sang mặt bảng thật do ĐỘ MỜ lo, không phải do hình học.
+  const kFill = cage && screen ? Math.max(screen.w / cage.w, screen.h / cage.h) : 1
+  const kFit = cage && screen ? Math.min(screen.w / cage.w, screen.h / cage.h) : 1
+  const K = Math.min(kFill, kFit * BURST_OVERFLOW)
 
   // Khung DOM được dựng sẵn ở kích thước LỚN NHẤT (cage × K) rồi thu nhỏ lại bằng transform, chứ
   // không dựng ở cỡ thẻ rồi phóng to lên. Lý do là chuyện raster: trình duyệt vẽ lớp này ra bitmap

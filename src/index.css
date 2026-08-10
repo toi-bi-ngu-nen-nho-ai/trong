@@ -451,6 +451,34 @@ input, select, textarea {
   font-size: 16px !important;
 }
 
+/* ─── Hoà màu khi đổi chủ đề sáng/tối ────────────────────────────────────────────────────────────
+   Lớp này do beginThemeShift() trong src/lib/theme.ts gắn lên <html> đúng bằng thời lượng một lần
+   đổi chủ đề rồi gỡ ra — KHÔNG bao giờ thường trực (nếu thường trực thì mọi phép đổi nền khác của
+   app cũng chậm theo, nút bấm mất cảm giác nhạy tay).
+
+   Vì sao cần: dải trên cùng màn hình (thanh trạng thái khi cài PWA, thanh công cụ khi mở bằng trình
+   duyệt) KHÔNG do trang này vẽ — trình duyệt tự tô nó theo <meta name="theme-color">, và tự hoà màu
+   dần trong khoảng ba phần mười giây. Trang thì đổi màu trong ĐÚNG MỘT khung hình. Hai tốc độ khác
+   nhau nên mắt đọc ra là "nền đổi xong rồi mà dải trên còn đang đổi". Không có API nào ép dải trên
+   nhanh lên, nên cách duy nhất để hai bên xong cùng lúc là kéo phần trang chậm lại cho bằng.
+
+   Vì sao `*` và `!important`: chủ đề đổi thì MỌI mặt phẳng màu đều đổi (nền trang, mặt thẻ, đường
+   kẻ, chữ, icon) — chừa lại bất kỳ nhóm nào là nhóm đó đổi phắt trong khi phần còn lại đang hoà,
+   nhìn còn rối hơn cả lỗi ban đầu. `!important` để thắng cả `transition` viết bằng style inline của
+   React (vd nút chủ đề, các nút .mind-btn) — không có nó thì đúng những nút ấy lại đổi phắt. Chỉ
+   liệt kê thuộc tính MÀU: transform/opacity không nằm trong danh sách nên các hoạt ảnh nhấn/trượt
+   đang chạy không bị lớp này can thiệp vào. */
+html.theme-shift,
+html.theme-shift * {
+  transition:
+    background-color var(--theme-shift, 300ms) ease,
+    border-color var(--theme-shift, 300ms) ease,
+    color var(--theme-shift, 300ms) ease,
+    fill var(--theme-shift, 300ms) ease,
+    stroke var(--theme-shift, 300ms) ease,
+    box-shadow var(--theme-shift, 300ms) ease !important;
+}
+
 .screen-transition {
   animation: fadeSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }

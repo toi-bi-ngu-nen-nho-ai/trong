@@ -76,25 +76,64 @@ export function watchSystemTheme(): () => void {
 }
 
 export function saveTheme(mode: ThemeMode): void {
+  let saved = true
   try {
     localStorage.setItem(KEY, mode)
   } catch {
     // Không lưu được thì lần mở sau quay về "auto" — chấp nhận được, không chặn việc dùng app.
+    saved = false
   }
-  applyTheme(mode)
+
   // ─── PWA cài ra màn hình chính: thanh trạng thái không tự vẽ lại khi app đang chạy ──────────
-  // applyTheme() ở trên đã ghi ĐÚNG màu vào cả ba thẻ theme-color, và mọi thứ TRONG trang đổi màu
-  // ngay lập tức — nhưng đo được thực tế: khi app chạy standalone (đã "Thêm vào màn hình chính"),
-  // bấm nút đổi chủ đề trong lúc app đang mở KHÔNG làm thanh trạng thái vẽ lại; phải tắt hẳn app rồi
-  // mở lại nó mới đúng màu. Hệ điều hành chỉ đọc theme-color lúc MỞ app, không nghe JS sửa nội dung
-  // thẻ meta khi app đang chạy — một giới hạn của chế độ standalone, không phải lỗi ở phép ghi trên.
+  // Đo được thực tế: khi app chạy standalone (đã "Thêm vào màn hình chính"), bấm nút đổi chủ đề
+  // trong lúc app đang mở KHÔNG làm thanh trạng thái vẽ lại dù applyTheme() đã ghi đúng màu vào cả
+  // ba thẻ theme-color; phải tắt hẳn app rồi mở lại nó mới đúng màu. Hệ điều hành chỉ đọc
+  // theme-color lúc MỞ app, không nghe JS sửa nội dung thẻ meta khi app đang chạy — một giới hạn của
+  // chế độ standalone, không phải lỗi ở phép ghi kia. Reload chính là "tắt rồi mở lại" tự động.
   //
-  // Tự động hoá đúng thao tác "tắt rồi mở lại" đó bằng reload. An toàn để làm NGAY Ở ĐÂY: nút đổi
-  // chủ đề (ThemeToggle) chỉ hiện trên Trang chủ — không có ô nhập nào đang dở để mất, và bệnh nhân/
-  // tab/thuốc đang chọn đều đã nằm trong localStorage/sessionStorage nên sau reload vẫn y nguyên
-  // (xem lib/patient.ts, lib/uiState.ts). KHÔNG gọi ở applyTheme(): applyTheme() còn được main.tsx
-  // gọi mỗi lần MỞ app — reload ở đó sẽ vòng lặp vô hạn ngay từ lúc mở.
-  if (isStandalonePwa()) window.location.reload()
+  // KHÔNG gọi applyTheme() trước cú reload. Đây là nguyên nhân gốc của "màu top đổi chậm hơn màu
+  // nền": applyTheme() đổi màu cả trang NGAY LẬP TỨC, còn thanh trạng thái phải đợi hết cú tải lại
+  // (cả trăm mili-giây) mới đổi theo — hai bên lệch nhau đúng bằng thời gian tải lại đó, và trang cũ
+  // vẫn hiển thị suốt quãng chờ nên mắt nhìn thấy rõ mồn một. Bỏ hẳn phép đổi màu ngay đó thì trang
+  // GIỮ NGUYÊN màu cũ cho tới khi bản dựng mới vẽ ra — mà đúng lúc ấy hệ điều hành cũng vừa đọc
+  // theme-color mới. Hai bên đổi trong CÙNG một khung hình, không còn gì để lệch.
+  //
+  // An toàn để reload ngay ở đây: nút đổi chủ đề (ThemeToggle) chỉ hiện trên Trang chủ — không có ô
+  // nhập nào đang dở để mất, và bệnh nhân/tab/thuốc đang chọn đều đã nằm trong localStorage/
+  // sessionStorage nên sau reload vẫn y nguyên (xem lib/patient.ts, lib/uiState.ts). KHÔNG gọi ở
+  // applyTheme(): applyTheme() còn được main.tsx gọi mỗi lần MỞ app — reload ở đó sẽ vòng lặp vô hạn.
+  //
+  // Bắt buộc phải ghi được localStorage mới dám đi lối này: reload xong, lựa chọn được đọc lại từ
+  // đúng chỗ vừa ghi. Ghi hỏng mà vẫn reload là chủ đề quay về "auto" ngay trước mắt người vừa bấm —
+  // thà đổi màu trong trang (lệch với thanh trạng thái) còn hơn nút bấm không có tác dụng gì.
+  if (saved && isStandalonePwa()) {
+    window.location.reload()
+    return
+  }
+
+  // Trong trình duyệt thường: thanh công cụ/thanh trạng thái do trình duyệt tự tô theo thẻ
+  // theme-color, và nó HOÀ MÀU DẦN chứ không đổi phắt — không có API nào ép nó nhanh lên. Nên kéo
+  // phần trang chậm lại cho bằng, đúng như cách duy nhất còn lại để hai bên đổi cùng lúc.
+  beginThemeShift()
+  applyTheme(mode)
+}
+
+// ─── Hoà màu khi đổi chủ đề (chỉ trong trình duyệt thường, xem saveTheme) ─────────────────────────
+// Gắn một lớp CSS lên thẻ <html> đúng bằng thời lượng hoà màu rồi gỡ ra. Vì sao không để transition
+// thường trực trong index.css: nó sẽ làm chậm MỌI phép đổi nền khác của app (nhấn nút, đổi màn,
+// chọn tab) — những chỗ cần đổi tức thì mới thấy nhạy tay. Lớp này chỉ sống đúng một lần đổi chủ đề.
+const THEME_SHIFT_MS = 300
+let shiftTimer: ReturnType<typeof setTimeout> | null = null
+
+function beginThemeShift(): void {
+  const root = document.documentElement
+  // Máy xin giảm chuyển động: đổi phắt, đừng kéo dài thêm một hiệu ứng nào cả.
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+  root.style.setProperty("--theme-shift", `${THEME_SHIFT_MS}ms`)
+  root.classList.add("theme-shift")
+  if (shiftTimer) clearTimeout(shiftTimer)
+  // Dư ra một chút để khung hình cuối của phép hoà màu chắc chắn đã vẽ xong trước khi gỡ lớp.
+  shiftTimer = setTimeout(() => root.classList.remove("theme-shift"), THEME_SHIFT_MS + 60)
 }
 
 // Đang chạy như PWA đã cài ra màn hình chính (display: standalone trong manifest.json), hay đang mở
