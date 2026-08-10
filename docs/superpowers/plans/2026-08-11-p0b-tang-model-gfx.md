@@ -221,12 +221,28 @@ Expected: `Test Files  1 passed (1)`, mọi ca xanh.
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
 npm test
-npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "gfx-block-model\|element-model\|surface-model" || echo "OK: chi thieu file cua task sau"
 ```
 
-Expected: `Test Files  6 passed (6)`, và `OK: chi thieu file cua task sau`.
+Expected: `Test Files  6 passed (6)`.
+
+**KHÔNG chạy `tsc` làm cổng kiểm ở task này.** Xem "Vì sao Task 2–4 không có cổng tsc" ngay dưới.
 
 Vì sao test chạy được dù tsc còn đỏ: Vitest chỉ dịch chứ không kiểm kiểu, và `tree.ts` chỉ import **giá trị** từ `base.ts` (`gfxGroupCompatibleSymbol`); còn `model.ts` — file kéo theo cả chuỗi thiếu — nó chỉ import ở dạng `import type`, bị xoá sạch khi dịch.
+
+### Vì sao Task 2–4 không có cổng tsc
+
+Bản đầu của kế hoạch đặt cổng `npx tsc --noEmit ... | grep -v "<tên module thiếu>"` cho các task giữa. **Cổng đó hỏng, và nó hỏng theo kiểu nguy hiểm.**
+
+Vòng phụ thuộc kiểu chưa khép làm `GfxGroupModel` nhiễm `any`, và hệ quả lan ra thành lỗi kiểu **tại những dòng không hề mang tên module thiếu** — ví dụ `TS7006` ở `tree.ts:113` và `TS2339` ở `tree.ts:159`. Bộ lọc theo tên module không bắt được chúng.
+
+Người triển khai gặp cổng đỏ sẽ làm điều hợp lý nhất trong tầm nhìn của họ: **sửa mã port cho cổng xanh** — thêm chú thích kiểu, thêm type assertion. Đó chính là điều đã xảy ra ở lượt đầu Task 2. Và nó vi phạm ràng buộc port-fidelity, đồng thời giấu đi một khác biệt so với thượng nguồn mà sau này không ai nhớ để đối chiếu.
+
+Kiểm kiểu một vòng phụ thuộc **cố ý bỏ dở** thì không mang thông tin gì. Vì vậy:
+
+- **Task 2, 3, 4:** cổng là `npm test` (nơi có test) và "mã port khớp bản gốc ngoài dòng import". Không dùng tsc.
+- **Task 5:** khi vòng khép lại, `npx tsc --noEmit` phải **exit 0 tuyệt đối**. Đó là chỗ duy nhất tsc nói lên điều gì.
+
+Nếu trong lúc làm Task 2–4 mà `tsc` báo lỗi ngay trong file bạn vừa chép: **đó là dự kiến, đừng sửa mã port.** Ghi lại trong báo cáo và đi tiếp.
 
 - [ ] **Step 5: Commit**
 
@@ -241,7 +257,16 @@ MindmapElementModel dùng chung lớp cơ sở với GroupElementModel.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-**Tiêu chí xong:** `npm test` in ra `Test Files  6 passed (6)`.
+**Tiêu chí xong:** `npm test` in ra `Test Files  6 passed (6)`, **và** `git diff` giữa `src/core/utils/tree.ts` với bản gốc chỉ khác ở dòng `import`.
+
+Kiểm điều thứ hai bằng lệnh:
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+diff <(sed "s/\(from '[^']*\)\.js'/\1'/g" "C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/framework/std/src/utils/tree.ts") src/core/utils/tree.ts
+```
+
+Expected: chỉ in ra khác biệt ở các dòng `import` (đường dẫn `../gfx/...`). Bất kỳ khác biệt nào **trong thân hàm** là lỗi port.
 
 ---
 
@@ -268,22 +293,33 @@ grep -rn "\.js'" src/core/gfx/model/surface/decorators || echo "SACH"
 
 Expected: in ra `SACH`.
 
-- [ ] **Step 2: Xác nhận không lỗi cú pháp**
+- [ ] **Step 2: Xác nhận bảy file khớp bản gốc**
+
+Không dùng `tsc` làm cổng ở task này — xem "Vì sao Task 2–4 không có cổng tsc" ở Task 2.
+
+Kiểm bằng cách so thẳng với bản gốc:
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
-npx tsc --noEmit 2>&1 | grep -c "error TS"
+D="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/framework/std/src/gfx/model/surface/decorators"
+for f in index common convert derive field local observer watch; do
+  echo "--- $f.ts"
+  diff <(sed "s/\(from '[^']*\)\.js'/\1'/g" "$D/$f.ts") "src/core/gfx/model/surface/decorators/$f.ts"
+done
 ```
 
-Expected: một số **lớn hơn 0** — toàn bộ là lỗi `Cannot find module '../element-model'` hoặc `'../surface-model'`. Đó là đúng: hai file đó tới Task 4 và Task 5 mới có.
+Expected: **không in ra khác biệt nào** ngoài dòng `--- <tên>.ts`. Bảy file này chỉ có import nội bộ nên sau khi bỏ đuôi `.js` là khớp tuyệt đối.
 
-**Phải kiểm:** mọi lỗi in ra đều thuộc hai loại đó. Nếu có lỗi khác (cú pháp, thiếu gói) thì **dừng và hỏi**.
+Nếu có khác biệt trong thân hàm: đó là lỗi port, sửa lại cho khớp gốc.
+
+- [ ] **Step 2b: Xác nhận không thêm dependency**
 
 ```bash
-npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "element-model\|surface-model" || echo "OK: chi thieu hai module cua task sau"
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+git diff --stat HEAD -- package.json package-lock.json || echo "OK: khong dung package.json"
 ```
 
-Expected: `OK: chi thieu hai module cua task sau`
+Expected: không in gì.
 
 - [ ] **Step 3: Commit**
 
@@ -300,7 +336,7 @@ tới hết Task 5, đúng dự kiến.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-**Tiêu chí xong:** `npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "element-model\|surface-model"` không in ra dòng nào.
+**Tiêu chí xong:** vòng lặp `diff` ở Step 2 không in ra khác biệt nào, và `git diff --stat HEAD -- package.json package-lock.json` không in gì.
 
 ---
 
@@ -340,14 +376,19 @@ import type { EditorHost } from '../host';
 
 Lưu ý độ sâu: ở thượng nguồn `gfx-block-model.ts` nằm tại `gfx/model/`, `utils/` là `../../utils`. Bản ta để `utils/` ở `src/core/utils/` còn file này ở `src/core/gfx/model/` — nên thành `../../../utils`.
 
-- [ ] **Step 3: Type-check**
+- [ ] **Step 3: Xác nhận ba file khớp bản gốc**
+
+Không dùng `tsc` làm cổng ở task này — xem "Vì sao Task 2–4 không có cổng tsc" ở Task 2.
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
-npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "surface-model" || echo "OK: chi con thieu surface-model cua Task 5"
+M="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/framework/std/src/gfx/model"
+diff <(sed "s/\(from '[^']*\)\.js'/\1'/g" "$M/surface/element-model.ts") src/core/gfx/model/surface/element-model.ts
+diff <(sed "s/\(from '[^']*\)\.js'/\1'/g" "$M/surface/local-element-model.ts") src/core/gfx/model/surface/local-element-model.ts
+diff <(sed "s/\(from '[^']*\)\.js'/\1'/g" "$M/gfx-block-model.ts") src/core/gfx/model/gfx-block-model.ts
 ```
 
-Expected: `OK: chi con thieu surface-model cua Task 5`
+Expected: chỉ khác ở các dòng `import` mà Step 2 đã đổi (`../../../utils/tree` và `../host` trong `gfx-block-model.ts`). **Bất kỳ khác biệt nào trong thân hàm là lỗi port** — sửa lại cho khớp gốc, đừng "sửa cho hết lỗi kiểu".
 
 - [ ] **Step 4: Commit**
 
@@ -363,7 +404,7 @@ text, mindmap, group.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-**Tiêu chí xong:** `npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "surface-model"` không in ra dòng nào.
+**Tiêu chí xong:** ba lệnh `diff` ở Step 3 chỉ in ra khác biệt ở dòng `import`.
 
 ---
 
