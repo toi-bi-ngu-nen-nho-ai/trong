@@ -360,21 +360,31 @@ cp "$M/gfx-block-model.ts" src/core/gfx/model/gfx-block-model.ts
 find src/core/gfx/model -name "*.ts" -exec sed -i "s/\(from '\.[^']*\)\.js'/\1'/g" {} +
 ```
 
-- [ ] **Step 2: Trỏ lại hai import ra ngoài tầng model**
+- [ ] **Step 2: Trỏ lại các import `EditorHost` — BA file, không phải một**
 
-Trong `src/core/gfx/model/gfx-block-model.ts`:
+Cả ba file trong task này đều import `EditorHost` từ tầng `view/` của Lit. Đều là `import type`, và đều phải trỏ về `src/core/gfx/host.ts` (Task 1).
+
+Trong `src/core/gfx/model/gfx-block-model.ts` (nằm ở `gfx/model/`, nên `../host`):
 
 ```ts
-} from '../../utils/tree';
 import type { EditorHost } from '../../view/index';
 ```
 →
 ```ts
-} from '../../../utils/tree';
 import type { EditorHost } from '../host';
 ```
 
-Lưu ý độ sâu: ở thượng nguồn `gfx-block-model.ts` nằm tại `gfx/model/`, `utils/` là `../../utils`. Bản ta để `utils/` ở `src/core/utils/` còn file này ở `src/core/gfx/model/` — nên thành `../../../utils`.
+Trong `src/core/gfx/model/surface/element-model.ts` và `src/core/gfx/model/surface/local-element-model.ts` (nằm sâu thêm một cấp trong `surface/`, nên `../../host`):
+
+```ts
+import type { EditorHost } from '../../../view/index';
+```
+→
+```ts
+import type { EditorHost } from '../../host';
+```
+
+**`} from '../../utils/tree';` trong `gfx-block-model.ts` giữ NGUYÊN — không sửa.** Bản đầu của kế hoạch bảo đổi thành `../../../utils/tree`; đó là **tính nhầm**. Thư mục `core` được chèn vào *cả hai phía* (`src/core/gfx/model/` lẫn `src/core/utils/`) nên khoảng cách tương đối không đổi so với thượng nguồn. `../../utils/tree` từ `src/core/gfx/model/` trỏ đúng `src/core/utils/tree` — ba cấp sẽ trỏ ra `src/utils/tree`, không tồn tại.
 
 - [ ] **Step 3: Xác nhận ba file khớp bản gốc**
 
