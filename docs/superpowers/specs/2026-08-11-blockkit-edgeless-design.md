@@ -50,7 +50,8 @@ Trong AFFiNE, Page và Edgeless là **hai chế độ xem của cùng một Doc*
 |---|---|---|
 | D0 | Khi có mâu thuẫn: **giống AFFiNE nhất** thắng, rồi mới tới khuyến nghị của người thực hiện, rồi mới tới cái còn lại | Chủ dự án chốt 2026-08-11. Áp dụng cho mọi quyết định chưa được nêu tên trong bảng này |
 | D1 | ~~Không nhúng BlockSuite vì kéo theo Lit~~ → **thay bằng D10** | Giả định sai. Đo lại 2026-08-11: `@blocksuite/store` có **0** file dùng Lit; `@blocksuite/global` có 2, nằm gọn trong `global/src/lit/`; `std/gfx` có **1/44**. Lit chỉ sống ở tầng khung nhìn |
-| D10 | **Lai ba tầng:** cài `@blocksuite/store` + `@blocksuite/global` từ npm · **port** `std/gfx` · **viết** tầng khung nhìn bằng React | Tầng dữ liệu sạch Lit nên dùng thẳng mã thượng nguồn, cập nhật miễn phí, không phải chép 7.100 dòng. `std/gfx` thì dù sao cũng phải thay ràng buộc Lit bằng React nên port. Tránh được câu hỏi chưa có lời đáp: `GfxController` cần `BlockStdScope`, chưa rõ dựng được ngoài `EditorHost` hay không |
+| D10 | ~~Cài `@blocksuite/store` + `global` từ npm~~ → **thay bằng D11** | Gãy khi thi hành: npm mới có tới **0.22.4**, còn bản mọi thứ trong spec đọc theo là **0.27.0** ở workspace AFFiNE, **chưa publish**. Đo 0.22.4: có `GfxGroupLikeElementModel` (D7 an toàn) nhưng **không có** `viewportRuntimeConfig`/`getEffectiveDpr`/`SKIP_REFRESH_DURING_GESTURE` — đúng phần giữ WKWebView khỏi sập, và là rủi ro số một ở §12 |
+| D11 | **Vendor** `framework/global/src` + `framework/store/src` (0.27.0, từ máy) vào `src/vendor/blocksuite/` như mã bên thứ ba · **port** `std/gfx` · **viết** tầng khung nhìn React | Lý do chính của "cài thay vì chép" là cập nhật theo thượng ngu���n — lý do đó sụp khi bản cần dùng không có trên npm. Vendor thì khớp 100% với mọi thứ spec đã viết và giữ được phần viewport cho iPhone. Chép **nguyên văn, không sửa**, để so lại với thượng nguồn về sau còn dễ |
 | D2 | Mindmap và Bài viết là **hai thực thể riêng**, nối bằng liên kết | Giữ nguyên `Article`, Thư viện, xuất/nhập JSON đang chạy |
 | D3 | **Xoá sạch frontend cũ**, không khôi phục file nào từ `fd24576` | Chọn AFFiNE thay vì di sản |
 | D4 | **Giữ tầng lưu trữ** `src/lib/idb.ts` làm nền, nâng schema | Đã gia cố tốt; là nơi backend cắm vào sau |
@@ -67,16 +68,22 @@ Trong AFFiNE, Page và Edgeless là **hai chế độ xem của cùng một Doc*
 Bốn tầng, phụ thuộc chỉ đi xuống. Cột bên phải cho biết mã ở tầng đó **từ đâu ra** (D10):
 
 ```
-src/screens/   MindMapScreen · BoardGallery            VIẾT   React, tiếng Việt, da Bs Trọng
-src/editor/    EdgelessHost · ToolBar · Widgets        VIẾT   React: sự kiện, chọn, thanh công cụ
-src/core/gfx/  Viewport · Grid · Layer · Tool          PORT   từ @blocksuite/std/src/gfx (44 file)
-@blocksuite/   store · global                          CÀI    npm 0.27.0 — cây block, Yjs, hình học
+src/screens/       MindMapScreen · BoardGallery       VIẾT     React, tiếng Việt, da Bs Trọng
+src/editor/        EdgelessHost · ToolBar · Widgets   VIẾT     React: sự kiện, chọn, thanh công cụ
+src/core/gfx/      Viewport · Grid · Layer · Tool     PORT     từ std/src/gfx (44 file)
+src/vendor/        blocksuite/global · store          VENDOR   chép nguyên văn 0.27.0, KHÔNG sửa
+                   blocksuite/                        (Yjs)    cây block, hình học, lược đồ
 ```
 
-Ranh giới **CÀI / PORT** nằm đúng chỗ Lit bắt đầu xuất hiện, không phải chỗ tuỳ tiện:
-`@blocksuite/store` sạch Lit hoàn toàn nên dùng thẳng; `std/gfx` có `viewport-element.ts` bọc
-custom element và `GfxController extends LifeCycleWatcher` gắn vào `BlockStdScope` của
-`EditorHost` — đó là chỗ React phải thay, nên port.
+Ba tầng, ba cách đối xử khác nhau, và ranh giới không tuỳ tiện:
+
+- **VENDOR** — sạch Lit hoàn toàn, không cần đổi gì để chạy trong React. Chép nguyên văn vào
+  `src/vendor/blocksuite/`, **cấm sửa**: mọi sửa đổi phải nằm ở tầng trên, để sau này so lại với
+  thượng nguồn (hoặc thay bằng gói npm khi 0.27.0 được publish) còn dễ.
+- **PORT** — `std/gfx` có `viewport-element.ts` bọc custom element, và
+  `GfxController extends LifeCycleWatcher` gắn vào `BlockStdScope` của `EditorHost`. Đó là chỗ
+  React phải thay, nên port chứ không vendor.
+- **VIẾT** — tầng khung nhìn, không có bản gốc để mà chép.
 
 ### Ràng buộc cứng: `src/core/` không import React
 
@@ -577,42 +584,47 @@ từng file mới phải nhìn dòng `import` của chúng, và ba gói đó n�
 23 file trong `framework/` dùng `rxjs`. Bỏ chúng nghĩa là **viết lại** tầng phản ứng của
 BlockSuite, đúng thứ D1 và D8 đã cấm.
 
-**Cập nhật theo D10 (2026-08-11).** Sau khi chốt hướng lai, danh sách chia làm hai: gói ta **tự
-khai** và gói đi kèm theo `@blocksuite/*`.
+**Cập nhật theo D11 (2026-08-11).** Vendoring không tự gỡ dependency — mã chép về vẫn `import`
+thứ nó cần. Cái lợi thật là **chọn được cây con nào để chép**, nên vài gói nặng rơi hẳn.
 
-**Tự khai — 6 gói**
-
-| Gói | Nặng | Vì sao |
+| Gói | Ai cần | Ghi chú |
 |---|---|---|
-| `@blocksuite/store` | `0.27.0` | Cây block trên Yjs, `defineBlockSchema`, `Text`/`Boxed`, CRUD. **0 file dùng Lit** |
-| `@blocksuite/global` | `0.27.0` | Hình học (`Bound`, `Vec`, `PointLocation`, math, curve), DI, disposable |
-| `yjs` | ~30 KB gz | Ta gọi `Y.*` trực tiếp ở tầng lưu trữ (§9), nên khai tường minh chứ không dựa vào bắc cầu |
-| `fractional-indexing` | ~1 KB | `layer.ts` ta port cần. Thuật toán ngắn nhưng nhiều bẫy biên (thứ tự chữ số base62, điểm giữa); sai một chỗ là thứ tự phần tử hỏng âm thầm |
-| `lodash-es` | ~3–5 KB gz | `viewport.ts` và `layer.ts` ta port cần (`debounce`, `last`). Tree-shake được |
-| `katex` | ~75 KB gz + font | `block-latex` và `inline-latex` đều phụ thuộc `katex@0.16`. **Phải đóng gói kèm font WOFF2** — thiếu là công thức hiện ô vuông khi offline. Chủ dự án đã xác nhận có công thức thực sự cần trong nội dung y khoa, nên khoản nặng này là có chủ đích |
+| `yjs` | vendored store + tầng lưu trữ của ta | Nguồn sự thật (D5) |
+| `@preact/signals-core` | vendored `store/model/block/*` | Cầu phản ứng `Y.Map` ↔ model. Nối vào React bằng `useSyncExternalStore` |
+| `rxjs` | vendored store + `viewport.ts`/`layer.ts` ta port | 23 file trong `framework/` dùng |
+| `lib0` | vendored store | Tiện ích nhị phân đi kèm Yjs |
+| `zod` | vendored `store/model/block/zod.ts` | `defineBlockSchema` đi qua đây. Không bỏ được nếu vendor nguyên văn (D11 cấm sửa) |
+| `nanoid` | vendored `store/utils/id-generator.ts` | Nhỏ |
+| `minimatch` | vendored `store/schema/schema.ts` | Khớp mẫu flavour kiểu `affine:embed-*` |
+| `lodash.ismatch` | vendored `store/model/store/query.ts` | Nhỏ |
+| `lodash-es` | `viewport.ts`, `layer.ts` ta port | `debounce`, `last`. Tree-shake được |
+| `fractional-indexing` | `layer.ts` ta port | Thuật toán ngắn nhưng nhiều bẫy biên; sai một chỗ là thứ tự phần tử hỏng âm thầm |
+| `katex` | `block-latex`, `inline-latex` | ~75 KB gz + **phải đóng gói kèm font WOFF2**, thiếu là công thức hiện ô vuông khi offline. Chủ dự án xác nhận nội dung y khoa có công thức thực sự cần |
 
-**Đi kèm `@blocksuite/store` + `global`** — không do ta chọn, và cũng không sửa được:
-`@preact/signals-core`, `rxjs`, `lib0`, `nanoid`, `zod`, `y-protocols`, `lodash.ismatch`,
-`minimatch`, `file-type`, `@blocksuite/sync`, và `lit` (qua `global`, chỉ `global/src/lit/*` dùng
-— tree-shake bỏ được vì `global` khai `sideEffects: false`).
+**Rơi hẳn nhờ chọn cây con** (so với việc cài cả gói):
 
-`file-type` và `minimatch` là hai gói nặng mà app này không cần. **Phải đo bundle sau chặng đầu
-tiên của P0** và ghi lại con số; nếu chúng không rơi khỏi bundle thì cân nhắc lại D10.
+| Gói | Vì sao rơi |
+|---|---|
+| `file-type` | **Không file nào trong `store/src` import** |
+| `y-protocols` | Chỉ `extension/workspace` và `yjs/awareness` dùng — §8 đã cắt awareness |
+| `@blocksuite/sync` | Chỉ `extension/workspace` và `test/` dùng |
+| `lit` | Chỉ `global/src/lit/*` dùng — không vendor thư mục đó |
+
+**Vẫn phải đo bundle sau chặng đầu P0** và ghi lại con số. Cây con nào hoá ra kéo theo gói tưởng
+đã rơi thì phải xem lại danh sách này.
 
 Dev: `vitest`.
 
-**Không cài:** `@blocksuite/std` — dù `std/gfx` chỉ có 1/44 file dùng Lit, `GfxController` gắn
-vào `BlockStdScope` của `EditorHost`. Port 44 file đó thay vì cài (D10).
-
-**Hai phương án đã cân nhắc rồi bỏ:**
+**Ba phương án đã cân nhắc rồi bỏ:**
 
 1. *Tự viết tầng phản ứng* — thay `rxjs` bằng `EventEmitter` ~20 dòng, `signals-core` bằng signal
-   tự viết, `lodash-es` bằng `debounce` tự viết. Bỏ vì phân kỳ ở đúng tầng chịu lực nhất, và mọi
-   lần cập nhật thượng nguồn về sau đều phải dịch tay.
-2. *Cài cả `@blocksuite/std`, chỉ viết tầng khung nhìn* — giống AFFiNE nhất tuyệt đối và gần như
-   không có công port cho P0. Bỏ vì rủi ro chưa gạt được: chưa chứng minh dựng được
-   `BlockStdScope` ngoài `EditorHost`. Nếu chặng đầu P0 cho thấy dựng được, **mở lại phương án
-   này** — nó vẫn là lựa chọn trung thành nhất.
+   tự viết, `lodash-es` bằng `debounce` tự viết. Bỏ vì phân kỳ ở đúng tầng chịu lực nhất.
+2. *Cài `@blocksuite/*` từ npm* (D10) — bỏ vì bản cần dùng chưa publish (xem D10 trong §3).
+3. *Cài 0.22.4 rồi port riêng `viewport.ts` từ 0.27.0* — bỏ vì hai bản cách nhau năm minor, chưa
+   biết còn khớp API không, và phải thử mới biết.
+
+**Nếu 0.27.0 được publish về sau:** thay `src/vendor/blocksuite/` bằng dependency npm. Đó chính
+là lý do D11 cấm sửa mã vendored — để lúc đó việc thay chỉ là xoá thư mục và đổi đường dẫn import.
 
 `gfx-turbo-renderer` chạy trên Web Worker thật (`src/painter/painter.worker.ts`); Vite nuốt
 `?worker` sẵn nên không thêm cấu hình.
