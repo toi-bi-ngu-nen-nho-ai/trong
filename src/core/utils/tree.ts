@@ -110,7 +110,7 @@ function traverse(
     }
 
     if (isGfxGroupCompatibleModel(element)) {
-      element.childElements.forEach((child: GfxModel) => {
+      element.childElements.forEach(child => {
         innerTraverse(child);
       });
     }
@@ -156,7 +156,7 @@ export function canSafeAddToContainer(
 ) {
   if (
     element === container ||
-    (isGfxGroupCompatibleModel(element) && (element as GfxGroupModel).hasDescendant(container))
+    (isGfxGroupCompatibleModel(element) && element.hasDescendant(container))
   ) {
     return false;
   }
