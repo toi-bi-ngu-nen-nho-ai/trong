@@ -48,7 +48,8 @@ Trong AFFiNE, Page và Edgeless là **hai chế độ xem của cùng một Doc*
 
 | # | Quyết định | Lý do |
 |---|---|---|
-| D1 | Viết lại bằng **React thuần**, không nhúng BlockSuite/Lit | Mục tiêu là giống *hành vi và cảm giác*; da theo Bs Trọng |
+| D0 | Khi có mâu thuẫn: **giống AFFiNE nhất** thắng, rồi mới tới khuyến nghị của người thực hiện, rồi mới tới cái còn lại | Chủ dự án chốt 2026-08-11. Áp dụng cho mọi quyết định chưa được nêu tên trong bảng này |
+| D1 | Viết lại bằng **React thuần**, không nhúng BlockSuite/Lit | Mục tiêu là giống *hành vi và cảm giác*; da theo Bs Trọng. **Chỉ tầng khung nhìn** — tầng dữ liệu và phản ứng vẫn dùng nguyên thư viện của BlockSuite (§11) |
 | D2 | Mindmap và Bài viết là **hai thực thể riêng**, nối bằng liên kết | Giữ nguyên `Article`, Thư viện, xuất/nhập JSON đang chạy |
 | D3 | **Xoá sạch frontend cũ**, không khôi phục file nào từ `fd24576` | Chọn AFFiNE thay vì di sản |
 | D4 | **Giữ tầng lưu trữ** `src/lib/idb.ts` làm nền, nâng schema | Đã gia cố tốt; là nơi backend cắm vào sau |
@@ -552,18 +553,42 @@ không vẫn phải xác nhận bằng máy thật.
 
 ## 11. Dependency
 
-Chạy thật: **2 → 5**
+Chạy thật: **2 → 8**
+
+**Đính chính (phát hiện lúc lập kế hoạch P0-B, 2026-08-11).** Bản đầu ghi "2 → 5" và liệt
+`rxjs`, `@preact/signals-core`, `lodash-es` vào diện *không lấy*. Sai. Khi viết lệnh sao chép cho
+từng file mới phải nhìn dòng `import` của chúng, và ba gói đó nằm ngay trong lõi P0:
+
+| File lõi P0 | Phụ thuộc |
+|---|---|
+| `gfx/viewport.ts` | `rxjs`, `lodash-es` |
+| `gfx/layer.ts` | `rxjs`, `lodash-es`, `fractional-indexing` |
+| `gfx/tool/tool-controller.ts` | `@preact/signals-core`, `rxjs` |
+| `gfx/model/surface/element-model.ts` | `rxjs`, `lodash-es` |
+| `store/model/block/block-model.ts` | `@preact/signals-core`, `rxjs` |
+| `store/model/block/sync-controller.ts` | `@preact/signals-core` |
+
+23 file trong `framework/` dùng `rxjs`. Bỏ chúng nghĩa là **viết lại** tầng phản ứng của
+BlockSuite, đúng thứ D1 và D8 đã cấm.
 
 | Gói | Nặng | Vì sao |
 |---|---|---|
 | `yjs` | ~30 KB gz | Nguồn sự thật cho Doc và Surface (D5) |
+| `rxjs` | ~15–25 KB gz | `Subject`/`BehaviorSubject` là cách BlockSuite phát tín hiệu thay đổi khắp `framework/`. Tree-shake được vì ta chỉ chạm vài toán tử |
+| `@preact/signals-core` | ~4 KB gz | Cầu phản ứng giữa `Y.Map` và model (`sync-controller.ts`), và trạng thái công cụ đang chọn. Nối vào React bằng `useSyncExternalStore` |
+| `lodash-es` | ~3–5 KB gz | Chỉ vài hàm (`debounce`, `last`, `pick`). Tree-shake được |
 | `fractional-indexing` | ~1 KB | Thứ tự anh em + z-order. Thuật toán ngắn nhưng nhiều bẫy biên (thứ tự chữ số base62, điểm giữa); sai một chỗ là thứ tự phần tử hỏng âm thầm |
 | `katex` | ~75 KB gz + font | `block-latex` và `inline-latex` đều phụ thuộc `katex@0.16`. **Phải đóng gói kèm font WOFF2** — thiếu là công thức hiện ô vuông khi offline. Chủ dự án đã xác nhận có công thức thực sự cần trong nội dung y khoa, nên khoản nặng này là có chủ đích |
 
 Dev: `vitest`.
 
-**Không lấy:** `zod` (BlockSuite dùng kiểm lược đồ — TypeScript thuần đủ khi không có dữ liệu từ
-mạng vào), `lit`, `rxjs`, `@preact/signals-core`, `lodash-es`.
+**Không lấy:** `lit` (tầng khung nhìn — React thay thế; đây là gói duy nhất bỏ được thật) và
+`zod` (BlockSuite dùng kiểm lược đồ — TypeScript thuần đủ khi không có dữ liệu từ mạng vào).
+
+**Phương án đã cân nhắc rồi bỏ:** thay `rxjs` bằng một `EventEmitter` ~20 dòng, `signals-core`
+bằng bản signal tự viết, `lodash-es` bằng `debounce` tự viết — tổng cộng ~150 dòng của ta. Bỏ vì
+nó làm ta phân kỳ khỏi AFFiNE ở đúng tầng chịu lực nhất, và mọi lần cập nhật từ thượng nguồn sau
+này đều phải dịch tay. Chủ dự án đã chốt thứ tự ưu tiên: giống AFFiNE nhất trước.
 
 `gfx-turbo-renderer` chạy trên Web Worker thật (`src/painter/painter.worker.ts`); Vite nuốt
 `?worker` sẵn nên không thêm cấu hình.
