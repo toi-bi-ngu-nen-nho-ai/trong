@@ -119,16 +119,20 @@ import type { EditorHost } from '../../view/element/lit-host';
 import type { EditorHost } from '../host';
 ```
 
-- [ ] **Step 4: Type-check**
+- [ ] **Step 4: Type-check — chấp nhận đúng một loại lỗi**
+
+Cả tầng model là **một vòng phụ thuộc kiểu**: `base.ts` import `model.ts`, mà `model.ts` import `gfx-block-model.ts` và `surface/element-model.ts` — hai file thuộc Task 4. Vì vậy Task 1 **không thể** tsc sạch một mình, và đó không phải lỗi.
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
-npx tsc --noEmit 2>&1 | head -20
+npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "gfx-block-model\|element-model" || echo "OK: chi thieu file cua Task 4"
 ```
 
-Expected: exit 0, không in gì.
+Expected: `OK: chi thieu file cua Task 4`
 
-Nếu báo thiếu gói: **dừng và hỏi** — Global Constraints nói tầng này không cần cài thêm gì, nên báo thiếu nghĩa là phép đo sai.
+Nếu in ra lỗi khác — nhất là **thiếu gói npm** — thì **dừng và hỏi**. Global Constraints nói tầng này không cần cài thêm gì; báo thiếu gói nghĩa là phép đo sai.
+
+`model.ts` import `GfxPrimitiveElementModel` như một **giá trị** (dùng `instanceof`), không chỉ kiểu — nên tầng này chỉ chạy được sau Task 4. Trong Task 1 chưa có gì gọi tới nó, nên không sao.
 
 - [ ] **Step 5: Commit**
 
@@ -144,7 +148,7 @@ nên khai kiểu tối giản, không port cả tầng view/.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-**Tiêu chí xong:** `npx tsc --noEmit` exit 0.
+**Tiêu chí xong:** `npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "gfx-block-model\|element-model"` không in ra dòng nào.
 
 ---
 
@@ -216,10 +220,13 @@ Expected: `Test Files  1 passed (1)`, mọi ca xanh.
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
-npm test && npx tsc --noEmit
+npm test
+npx tsc --noEmit 2>&1 | grep "error TS" | grep -v "gfx-block-model\|element-model\|surface-model" || echo "OK: chi thieu file cua task sau"
 ```
 
-Expected: `Test Files  6 passed (6)`, tsc im lặng.
+Expected: `Test Files  6 passed (6)`, và `OK: chi thieu file cua task sau`.
+
+Vì sao test chạy được dù tsc còn đỏ: Vitest chỉ dịch chứ không kiểm kiểu, và `tree.ts` chỉ import **giá trị** từ `base.ts` (`gfxGroupCompatibleSymbol`); còn `model.ts` — file kéo theo cả chuỗi thiếu — nó chỉ import ở dạng `import type`, bị xoá sạch khi dịch.
 
 - [ ] **Step 5: Commit**
 
