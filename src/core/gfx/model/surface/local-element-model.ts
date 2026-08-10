@@ -11,7 +11,7 @@ import {
 } from '@blocksuite/global/gfx';
 import { mutex } from 'lib0';
 
-import type { EditorHost } from '../../../view/index';
+import type { EditorHost } from '../../host';
 import type { GfxCompatibleInterface, PointTestOptions } from '../base';
 import type { GfxGroupModel, GfxModel } from '../model';
 import type { SurfaceBlockModel } from './surface-model';

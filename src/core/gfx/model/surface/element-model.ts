@@ -28,7 +28,7 @@ import {
   lockElementImpl,
   unlockElementImpl,
 } from '../../../utils/tree';
-import type { EditorHost } from '../../../view/index';
+import type { EditorHost } from '../../host';
 import type {
   GfxCompatibleInterface,
   GfxGroupCompatibleInterface,
