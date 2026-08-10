@@ -464,20 +464,52 @@ ngăn xếp — tránh lỗi "bấm hoàn tác một lần lại lùi nửa bư�
 
 ### Port test gốc cùng với code
 
-BlockSuite có sẵn ~2.465 dòng unit test phủ đúng những module P1 đụng tới:
+**Đính chính (phát hiện lúc lập kế hoạch, 2026-08-11).** Bản đầu của mục này ghi "~2.465 dòng
+test gốc, port hết". Sai. Kiểm lại từng file thì chỉ **855 dòng port thẳng được**; 1.433 dòng
+(58%) phụ thuộc bộ khung kiểm thử Lit + DI của BlockSuite (`TestWorkspace` từ
+`@blocksuite/store/test`, `effects()` đăng ký custom element, `TestEditorContainer`) — thứ dự án
+này không dựng. Con số cũ đã lạc quan quá mức và làm nhẹ đi công thật của P0.
+
+**Nhóm A — port thẳng, chỉ đổi đường dẫn import (855 dòng)**
 
 | Test gốc | Dòng | Che phần nào |
 |---|---|---|
-| `framework/std/src/__tests__/gfx/view.unit.spec.ts` | 1015 | Viewport, view manager, thứ tự lớp |
-| `framework/std/src/__tests__/gfx/surface.unit.spec.ts` | 418 | Store, phần tử surface, quan sát thay đổi |
 | `affine/blocks/surface/src/__tests__/bound.unit.spec.ts` | 180 | Hình hộp, giao cắt — nền của hit-test |
-| `affine/gfx/pointer/src/__tests__/pan-tool.unit.spec.ts` | 177 | Kéo bảng |
-| `framework/std/src/__tests__/gfx/tree.unit.spec.ts` | 165 | Lồng nhau |
+| `framework/std/src/__tests__/gfx/tree.unit.spec.ts` | 165 | Lồng nhau (`utils/tree.ts`) |
 | `affine/blocks/surface/src/__tests__/math-utils.unit.spec.ts` | 157 | Toán hình học |
 | `affine/blocks/surface/src/__tests__/a-star.unit.spec.ts` | 114 | Định tuyến đường nối gấp khúc |
-| `affine/blocks/surface/src/__tests__/sort.unit.spec.ts` | 99 | Chỉ số phân số, thứ tự z |
+| `affine/blocks/surface/src/__tests__/sort.unit.spec.ts` | 99 | `loadingSort` — sắp thứ tự nạp theo phụ thuộc (**không phải** thứ tự z, xem dưới) |
 | `affine/gfx/pointer/src/__tests__/adaptive-load-controller.unit.spec.ts` | 73 | Giới hạn tải khi snap |
-| `graph` + `priority-queue` + `curve` | 67 | Phụ trợ định tuyến |
+| `affine/blocks/surface/src/__tests__/graph.unit.spec.ts` | 23 | Đồ thị cho định tuyến |
+| `affine/blocks/surface/src/__tests__/priority-queue.unit.spec.ts` | 22 | Hàng đợi ưu tiên |
+| `framework/global/src/__tests__/curve.unit.spec.ts` | 22 | Tham số Bézier |
+
+**Nhóm B — cần shim nhỏ (177 dòng)**
+
+`affine/gfx/pointer/src/__tests__/pan-tool.unit.spec.ts` — chỉ vướng `EdgelessLegacySlotIdentifier`
+và `MouseButton`; thay bằng stub, giữ nguyên phần còn lại.
+
+**Nhóm C — không port được (1.433 dòng)**
+
+`view.unit.spec.ts` (1015) và `surface.unit.spec.ts` (418). Chúng phủ đúng Viewport, Store và
+Layer — tim của P0 — nên không thể bỏ qua.
+
+**Cách xử lý nhóm C: đọc như đặc tả, không chép như file.** Với mỗi `test(...)` trong hai file
+đó, chép **khẳng định** sang test của ta và bỏ giàn giáo Lit. Ví dụ: một ca dựng `TestWorkspace`
+rồi kiểm `viewport.toModelCoord(0, 0)` sau khi `setZoom(2)` thì bên ta dựng `new Viewport()`
+trần và kiểm đúng cặp số đó. Cùng một khẳng định, khác cách dựng.
+
+Đây là biến thể của cùng nguyên tắc "không tự nghĩ ra con số kỳ vọng" ở §10 dưới — chỉ khác là
+nguồn chép là mã test thay vì kết quả chạy.
+
+### Hàm không có test gốc — bổ sung vào danh sách
+
+Ngoài `layout.ts` của mindmap (đã nêu dưới), lượt rà lúc lập kế hoạch tìm thêm:
+
+- **`sortIndex`** (`affine/blocks/surface/src/utils/sort.ts`) — so sánh chỉ số phân số **có tính
+  lồng nhóm**, tức là hàm quyết định thứ tự z thật sự. `sort.unit.spec.ts` chỉ phủ `loadingSort`
+  nằm cùng file, không phủ hàm này. Cần test tự viết, và nó đáng được viết kỹ vì sai thứ tự z
+  là loại lỗi hiện ra rất muộn.
 
 Cho tìm xuyên bảng ở P1.5, thêm 3 file trong
 `AFFiNE/packages/common/nbstore/src/impls/idb/indexer/__tests__/`: `bm25.spec.ts`,
@@ -544,7 +576,7 @@ mạng vào), `lit`, `rxjs`, `@preact/signals-core`, `lodash-es`.
 |---|---|---|
 | Hiệu năng trên iPhone không đạt | Cao | Ba cấu hình mobile của `viewportRuntimeConfig` lấy ngay từ P1.0, không đợi gặp sự cố. Danh sách kiểm tay ở cuối mỗi chặng. |
 | P0 tốn công trước khi thấy màn hình chạy | Trung bình | P1.0 kết thúc bằng một bảng trống pan/zoom được — mốc nhìn thấy được, không phải "nền xong rồi tin tôi đi" |
-| Port test gốc vướng phụ thuộc Lit/DI | Trung bình | Ưu tiên các file test thuần hình học (bound, math-utils, a-star, sort, curve — chạy độc lập được). File nào vướng thì hạ xuống fixture vàng |
+| ~~Port test gốc vướng phụ thuộc Lit/DI~~ | **Đã xảy ra** | Không còn là rủi ro — đã đo: 1.433/2.465 dòng (58%) không port được. Xử lý ở §10 nhóm C: đọc như đặc tả, chép khẳng định, bỏ giàn giáo |
 | KaTeX phình bundle | Thấp | Nạp động khi gặp công thức đầu tiên; font subset |
 | Người dùng mất bảng mindmap cũ | Đã chấp nhận | Quyết định rõ ràng của chủ dự án (D3). Mã cũ đã xoá ở `fd24576` nên gần như chắc đã hỏng |
 | Chỉ mục tìm kiếm phình P1.5 | Trung bình | ~1.700 dòng, một mình bằng cả phần còn lại của P1.5. Nếu P1.5 phải cắt thì đây là hạng mục tách ra thành spec riêng, không phải hạng mục làm dở |
