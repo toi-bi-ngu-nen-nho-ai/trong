@@ -479,6 +479,33 @@ html.theme-shift * {
     box-shadow var(--theme-shift, 300ms) ease !important;
 }
 
+/* ─── Chuyển cảnh danh sách bảng ↔ mặt bảng (Sơ đồ tư duy) ───────────────────────────────────────
+   ĐÃ BỎ lớp phủ phóng ảnh xem trước từ thẻ ra toàn màn hình — xem ghi chú dài ở openBoard()
+   (App.tsx) về ba lý do nó không bao giờ đọc thành "biến hình" được.
+
+   Thay bằng đúng thứ tối giản còn lại: nội dung mới tự hiện dần kèm một cú phóng RẤT nhẹ. Vì sao
+   0,98 và 1,02 chứ không mạnh tay hơn: cú phóng ở đây không có nhiệm vụ kể chuyện "thẻ này lớn lên
+   thành bảng" (chuyện đó cần một lớp phủ, và đó chính là thứ vừa bỏ) — nó chỉ cần cho mắt một
+   HƯỚNG để đọc ra là đang đi VÀO (0,98 → 1, nở ra) hay đang lùi RA (1,02 → 1, co lại). Quá 2% là
+   thành một cú giật thừa, đúng thứ vừa mất công gỡ đi.
+
+   Làm bằng animation (không phải transition) và gắn kèm `key` ở JSX: mỗi lượt mount là animation tự
+   chạy đúng một lần, không cần state theo dõi, không cần đo đạc, không có gì phải dọn khi xong. */
+@keyframes boardIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes boardOut {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1); }
+}
+/* Cùng họ đường cong với mọi hoạt ảnh khác của app — dốc ở đầu, còn nhúc nhích ở chặng cuối (KHÔNG
+   dùng loại phẳng lì cuối chặng như cubic-bezier(.16,1,.3,1) từng dùng cho lớp phủ cũ: nó đi hết
+   97% quãng đường ngay giữa chặng, 30% thời lượng cuối đứng hình, và đó chính là cú "khựng" đo được
+   trên video). */
+.board-in { animation: boardIn 0.2s cubic-bezier(0.22, 0.68, 0.24, 1) both; }
+.board-out { animation: boardOut 0.2s cubic-bezier(0.22, 0.68, 0.24, 1) both; }
+
 .screen-transition {
   animation: fadeSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -702,6 +729,8 @@ html.theme-shift * {
   .mind-found,
   .mind-tool-slider,
   .mind-penkit-slider,
+  .board-in,
+  .board-out,
   .fade-in,
   .toast-in,
   .toast-in-full,

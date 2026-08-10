@@ -10918,7 +10918,7 @@ function MindmapGallery({
   boards: MindBoard[]
   // `rect` — khung của thẻ vừa chạm (nếu mở từ MỘT THẺ, không phải từ kết quả tìm xuyên bảng) — cho
   // MindmapScreen phóng khung xem trước lên đúng chỗ đó khi mở bảng (D3).
-  onOpen: (id: string, query?: string, rect?: DOMRect) => void
+  onOpen: (id: string, query?: string) => void
   onCreate: () => void
   onEditBoard: (board: MindBoard) => void
   previewTick: number
@@ -11185,7 +11185,7 @@ function MindmapGallery({
                 className={`mind-board-drop ${i === shown.length - 1 && shown.length % 2 === 1 ? "col-span-2" : ""}`}
                 style={{ "--row": Math.floor(i / 2) } as React.CSSProperties}
               >
-                <BoardCard board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
+                <BoardCard board={b} previewTick={previewTick} onOpen={() => onOpen(b.id)} onEdit={() => onEditBoard(b)} />
               </div>
             ))}
           </div>
@@ -11195,7 +11195,7 @@ function MindmapGallery({
                 màn hình) hiện trước, hàng đầu hiện sau cùng, --i = số hàng còn lại phía dưới nó. */}
             {shown.map((b, i) => (
               <div key={b.id} className="mind-board-rise" style={{ "--i": shown.length - 1 - i } as React.CSSProperties}>
-                <BoardRow board={b} previewTick={previewTick} onOpen={(rect) => onOpen(b.id, undefined, rect)} onEdit={() => onEditBoard(b)} />
+                <BoardRow board={b} previewTick={previewTick} onOpen={() => onOpen(b.id)} onEdit={() => onEditBoard(b)} />
               </div>
             ))}
           </div>
@@ -11345,237 +11345,21 @@ function BoardPreviewFrame({
   board,
   previewTick,
   className,
-  // `frameless`: bỏ viền và bo góc của chính khung này. Dùng ở lớp phủ chuyển cảnh, nơi cái viền đã
-  // được vẽ ở lớp NGOÀI để nó phóng to lên được theo cú zoom — vẽ thêm một viền nữa ở đây là hai
-  // đường viền chồng nhau, một cái dày dần và một cái mãi 1px.
-  frameless,
 }: {
   board: MindBoard
   previewTick: number
   className: string
-  frameless?: boolean
 }) {
   return (
     <div
       className={`relative overflow-hidden ${className}`}
       style={{
         background: PAPER_BG,
-        ...(frameless ? {} : { border: `1px solid ${C.line}`, borderRadius: 12 }),
+        border: `1px solid ${C.line}`,
+        borderRadius: 12,
       }}
     >
       <BoardThumb board={board} tick={previewTick} />
-    </div>
-  )
-}
-
-// ─── Chuyển cảnh danh sách ↔ bảng (D3) ─────────────────────────────────────────
-//
-// Đổi cảnh ĐỘT NGỘT giữa một thẻ nhỏ trong lưới và cả một mặt bảng full-screen khiến người dùng mất
-// một nhịp để định vị lại — "tôi đang ở đâu". Phóng khung xem trước từ ĐÚNG chỗ vừa chạm lên toàn
-// khung (và ngược lại lúc rời bảng) giữ liên tục một MỐC THỊ GIÁC xuyên suốt cú chuyển cảnh.
-//
-// Đây là một khung ảnh xem trước (BoardPreviewFrame) NỔI ĐÈ LÊN MindmapScreen trong lúc chuyển,
-// không phải bảng vẽ thật — bảng thật đã mount/unmount ngay bên dưới nó (tức thời, không đợi hoạt
-// ảnh); lớp phủ chỉ có việc CHE cú đổi cảnh đó lại bằng một hình ảnh mượt mắt, và tự dẹp đi khi xong.
-interface BoardTransition {
-  board: MindBoard
-  // Khung BẮT ĐẦU — khung thẻ (mở bảng) hoặc khung cả mặt bảng (rời bảng).
-  from: { x: number; y: number; w: number; h: number }
-  dir: "enter" | "exit"
-}
-
-// Máy đang xin giảm chuyển động (E) — bỏ hẳn lớp phủ phóng to/thu nhỏ, để lại đúng cú đổi cảnh
-// mặc định (React tự thay nhánh JSX, không có gì thêm) — "chỉ còn mờ/hiện" theo đúng nghĩa không
-// còn chuyển động vị trí/kích thước nào cả, chỉ còn việc nội dung mới xuất hiện.
-function prefersReducedMotion(): boolean {
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  } catch {
-    return false
-  }
-}
-
-function domRectToBox(r: DOMRect): { x: number; y: number; w: number; h: number } {
-  return { x: r.left, y: r.top, w: r.width, h: r.height }
-}
-
-// Ảnh xem trước được phép tràn qua mép màn hình bao nhiêu trước khi tan đi (xem `K` trong
-// BoardTransitionOverlay). 1,0 = dừng đúng lúc vừa khít, không tràn chút nào — mất hẳn cảm giác "cái
-// chuồng không giữ nổi". 1,3 = tràn 30%, tức mỗi bên khoảng 60px trên khung 420px: đủ để đọc ra là
-// đang bung ra ngoài khuôn thẻ, còn ĐỦ NHỎ để mắt vẫn bám theo được cả hình. Đây là con số THẨM MỸ,
-// chỉnh thoải mái — không có ràng buộc hình học nào phụ thuộc vào nó.
-const BURST_OVERFLOW = 1.3
-
-// Đường cong chuyển động của cú phóng. Trước đây là cubic-bezier(.16,1,.3,1) — quá dốc ở đầu đến mức
-// chặng cuối không còn gì để nhìn. Đo tiến độ thật của hai đường cong (phần trăm quãng đường đã đi
-// được tại từng mốc thời lượng):
-//
-//     đường cong          t=0,3   t=0,5   t=0,7   t=0,9    đi được trong 30% cuối
-//     .16,1,.3,1 (cũ)      87,7    97,2    99,6   100,0    0,43%   ← đứng hình
-//     .22,.68,.24,1        75,8    91,7    97,7    99,8    2,26%
-//
-// 0,43% quãng đường trong 30% thời lượng cuối, với cú rời bảng 360ms, là 108ms cuối cùng nhích chưa
-// tới một pixel — đúng ba khung hình đứng yên đo được trên video (xem ghi chú ở fadeDelay). Người
-// dùng đọc ra là "khựng", và họ đúng: hoạt ảnh ĐÃ dừng thật, chỉ là chưa hết giờ.
-//
-// Đường cong mới vẫn dốc ở đầu (91,7% ngay giữa chặng — vẫn nhanh, vẫn dứt khoát) nhưng để lại gấp
-// hơn năm lần chuyển động cho chặng cuối, nên không còn quãng nào phẳng lì. Cùng với phép tan nay đã
-// chạy cho cả hai chiều, chặng cuối luôn có thứ đang đổi.
-const EASE = "cubic-bezier(.22,.68,.24,1)"
-
-function BoardTransitionOverlay({
-  transition,
-  targetRect,
-  onDone,
-}: {
-  transition: BoardTransition
-  // null = đích chưa đo được (đang đợi khung MỚI dựng xong trong DOM) — cứ đứng yên ở `from` tới khi
-  // có, không có gì để mà bắt đầu chạy tới.
-  targetRect: { x: number; y: number; w: number; h: number } | null
-  onDone: () => void
-}) {
-  // Hai khung của cú chuyển cảnh, gọi theo VAI TRÒ chứ không theo chiều đi: `cage` là khung nhỏ hình
-  // cái thẻ (chuồng), `screen` là cả mặt bảng. Mở bảng thì đi từ cage ra screen, rời bảng thì ngược
-  // lại — nhưng hình học thì y hệt nhau, nên chỉ cần đảo hai đầu chứ không phải hai công thức.
-  const enter = transition.dir === "enter"
-  const cage = enter ? transition.from : targetRect
-  const screen = enter ? targetRect : transition.from
-
-  // ─── Vì sao phóng ĐỀU (một hệ số duy nhất) chứ không kéo giãn theo hai trục ───
-  //
-  // Bản trước scale(sx, sy) với sx = đích/nguồn theo TỪNG trục: thẻ 4:3 kéo thành màn hình 9:19,5 là
-  // hình trong thẻ bị bóp méo gần ba lần theo chiều dọc — nét vẽ tròn thành nét bầu dục, chữ thành
-  // vệt. Đó chính là chỗ "hình ảnh trớt quớt": không phải hiệu ứng quá mạnh, mà là ẢNH SAI.
-  //
-  // Nay dùng ĐÚNG MỘT hệ số cho cả hai trục, lấy theo kiểu "phủ kín" (max, không phải min): ảnh giữ
-  // nguyên tỉ lệ của chính nó, cứ thế to dần cho tới khi TRÀN ra ngoài mép màn hình. Cái khung bao
-  // quanh nó (viền + bo góc của thẻ) cũng to dần theo đúng hệ số đó — viền 1px thành 6px rồi trôi ra
-  // khỏi màn hình và tan đi. Con thú lớn dần cho tới khi cái chuồng không còn giữ nổi nó nữa.
-  //
-  // ─── Nhưng "phủ kín" một mình thì KHÔNG CÓ TRẦN, và trên điện thoại hẹp nó nổ tung ───
-  //
-  // Hệ số phủ kín lấy theo TRỤC LỆCH NHẤT giữa thẻ và màn hình, nên tỉ lệ hai bên càng khác nhau thì
-  // nó càng lớn — không có gì chặn lại. Số đo thật trên khung 420×912 (iPhone Air):
-  //     thẻ lưới 380×332, mặt bảng 420×863  →  K = max(1,11; 2,60) = 2,60  →  khung rộng 989px
-  //     hàng danh sách 380×70                →  K = max(1,11; 12,3) = 12,3 →  khung rộng 4676px
-  // Tức là ở chế độ danh sách, ảnh xem trước bị phóng gấp MƯỜI HAI lần và chỉ còn thấy được 9% bề
-  // ngang của nó — phần còn lại quét ngang qua mép màn hình. Đó là chỗ "tràn, đập vào mắt": không
-  // phải ảnh sai như bản scale hai trục, mà là ĐÚNG ảnh ở sai cỡ.
-  //
-  // Chặn trên bằng hệ số "vừa khít" (min — cỡ lớn nhất mà thẻ còn nằm trọn trong màn hình) nhân một
-  // biên tràn cố định. Vẫn phóng ĐỀU nên ảnh không méo, vẫn tràn qua mép nên cái chuồng vẫn thua —
-  // chỉ là thua trong tầm mắt chứ không phải nổ ra ngoài vũ trụ. Không cần khung hình cuối phủ kín
-  // mặt bảng: ảnh xem trước đã tan hết ở 96% thời lượng (xem fadeDelay/fadeDur bên dưới), nên cú bàn
-  // giao sang mặt bảng thật do ĐỘ MỜ lo, không phải do hình học.
-  const kFill = cage && screen ? Math.max(screen.w / cage.w, screen.h / cage.h) : 1
-  const kFit = cage && screen ? Math.min(screen.w / cage.w, screen.h / cage.h) : 1
-  const K = Math.min(kFill, kFit * BURST_OVERFLOW)
-
-  // Khung DOM được dựng sẵn ở kích thước LỚN NHẤT (cage × K) rồi thu nhỏ lại bằng transform, chứ
-  // không dựng ở cỡ thẻ rồi phóng to lên. Lý do là chuyện raster: trình duyệt vẽ lớp này ra bitmap
-  // MỘT LẦN ở đúng kích thước layout, transform sau đó chỉ là dán lại bitmap ấy — dựng ở cỡ thẻ rồi
-  // phóng 6 lần là nhìn thấy rõ từng pixel nhoè. Dựng lớn, thu nhỏ lại thì khung hình CUỐI (thứ người
-  // ta nhìn lâu nhất) luôn sắc nét.
-  const bigW = cage ? cage.w * K : 0
-  const bigH = cage ? cage.h * K : 0
-
-  // Hai đầu của hoạt ảnh, cùng một dạng transform (origin 0 0) để CSS nội suy được liền mạch.
-  const collapsed = `translate(0px, 0px) scale(${1 / K})`
-  const expanded =
-    cage && screen
-      ? `translate(${screen.x + screen.w / 2 - bigW / 2 - cage.x}px, ${screen.y + screen.h / 2 - bigH / 2 - cage.y}px) scale(1)`
-      : collapsed
-
-  const [open, setOpen] = useState(!enter)
-  const doneRef = useRef(false)
-
-  // Mở: 520ms. Chậm hơn hẳn 280ms của bản trước, và đó là chủ ý — đây là khoảnh khắc được dàn dựng
-  // của cả màn hình này, không phải một cú đổi trạng thái cần cho xong. Rời bảng: 360ms, nhanh hơn
-  // lúc vào theo đúng luật "thoát nhanh hơn vào" — quay lại danh sách là việc người ta muốn xong sớm.
-  const DUR = enter ? 520 : 360
-
-  useEffect(() => {
-    if (!targetRect) return
-    // Đợi một nhịp rồi mới đổi (setTimeout, không phải requestAnimationFrame — xem ghi chú ở effect
-    // đo `transitionTarget` trong MindmapScreen về lý do): phải để trình duyệt VẼ XONG khung BẮT ĐẦU
-    // trước, nếu đổi ngay trong cùng một lượt vẽ thì CSS transition không có "trước" để so, chạy
-    // thẳng tới đích luôn, không thấy phóng to/thu nhỏ gì cả.
-    const t = setTimeout(() => setOpen(enter), 20)
-    return () => clearTimeout(t)
-  }, [targetRect, enter])
-
-  // Hết giờ dự phòng — quá thời lượng animation cộng một khoảng dư mà `transitionend` vẫn chưa bắn
-  // (tab bị ẩn giữa chừng, hoặc trình duyệt bỏ lỡ sự kiện): tự dẹp lớp phủ, đừng để nó che màn hình
-  // MÃI MÃI chỉ vì một hoạt ảnh trang trí trục trặc.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!doneRef.current) {
-        doneRef.current = true
-        onDone()
-      }
-    }, DUR + 320)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  if (!cage) return null
-
-  // Ảnh xem trước tan dần ở CHẶNG CUỐI để lộ thứ thật bên dưới. Không có bước này thì khung hình cuối
-  // cùng là một cú thay ảnh cứng — ảnh xem trước (chỉ có nét, không chữ, khung nhìn riêng) đổi phắt
-  // sang thứ thật. Tan dần biến cú thay ảnh đó thành một lớp chồng lên nhau, mắt đọc ra là "cùng một
-  // bảng, đang rõ dần ra".
-  // Kết thúc ngay TRƯỚC lúc transform xong (0,96×DUR), không sau: onDone() gỡ lớp phủ đúng lúc
-  // transform kết thúc, tan chưa xong tới đó là lộ lại một khung hình ảnh xem trước rồi mới biến mất.
-  //
-  // CHẠY CHO CẢ HAI CHIỀU. Trước đây chỉ chiều MỞ mới có (`enter ? ... : ""`), và đó là nguyên nhân
-  // gốc của cú khựng ở chiều RỜI bảng. Đo trên video quay màn hình thật (30 khung/giây), độ lệch
-  // trung bình giữa hai khung liên tiếp:
-  //     khung 105  0,0040   ← ba khung gần như y hệt nhau: màn hình ĐỨNG YÊN khoảng 100ms
-  //     khung 106  0,0040
-  //     khung 107  0,0143
-  //     khung 108  1,6415   ← rồi lộp một cái, ảnh xem trước biến mất, thẻ thật hiện ra
-  // Chiều MỞ không hề có quãng đứng yên nào (khung 53-60 đều 0,25-0,48) — khác biệt duy nhất giữa
-  // hai chiều chính là phép tan này. Lý do: đường cong chuyển động gần như đã đi hết đường TRƯỚC KHI
-  // hết giờ (xem EASE bên dưới), nên chặng cuối không còn gì nhúc nhích; chiều mở lấy phép tan lấp
-  // vào chỗ đó nên mắt vẫn thấy đang đổi, chiều rời bỏ trống nên thành ra đứng hình rồi giật.
-  const fadeDelay = Math.round(DUR * 0.5)
-  const fadeDur = Math.round(DUR * 0.46)
-
-  return (
-    <div
-      className="fixed z-50 overflow-hidden"
-      style={{
-        left: cage.x,
-        top: cage.y,
-        width: bigW,
-        height: bigH,
-        // Viền và bo góc khai bằng đơn vị của khung LỚN, nên sau khi thu nhỏ 1/K ở đầu hoạt ảnh chúng
-        // ra đúng 1px và 12px — khớp khít cái thẻ đang nằm dưới. Càng phóng ra chúng càng dày và càng
-        // tròn, đúng như cái chuồng đang bị căng ra.
-        border: `${K}px solid ${open ? "transparent" : C.line}`,
-        borderRadius: 12 * K,
-        transformOrigin: "0 0",
-        transform: open ? expanded : collapsed,
-        // Cả hai chiều đều BẮT ĐẦU rõ rồi TAN ở chặng cuối — `open` khớp `enter` nghĩa là đã tới đầu
-        // bên kia, tức đúng lúc phải tan đi. (Mở: open false→true. Rời: open true→false.)
-        opacity: open === enter ? 0 : 1,
-        willChange: "transform, opacity",
-        transition: [
-          `transform ${DUR}ms ${EASE}`,
-          // Viền tan sớm hơn hình: cái chuồng phải biến mất TRƯỚC khi con thú ra hết, nếu không nó chỉ
-          // là một cái khung to dần chứ không phải một cái khung đang thua cuộc.
-          `border-color ${Math.round(DUR * 0.45)}ms ease-out ${Math.round(DUR * 0.22)}ms`,
-          `opacity ${fadeDur}ms ease-in ${fadeDelay}ms`,
-        ].join(", "),
-        pointerEvents: "none",
-      }}
-      onTransitionEnd={(e) => {
-        if (e.propertyName !== "transform" || doneRef.current) return
-        doneRef.current = true
-        onDone()
-      }}
-    >
-      <BoardPreviewFrame board={transition.board} previewTick={0} className="w-full h-full" frameless />
     </div>
   )
 }
@@ -11666,19 +11450,12 @@ function BoardCard({
 }: {
   board: MindBoard
   previewTick: number
-  // Nhận khung của chính thẻ lúc chạm — MindmapScreen dùng để phóng khung xem trước lên đúng chỗ
-  // vừa chạm khi mở bảng (D3), thay vì đổi cảnh đột ngột.
-  onOpen: (rect: DOMRect) => void
+  onOpen: () => void
   onEdit: () => void
 }) {
-  const cardRef = useRef<HTMLDivElement>(null)
-  const hold = useHoldToEdit(() => onOpen(cardRef.current?.getBoundingClientRect() ?? new DOMRect()), onEdit)
+  const hold = useHoldToEdit(onOpen, onEdit)
   return (
     <div
-      ref={cardRef}
-      // Để MindmapScreen dò lại ĐÚNG thẻ này khi phóng khung xem trước NGƯỢC lại (rời bảng về danh
-      // sách) — lúc đó chỉ có id bảng trong tay, không có sẵn tham chiếu tới thẻ.
-      data-board-id={board.id}
       // KHÔNG viền: khung xem trước bên trong đã có viền riêng, thêm viền ở đây nữa là hai khối lồng
       // nhau cùng vẽ đường bao — đúng kiểu "thẻ trong thẻ" mà hệ thiết kế của app cố tình tránh (xem
       // "Flat by default... không cần viền hay shadow" trong DESIGN.md). Sắc thẻ vẫn nhận ra được
@@ -11696,7 +11473,7 @@ function BoardCard({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
-          onOpen(cardRef.current?.getBoundingClientRect() ?? new DOMRect())
+          onOpen()
         }
       }}
       aria-label={`Mở bảng ${board.name}. Giữ để đổi tên, đổi màu, nhân bản, xuất file hoặc xoá.`}
@@ -11744,16 +11521,13 @@ function BoardRow({
 }: {
   board: MindBoard
   previewTick: number
-  onOpen: (rect: DOMRect) => void
+  onOpen: () => void
   onEdit: () => void
 }) {
   const spec = board.specialtyId ? SPECIALTIES.find((s) => s.id === board.specialtyId) : undefined
-  const rowRef = useRef<HTMLDivElement>(null)
-  const hold = useHoldToEdit(() => onOpen(rowRef.current?.getBoundingClientRect() ?? new DOMRect()), onEdit)
+  const hold = useHoldToEdit(onOpen, onEdit)
   return (
     <div
-      ref={rowRef}
-      data-board-id={board.id}
       // KHÔNG viền — cùng lý do với BoardCard: khung xem trước bên trong đã có viền riêng.
       className={`relative flex items-center gap-3 p-2 ${R.card} ${TAP}`}
       style={{ background: `color-mix(in srgb, ${board.color} 11%, var(--c-surface))` }}
@@ -11761,7 +11535,7 @@ function BoardRow({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
-          onOpen(rowRef.current?.getBoundingClientRect() ?? new DOMRect())
+          onOpen()
         }
       }}
       aria-label={`Mở bảng ${board.name}. Giữ để đổi tên, đổi màu, nhân bản, xuất file hoặc xoá.`}
@@ -11854,56 +11628,29 @@ function MindmapScreen({
   const [previewTick, setPreviewTick] = useState(0)
   const activeBoard = boards.find((b) => b.id === (sheetBoardId ?? activeBoardId))
 
-  // ─── Chuyển cảnh danh sách ↔ bảng (D3) ────────────────────────────────────
-  // `rootRef` đo khung CẢ MÀN HÌNH này — đích lúc mở bảng (enter), điểm xuất phát lúc rời bảng
-  // (exit). Không dùng window.innerWidth/Height: có thanh điều hướng dưới nằm NGOÀI component này,
-  // full window sẽ lấn qua cả phần đó.
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [transition, setTransition] = useState<BoardTransition | null>(null)
-  const [transitionTarget, setTransitionTarget] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
-
-  useEffect(() => {
-    if (!transition) {
-      setTransitionTarget(null)
-      return
-    }
-    // Đợi một nhịp: lúc effect này chạy, nhánh JSX mới (bảng vừa mount, hoặc danh sách vừa dựng lại)
-    // có thể chưa kịp có kích thước thật trong lượt vẽ đầu tiên.
-    //
-    // setTimeout, không phải requestAnimationFrame: rAF chỉ chắc chắn chạy khi tab đang thật sự vẽ
-    // khung hình (foreground, đang compositing) — tab bị ẩn/thu nhỏ đúng lúc này thì rAF có thể
-    // treo vô thời hạn, kẹt luôn lớp phủ che màn hình mãi không tự dẹp. setTimeout luôn chạy qua
-    // hàng đợi sự kiện bình thường, không phụ thuộc việc có đang vẽ khung hình hay không.
-    const t = setTimeout(() => {
-      if (transition.dir === "enter") {
-        const r = rootRef.current?.getBoundingClientRect()
-        if (r) setTransitionTarget(domRectToBox(r))
-        return
-      }
-      // "exit": đích là khung của ĐÚNG thẻ bảng này trong danh sách vừa dựng lại. Không tìm thấy
-      // (bộ lọc chuyên khoa đang ẩn nó, hoặc bảng vừa bị xoá) — dẹp lớp phủ ngay, khỏi treo màn.
-      const el = document.querySelector(`[data-board-id="${transition.board.id}"]`)
-      if (el) setTransitionTarget(domRectToBox(el.getBoundingClientRect()))
-      else setTransition(null)
-    }, 30)
-    return () => clearTimeout(t)
-  }, [transition])
-
-  function finishTransition() {
-    setTransition(null)
-    setTransitionTarget(null)
-  }
-
-  function openBoard(id: string, query: string | undefined, rect?: DOMRect, boardOverride?: MindBoard) {
+  // ─── Chuyển cảnh danh sách ↔ bảng ─────────────────────────────────────────
+  //
+  // ĐÃ BỎ HẲN lớp phủ phóng ảnh xem trước từ thẻ ra toàn màn hình (và ngược lại). Ý tưởng thì đúng —
+  // giữ một mốc thị giác xuyên suốt để người dùng không mất nhịp định vị — nhưng cách làm đó không
+  // bao giờ đọc thành "biến hình" được, vì ba lý do nằm ở chính kiến trúc của nó chứ không phải ở
+  // tham số nào chỉnh được:
+  //
+  //   1. Bảng thật mount NGAY, đầy đủ, ở khung hình đầu tiên. Đo trên video quay màn hình thật: độ
+  //      lệch giữa hai khung liên tiếp nhảy vọt lên 8,80 đúng lúc chạm — cả mặt bảng, thanh trên,
+  //      thanh công cụ hiện ra cùng một lúc. Lớp phủ vì thế không CHE cú đổi cảnh nào cả; nó chỉ là
+  //      một hình chữ nhật trôi bên trên một màn hình đã đổi xong từ trước.
+  //   2. Ảnh xem trước (chỉ có nét, không chữ, khung nhìn riêng) không khớp mặt bảng thật bên dưới,
+  //      nên suốt lúc nó còn sống mắt thấy HAI bản sao của cùng một node trượt lên nhau.
+  //   3. Một hệ số phóng đều không map nổi thẻ 4:3 lên màn 9:19,5 — hoặc tràn ra ngoài, hoặc chừa
+  //      lại một dải trống. Ba vòng chỉnh liên tiếp (méo ảnh → tràn màn hình → khựng cuối hoạt ảnh)
+  //      đều là cùng một mâu thuẫn đó đội lốt khác nhau.
+  //
+  // Thay bằng phép hoà hình thuần: mặt bảng (hoặc danh sách) tự hiện dần kèm một cú phóng rất nhẹ,
+  // làm bằng CSS animation chạy lúc mount — không đo đạc, không state, không lớp phủ, không thứ gì
+  // để mà lệch. Xem .board-in/.board-out trong index.css.
+  function openBoard(id: string, query?: string) {
     onSwitchBoard(id)
     setOpenQuery(query)
-    // `boardOverride`: bảng VỪA tạo chưa chắc đã có trong `boards` — state đó cập nhật qua một lượt
-    // dựng lại React, còn hàm này chạy ngay trong .then() của promise tạo bảng, sớm hơn lượt dựng lại
-    // đó. Tra trong `boards` (đang là bản CŨ, chưa có bảng mới) sẽ luôn ra "không tìm thấy".
-    const board = boardOverride ?? boards.find((b) => b.id === id)
-    // Chỉ dựng lớp phủ khi mở TỪ MỘT THẺ (có rect) và máy không xin giảm chuyển động — mở từ kết
-    // quả tìm xuyên bảng thì không có thẻ nào để phóng lên từ đó.
-    if (rect && board && !prefersReducedMotion()) setTransition({ board, from: domRectToBox(rect), dir: "enter" })
     setOpenId(id)
   }
 
@@ -11919,9 +11666,6 @@ function MindmapScreen({
   }, [pendingOpen])
 
   function goHome() {
-    const board = activeBoard
-    const r = rootRef.current?.getBoundingClientRect()
-    if (board && r && !prefersReducedMotion()) setTransition({ board, from: domRectToBox(r), dir: "exit" })
     setOpenId(null)
     setSheetBoardId(null)
     // Không mang từ khoá tìm sang lần mở TAY tiếp theo (mở bảng khác, hoặc mở lại đúng bảng này) —
@@ -11932,10 +11676,12 @@ function MindmapScreen({
   }
 
   return (
-    <div ref={rootRef} className="h-full relative overflow-hidden">
+    <div className="h-full relative overflow-hidden">
       {openId == null ? (
         // ─── Danh sách bảng ───────────────────────────────────────────────
-        <>
+        // key + .board-out: quay về danh sách là một lượt mount mới, nên CSS animation tự chạy đúng
+        // một lần ở đúng lúc — không cần state, không cần đo, không cần dọn dẹp.
+        <div key="list" className="h-full board-out">
           <MindmapGallery
             boards={boards}
             previewTick={previewTick}
@@ -11962,20 +11708,9 @@ function MindmapScreen({
                 setSheetBoardId(null)
               }}
               onCreate={(name, color, specialtyId) => {
-                // Tấm đặt tên vừa gõ xong "biến thành" chính bảng mới — cùng cách phóng-khung
-                // (D3) dùng cho mọi lượt mở bảng khác, chỉ khác điểm xuất phát là tấm này thay vì
-                // một thẻ trong danh sách. Trước đây tạo xong bảng bật ra đột ngột, khác hẳn cảm
-                // giác mượt của việc chạm mở một thẻ có sẵn.
-                const sheetRect = document.querySelector('[aria-labelledby="board-edit-sheet-title"]')?.getBoundingClientRect()
                 setSheetMode(null)
                 setSheetBoardId(null)
-                void onCreateBoard(name, color, specialtyId).then((id) =>
-                  // Tự dựng board tạm để phóng khung: `boards` (state) chưa kịp có bảng này lúc
-                  // .then() chạy, tra trong đó sẽ luôn hụt — xem ghi chú ở openBoard(). Chỉ cần đúng
-                  // id (để BoardThumb tải đúng bảng, dù đang trống) và màu/tên để khung xem trước
-                  // không lệch màu với bảng thật hiện ra ngay sau đó.
-                  openBoard(id, undefined, sheetRect, { id, name, color, specialtyId, order: 0, createdAt: Date.now(), updatedAt: Date.now() }),
-                )
+                void onCreateBoard(name, color, specialtyId).then((id) => openBoard(id))
               }}
               onSave={(patch) => {
                 if (activeBoard) onUpdateBoard(activeBoard.id, patch)
@@ -11997,25 +11732,23 @@ function MindmapScreen({
               onExport={() => {
                 // Xuất file nằm ở thanh trên CỦA BẢNG (nó cần nội dung bảng đang mở để vẽ ra ảnh),
                 // nên ở đây chỉ mở bảng ra rồi để người dùng chọn PNG/PDF tại đó. Dùng openBoard()
-                // (không phải onSwitchBoard+setOpenId thẳng tay) để có đúng khung phóng-to (D3) từ
-                // thẻ trong danh sách — giống hệt việc chạm mở thẻ đó bình thường, không phải một
-                // lối tắt "mở bảng" riêng bị bỏ sót hiệu ứng.
+                // chứ không phải onSwitchBoard+setOpenId thẳng tay — để đây đi đúng một lối mở bảng
+                // như mọi chỗ khác, không thành một lối tắt riêng dễ bị bỏ sót khi sửa về sau.
                 const id = activeBoard?.id
-                const rect = id ? document.querySelector<HTMLElement>(`[data-board-id="${id}"]`)?.getBoundingClientRect() : undefined
                 setSheetMode(null)
                 setSheetBoardId(null)
-                if (id) openBoard(id, undefined, rect)
+                if (id) openBoard(id)
               }}
             />
           )}
-        </>
+        </div>
       ) : (
         // ─── Một bảng đang mở ─────────────────────────────────────────────
         // KHÔNG có ScreenHeader ở đây: thanh trên của bảng (nút về danh sách, tên bảng, công tắc
         // Chỉ đọc, xuất file, cài đặt) nằm trong chính MindmapBoard, vì nó điều khiển giấy
         // nền/màu nền/căn chỉnh vốn là state của component đó. Thêm một tiêu đề nữa ở đây là hai
         // thanh chồng nhau, ăn mất chiều cao của mặt vẽ trên màn hình điện thoại.
-        <div className="h-full flex flex-col relative">
+        <div key="board" className="h-full flex flex-col relative board-in">
           <div className="flex-1 overflow-hidden relative">
             {/* key=boardId: đổi bảng phải là một lượt mount MỚI hoàn toàn — thẻ đang chọn/đang sửa,
                 lasso đang khoanh... của bảng cũ không có ý nghĩa gì trên bảng khác. Ngăn xếp hoàn
@@ -12035,7 +11768,6 @@ function MindmapScreen({
         </div>
       )}
 
-      {transition && <BoardTransitionOverlay transition={transition} targetRect={transitionTarget} onDone={finishTransition} />}
     </div>
   )
 }
