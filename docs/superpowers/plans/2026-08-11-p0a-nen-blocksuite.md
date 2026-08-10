@@ -1,29 +1,29 @@
-# P0-A: Nền BlockSuite và tiện ích định tuyến — Kế hoạch triển khai
+# P0-A: Vendor nền BlockSuite và tiện ích định tuyến — Kế hoạch triển khai
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Cài `@blocksuite/store` + `@blocksuite/global` làm tầng dữ liệu, dựng hạ tầng vitest, port bốn tiện ích định tuyến từ `affine/blocks/surface` (gói dựa trên Lit nên không cài được), và **trả lời hai câu hỏi mở** mà D10 đang treo.
+**Goal:** Vendor `framework/global/src` + `framework/store/src` (BlockSuite 0.27.0) vào `src/vendor/blocksuite/`, dựng hạ tầng vitest, và port bốn tiện ích định tuyến từ `affine/blocks/surface`.
 
-**Architecture:** Theo D10 — tầng dữ liệu **cài** từ npm, `std/gfx` **port**, tầng khung nhìn **viết** bằng React. Kế hoạch này chỉ đụng tầng cài + bốn file tiện ích. `std/gfx` là P0-B.
+**Architecture:** Theo D11 — tầng dữ liệu **vendor** (chép nguyên văn, cấm sửa), `std/gfx` **port** (P0-B), tầng khung nhìn **viết** bằng React (P1.0).
 
-**Tech Stack:** TypeScript 5.7 (strict) · Vite 8 · Vitest 4 (devDependency) · `@blocksuite/store@0.27.0` · `@blocksuite/global@0.27.0` · `yjs`
+**Mấu chốt kỹ thuật:** alias `@blocksuite/*` trỏ vào thư mục vendored. Nhờ vậy **không file nào phải sửa dòng import** — cả mã vendored lẫn bốn file port đều giữ nguyên specifier thượng nguồn đã viết.
+
+**Tech Stack:** TypeScript 5.7 (strict) · Vite 8 · Vitest 4 (devDependency) · vendored BlockSuite 0.27.0
 
 ## Global Constraints
 
+- **`src/vendor/blocksuite/**` là mã bên thứ ba — CẤM SỬA một chữ nào** (D11). Kể cả sửa import, kể cả chiều lint. Cần đổi hành vi thì đổi ở tầng trên. Đây là điều kiện để lúc 0.27.0 được publish thì thay bằng npm chỉ là xoá thư mục và bỏ alias.
 - `src/core/**` **không import React, không đụng DOM API ở phạm vi module** (spec §4). `DOMMatrix`/`DOMPoint` chỉ được nằm trong thân hàm.
-- Test gốc **không được sửa khẳng định**, chỉ sửa dòng `import`. Không đạt là lỗi port (spec §10).
-- **Không port lại thứ đã cài.** `bound`, `math-utils`, `curve` nằm trong `@blocksuite/global` — import, đừng chép, và đừng port test của chúng.
-- Package được phép đụng: `affine/blocks/surface/src/utils`, `affine/blocks/surface/src/__tests__`. **Đụng ra ngoài = dấu hiệu chệch hướng, dừng và hỏi.**
-- Tiếng Việt cho comment mới. Comment gốc tiếng Anh trong file sao chép giữ nguyên.
+- Test gốc **không được sửa khẳng định**. Không đạt là lỗi port (spec §10).
+- **Không chép lại thứ đã vendor.** `bound`, `math-utils`, `curve` nằm trong `global/src/gfx` — import qua alias, và **đừng port test của chúng**: đó là kiểm hộ thượng nguồn.
+- Thư mục nguồn được phép đụng: `framework/global/src`, `framework/store/src`, `affine/blocks/surface/src/utils`, `affine/blocks/surface/src/__tests__`. **Đụng ra ngoài = dấu hiệu chệch hướng, dừng và hỏi.**
+- Tiếng Việt cho comment mới. Comment gốc tiếng Anh trong file chép về giữ nguyên.
 
-## Hai câu hỏi mở kế hoạch này phải trả lời
+## Câu hỏi mở kế hoạch này phải trả lời
 
-Spec để ngỏ hai điều, và cả hai đều được gạt trong Task 1. Đây là lý do Task 1 tồn tại như một task riêng thay vì gộp vào task sau.
-
-| Câu hỏi | Ở đâu trong spec | Trả lời thế nào |
+| Câu hỏi | Ở đâu trong spec | Trả lời ở |
 |---|---|---|
-| `file-type` và `minimatch` có rơi khỏi bundle không? | §11 — "phải đo bundle sau chặng đầu tiên" | Task 1 Step 6 |
-| Dựng được `BlockStdScope` ngoài `EditorHost` không? Nếu được thì mở lại phương án cài cả `@blocksuite/std` | §11 — "hai phương án đã cân nhắc rồi bỏ", mục 2 | Task 1 Step 7 |
+| Vendor xong thì bundle phình bao nhiêu, và cây con nào kéo theo gói tưởng đã rơi? | §11 — "vẫn phải đo bundle sau chặng đầu P0" | Task 2 Step 4 |
 
 Ký hiệu đường dẫn:
 
@@ -35,8 +35,10 @@ $W   = C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless
 ## File Structure
 
 ```
-package.json         sửa — 3 dependency, 1 devDependency, script test
-vite.config.ts       sửa — khối test của vitest
+src/vendor/blocksuite/
+  README.md          MỚI — cảnh báo cấm sửa, ghi xuất xứ và cách thay bằng npm
+  global/src/**      chép nguyên văn từ $AFF/framework/global/src (trừ lit/)
+  store/src/**       chép nguyên văn từ $AFF/framework/store/src (trừ test/, __tests__/)
 src/core/utils/
   priority-queue.ts  chép từ $AFF/affine/blocks/surface/src/utils/
   graph.ts           chép
@@ -48,233 +50,229 @@ src/core/__tests__/
   a-star.spec.ts          port (114 dòng)
   sort.spec.ts            port (99 dòng)
   sort-index.spec.ts      MỚI — sortIndex không có test gốc
-docs/superpowers/notes/
-  2026-08-11-do-bundle-p0a.md   MỚI — kết quả đo, để phiên sau tra
+package.json         sửa — dependency + script test
+tsconfig.json        sửa — paths cho @blocksuite/*
+vite.config.ts       sửa — alias, plugin .js→.ts, khối test của vitest
+docs/superpowers/notes/2026-08-11-do-bundle-p0a.md   MỚI
 ```
 
 ---
 
-## Task 1: Cài nền, dựng vitest, gạt hai câu hỏi mở
+## Task 1: Vendor tầng dữ liệu và nối dây phân giải module
 
 **Files:**
-- Modify: `package.json`, `vite.config.ts`
-- Create: `src/core/probe-std-scope.ts` (tạm, xoá ở Step 8), `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md`
+- Create: `src/vendor/blocksuite/README.md`, `src/vendor/blocksuite/global/src/**`, `src/vendor/blocksuite/store/src/**`
+- Modify: `package.json`, `tsconfig.json`, `vite.config.ts`
 
 **Interfaces:**
 - Consumes: không có
-- Produces:
-  - Import được `Bound`, `Vec`, `PointLocation`, `almostEqual`, `IVec`, `IVec3` từ `@blocksuite/global/gfx`
-  - Import được `Text`, `Boxed`, `defineBlockSchema` từ `@blocksuite/store`
-  - Script `npm test` chạy `vitest run`
-  - Ghi chú đo bundle tại `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md`
+- Produces: `import ... from '@blocksuite/global/gfx'` và `'@blocksuite/store'` phân giải được ở cả `tsc` lẫn Vite lẫn Vitest
 
-- [ ] **Step 1: Ghi lại kích thước bundle TRƯỚC khi thêm gì**
-
-Cần con số nền để Step 6 có cái mà trừ.
+- [ ] **Step 1: Ghi mốc nền bundle**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
 npm run build 2>&1 | grep -E "dist/assets"
 ```
 
-Expected: ba dòng, trong đó dòng JS khoảng `dist/assets/index-*.js  996 kB │ gzip: 331 kB`. Ghi lại đúng hai số đó — chúng là mốc nền.
+Ghi lại hai số của dòng `.js` — đó là mốc để Task 2 Step 4 trừ ra.
 
-- [ ] **Step 2: Cài ba dependency chạy thật**
+- [ ] **Step 2: Chép mã vendored**
 
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npm install @blocksuite/store@0.27.0 @blocksuite/global@0.27.0 yjs
-```
-
-Expected: `added N packages`.
-
-**Nếu lệnh này thất bại vì không có phiên bản 0.27.0 trên npm:** dừng lại và hỏi. Đó là tiền đề của D10; không có gói thì phải quay về phương án port toàn bộ (spec §11, "phương án đã cân nhắc rồi bỏ" mục 1) và cả kế hoạch này phải viết lại. **Đừng tự ý đổi sang phiên bản khác** — API giữa các bản minor của BlockSuite có đổi.
-
-- [ ] **Step 3: Cài vitest**
+Bỏ `global/src/lit/` (chỉ chỗ đó dùng Lit), bỏ `store/src/test/` và mọi `__tests__/` (bộ khung kiểm thử của thượng nguồn, ta không dùng).
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npm install -D vitest@^4.1.8
+AFF="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/framework"
+mkdir -p src/vendor/blocksuite/global src/vendor/blocksuite/store
+cp -r "$AFF/global/src" src/vendor/blocksuite/global/src
+cp -r "$AFF/store/src" src/vendor/blocksuite/store/src
+rm -rf src/vendor/blocksuite/global/src/lit
+rm -rf src/vendor/blocksuite/store/src/test
+find src/vendor/blocksuite -type d -name "__tests__" -exec rm -rf {} + 2>/dev/null
+find src/vendor/blocksuite -name "*.ts" | wc -l
 ```
 
-Kiểm `package.json`: `vitest` phải nằm trong `devDependencies`, ba gói ở Step 2 nằm trong `dependencies`.
+Expected: in ra số file, khoảng 200–260.
 
-- [ ] **Step 4: Thêm script test**
+- [ ] **Step 3: Viết README cảnh báo**
 
-Trong `package.json`, khối `"scripts"` đổi từ:
+Create `src/vendor/blocksuite/README.md`:
 
-```json
-  "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview",
-    "format": "oxfmt"
-  },
+```markdown
+# Mã vendored từ BlockSuite — KHÔNG SỬA
+
+Xuất xứ: `AFFiNE/blocksuite/framework/{global,store}/src`, phiên bản **0.27.0**.
+Chép nguyên văn ngày 2026-08-11.
+
+## Vì sao chép mà không cài từ npm
+
+npm mới publish tới `0.22.4`. Bản `0.27.0` chỉ có trong workspace AFFiNE, và nó là bản
+duy nhất chứa `viewportRuntimeConfig` / `getEffectiveDpr` / `SKIP_REFRESH_DURING_GESTURE`
+— phần giữ WKWebView khỏi sập lúc pan/zoom trên iPhone. Xem D10 và D11 trong
+`docs/superpowers/specs/2026-08-11-blockkit-edgeless-design.md`.
+
+## Quy tắc
+
+**Cấm sửa một chữ nào trong thư mục này** — kể cả import, kể cả chiều lint.
+Cần đổi hành vi thì bọc ở tầng trên (`src/core/`).
+
+Lý do: khi `0.27.0` được publish, việc thay thư mục này bằng dependency npm phải chỉ là
+xoá thư mục và bỏ alias trong `tsconfig.json` + `vite.config.ts`. Sửa một chỗ ở đây là
+mất khả năng đó.
+
+## Đã bỏ khi chép
+
+- `global/src/lit/` — chỗ duy nhất dùng Lit; React thay tầng khung nhìn
+- `store/src/test/`, mọi `__tests__/` — khung kiểm thử của thượng nguồn, ta không dùng
 ```
 
-thành:
+- [ ] **Step 4: Cài dependency mà mã vendored cần**
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
+npm install yjs @preact/signals-core rxjs lib0 zod nanoid minimatch lodash.ismatch
+npm install -D vitest@^4.1.8 @types/lodash.ismatch
+```
+
+Expected: `added N packages`, không lỗi.
+
+Ghi chú: `file-type`, `y-protocols`, `@blocksuite/sync` **không** có trong danh sách — đã đo là không cây con nào ta chép dùng tới (spec §11). Nếu `tsc` ở Step 8 báo thiếu một trong ba, nghĩa là phép đo sai: **dừng và ghi lại**, đừng lặng lẽ cài thêm.
+
+- [ ] **Step 5: Thêm script test**
+
+Trong `package.json`, khối `"scripts"`, thêm hai dòng vào giữa `"preview"` và `"format"`:
 
 ```json
-  "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "oxfmt"
-  },
 ```
 
-- [ ] **Step 5: Cấu hình vitest**
+- [ ] **Step 6: Nối alias trong tsconfig.json**
 
-`defineConfig` của `vite` không nhận khoá `test`. Trong `vite.config.ts`, dòng 1 đổi từ:
+Trong `tsconfig.json`, khối `"paths"` đổi từ:
 
-```ts
-import { defineConfig } from 'vite'
+```json
+    "paths": {
+      "@/*": ["./src/*"]
+    },
 ```
 
 thành:
 
-```ts
-import { defineConfig } from 'vitest/config'
+```json
+    "paths": {
+      "@/*": ["./src/*"],
+      "@blocksuite/global": ["./src/vendor/blocksuite/global/src/index.ts"],
+      "@blocksuite/global/*": ["./src/vendor/blocksuite/global/src/*/index.ts"],
+      "@blocksuite/store": ["./src/vendor/blocksuite/store/src/index.ts"]
+    },
 ```
 
-Thêm khối `test` vào object trả về, ngay sau khối `preview`:
+Và thêm `"src/vendor"` vào `"include"` nếu chưa có — hiện `"include": ["src", "vite.config.ts"]` đã phủ rồi, không cần đổi.
+
+- [ ] **Step 7: Nối alias và plugin trong vite.config.ts**
+
+Ba sửa đổi trong `vite.config.ts`.
+
+**(a)** Dòng 1 đổi từ `import { defineConfig } from 'vite'` thành:
+
+```ts
+import { defineConfig, type Plugin } from 'vitest/config'
+```
+
+**(b)** Thêm plugin ngay trước `export default defineConfig(...)`:
+
+```ts
+// Mã vendored trong src/vendor/blocksuite/ dùng specifier kiểu './vec.js' trỏ vào file
+// .ts — quy ước của TypeScript khi biên dịch ra ESM. `tsc` với moduleResolution "bundler"
+// hiểu được, nhưng Vite phân giải đúng chuỗi đó rồi không thấy file.
+//
+// Sửa bằng plugin thay vì sửa mã: D11 cấm chạm vào src/vendor/blocksuite/, để lúc
+// BlockSuite 0.27.0 được publish thì thay bằng npm chỉ là xoá thư mục.
+function vendorJsToTs(): Plugin {
+  return {
+    name: 'vendor-js-to-ts',
+    enforce: 'pre',
+    async resolveId(source, importer) {
+      if (!importer?.includes('/vendor/blocksuite/')) return null
+      if (!source.startsWith('.') || !source.endsWith('.js')) return null
+      const resolved = await this.resolve(source.slice(0, -3), importer, { skipSelf: true })
+      return resolved?.id ?? null
+    },
+  }
+}
+```
+
+**(c)** Trong object trả về: thêm `vendorJsToTs()` vào đầu mảng `plugins`, thêm ba alias, và thêm khối `test`:
+
+```ts
+    plugins: [vendorJsToTs(), react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        '@blocksuite/global': path.resolve(__dirname, './src/vendor/blocksuite/global/src'),
+        '@blocksuite/store': path.resolve(__dirname, './src/vendor/blocksuite/store/src'),
+      },
+    },
+```
+
+và sau khối `preview`:
 
 ```ts
     test: {
-      // Môi trường node: không test nào trong P0-A chạm DOM. Khi P0-B port
-      // viewport (có nhánh DOMMatrix) thì đổi sang 'happy-dom'.
+      // Môi trường node: không test nào trong P0-A chạm DOM. P0-B port viewport
+      // (có nhánh DOMMatrix) thì đổi sang 'happy-dom'.
       environment: 'node',
       include: ['src/**/__tests__/**/*.spec.ts'],
     },
 ```
 
-- [ ] **Step 6: Đo bundle — trả lời câu hỏi mở thứ nhất**
+Ghi chú về alias `@blocksuite/global`: Vite phân giải tiền tố nên `@blocksuite/global/gfx` tự thành `src/vendor/blocksuite/global/src/gfx`, rồi `resolve.extensions` mặc định tìm `gfx/index.ts`. Không cần khai từng subpath như tsconfig.
 
-Tạo một file tạm nhập đúng những thứ P0 sẽ dùng, để bundler có cái mà tree-shake thật.
-
-Create `src/core/probe-std-scope.ts`:
-
-```ts
-// FILE TẠM — xoá ở Step 8. Tồn tại để đo xem cài @blocksuite/store +
-// @blocksuite/global kéo thêm bao nhiêu byte vào bundle, và file-type với
-// minimatch có rơi ra không (spec §11).
-import { Bound, Vec } from '@blocksuite/global/gfx'
-import { Text } from '@blocksuite/store'
-
-export function probe(): string {
-  const b = new Bound(0, 0, 10, 10)
-  const v = Vec.add([1, 1], [2, 2])
-  const t = new Text('do bundle')
-  return `${b.serialize()}|${v.join(',')}|${t.toString()}`
-}
-```
-
-Tạm nhập nó vào `src/main.tsx` để bundler không loại cả file (thêm vào cuối file):
-
-```ts
-import { probe } from './core/probe-std-scope'
-if (import.meta.env.DEV) console.debug(probe())
-```
-
-Rồi build và đo:
+- [ ] **Step 8: Xác nhận phân giải chạy — type-check**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npm run build 2>&1 | grep -E "dist/assets"
-grep -rl "minimatch\|file-type" dist/assets/*.js || echo "SACH: file-type va minimatch KHONG vao bundle"
+npx tsc --noEmit 2>&1 | head -40
 ```
 
-Ghi kết quả vào `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md` theo mẫu:
+Expected: exit 0, không in gì.
 
-```markdown
-# Đo bundle sau khi cài @blocksuite/store + global (P0-A Task 1)
+**Nếu có lỗi:** phân loại trước khi sửa.
+- Lỗi *phân giải module* (`Cannot find module '@blocksuite/...'`) → sai `paths` ở Step 6.
+- Lỗi *thiếu gói* (`Cannot find module 'y-protocols'`) → phép đo ở spec §11 sai. **Dừng và ghi lại**, đừng lặng lẽ `npm install` thêm.
+- Lỗi *kiểu* bên trong `src/vendor/**` → **không sửa mã vendored**. Ghi lại, rồi cân nhắc loại trừ thư mục đó khỏi `tsc` bằng cách thêm `"exclude"` — mã bên thứ ba không phải nơi ta đi sửa kiểu.
 
-| | JS thô | JS gzip |
-|---|---|---|
-| Trước khi cài (mốc nền, Step 1) | ... kB | ... kB |
-| Sau khi cài + probe | ... kB | ... kB |
-| **Chênh** | **... kB** | **... kB** |
-
-`file-type` / `minimatch` có trong bundle: CÓ / KHÔNG
-
-Kết luận: (giữ D10 / xét lại D10)
-```
-
-**Ngưỡng phải dừng và hỏi:** nếu phần gzip tăng **quá 150 kB**, hoặc `file-type`/`minimatch` **có** trong bundle. Cả hai đều là dấu hiệu D10 sai giá, và spec §11 đã hẹn trước là sẽ xét lại.
-
-- [ ] **Step 7: Thử dựng `BlockStdScope` — trả lời câu hỏi mở thứ hai**
-
-Nếu dựng được ngoài `EditorHost` thì phương án trung thành hơn (cài cả `@blocksuite/std`) mở lại được, và P0-B thu nhỏ rất nhiều. Đáng 10 phút để biết.
+- [ ] **Step 9: Commit**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npm install -D @blocksuite/std@0.27.0
-node -e "import('@blocksuite/std').then(m => console.log(Object.keys(m).filter(k => /Std|Scope|Gfx/.test(k)).join('\n'))).catch(e => console.log('LOI:', e.message))"
-```
+git add -A src/vendor package.json package-lock.json tsconfig.json vite.config.ts
+git commit -m "P0-A: vendor tầng dữ liệu BlockSuite 0.27.0
 
-Ghi vào cùng file notes ở Step 6, thêm mục:
+Chép nguyên văn framework/global/src + framework/store/src vào
+src/vendor/blocksuite/ (D11). Bỏ global/src/lit (chỗ duy nhất dùng
+Lit) và store/src/test cùng mọi __tests__.
 
-```markdown
-## BlockStdScope dựng được ngoài EditorHost?
+Alias @blocksuite/* trỏ vào thư mục vendored, nên không file nào phải
+sửa dòng import — mã chép về giữ nguyên specifier thượng nguồn viết.
 
-Xuất khẩu liên quan: (dán kết quả lệnh node -e)
-
-Kết luận: (mở lại phương án cài @blocksuite/std / giữ D10 port std/gfx)
-```
-
-Rồi gỡ ra, vì đây chỉ là thăm dò:
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npm uninstall @blocksuite/std
-```
-
-**Nếu kết quả cho thấy dựng được:** dừng lại và hỏi trước khi làm P0-B. Đổi hướng lúc này rẻ; đổi sau khi port xong 44 file thì không.
-
-- [ ] **Step 8: Dọn file thăm dò**
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-rm src/core/probe-std-scope.ts
-```
-
-Và bỏ hai dòng vừa thêm vào cuối `src/main.tsx` (dòng `import { probe }` và dòng `if (import.meta.env.DEV)`).
-
-- [ ] **Step 9: Xác nhận nền còn sạch**
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npx tsc --noEmit && npm run build
-```
-
-Expected: tsc im lặng exit 0; build thành công. Kích thước bundle phải quay về gần mốc nền ở Step 1 (chênh vài trăm byte là bình thường).
-
-- [ ] **Step 10: Commit**
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-git add package.json package-lock.json vite.config.ts src/main.tsx docs/superpowers/notes
-git commit -m "P0-A: cài nền BlockSuite và dựng vitest
-
-@blocksuite/store + @blocksuite/global 0.27.0 làm tầng dữ liệu (D10),
-yjs khai tường minh vì tầng lưu trữ gọi Y.* trực tiếp.
-
-Gạt hai câu hỏi mở của spec §11: đo bundle, và thử dựng BlockStdScope
-ngoài EditorHost. Kết quả ở docs/superpowers/notes/.
+Plugin vendor-js-to-ts xử lý specifier './x.js' trỏ vào file .ts: tsc
+hiểu, Vite không. Sửa bằng plugin thay vì sửa mã, vì D11 cấm chạm vào
+thư mục vendored.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-**Tiêu chí xong (một, kiểm được bằng lệnh):** `npx tsc --noEmit && npm run build` exit 0, **và** file `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md` có đủ hai mục kết luận đã điền.
+**Tiêu chí xong (một, kiểm được bằng lệnh):** `npx tsc --noEmit` exit 0.
 
 ---
 
-## Task 2: Hàng đợi ưu tiên và đồ thị định tuyến
+## Task 2: Hàng đợi ưu tiên, đồ thị, và đo bundle
 
 **Files:**
-- Create: `src/core/utils/priority-queue.ts`, `src/core/utils/graph.ts`
+- Create: `src/core/utils/priority-queue.ts`, `src/core/utils/graph.ts`, `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md`
 - Test: `src/core/__tests__/priority-queue.spec.ts`, `src/core/__tests__/graph.spec.ts`
 
 **Interfaces:**
@@ -283,49 +281,25 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `PriorityQueue<T, P>` — constructor nhận `(a: P, b: P) => number`; `enqueue(value: T, priority: P)`, `dequeue(): T | null`
   - `Graph<T>` — dùng bởi `AStarRunner` ở Task 3
 
-- [ ] **Step 1: Sao chép hai file nguồn**
+- [ ] **Step 1: Chép hai file nguồn và hai test gốc**
+
+Không sửa dòng import nào — alias ở Task 1 làm cho `@blocksuite/global/gfx` phân giải đúng.
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
 mkdir -p src/core/utils src/core/__tests__
-AFF="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src"
-cp "$AFF/utils/priority-queue.ts" src/core/utils/priority-queue.ts
-cp "$AFF/utils/graph.ts" src/core/utils/graph.ts
+S="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src"
+cp "$S/utils/priority-queue.ts" src/core/utils/priority-queue.ts
+cp "$S/utils/graph.ts" src/core/utils/graph.ts
+cp "$S/__tests__/priority-queue.unit.spec.ts" src/core/__tests__/priority-queue.spec.ts
+cp "$S/__tests__/graph.unit.spec.ts" src/core/__tests__/graph.spec.ts
 ```
 
-- [ ] **Step 2: Sửa import trong graph.ts**
+- [ ] **Step 2: Sửa đúng hai dòng import nội bộ trong test**
 
-`priority-queue.ts` không import gì — để nguyên, không sửa dòng nào.
+Hai file trong `src/core/` **không** nằm dưới `src/vendor/`, nên plugin `.js`→`.ts` không áp dụng cho chúng. Sửa tay.
 
-Trong `src/core/utils/graph.ts`, dòng 1:
-
-```ts
-import type { Bound, IVec, IVec3 } from '@blocksuite/global/gfx';
-```
-
-**giữ nguyên** — gói này đã cài ở Task 1. Khối import giá trị ở dòng ~2–6 kết thúc bằng `} from '@blocksuite/global/gfx';` cũng giữ nguyên.
-
-Chỉ sửa đuôi `.js` nếu có import nội bộ:
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-sed -i "s/\(from '\.[^']*\)\.js'/\1'/g" src/core/utils/graph.ts src/core/utils/priority-queue.ts
-grep -n "\.js'" src/core/utils/*.ts || echo "SACH: khong con duoi .js trong import noi bo"
-```
-
-- [ ] **Step 3: Sao chép hai test gốc**
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-AFT="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src/__tests__"
-cp "$AFT/priority-queue.unit.spec.ts" src/core/__tests__/priority-queue.spec.ts
-cp "$AFT/graph.unit.spec.ts" src/core/__tests__/graph.spec.ts
-```
-
-- [ ] **Step 4: Sửa import trong hai test**
-
-`src/core/__tests__/priority-queue.spec.ts` — một dòng:
-
+`src/core/__tests__/priority-queue.spec.ts`:
 ```ts
 import { PriorityQueue } from '../utils/priority-queue.js';
 ```
@@ -335,7 +309,6 @@ import { PriorityQueue } from '../utils/priority-queue'
 ```
 
 `src/core/__tests__/graph.spec.ts` — dòng `import { Bound } from '@blocksuite/global/gfx';` **giữ nguyên**; chỉ đổi:
-
 ```ts
 import { Graph } from '../utils/graph.js';
 ```
@@ -344,7 +317,7 @@ import { Graph } from '../utils/graph.js';
 import { Graph } from '../utils/graph'
 ```
 
-- [ ] **Step 5: Chạy, xác nhận XANH**
+- [ ] **Step 3: Chạy test, xác nhận XANH**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
@@ -353,31 +326,53 @@ npm test
 
 Expected: `Test Files  2 passed (2)`.
 
-- [ ] **Step 6: Type-check và ràng buộc cứng**
+Đây cũng là lần đầu chứng minh alias hoạt động trong Vitest, không chỉ trong `tsc`.
+
+- [ ] **Step 4: Đo bundle — trả lời câu hỏi mở**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-npx tsc --noEmit
-grep -rn "from 'react'" src/core && echo "VI PHAM" || echo "OK: core khong import React"
+npm run build 2>&1 | grep -E "dist/assets"
+grep -rl "y-protocols\|file-type" dist/assets/*.js || echo "SACH: y-protocols va file-type KHONG vao bundle"
 ```
 
-Expected: tsc im lặng; dòng `OK:`.
+Ghi kết quả vào `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md`:
 
-- [ ] **Step 7: Commit**
+```markdown
+# Đo bundle sau khi vendor BlockSuite (P0-A)
+
+| | JS thô | JS gzip |
+|---|---|---|
+| Mốc nền (Task 1 Step 1) | ... kB | ... kB |
+| Sau khi vendor + hai tiện ích | ... kB | ... kB |
+| **Chênh** | **... kB** | **... kB** |
+
+`y-protocols` / `file-type` trong bundle: CÓ / KHÔNG
+
+Kết luận: (giữ danh sách dependency ở spec §11 / phải sửa)
+```
+
+Ghi chú diễn giải: ở chặng này mới chỉ có hai tiện ích nhỏ *dùng* mã vendored, nên phần lớn `src/vendor/` còn bị tree-shake bỏ. Con số này là **sàn**, không phải trần — đo lại ở cuối P0-B khi `std/gfx` đã kéo vào thật.
+
+**Ngưỡng dừng và hỏi:** nếu `y-protocols` hoặc `file-type` **có** trong bundle. Nghĩa là phép đo cây con ở spec §11 sai.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-git add src/core
+git add src/core docs/superpowers/notes
 git commit -m "P0-A: hàng đợi ưu tiên và đồ thị định tuyến
 
 Nền của A* tìm đường cho connector gấp khúc. Hai file này nằm trong
-affine/blocks/surface — gói dựa trên Lit nên không cài được, phải port.
-Import từ @blocksuite/global giữ nguyên vì gói đó đã cài.
+affine/blocks/surface — gói dựa trên Lit nên không vendor được, phải
+port. Import từ @blocksuite/global giữ nguyên, alias lo phần còn lại.
+
+Kèm số đo bundle đầu tiên sau khi vendor.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-**Tiêu chí xong:** `npm test` in ra `Test Files  2 passed (2)`.
+**Tiêu chí xong:** `npm test` in ra `Test Files  2 passed (2)`, và file notes có mục kết luận đã điền.
 
 ---
 
@@ -391,18 +386,20 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Consumes: `Graph`, `PriorityQueue` (Task 2); `almostEqual`, `Bound`, `IVec3` từ `@blocksuite/global/gfx`
 - Produces: `AStarRunner` — dùng bởi connector ở P1.2
 
-- [ ] **Step 1: Sao chép nguồn**
+- [ ] **Step 1: Chép nguồn và test**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-cp "C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src/utils/a-star.ts" \
-   src/core/utils/a-star.ts
+S="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src"
+cp "$S/utils/a-star.ts" src/core/utils/a-star.ts
+cp "$S/__tests__/a-star.unit.spec.ts" src/core/__tests__/a-star.spec.ts
 ```
 
-- [ ] **Step 2: Sửa hai dòng import nội bộ**
+- [ ] **Step 2: Sửa ba dòng import nội bộ**
 
-Trong `src/core/utils/a-star.ts`, dòng 1 (`from '@blocksuite/global/gfx'`) **giữ nguyên**. Đổi hai dòng sau:
+Dòng `from '@blocksuite/global/gfx'` ở cả hai file **giữ nguyên**.
 
+Trong `src/core/utils/a-star.ts`:
 ```ts
 import { Graph } from './graph.js';
 import { PriorityQueue } from './priority-queue.js';
@@ -413,18 +410,7 @@ import { Graph } from './graph'
 import { PriorityQueue } from './priority-queue'
 ```
 
-- [ ] **Step 3: Sao chép test gốc**
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-cp "C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src/__tests__/a-star.unit.spec.ts" \
-   src/core/__tests__/a-star.spec.ts
-```
-
-- [ ] **Step 4: Sửa một dòng import trong test**
-
-Hai dòng đầu (`from '@blocksuite/global/gfx'`) **giữ nguyên**. Đổi:
-
+Trong `src/core/__tests__/a-star.spec.ts`:
 ```ts
 import { AStarRunner } from '../utils/a-star.js';
 ```
@@ -433,9 +419,9 @@ import { AStarRunner } from '../utils/a-star.js';
 import { AStarRunner } from '../utils/a-star'
 ```
 
-Hàm trợ giúp `mergePath` trong test giữ nguyên, không sửa.
+Hàm trợ giúp `mergePath` trong test giữ nguyên.
 
-- [ ] **Step 5: Chạy, xác nhận XANH**
+- [ ] **Step 3: Chạy, xác nhận XANH**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
@@ -444,7 +430,7 @@ npx vitest run src/core/__tests__/a-star.spec.ts
 
 Expected: `Test Files  1 passed (1)`, mọi ca xanh.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
@@ -458,7 +444,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Task 4: Sắp thứ tự nạp phần tử theo phụ thuộc
+## Task 4: `loadingSort` — sắp thứ tự nạp phần tử theo phụ thuộc
 
 **Files:**
 - Create: `src/core/utils/sort.ts`
@@ -470,25 +456,18 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `loadingSort<T extends { id: string; deps: string[] }>(elements: T[]): T[]`
   - `sortIndex(a: { id: string; index: string }, b: { id: string; index: string }, groupIndexMap: Map<string, { id: string; index: string }>): number` — **chưa được kiểm ở task này**, xem Task 5
 
-- [ ] **Step 1: Sao chép nguồn**
+- [ ] **Step 1: Chép nguồn và test**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-cp "C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src/utils/sort.ts" \
-   src/core/utils/sort.ts
+S="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src"
+cp "$S/utils/sort.ts" src/core/utils/sort.ts
+cp "$S/__tests__/sort.unit.spec.ts" src/core/__tests__/sort.spec.ts
 ```
 
-File này không import gì — không sửa dòng nào.
+`sort.ts` không import gì — không sửa dòng nào.
 
-- [ ] **Step 2: Sao chép test gốc và sửa một dòng import**
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/blockkit-edgeless"
-cp "C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/affine/blocks/surface/src/__tests__/sort.unit.spec.ts" \
-   src/core/__tests__/sort.spec.ts
-```
-
-Trong `src/core/__tests__/sort.spec.ts`:
+- [ ] **Step 2: Sửa một dòng import trong test**
 
 ```ts
 import { loadingSort } from '../utils/sort.js';
@@ -650,7 +629,6 @@ Nếu có ca đỏ: **đừng sửa test cho khớp mã.** Đọc lại thân `s
 Một test xanh ngay từ đầu có thể xanh vì chẳng kiểm gì. Đột biến một dòng để chứng minh nó chạm vào mã.
 
 Trong ca *"khác nhóm thì so theo chỉ số của NHÓM"*, tạm đổi:
-
 ```ts
     expect(sortIndex({ id: 'a', index: 'z9' }, { id: 'b', index: 'a0' }, groups)).toBe(-1)
 ```
@@ -710,14 +688,12 @@ npm test && npx tsc --noEmit && npm run build
 | `npx tsc --noEmit` | exit 0, không in gì |
 | `npm run build` | thành công |
 
-Cộng thêm: `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md` phải có đủ **hai mục kết luận** đã điền (đo bundle, và `BlockStdScope`).
+Cộng thêm: `docs/superpowers/notes/2026-08-11-do-bundle-p0a.md` có mục kết luận đã điền.
 
 **Không có mốc kiểm tay trên iPhone ở P0-A** — chặng này không có gì hiện ra màn hình. Danh sách kiểm tay bắt đầu từ P1.0 (spec §10).
 
 ## Kế hoạch kế tiếp
 
-**P0-B — port `std/gfx`** (44 file, ~5.500 dòng): `model/base.ts`, `element-model`, `surface-model`, `Viewport`, `Grid`, `Layer`, `ToolController`, `utils/tree.ts` + `tree.unit.spec.ts` (165 dòng, nhóm A còn nợ).
+**P0-B — port `std/gfx`** (44 file, ~5.500 dòng): `model/base.ts`, `element-model`, `surface-model`, `Viewport`, `Grid`, `Layer`, `ToolController`, `utils/tree.ts` + `tree.unit.spec.ts` (165 dòng).
 
-P0-B là chỗ xử lý **nhóm C** của spec §10: đọc `view.unit.spec.ts` (1015 dòng) và `surface.unit.spec.ts` (418 dòng) như đặc tả, chép khẳng định, bỏ giàn giáo Lit.
-
-**Điều kiện tiên quyết:** Task 1 Step 7 của kế hoạch này phải kết luận là **không** dựng được `BlockStdScope` ngoài `EditorHost`. Nếu dựng được thì P0-B phải viết lại theo hướng cài `@blocksuite/std`, và phần lớn 5.500 dòng kia biến mất.
+P0-B là chỗ xử lý **nhóm C** của spec §10: đọc `view.unit.spec.ts` (1015 dòng) và `surface.unit.spec.ts` (418 dòng) như đặc tả, chép khẳng định, bỏ giàn giáo Lit. Và là chỗ đo lại bundle cho ra con số thật, khi `src/vendor/` đã bị kéo vào đầy đủ.
