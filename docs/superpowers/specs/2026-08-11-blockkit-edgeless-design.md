@@ -49,7 +49,8 @@ Trong AFFiNE, Page và Edgeless là **hai chế độ xem của cùng một Doc*
 | # | Quyết định | Lý do |
 |---|---|---|
 | D0 | Khi có mâu thuẫn: **giống AFFiNE nhất** thắng, rồi mới tới khuyến nghị của người thực hiện, rồi mới tới cái còn lại | Chủ dự án chốt 2026-08-11. Áp dụng cho mọi quyết định chưa được nêu tên trong bảng này |
-| D1 | Viết lại bằng **React thuần**, không nhúng BlockSuite/Lit | Mục tiêu là giống *hành vi và cảm giác*; da theo Bs Trọng. **Chỉ tầng khung nhìn** — tầng dữ liệu và phản ứng vẫn dùng nguyên thư viện của BlockSuite (§11) |
+| D1 | ~~Không nhúng BlockSuite vì kéo theo Lit~~ → **thay bằng D10** | Giả định sai. Đo lại 2026-08-11: `@blocksuite/store` có **0** file dùng Lit; `@blocksuite/global` có 2, nằm gọn trong `global/src/lit/`; `std/gfx` có **1/44**. Lit chỉ sống ở tầng khung nhìn |
+| D10 | **Lai ba tầng:** cài `@blocksuite/store` + `@blocksuite/global` từ npm · **port** `std/gfx` · **viết** tầng khung nhìn bằng React | Tầng dữ liệu sạch Lit nên dùng thẳng mã thượng nguồn, cập nhật miễn phí, không phải chép 7.100 dòng. `std/gfx` thì dù sao cũng phải thay ràng buộc Lit bằng React nên port. Tránh được câu hỏi chưa có lời đáp: `GfxController` cần `BlockStdScope`, chưa rõ dựng được ngoài `EditorHost` hay không |
 | D2 | Mindmap và Bài viết là **hai thực thể riêng**, nối bằng liên kết | Giữ nguyên `Article`, Thư viện, xuất/nhập JSON đang chạy |
 | D3 | **Xoá sạch frontend cũ**, không khôi phục file nào từ `fd24576` | Chọn AFFiNE thay vì di sản |
 | D4 | **Giữ tầng lưu trữ** `src/lib/idb.ts` làm nền, nâng schema | Đã gia cố tốt; là nơi backend cắm vào sau |
@@ -63,14 +64,19 @@ Trong AFFiNE, Page và Edgeless là **hai chế độ xem của cùng một Doc*
 
 ## 4. Kiến trúc
 
-Bốn tầng, phụ thuộc chỉ đi xuống:
+Bốn tầng, phụ thuộc chỉ đi xuống. Cột bên phải cho biết mã ở tầng đó **từ đâu ra** (D10):
 
 ```
-src/screens/     MindMapScreen · BoardGallery              màn hình, tiếng Việt, da Bs Trọng
-src/editor/      EdgelessHost · ToolBar · Overlays · Widgets   React: sự kiện, chọn, thanh công cụ
-src/core/        Store · Viewport · Grid · Layer · ToolController   không React, không DOM
-                 Yjs                                        nguồn sự thật duy nhất
+src/screens/   MindMapScreen · BoardGallery            VIẾT   React, tiếng Việt, da Bs Trọng
+src/editor/    EdgelessHost · ToolBar · Widgets        VIẾT   React: sự kiện, chọn, thanh công cụ
+src/core/gfx/  Viewport · Grid · Layer · Tool          PORT   từ @blocksuite/std/src/gfx (44 file)
+@blocksuite/   store · global                          CÀI    npm 0.27.0 — cây block, Yjs, hình học
 ```
+
+Ranh giới **CÀI / PORT** nằm đúng chỗ Lit bắt đầu xuất hiện, không phải chỗ tuỳ tiện:
+`@blocksuite/store` sạch Lit hoàn toàn nên dùng thẳng; `std/gfx` có `viewport-element.ts` bọc
+custom element và `GfxController extends LifeCycleWatcher` gắn vào `BlockStdScope` của
+`EditorHost` — đó là chỗ React phải thay, nên port.
 
 ### Ràng buộc cứng: `src/core/` không import React
 
@@ -571,24 +577,42 @@ từng file mới phải nhìn dòng `import` của chúng, và ba gói đó n�
 23 file trong `framework/` dùng `rxjs`. Bỏ chúng nghĩa là **viết lại** tầng phản ứng của
 BlockSuite, đúng thứ D1 và D8 đã cấm.
 
+**Cập nhật theo D10 (2026-08-11).** Sau khi chốt hướng lai, danh sách chia làm hai: gói ta **tự
+khai** và gói đi kèm theo `@blocksuite/*`.
+
+**Tự khai — 6 gói**
+
 | Gói | Nặng | Vì sao |
 |---|---|---|
-| `yjs` | ~30 KB gz | Nguồn sự thật cho Doc và Surface (D5) |
-| `rxjs` | ~15–25 KB gz | `Subject`/`BehaviorSubject` là cách BlockSuite phát tín hiệu thay đổi khắp `framework/`. Tree-shake được vì ta chỉ chạm vài toán tử |
-| `@preact/signals-core` | ~4 KB gz | Cầu phản ứng giữa `Y.Map` và model (`sync-controller.ts`), và trạng thái công cụ đang chọn. Nối vào React bằng `useSyncExternalStore` |
-| `lodash-es` | ~3–5 KB gz | Chỉ vài hàm (`debounce`, `last`, `pick`). Tree-shake được |
-| `fractional-indexing` | ~1 KB | Thứ tự anh em + z-order. Thuật toán ngắn nhưng nhiều bẫy biên (thứ tự chữ số base62, điểm giữa); sai một chỗ là thứ tự phần tử hỏng âm thầm |
+| `@blocksuite/store` | `0.27.0` | Cây block trên Yjs, `defineBlockSchema`, `Text`/`Boxed`, CRUD. **0 file dùng Lit** |
+| `@blocksuite/global` | `0.27.0` | Hình học (`Bound`, `Vec`, `PointLocation`, math, curve), DI, disposable |
+| `yjs` | ~30 KB gz | Ta gọi `Y.*` trực tiếp ở tầng lưu trữ (§9), nên khai tường minh chứ không dựa vào bắc cầu |
+| `fractional-indexing` | ~1 KB | `layer.ts` ta port cần. Thuật toán ngắn nhưng nhiều bẫy biên (thứ tự chữ số base62, điểm giữa); sai một chỗ là thứ tự phần tử hỏng âm thầm |
+| `lodash-es` | ~3–5 KB gz | `viewport.ts` và `layer.ts` ta port cần (`debounce`, `last`). Tree-shake được |
 | `katex` | ~75 KB gz + font | `block-latex` và `inline-latex` đều phụ thuộc `katex@0.16`. **Phải đóng gói kèm font WOFF2** — thiếu là công thức hiện ô vuông khi offline. Chủ dự án đã xác nhận có công thức thực sự cần trong nội dung y khoa, nên khoản nặng này là có chủ đích |
+
+**Đi kèm `@blocksuite/store` + `global`** — không do ta chọn, và cũng không sửa được:
+`@preact/signals-core`, `rxjs`, `lib0`, `nanoid`, `zod`, `y-protocols`, `lodash.ismatch`,
+`minimatch`, `file-type`, `@blocksuite/sync`, và `lit` (qua `global`, chỉ `global/src/lit/*` dùng
+— tree-shake bỏ được vì `global` khai `sideEffects: false`).
+
+`file-type` và `minimatch` là hai gói nặng mà app này không cần. **Phải đo bundle sau chặng đầu
+tiên của P0** và ghi lại con số; nếu chúng không rơi khỏi bundle thì cân nhắc lại D10.
 
 Dev: `vitest`.
 
-**Không lấy:** `lit` (tầng khung nhìn — React thay thế; đây là gói duy nhất bỏ được thật) và
-`zod` (BlockSuite dùng kiểm lược đồ — TypeScript thuần đủ khi không có dữ liệu từ mạng vào).
+**Không cài:** `@blocksuite/std` — dù `std/gfx` chỉ có 1/44 file dùng Lit, `GfxController` gắn
+vào `BlockStdScope` của `EditorHost`. Port 44 file đó thay vì cài (D10).
 
-**Phương án đã cân nhắc rồi bỏ:** thay `rxjs` bằng một `EventEmitter` ~20 dòng, `signals-core`
-bằng bản signal tự viết, `lodash-es` bằng `debounce` tự viết — tổng cộng ~150 dòng của ta. Bỏ vì
-nó làm ta phân kỳ khỏi AFFiNE ở đúng tầng chịu lực nhất, và mọi lần cập nhật từ thượng nguồn sau
-này đều phải dịch tay. Chủ dự án đã chốt thứ tự ưu tiên: giống AFFiNE nhất trước.
+**Hai phương án đã cân nhắc rồi bỏ:**
+
+1. *Tự viết tầng phản ứng* — thay `rxjs` bằng `EventEmitter` ~20 dòng, `signals-core` bằng signal
+   tự viết, `lodash-es` bằng `debounce` tự viết. Bỏ vì phân kỳ ở đúng tầng chịu lực nhất, và mọi
+   lần cập nhật thượng nguồn về sau đều phải dịch tay.
+2. *Cài cả `@blocksuite/std`, chỉ viết tầng khung nhìn* — giống AFFiNE nhất tuyệt đối và gần như
+   không có công port cho P0. Bỏ vì rủi ro chưa gạt được: chưa chứng minh dựng được
+   `BlockStdScope` ngoài `EditorHost`. Nếu chặng đầu P0 cho thấy dựng được, **mở lại phương án
+   này** — nó vẫn là lựa chọn trung thành nhất.
 
 `gfx-turbo-renderer` chạy trên Web Worker thật (`src/painter/painter.worker.ts`); Vite nuốt
 `?worker` sẵn nên không thêm cấu hình.
