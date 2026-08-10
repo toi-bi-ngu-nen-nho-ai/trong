@@ -568,29 +568,6 @@ const icons = {
       <path fill="currentColor" stroke="none" d="M21.3 14.1a5.6 5.6 0 01-7.1-7.1.6.6 0 00-.8-.75 6.6 6.6 0 108.65 8.65.6.6 0 00-.75-.8z" />
     </svg>
   ),
-  // Logo app: cuốn sổ tay có gáy lò xo, mặt sổ mang chữ T của "Trọng". Vẽ bằng currentColor và
-  // KHÔNG có nền riêng — thay cho file PNG cũ vốn là một ô vuông nền trắng, dán lên nền tối thì
-  // nổi lên như một miếng vá.
-  notebookT: (className = "w-9 h-9") => (
-    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      {/* Bìa sổ */}
-      <rect x="8.5" y="3.5" width="20" height="25" rx="3.2" stroke="currentColor" strokeWidth={2} />
-      {/* Gáy lò xo: ba vòng xoắn vắt qua mép trái */}
-      <path
-        d="M8.5 8.5H4.2M8.5 16H4.2M8.5 23.5H4.2"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-      {/* Chữ T trên mặt sổ */}
-      <path
-        d="M13.4 11.2h10.2M18.5 11.2v10.4"
-        stroke="currentColor"
-        strokeWidth={2.4}
-        strokeLinecap="round"
-      />
-    </svg>
-  ),
 }
 
 // Trên iPhone để ngôn ngữ Việt, bàn phím dạng inputMode="decimal" chỉ hiện dấu PHẨY (,) chứ
@@ -1135,14 +1112,17 @@ function HomeScreen({
 
   return (
     <div className="scroll-ios h-full pb-6">
-      {/* Header. Logo vẽ bằng SVG theo currentColor (không phải file PNG như trước): ảnh cũ là một
-          ô vuông nền TRẮNG, dán lên nền tối thì nổi lên như miếng vá không liên quan. Bản vẽ này
-          không có nền riêng nên hoà vào cả bản sáng lẫn bản tối.
+      {/* Header. Logo là nét vẽ mảnh (chỉ có stroke, không fill) nên đặt trực tiếp lên nền trang
+          thì mờ nhạt, chìm vào chữ và nền xung quanh — bọc trong khối nền `--c-primary` bo góc, nét
+          vẽ đổi sang trắng, để logo nổi rõ như một icon thật thay vì một hình trang trí lu mờ.
           `paddingRight` chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo ở góc trên phải —
           xem FloatingTopBar trong App shell. Không có nó thì chữ chui xuống dưới cụm nút đó. */}
       <div className="px-5 pt-2 pb-4 flex items-center gap-2" style={{ paddingRight: 180 }}>
-        <span className="flex-none" style={{ color: "var(--c-primary)" }}>
-          {icons.logo("w-12 h-12")}
+        <span
+          className="flex-none rounded-xl flex items-center justify-center"
+          style={{ width: 44, height: 44, background: "var(--c-primary)", color: "#fff" }}
+        >
+          {icons.logo("w-8 h-8")}
         </span>
         <span className="text-[22px] font-bold text-slate-900 leading-none">BS Trọng</span>
       </div>
