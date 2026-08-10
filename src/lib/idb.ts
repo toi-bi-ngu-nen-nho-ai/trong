@@ -9,20 +9,14 @@
 // không bị mất; version 2 thêm object store "articles" cho bài viết.
 
 const DB_NAME = "drtrong-ecg"
-// v4: thêm store "boards" — danh sách nhiều bảng Sơ đồ tư duy (tên/màu/chuyên khoa). Store "mindmap"
-// giữ nguyên tên nhưng từ v4 chứa NHIỀU bản ghi (một cho mỗi bảng, id = board.id) thay vì chỉ một
-// bản ghi "main" — xem lib/boards.ts và lib/mindmapStorage.ts.
+// Giữ nguyên version 4 dù không còn tạo mới store "mindmap"/"boards" (tính năng Sơ đồ tư duy đã gỡ):
+// đây chỉ là số hiệu nâng cấp schema, tăng lại không có ý nghĩa gì khi không có store mới cần tạo.
 const DB_VERSION = 4
 
 // Tên các object store — dùng làm tham số `store` cho các hàm bên dưới.
 export const IDB_STORES = {
   ecgLessons: "lessons",
   articles: "articles",
-  // Dữ liệu THẬT của từng bảng Sơ đồ tư duy — một bản ghi mỗi bảng (id = board.id), có thể rất nặng
-  // vì chứa nét vẽ tay.
-  mindmap: "mindmap",
-  // Metadata (tên/màu/chuyên khoa) của danh sách các bảng Sơ đồ tư duy — xem lib/boards.ts.
-  boards: "boards",
 } as const
 
 const ALL_STORES: string[] = Object.values(IDB_STORES)

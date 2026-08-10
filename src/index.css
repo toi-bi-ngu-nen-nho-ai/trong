@@ -2,8 +2,8 @@
    thẩm mỹ cao cấp hơn, và Inter đọc quá "công cụ nội bộ/hệ thống" cho hướng đó. Vẫn là một grotesk
    hình học rõ ràng, đủ trọng lượng (300-800) và có bộ dấu tiếng Việt đầy đủ trên Google Fonts — giữ
    đúng lý do Inter từng được chọn (rõ ràng lúc đọc vội), chỉ đổi nhân dạng thị giác. Ba font sau chỉ
-   dùng cho chữ ĐỊNH DẠNG trong ghi chú Sơ đồ tư duy (xem `f=` trong src/lib/richText.ts,
-   STYLE_FONT_STACKS trong src/lib/mindmapStyle.ts) — Source Serif 4 cho nhấn mạnh trang trọng,
+   dùng cho chữ ĐỊNH DẠNG theo `f=` trong nội dung định dạng (xem src/lib/richText.ts) —
+   Source Serif 4 cho nhấn mạnh trang trọng,
    JetBrains Mono cho số liệu/liều lượng cần đọc rõ từng ký tự (KHÔNG đổi — đây là lựa chọn an toàn
    lâm sàng, tách biệt khỏi quyết định thẩm mỹ), Space Grotesk cho tiêu đề/nhấn mạnh mạnh tay. Gộp
    một lời gọi @import để chỉ tốn một lượt xin phông chữ qua mạng. */
@@ -12,8 +12,8 @@
 
 /* DESIGN.md: JetBrains Mono dành riêng cho số liều/nồng độ/tốc độ bơm màn "Dùng thuốc" — đọc rõ
    từng ký tự (1/l, 0/O dễ lẫn ở font thường), quan trọng khi đọc trong buồng tối/qua kính bảo hộ.
-   Font đã tải sẵn ở @import trên (trước đây chỉ nối dây cho định dạng ghi chú Sơ đồ tư duy — xem
-   STYLE_FONT_STACKS trong lib/mindmapStyle.ts — chưa từng áp cho số liều dù đã tải về). */
+   Font đã tải sẵn ở @import trên (trước đây chỉ nối dây cho `f=` trong lib/richText.ts —
+   chưa từng áp cho số liều dù đã tải về). */
 .font-mono-dose {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -108,7 +108,7 @@
 
   /* --c-accent* trước đây là một bộ giá trị RIÊNG trùng khít --c-primary* — hai nguồn sự thật cho
      cùng một màu, sửa primary mà quên sửa accent là sẽ lệch ngay. Giờ trỏ thẳng vào primary, giữ
-     lại tên biến vì còn hàng chục chỗ dùng `--c-accent*` trong App.tsx/MindmapBoard.tsx. */
+     lại tên biến vì còn hàng chục chỗ dùng `--c-accent*` trong App.tsx. */
   --c-accent: var(--c-primary);
   --c-accent-deep: var(--c-primary-strong);
   --c-accent-soft: var(--c-primary-soft);
@@ -465,7 +465,7 @@ input, select, textarea {
    Vì sao `*` và `!important`: chủ đề đổi thì MỌI mặt phẳng màu đều đổi (nền trang, mặt thẻ, đường
    kẻ, chữ, icon) — chừa lại bất kỳ nhóm nào là nhóm đó đổi phắt trong khi phần còn lại đang hoà,
    nhìn còn rối hơn cả lỗi ban đầu. `!important` để thắng cả `transition` viết bằng style inline của
-   React (vd nút chủ đề, các nút .mind-btn) — không có nó thì đúng những nút ấy lại đổi phắt. Chỉ
+   React (vd nút chủ đề) — không có nó thì đúng những nút ấy lại đổi phắt. Chỉ
    liệt kê thuộc tính MÀU: transform/opacity không nằm trong danh sách nên các hoạt ảnh nhấn/trượt
    đang chạy không bị lớp này can thiệp vào. */
 html.theme-shift,
@@ -576,66 +576,7 @@ html.theme-shift * {
 
 .pulse-scale { animation: pulseScale 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
-/* ─── Bảng Sơ đồ tư duy ───────────────────────────────────────────────────────
-   Bảng vẽ là màn hình bấm nút liên tục nhất trong app (đổi bút, đổi màu, chọn thẻ), nên mọi nút ở
-   đây có cùng một phản hồi chạm: thu nhẹ và đổi màu trong 0.16s. Trước đây nút không có phản hồi
-   nào — bấm mà không biết máy đã nhận chưa. */
-
-/* Vân giấy (lớp nền CUỐI, xem paperBackground() trong mindmapStyle.ts) hoà vào lưới/chấm/kẻ dòng và
-   màu giấy bên dưới bằng soft-light thay vì đè lên bằng độ mờ CSS thường — soft-light tự sáng lên
-   trên nền tối, tối lại trên nền sáng, nên đúng MỘT hoạ tiết dùng được cho cả ba màu giấy (trắng/
-   đen/vàng ngà) mà không cần pha alpha riêng cho từng màu.
-
-   KHÔNG đặt background-blend-mode ở đây bằng class CSS: mặt bảng có `background: pal.bg` viết qua
-   style inline của React (đổi theo màu giấy), và việc gán rời `backgroundImage`/`backgroundSize`/
-   `backgroundPosition` qua ref trong applyView() (MindmapBoard.tsx) khiến trình duyệt GỘP LẠI cả
-   khối đó thành một khai báo `background` rút gọn trong style attribute — literal reset
-   background-blend-mode về "normal", đè lên đúng quy tắc class này dù style inline không hề nhắc
-   tới blend-mode. Phải gán background-blend-mode CÙNG chỗ, CÙNG cách (qua ref, trong applyView())
-   để nó nằm trong style attribute mà không bị cú gộp shorthand đó xoá mất. */
-.mind-btn {
-  transition:
-    transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1),
-    background-color 0.16s ease,
-    color 0.16s ease,
-    box-shadow 0.16s ease;
-}
-
-/* Vân băng dính (xem StrokePath, mind-tape-weave/-stripe/-dot trong MindmapBoard.tsx) — overlay
-   TRUNG TÍNH hoà bằng multiply lên nét màu thật bên dưới, không mang màu riêng, nên đúng MỘT lớp
-   dùng được cho MỌI màu băng dính. Không đặt trực tiếp qua thuộc tính `style` của <path> (SVG presentation
-   attribute) vì mix-blend-mode không nằm trong danh sách presentation attribute chuẩn ở một số
-   engine cũ — class CSS là cách chắc chắn được hỗ trợ. */
-.mind-tape-overlay {
-  mix-blend-mode: multiply;
-  pointer-events: none;
-}
-
-.mind-btn:active {
-  transform: scale(0.9);
-}
-
-/* Bảng nhỏ bung ra từ nút vừa bấm (menu "…", thanh nút trên thẻ đang chọn, hộp hỏi lại) */
-@keyframes mindPop {
-  from { opacity: 0; transform: var(--pop-from, translateY(-4px) scale(0.94)); }
-  to   { opacity: 1; transform: var(--pop-to, translateY(0) scale(1)); }
-}
-
-.mind-pop {
-  animation: mindPop 0.2s cubic-bezier(0.34, 1.45, 0.64, 1);
-}
-
-/* Hàng công cụ phụ (màu mực, cỡ nét) trượt xuống khi chọn bút */
-@keyframes mindRowIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.mind-row {
-  animation: mindRowIn 0.2s cubic-bezier(0.25, 0.9, 0.35, 1);
-}
-
-/* Ô sửa ghi chú trượt lên từ đáy */
+/* ─── Tấm sheet trượt lên từ đáy ────────────────────────────────────────────── */
 @keyframes mindSheetUp {
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -645,90 +586,11 @@ html.theme-shift * {
   animation: mindSheetUp 0.24s cubic-bezier(0.22, 1.1, 0.36, 1);
 }
 
-/* Hai nút "Ghi chú" / "Ảnh" bung lên từ nút ＋, lệch nhau một nhịp cho ra chuyển động có lớp */
-@keyframes mindFabIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.9); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.mind-fab-item {
-  animation: mindFabIn 0.22s cubic-bezier(0.34, 1.45, 0.64, 1) backwards;
-}
-
-/* Thẻ ghi chú / ảnh vừa được tạo: bung ra một nhịp có độ nảy, để mắt bắt được ngay "cái vừa thêm là
-   cái này" thay vì thấy nó xuất hiện đột ngột giữa những thẻ cũ. */
-@keyframes mindBorn {
-  0%   { opacity: 0; transform: scale(0.72); }
-  55%  { opacity: 1; transform: scale(1.06); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-.mind-born {
-  animation: mindBorn 0.42s cubic-bezier(0.34, 1.5, 0.64, 1);
-}
-
-/* Đường nối vừa tạo: tô dần từ thẻ nguồn sang thẻ đích. 400 là số lớn hơn chiều dài mọi cung nối
-   thường gặp nên nét nào cũng chạy hết trong đúng thời gian đó. */
-@keyframes mindEdgeDraw {
-  from { stroke-dashoffset: 400; }
-  to   { stroke-dashoffset: 0; }
-}
-
-.mind-edge-draw {
-  stroke-dasharray: 400;
-  animation: mindEdgeDraw 0.42s cubic-bezier(0.25, 0.9, 0.35, 1) forwards;
-}
-
-/* Thẻ vừa được ô tìm nhảy tới: nảy nhẹ hai nhịp. Bảng là canvas vô hạn nên sau một cú bay ngang qua
-   khoảng giấy trắng, mắt cần một cái vẫy tay để biết "thẻ mình tìm là cái này" — chỉ dừng khung nhìn
-   lại thôi thì thẻ đích lẫn vào những thẻ chung quanh. */
-@keyframes mindFound {
-  0%, 100% { transform: scale(1); }
-  30%      { transform: scale(1.1); }
-  65%      { transform: scale(0.97); }
-}
-
-.mind-found {
-  animation: mindFound 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) 2;
-}
-
-/* Con trượt sáng chạy theo công cụ đang chọn trong thanh công cụ. Chỉ animate transform: width của
-   phần tử này luôn bằng TOOL_BTN (hằng số, xem MindmapBoard.tsx), không bao giờ đổi lúc chạy, nên
-   trước đây có thêm "width 0.2s ease" trong transition là animate một thứ không hề thay đổi giá trị
-   — không gây lỗi gì nhưng cũng không làm gì, chỉ là phí một khai báo. */
-.mind-tool-slider {
-  transition: transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
-}
-
-/* Cùng ý tưởng ô sáng trượt ở trên, nhưng cho hàng chọn bút (PEN_KIT_ITEMS) — KHÔNG dùng chung class
-   với .mind-tool-slider vì đây là trường hợp NGƯỢC với lý do width bị bỏ khỏi transition phía trên:
-   cây bút đang cầm mọc thêm một nút mũi tên riêng (mở phần cài đặt), nên item đó THẬT SỰ đổi bề rộng/
-   cao mỗi lần đổi bút — animate width/height ở đây là animate đúng thứ có thay đổi giá trị, không
-   phải khai báo phí như ở trên. */
-.mind-penkit-slider {
-  transition:
-    transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
-    width 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
-    height 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
-}
-
 /* Người bật "Giảm chuyển động" ở hệ điều hành thường vì lý do sức khoẻ (rối loạn tiền đình, dễ say
-   chuyển động…) — bảng vẽ có nhiều hoạt ảnh hơn hẳn phần còn lại của app (thẻ bung ra, đường nối tô
-   dần, con trượt chạy, thẻ nảy khi tìm thấy…) nên đáng để tắt riêng. Đổi sang mờ/hiện gần như tức
-   thời thay vì tắt hẳn animation: người dùng vẫn cần biết "vừa có gì đó xảy ra" (thẻ vừa được tạo,
-   vừa tìm thấy), chỉ là không cần chuyển động thị giác để biết điều đó. */
+   chuyển động…) nên đáng để tắt riêng. Đổi sang mờ/hiện gần như tức thời thay vì tắt hẳn animation:
+   người dùng vẫn cần biết "vừa có gì đó xảy ra", chỉ là không cần chuyển động thị giác để biết điều đó. */
 @media (prefers-reduced-motion: reduce) {
-  /* KHÔNG gồm .mind-btn: cái nảy nhẹ 0.9 lúc bấm là phản hồi xác nhận đã chạm, không phải chuyển
-     động trang trí — bỏ nó đi thì vi phạm chính yêu cầu "phải có phản hồi khi chạm" (đổi lại là thứ
-     người dùng cần, dù có giảm chuyển động hay không). */
-  .mind-pop,
-  .mind-row,
   .mind-sheet,
-  .mind-fab-item,
-  .mind-born,
-  .mind-found,
-  .mind-tool-slider,
-  .mind-penkit-slider,
   .board-in,
   .board-out,
   .fade-in,
@@ -740,30 +602,9 @@ html.theme-shift * {
     transition-duration: 0.01ms !important;
     transform: none !important;
   }
-  .mind-edge-draw {
-    animation: none !important;
-    stroke-dasharray: none !important;
-  }
 }
 
-/* Vòng focus khi điều hướng bằng bàn phím (Tab) trong bảng Sơ đồ tư duy — bảng này có phím tắt thật
-   (xem MindmapBoard.tsx), nên nút và ô nhập ở đây cần một dấu focus nhìn thấy được, không chỉ dựa
-   vào con trỏ chuột/ngón tay. `:focus-visible` (không phải `:focus`) để không hiện vòng này khi
-   CHẠM/BẤM CHUỘT — chỉ hiện khi thật sự dùng Tab, giống hành vi mặc định của trình duyệt. */
-.mind-btn:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
-
-/* Input/textarea trong bảng: CSS toàn app tắt outline mặc định của input (index.css, quy tắc
-   `input:focus`) mà không thay bằng gì khác, nên riêng trong bảng vẽ — nơi giờ điều hướng được bằng
-   phím — phải tự vẽ lại một vòng focus rõ ràng. */
-.mind-input:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
-}
-
-/* Cùng lý do với .mind-btn/.mind-input ở trên, áp cho màn "Dùng thuốc" (`.scr-dose`, gán ở gốc
+/* Vòng focus khi điều hướng bằng bàn phím (Tab), áp cho màn "Dùng thuốc" (`.scr-dose`, gán ở gốc
    DungThuocScreen): input:focus tắt outline mặc định toàn app (quy tắc bên dưới) mà không có gì
    thay thế ở đây — bàn phím ngoài/máy tính trạm ở buồng bệnh không có cách nào biết đang gõ vào ô
    nào. Vi phạm WCAG 2.4.7 nếu bỏ trống. */
@@ -938,39 +779,10 @@ select {
   animation-delay: calc(min(var(--i, 0), 8) * 28ms);
 }
 
-/* Danh sách bảng Mindmap (chế độ danh sách): mỗi hàng trồi lên từ dưới, nhưng THEO THỨ TỰ NGƯỢC —
-   hàng ở ĐÁY danh sách hiện trước, hàng trên cùng hiện sau cùng — cảm giác cả danh sách "dựng" dần
-   lên từ chân, khác hẳn nhịp trên-xuống của chế độ lưới bên dưới. Độ trễ qua biến --i, đặt NGƯỢC
-   chỉ số tại chỗ dùng (mục cuối mảng = --i nhỏ nhất, hiện trước). */
-@keyframes mindBoardRise {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.mind-board-rise {
-  animation: mindBoardRise 0.6s cubic-bezier(0.32, 0.72, 0, 1) backwards;
-  animation-delay: calc(min(var(--i, 0), 10) * 48ms);
-}
-
-/* Lưới bảng Mindmap (chế độ ô vuông): rơi xuống từ trên, theo TỪNG HÀNG — hai thẻ cùng hàng (lưới
-   2 cột) rơi cùng lúc, hàng trên cùng rơi trước — ngược hướng và ngược nhịp với chế độ danh sách ở
-   trên, để đổi kiểu xem cảm nhận rõ là một hiệu ứng khác, không chỉ đổi bố cục. Độ trễ qua biến
-   --row (chỉ số hàng = index // 2), không phải --i, nên cả hàng cùng rơi một nhịp. */
-@keyframes mindBoardDrop {
-  from { opacity: 0; transform: translateY(-16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.mind-board-drop {
-  animation: mindBoardDrop 0.6s cubic-bezier(0.32, 0.72, 0, 1) backwards;
-  animation-delay: calc(min(var(--row, 0), 6) * 70ms);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  /* Giữ .dose-press như .mind-btn: cái thu nhẹ lúc bấm là phản hồi chạm, không phải trang trí. */
   .pop-value,
   .flash-ok,
-  .rise-in,
-  .mind-board-rise,
-  .mind-board-drop {
+  .rise-in {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transform: none !important;
