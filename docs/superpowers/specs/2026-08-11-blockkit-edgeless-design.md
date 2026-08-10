@@ -205,6 +205,9 @@ Lấy từ `viewportRuntimeConfig` ngay từ đầu, không đợi gặp sự c�
 
 `Viewport` ~250 dòng · `Grid` ~150 · `Layer` ~650 (giữ lồng nhau đầy đủ) · renderer ~400.
 
+**Chỉ là bốn thành phần của `core/`.** Không tính `blocks/root`, thanh công cụ, hay các mảnh
+`affine/components` — xem §13 để có bức tranh đủ.
+
 ---
 
 ## 7. ToolController và công cụ
@@ -549,9 +552,146 @@ mạng vào), `lit`, `rxjs`, `@preact/signals-core`, `lodash-es`.
 
 ---
 
-## 13. Việc kế tiếp
+## 13. Phụ lục: đối chiếu toàn bộ 66 package
+
+Bảng này tồn tại vì bốn mục trước được rà theo kiểu phản ứng — mỗi lần chủ dự án hỏi lại thì
+tìm ra thêm thứ bị sót. Đây là lượt rà máy móc: liệt kê mọi package trong
+`blocksuite/affine/**` và `blocksuite/framework/*`, phân loại từng cái, không chừa dòng nào.
+
+Ký hiệu: **P0** hạt nhân · **P1.x** chặng trong P1 · **1.5** P1.5 · **P2** Docs ·
+**H** hoãn tới backend · **C** cắt · **—** không áp dụng.
+
+### framework
+
+| Package | | Ghi chú |
+|---|---|---|
+| `framework/global` | **P0** | `gfx/` chứa `Bound`, `Vec`, `curve`, `polygon`, `svg-path` — nền hình học của mọi thứ. `di/` thay bằng registry thuần React |
+| `framework/std` | **P0** | `gfx/`: viewport, grid, layer, tool, selection, interactivity |
+| `framework/store` | **P0** | Cây block trên Yjs, quy ước `sys:`/`prop:` |
+| `framework/sync` | **P0** | Chỉ lấy `doc/impl/indexeddb.ts` (§9). Bỏ `awareness/`, `blob/` |
+
+### affine — nền
+
+| Package | | Ghi chú |
+|---|---|---|
+| `affine/model` | **P0** | Lược đồ mọi phần tử: shape, connector, brush, text, mindmap, group |
+| `affine/shared` | **P0** | `selection/`, `commands/`, `theme/`, `utils/`. Bỏ `adapters/` trừ plain-text |
+| `affine/foundation` | **P0** | `clipboard.ts` — nền sao chép/dán |
+| `affine/ext-loader` | **P0** | Hệ nạp extension. Thay bằng registry thuần, giữ hình dạng API |
+| `affine/components` | **P1.0** | 35 mảnh UI. Lấy dần theo nhu cầu: `portal`, `tooltip`, `toast`, `icon-button`, `color-picker`, `edgeless-line-width-panel`, `edgeless-line-styles-panel`, `slider`, `smooth-corner`, `context-menu`, `drop-indicator`, `block-selection`. Bỏ `embed-card-modal`, `link-preview`, `citation`, `date-picker`, `peek` |
+| `affine/rich-text` | **P1.3** | Trình soạn nội dòng. **Không có nó thì Note không gõ được chữ** |
+| `affine/all` | — | Package gộp, không có mã |
+
+### affine/blocks
+
+| Package | | Ghi chú |
+|---|---|---|
+| `blocks/root` | **P1.0** | **Khối chủ sở hữu chế độ edgeless.** `edgeless/`, `clipboard/`, `keyboard/`, `preview/`. Bỏ `page/` (P2), `adapters/` |
+| `blocks/surface` | **P1.0** | Surface + renderer + `adapters/plain-text` (§8.1) |
+| `blocks/note` | **P1.3** | Khối ghi chú |
+| `blocks/paragraph` | **P1.3** | |
+| `blocks/list` | **P1.3** | |
+| `blocks/image` | **P1.4** | |
+| `blocks/frame` | **1.5** | |
+| `blocks/edgeless-text` | **1.5** | |
+| `blocks/surface-ref` | **1.5** | |
+| `blocks/latex` | **P2** | Khối công thức đứng riêng |
+| `blocks/callout` | **P2** | |
+| `blocks/divider` | **P2** | |
+| `blocks/code` | **P2** | |
+| `blocks/database` | **H** | |
+| `blocks/table` | **H** | |
+| `blocks/data-view` | **H** | |
+| `blocks/attachment` | **C** | App offline |
+| `blocks/bookmark` | **C** | App offline |
+| `blocks/embed` | **C** | App offline |
+| `blocks/embed-doc` | **C** | App offline |
+
+### affine/gfx
+
+| Package | | Ghi chú |
+|---|---|---|
+| `gfx/pointer` | **P1.0** | Snap, pan, quick-tool |
+| `gfx/mindmap` | **P1.1** | ★ Chặng ưu tiên |
+| `gfx/shape` | **P1.2** | `draggable/` + `overlay/` tách xuống 1.5 |
+| `gfx/connector` | **P1.2** | Gồm `element-transform` |
+| `gfx/text` | **P1.2** | |
+| `gfx/note` | **P1.3** | **Công cụ đặt Note lên bảng** — khác `blocks/note` (bản thân khối) |
+| `gfx/brush` | **P1.4** | |
+| `gfx/group` | **1.5** | Lớp cơ sở đã ở P0 (D7); đây là công cụ gộp nhóm |
+| `gfx/link` | **1.5** | Phần tử liên kết trên bảng — dùng để trỏ sang bảng khác |
+| `gfx/turbo-renderer` | **1.5** | Web Worker |
+| `gfx/template` | **C** | Không có nội dung mẫu |
+
+### affine/inlines
+
+| Package | | Ghi chú |
+|---|---|---|
+| `inlines/preset` | **P1.3** | **Đậm, nghiêng, gạch chân, gạch ngang, mã, phím tắt markdown.** Nền của mọi định dạng chữ |
+| `inlines/latex` | **P1.3** | |
+| `inlines/footnote` | **P1.3** | |
+| `inlines/link` | **P1.3** | Liên kết nội dòng |
+| `inlines/reference` | **P2** | Gõ `@` trỏ bài khác, thay marker `[[…]]` cũ |
+| `inlines/comment` | **C** | Cần backend |
+| `inlines/mention` | **C** | Cần tài khoản |
+
+### affine/widgets
+
+| Package | | Ghi chú |
+|---|---|---|
+| `widgets/edgeless-toolbar` | **P1.0** | **Thanh công cụ chính.** `draggable/`, `menu/`, `panel/`, `mixins/` |
+| `widgets/edgeless-zoom-toolbar` | **P1.0** | Có `mobile-zoom-ruler.ts` — thước zoom riêng cho điện thoại |
+| `widgets/viewport-overlay` | **P1.0** | Lớp phủ cho xem trước công cụ |
+| `widgets/edgeless-dragging-area` | **P1.0** | Quét chọn |
+| `widgets/edgeless-selected-rect` | **P1.0** | Khung chọn, tay nắm resize/xoay |
+| `widgets/toolbar` | **P1.3** | Thanh định dạng nổi khi bôi đen |
+| `widgets/keyboard-toolbar` | **P1.3** | Thanh công cụ trên bàn phím ảo |
+| `widgets/edgeless-auto-connect` | **1.5** | |
+| `widgets/frame-title` | **1.5** | |
+| `widgets/slash-menu` | **P2** | |
+| `widgets/drag-handle` | **P2** | |
+| `widgets/linked-doc` | **P2** | |
+| `widgets/note-slicer` | **P2** | |
+| `widgets/page-dragging-area` | **C** | Chế độ trang |
+| `widgets/scroll-anchoring` | **C** | Chế độ trang |
+| `widgets/remote-selection` | **C** | Cần backend |
+
+### affine/fragments
+
+| Package | | Ghi chú |
+|---|---|---|
+| `fragments/outline` | **P2** | Mục lục |
+| `fragments/doc-title` | **P2** | |
+| `fragments/adapter-panel` | **C** | |
+| `fragments/frame-panel` | **C** | Trình chiếu |
+
+### Ngoài blocksuite
+
+| Nguồn | | Ghi chú |
+|---|---|---|
+| `AFFiNE/packages/common/nbstore/src/impls/idb/indexer` | **1.5** | Tìm xuyên bảng (§8.2) |
+
+### Hệ quả của lượt rà này
+
+Bốn package load-bearing bị sót, và cả bốn đều rơi vào P1.0 hoặc P1.3:
+
+- `blocks/root` — không có nó thì không có chế độ edgeless để mà gắn công cụ vào
+- `widgets/edgeless-toolbar` + `edgeless-zoom-toolbar` — thanh công cụ chính, cộng thước zoom
+  riêng cho điện thoại mà tôi cũng chưa từng nhắc
+- `rich-text` + `inlines/preset` — không có thì Note không gõ được chữ đậm
+- `gfx/note` — công cụ đặt Note, khác với bản thân khối Note
+
+**P1.0 và P1.3 vì thế nặng hơn ước lượng ở §6 và §8.** Con số dòng ở §6 chỉ tính
+`Viewport`/`Grid`/`Layer`/renderer, không tính `blocks/root` và thanh công cụ. Kế hoạch triển
+khai phải ước lượng lại từ bảng này chứ không từ §6.
+
+---
+
+## 14. Việc kế tiếp
 
 1. Spec này được duyệt
-2. Gọi `superpowers:writing-plans` lập kế hoạch triển khai P0 + P1
+2. Gọi `superpowers:writing-plans` lập kế hoạch triển khai P0 + P1.
+   **Ước lượng công phải lấy từ §13, không lấy từ §6** — §6 viết trước lượt rà toàn bộ và
+   chỉ tính bốn thành phần của `core/`
 3. P1.5 và P2 mỗi cái một spec riêng, sau khi P1 xong
 4. `block-database` / `block-table` / `data-view` nhắc lại khi làm backend
