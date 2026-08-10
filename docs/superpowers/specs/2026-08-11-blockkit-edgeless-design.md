@@ -266,7 +266,8 @@ P1.1  ★ Mindmap: element, layout, 4 phong cách, Tab/Enter, kéo đổi nhánh
 P1.2  Shape · Connector (+ kéo đầu mút) · Text
 P1.3  Note (paragraph · list · inline-latex · inline-footnote)
       + thanh công cụ trên bàn phím ảo
-P1.4  Brush · Eraser · Ảnh · sao chép-dán · phím tắt · xuất PNG
+P1.4  Brush · Eraser · Ảnh · sao chép-dán · phím tắt
+      + xuất PNG · sao chép bảng dạng outline văn bản
 xuyên suốt:  khung chọn + tay nắm resize/xoay
 ```
 
@@ -279,7 +280,8 @@ Ba điểm làm rõ trong bảng trên:
   `inline-footnote` đi cùng `inline-latex` — cả hai thuộc tầng rich-text dùng chung.
 - **Xuất PNG** ở P1.4, sau khi đã có đủ loại phần tử để mà xuất. Vẽ lại bằng canvas 2d từ mô
   hình, không chụp DOM: bảng là canvas vô hạn nên chụp màn hình sẽ mất gần hết nội dung.
-  Đây là lý do §4 bắt `core/` không được import React.
+  Đây là lý do §4 bắt `core/` không được import React. Đi cùng nó là **sao chép dạng outline**
+  (§8.1) — cùng bản chất "lấy nội dung ra khỏi bảng".
 
 Widget và module kéo vào P1:
 
@@ -295,9 +297,10 @@ Widget và module kéo vào P1:
 
 ### P1.5 — Canvas dùng sướng
 
-Bắt vào sau mà không đụng kiến trúc: `shape/draggable` + overlay xem trước · `gfx-turbo-renderer`
-· Frame + Group + `widget-frame-title` · `widget-edgeless-auto-connect` · `block-edgeless-text` ·
-`block-surface-ref` · lasso · `adaptive-load-controller`.
+Bắt vào sau mà không đụng kiến trúc: **tìm xuyên bảng (§8.2)** · `shape/draggable` + overlay xem
+trước · `gfx-turbo-renderer` · Frame + Group + `widget-frame-title` ·
+`widget-edgeless-auto-connect` · `block-edgeless-text` · `block-surface-ref` · lasso ·
+`adaptive-load-controller`.
 
 `block-surface-ref` là cơ chế AFFiNE sẵn có cho D2: nhúng một frame của bảng vào bài viết như
 ảnh sống, chạm vào nhảy tới bảng.
@@ -330,21 +333,64 @@ backend. **Không cắt, chỉ hoãn.**
 | Nhiều bảng, tên/màu/gắn chuyên khoa | P1.0 (`BoardGallery`) |
 | Nét vẽ tay, ảnh chèn, hoàn tác/làm lại, xoá mềm | P1 |
 | Đường nối có nhãn, loại "quan hệ" / "phác đồ" | P1.2 — ánh xạ sang kiểu và nhãn của `connector` |
-| Thẻ ghi chú gắn thẳng tới một bài Thư viện | **P1.5** qua `block-surface-ref`, hoặc **P2** qua `inline-reference` |
 | Xuất PNG | P1.4 |
-| **Tìm xuyên suốt mọi bảng** | **Không có trong P0–P2.** Cần chỉ mục toàn văn trên nhiều Y.Doc — thuộc phiên backend |
-| **Xuất PDF** | **Không có.** PNG trước; PDF cần thư viện ngoài, cân nhắc lại sau |
-| **Sao chép bảng dạng outline văn bản** | **Không có.** Là một adapter, mà adapter đã cắt (xem dưới) |
-| Nhận dạng hình vẽ tay (nắn nét thành hình) | **Không có.** Là tính năng riêng của bản cũ, AFFiNE không có. Cân nhắc lại sau P1 |
+| Sao chép bảng dạng outline văn bản | P1.4 — xem §8.1 |
+| Tìm xuyên suốt mọi bảng | P1.5 — xem §8.2 |
+| Thẻ ghi chú gắn thẳng tới một bài Thư viện | **Bỏ.** Bản cũ cần nó vì ghi chú trên bảng chỉ là thẻ chữ trơ. Từ P2, Note *chính là* một trang đầy đủ — thẻ trỏ đi nơi khác mất lý do tồn tại |
+| **Xuất PDF** | **Bỏ.** Cần thư viện ngoài; PNG là đủ |
+| **Nhận dạng hình vẽ tay** (nắn nét thành hình) | **Bỏ.** Tính năng riêng của bản cũ, AFFiNE không có |
+
+### 8.1 Sao chép bảng dạng outline
+
+`blocksuite/affine/blocks/surface/src/adapters/plain-text/` — adapter này import
+`getMindMapNodeMap` và đi bộ trên cây mindmap để sinh văn bản thụt lề. Nhỏ, và là cách AFFiNE
+sẵn có. Vào **P1.4** cùng xuất PNG: cả hai đều là "lấy nội dung ra khỏi bảng".
+
+Hệ quả với danh sách cắt bên dưới: **adapter không bị cắt cả cụm nữa** — giữ `plain-text` của
+surface, vẫn cắt `html-adapter`, `markdown`, và `adapter-panel`.
+
+### 8.2 Tìm xuyên suốt mọi bảng
+
+AFFiNE làm hoàn toàn phía máy khách, **không cần server**:
+`AFFiNE/packages/common/nbstore/src/impls/idb/indexer/` — chỉ mục ngược + xếp hạng BM25 lưu
+thẳng trong IndexedDB.
+
+| File gốc | Dòng | |
+|---|---|---|
+| `inverted-index.ts` | 537 | Chỉ mục ngược |
+| `data-struct.ts` | 544 | Cấu trúc lưu trên IndexedDB |
+| `tokenizer.ts` | 162 | Tách từ |
+| `match.ts` | 105 | Khớp truy vấn |
+| `highlighter.ts` | 77 | Tô sáng đoạn khớp |
+| `bm25.ts` | 62 | Xếp hạng |
+| `utils.ts` + `storage/indexer/*` | 220 | Lược đồ, truy vấn, tài liệu |
+
+Lõi ~1.700 dòng. **Không** lấy `sync/indexer/index.ts` (863 dòng) — nó gắn với kiến trúc
+workspace/nbstore của AFFiNE; ta thay bằng một crawler mỏng chạy khi bảng đóng.
+
+Có sẵn 3 file test gốc (`bm25.spec.ts`, `tokenizer.spec.ts`, `highlighter.spec.ts`) — port theo
+luật ở §10.
+
+**Một chỗ buộc phải khác AFFiNE: gỡ dấu tiếng Việt.** `SimpleTokenizer` chỉ hạ chữ thường, không
+chuẩn hoá dấu — gõ "khang sinh" sẽ **không** ra "kháng sinh". Với app y khoa tiếng Việt dùng một
+tay lúc trực thì đó là hỏng, không phải thiếu tiện. Thêm một bước NFD gỡ dấu, **đánh chỉ mục cả
+hai dạng** (có dấu và không dấu) để gõ kiểu nào cũng ra.
+
+Đổi lại bỏ được `graphemer`: nó chỉ phục vụ `NGramTokenizer` tách chữ Hán–Nhật–Hàn; tiếng Việt
+tách theo khoảng trắng nên `SimpleTokenizer` là đủ.
+
+Xếp vào **P1.5** vì không có gì trong P1 phụ thuộc nó, nhưng phải ghi rõ: đây là hạng mục **lớn
+nhất của P1.5**, một mình bằng cả phần còn lại cộng lại.
 
 Shortcut PWA `/?screen=mindmap` giữ nguyên id màn hình nên vẫn chạy.
 
 ### Cắt, lý do không đổi
 
 `remote-selection`, `inline-comment`, `inline-mention` (cần backend + tài khoản) ·
-`frame-panel` + trình chiếu · `gfx-template` (không có nội dung mẫu) · `adapter-panel` và adapter
-markdown/html/notion (giữ riêng xuất PNG) · `block-embed`, `bookmark`, `attachment`, `embed-doc`
-(app offline) · `page-dragging-area`, `scroll-anchoring` (thuộc chế độ trang, tức P2).
+`frame-panel` + trình chiếu · `gfx-template` (không có nội dung mẫu) · `adapter-panel`, adapter
+`markdown` và `html-adapter` (**giữ `plain-text` — xem §8.1**) · `block-embed`, `bookmark`,
+`attachment`, `embed-doc` (app offline) · `page-dragging-area`, `scroll-anchoring` (thuộc chế độ
+trang, tức P2) · `graphemer` (xem §8.2).
 
 ---
 
@@ -430,6 +476,14 @@ BlockSuite có sẵn ~2.465 dòng unit test phủ đúng những module P1 đụ
 | `affine/gfx/pointer/src/__tests__/adaptive-load-controller.unit.spec.ts` | 73 | Giới hạn tải khi snap |
 | `graph` + `priority-queue` + `curve` | 67 | Phụ trợ định tuyến |
 
+Cho tìm xuyên bảng ở P1.5, thêm 3 file trong
+`AFFiNE/packages/common/nbstore/src/impls/idb/indexer/__tests__/`: `bm25.spec.ts`,
+`tokenizer.spec.ts`, `highlighter.spec.ts`.
+
+**Ngoại lệ cho `tokenizer.spec.ts`:** ta cố ý đổi hành vi (gỡ dấu tiếng Việt, §8.2), nên test gốc
+sẽ có ca không khớp. Đó là chỗ **duy nhất** được phép sửa test — và phải thêm ca mới cho hành vi
+mới ("khang sinh" → khớp "kháng sinh"), không chỉ xoá ca cũ.
+
 **Luật:** *một module chỉ được coi là port xong khi test gốc của nó chạy xanh trên mã của ta.*
 Không đạt là lỗi port, không phải cớ sửa test.
 
@@ -469,7 +523,7 @@ Chạy thật: **2 → 5**
 |---|---|---|
 | `yjs` | ~30 KB gz | Nguồn sự thật cho Doc và Surface (D5) |
 | `fractional-indexing` | ~1 KB | Thứ tự anh em + z-order. Thuật toán ngắn nhưng nhiều bẫy biên (thứ tự chữ số base62, điểm giữa); sai một chỗ là thứ tự phần tử hỏng âm thầm |
-| `katex` | ~75 KB gz + font | `block-latex` và `inline-latex` đều phụ thuộc `katex@0.16`. **Phải đóng gói kèm font WOFF2** — thiếu là công thức hiện ô vuông khi offline |
+| `katex` | ~75 KB gz + font | `block-latex` và `inline-latex` đều phụ thuộc `katex@0.16`. **Phải đóng gói kèm font WOFF2** — thiếu là công thức hiện ô vuông khi offline. Chủ dự án đã xác nhận có công thức thực sự cần trong nội dung y khoa, nên khoản nặng này là có chủ đích |
 
 Dev: `vitest`.
 
@@ -490,6 +544,8 @@ mạng vào), `lit`, `rxjs`, `@preact/signals-core`, `lodash-es`.
 | Port test gốc vướng phụ thuộc Lit/DI | Trung bình | Ưu tiên các file test thuần hình học (bound, math-utils, a-star, sort, curve — chạy độc lập được). File nào vướng thì hạ xuống fixture vàng |
 | KaTeX phình bundle | Thấp | Nạp động khi gặp công thức đầu tiên; font subset |
 | Người dùng mất bảng mindmap cũ | Đã chấp nhận | Quyết định rõ ràng của chủ dự án (D3). Mã cũ đã xoá ở `fd24576` nên gần như chắc đã hỏng |
+| Chỉ mục tìm kiếm phình P1.5 | Trung bình | ~1.700 dòng, một mình bằng cả phần còn lại của P1.5. Nếu P1.5 phải cắt thì đây là hạng mục tách ra thành spec riêng, không phải hạng mục làm dở |
+| Chỉ mục ăn dung lượng IndexedDB | Trung bình | Chỉ mục ngược nằm cùng DB với nét vẽ và ảnh, cùng chịu một hạn mức. Xử lý `QuotaExceededError` ở §9 phải phân biệt "hết chỗ vì nội dung" và "hết chỗ vì chỉ mục" — chỉ mục dựng lại được, nội dung thì không |
 
 ---
 
