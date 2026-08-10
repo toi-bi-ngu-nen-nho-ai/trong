@@ -1,14 +1,27 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // ES2022 vì mã vendored (src/vendor/blocksuite) dùng `new Error(msg, { cause })` và
+    // `String.replaceAll`. D11 cấm sửa mã vendored, nên chỗ phải nhượng là cấu hình của ta.
+    "target": "ES2022",
+    // false để khớp BlockSuite (AFFiNE/tsconfig.json). Mã vendored dùng tham số constructor
+    // ngay trong khởi tạo field — hợp lệ khi field được gán trong constructor (false), nhưng
+    // là TS2729 khi field dùng ngữ nghĩa `define` (true). Lớp duy nhất của ta là ErrorBoundary,
+    // hành xử y hệt dưới cả hai.
+    //
+    // Ta KHÔNG theo target ES2024 của AFFiNE: đây là PWA chạy trên iPhone đời cũ, ES2022 là
+    // mức Safari 16.4 trở lên, đủ cho mã vendored mà không đẩy trần thiết bị lên cao hơn cần.
+    "useDefineForClassFields": false,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@blocksuite/global": ["./src/vendor/blocksuite/global/src/index.ts"],
+      "@blocksuite/global/*": ["./src/vendor/blocksuite/global/src/*/index.ts"],
+      "@blocksuite/store": ["./src/vendor/blocksuite/store/src/index.ts"],
+      "@blocksuite/sync": ["./src/vendor/blocksuite/sync/src/index.ts"]
     },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
