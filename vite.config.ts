@@ -29,8 +29,12 @@ function vendorJsToTs(): Plugin {
 // nơi thực sự ném `SyntaxError: Unexpected identifier`. Đổi `target` không có tác dụng vì đây
 // không phải chuyện esnext-hoá cú pháp đã hỗ trợ, mà là tính năng oxc chưa cài đặt transform.
 //
-// BlockSuite khai mọi thuộc tính bằng `accessor` (luôn đi kèm decorator kiểu `@field`), nên
-// chỗ duy nhất cần vá là các file port ở `src/core/**` dùng cú pháp đó — không phải cả app.
+// BlockSuite khai mọi thuộc tính bằng `accessor` (luôn đi kèm decorator kiểu `@field`). P0-B
+// chỉ port vào `src/core/**` nên ban đầu phạm vi lọc chỉ tới đó — nhưng P1 sẽ viết shape,
+// connector, brush, text, mindmap dùng cú pháp này, và không nhất thiết đặt trong `src/core/`.
+// Phạm vi lọc do đó phủ TOÀN BỘ `src/`, trừ `src/vendor/` (mã bên thứ ba, cấm sửa và cấm đưa
+// vào phạm vi lọc — D11; hiện không file vendored nào dùng `accessor`, nếu sau này có thì cần
+// quyết định riêng, không tự động nuốt vào đây).
 // Dùng Babel (`@babel/plugin-proposal-decorators`, bản `2023-05` — bản đầu tiên hạ cấp được
 // `accessor`) làm bước biên dịch *trước* oxc.
 //
@@ -55,10 +59,12 @@ function vendorJsToTs(): Plugin {
 //
 // Type-checking vẫn qua `tsc --noEmit` riêng — Babel ở đây không type-check, chỉ strip.
 //
-// Lọc theo nội dung (`accessor` xuất hiện trong file) chứ không theo toàn bộ thư mục, để chi
-// phí Babel chỉ tính trên số file thực sự cần — hiện tại là 3 file.
+// Lọc theo nội dung (`accessor` xuất hiện trong file) chứ không theo toàn bộ thư mục con, để
+// chi phí Babel chỉ tính trên số file thực sự cần — hiện tại vẫn chỉ 3 file dù phạm vi thư mục
+// đã mở rộng ra toàn bộ src/.
 function accessorSupport(): Plugin {
-  const coreDir = path.resolve(__dirname, 'src/core').replace(/\\/g, '/')
+  const srcDir = path.resolve(__dirname, 'src').replace(/\\/g, '/')
+  const vendorDir = path.resolve(__dirname, 'src/vendor').replace(/\\/g, '/')
   const tsFile = /\.tsx?$/
   // Khớp tsconfig.json useDefineForClassFields: false — field gán bằng `=` (assign semantics),
   // không phải `Object.defineProperty` (define semantics). Thiếu assumption này, babel dùng
@@ -73,8 +79,11 @@ function accessorSupport(): Plugin {
       const [bareId] = id.split('?')
       const normalized = bareId.replace(/\\/g, '/')
 
-      if (!normalized.startsWith(coreDir + '/') || !tsFile.test(normalized)) return null
-      // Kiểm rẻ trước khi gọi Babel: đa số file trong src/core/** không dùng accessor.
+      if (!normalized.startsWith(srcDir + '/') || !tsFile.test(normalized)) return null
+      // src/vendor/ là mã bên thứ ba (D11) — cấm sửa, cấm đưa vào phạm vi lọc dù nội dung có
+      // khớp `accessor` hay không.
+      if (normalized.startsWith(vendorDir + '/')) return null
+      // Kiểm rẻ trước khi gọi Babel: đa số file trong src/** không dùng accessor.
       if (!/\baccessor\b/.test(code)) return null
 
       const isTSX = normalized.endsWith('.tsx')
