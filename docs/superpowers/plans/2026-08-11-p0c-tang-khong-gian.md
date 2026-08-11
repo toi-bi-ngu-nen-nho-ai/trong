@@ -207,6 +207,29 @@ Ghi số build vào thông điệp commit — mở rộng phạm vi lọc có th
 **Interfaces:**
 - Produces: `CursorType`, `GfxExtension`, `GfxExtensionIdentifier`, `gfxControllerKey`, `RafCoalescer` — nền cho `Grid`, `Layer`, `ToolController` ở các task sau
 
+### `GfxController` — placeholder dựng dần, đo chứ không đoán
+
+`extension.ts` và `identifiers.ts` đều có `import type { GfxController } from './controller.js'`. `controller.ts` thuộc nhóm hoãn sang P1.0 (nó cần `KeyboardController` như một **giá trị**, cộng `LifeCycleWatcher` và `onSurfaceAdded` nằm ngoài `gfx/`).
+
+Nhưng cả hai chỗ đều là **`import type`** — đúng tình huống P0-B đã gặp với `EditorHost`, và cách xử lý giống hệt: khai một kiểu tối giản trong `src/core/gfx/host.ts`.
+
+Khác một điểm quan trọng so với `EditorHost`: `GfxController` nằm ở **vị trí thật** (`constructor(protected readonly gfx: GfxController)`), và các lớp con truy cập `this.gfx.<thành viên>`. Interface rỗng sẽ thành lỗi kiểu. Nên placeholder phải có **đúng những thành viên được dùng thật** — đã đo:
+
+| File dùng | Task | Truy cập gì trên `gfx` |
+|---|---|---|
+| `grid.ts` | 5 | `surface` |
+| `layer.ts` | 6 | `surface` |
+| `selection.ts` | 7 | `surface`, `getElementById` |
+| `tool-controller.ts` | 8 | `selection`, `viewport` |
+
+`surface` và `getElementById` dựa vào kiểu đã port ở chặng trước. `viewport` (Task 4) và `selection` (Task 7) đều **hạ cánh trước** Task 8 — chỗ duy nhất cần chúng. Nên placeholder dựng dần được:
+
+- **Task 3** khai hai thành viên: `surface`, `getElementById`
+- **Task 4** thêm `viewport` sau khi `Viewport` được port
+- **Task 7** thêm `selection` sau khi `selection.ts` được port
+
+Đây là một hợp đồng **đo được**, không phải interface rỗng — nó nói thẳng host thật phải cung cấp gì, và là thứ P1.0 sẽ phải hiện thực khi dựng `EdgelessHost` bằng React.
+
 - [ ] **Step 1: Quét import trước khi chép**
 
 ```bash
@@ -214,7 +237,11 @@ cd C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/framework/std/src/gfx
 grep -n "^import\|^} from" cursor.ts extension.ts identifiers.ts raf-coalescer.ts
 ```
 
-Ghi lại mọi specifier. Nếu có file nào import thứ chưa port (`controller`, `view/`, `BlockStdScope`) thì **dừng và báo** — phép đo phân nhóm sai.
+Ghi lại mọi specifier.
+
+`import type { GfxController } from './controller.js'` trong `extension.ts` và `identifiers.ts` là **đã biết trước** — xử lý theo mục trên, trỏ về `'../host'` (kiểm độ sâu bằng cách phân giải thật).
+
+Nếu gặp import nào **khác** trỏ vào thứ chưa port — nhất là **import giá trị** — thì **dừng và báo**.
 
 - [ ] **Step 2: Chép và bỏ đuôi `.js`**
 
