@@ -1,15 +1,16 @@
 // Barrel của tầng gfx — tương ứng `std/src/gfx/index.ts` ở thượng nguồn.
 //
 // Bản thượng nguồn re-export cả Viewport, Grid, Layer, ToolController, selection và
-// interactivity. P0-B mang tầng model; P0-C (task này) thêm cursor, extension, identifiers,
-// raf-coalescer. Grid, Layer, Selection, ToolController, Viewport thuộc các task P0-C sau và sẽ
-// được thêm vào đúng file này khi tới chặng đó.
+// interactivity. P0-B mang tầng model; P0-C thêm dần cursor, extension, identifiers,
+// raf-coalescer, Viewport (Task 4), Grid (Task 5). Layer, Selection, ToolController thuộc các
+// task P0-C sau và sẽ được thêm vào đúng file này khi tới chặng đó.
 //
 // Cố ý KHÔNG chép index.ts của thượng nguồn: nó re-export những module ta chưa port, và một
 // barrel trỏ vào hư không thì hỏng ngay lúc dịch.
 export * from './host'
 export type { CursorType, StandardCursor } from './cursor'
 export { GfxExtension, GfxExtensionIdentifier } from './extension'
+export { GridManager } from './grid'
 export { GfxControllerIdentifier } from './identifiers'
 export * from './model/base'
 export * from './model/gfx-block-model'
