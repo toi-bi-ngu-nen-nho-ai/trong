@@ -11105,7 +11105,7 @@ export default function App() {
             // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
             // trim, dòng "Bs Trọng" bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG
             // MỘT LƯỢNG mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
-            style={{ top: "calc(var(--safe-top-trim) + 48px)", right: 18, transform: "translateY(-50%)" }}
+            style={{ top: "calc(var(--safe-top-trim) + 58px)", right: 18, transform: "translateY(-50%)" }}
           >
             {screen === "home" && <ThemeToggle />}
             <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
