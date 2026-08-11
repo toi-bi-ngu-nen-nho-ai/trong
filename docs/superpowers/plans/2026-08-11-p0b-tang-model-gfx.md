@@ -438,19 +438,18 @@ cp "C:/Users/LENOVO/Downloads/AFFiNE/blocksuite/framework/std/src/gfx/model/surf
 sed -i "s/\(from '\.[^']*\)\.js'/\1'/g" src/core/gfx/model/surface/surface-model.ts
 ```
 
-- [ ] **Step 2: Trỏ lại `perf`**
+- [ ] **Step 2: Không phải sửa đường dẫn nào**
 
-Trong `src/core/gfx/model/surface/surface-model.ts`:
+Bản đầu của kế hoạch bảo đổi `import { measureOperation } from '../../perf';` thành `'../../../perf'`. **Tính nhầm.** `surface-model.ts` ở `src/core/gfx/model/surface/`, `perf.ts` ở `src/core/gfx/` — lùi hai cấp (`surface/` → `model/` → `gfx/`) là tới. Nguyên văn bản gốc `'../../perf'` đã đúng.
 
-```ts
-import { measureOperation } from '../../perf';
+Sau Step 1, file này khớp bản gốc **tuyệt đối**, không lệch một dòng nào.
+
+**Ba lần tính nhầm độ sâu trong cùng một kế hoạch** (Task 4 hai lần, Task 5 một lần) là dấu hiệu rõ: đừng suy độ sâu bằng đầu. Cách đúng là phân giải thật rồi kiểm file có tồn tại không:
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+node -e "const p=require('path');const f=p.resolve('src/core/gfx/model/surface','../../perf.ts');console.log(f, require('fs').existsSync(f))"
 ```
-→
-```ts
-import { measureOperation } from '../../../perf';
-```
-
-Lưu ý độ sâu: file nằm ở `src/core/gfx/model/surface/`, `perf.ts` ở `src/core/gfx/` — ba cấp lên.
 
 - [ ] **Step 3: Type-check sạch hoàn toàn**
 
