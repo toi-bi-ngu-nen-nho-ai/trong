@@ -55,7 +55,8 @@ function vendorJsToTs(): Plugin {
 // Lượt 1 chỉ chạy `@babel/preset-typescript` (strip type, giữ `@babel/plugin-syntax-decorators`
 // để parse — không transform — cú pháp decorator) → ra JS thuần, không còn `!`/type annotation.
 // Lượt 2 chạy `@babel/plugin-proposal-decorators` trên JS thuần đó, không còn gì của TS để
-// giẫm chân. Tách lượt tốn thêm một lần parse/print nhưng chỉ với 3 file, không đáng kể.
+// giẫm chân. Tách lượt tốn thêm một lần parse/print, tính trên số file thực sự qua Babel — xem
+// con số đo được ở khối ngay dưới, đừng đoán.
 //
 // Type-checking vẫn qua `tsc --noEmit` riêng — Babel ở đây không type-check, chỉ strip.
 //
