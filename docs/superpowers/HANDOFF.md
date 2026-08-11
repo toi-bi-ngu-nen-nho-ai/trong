@@ -22,7 +22,20 @@ AFFiNE (BlockSuite) sang React.
 
 ---
 
-## 2. VẬT CẢN ĐANG CHẶN — việc đầu tiên phải giải quyết
+## 2. VẬT CẢN — ĐÃ GỠ (2026-08-11)
+
+> **Chốt:** cả hai lần chặn đã gỡ. Lần 2 chọn **hướng 1 thu hẹp theo số đo**:
+> `src/core/gfx/std-identifier.ts` khai đúng `LifeCycleWatcherIdentifier`, kèm
+> `src/core/__tests__/std-identifier.spec.ts` (5 ca) cưỡng chế hợp đồng.
+> Số đo đầy đủ nằm ở kế hoạch P0-C, mục "`LifeCycleWatcherIdentifier` — vật cản đã gỡ".
+> Ba con số quyết định:
+> - P0-C cần **1 trong 9** export của `std/src/identifier.ts` — không phải 3.260 dòng.
+> - **Hướng 3 chết**: `grid.ts:11`, `layer.ts:19`, `selection.ts:17`, `tool/tool-controller.ts:10`
+>   đều `import { GfxExtension }` như **giá trị** → hoãn `extension.ts` là rỗng Task 5–8.
+> - **Hướng 1 an toàn hơn tưởng**: DI khoá theo **chuỗi tên** (`di/container.ts:176,184,234`),
+>   nên định danh khai ở nhà và bản std tương lai trỏ **cùng một ô** — không có split-brain.
+>
+> Phần dưới giữ lại làm hồ sơ vì sao, đừng lật lại nếu không có dữ kiện mới.
 
 **P0-C Task 3 bị chặn hai lần liên tiếp, và cả hai đều do phép phân nhóm của kế hoạch sai.**
 

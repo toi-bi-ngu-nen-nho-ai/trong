@@ -207,6 +207,26 @@ Ghi số build vào thông điệp commit — mở rộng phạm vi lọc có th
 **Interfaces:**
 - Produces: `CursorType`, `GfxExtension`, `GfxExtensionIdentifier`, `gfxControllerKey`, `RafCoalescer` — nền cho `Grid`, `Layer`, `ToolController` ở các task sau
 
+### `LifeCycleWatcherIdentifier` — vật cản đã gỡ (2026-08-11)
+
+`identifiers.ts` import `LifeCycleWatcherIdentifier` từ `std/src/identifier.ts`, file kéo theo
+3.260 dòng hạ tầng std ngoài phạm vi P0-C. Ba hướng đã cân, **đo trước khi chọn**:
+
+| Đo | Kết quả |
+|---|---|
+| P0-C cần bao nhiêu của `identifier.ts`? | **1 trong 9** export. Cả `std/src/gfx/` chỉ hai file chạm `../identifier.js`: `identifiers.ts` (`LifeCycleWatcherIdentifier`) và `surface-middleware.ts` (`StdIdentifier`, hoãn P1.0) |
+| Dùng ra sao? | 1 lần, `identifiers.ts:8`, kết quả ép kiểu bỏ đi ngay: `as ServiceIdentifier<GfxController>` |
+| Hướng 3 (đẩy `extension.ts`+`identifiers.ts` sang P1.0) khả thi? | **Không.** `grid.ts:11`, `layer.ts:19`, `selection.ts:17`, `tool/tool-controller.ts:10` đều `import { GfxExtension }` như **giá trị** rồi kế thừa → rỗng Task 5,6,7,8 |
+| Hướng 2 (port `identifier.ts` chỉ phần kiểu) đáng không? | **Không.** Buộc khai thêm 7 placeholder (`Command`, `EventOptions`, `UIEventHandler`, `BlockService`, `BlockStdScope`, `BlockViewType`, `WidgetViewType`) mà P0-C không quan sát cái nào — nhiều hợp đồng chưa cưỡng chế hơn, không ít hơn |
+| Rủi ro định danh trùng của hướng 1? | **Không có.** DI khoá theo **chuỗi tên**: `di/container.ts:176,184,234`, `di/provider.ts:64,175`. Tiền lệ trong mã đã vendor: `store/src/extension/store-extension.ts:8-9` |
+
+**Chọn hướng 1, thu hẹp đúng theo số đo.** Đã làm — `src/core/gfx/std-identifier.ts` khai đúng
+`LifeCycleWatcherIdentifier` + kiểu rỗng `LifeCycleWatcher`, kèm `src/core/__tests__/std-identifier.spec.ts`
+(5 ca) **cưỡng chế** hợp đồng "DI khoá theo tên" mà quyết định này dựa vào. Khi P1.0 port std thật,
+việc phải làm là đổi một dòng import — không có hai định danh song song chia đôi container.
+
+Trong Task 3, `identifiers.ts` đổi `from '../identifier.js'` → `from './std-identifier'`.
+
 ### `GfxController` — placeholder dựng dần, đo chứ không đoán
 
 `extension.ts` và `identifiers.ts` đều có `import type { GfxController } from './controller.js'`. `controller.ts` thuộc nhóm hoãn sang P1.0 (nó cần `KeyboardController` như một **giá trị**, cộng `LifeCycleWatcher` và `onSurfaceAdded` nằm ngoài `gfx/`).
@@ -239,7 +259,11 @@ grep -n "^import\|^} from" cursor.ts extension.ts identifiers.ts raf-coalescer.t
 
 Ghi lại mọi specifier.
 
-`import type { GfxController } from './controller.js'` trong `extension.ts` và `identifiers.ts` là **đã biết trước** — xử lý theo mục trên, trỏ về `'../host'` (kiểm độ sâu bằng cách phân giải thật).
+Hai import **đã biết trước**, xử lý theo hai mục trên, đừng coi là vật cản mới:
+- `import type { GfxController } from './controller.js'` (ở `extension.ts` và `identifiers.ts`) → trỏ về `'../host'`
+- `import { LifeCycleWatcherIdentifier } from '../identifier.js'` (ở `identifiers.ts`) → trỏ về `'./std-identifier'`
+
+Cả hai đều **kiểm độ sâu bằng cách phân giải thật**, không suy bằng đầu (bài học 1).
 
 Nếu gặp import nào **khác** trỏ vào thứ chưa port — nhất là **import giá trị** — thì **dừng và báo**.
 
