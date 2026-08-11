@@ -336,13 +336,19 @@ Expected: cả bốn tên đều có mặt. Đây là thứ cả D10/D11 đượ
 - Consumes: `compare` từ `utils/layer` (Task 6 — xem lưu ý), model classes từ P0-B
 - Produces: `GridManager`
 
-**Lưu ý thứ tự:** `grid.ts` import `compare` từ `../utils/layer.js`, mà `utils/layer.ts` là phụ trợ của `layer.ts` (Task 6). Kiểm ở Step 1 xem có phải port `utils/layer.ts` trước không — nếu có, **đổi thứ tự Task 5 và 6**, hoặc port `utils/layer.ts` trong Task 5.
+**Thứ tự — ĐÃ ĐO, ĐÃ CHỐT (2026-08-11):** `grid.ts:10` cần `compare` từ `../utils/layer.js` như một
+**giá trị**. Đã quét `std/src/utils/layer.ts` (171 dòng): nó chỉ phụ thuộc model đã port ở P0-B,
+cộng `Store` (kiểu, đã vendor) và `Layer` (kiểu, từ `gfx/layer.ts` — vòng **chỉ ở mức kiểu**, không
+thành vòng lúc chạy). **Không đổi thứ tự Task 5/6. Port `src/core/utils/layer.ts` trong Task 5**,
+Task 6 dùng lại.
 
-**`fractional-indexing` chưa được cài** (spec §11 liệt nó là cần cho `layer.ts`). Cài ở task nào cần đầu tiên, làm **dependency chạy thật**.
+**`fractional-indexing` chưa được cài** (spec §11 liệt nó là cần cho `layer.ts`). Đã đo: `grid.ts`
+**không** cần nó, `layer.ts` (Task 6) mới cần. Nhưng `utils/layer.ts` port ở task này — kiểm ở
+Step 1 xem nó có cần không, nếu có thì cài ở đây. Làm **dependency chạy thật**.
 
-- [ ] **Step 1: Quét import, quyết định thứ tự**
+- [ ] **Step 1: Quét import** — cả `grid.ts` và `utils/layer.ts`
 - [ ] **Step 2: Cài `fractional-indexing` nếu task này cần**
-- [ ] **Step 3: Chép, sửa import, `diff` với bản gốc**
+- [ ] **Step 3: Chép, sửa import, `diff` với bản gốc** — cả hai file
 - [ ] **Step 4: Thêm vào barrel**
 
 **Tiêu chí xong:** `diff` chỉ khác ở dòng `import`, `npx tsc --noEmit` exit 0.
@@ -368,35 +374,57 @@ Expected: cả bốn tên đều có mặt. Đây là thứ cả D10/D11 đượ
 
 ---
 
-## Task 7: `selection.ts`
+## Task 7: `selection.ts` + `std/src/selection/`
 
 **Files:**
+- Create: `src/core/selection/{index,block,cursor,surface,text}.ts` (271 tổng)
 - Create: `src/core/gfx/selection.ts` (408)
 
-- [ ] **Step 1: Quét import** — đặc biệt kiểm xem có chạm `BlockStdScope` không. Phép đo phân nhóm nói là không; nếu có thì **dừng và báo**.
-- [ ] **Step 2: Chép, sửa import, `diff` với bản gốc**
-- [ ] **Step 3: Thêm vào barrel**
+**Interfaces:**
+- Consumes: `BaseSelection`, `SelectionExtension` từ `@blocksuite/store` (đã vendor ở `store/src/extension/selection/`); `zod` (đã cài `^3.25.76`); `GfxExtension` (Task 3); `GfxGroupLikeElementModel` (P0-B)
+- Produces: `GfxSelectionManager`, và bốn lớp `BlockSelection` / `CursorSelection` / `SurfaceSelection` / `TextSelection`
 
-**Tiêu chí xong:** `diff` chỉ khác ở dòng `import`, `npx tsc --noEmit` exit 0.
+### Mở rộng phạm vi — đã đo, chủ dự án đã duyệt (2026-08-11)
+
+`gfx/selection.ts` dòng 10-15 import **bốn GIÁ TRỊ** từ `../selection/index.js` — không phải
+`import type`, nên **không placeholder được**. Phép phân nhóm ban đầu của P0-C bỏ sót chỗ này
+(nó chỉ grep `BlockStdScope|../view|BlockComponent`).
+
+Đã đo `std/src/selection/`: **271 dòng, 5 file**, và cả năm chỉ import đúng hai thứ —
+`BaseSelection` + `SelectionExtension` từ `@blocksuite/store` (**đã vendor**) và `zod` (**đã cài**).
+**Zero hạ tầng std, zero dependency mới, zero placeholder mới.** Nên đây là phần thiếu của phép
+phân nhóm, không phải phạm vi mới. Port cùng Task 7.
+
+- [ ] **Step 1: Quét import** — cả `gfx/selection.ts` và năm file `std/src/selection/`. Kiểm `BlockStdScope`; phép đo nói là không chạm, nếu có thì **dừng và báo**.
+- [ ] **Step 2: Chép `std/src/selection/` → `src/core/selection/`, sửa import, `diff` với bản gốc**
+- [ ] **Step 3: Chép `gfx/selection.ts`, sửa import, `diff` với bản gốc**
+- [ ] **Step 4: Thêm vào barrel**
+
+**Tiêu chí xong:** `diff` cả sáu file chỉ khác ở dòng `import`, `npx tsc --noEmit` exit 0.
 
 ---
 
-## Task 8: `tool/` — máy trạng thái công cụ
+## Task 8: `tool/` — HOÃN SANG P1.0 (chốt 2026-08-11)
 
-**Files:**
-- Create: `src/core/gfx/tool/tool.ts` (125), `src/core/gfx/tool/tool-controller.ts` (635)
+**Không thi hành trong P0-C.** Step 1 của task này viết sẵn: *"`tool-controller.ts` có thể chạm
+`BlockStdScope`. Kiểm kỹ; nếu chạm thì **dừng và báo**, phần đó thuộc P1.0."* Đã kiểm — **nó chạm**:
 
-**Interfaces:**
-- Consumes: `@preact/signals-core`, `rxjs`
-- Produces: `BaseTool`, `ToolController`, `ToolIdentifier` — nền cho mọi công cụ của P1 (mindmap, shape, connector, brush)
+| Chỗ chạm | Số lần | Bản chất |
+|---|---|---|
+| `this.std.event.add(...)` | 6 (dòng 330, 411, 455, 499, 512, 524) | `UIEventDispatcher` **sống** — `std/src/event/` là 1.854 dòng |
+| `ctx.get('pointerState'\|'defaultState')` | 6 | ngữ cảnh sự kiện của std |
+| `this.std.provider.get/getAll(...)` | 2 (dòng 230, 568) | DI provider qua `BlockStdScope` |
+| `PointerEventState` | `.x` `.y` `.button` `.raw` | **truy cập thành viên thật** — khác hẳn `EditorHost`, placeholder rỗng không đủ |
 
-Đây là cơ chế hook mô tả ở spec §7 — thứ cho phép "hai ngón luôn kéo bảng bất kể công cụ nào đang chọn".
+`MouseButton` khai ngay trong `tool-controller.ts:53`, không phải import — chỗ đó không vướng.
 
-- [ ] **Step 1: Quét import** — `tool.ts` kế thừa `Extension` từ `@blocksuite/store`, và `tool-controller.ts` có thể chạm `BlockStdScope`. Kiểm kỹ; nếu chạm thì **dừng và báo**, phần đó thuộc P1.0.
-- [ ] **Step 2: Chép, sửa import, `diff` với bản gốc**
-- [ ] **Step 3: Thêm vào barrel**
+Vì sao hoãn chứ không dựng placeholder thứ tư: ba placeholder hiện có (`EditorHost`,
+`GfxController`, `LifeCycleWatcher`) đều là kiểu bị ép bỏ hoặc **vài thành viên đo được**. Cái này
+là hợp đồng runtime với cả hệ thống sự kiện — dựng nó ra sẽ là một hợp đồng lớn **không ca test nào
+chạy qua**, đúng thứ HANDOFF cảnh báo. Và cơ chế hook "hai ngón luôn kéo bảng" (spec §7) chỉ chứng
+minh được khi có host React + dispatcher thật, tức là ở P1.0.
 
-**Tiêu chí xong:** `diff` chỉ khác ở dòng `import`, `npx tsc --noEmit` exit 0.
+`tool/tool.ts` (125) + `tool/tool-controller.ts` (635) = **760 dòng chuyển sang P1.0**.
 
 ---
 
@@ -411,10 +439,15 @@ npm run build 2>&1 | grep -E "dist/assets|built in"
 
 | Cổng | Kỳ vọng |
 |---|---|
-| `npm test` | 44 ca cũ + ca mới của Task 1 và Task 2, tất cả xanh |
+| `npm test` | 54 ca hiện có (49 + 5 ca `std-identifier`), tất cả xanh |
 | `npx tsc --noEmit` | exit 0 |
 | `npm run build` | thành công |
 | `cmp` mọi file vendored mới (nếu có) | IDENTICAL |
+
+**Phạm vi P0-C sau soát tiền-bay (chốt 2026-08-11):** Task 1–7. Task 8 (`tool/`, 760 dòng) hoãn
+sang P1.0 vì chạm `BlockStdScope` thật. Tổng port của chặng: ~3.320 dòng
+(`viewport` 925 · `layer` 1014 · `grid` 513 · `gfx/selection` 408 · `std/selection` 271 ·
+`utils/layer` 171 · bốn file phụ trợ 193).
 
 **Đo lại bundle và ghi vào `docs/superpowers/notes/`.** Con số từ P0-A và P0-B là **sàn, không phải trần** — tầng model vẫn bị tree-shake bỏ vì app chưa import. P0-C cũng vậy. Trần thật chỉ đo được ở P1.0 khi `EdgelessHost` kéo mọi thứ vào. Ngưỡng xét lại D11: +150 kB gzip.
 
