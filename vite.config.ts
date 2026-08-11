@@ -29,8 +29,12 @@ function vendorJsToTs(): Plugin {
 // nơi thực sự ném `SyntaxError: Unexpected identifier`. Đổi `target` không có tác dụng vì đây
 // không phải chuyện esnext-hoá cú pháp đã hỗ trợ, mà là tính năng oxc chưa cài đặt transform.
 //
-// BlockSuite khai mọi thuộc tính bằng `accessor` (luôn đi kèm decorator kiểu `@field`), nên
-// chỗ duy nhất cần vá là các file port ở `src/core/**` dùng cú pháp đó — không phải cả app.
+// BlockSuite khai mọi thuộc tính bằng `accessor` (luôn đi kèm decorator kiểu `@field`). P0-B
+// chỉ port vào `src/core/**` nên ban đầu phạm vi lọc chỉ tới đó — nhưng P1 sẽ viết shape,
+// connector, brush, text, mindmap dùng cú pháp này, và không nhất thiết đặt trong `src/core/`.
+// Phạm vi lọc do đó phủ TOÀN BỘ `src/`, trừ `src/vendor/` (mã bên thứ ba, cấm sửa và cấm đưa
+// vào phạm vi lọc — D11; hiện không file vendored nào dùng `accessor`, nếu sau này có thì cần
+// quyết định riêng, không tự động nuốt vào đây).
 // Dùng Babel (`@babel/plugin-proposal-decorators`, bản `2023-05` — bản đầu tiên hạ cấp được
 // `accessor`) làm bước biên dịch *trước* oxc.
 //
@@ -51,14 +55,23 @@ function vendorJsToTs(): Plugin {
 // Lượt 1 chỉ chạy `@babel/preset-typescript` (strip type, giữ `@babel/plugin-syntax-decorators`
 // để parse — không transform — cú pháp decorator) → ra JS thuần, không còn `!`/type annotation.
 // Lượt 2 chạy `@babel/plugin-proposal-decorators` trên JS thuần đó, không còn gì của TS để
-// giẫm chân. Tách lượt tốn thêm một lần parse/print nhưng chỉ với 3 file, không đáng kể.
+// giẫm chân. Tách lượt tốn thêm một lần parse/print, tính trên số file thực sự qua Babel — xem
+// con số đo được ở khối ngay dưới, đừng đoán.
 //
 // Type-checking vẫn qua `tsc --noEmit` riêng — Babel ở đây không type-check, chỉ strip.
 //
-// Lọc theo nội dung (`accessor` xuất hiện trong file) chứ không theo toàn bộ thư mục, để chi
-// phí Babel chỉ tính trên số file thực sự cần — hiện tại là 3 file.
+// Lọc theo nội dung (`accessor` xuất hiện trong file) chứ không theo toàn bộ thư mục con, để
+// chi phí Babel chỉ tính trên số file thực sự cần — hiện tại:
+// - npm run build: 0 file (element-model.ts, local-element-model.ts chưa được import từ App.tsx/main.tsx,
+//   nên không nằm trong module graph lúc build — Babel chưa được chạy lần nào trong build thực tế).
+// - npm test: 5 file (element-model.ts, local-element-model.ts, accessor-support.spec.ts,
+//   test-gfx-element.ts, accessor-outside-core.spec.ts).
+// CẢNH BÁO: Con số build hiện bằng 0 không phải vì bộ lọc tốt, mà vì tầng gfx chưa nối vào entry app.
+// Khi chặng sau kết nối tầng gfx vào entry (App.tsx), Babel sẽ lần đầu chạy trong npm run build với
+// chi phí thực tế có thể khác hẳn so với phép đo hiện tại. CẦN ĐO LẠI khi đó.
 function accessorSupport(): Plugin {
-  const coreDir = path.resolve(__dirname, 'src/core').replace(/\\/g, '/')
+  const srcDir = path.resolve(__dirname, 'src').replace(/\\/g, '/')
+  const vendorDir = path.resolve(__dirname, 'src/vendor').replace(/\\/g, '/')
   const tsFile = /\.tsx?$/
   // Khớp tsconfig.json useDefineForClassFields: false — field gán bằng `=` (assign semantics),
   // không phải `Object.defineProperty` (define semantics). Thiếu assumption này, babel dùng
@@ -73,8 +86,11 @@ function accessorSupport(): Plugin {
       const [bareId] = id.split('?')
       const normalized = bareId.replace(/\\/g, '/')
 
-      if (!normalized.startsWith(coreDir + '/') || !tsFile.test(normalized)) return null
-      // Kiểm rẻ trước khi gọi Babel: đa số file trong src/core/** không dùng accessor.
+      if (!normalized.startsWith(srcDir + '/') || !tsFile.test(normalized)) return null
+      // src/vendor/ là mã bên thứ ba (D11) — cấm sửa, cấm đưa vào phạm vi lọc dù nội dung có
+      // khớp `accessor` hay không.
+      if (normalized.startsWith(vendorDir + '/')) return null
+      // Kiểm rẻ trước khi gọi Babel: đa số file trong src/** không dùng accessor.
       if (!/\baccessor\b/.test(code)) return null
 
       const isTSX = normalized.endsWith('.tsx')
@@ -148,8 +164,13 @@ export default defineConfig(({ mode }) => {
       port: parseInt(process.env.PORT || '8443'),
     },
     test: {
-      // Môi trường node: không test nào trong P0-A chạm DOM. P0-B port viewport
-      // (có nhánh DOMMatrix) thì đổi sang 'happy-dom'.
+      // Môi trường node. `viewport.ts` (Viewport, có nhánh DOMRect/DOMMatrix) đã port ở P0-C
+      // Task 4 — nhưng environment vẫn CHƯA đổi. Test nào chạm `toModelCoord`/`toViewCoord`/
+      // `boundingClientRect` sẽ đâm `ReferenceError: DOMRect is not defined` ngay (đã xác nhận
+      // bằng probe thật, xem `Viewport.get boundingClientRect` / `Viewport.toModelCoord`
+      // trong `viewport.ts`). Muốn viết loại test chạm DOM đó thì phải đổi sang 'happy-dom'
+      // trước — việc đó ảnh hưởng toàn bộ bộ test hiện có, nên để dành cho chặng nào thật sự
+      // cần, không đổi tuỳ tiện ở đây.
       environment: 'node',
       include: ['src/**/__tests__/**/*.spec.ts'],
     },
