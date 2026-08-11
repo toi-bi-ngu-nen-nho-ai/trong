@@ -15,6 +15,18 @@ import type { SurfaceBlockModel } from './model/surface/surface-model';
 // viên khi có chỗ thật sự cần, không đoán trước.
 export interface EditorHost {}
 
+// Thay ràng buộc Lit của BlockSuite ở `viewport.ts` (Task 4).
+//
+// Thượng nguồn khai `import type { GfxViewportElement } from '.'` (từ `viewport-element.ts`) —
+// một Lit custom element hiển thị viewport. `viewport-element.ts` không port ở P0-C (React sẽ
+// thay ở P1.0). Đây cũng là `import type`, không có mã Lit nào chạy.
+//
+// Đã đo bằng grep trên `viewport.ts` gốc: `GfxViewportElement` chỉ xuất hiện ở vị trí kiểu
+// (`_element: GfxViewportElement | null`, `elementReady = new Subject<GfxViewportElement>()`)
+// — không có chỗ nào đọc tiếp thành viên trên giá trị mang kiểu này. Vì thế interface rỗng là
+// đủ và trung thực, đúng lối `EditorHost` ở trên.
+export interface GfxViewportElement {}
+
 // Placeholder cho `std/src/scope/std-scope.ts` (`BlockStdScope`) — hạ tầng std lớn, ngoài phạm
 // vi P0-C (xem lý do loại trong `std-identifier.ts`: đây là một trong 7 thứ mà hướng "port
 // identifier.ts chỉ phần kiểu" sẽ buộc phải khai thêm mà không task nào quan sát cả 7).

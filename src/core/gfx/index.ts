@@ -23,6 +23,10 @@ export * from './model/surface/local-element-model'
 export * from './model/surface/surface-model'
 export * from './perf'
 export { createRafCoalescer, type RafCoalescer } from './raf-coalescer'
+// Thượng nguồn: `export * from './viewport.js'` cộng `export { GfxViewportElement } from
+// './viewport-element.js'`. `viewport-element.ts` là file Lit không port (xem `host.ts`), nên
+// chỉ đem đúng phần đã port.
+export * from './viewport'
 // Thượng nguồn re-export 6 hàm này từ `utils/tree.js` qua barrel gfx (xem
 // `std/src/gfx/index.ts`). `utils/tree.ts` ở đây có thêm các hàm lock/unlock nội bộ mà thượng
 // nguồn KHÔNG re-export qua barrel gfx — cố tình không đem theo, chỉ đem đúng danh sách gốc.
