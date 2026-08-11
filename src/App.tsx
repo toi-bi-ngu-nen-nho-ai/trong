@@ -1119,7 +1119,7 @@ function HomeScreen({
         <span className="flex-none" style={{ color: "var(--c-primary)" }}>
           {icons.logo("w-15 h-15")}
         </span>
-        <span className="text-[22px] font-bold text-slate-900 leading-none">BS Trọng</span>
+        <span className="text-[26px] font-bold text-slate-900 leading-none">Bác sĩ Trọng</span>
       </div>
 
       {/* Search */}
