@@ -496,6 +496,134 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
+## Task 6: Gỡ vật cản `accessor` — cho tầng model chạy được thật
+
+**Files:**
+- Modify: `vite.config.ts`, `package.json` (devDependency mới)
+- Rename: `src/core/__tests__/surface.spec.ts.pending` → `.spec.ts`
+- Modify: `src/core/__tests__/README.md` (cập nhật sau khi gỡ xong)
+
+**Interfaces:**
+- Consumes: toàn bộ tầng model từ Task 1–5
+- Produces: mã dùng `accessor` nạp được ở cả `vitest` lẫn `vite build`
+
+### Vấn đề
+
+Toolchain của dự án — **Vite 8.1.5 trên rolldown + oxc, không có Babel** — không dịch được từ khoá `accessor`:
+
+```
+SyntaxError: Unexpected identifier 'x'
+   class A { accessor x: number = 1 }
+```
+
+Đã khoanh vùng bằng hai ca tách biệt: hỏng ở **chính `accessor`**, không phải ở decorator.
+
+`accessor` là cách BlockSuite khai mọi thuộc tính của mọi element. Trong bản port nó nằm ở `src/core/gfx/model/surface/element-model.ts` và `local-element-model.ts`. Vì thế **tầng model qua được `tsc` nhưng chưa nạp được lúc chạy** — bốn cổng nghiệm thu Task 1–5 xanh chỉ vì không có gì import chúng lúc chạy.
+
+Đây là vật cản của cả P1: shape, connector, brush, text, mindmap đều khai bằng cú pháp này.
+
+### Ràng buộc của cách gỡ
+
+- Phải chạy được ở **cả hai** đường: `vitest` (test) và `vite build` (bundle). Chúng dùng chung `vite.config.ts`.
+- **Không được sửa mã port** để né `accessor` — phá port-fidelity, đi ngược D11.
+- **Không được sửa `src/vendor/blocksuite/**`** (D11).
+- Bộ biến đổi thêm vào chỉ nên áp lên `src/core/**` nếu giới hạn được — không cần bắt cả app chịu chi phí.
+- Ghi lại **chi phí build trước và sau** (thời gian `npm run build`, kích thước bundle). Nếu build chậm đi đáng kể, nói rõ con số.
+
+### Hai hướng, tự chọn hướng chạy được
+
+1. **SWC** — `unplugin-swc` hoặc tương đương. SWC hỗ trợ decorator chuẩn và `accessor`.
+2. **Babel** — `@babel/plugin-proposal-decorators` (phiên bản `2023-05` trở lên mới có `accessor`). Kiểm xem `@vitejs/plugin-react` v6 trong dự án còn dùng Babel hay đã chuyển sang oxc; nếu còn Babel thì cắm vào đó rẻ hơn.
+
+Trước khi cài gì, **thử xem oxc/rolldown có cấu hình sẵn không** — rẻ nhất là không thêm gói nào. Một lượt thử trước đã ghi nhận "chỉnh target của oxc không có tác dụng", nhưng đó mới là một hướng.
+
+- [ ] **Step 1: Ghi mốc build trước khi đổi**
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+npm run build 2>&1 | grep -E "dist/assets|built in"
+```
+
+Ghi lại kích thước và thời gian.
+
+- [ ] **Step 2: Dựng ca tái hiện tối thiểu**
+
+Create `src/core/__tests__/accessor-support.spec.ts`:
+
+```ts
+import { expect, test } from 'vitest'
+
+// Ca canh gác cho vật cản đã gặp ở P0-B: toolchain phải dịch được từ khoá `accessor`.
+// BlockSuite khai mọi thuộc tính của mọi element bằng cú pháp này, nên nếu ca dưới đỏ thì
+// cả tầng model không nạp được lúc chạy — dù `tsc` vẫn xanh.
+test('toolchain dịch được từ khoá accessor', () => {
+  class A {
+    accessor x: number = 1
+  }
+  const a = new A()
+  a.x = 5
+  expect(a.x).toBe(5)
+})
+```
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+npx vitest run src/core/__tests__/accessor-support.spec.ts
+```
+
+Expected: **ĐỎ** với `SyntaxError`. Đó là điểm xuất phát.
+
+- [ ] **Step 3: Gỡ vật cản**
+
+Chọn một trong hai hướng trên. Sửa `vite.config.ts`. Nếu phải cài gói, cài làm **devDependency**.
+
+- [ ] **Step 4: Ca tái hiện phải xanh**
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+npx vitest run src/core/__tests__/accessor-support.spec.ts
+```
+
+Expected: `Tests  1 passed (1)`.
+
+- [ ] **Step 5: Bật 26 ca hành vi đã port sẵn**
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+mv src/core/__tests__/surface.spec.ts.pending src/core/__tests__/surface.spec.ts
+npx vitest run src/core/__tests__/surface.spec.ts
+```
+
+Expected: mọi ca xanh. Đây là lần đầu `SurfaceBlockModel`, `GfxPrimitiveElementModel` và bốn decorator `field`/`derive`/`local`/`convert` thật sự được chạy.
+
+Nếu có ca đỏ **không phải** vì `accessor`: đó là lỗi port thật, đã lộ ra. Chẩn đoán, ghi vào báo cáo, **đừng sửa test cho khớp mã**.
+
+- [ ] **Step 6: Bốn cổng toàn cục**
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
+npm test
+npx tsc --noEmit
+npm run build 2>&1 | grep -E "dist/assets|built in"
+git diff --stat HEAD -- src/vendor
+```
+
+Expected: mọi test xanh, tsc exit 0, build thành công, `src/vendor` không đổi.
+
+So kích thước và thời gian build với mốc ở Step 1, ghi cả hai vào báo cáo.
+
+- [ ] **Step 7: Cập nhật README**
+
+`src/core/__tests__/README.md` đang mô tả vật cản như thứ chưa gỡ. Viết lại cho khớp thực tế: đã gỡ bằng cách nào, chi phí bao nhiêu, và giữ lại phần giải thích vì sao `accessor` quan trọng (để người đọc sau hiểu ca canh gác ở `accessor-support.spec.ts` tồn tại để làm gì).
+
+- [ ] **Step 8: Commit**
+
+Thông điệp nói rõ: vật cản là gì, gỡ bằng cách nào, chi phí build thay đổi thế nào, và bao nhiêu ca hành vi được bật lên.
+
+**Tiêu chí xong:** `npm test` chạy **cả** `accessor-support.spec.ts` **và** `surface.spec.ts` xanh, `npx tsc --noEmit` exit 0, `npm run build` thành công.
+
+---
+
 ## Nghiệm thu P0-B
 
 ```bash
