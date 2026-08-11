@@ -1112,17 +1112,12 @@ function HomeScreen({
 
   return (
     <div className="scroll-ios h-full pb-6">
-      {/* Header. Logo là nét vẽ mảnh (chỉ có stroke, không fill) nên đặt trực tiếp lên nền trang
-          thì mờ nhạt, chìm vào chữ và nền xung quanh — bọc trong khối nền `--c-primary` bo góc, nét
-          vẽ đổi sang trắng, để logo nổi rõ như một icon thật thay vì một hình trang trí lu mờ.
+      {/* Header. Logo vẽ bằng SVG theo currentColor, không nền riêng — hoà vào cả bản sáng lẫn tối.
           `paddingRight` chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo ở góc trên phải —
           xem FloatingTopBar trong App shell. Không có nó thì chữ chui xuống dưới cụm nút đó. */}
       <div className="px-5 pt-2 pb-4 flex items-center gap-2" style={{ paddingRight: 180 }}>
-        <span
-          className="flex-none rounded-xl flex items-center justify-center"
-          style={{ width: 44, height: 44, background: "var(--c-primary)", color: "#fff" }}
-        >
-          {icons.logo("w-8 h-8")}
+        <span className="flex-none" style={{ color: "var(--c-primary)" }}>
+          {icons.logo("w-15 h-15")}
         </span>
         <span className="text-[22px] font-bold text-slate-900 leading-none">BS Trọng</span>
       </div>
@@ -11101,15 +11096,16 @@ export default function App() {
           <div
             className="absolute z-50 flex items-center gap-2"
             // Đo THẬT bằng getBoundingClientRect() (không suy từ padding/line-height, quá nhiều lớp
-            // để tính tay cho đúng): tâm dòng "Bs Trọng" nằm ở y=28 khi --safe-top=0, còn công thức
-            // +30px trước đó đặt tâm cụm nút ở y=30 — lệch 2px, đủ để mắt tinh thấy hai hàng không
-            // thẳng. 28px khớp CHÍNH XÁC (đo lại xác nhận cy hai bên bằng nhau tuyệt đối, không phải
-            // suy diễn). Cụm nút không nằm trong cùng flow với header nên mốc neo này độc lập, không
-            // tự động khớp theo — mỗi lần đổi bố cục header (Bs Trọng) phải đo lại đúng số này.
+            // để tính tay cho đúng): logo phóng lên 60px (w-15 h-15) đẩy tâm hàng header từ y=28
+            // xuống y=38 khi --safe-top=0 (logo giờ cao hơn dòng chữ nên chính nó, không phải chữ,
+            // quyết định tâm hàng flex items-center). Đo lại xác nhận cy hai bên bằng nhau tuyệt
+            // đối, không phải suy diễn. Cụm nút không nằm trong cùng flow với header nên mốc neo này
+            // độc lập, không tự động khớp theo — mỗi lần đổi bố cục header (logo/chữ Bs Trọng) phải
+            // đo lại đúng số này.
             // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
             // trim, dòng "Bs Trọng" bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG
             // MỘT LƯỢNG mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
-            style={{ top: "calc(var(--safe-top-trim) + 28px)", right: 18, transform: "translateY(-50%)" }}
+            style={{ top: "calc(var(--safe-top-trim) + 38px)", right: 18, transform: "translateY(-50%)" }}
           >
             {screen === "home" && <ThemeToggle />}
             <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
