@@ -586,7 +586,7 @@ npx vitest run src/core/__tests__/accessor-support.spec.ts
 
 Expected: `Tests  1 passed (1)`.
 
-- [ ] **Step 5: Bật 26 ca hành vi đã port sẵn**
+- [ ] **Step 5: Bật 22 ca hành vi đã port sẵn**
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"

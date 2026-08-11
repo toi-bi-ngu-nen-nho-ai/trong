@@ -22,11 +22,15 @@ từng là vật cản của cả P1, không riêng gì test.
 
 ## `surface.spec.ts` — 22 ca hành vi của tầng model (đã bật)
 
-Bản port của `framework/std/src/__tests__/gfx/surface.unit.spec.ts` (26 ca ở bản gốc; 22 ca
-sống sót qua Task 5 — bốn ca chênh lệch là việc porting trước đó, không phải của Task 6, chưa
-điều tra ở đây), phủ `SurfaceBlockModel.addElement/updateElement/deleteElement`, observer, giá
-trị mặc định của element model, `stash`/`pop`, và cả bốn decorator `field`/`derive`/`local`/
-`convert`.
+Bản port của `framework/std/src/__tests__/gfx/surface.unit.spec.ts` — **22 ca, đầy đủ, không
+thiếu ca nào**. `diff` với bản gốc chỉ khác ở đường dẫn import và chỗ bỏ `effects()`.
+
+Phủ `SurfaceBlockModel.addElement/updateElement/deleteElement`, observer, giá trị mặc định của
+element model, `stash`/`pop`, và cả bốn decorator `field`/`derive`/`local`/`convert`.
+
+*(Ghi chú: brief của Task 6 nói "26 ca" — đó là điều phối viên đếm nhầm, do grep gộp cả dòng
+`describe` lẫn `test`. Bản gốc và bản port đều đúng 22. Người triển khai Task 6 đã làm đúng khi
+báo lệch thay vì sửa test cho khớp con số sai.)*
 
 Từng nằm ở đuôi `.pending` vì toolchain không dịch được `accessor` (xem lịch sử git). Đã gỡ ở
 Task 6 P0-B — xem `vite.config.ts`, hàm `accessorSupport()`, có giải thích đầy đủ cách gỡ và
