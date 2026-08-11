@@ -68,7 +68,10 @@ export interface BlockStdScope {
 //   Cộng `std` — không phải do file tiêu thụ ở task sau, mà do chính `extension.ts` (Task 3) có
 //   getter `get std() { return this.gfx.std; }` cần kiểu này để type-check. Xem `BlockStdScope`
 //   ở trên.
-// - Task 4 sẽ thêm `viewport` sau khi `Viewport` được port — dùng ở `tool-controller.ts`.
+// - Task 4 đã port `Viewport`, nhưng KHÔNG thêm `viewport` vào interface này — đúng là không nên
+//   thêm: đã grep toàn bộ `src/core/**`, không chỗ nào đọc `gfx.viewport`. Nơi duy nhất sẽ đọc nó
+//   là `tool-controller.ts`, thuộc Task 8, đã hoãn sang P1.0. Thêm bây giờ sẽ là thành viên "để
+//   dành" không có chỗ dùng thật — vi phạm đúng nguyên tắc "dựng dần" ghi ở cuối comment này.
 // - Task 5 (file này) thêm `surface$` — đo trên `grid.ts:501-511`
 //   (`this.gfx.surface ... else this.gfx.surface$.subscribe(...)`, nhánh chờ surface được gắn
 //   sau). Thượng nguồn (`gfx/controller.ts`): `get surface$() { return this._surface$; }` kiểu

@@ -1,7 +1,7 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: 2026-08-11. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt, đang port Edgeless Canvas của
-AFFiNE (BlockSuite) sang React.
+Cập nhật: 2026-08-12 (lượt review toàn nhánh cuối P0-C). Dự án: **Bs Trọng** — PWA y khoa tiếng
+Việt, đang port Edgeless Canvas của AFFiNE (BlockSuite) sang React.
 
 ---
 
@@ -11,12 +11,13 @@ AFFiNE (BlockSuite) sang React.
 |---|---|---|
 | **P0-A** | Vendor tầng dữ liệu BlockSuite 0.27.0 | ✅ gộp `main` tại `d63fcd6` |
 | **P0-B** | Port tầng model của `std/gfx` | ✅ gộp `main` tại `a76edb4` |
-| **P0-C** | Port tầng không gian của `std/gfx` | 🔶 **2/8 task**, đang dở |
+| **P0-C** | Port tầng không gian của `std/gfx` | 🔶 **Task 1–7 xong**; Task 8 (`tool/`) hoãn sang P1.0 có chủ đích. Đã qua lượt review toàn nhánh, sẵn sàng gộp `main`. |
 | P1.0 → P1.4 | Canvas dùng được | chưa bắt đầu |
 
 **Nhánh đang làm:** `worktree-p0c-gfx-khong-gian`
 **Worktree:** `.claude/worktrees/p0c-gfx-khong-gian`
-**HEAD:** `093ada5` — cây **sạch**, `npm test` **49/49 xanh**, `tsc --noEmit` exit 0.
+**HEAD:** commit của lượt fix review toàn nhánh (xem `git log -1`) — cây **sạch**, `npm test`
+**59/59 xanh** (54 ca cũ + 5 ca mới `viewport-runtime-config.spec.ts`), `tsc --noEmit` exit 0.
 
 Đừng tin trí nhớ, tin `git log` và file này.
 
@@ -71,21 +72,30 @@ import type { BlockViewType, WidgetViewType } from './spec/type.js';
 Nghĩa là 3.260 dòng kia có thể **không cần port thật** — chúng chỉ cần tồn tại ở dạng kiểu.
 Tiền lệ đã có hai lần trong dự án này (`EditorHost` ở P0-B, `GfxController` ở P0-C Task 3).
 
-### Ba hướng, chưa chọn — cần quyết trước khi làm tiếp
+### Ba hướng đã cân nhắc — ĐÃ CHỐT hướng 1 (commit `299aa76`)
+
+> Phần dưới giữ nguyên làm hồ sơ vì sao ba hướng được cân nhắc — như blockquote đầu mục 2 đã nói,
+> quyết định đã chốt, đừng lật lại nếu không có dữ kiện mới. `src/core/gfx/std-identifier.ts`
+> khai `LifeCycleWatcherIdentifier`, kèm `src/core/__tests__/std-identifier.spec.ts` (5 ca) cưỡng
+> chế hợp đồng "DI khoá theo chuỗi tên" — chọn đúng hướng 1 khuyến nghị bên dưới.
 
 1. **Khai placeholder cho các kiểu của `identifier.ts`**, giống cách đã làm với `EditorHost` và
    `GfxController`. Rẻ nhất. Rủi ro: placeholder thứ ba chồng lên nhau, và mỗi cái là một hợp
-   đồng chưa ai cưỡng chế.
+   đồng chưa ai cưỡng chế. **← ĐÃ CHỌN**, xem cách gỡ rủi ro "hợp đồng chưa ai cưỡng chế" trong
+   khối "Chốt" ở đầu mục 2.
 2. **Port `std/src/identifier.ts` cùng các kiểu nó cần** (chỉ phần kiểu, không port thân
    `command/event/extension/scope/spec`). Trung thực hơn, tốn hơn.
 3. **Đưa `extension.ts` + `identifiers.ts` sang P1.0** cùng `controller.ts`, và **cắt lại phạm vi
    P0-C** cho những file không cần chúng. **Nhưng phải kiểm trước:** `grid.ts`, `layer.ts`,
    `selection.ts`, `tool-controller.ts` đều `import { GfxExtension }` như một **giá trị** từ
-   `extension.ts` — nên hướng này có thể làm P0-C rỗng gần hết. Đo trước khi chọn.
+   `extension.ts` — nên hướng này có thể làm P0-C rỗng gần hết. Đo trước khi chọn. **Hướng này
+   sau đó được xác nhận là chết** — xem "Hướng 3 chết" trong khối "Chốt" ở đầu mục 2.
 
-**Khuyến nghị:** hướng 1, nhưng **đo trước** xem `extension.ts` và `identifiers.ts` thật sự dùng
+**Khuyến nghị đã theo:** hướng 1, đo trước xem `extension.ts` và `identifiers.ts` thật sự dùng
 bao nhiêu thành viên của mỗi kiểu — đúng cách đã làm với `GfxController` (đo ra đúng 4 thành viên,
-và chúng khớp gọn với thứ tự task). Placeholder **đo được** thì tốt; placeholder **đoán** thì tệ.
+và chúng khớp gọn với thứ tự task). Số đo thật: P0-C chỉ cần **1 trong 9** export của
+`std/src/identifier.ts` — không phải 3.260 dòng. Placeholder **đo được** thì tốt; placeholder
+**đoán** thì tệ.
 
 ---
 
@@ -102,10 +112,14 @@ và chúng khớp gọn với thứ tự task). Placeholder **đo được** th�
 
 3. **`git diff` KHÔNG phải cổng D11.** `git diff HEAD -- src/vendor` chỉ so cây làm việc với HEAD
    nên chỉ thấy thay đổi *chưa commit*; nó báo xanh suốt P0-B trong khi 4 file vendored đã bị sửa.
-   Với file vendored **mới thêm**, ngay cả `base..HEAD` cũng vô dụng. **Phép kiểm đúng duy nhất:**
+   Với file vendored **mới thêm**, ngay cả `base..HEAD` cũng vô dụng. **Phép kiểm đúng:**
    ```bash
-   cmp <file thượng nguồn> <file vendored>
+   diff --strip-trailing-cr <file thượng nguồn> <file vendored>
    ```
+   **Không dùng `cmp`** — repo này có `core.autocrlf=true` nên cây làm việc là CRLF còn thượng
+   nguồn AFFiNE là LF; `cmp` so byte-for-byte nên báo DIFFERS trên cả 143/143 file vendored dù
+   nội dung giống hệt, chỉ khác `\r`. Lượt review toàn nhánh cuối P0-C bắt được cổng đỏ giả này
+   trong kế hoạch (`docs/superpowers/plans/2026-08-11-p0c-tang-khong-gian.md`) — đã sửa ở đó.
 
 4. **Quét `import` của MỌI file trước khi viết bước sao chép.** Bốn lần đính chính spec ở P0-A và
    hai lần chặn ở P0-C đều đến từ chỗ này. Grep tĩnh còn bỏ sót `await import(...)` — `file-type`
@@ -148,16 +162,24 @@ WKWebView khỏi sập lúc pan/zoom trên iPhone. Đó là rủi ro số một 
 
 ## 6. Việc còn lại của P0-C
 
-Sau khi gỡ vật cản ở mục 2:
+Task 1–7 đã xong (~3.320 dòng port, xem `.superpowers/sdd/progress.md` — gitignored, chỉ có
+trong worktree này — để đọc từng task chi tiết):
 
+- Task 1 — fixture `GfxGroupLikeElementModel` + `@observe`, trả nợ I7 một phần
+- Task 2 — mở rộng ca canh gác `accessor` ra toàn `src/`, trả nợ I5
 - Task 3 — `cursor`, `extension`, `identifiers`, `raf-coalescer` (193 dòng)
 - Task 4 — **`Viewport` (925)** — file quan trọng nhất chặng này, chứa khối cấu hình iPhone
-- Task 5 — `Grid` (513), cần cài `fractional-indexing` (chưa cài)
+- Task 5 — `Grid` (513) + `utils/layer.ts` (171), cài `fractional-indexing`
 - Task 6 — `Layer` (1014) — chỗ `sortIndex` của P0-A thật sự được dùng
-- Task 7 — `selection.ts` (408)
-- Task 8 — `tool/` (760) — cơ chế hook cho "hai ngón luôn kéo bảng"
+- Task 7 — `selection.ts` (408) + `std/src/selection/` (271)
 
-Rồi lượt review toàn nhánh, rồi gộp `main`.
+**Còn lại duy nhất: Task 8** — `tool/` (760), cơ chế hook cho "hai ngón luôn kéo bảng". **Hoãn
+sang P1.0 có chủ đích** (chốt tại soát tiền-bay SDD trước Task 3): `tool-controller.ts` chạm
+`BlockStdScope` thật (`this.std.event.add` ×6, `ctx.get` ×6, `this.std.provider` ×2), nằm ngoài
+phạm vi "port sạch" mà P0-C nhắm tới. Không phải nợ bị bỏ sót — là ranh giới đã đo và chốt.
+
+Lượt review toàn nhánh cuối P0-C đã chạy xong (0 Critical, không dòng mã port nào cần sửa). Còn
+lại: gộp `main`.
 
 ---
 
@@ -184,7 +206,7 @@ Rồi lượt review toàn nhánh, rồi gộp `main`.
 
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0c-gfx-khong-gian"
-npm test          # kỳ vọng: Test Files 10 passed, Tests 49 passed
+npm test          # kỳ vọng: Test Files 12 passed, Tests 59 passed
 npx tsc --noEmit  # kỳ vọng: exit 0, không in gì
 npm run build     # kỳ vọng: thành công
 ```

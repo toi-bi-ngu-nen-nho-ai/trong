@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **`src/vendor/blocksuite/**` cấm sửa** (D11). Kiểm bằng **`cmp` với thượng nguồn**, không phải `git diff` — xem "Cách kiểm D11 cho đúng" bên dưới.
+- **`src/vendor/blocksuite/**` cấm sửa** (D11). Kiểm bằng **`diff --strip-trailing-cr` với thượng nguồn**, không phải `git diff` — xem "Cách kiểm D11 cho đúng" bên dưới.
 - Mã port trong `src/core/**` giữ nguyên **thân hàm và comment gốc tiếng Anh**. Chỉ được sửa: đường dẫn import, và phần thay ràng buộc Lit/host.
 - `src/core/**` không import React, không đụng DOM API ở phạm vi module.
 - Không thêm dependency **chạy thật**. Nhóm này cần `rxjs`, `lodash-es`, `@preact/signals-core`, `fractional-indexing` — **`fractional-indexing` chưa cài**, xem Task 5.
@@ -29,10 +29,20 @@ Dạng khoảng `base..HEAD` cũng **không đủ** cho file vendored **mới th
 **Phép kiểm đúng duy nhất:**
 
 ```bash
-cmp <file thượng nguồn> <file vendored tương ứng>
+diff --strip-trailing-cr <file thượng nguồn> <file vendored tương ứng>
 ```
 
-P0-C không dự kiến vendor thêm file nào. Nếu phải vendor, dùng `cmp` cho từng file mới.
+Không dùng `cmp` ở đây: `cmp` so sánh byte-for-byte, còn `git config core.autocrlf` của repo này là
+`true` nên cây làm việc lưu CRLF trong khi thượng nguồn AFFiNE là LF — nội dung giống hệt nhau,
+chỉ khác ký tự `\r` cuối mỗi dòng. Chạy `cmp` thật trên cả 143 file vendored báo **143/143
+DIFFERS**, một cổng đỏ giả không phân biệt được "khác `\r`" với "bị sửa thật". `diff
+--strip-trailing-cr` bỏ qua `\r` trước khi so nên chỉ đỏ khi nội dung thật sự khác — đây cũng là
+cách `src/core/gfx/README.md:29` đã dặn. **Đừng thêm `.gitattributes` để ép LF** — việc đó sẽ đổi
+line ending của toàn bộ 143 file vendored, gây churn không cần thiết cho một vấn đề đã có cách kiểm
+đúng mà không cần đổi gì.
+
+P0-C không dự kiến vendor thêm file nào. Nếu phải vendor, dùng `diff --strip-trailing-cr` cho từng
+file mới.
 
 ## Bối cảnh: vì sao hai task đầu là "nợ"
 
@@ -463,7 +473,7 @@ npm run build 2>&1 | grep -E "dist/assets|built in"
 | `npm test` | 54 ca hiện có (49 + 5 ca `std-identifier`), tất cả xanh |
 | `npx tsc --noEmit` | exit 0 |
 | `npm run build` | thành công |
-| `cmp` mọi file vendored mới (nếu có) | IDENTICAL |
+| `diff --strip-trailing-cr` mọi file vendored mới (nếu có) | không in gì (identical sau khi bỏ qua `\r`) |
 
 **Phạm vi P0-C sau soát tiền-bay (chốt 2026-08-11):** Task 1–7. Task 8 (`tool/`, 760 dòng) hoãn
 sang P1.0 vì chạm `BlockStdScope` thật. Tổng port của chặng: ~3.320 dòng

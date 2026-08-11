@@ -8,7 +8,18 @@
 //
 // Cố ý KHÔNG chép index.ts của thượng nguồn: nó re-export những module ta chưa port, và một
 // barrel trỏ vào hư không thì hỏng ngay lúc dịch.
-export * from './host'
+// `export *` cũ vô tình lộ `GfxViewportElement` ra barrel — kiểu placeholder rỗng khai trong
+// `./host` để thay ràng buộc Lit của thượng nguồn ở `viewport.ts`. Nguy hiểm: thượng nguồn CŨNG
+// có một `GfxViewportElement` thật (Lit custom element, từ `viewport-element.js` — xem comment
+// cạnh `export * from './viewport'` phía dưới) mà barrel này cố tình KHÔNG đem qua vì file đó
+// chưa port. Nếu `GfxViewportElement` của `./host` lộ ra barrel, một file P1 có thể
+// `import type { GfxViewportElement } from '@/core/gfx'` và tưởng đang nhận kiểu Lit thật, trong
+// khi chỉ nhận interface rỗng. Vì vậy export tường minh, chỉ đem ba kiểu thật sự là hợp đồng công
+// khai (`EditorHost`, `BlockStdScope`, `GfxController`) — không đem `GfxViewportElement`.
+//
+// Đo trước khi đổi: đã grep toàn `src/**`, chưa nơi nào ngoài `src/core/gfx/**` import từ barrel
+// này, nên đổi từ `export *` sang danh sách tường minh không làm vỡ import đang có.
+export type { EditorHost, BlockStdScope, GfxController } from './host'
 export type { CursorType, StandardCursor } from './cursor'
 export { GfxExtension, GfxExtensionIdentifier } from './extension'
 export { GridManager } from './grid'

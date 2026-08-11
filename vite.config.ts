@@ -164,8 +164,13 @@ export default defineConfig(({ mode }) => {
       port: parseInt(process.env.PORT || '8443'),
     },
     test: {
-      // Môi trường node: không test nào trong P0-A chạm DOM. P0-B port viewport
-      // (có nhánh DOMMatrix) thì đổi sang 'happy-dom'.
+      // Môi trường node. `viewport.ts` (Viewport, có nhánh DOMRect/DOMMatrix) đã port ở P0-C
+      // Task 4 — nhưng environment vẫn CHƯA đổi. Test nào chạm `toModelCoord`/`toViewCoord`/
+      // `boundingClientRect` sẽ đâm `ReferenceError: DOMRect is not defined` ngay (đã xác nhận
+      // bằng probe thật, xem `Viewport.get boundingClientRect` / `Viewport.toModelCoord`
+      // trong `viewport.ts`). Muốn viết loại test chạm DOM đó thì phải đổi sang 'happy-dom'
+      // trước — việc đó ảnh hưởng toàn bộ bộ test hiện có, nên để dành cho chặng nào thật sự
+      // cần, không đổi tuỳ tiện ở đây.
       environment: 'node',
       include: ['src/**/__tests__/**/*.spec.ts'],
     },
