@@ -26,4 +26,8 @@ Specifier kiểu `./vec.js` trỏ vào file `.ts` được plugin `vendor-js-to-
 ## Đã bỏ khi chép
 
 - `global/src/lit/` — chỗ duy nhất dùng Lit; React thay tầng khung nhìn
-- `store/src/test/`, mọi `__tests__/` — khung kiểm thử của thượng nguồn, ta không dùng
+- mọi `__tests__/` — khung kiểm thử của thượng nguồn, ta không dùng
+
+`store/src/test/` (`TestWorkspace`, `TestDoc`, `TestMeta`) **đã được vendor**, không còn nằm
+trong danh sách bỏ — cần `TestWorkspace` để port thẳng 22 ca test hành vi gốc của
+`surface.unit.spec.ts` mà không phải tự dựng lại hạ tầng workspace/doc giả lập.

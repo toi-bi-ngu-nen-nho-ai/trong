@@ -9,9 +9,23 @@
 export * from './host'
 export * from './model/base'
 export * from './model/gfx-block-model'
+// Thượng nguồn export `GfxCompatibleBlockModel as GfxCompatible` — tên nhiều file P1/P2 sẽ
+// import. Giữ đúng bí danh đó dù `export * from './model/gfx-block-model'` ở trên đã lộ tên gốc.
+export { GfxCompatibleBlockModel as GfxCompatible } from './model/gfx-block-model'
 export * from './model/model'
 export * from './model/surface/decorators'
 export * from './model/surface/element-model'
 export * from './model/surface/local-element-model'
 export * from './model/surface/surface-model'
 export * from './perf'
+// Thượng nguồn re-export 6 hàm này từ `utils/tree.js` qua barrel gfx (xem
+// `std/src/gfx/index.ts`). `utils/tree.ts` ở đây có thêm các hàm lock/unlock nội bộ mà thượng
+// nguồn KHÔNG re-export qua barrel gfx — cố tình không đem theo, chỉ đem đúng danh sách gốc.
+export {
+  batchAddChildren,
+  batchRemoveChildren,
+  canSafeAddToContainer,
+  descendantElementsImpl,
+  getTopElements,
+  hasDescendantElementImpl,
+} from '../utils/tree'

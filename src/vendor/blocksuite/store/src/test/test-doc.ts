@@ -1,10 +1,10 @@
 import * as Y from 'yjs';
 
-import type { Doc, GetStoreOptions, Workspace } from '../extension/index';
-import type { YBlock } from '../model/block/types';
-import { StoreContainer } from '../model/index';
-import type { AwarenessStore } from '../yjs/index';
-import type { TestWorkspace } from './test-workspace';
+import type { Doc, GetStoreOptions, Workspace } from '../extension/index.js';
+import type { YBlock } from '../model/block/types.js';
+import { StoreContainer } from '../model/index.js';
+import type { AwarenessStore } from '../yjs/index.js';
+import type { TestWorkspace } from './test-workspace.js';
 
 type DocOptions = {
   id: string;

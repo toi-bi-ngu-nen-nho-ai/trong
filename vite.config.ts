@@ -84,23 +84,36 @@ function accessorSupport(): Plugin {
         babelrc: false,
         configFile: false,
         sourceType: 'module',
+        sourceMaps: true,
         assumptions,
         presets: [['@babel/preset-typescript', { isTSX, allowDeclareFields: true }]],
         plugins: [['@babel/plugin-syntax-decorators', { version: '2023-05' }]],
       })
-      if (!stripped?.code) return null
+      if (!stripped?.code) {
+        throw new Error(
+          `accessorSupport: luot 1 (strip type TypeScript) khong tra ve code cho ${bareId}`
+        )
+      }
 
+      // Lượt 2 chạy trên JS đã strip type (output của lượt 1), không phải trên `code` gốc —
+      // nên phải nối map: khai `inputSourceMap` bằng map của lượt 1 để Babel dựng ra map cuối
+      // trỏ thẳng về file .ts gốc thay vì về JS trung gian của lượt 1.
       const result = await babel.transformAsync(stripped.code, {
         filename: bareId.replace(tsFile, isTSX ? '.jsx' : '.js'),
         babelrc: false,
         configFile: false,
         sourceType: 'module',
         sourceMaps: true,
+        inputSourceMap: stripped.map ?? undefined,
         assumptions,
         plugins: [['@babel/plugin-proposal-decorators', { version: '2023-05' }]],
       })
 
-      if (!result?.code) return null
+      if (!result?.code) {
+        throw new Error(
+          `accessorSupport: luot 2 (transform decorator) khong tra ve code cho ${bareId}`
+        )
+      }
       return { code: result.code, map: result.map }
     },
   }

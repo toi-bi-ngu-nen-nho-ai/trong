@@ -5,8 +5,8 @@ import type {
   DocMeta,
   DocsPropertiesMeta,
   WorkspaceMeta,
-} from '../extension/index';
-import { createYProxy } from '../reactive/proxy';
+} from '../extension/index.js';
+import { createYProxy } from '../reactive/proxy.js';
 
 type DocCollectionMetaState = {
   pages?: unknown[];

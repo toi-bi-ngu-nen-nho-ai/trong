@@ -1,8 +1,8 @@
-import type { IdGenerator } from '../utils/id-generator';
+import type { IdGenerator } from '../utils/id-generator.js';
 
-export * from './test-doc';
-export * from './test-meta';
-export * from './test-workspace';
+export * from './test-doc.js';
+export * from './test-meta.js';
+export * from './test-workspace.js';
 
 export function createAutoIncrementIdGenerator(): IdGenerator {
   let i = 0;

@@ -474,10 +474,10 @@ Expected: `Test Files  6 passed (6)`, build thành công.
 ```bash
 cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
 grep -rn "from 'react'" src/core && echo "VI PHAM" || echo "OK: core khong import React"
-git diff --stat HEAD -- src/vendor | head -3
+git diff --stat 4490459..HEAD -- src/vendor | head -3
 ```
 
-Expected: `OK: core khong import React`, và `git diff` với `src/vendor` **không in gì** (D11: mã vendored không bị sửa).
+Expected: `OK: core khong import React`, và `git diff --stat 4490459..HEAD` với `src/vendor` **không in gì** (D11: mã vendored không bị sửa; dùng dạng khoảng từ base nhánh, không phải `HEAD` đơn — dạng `HEAD` chỉ bắt thay đổi chưa commit).
 
 - [ ] **Step 6: Commit**
 
@@ -605,10 +605,10 @@ cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p0b-gfx-model"
 npm test
 npx tsc --noEmit
 npm run build 2>&1 | grep -E "dist/assets|built in"
-git diff --stat HEAD -- src/vendor
+git diff --stat 4490459..HEAD -- src/vendor
 ```
 
-Expected: mọi test xanh, tsc exit 0, build thành công, `src/vendor` không đổi.
+Expected: mọi test xanh, tsc exit 0, build thành công, `src/vendor` không đổi (so với base nhánh `4490459`, không phải chỉ so với `HEAD`).
 
 So kích thước và thời gian build với mốc ở Step 1, ghi cả hai vào báo cáo.
 
@@ -637,7 +637,7 @@ npm test && npx tsc --noEmit && npm run build
 | `npx tsc --noEmit` | exit 0 |
 | `npm run build` | thành công |
 
-Cộng thêm: `git diff HEAD -- src/vendor` không in gì (D11).
+Cộng thêm: `git diff --stat 4490459..HEAD -- src/vendor` không in gì (D11). Dùng dạng khoảng từ base nhánh — dạng `git diff HEAD` chỉ so với lần commit gần nhất nên không bắt được thay đổi đã lỡ commit vào `src/vendor`.
 
 **Không có mốc kiểm tay trên iPhone** — tầng model không hiện ra màn hình.
 

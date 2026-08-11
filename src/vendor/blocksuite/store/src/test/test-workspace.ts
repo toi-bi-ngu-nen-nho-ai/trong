@@ -19,11 +19,11 @@ import type {
   ExtensionType,
   Workspace,
   WorkspaceMeta,
-} from '../extension/index';
-import { type IdGenerator, nanoid } from '../utils/id-generator';
-import { AwarenessStore } from '../yjs/index';
-import { TestDoc } from './test-doc';
-import { TestMeta } from './test-meta';
+} from '../extension/index.js';
+import { type IdGenerator, nanoid } from '../utils/id-generator.js';
+import { AwarenessStore } from '../yjs/index.js';
+import { TestDoc } from './test-doc.js';
+import { TestMeta } from './test-meta.js';
 
 export type DocCollectionOptions = {
   id?: string;
