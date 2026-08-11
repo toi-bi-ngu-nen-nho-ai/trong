@@ -4,7 +4,7 @@
 // với ba cách pha trong lib/mixing.ts:
 //   a. Ống dung dịch pha loãng qua bơm tiêm điện: "Noradrenalin 4 mg/4 ml 2 ống với NaCl 0.9% đủ
 //      50 ml BTĐ 5 ml/h"
-//   b. Lọ bột pha rồi truyền nhỏ giọt: "Cefoperazol 2 g pha với NaCl 0,9% (TTM) XX giọt/phút"
+//   b. Lọ bột pha rồi truyền nhỏ giọt: "Cefoperazol 2 g 01 lọ pha với NaCl 0,9% (TTM) XX giọt/phút"
 //      — hoặc ống dung dịch pha loãng đủ một thể tích rồi RÚT MỘT PHẦN ra truyền nhỏ giọt (liều
 //      CrCl tính ra không cần trọn lượng đã pha): "Amikacin 1 g/4 ml pha với NaCl 0.9% đủ 100 ml
 //      lấy 50 ml (TTM) XX giọt/phút"
@@ -37,8 +37,10 @@ export function formatVialUsage(params: {
   name: string
   vialAmount: number
   vialUnit: string
-  // >1 thì hiện "{n} {vialLabel}" ngay sau phần hàm lượng, giống cách mẫu 3a nói số ống — 1 (mặc
-  // định) thì ẩn đi, vì mẫu 3b/4b chỉ dùng đúng một lọ/ống nên không cần nói ra số lượng.
+  // Luôn hiện "{n} {vialLabel}" ngay sau phần hàm lượng khi có truyền vào — kể cả khi n = 1 ("01
+  // lọ"), giống cách mẫu 3c luôn nói "01 chai". Điều dưỡng đọc nhãn bơm cần thấy rõ số lượng đã
+  // dùng, không suy luận ngầm rằng thiếu số nghĩa là 1. Không truyền vialsUsed thì không nói gì
+  // (mẫu chưa biết số lượng, khác với biết chắc là 1).
   vialsUsed?: number
   vialLabel?: string
   // Ống dung dịch có sẵn thể tích riêng (vd Amikacin 1 g/4 ml, mẫu 4b) thì hiện kèm "/x ml" như ống
@@ -58,7 +60,7 @@ export function formatVialUsage(params: {
 }): string {
   const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin, rateMlPerHour } = params
   const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml` : formatMass(vialAmount, vialUnit)
-  const countPart = vialsUsed != null && vialsUsed > 1 ? ` ${trim(vialsUsed, 0)} ${vialLabel ?? "ống"}` : ""
+  const countPart = vialsUsed != null ? ` ${vialsUsed > 1 ? trim(vialsUsed, 0) : "01"} ${vialLabel ?? "ống"}` : ""
   // Ba trường hợp, không phải hai:
   //   - pha đủ X mL rồi RÚT một phần Y mL  → "đủ X ml lấy Y ml" (mẫu 4b)
   //   - pha đủ X mL rồi truyền TRỌN mẻ đó  → "đủ X ml" — vẫn PHẢI nói thể tích pha loãng
