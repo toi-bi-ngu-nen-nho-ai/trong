@@ -31,7 +31,7 @@ export const SPECIALTIES: Specialty[] = [
   { id: "endocrine", name: "Nội tiết", color: "#9f5300" },
   { id: "neurology", name: "Thần kinh", color: "#6f52b8" },
   { id: "hematology", name: "Huyết học", color: "#ad385f" },
-  { id: "infectious", name: "Truyền nhiễm", color: "#008248" },
+  { id: "infectious", name: "Nhiễm", color: "#008248" },
   { id: "emergency", name: "Cấp cứu", color: "#b91c1c" },
   { id: "pathophysiology", name: "Sinh lý (bệnh)", color: "#5b6470" },
   { id: "pharmacology", name: "Dược lâm sàng", color: "#7a6300" },
