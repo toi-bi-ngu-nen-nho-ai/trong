@@ -237,16 +237,37 @@ Khác một điểm quan trọng so với `EditorHost`: `GfxController` nằm �
 
 | File dùng | Task | Truy cập gì trên `gfx` |
 |---|---|---|
+| `extension.ts` | **3** | **`std`** ← bảng gốc bỏ sót, xem đính chính bên dưới |
 | `grid.ts` | 5 | `surface` |
 | `layer.ts` | 6 | `surface` |
 | `selection.ts` | 7 | `surface`, `getElementById` |
-| `tool-controller.ts` | 8 | `selection`, `viewport` |
+| ~~`tool-controller.ts`~~ | ~~8~~ | ~~`selection`, `viewport`~~ — Task 8 hoãn sang P1.0 |
 
-`surface` và `getElementById` dựa vào kiểu đã port ở chặng trước. `viewport` (Task 4) và `selection` (Task 7) đều **hạ cánh trước** Task 8 — chỗ duy nhất cần chúng. Nên placeholder dựng dần được:
+`surface` và `getElementById` dựa vào kiểu đã port ở chặng trước. Nên placeholder dựng dần được:
 
-- **Task 3** khai hai thành viên: `surface`, `getElementById`
-- **Task 4** thêm `viewport` sau khi `Viewport` được port
-- **Task 7** thêm `selection` sau khi `selection.ts` được port
+- **Task 3** khai `surface`, `getElementById`, **`std`**
+- **Task 5** thêm `viewport` nếu `grid.ts` cần sau khi `Viewport` được port
+
+### Đính chính bảng đo (phát hiện lúc thi hành Task 3)
+
+Bảng trên **đếm thiếu**: nó chỉ tính bốn file *tiêu thụ* `GfxExtension`, bỏ sót rằng chính
+`extension.ts` — file của Task 3 — có `get std() { return this.gfx.std }`. Implementer Task 3 dừng
+đúng chỗ và báo, thay vì tự đoán thêm thành viên.
+
+Đã đo phần còn lại để các task sau khỏi dò lại. `GfxController.std` kiểu `BlockStdScope`, khai
+**placeholder rỗng** ở `host.ts` tại Task 3 vì trong phạm vi Task 3 không ai đọc tiếp vào nó:
+
+| Task | Ai đọc tiếp `.std` | Thêm thành viên vào `BlockStdScope` |
+|---|---|---|
+| 3 | không ai — `extension.ts` chỉ chuyển tiếp qua getter | **không thêm gì** |
+| 5 | `grid.ts:384` → `this.std.store` | `store` |
+| 6 | `layer.ts:78` → `this.std.store` | (đã có từ Task 5) |
+| 7 | `selection.ts:135` → `.selection`; `:149` → `.get()`; `:318` → `.store.hasBlock` | `selection`, `get` |
+
+**Cả ba thành viên đều tựa vào kiểu ĐÃ VENDOR** — nên đây là hợp đồng đo được, không phải interface
+đoán: `Store` (`store/src/model/store/store.ts:195`), `StoreSelectionExtension`
+(`store/src/extension/selection/selection-extension.ts:12`), `ServiceProvider['get']`
+(`global/src/di/provider.ts:20`). Upstream: `std/src/scope/std-scope.ts:56,88,110`.
 
 Đây là một hợp đồng **đo được**, không phải interface rỗng — nó nói thẳng host thật phải cung cấp gì, và là thứ P1.0 sẽ phải hiện thực khi dựng `EdgelessHost` bằng React.
 
