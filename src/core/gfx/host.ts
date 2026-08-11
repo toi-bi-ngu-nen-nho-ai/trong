@@ -1,4 +1,5 @@
-import type { BlockModel, Store } from '@blocksuite/store';
+import type { ServiceProvider } from '@blocksuite/global/di';
+import type { BlockModel, Store, StoreSelectionExtension } from '@blocksuite/store';
 import type { Signal } from '@preact/signals-core';
 
 import type { GfxModel } from './model/model';
@@ -42,9 +43,17 @@ export interface GfxViewportElement {}
 // | 3 (file này) | không ai — chỉ chuyển tiếp qua getter | (không thêm gì) | — |
 // | 5 | `grid.ts:384` (`this.std.store`) | `store` — ĐÃ THÊM | `Store`, `store/src/model/store/store.ts:195` |
 // | 6 | `layer.ts:78` (`this.std.store`) | (đã có từ Task 5) | (như trên) |
-// | 7 | `selection.ts:135,149,318` (`.selection`, `.get()`) | `selection`, `get` | `StoreSelectionExtension`, `store/src/extension/selection/selection-extension.ts:12`; `ServiceProvider['get']`, `global/src/di/provider.ts:20` |
+// | 7 | `selection.ts:135,149,318` (`.selection`, `.get()`, `.store`) | `selection`, `get` — ĐÃ THÊM | `StoreSelectionExtension`, `store/src/extension/selection/selection-extension.ts:12`; `ServiceProvider['get']`, `global/src/di/provider.ts:20` |
+//
+// `selection` và `get` khai đúng theo cách upstream `std-scope.ts` khai chúng (getter chuyển
+// tiếp): `get selection() { return this.get(StoreSelectionExtension) }` (dòng 110) và
+// `get get() { return this.provider.get.bind(this.provider) }` (dòng 88). Ở đây ta chỉ cần kiểu,
+// không cần hành vi getter thật — `BlockStdScope` vẫn là placeholder tối giản, đúng lối
+// `EditorHost` ở trên.
 export interface BlockStdScope {
   readonly store: Store;
+  readonly selection: StoreSelectionExtension;
+  readonly get: ServiceProvider['get'];
 }
 
 // Placeholder dựng dần cho `std/src/gfx/controller.ts` (hoãn sang P1.0 — nó cần
@@ -65,7 +74,13 @@ export interface BlockStdScope {
 //   sau). Thượng nguồn (`gfx/controller.ts`): `get surface$() { return this._surface$; }` kiểu
 //   `Signal<SurfaceBlockModel | null>` — `Signal` từ `@preact/signals-core`, dependency chạy
 //   thật đã có sẵn trong `package.json` (đã dùng ở `model/surface/surface-model.ts`).
-// - Task 7 sẽ thêm `selection` sau khi `selection.ts` được port — dùng ở `tool-controller.ts`.
+// - Task 7 (`selection.ts`) thêm `selection` — nhưng KHÔNG sửa interface ở đây. Đúng thượng
+//   nguồn (`gfx/selection.ts` khai `declare module './controller.js' { interface GfxController
+//   { readonly selection: GfxSelectionManager } }`), `src/core/gfx/selection.ts` tự khai
+//   `declare module './host' { interface GfxController { readonly selection: GfxSelectionManager
+//   } }` — TypeScript gộp (declaration merging) thành viên đó vào interface bên dưới tại thời
+//   điểm biên dịch, miễn `selection.ts` nằm trong đồ thị module (đã re-export qua `index.ts`).
+//   `tool-controller.ts` (ngoài phạm vi P0-C) sẽ là nơi đọc nó.
 // Không khai thêm thành viên "để dành" — mỗi thành viên phải có chỗ dùng thật đã đo được.
 export interface GfxController {
   readonly surface: SurfaceBlockModel | null;
