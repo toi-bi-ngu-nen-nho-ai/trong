@@ -1,6 +1,6 @@
 import type { Store } from '@blocksuite/store';
 
-import type { Layer } from '../gfx/host';
+import type { Layer } from '../gfx/layer';
 import {
   type GfxGroupCompatibleInterface,
   isGfxGroupCompatibleModel,

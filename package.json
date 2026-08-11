@@ -14,6 +14,7 @@
   "dependencies": {
     "@preact/signals-core": "^1.14.4",
     "file-type": "^21.3.4",
+    "fractional-indexing": "^4.0.0",
     "idb": "^8.0.3",
     "idb-keyval": "^6.3.0",
     "lib0": "^0.2.117",

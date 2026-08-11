@@ -2,8 +2,8 @@
 //
 // Bản thượng nguồn re-export cả Viewport, Grid, Layer, ToolController, selection và
 // interactivity. P0-B mang tầng model; P0-C thêm dần cursor, extension, identifiers,
-// raf-coalescer, Viewport (Task 4), Grid (Task 5). Layer, Selection, ToolController thuộc các
-// task P0-C sau và sẽ được thêm vào đúng file này khi tới chặng đó.
+// raf-coalescer, Viewport (Task 4), Grid (Task 5), Layer (Task 6). Selection, ToolController
+// thuộc các task P0-C sau và sẽ được thêm vào đúng file này khi tới chặng đó.
 //
 // Cố ý KHÔNG chép index.ts của thượng nguồn: nó re-export những module ta chưa port, và một
 // barrel trỏ vào hư không thì hỏng ngay lúc dịch.
@@ -12,6 +12,7 @@ export type { CursorType, StandardCursor } from './cursor'
 export { GfxExtension, GfxExtensionIdentifier } from './extension'
 export { GridManager } from './grid'
 export { GfxControllerIdentifier } from './identifiers'
+export { LayerManager, type ReorderingDirection } from './layer'
 export * from './model/base'
 export * from './model/gfx-block-model'
 // Thượng nguồn export `GfxCompatibleBlockModel as GfxCompatible` — tên nhiều file P1/P2 sẽ

@@ -78,26 +78,3 @@ export interface GfxController {
     id: string
   ): T | null;
 }
-
-// Placeholder khác loại với ba cái trên: không phải thay ràng buộc Lit, mà thay một vòng phụ
-// thuộc kiểu giữa hai file port ở CÙNG P0-C. `utils/layer.ts` (Task 5) thượng nguồn khai
-// `import type { Layer } from '../gfx/layer.js'`, nhưng `gfx/layer.ts` là Task 6 — chưa tồn tại
-// lúc Task 5 chạy. Thượng nguồn cũng có vòng này (chỉ ở mức kiểu: `gfx/layer.ts` xuất `Layer`,
-// `utils/layer.ts` nhập nó; không có `import` giá trị nào đi ngược lại), nên vòng không phải lỗi
-// port — chỉ là thứ tự file.
-//
-// Khác `EditorHost`/`GfxViewportElement`: `utils/layer.ts` ĐỌC THẬT hai thành viên trên `Layer`
-// (`getLayerEndZIndex`, `updateLayersZIndex` dùng `layer.zIndex` và `layer.elements.length`) —
-// interface rỗng sẽ vỡ type-check. Kiểu thật ở thượng nguồn là `BlockLayer | CanvasLayer`, hợp
-// cấu trúc với type dưới đây (cả hai case đều có `zIndex: number` và `elements: Array<T>`), nên
-// placeholder cấu trúc tối thiểu này là đúng đắn — không đoán, đo trên đúng hai chỗ đọc.
-//
-// Khi Task 6 port `gfx/layer.ts` xong, `utils/layer.ts` sẽ đổi import trỏ thẳng vào đó
-// (`import type { Layer } from '../gfx/layer'`) và interface này hết chỗ dùng — xoá cùng lúc.
-//
-// `zIndex` KHÔNG readonly: `updateLayersZIndex` gán lại nó (`curLayer.zIndex = curIndex`) — đo
-// được trên chính hai hàm tiêu thụ type này, không phải suy đoán.
-export interface Layer {
-  zIndex: number;
-  readonly elements: { readonly length: number };
-}
