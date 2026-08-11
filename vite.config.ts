@@ -60,8 +60,14 @@ function vendorJsToTs(): Plugin {
 // Type-checking vẫn qua `tsc --noEmit` riêng — Babel ở đây không type-check, chỉ strip.
 //
 // Lọc theo nội dung (`accessor` xuất hiện trong file) chứ không theo toàn bộ thư mục con, để
-// chi phí Babel chỉ tính trên số file thực sự cần — hiện tại vẫn chỉ 3 file dù phạm vi thư mục
-// đã mở rộng ra toàn bộ src/.
+// chi phí Babel chỉ tính trên số file thực sự cần — hiện tại:
+// - npm run build: 0 file (element-model.ts, local-element-model.ts chưa được import từ App.tsx/main.tsx,
+//   nên không nằm trong module graph lúc build — Babel chưa được chạy lần nào trong build thực tế).
+// - npm test: 5 file (element-model.ts, local-element-model.ts, accessor-support.spec.ts,
+//   test-gfx-element.ts, accessor-outside-core.spec.ts).
+// CẢNH BÁO: Con số build hiện bằng 0 không phải vì bộ lọc tốt, mà vì tầng gfx chưa nối vào entry app.
+// Khi chặng sau kết nối tầng gfx vào entry (App.tsx), Babel sẽ lần đầu chạy trong npm run build với
+// chi phí thực tế có thể khác hẳn so với phép đo hiện tại. CẦN ĐO LẠI khi đó.
 function accessorSupport(): Plugin {
   const srcDir = path.resolve(__dirname, 'src').replace(/\\/g, '/')
   const vendorDir = path.resolve(__dirname, 'src/vendor').replace(/\\/g, '/')
