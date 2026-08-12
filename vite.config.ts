@@ -149,9 +149,20 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        '@blocksuite/global': path.resolve(__dirname, './src/vendor/blocksuite/framework/global/src'),
-        '@blocksuite/store': path.resolve(__dirname, './src/vendor/blocksuite/framework/store/src'),
-        '@blocksuite/sync': path.resolve(__dirname, './src/vendor/blocksuite/framework/sync/src'),
+        // Ba alias dưới đây trỏ vào .vendor-build/ (JS đã biên dịch sẵn), KHÔNG trỏ thẳng vào
+        // .ts trong src/vendor/blocksuite/ như tsconfig.json `paths`. Lý do: khi Vite transform
+        // một file .ts vendored, oxc tự đi tìm tsconfig.json gần nhất — gặp
+        // src/vendor/blocksuite/framework/global/tsconfig.json, theo "extends" của nó tới
+        // src/vendor/blocksuite/tsconfig.json — file này KHÔNG tồn tại (chỉ vendor framework/
+        // và affine/, không vendor tsconfig.json gốc của blocksuite, vì nó lại extends tiếp ra
+        // ngoài thư mục vendor, sang tận repo AFFiNE) → oxc ném TSCONFIG_ERROR, test đổ vỡ.
+        // .vendor-build/ là JS thuần (biên dịch bằng `npm run dich:vendor`, xem
+        // tsconfig.vendor.json), không cần tsconfig, nên né được lỗi trên hoàn toàn.
+        // Đây là alias TẠM THỜI — một task sau sẽ thay bằng plugin tự phân giải cả cây vendor
+        // theo đúng cách này (không cần liệt kê từng gói), rồi bỏ các dòng dưới đi.
+        '@blocksuite/global': path.resolve(__dirname, './.vendor-build/framework/global/src'),
+        '@blocksuite/store': path.resolve(__dirname, './.vendor-build/framework/store/src'),
+        '@blocksuite/sync': path.resolve(__dirname, './.vendor-build/framework/sync/src'),
       },
     },
     server: {
