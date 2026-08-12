@@ -102,4 +102,3 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     expect(document.querySelector('drt-edgeless-root')).toBeNull()
   })
 })
-

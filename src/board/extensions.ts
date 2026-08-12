@@ -5,7 +5,7 @@
 // LÀ ĐÃ BỎ — 36 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
 // Phần bỏ đi trải trên cả năm nhóm của thượng nguồn, không chỉ nhóm block: 2 gfx (template, link),
-// 16 block, TOÀN BỘ 7 inline, 10 widget và TOÀN BỘ 4 fragment.
+// 14 block, TOÀN BỘ 7 inline, 9 widget và TOÀN BỘ 4 fragment (0+2+14+7+9+4 = 36).
 //
 // Hệ quả cần biết trước khi tưởng Note là "note đầy đủ": Note ở đây chỉ có đoạn văn và danh sách.
 // Cả bảy inline extension đều vắng — InlinePreset, Link, Reference, Mention, Footnote,

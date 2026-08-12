@@ -15,6 +15,11 @@
 // So sau khi chuẩn hoá xuống dòng, đúng lý do đã ghi trong `kiem-vendor.mjs`: repo bật
 // core.autocrlf nên cây làm việc lưu CRLF, còn script sinh ra LF — so byte thô sẽ đỏ giả trên
 // toàn bộ file dù nội dung giống hệt.
+//
+// GIỚI HẠN của cổng này: nó chỉ chứng minh bản đồ paths khớp với `.vendor-build/` HIỆN CÓ trên
+// đĩa — không chứng minh `.vendor-build/` đó còn khớp với `src/vendor/blocksuite/`. Nếu cây build
+// đã cũ so với cây nguồn thì cả hai phía đều lệch theo nhau và cổng này vẫn xanh. Muốn cổng canh
+// tính toàn vẹn của CÂY NGUỒN thì xem `kiem:vendor`.
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
