@@ -62,12 +62,25 @@ const goc = (await readdir(VENDOR, { withFileTypes: true }))
   .filter((e) => e.isDirectory())
   .map((e) => e.name)
 
+// Thư mục gốc có trong cây vendor nhưng không tồn tại ở thượng nguồn (vd. tên gõ sai, hoặc
+// một lần chép nửa vời để lại thư mục mồ côi). readdir trên đường dẫn không tồn tại sẽ ném
+// ENOENT/ENOTDIR — bắt riêng hai mã đó để báo bằng thông điệp D11, không để lộ stack trace
+// Node trỏ vào đường dẫn AFFiNE cục bộ. Lỗi I/O nào khác vẫn phải ném tiếp, không được nuốt.
 const thieu = []
+const gocThua = []
 for (const ten of goc) {
-  for await (const f of dietFile(path.join(UPSTREAM, ten))) {
-    const tuongUng = path.join(VENDOR, path.relative(UPSTREAM, f))
-    if (!existsSync(tuongUng)) {
-      thieu.push(f)
+  try {
+    for await (const f of dietFile(path.join(UPSTREAM, ten))) {
+      const tuongUng = path.join(VENDOR, path.relative(UPSTREAM, f))
+      if (!existsSync(tuongUng)) {
+        thieu.push(path.relative(UPSTREAM, f))
+      }
+    }
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
+      gocThua.push(ten)
+    } else {
+      throw err
     }
   }
 }
@@ -82,7 +95,12 @@ if (thieu.length) {
   thieu.slice(0, 10).forEach((f) => console.error('  ', f))
 }
 
+if (gocThua.length) {
+  console.error(`\n${gocThua.length} thư mục gốc trong cây vendor không tồn tại ở thượng nguồn:`)
+  gocThua.forEach((ten) => console.error('  ', ten))
+}
+
 console.log(
   `\nĐã so ${tong} file, lệch ${lech}, không đối chiếu được ${thua.length + thieu.length}`,
 )
-process.exit(lech === 0 && thua.length === 0 && thieu.length === 0 ? 0 : 1)
+process.exit(lech === 0 && thua.length === 0 && thieu.length === 0 && gocThua.length === 0 ? 0 : 1)
