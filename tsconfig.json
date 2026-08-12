@@ -18,11 +18,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@blocksuite/global": ["./src/vendor/blocksuite/global/src/index.ts"],
-      "@blocksuite/global/*": ["./src/vendor/blocksuite/global/src/*/index.ts"],
-      "@blocksuite/store": ["./src/vendor/blocksuite/store/src/index.ts"],
-      "@blocksuite/store/*": ["./src/vendor/blocksuite/store/src/*/index.ts"],
-      "@blocksuite/sync": ["./src/vendor/blocksuite/sync/src/index.ts"]
+      "@blocksuite/global": ["./src/vendor/blocksuite/framework/global/src/index.ts"],
+      "@blocksuite/global/*": ["./src/vendor/blocksuite/framework/global/src/*/index.ts"],
+      "@blocksuite/store": ["./src/vendor/blocksuite/framework/store/src/index.ts"],
+      "@blocksuite/store/*": ["./src/vendor/blocksuite/framework/store/src/*/index.ts"],
+      "@blocksuite/sync": ["./src/vendor/blocksuite/framework/sync/src/index.ts"]
     },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,

@@ -149,9 +149,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        '@blocksuite/global': path.resolve(__dirname, './src/vendor/blocksuite/global/src'),
-        '@blocksuite/store': path.resolve(__dirname, './src/vendor/blocksuite/store/src'),
-        '@blocksuite/sync': path.resolve(__dirname, './src/vendor/blocksuite/sync/src'),
+        '@blocksuite/global': path.resolve(__dirname, './src/vendor/blocksuite/framework/global/src'),
+        '@blocksuite/store': path.resolve(__dirname, './src/vendor/blocksuite/framework/store/src'),
+        '@blocksuite/sync': path.resolve(__dirname, './src/vendor/blocksuite/framework/sync/src'),
       },
     },
     server: {
@@ -173,6 +173,15 @@ export default defineConfig(({ mode }) => {
       // cần, không đổi tuỳ tiện ở đây.
       environment: 'node',
       include: ['src/**/__tests__/**/*.spec.ts'],
+      // `src/vendor/blocksuite/` là bản vendor nguyên trạng của AFFiNE (D11 — cấm sửa), và glob
+      // `include` ở trên khớp cả 75 file spec gốc của thượng nguồn nằm trong đó. Dự án này chỉ
+      // kiểm mã mình sở hữu — AFFiNE có bộ test riêng của họ, không phải việc của dự án — nên phải
+      // loại `src/vendor/**` khỏi vitest, nếu không 14 file spec của dự án chìm nghỉm giữa 75 file
+      // spec thượng nguồn (thiếu peer deps như happy-dom) và không còn thấy được kết quả thật.
+      // Khai `exclude` THAY THẾ mặc định của vitest chứ không cộng dồn, nên phải chép lại mặc định
+      // (`defaultExclude` trong node_modules/vitest/dist/chunks/defaults.*.js — hiện là
+      // ["**/node_modules/**", "**/.git/**"]) rồi mới thêm thư mục vendor vào.
+      exclude: ['**/node_modules/**', '**/.git/**', 'src/vendor/**'],
     },
   }
 })
