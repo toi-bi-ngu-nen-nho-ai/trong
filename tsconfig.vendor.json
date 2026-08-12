@@ -5,7 +5,10 @@
     "moduleResolution": "Bundler",
     "useDefineForClassFields": false,
     "experimentalDecorators": false,
-    "declaration": false,
+    // Sinh .d.ts bên cạnh .js: đó là thứ `tsconfig.vendor-paths.json` trỏ vào để `tsc --noEmit`
+    // của dự án phân giải `@blocksuite/*` mà không kéo mã nguồn AFFiNE vào diện kiểm kiểu
+    // (`skipLibCheck: true` bỏ qua nội dung .d.ts). Xem scripts/tao-paths-vendor.mjs.
+    "declaration": true,
     "sourceMap": true,
     "skipLibCheck": true,
     "strict": false,

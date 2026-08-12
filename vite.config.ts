@@ -3,25 +3,17 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import * as babel from '@babel/core'
 import path from 'node:path'
+import { blocksuiteVendor } from './vite.vendor-plugin'
+// Ba file `*.css.ts` trong khối Note của cây vendored dùng vanilla-extract. `style({...})` là
+// lời gọi lúc BUILD, không phải lúc chạy: thiếu plugin thì nó ném "Styles were unable to be
+// assigned to a file" ngay khi nạp module, trước cả ca kiểm đầu tiên. Gói này không nằm trong
+// danh sách đo từ nhánh probe vì bản probe chưa bao giờ chạy được tới đó.
+import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 
-// Mã vendored trong src/vendor/blocksuite/ dùng specifier kiểu './vec.js' trỏ vào file .ts —
-// quy ước của TypeScript khi biên dịch ra ESM. `tsc` với moduleResolution "bundler" hiểu được,
-// nhưng Vite phân giải đúng chuỗi đó rồi không thấy file.
-//
-// Sửa bằng plugin thay vì sửa mã: D11 cấm chạm vào src/vendor/blocksuite/, để lúc BlockSuite
-// 0.27.0 được publish thì thay bằng dependency npm chỉ là xoá thư mục và bỏ alias.
-function vendorJsToTs(): Plugin {
-  return {
-    name: 'vendor-js-to-ts',
-    enforce: 'pre',
-    async resolveId(source, importer) {
-      if (!importer?.includes('/vendor/blocksuite/')) return null
-      if (!source.startsWith('.') || !source.endsWith('.js')) return null
-      const resolved = await this.resolve(source.slice(0, -3), importer, { skipSelf: true })
-      return resolved?.id ?? null
-    },
-  }
-}
+// `vendorJsToTs()` từng đứng ở đây: nó vá specifier kiểu './vec.js' trỏ vào file .ts, cần thiết
+// hồi Vite còn đọc thẳng .ts trong src/vendor/blocksuite/. Giờ Vite chỉ đọc `.vendor-build/`
+// (JS thuần, './vec.js' là file có thật) nên plugin đó không còn đối tượng — gỡ hẳn thay vì để
+// lại một plugin không bao giờ khớp.
 
 // Vite 8 chạy trên rolldown + oxc, không có Babel. oxc *phân tích cú pháp* được từ khoá
 // `accessor` (Stage-3 decorators/auto-accessor) nhưng chưa hạ cấp (lower) nó — giữ nguyên
@@ -145,25 +137,27 @@ export default defineConfig(({ mode }) => {
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,
     },
-    plugins: [vendorJsToTs(), accessorSupport(), react(), tailwindcss()],
+    plugins: [
+      blocksuiteVendor(),
+      // vanilla-extract chạy các file `.css.*` trong một instance Vite RIÊNG và mặc định bỏ hết
+      // plugin của người dùng. Các file đó import `@blocksuite/affine-shared/consts`, nên phải
+      // cho `blocksuite-vendor` đi cùng, nếu không instance riêng kia không phân giải nổi.
+      vanillaExtractPlugin({ unstable_pluginFilter: ({ name }) => name === 'blocksuite-vendor' }),
+      accessorSupport(),
+      react(),
+      tailwindcss(),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        // Ba alias dưới đây trỏ vào .vendor-build/ (JS đã biên dịch sẵn), KHÔNG trỏ thẳng vào
-        // .ts trong src/vendor/blocksuite/ như tsconfig.json `paths`. Lý do: khi Vite transform
-        // một file .ts vendored, oxc tự đi tìm tsconfig.json gần nhất — gặp
-        // src/vendor/blocksuite/framework/global/tsconfig.json, theo "extends" của nó tới
-        // src/vendor/blocksuite/tsconfig.json — file này KHÔNG tồn tại (chỉ vendor framework/
-        // và affine/, không vendor tsconfig.json gốc của blocksuite, vì nó lại extends tiếp ra
-        // ngoài thư mục vendor, sang tận repo AFFiNE) → oxc ném TSCONFIG_ERROR, test đổ vỡ.
-        // .vendor-build/ là JS thuần (biên dịch bằng `npm run dich:vendor`, xem
-        // tsconfig.vendor.json), không cần tsconfig, nên né được lỗi trên hoàn toàn.
-        // Đây là alias TẠM THỜI — một task sau sẽ thay bằng plugin tự phân giải cả cây vendor
-        // theo đúng cách này (không cần liệt kê từng gói), rồi bỏ các dòng dưới đi.
-        '@blocksuite/global': path.resolve(__dirname, './.vendor-build/framework/global/src'),
-        '@blocksuite/store': path.resolve(__dirname, './.vendor-build/framework/store/src'),
-        '@blocksuite/sync': path.resolve(__dirname, './.vendor-build/framework/sync/src'),
+        // Ba alias @blocksuite/{global,store,sync} từng nằm ở đây đã bị gỡ: `blocksuiteVendor()`
+        // phân giải TOÀN BỘ cây vendored theo đúng bản đồ `exports` của từng gói. Giữ lại alias
+        // sẽ tạo hai đường tới cùng một module trong một bundle — lỗi "cùng kiểu nhưng
+        // `instanceof` trả về false" rất khó lần.
       },
+      // Hai bản sao `yjs` hoặc `lit` sinh ra đúng loại lỗi trên. `dedupe` ép mọi importer dùng
+      // chung một bản.
+      dedupe: ['yjs', '@preact/signals-core', 'lit', 'lit-html', '@lit/context'],
     },
     server: {
       host: '0.0.0.0',

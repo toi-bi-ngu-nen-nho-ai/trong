@@ -70,5 +70,15 @@ if (ketQuaDoiTen.status !== 0) {
   process.exit(ketQuaDoiTen.status ?? 1)
 }
 
-console.log('\ndung:vendor: xong — đã biên dịch và đổi tên theo đúng thứ tự.')
+// Bước 4 — sinh bản đồ `paths` cho `tsc`. Phải chạy SAU bước 1 vì nó chỉ ánh xạ những subpath
+// thật sự có .d.ts trong .vendor-build/. Exit code ở đây có ý nghĩa thật.
+const ketQuaPaths = chay('node', ['scripts/tao-paths-vendor.mjs'], 'tao-paths-vendor')
+if (ketQuaPaths.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — không sinh được tsconfig.vendor-paths.json (exit code ${ketQuaPaths.status}).`,
+  )
+  process.exit(ketQuaPaths.status ?? 1)
+}
+
+console.log('\ndung:vendor: xong — đã biên dịch, đổi tên và sinh bản đồ paths theo đúng thứ tự.')
 process.exit(0)

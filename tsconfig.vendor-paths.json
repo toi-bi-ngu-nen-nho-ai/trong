@@ -1,0 +1,1321 @@
+{
+  "__sinh_tu": "scripts/tao-paths-vendor.mjs — chạy lại bằng \"npm run dung:vendor\". Đừng sửa tay.",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@blocksuite/affine": [
+        "./.vendor-build/affine/all/src/index.d.ts"
+      ],
+      "@blocksuite/affine/effects": [
+        "./.vendor-build/affine/all/src/effects.d.ts"
+      ],
+      "@blocksuite/affine/ext-loader": [
+        "./.vendor-build/affine/all/src/ext-loader/index.d.ts"
+      ],
+      "@blocksuite/affine/std": [
+        "./.vendor-build/affine/all/src/std/index.d.ts"
+      ],
+      "@blocksuite/affine/std/gfx": [
+        "./.vendor-build/affine/all/src/std/gfx.d.ts"
+      ],
+      "@blocksuite/affine/std/inline": [
+        "./.vendor-build/affine/all/src/std/inline.d.ts"
+      ],
+      "@blocksuite/affine/std/effects": [
+        "./.vendor-build/affine/all/src/std/effects.d.ts"
+      ],
+      "@blocksuite/affine/global": [
+        "./.vendor-build/affine/all/src/global/index.d.ts"
+      ],
+      "@blocksuite/affine/global/utils": [
+        "./.vendor-build/affine/all/src/global/utils.d.ts"
+      ],
+      "@blocksuite/affine/global/env": [
+        "./.vendor-build/affine/all/src/global/env.d.ts"
+      ],
+      "@blocksuite/affine/global/exceptions": [
+        "./.vendor-build/affine/all/src/global/exceptions.d.ts"
+      ],
+      "@blocksuite/affine/global/di": [
+        "./.vendor-build/affine/all/src/global/di.d.ts"
+      ],
+      "@blocksuite/affine/global/types": [
+        "./.vendor-build/affine/all/src/global/types.d.ts"
+      ],
+      "@blocksuite/affine/global/gfx": [
+        "./.vendor-build/affine/all/src/global/gfx.d.ts"
+      ],
+      "@blocksuite/affine/global/disposable": [
+        "./.vendor-build/affine/all/src/global/disposable.d.ts"
+      ],
+      "@blocksuite/affine/global/lit": [
+        "./.vendor-build/affine/all/src/global/lit.d.ts"
+      ],
+      "@blocksuite/affine/store": [
+        "./.vendor-build/affine/all/src/store/index.d.ts"
+      ],
+      "@blocksuite/affine/store/test": [
+        "./.vendor-build/affine/all/src/store/test.d.ts"
+      ],
+      "@blocksuite/affine/blocks/attachment": [
+        "./.vendor-build/affine/all/src/blocks/attachment/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/attachment/store": [
+        "./.vendor-build/affine/all/src/blocks/attachment/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/attachment/view": [
+        "./.vendor-build/affine/all/src/blocks/attachment/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/bookmark": [
+        "./.vendor-build/affine/all/src/blocks/bookmark/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/bookmark/store": [
+        "./.vendor-build/affine/all/src/blocks/bookmark/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/bookmark/view": [
+        "./.vendor-build/affine/all/src/blocks/bookmark/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/callout": [
+        "./.vendor-build/affine/all/src/blocks/callout/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/callout/store": [
+        "./.vendor-build/affine/all/src/blocks/callout/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/callout/view": [
+        "./.vendor-build/affine/all/src/blocks/callout/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/code": [
+        "./.vendor-build/affine/all/src/blocks/code/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/code/store": [
+        "./.vendor-build/affine/all/src/blocks/code/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/code/view": [
+        "./.vendor-build/affine/all/src/blocks/code/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/data-view": [
+        "./.vendor-build/affine/all/src/blocks/data-view/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/data-view/store": [
+        "./.vendor-build/affine/all/src/blocks/data-view/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/data-view/view": [
+        "./.vendor-build/affine/all/src/blocks/data-view/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/database": [
+        "./.vendor-build/affine/all/src/blocks/database/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/database/store": [
+        "./.vendor-build/affine/all/src/blocks/database/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/database/view": [
+        "./.vendor-build/affine/all/src/blocks/database/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/divider": [
+        "./.vendor-build/affine/all/src/blocks/divider/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/divider/store": [
+        "./.vendor-build/affine/all/src/blocks/divider/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/divider/view": [
+        "./.vendor-build/affine/all/src/blocks/divider/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/edgeless-text": [
+        "./.vendor-build/affine/all/src/blocks/edgeless-text/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/edgeless-text/store": [
+        "./.vendor-build/affine/all/src/blocks/edgeless-text/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/edgeless-text/view": [
+        "./.vendor-build/affine/all/src/blocks/edgeless-text/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/embed": [
+        "./.vendor-build/affine/all/src/blocks/embed/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/embed/store": [
+        "./.vendor-build/affine/all/src/blocks/embed/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/embed/view": [
+        "./.vendor-build/affine/all/src/blocks/embed/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/embed-doc": [
+        "./.vendor-build/affine/all/src/blocks/embed-doc/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/embed-doc/store": [
+        "./.vendor-build/affine/all/src/blocks/embed-doc/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/embed-doc/view": [
+        "./.vendor-build/affine/all/src/blocks/embed-doc/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/frame": [
+        "./.vendor-build/affine/all/src/blocks/frame/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/frame/store": [
+        "./.vendor-build/affine/all/src/blocks/frame/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/frame/view": [
+        "./.vendor-build/affine/all/src/blocks/frame/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/image": [
+        "./.vendor-build/affine/all/src/blocks/image/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/image/store": [
+        "./.vendor-build/affine/all/src/blocks/image/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/image/view": [
+        "./.vendor-build/affine/all/src/blocks/image/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/latex": [
+        "./.vendor-build/affine/all/src/blocks/latex/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/latex/store": [
+        "./.vendor-build/affine/all/src/blocks/latex/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/latex/view": [
+        "./.vendor-build/affine/all/src/blocks/latex/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/list": [
+        "./.vendor-build/affine/all/src/blocks/list/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/list/store": [
+        "./.vendor-build/affine/all/src/blocks/list/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/list/view": [
+        "./.vendor-build/affine/all/src/blocks/list/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/note": [
+        "./.vendor-build/affine/all/src/blocks/note/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/note/store": [
+        "./.vendor-build/affine/all/src/blocks/note/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/note/view": [
+        "./.vendor-build/affine/all/src/blocks/note/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/paragraph": [
+        "./.vendor-build/affine/all/src/blocks/paragraph/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/paragraph/store": [
+        "./.vendor-build/affine/all/src/blocks/paragraph/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/paragraph/view": [
+        "./.vendor-build/affine/all/src/blocks/paragraph/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/root": [
+        "./.vendor-build/affine/all/src/blocks/root/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/root/store": [
+        "./.vendor-build/affine/all/src/blocks/root/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/root/view": [
+        "./.vendor-build/affine/all/src/blocks/root/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/surface": [
+        "./.vendor-build/affine/all/src/blocks/surface/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/surface/store": [
+        "./.vendor-build/affine/all/src/blocks/surface/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/surface/view": [
+        "./.vendor-build/affine/all/src/blocks/surface/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/surface-ref": [
+        "./.vendor-build/affine/all/src/blocks/surface-ref/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/surface-ref/store": [
+        "./.vendor-build/affine/all/src/blocks/surface-ref/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/surface-ref/view": [
+        "./.vendor-build/affine/all/src/blocks/surface-ref/view.d.ts"
+      ],
+      "@blocksuite/affine/blocks/table": [
+        "./.vendor-build/affine/all/src/blocks/table/index.d.ts"
+      ],
+      "@blocksuite/affine/blocks/table/store": [
+        "./.vendor-build/affine/all/src/blocks/table/store.d.ts"
+      ],
+      "@blocksuite/affine/blocks/table/view": [
+        "./.vendor-build/affine/all/src/blocks/table/view.d.ts"
+      ],
+      "@blocksuite/affine/data-view": [
+        "./.vendor-build/affine/all/src/data-view/index.d.ts"
+      ],
+      "@blocksuite/affine/data-view/effects": [
+        "./.vendor-build/affine/all/src/data-view/effects.d.ts"
+      ],
+      "@blocksuite/affine/inlines/link": [
+        "./.vendor-build/affine/all/src/inlines/link/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/link/store": [
+        "./.vendor-build/affine/all/src/inlines/link/store.d.ts"
+      ],
+      "@blocksuite/affine/inlines/link/view": [
+        "./.vendor-build/affine/all/src/inlines/link/view.d.ts"
+      ],
+      "@blocksuite/affine/inlines/reference": [
+        "./.vendor-build/affine/all/src/inlines/reference/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/reference/store": [
+        "./.vendor-build/affine/all/src/inlines/reference/store.d.ts"
+      ],
+      "@blocksuite/affine/inlines/reference/view": [
+        "./.vendor-build/affine/all/src/inlines/reference/view.d.ts"
+      ],
+      "@blocksuite/affine/inlines/preset": [
+        "./.vendor-build/affine/all/src/inlines/preset/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/preset/store": [
+        "./.vendor-build/affine/all/src/inlines/preset/store.d.ts"
+      ],
+      "@blocksuite/affine/inlines/preset/view": [
+        "./.vendor-build/affine/all/src/inlines/preset/view.d.ts"
+      ],
+      "@blocksuite/affine/inlines/footnote": [
+        "./.vendor-build/affine/all/src/inlines/footnote/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/footnote/view": [
+        "./.vendor-build/affine/all/src/inlines/footnote/view.d.ts"
+      ],
+      "@blocksuite/affine/inlines/footnote/store": [
+        "./.vendor-build/affine/all/src/inlines/footnote/store.d.ts"
+      ],
+      "@blocksuite/affine/inlines/comment": [
+        "./.vendor-build/affine/all/src/inlines/comment/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/latex": [
+        "./.vendor-build/affine/all/src/inlines/latex/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/latex/store": [
+        "./.vendor-build/affine/all/src/inlines/latex/store.d.ts"
+      ],
+      "@blocksuite/affine/inlines/latex/view": [
+        "./.vendor-build/affine/all/src/inlines/latex/view.d.ts"
+      ],
+      "@blocksuite/affine/inlines/mention": [
+        "./.vendor-build/affine/all/src/inlines/mention/index.d.ts"
+      ],
+      "@blocksuite/affine/inlines/mention/view": [
+        "./.vendor-build/affine/all/src/inlines/mention/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/drag-handle": [
+        "./.vendor-build/affine/all/src/widgets/drag-handle/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/drag-handle/view": [
+        "./.vendor-build/affine/all/src/widgets/drag-handle/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/edgeless-auto-connect": [
+        "./.vendor-build/affine/all/src/widgets/edgeless-auto-connect/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/edgeless-auto-connect/view": [
+        "./.vendor-build/affine/all/src/widgets/edgeless-auto-connect/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/edgeless-dragging-area": [
+        "./.vendor-build/affine/all/src/widgets/edgeless-dragging-area/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/edgeless-dragging-area/view": [
+        "./.vendor-build/affine/all/src/widgets/edgeless-dragging-area/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/edgeless-toolbar": [
+        "./.vendor-build/affine/all/src/widgets/edgeless-toolbar/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/edgeless-toolbar/view": [
+        "./.vendor-build/affine/all/src/widgets/edgeless-toolbar/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/frame-title": [
+        "./.vendor-build/affine/all/src/widgets/frame-title/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/frame-title/view": [
+        "./.vendor-build/affine/all/src/widgets/frame-title/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/linked-doc": [
+        "./.vendor-build/affine/all/src/widgets/linked-doc/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/linked-doc/view": [
+        "./.vendor-build/affine/all/src/widgets/linked-doc/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/remote-selection": [
+        "./.vendor-build/affine/all/src/widgets/remote-selection/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/remote-selection/view": [
+        "./.vendor-build/affine/all/src/widgets/remote-selection/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/scroll-anchoring": [
+        "./.vendor-build/affine/all/src/widgets/scroll-anchoring/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/scroll-anchoring/view": [
+        "./.vendor-build/affine/all/src/widgets/scroll-anchoring/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/slash-menu": [
+        "./.vendor-build/affine/all/src/widgets/slash-menu/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/slash-menu/view": [
+        "./.vendor-build/affine/all/src/widgets/slash-menu/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/toolbar": [
+        "./.vendor-build/affine/all/src/widgets/toolbar/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/toolbar/view": [
+        "./.vendor-build/affine/all/src/widgets/toolbar/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/keyboard-toolbar": [
+        "./.vendor-build/affine/all/src/widgets/keyboard-toolbar/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/keyboard-toolbar/view": [
+        "./.vendor-build/affine/all/src/widgets/keyboard-toolbar/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/viewport-overlay": [
+        "./.vendor-build/affine/all/src/widgets/viewport-overlay/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/viewport-overlay/view": [
+        "./.vendor-build/affine/all/src/widgets/viewport-overlay/view.d.ts"
+      ],
+      "@blocksuite/affine/widgets/page-dragging-area": [
+        "./.vendor-build/affine/all/src/widgets/page-dragging-area/index.d.ts"
+      ],
+      "@blocksuite/affine/widgets/page-dragging-area/view": [
+        "./.vendor-build/affine/all/src/widgets/page-dragging-area/view.d.ts"
+      ],
+      "@blocksuite/affine/fragments/doc-title": [
+        "./.vendor-build/affine/all/src/fragments/doc-title/index.d.ts"
+      ],
+      "@blocksuite/affine/fragments/doc-title/view": [
+        "./.vendor-build/affine/all/src/fragments/doc-title/view.d.ts"
+      ],
+      "@blocksuite/affine/fragments/frame-panel": [
+        "./.vendor-build/affine/all/src/fragments/frame-panel/index.d.ts"
+      ],
+      "@blocksuite/affine/fragments/frame-panel/view": [
+        "./.vendor-build/affine/all/src/fragments/frame-panel/view.d.ts"
+      ],
+      "@blocksuite/affine/fragments/outline": [
+        "./.vendor-build/affine/all/src/fragments/outline/index.d.ts"
+      ],
+      "@blocksuite/affine/fragments/outline/view": [
+        "./.vendor-build/affine/all/src/fragments/outline/view.d.ts"
+      ],
+      "@blocksuite/affine/fragments/adapter-panel": [
+        "./.vendor-build/affine/all/src/fragments/adapter-panel/index.d.ts"
+      ],
+      "@blocksuite/affine/fragments/adapter-panel/view": [
+        "./.vendor-build/affine/all/src/fragments/adapter-panel/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/text": [
+        "./.vendor-build/affine/all/src/gfx/text/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/text/store": [
+        "./.vendor-build/affine/all/src/gfx/text/store.d.ts"
+      ],
+      "@blocksuite/affine/gfx/text/view": [
+        "./.vendor-build/affine/all/src/gfx/text/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/brush": [
+        "./.vendor-build/affine/all/src/gfx/brush/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/brush/store": [
+        "./.vendor-build/affine/all/src/gfx/brush/store.d.ts"
+      ],
+      "@blocksuite/affine/gfx/brush/view": [
+        "./.vendor-build/affine/all/src/gfx/brush/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/pointer": [
+        "./.vendor-build/affine/all/src/gfx/pointer/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/pointer/view": [
+        "./.vendor-build/affine/all/src/gfx/pointer/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/shape": [
+        "./.vendor-build/affine/all/src/gfx/shape/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/shape/store": [
+        "./.vendor-build/affine/all/src/gfx/shape/store.d.ts"
+      ],
+      "@blocksuite/affine/gfx/shape/view": [
+        "./.vendor-build/affine/all/src/gfx/shape/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/link": [
+        "./.vendor-build/affine/all/src/gfx/link/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/link/view": [
+        "./.vendor-build/affine/all/src/gfx/link/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/note": [
+        "./.vendor-build/affine/all/src/gfx/note/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/note/view": [
+        "./.vendor-build/affine/all/src/gfx/note/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/mindmap": [
+        "./.vendor-build/affine/all/src/gfx/mindmap/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/mindmap/store": [
+        "./.vendor-build/affine/all/src/gfx/mindmap/store.d.ts"
+      ],
+      "@blocksuite/affine/gfx/mindmap/view": [
+        "./.vendor-build/affine/all/src/gfx/mindmap/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/connector": [
+        "./.vendor-build/affine/all/src/gfx/connector/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/connector/store": [
+        "./.vendor-build/affine/all/src/gfx/connector/store.d.ts"
+      ],
+      "@blocksuite/affine/gfx/connector/view": [
+        "./.vendor-build/affine/all/src/gfx/connector/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/group": [
+        "./.vendor-build/affine/all/src/gfx/group/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/group/store": [
+        "./.vendor-build/affine/all/src/gfx/group/store.d.ts"
+      ],
+      "@blocksuite/affine/gfx/group/view": [
+        "./.vendor-build/affine/all/src/gfx/group/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/template": [
+        "./.vendor-build/affine/all/src/gfx/template/index.d.ts"
+      ],
+      "@blocksuite/affine/gfx/template/view": [
+        "./.vendor-build/affine/all/src/gfx/template/view.d.ts"
+      ],
+      "@blocksuite/affine/gfx/turbo-renderer": [
+        "./.vendor-build/affine/all/src/gfx/turbo-renderer.d.ts"
+      ],
+      "@blocksuite/affine/components/block-selection": [
+        "./.vendor-build/affine/all/src/components/block-selection.d.ts"
+      ],
+      "@blocksuite/affine/components/block-zero-width": [
+        "./.vendor-build/affine/all/src/components/block-zero-width.d.ts"
+      ],
+      "@blocksuite/affine/components/caption": [
+        "./.vendor-build/affine/all/src/components/caption.d.ts"
+      ],
+      "@blocksuite/affine/components/card-style-dropdown-menu": [
+        "./.vendor-build/affine/all/src/components/card-style-dropdown-menu.d.ts"
+      ],
+      "@blocksuite/affine/components/citation": [
+        "./.vendor-build/affine/all/src/components/citation.d.ts"
+      ],
+      "@blocksuite/affine/components/color-picker": [
+        "./.vendor-build/affine/all/src/components/color-picker.d.ts"
+      ],
+      "@blocksuite/affine/components/context-menu": [
+        "./.vendor-build/affine/all/src/components/context-menu.d.ts"
+      ],
+      "@blocksuite/affine/components/date-picker": [
+        "./.vendor-build/affine/all/src/components/date-picker.d.ts"
+      ],
+      "@blocksuite/affine/components/drop-indicator": [
+        "./.vendor-build/affine/all/src/components/drop-indicator.d.ts"
+      ],
+      "@blocksuite/affine/components/embed-card-modal": [
+        "./.vendor-build/affine/all/src/components/embed-card-modal.d.ts"
+      ],
+      "@blocksuite/affine/components/filterable-list": [
+        "./.vendor-build/affine/all/src/components/filterable-list.d.ts"
+      ],
+      "@blocksuite/affine/components/highlight-dropdown-menu": [
+        "./.vendor-build/affine/all/src/components/highlight-dropdown-menu.d.ts"
+      ],
+      "@blocksuite/affine/components/hover": [
+        "./.vendor-build/affine/all/src/components/hover.d.ts"
+      ],
+      "@blocksuite/affine/components/icon-button": [
+        "./.vendor-build/affine/all/src/components/icon-button.d.ts"
+      ],
+      "@blocksuite/affine/components/icons": [
+        "./.vendor-build/affine/all/src/components/icons.d.ts"
+      ],
+      "@blocksuite/affine/components/link-preview": [
+        "./.vendor-build/affine/all/src/components/link-preview.d.ts"
+      ],
+      "@blocksuite/affine/components/linked-doc-title": [
+        "./.vendor-build/affine/all/src/components/linked-doc-title.d.ts"
+      ],
+      "@blocksuite/affine/components/notification": [
+        "./.vendor-build/affine/all/src/components/notification.d.ts"
+      ],
+      "@blocksuite/affine/components/peek": [
+        "./.vendor-build/affine/all/src/components/peek.d.ts"
+      ],
+      "@blocksuite/affine/components/portal": [
+        "./.vendor-build/affine/all/src/components/portal.d.ts"
+      ],
+      "@blocksuite/affine/components/smooth-corner": [
+        "./.vendor-build/affine/all/src/components/smooth-corner.d.ts"
+      ],
+      "@blocksuite/affine/components/toast": [
+        "./.vendor-build/affine/all/src/components/toast.d.ts"
+      ],
+      "@blocksuite/affine/components/toggle-button": [
+        "./.vendor-build/affine/all/src/components/toggle-button.d.ts"
+      ],
+      "@blocksuite/affine/components/toggle-switch": [
+        "./.vendor-build/affine/all/src/components/toggle-switch.d.ts"
+      ],
+      "@blocksuite/affine/components/toolbar": [
+        "./.vendor-build/affine/all/src/components/toolbar.d.ts"
+      ],
+      "@blocksuite/affine/components/tooltip": [
+        "./.vendor-build/affine/all/src/components/tooltip.d.ts"
+      ],
+      "@blocksuite/affine/components/view-dropdown-menu": [
+        "./.vendor-build/affine/all/src/components/view-dropdown-menu.d.ts"
+      ],
+      "@blocksuite/affine/components/tooltip-content-with-shortcut": [
+        "./.vendor-build/affine/all/src/components/tooltip-content-with-shortcut.d.ts"
+      ],
+      "@blocksuite/affine/components/resource": [
+        "./.vendor-build/affine/all/src/components/resource.d.ts"
+      ],
+      "@blocksuite/affine/rich-text": [
+        "./.vendor-build/affine/all/src/rich-text/index.d.ts"
+      ],
+      "@blocksuite/affine/rich-text/effects": [
+        "./.vendor-build/affine/all/src/rich-text/effects.d.ts"
+      ],
+      "@blocksuite/affine/shared/adapters": [
+        "./.vendor-build/affine/all/src/shared/adapters.d.ts"
+      ],
+      "@blocksuite/affine/shared/commands": [
+        "./.vendor-build/affine/all/src/shared/commands.d.ts"
+      ],
+      "@blocksuite/affine/shared/consts": [
+        "./.vendor-build/affine/all/src/shared/consts.d.ts"
+      ],
+      "@blocksuite/affine/shared/selection": [
+        "./.vendor-build/affine/all/src/shared/selection.d.ts"
+      ],
+      "@blocksuite/affine/shared/services": [
+        "./.vendor-build/affine/all/src/shared/services.d.ts"
+      ],
+      "@blocksuite/affine/shared/styles": [
+        "./.vendor-build/affine/all/src/shared/styles.d.ts"
+      ],
+      "@blocksuite/affine/shared/theme": [
+        "./.vendor-build/affine/all/src/shared/theme.d.ts"
+      ],
+      "@blocksuite/affine/shared/types": [
+        "./.vendor-build/affine/all/src/shared/types.d.ts"
+      ],
+      "@blocksuite/affine/shared/utils": [
+        "./.vendor-build/affine/all/src/shared/utils.d.ts"
+      ],
+      "@blocksuite/affine/schemas": [
+        "./.vendor-build/affine/all/src/schemas.d.ts"
+      ],
+      "@blocksuite/affine/model": [
+        "./.vendor-build/affine/all/src/model/index.d.ts"
+      ],
+      "@blocksuite/affine/sync": [
+        "./.vendor-build/affine/all/src/sync/index.d.ts"
+      ],
+      "@blocksuite/affine/extensions/store": [
+        "./.vendor-build/affine/all/src/extensions/store.d.ts"
+      ],
+      "@blocksuite/affine/extensions/view": [
+        "./.vendor-build/affine/all/src/extensions/view.d.ts"
+      ],
+      "@blocksuite/affine/foundation/clipboard": [
+        "./.vendor-build/affine/all/src/foundation/clipboard.d.ts"
+      ],
+      "@blocksuite/affine/foundation/store": [
+        "./.vendor-build/affine/all/src/foundation/store.d.ts"
+      ],
+      "@blocksuite/affine/foundation/view": [
+        "./.vendor-build/affine/all/src/foundation/view.d.ts"
+      ],
+      "@blocksuite/affine-block-attachment": [
+        "./.vendor-build/affine/blocks/attachment/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-attachment/store": [
+        "./.vendor-build/affine/blocks/attachment/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-attachment/view": [
+        "./.vendor-build/affine/blocks/attachment/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-bookmark": [
+        "./.vendor-build/affine/blocks/bookmark/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-bookmark/store": [
+        "./.vendor-build/affine/blocks/bookmark/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-bookmark/view": [
+        "./.vendor-build/affine/blocks/bookmark/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-callout": [
+        "./.vendor-build/affine/blocks/callout/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-callout/view": [
+        "./.vendor-build/affine/blocks/callout/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-callout/store": [
+        "./.vendor-build/affine/blocks/callout/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-code": [
+        "./.vendor-build/affine/blocks/code/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-code/turbo-painter": [
+        "./.vendor-build/affine/blocks/code/src/turbo/code-painter.worker.d.ts"
+      ],
+      "@blocksuite/affine-block-code/view": [
+        "./.vendor-build/affine/blocks/code/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-code/store": [
+        "./.vendor-build/affine/blocks/code/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-data-view": [
+        "./.vendor-build/affine/blocks/data-view/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-data-view/view": [
+        "./.vendor-build/affine/blocks/data-view/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-data-view/store": [
+        "./.vendor-build/affine/blocks/data-view/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-database": [
+        "./.vendor-build/affine/blocks/database/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-database/store": [
+        "./.vendor-build/affine/blocks/database/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-database/view": [
+        "./.vendor-build/affine/blocks/database/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-divider": [
+        "./.vendor-build/affine/blocks/divider/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-divider/view": [
+        "./.vendor-build/affine/blocks/divider/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-divider/store": [
+        "./.vendor-build/affine/blocks/divider/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-edgeless-text": [
+        "./.vendor-build/affine/blocks/edgeless-text/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-edgeless-text/view": [
+        "./.vendor-build/affine/blocks/edgeless-text/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-edgeless-text/store": [
+        "./.vendor-build/affine/blocks/edgeless-text/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-embed": [
+        "./.vendor-build/affine/blocks/embed/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-embed/view": [
+        "./.vendor-build/affine/blocks/embed/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-embed/store": [
+        "./.vendor-build/affine/blocks/embed/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-embed-doc": [
+        "./.vendor-build/affine/blocks/embed-doc/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-embed-doc/view": [
+        "./.vendor-build/affine/blocks/embed-doc/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-embed-doc/store": [
+        "./.vendor-build/affine/blocks/embed-doc/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-frame": [
+        "./.vendor-build/affine/blocks/frame/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-frame/store": [
+        "./.vendor-build/affine/blocks/frame/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-frame/view": [
+        "./.vendor-build/affine/blocks/frame/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-image": [
+        "./.vendor-build/affine/blocks/image/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-image/turbo-painter": [
+        "./.vendor-build/affine/blocks/image/src/turbo/image-painter.worker.d.ts"
+      ],
+      "@blocksuite/affine-block-image/store": [
+        "./.vendor-build/affine/blocks/image/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-image/view": [
+        "./.vendor-build/affine/blocks/image/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-latex": [
+        "./.vendor-build/affine/blocks/latex/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-latex/store": [
+        "./.vendor-build/affine/blocks/latex/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-latex/view": [
+        "./.vendor-build/affine/blocks/latex/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-list": [
+        "./.vendor-build/affine/blocks/list/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-list/turbo-painter": [
+        "./.vendor-build/affine/blocks/list/src/turbo/list-painter.worker.d.ts"
+      ],
+      "@blocksuite/affine-block-list/view": [
+        "./.vendor-build/affine/blocks/list/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-list/store": [
+        "./.vendor-build/affine/blocks/list/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-note": [
+        "./.vendor-build/affine/blocks/note/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-note/turbo-painter": [
+        "./.vendor-build/affine/blocks/note/src/turbo/note-painter.worker.d.ts"
+      ],
+      "@blocksuite/affine-block-note/store": [
+        "./.vendor-build/affine/blocks/note/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-note/view": [
+        "./.vendor-build/affine/blocks/note/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-paragraph": [
+        "./.vendor-build/affine/blocks/paragraph/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-paragraph/turbo-painter": [
+        "./.vendor-build/affine/blocks/paragraph/src/turbo/paragraph-painter.worker.d.ts"
+      ],
+      "@blocksuite/affine-block-paragraph/store": [
+        "./.vendor-build/affine/blocks/paragraph/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-paragraph/view": [
+        "./.vendor-build/affine/blocks/paragraph/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-root": [
+        "./.vendor-build/affine/blocks/root/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-root/effects": [
+        "./.vendor-build/affine/blocks/root/src/effects.d.ts"
+      ],
+      "@blocksuite/affine-block-root/store": [
+        "./.vendor-build/affine/blocks/root/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-root/view": [
+        "./.vendor-build/affine/blocks/root/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-surface": [
+        "./.vendor-build/affine/blocks/surface/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-surface/store": [
+        "./.vendor-build/affine/blocks/surface/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-surface/view": [
+        "./.vendor-build/affine/blocks/surface/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-surface-ref": [
+        "./.vendor-build/affine/blocks/surface-ref/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-surface-ref/store": [
+        "./.vendor-build/affine/blocks/surface-ref/src/store.d.ts"
+      ],
+      "@blocksuite/affine-block-surface-ref/view": [
+        "./.vendor-build/affine/blocks/surface-ref/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-table": [
+        "./.vendor-build/affine/blocks/table/src/index.d.ts"
+      ],
+      "@blocksuite/affine-block-table/view": [
+        "./.vendor-build/affine/blocks/table/src/view.d.ts"
+      ],
+      "@blocksuite/affine-block-table/store": [
+        "./.vendor-build/affine/blocks/table/src/store.d.ts"
+      ],
+      "@blocksuite/affine-components": [
+        "./.vendor-build/affine/components/src/index.d.ts"
+      ],
+      "@blocksuite/affine-components/color-picker": [
+        "./.vendor-build/affine/components/src/color-picker/index.d.ts"
+      ],
+      "@blocksuite/affine-components/icons": [
+        "./.vendor-build/affine/components/src/icons/index.d.ts"
+      ],
+      "@blocksuite/affine-components/peek": [
+        "./.vendor-build/affine/components/src/peek/index.d.ts"
+      ],
+      "@blocksuite/affine-components/resource": [
+        "./.vendor-build/affine/components/src/resource/index.d.ts"
+      ],
+      "@blocksuite/affine-components/portal": [
+        "./.vendor-build/affine/components/src/portal/index.d.ts"
+      ],
+      "@blocksuite/affine-components/hover": [
+        "./.vendor-build/affine/components/src/hover/index.d.ts"
+      ],
+      "@blocksuite/affine-components/icon-button": [
+        "./.vendor-build/affine/components/src/icon-button/index.d.ts"
+      ],
+      "@blocksuite/affine-components/toolbar": [
+        "./.vendor-build/affine/components/src/toolbar/index.d.ts"
+      ],
+      "@blocksuite/affine-components/toast": [
+        "./.vendor-build/affine/components/src/toast/index.d.ts"
+      ],
+      "@blocksuite/affine-components/smooth-corner": [
+        "./.vendor-build/affine/components/src/smooth-corner/index.d.ts"
+      ],
+      "@blocksuite/affine-components/caption": [
+        "./.vendor-build/affine/components/src/caption/index.d.ts"
+      ],
+      "@blocksuite/affine-components/context-menu": [
+        "./.vendor-build/affine/components/src/context-menu/index.d.ts"
+      ],
+      "@blocksuite/affine-components/date-picker": [
+        "./.vendor-build/affine/components/src/date-picker/index.d.ts"
+      ],
+      "@blocksuite/affine-components/drop-indicator": [
+        "./.vendor-build/affine/components/src/drop-indicator/index.d.ts"
+      ],
+      "@blocksuite/affine-components/filterable-list": [
+        "./.vendor-build/affine/components/src/filterable-list/index.d.ts"
+      ],
+      "@blocksuite/affine-components/toggle-button": [
+        "./.vendor-build/affine/components/src/toggle-button/index.d.ts"
+      ],
+      "@blocksuite/affine-components/toggle-switch": [
+        "./.vendor-build/affine/components/src/toggle-switch/index.d.ts"
+      ],
+      "@blocksuite/affine-components/notification": [
+        "./.vendor-build/affine/components/src/notification/index.d.ts"
+      ],
+      "@blocksuite/affine-components/block-zero-width": [
+        "./.vendor-build/affine/components/src/block-zero-width/index.d.ts"
+      ],
+      "@blocksuite/affine-components/block-selection": [
+        "./.vendor-build/affine/components/src/block-selection/index.d.ts"
+      ],
+      "@blocksuite/affine-components/embed-card-modal": [
+        "./.vendor-build/affine/components/src/embed-card-modal/index.d.ts"
+      ],
+      "@blocksuite/affine-components/link-preview": [
+        "./.vendor-build/affine/components/src/link-preview/index.d.ts"
+      ],
+      "@blocksuite/affine-components/linked-doc-title": [
+        "./.vendor-build/affine/components/src/linked-doc-title/index.d.ts"
+      ],
+      "@blocksuite/affine-components/view-dropdown-menu": [
+        "./.vendor-build/affine/components/src/view-dropdown-menu/index.d.ts"
+      ],
+      "@blocksuite/affine-components/card-style-dropdown-menu": [
+        "./.vendor-build/affine/components/src/card-style-dropdown-menu/index.d.ts"
+      ],
+      "@blocksuite/affine-components/citation": [
+        "./.vendor-build/affine/components/src/citation/index.d.ts"
+      ],
+      "@blocksuite/affine-components/highlight-dropdown-menu": [
+        "./.vendor-build/affine/components/src/highlight-dropdown-menu/index.d.ts"
+      ],
+      "@blocksuite/affine-components/tooltip-content-with-shortcut": [
+        "./.vendor-build/affine/components/src/tooltip-content-with-shortcut/index.d.ts"
+      ],
+      "@blocksuite/affine-components/size-dropdown-menu": [
+        "./.vendor-build/affine/components/src/size-dropdown-menu/index.d.ts"
+      ],
+      "@blocksuite/affine-components/edgeless-line-width-panel": [
+        "./.vendor-build/affine/components/src/edgeless-line-width-panel/index.d.ts"
+      ],
+      "@blocksuite/affine-components/edgeless-line-styles-panel": [
+        "./.vendor-build/affine/components/src/edgeless-line-styles-panel/index.d.ts"
+      ],
+      "@blocksuite/affine-components/edgeless-shape-color-picker": [
+        "./.vendor-build/affine/components/src/edgeless-shape-color-picker/index.d.ts"
+      ],
+      "@blocksuite/affine-components/open-doc-dropdown-menu": [
+        "./.vendor-build/affine/components/src/open-doc-dropdown-menu/index.d.ts"
+      ],
+      "@blocksuite/affine-components/slider": [
+        "./.vendor-build/affine/components/src/slider/index.d.ts"
+      ],
+      "@blocksuite/affine-components/tooltip": [
+        "./.vendor-build/affine/components/src/tooltip/index.d.ts"
+      ],
+      "@blocksuite/data-view": [
+        "./.vendor-build/affine/data-view/src/index.d.ts"
+      ],
+      "@blocksuite/data-view/property-presets": [
+        "./.vendor-build/affine/data-view/src/property-presets/index.d.ts"
+      ],
+      "@blocksuite/data-view/property-pure-presets": [
+        "./.vendor-build/affine/data-view/src/property-presets/pure-index.d.ts"
+      ],
+      "@blocksuite/data-view/view-presets": [
+        "./.vendor-build/affine/data-view/src/view-presets/index.d.ts"
+      ],
+      "@blocksuite/data-view/widget-presets": [
+        "./.vendor-build/affine/data-view/src/widget-presets/index.d.ts"
+      ],
+      "@blocksuite/data-view/effects": [
+        "./.vendor-build/affine/data-view/src/effects.d.ts"
+      ],
+      "@blocksuite/affine-ext-loader": [
+        "./.vendor-build/affine/ext-loader/src/index.d.ts"
+      ],
+      "@blocksuite/affine-foundation": [
+        "./.vendor-build/affine/foundation/src/index.d.ts"
+      ],
+      "@blocksuite/affine-foundation/clipboard": [
+        "./.vendor-build/affine/foundation/src/clipboard.d.ts"
+      ],
+      "@blocksuite/affine-foundation/store": [
+        "./.vendor-build/affine/foundation/src/store.d.ts"
+      ],
+      "@blocksuite/affine-foundation/view": [
+        "./.vendor-build/affine/foundation/src/view.d.ts"
+      ],
+      "@blocksuite/affine-fragment-adapter-panel": [
+        "./.vendor-build/affine/fragments/adapter-panel/src/index.d.ts"
+      ],
+      "@blocksuite/affine-fragment-adapter-panel/view": [
+        "./.vendor-build/affine/fragments/adapter-panel/src/view.d.ts"
+      ],
+      "@blocksuite/affine-fragment-doc-title": [
+        "./.vendor-build/affine/fragments/doc-title/src/index.d.ts"
+      ],
+      "@blocksuite/affine-fragment-doc-title/view": [
+        "./.vendor-build/affine/fragments/doc-title/src/view.d.ts"
+      ],
+      "@blocksuite/affine-fragment-frame-panel": [
+        "./.vendor-build/affine/fragments/frame-panel/src/index.d.ts"
+      ],
+      "@blocksuite/affine-fragment-frame-panel/view": [
+        "./.vendor-build/affine/fragments/frame-panel/src/view.d.ts"
+      ],
+      "@blocksuite/affine-fragment-outline": [
+        "./.vendor-build/affine/fragments/outline/src/index.d.ts"
+      ],
+      "@blocksuite/affine-fragment-outline/view": [
+        "./.vendor-build/affine/fragments/outline/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-brush": [
+        "./.vendor-build/affine/gfx/brush/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-brush/store": [
+        "./.vendor-build/affine/gfx/brush/src/store.d.ts"
+      ],
+      "@blocksuite/affine-gfx-brush/view": [
+        "./.vendor-build/affine/gfx/brush/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-connector": [
+        "./.vendor-build/affine/gfx/connector/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-connector/view": [
+        "./.vendor-build/affine/gfx/connector/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-connector/store": [
+        "./.vendor-build/affine/gfx/connector/src/store.d.ts"
+      ],
+      "@blocksuite/affine-gfx-group": [
+        "./.vendor-build/affine/gfx/group/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-group/view": [
+        "./.vendor-build/affine/gfx/group/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-group/store": [
+        "./.vendor-build/affine/gfx/group/src/store.d.ts"
+      ],
+      "@blocksuite/affine-gfx-link": [
+        "./.vendor-build/affine/gfx/link/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-link/view": [
+        "./.vendor-build/affine/gfx/link/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-mindmap": [
+        "./.vendor-build/affine/gfx/mindmap/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-mindmap/view": [
+        "./.vendor-build/affine/gfx/mindmap/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-mindmap/store": [
+        "./.vendor-build/affine/gfx/mindmap/src/store.d.ts"
+      ],
+      "@blocksuite/affine-gfx-note": [
+        "./.vendor-build/affine/gfx/note/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-note/view": [
+        "./.vendor-build/affine/gfx/note/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-pointer": [
+        "./.vendor-build/affine/gfx/pointer/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-pointer/view": [
+        "./.vendor-build/affine/gfx/pointer/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-shape": [
+        "./.vendor-build/affine/gfx/shape/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-shape/store": [
+        "./.vendor-build/affine/gfx/shape/src/store.d.ts"
+      ],
+      "@blocksuite/affine-gfx-shape/view": [
+        "./.vendor-build/affine/gfx/shape/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-template": [
+        "./.vendor-build/affine/gfx/template/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-template/view": [
+        "./.vendor-build/affine/gfx/template/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-text": [
+        "./.vendor-build/affine/gfx/text/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-text/view": [
+        "./.vendor-build/affine/gfx/text/src/view.d.ts"
+      ],
+      "@blocksuite/affine-gfx-text/store": [
+        "./.vendor-build/affine/gfx/text/src/store.d.ts"
+      ],
+      "@blocksuite/affine-gfx-turbo-renderer": [
+        "./.vendor-build/affine/gfx/turbo-renderer/src/index.d.ts"
+      ],
+      "@blocksuite/affine-gfx-turbo-renderer/painter": [
+        "./.vendor-build/affine/gfx/turbo-renderer/src/painter/painter.worker.d.ts"
+      ],
+      "@blocksuite/affine-inline-comment": [
+        "./.vendor-build/affine/inlines/comment/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-comment/view": [
+        "./.vendor-build/affine/inlines/comment/src/view.d.ts"
+      ],
+      "@blocksuite/affine-inline-footnote": [
+        "./.vendor-build/affine/inlines/footnote/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-footnote/view": [
+        "./.vendor-build/affine/inlines/footnote/src/view.d.ts"
+      ],
+      "@blocksuite/affine-inline-footnote/store": [
+        "./.vendor-build/affine/inlines/footnote/src/store.d.ts"
+      ],
+      "@blocksuite/affine-inline-latex": [
+        "./.vendor-build/affine/inlines/latex/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-latex/view": [
+        "./.vendor-build/affine/inlines/latex/src/view.d.ts"
+      ],
+      "@blocksuite/affine-inline-latex/store": [
+        "./.vendor-build/affine/inlines/latex/src/store.d.ts"
+      ],
+      "@blocksuite/affine-inline-link": [
+        "./.vendor-build/affine/inlines/link/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-link/store": [
+        "./.vendor-build/affine/inlines/link/src/store.d.ts"
+      ],
+      "@blocksuite/affine-inline-link/view": [
+        "./.vendor-build/affine/inlines/link/src/view.d.ts"
+      ],
+      "@blocksuite/affine-inline-mention": [
+        "./.vendor-build/affine/inlines/mention/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-mention/view": [
+        "./.vendor-build/affine/inlines/mention/src/view.d.ts"
+      ],
+      "@blocksuite/affine-inline-preset": [
+        "./.vendor-build/affine/inlines/preset/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-preset/store": [
+        "./.vendor-build/affine/inlines/preset/src/store.d.ts"
+      ],
+      "@blocksuite/affine-inline-preset/view": [
+        "./.vendor-build/affine/inlines/preset/src/view.d.ts"
+      ],
+      "@blocksuite/affine-inline-reference": [
+        "./.vendor-build/affine/inlines/reference/src/index.d.ts"
+      ],
+      "@blocksuite/affine-inline-reference/store": [
+        "./.vendor-build/affine/inlines/reference/src/store.d.ts"
+      ],
+      "@blocksuite/affine-inline-reference/view": [
+        "./.vendor-build/affine/inlines/reference/src/view.d.ts"
+      ],
+      "@blocksuite/affine-model": [
+        "./.vendor-build/affine/model/src/index.d.ts"
+      ],
+      "@blocksuite/affine-rich-text": [
+        "./.vendor-build/affine/rich-text/src/index.d.ts"
+      ],
+      "@blocksuite/affine-rich-text/effects": [
+        "./.vendor-build/affine/rich-text/src/effects.d.ts"
+      ],
+      "@blocksuite/affine-shared": [
+        "./.vendor-build/affine/shared/src/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/selection": [
+        "./.vendor-build/affine/shared/src/selection/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/utils": [
+        "./.vendor-build/affine/shared/src/utils/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/consts": [
+        "./.vendor-build/affine/shared/src/consts/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/types": [
+        "./.vendor-build/affine/shared/src/types/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/commands": [
+        "./.vendor-build/affine/shared/src/commands/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/theme": [
+        "./.vendor-build/affine/shared/src/theme/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/styles": [
+        "./.vendor-build/affine/shared/src/styles/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/services": [
+        "./.vendor-build/affine/shared/src/services/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/adapters": [
+        "./.vendor-build/affine/shared/src/adapters/index.d.ts"
+      ],
+      "@blocksuite/affine-shared/test-utils": [
+        "./.vendor-build/affine/shared/src/test-utils/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-drag-handle": [
+        "./.vendor-build/affine/widgets/drag-handle/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-drag-handle/view": [
+        "./.vendor-build/affine/widgets/drag-handle/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-auto-connect": [
+        "./.vendor-build/affine/widgets/edgeless-auto-connect/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-auto-connect/view": [
+        "./.vendor-build/affine/widgets/edgeless-auto-connect/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-dragging-area": [
+        "./.vendor-build/affine/widgets/edgeless-dragging-area/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-dragging-area/view": [
+        "./.vendor-build/affine/widgets/edgeless-dragging-area/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-selected-rect": [
+        "./.vendor-build/affine/widgets/edgeless-selected-rect/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-selected-rect/view": [
+        "./.vendor-build/affine/widgets/edgeless-selected-rect/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-toolbar": [
+        "./.vendor-build/affine/widgets/edgeless-toolbar/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-toolbar/view": [
+        "./.vendor-build/affine/widgets/edgeless-toolbar/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-zoom-toolbar": [
+        "./.vendor-build/affine/widgets/edgeless-zoom-toolbar/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-edgeless-zoom-toolbar/view": [
+        "./.vendor-build/affine/widgets/edgeless-zoom-toolbar/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-frame-title": [
+        "./.vendor-build/affine/widgets/frame-title/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-frame-title/view": [
+        "./.vendor-build/affine/widgets/frame-title/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-keyboard-toolbar": [
+        "./.vendor-build/affine/widgets/keyboard-toolbar/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-keyboard-toolbar/view": [
+        "./.vendor-build/affine/widgets/keyboard-toolbar/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-linked-doc": [
+        "./.vendor-build/affine/widgets/linked-doc/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-linked-doc/view": [
+        "./.vendor-build/affine/widgets/linked-doc/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-note-slicer": [
+        "./.vendor-build/affine/widgets/note-slicer/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-note-slicer/view": [
+        "./.vendor-build/affine/widgets/note-slicer/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-page-dragging-area": [
+        "./.vendor-build/affine/widgets/page-dragging-area/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-page-dragging-area/view": [
+        "./.vendor-build/affine/widgets/page-dragging-area/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-remote-selection": [
+        "./.vendor-build/affine/widgets/remote-selection/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-remote-selection/view": [
+        "./.vendor-build/affine/widgets/remote-selection/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-scroll-anchoring": [
+        "./.vendor-build/affine/widgets/scroll-anchoring/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-scroll-anchoring/view": [
+        "./.vendor-build/affine/widgets/scroll-anchoring/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-slash-menu": [
+        "./.vendor-build/affine/widgets/slash-menu/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-slash-menu/view": [
+        "./.vendor-build/affine/widgets/slash-menu/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-toolbar": [
+        "./.vendor-build/affine/widgets/toolbar/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-toolbar/view": [
+        "./.vendor-build/affine/widgets/toolbar/src/view.d.ts"
+      ],
+      "@blocksuite/affine-widget-viewport-overlay": [
+        "./.vendor-build/affine/widgets/viewport-overlay/src/index.d.ts"
+      ],
+      "@blocksuite/affine-widget-viewport-overlay/view": [
+        "./.vendor-build/affine/widgets/viewport-overlay/src/view.d.ts"
+      ],
+      "@blocksuite/global": [
+        "./.vendor-build/framework/global/src/index.d.ts"
+      ],
+      "@blocksuite/global/utils": [
+        "./.vendor-build/framework/global/src/utils/index.d.ts"
+      ],
+      "@blocksuite/global/env": [
+        "./.vendor-build/framework/global/src/env/index.d.ts"
+      ],
+      "@blocksuite/global/exceptions": [
+        "./.vendor-build/framework/global/src/exceptions/index.d.ts"
+      ],
+      "@blocksuite/global/di": [
+        "./.vendor-build/framework/global/src/di/index.d.ts"
+      ],
+      "@blocksuite/global/types": [
+        "./.vendor-build/framework/global/src/types/index.d.ts"
+      ],
+      "@blocksuite/global/gfx": [
+        "./.vendor-build/framework/global/src/gfx/index.d.ts"
+      ],
+      "@blocksuite/global/disposable": [
+        "./.vendor-build/framework/global/src/disposable/index.d.ts"
+      ],
+      "@blocksuite/global/lit": [
+        "./.vendor-build/framework/global/src/lit/index.d.ts"
+      ],
+      "@blocksuite/std": [
+        "./.vendor-build/framework/std/src/index.d.ts"
+      ],
+      "@blocksuite/std/gfx": [
+        "./.vendor-build/framework/std/src/gfx/index.d.ts"
+      ],
+      "@blocksuite/std/effects": [
+        "./.vendor-build/framework/std/src/effects.d.ts"
+      ],
+      "@blocksuite/std/inline": [
+        "./.vendor-build/framework/std/src/inline/index.d.ts"
+      ],
+      "@blocksuite/store": [
+        "./.vendor-build/framework/store/src/index.d.ts"
+      ],
+      "@blocksuite/store/test": [
+        "./.vendor-build/framework/store/src/test/index.d.ts"
+      ],
+      "@blocksuite/sync": [
+        "./.vendor-build/framework/sync/src/index.d.ts"
+      ]
+    }
+  }
+}

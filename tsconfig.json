@@ -1,4 +1,12 @@
 {
+  // Bản đồ `paths` nằm trong file được SINH RA `tsconfig.vendor-paths.json` (xem
+  // scripts/tao-paths-vendor.mjs, chạy trong `npm run dung:vendor`): 437 subpath của cây
+  // vendored, trỏ vào .d.ts trong .vendor-build/ — quá nhiều để chép tay và sẽ lệch mỗi lần
+  // nâng cấp cây vendored.
+  //
+  // KHÔNG khai `paths` trong file này: `extends` GHI ĐÈ trọn khoá `paths` chứ không trộn, nên
+  // khai ở đây là xoá sạch bản đồ kia. Cả `@/*` cũng phải nằm trong file sinh ra vì lý do đó.
+  "extends": "./tsconfig.vendor-paths.json",
   "compilerOptions": {
     // ES2022 vì mã vendored (src/vendor/blocksuite) dùng `new Error(msg, { cause })` và
     // `String.replaceAll`. D11 cấm sửa mã vendored, nên chỗ phải nhượng là cấu hình của ta.
@@ -16,14 +24,6 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@blocksuite/global": ["./src/vendor/blocksuite/framework/global/src/index.ts"],
-      "@blocksuite/global/*": ["./src/vendor/blocksuite/framework/global/src/*/index.ts"],
-      "@blocksuite/store": ["./src/vendor/blocksuite/framework/store/src/index.ts"],
-      "@blocksuite/store/*": ["./src/vendor/blocksuite/framework/store/src/*/index.ts"],
-      "@blocksuite/sync": ["./src/vendor/blocksuite/framework/sync/src/index.ts"]
-    },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
