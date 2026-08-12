@@ -97,6 +97,7 @@ Lit~~ — giả định sai, Lit chỉ sống ở tầng khung nhìn."*
 | **D13** | **Danh sách extension cắt gọn** theo nhu cầu bảng, **nạp chậm** khi mở board | Đo được: đầy đủ 1.856 kB gzip / 293 file; cắt gọn **1.131 kB gzip / 5 file**. Xem §4 |
 | **D14** | **Cơ chế vá: quyết bây giờ, xây khi cần.** Lối chính thức để đổi hành vi bên trong mã vendored là file vá áp lúc build. Không viết dòng nào cho tới miếng vá đầu tiên | Không có lối này, ngày cần đổi một hằng số thì lựa chọn duy nhất là phá luật "cấm sửa" — và phá xong là mất khả năng nâng cấp |
 | **D15** | **Chép mã vendored vào repo** (`src/vendor/blocksuite/`), không trỏ ra cây AFFiNE ngoài | ~13,6 MB. Repo `.git` từ 11 MB phình cỡ gấp rưỡi. Đổi lại: build được trên máy khác, và git biết chính xác đang ở bản nào |
+| **D16** | **Xoá dấu vết AFFiNE khỏi mọi thứ người dùng chạm tới**, kể cả tên thẻ DOM và biến CSS. Làm bằng **biến đổi lúc build**, không phải vá tay | Xem §9 |
 
 ### Luật bị bỏ
 
@@ -189,6 +190,8 @@ là kiểm hộ người khác.
 | Bản đồ dịch (D12): mọi khoá còn khớp chuỗi thượng nguồn | Cổng phải **đỏ** khi thượng nguồn đổi chuỗi, nếu không bản dịch âm thầm trượt |
 | Vòng lưu–đọc nội dung bảng | Nơi dữ liệu người dùng có thể mất |
 | Danh sách extension cắt gọn (D13) vẫn dựng được editor | Cắt nhầm một extension thì editor chết lúc chạy, `tsc` không bắt được |
+| Đổi tên `affine-*` (D16): quét cây vendored tìm chỗ **ghép tên thẻ động** | Hiện đúng 1 chỗ và nằm trong test-utils. Nếu bản nâng cấp sau thêm chỗ thứ hai trong mã sản phẩm, phép thay văn bản sẽ hỏng **âm thầm** — cổng phải đỏ ngay, đừng đợi thấy lỗi trên màn hình |
+| Đổi tên `affine-*` (D16): DOM sau khi build không còn thẻ hay biến CSS mang tiền tố cũ | Đây là điều D16 hứa; không kiểm thì lời hứa trôi |
 
 Cổng D11 giữ nguyên cách kiểm đã học được ở P0-C: **`diff --strip-trailing-cr`** với thượng nguồn,
 **không dùng `cmp`** — repo này có `core.autocrlf=true` nên `cmp` báo khác trên mọi file dù nội dung
@@ -261,7 +264,49 @@ nào ăn. Bộ 5 ca ở `src/core/__tests__/viewport-runtime-config.spec.ts` cư
 
 ---
 
-## 9. Phạm vi chặng kế tiếp
+## 9. Xoá dấu vết AFFiNE (D16)
+
+Mục tiêu: người dùng mở app ra — kể cả mở dev tools — không thấy dấu hiệu nào cho biết ruột bảng
+đến từ đâu. App này là của chủ dự án.
+
+### Ba lớp dấu vết, đo được
+
+| Lớp | Số lượng | Ai thấy |
+|---|---|---|
+| Chuỗi hiển thị tiếng Anh | 260 | Mọi người dùng |
+| Tên thẻ DOM `affine-*` | **256** | Ai mở dev tools |
+| Biến CSS `--affine-*` | **154** | Ai mở dev tools |
+
+### Làm bằng biến đổi lúc build, không phải vá tay
+
+410 định danh mà vá tay thì mỗi lần nâng cấp phải soát lại 410 miếng — không bền. Thay vào đó
+**một luật biến đổi trong plugin Vite**, cùng cơ chế với bản đồ chuỗi ở D12:
+
+- `affine-` → tiền tố riêng của dự án, ở vị trí tên thẻ và tên class
+- `--affine-` → `--<tiền tố>-`, ở biến CSS
+
+Mã vendored **giữ nguyên byte-for-byte trên đĩa**, nên cổng `diff` với thượng nguồn vẫn chạy và
+bản nâng cấp sau **tự động được đổi tên theo** — kể cả thẻ mới mà thượng nguồn thêm vào.
+
+**Đã kiểm rủi ro ghép tên động:** quét cả cây tìm `` `affine-${...}` ``, `'affine-' +`,
+`"affine-" +` — **đúng 1 chỗ**, ở `affine/shared/src/test-utils/affine-test-utils.ts:23`, tức
+tiện ích test, không nằm trong mã sản phẩm. Nên phép thay văn bản an toàn. **Nếu về sau thượng
+nguồn thêm chỗ ghép động thứ hai, cổng phải bắt được** — xem §5.
+
+### Ranh giới pháp lý, không thương lượng
+
+BlockSuite là **MIT**. Giấy phép MIT bắt buộc **giữ nguyên dòng bản quyền và văn bản giấy phép**
+trong bản phát hành — mà PWA phục vụ JS cho trình duyệt chính là phát hành.
+
+Nên: `LICENSE` của BlockSuite **ở lại** trong `src/vendor/blocksuite/`, cùng ghi chú xuất xứ trong
+`README.md` của thư mục đó. Không ai thấy chúng trừ khi đi tìm, và chúng không mâu thuẫn gì với
+mục tiêu ở trên — mục tiêu là *giao diện* không mang dấu vết, không phải *xoá dấu vết pháp lý*.
+
+Cũng vì vậy: không tuyên bố là tác giả của mã đó, và không gỡ chú thích bản quyền trong file nguồn.
+
+---
+
+## 10. Phạm vi chặng kế tiếp
 
 Ngoài phạm vi tài liệu này (giữ nguyên từ spec cũ §8): danh sách tính năng P1.0–P1.5, mô hình dữ
 liệu §5, xử lý lỗi §9.
