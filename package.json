@@ -17,7 +17,7 @@
     "kiem:vendor-build": "node scripts/kiem-vendor-build.mjs",
     "dich:vendor": "tsc -p tsconfig.vendor.json",
     "doiten:vendor": "node scripts/doi-ten-vendor.mjs",
-    "dung:vendor": "npm run dich:vendor & npm run doiten:vendor"
+    "dung:vendor": "node scripts/dung-vendor.mjs"
   },
   "dependencies": {
     "@preact/signals-core": "^1.14.4",
