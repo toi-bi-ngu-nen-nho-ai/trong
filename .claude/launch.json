@@ -2,11 +2,24 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "drtrong-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 8443,
-      "autoPort": true
+      "name": "probe-nhung-lit",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "vite.probe.config.ts"],
+      "port": 8444
+    },
+    {
+      "name": "probe-ban-build",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "preview",
+        "--config",
+        "vite.probe.config.ts",
+        "--port",
+        "8445",
+        "--strictPort"
+      ],
+      "port": 8445
     }
   ]
 }
