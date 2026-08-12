@@ -36,6 +36,15 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "vite.config.ts"],
+  // Tệp dưới đây chỉ khai báo kiểu global (ambient) mà không nơi nào import — TypeScript chỉ
+  // đưa các tệp ambient vào chương trình khi chúng nằm trong tập gốc (root set). Một khi
+  // src/vendor/blocksuite bị exclude, tệp này rớt khỏi tập gốc và các kiểu global của nó
+  // (VirtualKeyboard, VirtualKeyboardEventMap) biến mất dù disposable/index.ts vẫn được kéo vào
+  // gián tiếp qua alias @blocksuite/global/disposable. Đặt tên tệp trong "include" KHÔNG đủ:
+  // "exclude" vẫn lọc các đường dẫn cụ thể khớp với mẫu thư mục bị loại (đã kiểm chứng bằng
+  // `tsc --listFilesOnly`, tệp không xuất hiện dù được include tường minh). Chỉ "files" mới
+  // không bị "exclude" lọc, nên phải nêu đích danh tệp này ở đây.
+  "files": ["src/vendor/blocksuite/framework/global/src/types/virtual-keyboard.ts"],
   // src/vendor/blocksuite là mã bên thứ ba (2634 tệp .ts), được biên dịch (transcompile) chứ
   // không kiểm kiểu bởi cổng này — cổng kiểm kiểu type-check riêng cho cây vendored đã tắt
   // strict/noEmitOnError với lý do tương tự. Loại khỏi tập tệp gốc để 2634 tệp đó không lấn át
