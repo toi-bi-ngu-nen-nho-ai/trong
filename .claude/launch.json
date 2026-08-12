@@ -7,6 +7,13 @@
       "runtimeArgs": ["run", "dev"],
       "port": 8443,
       "autoPort": true
+    },
+    {
+      "name": "drtrong-dev-worktree",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8444,
+      "env": { "PORT": "8444" }
     }
   ]
 }
