@@ -22,11 +22,12 @@ import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 // không phải chuyện esnext-hoá cú pháp đã hỗ trợ, mà là tính năng oxc chưa cài đặt transform.
 //
 // BlockSuite khai mọi thuộc tính bằng `accessor` (luôn đi kèm decorator kiểu `@field`). P0-B
-// chỉ port vào `src/core/**` nên ban đầu phạm vi lọc chỉ tới đó — nhưng P1 sẽ viết shape,
-// connector, brush, text, mindmap dùng cú pháp này, và không nhất thiết đặt trong `src/core/`.
-// Phạm vi lọc do đó phủ TOÀN BỘ `src/`, trừ `src/vendor/` (mã bên thứ ba, cấm sửa và cấm đưa
-// vào phạm vi lọc — D11; hiện không file vendored nào dùng `accessor`, nếu sau này có thì cần
-// quyết định riêng, không tự động nuốt vào đây).
+// từng port một bản `std/gfx` vào `src/core/**` nên ban đầu phạm vi lọc chỉ tới đó — P1-A Task 5
+// đã xoá hẳn `src/core/` (trùng với `std/gfx` đã có sẵn trong `@blocksuite/affine/std`) nhưng
+// vẫn giữ phạm vi lọc phủ TOÀN BỘ `src/`, vì P1 sẽ viết shape, connector, brush, text, mindmap
+// dùng cú pháp này và không nhất thiết đặt trong một thư mục cố định. Trừ `src/vendor/` (mã bên
+// thứ ba, cấm sửa và cấm đưa vào phạm vi lọc — D11; hiện không file vendored nào dùng `accessor`,
+// nếu sau này có thì cần quyết định riêng, không tự động nuốt vào đây).
 // Dùng Babel (`@babel/plugin-proposal-decorators`, bản `2023-05` — bản đầu tiên hạ cấp được
 // `accessor`) làm bước biên dịch *trước* oxc.
 //
@@ -53,14 +54,16 @@ import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 // Type-checking vẫn qua `tsc --noEmit` riêng — Babel ở đây không type-check, chỉ strip.
 //
 // Lọc theo nội dung (`accessor` xuất hiện trong file) chứ không theo toàn bộ thư mục con, để
-// chi phí Babel chỉ tính trên số file thực sự cần — hiện tại:
-// - npm run build: 0 file (element-model.ts, local-element-model.ts chưa được import từ App.tsx/main.tsx,
-//   nên không nằm trong module graph lúc build — Babel chưa được chạy lần nào trong build thực tế).
-// - npm test: 5 file (element-model.ts, local-element-model.ts, accessor-support.spec.ts,
-//   test-gfx-element.ts, accessor-outside-core.spec.ts).
-// CẢNH BÁO: Con số build hiện bằng 0 không phải vì bộ lọc tốt, mà vì tầng gfx chưa nối vào entry app.
-// Khi chặng sau kết nối tầng gfx vào entry (App.tsx), Babel sẽ lần đầu chạy trong npm run build với
-// chi phí thực tế có thể khác hẳn so với phép đo hiện tại. CẦN ĐO LẠI khi đó.
+// chi phí Babel chỉ tính trên số file thực sự cần — sau P1-A Task 5 (xoá `src/core/`):
+// - npm run build: 0 file — không còn nguồn nào trong module graph lúc build khai `accessor`.
+// - npm test: 2 file (`src/lib/__tests__/accessor-outside-core.spec.ts` khai một class dùng
+//   `accessor` thật; `src/__tests__/vendor-decorator.spec.ts` chỉ khớp vì từ khoá xuất hiện
+//   trong comment/regex của nó, không khai `accessor` thật — bộ lọc so khớp theo văn bản nên vẫn
+//   đưa file này qua Babel, vô hại vì không có gì để hạ cấp).
+// CẢNH BÁO: Con số build bằng 0 không phải vì bộ lọc tốt, mà vì chưa có element nào của P1 (shape,
+// connector, brush, text, mindmap — thứ sẽ khai `accessor`) được nối vào entry app. Khi chặng sau
+// làm việc đó, Babel sẽ lần đầu chạy trong `npm run build` với chi phí thực tế có thể khác hẳn so
+// với phép đo hiện tại. CẦN ĐO LẠI khi đó.
 function accessorSupport(): Plugin {
   const srcDir = path.resolve(__dirname, 'src').replace(/\\/g, '/')
   const vendorDir = path.resolve(__dirname, 'src/vendor').replace(/\\/g, '/')

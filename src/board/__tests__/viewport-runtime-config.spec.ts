@@ -23,7 +23,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { getEffectiveDpr, Viewport, viewportRuntimeConfig } from '../gfx/viewport';
+import { getEffectiveDpr, Viewport, viewportRuntimeConfig } from '@blocksuite/affine/std/gfx';
 
 // `viewportRuntimeConfig` là trạng thái TOÀN CỤC (một object cấp module) — một ca đổi nó mà
 // không dọn sẽ rò sang ca sau, làm bộ test dối. Chụp lại giá trị gốc để khôi phục.
