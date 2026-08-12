@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "kiem:vendor": "node scripts/kiem-vendor.mjs"
   },
   "dependencies": {
     "@preact/signals-core": "^1.14.4",
