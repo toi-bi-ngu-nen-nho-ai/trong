@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "oxfmt",
-    "kiem:vendor": "node scripts/kiem-vendor.mjs"
+    "kiem:vendor": "node scripts/kiem-vendor.mjs",
+    "dich:vendor": "tsc -p tsconfig.vendor.json"
   },
   "dependencies": {
     "@preact/signals-core": "^1.14.4",
