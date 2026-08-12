@@ -1,4 +1,4 @@
-import { defineConfig, type Plugin } from 'vitest/config'
+import { defaultExclude, defineConfig, type Plugin } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import * as babel from '@babel/core'
@@ -189,10 +189,13 @@ export default defineConfig(({ mode }) => {
       // kiểm mã mình sở hữu — AFFiNE có bộ test riêng của họ, không phải việc của dự án — nên phải
       // loại `src/vendor/**` khỏi vitest, nếu không 14 file spec của dự án chìm nghỉm giữa 75 file
       // spec thượng nguồn (thiếu peer deps như happy-dom) và không còn thấy được kết quả thật.
-      // Khai `exclude` THAY THẾ mặc định của vitest chứ không cộng dồn, nên phải chép lại mặc định
-      // (`defaultExclude` trong node_modules/vitest/dist/chunks/defaults.*.js — hiện là
-      // ["**/node_modules/**", "**/.git/**"]) rồi mới thêm thư mục vendor vào.
-      exclude: ['**/node_modules/**', '**/.git/**', 'src/vendor/**'],
+      // Khai `exclude` THAY THẾ mặc định của vitest chứ không cộng dồn. Trước đây mặc định bị
+      // chép tay thành mảng chữ ('**/node_modules/**', '**/.git/**') — nếu vitest đổi
+      // defaultExclude ở bản sau (thêm thư mục mới cần loại), mảng chép tay sẽ âm thầm không
+      // cập nhật theo và có thể lọt spec không mong muốn vào bộ test. `defaultExclude` là export
+      // công khai của 'vitest/config' (đã import ở đầu file) — dùng trực tiếp rồi spread thêm
+      // thư mục vendor, để mặc định luôn đi theo đúng bản vitest đang cài.
+      exclude: [...defaultExclude, 'src/vendor/**'],
     },
   }
 })

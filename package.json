@@ -4,13 +4,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/kiem-vendor-build.mjs",
     "dev": "vite --host 0.0.0.0",
+    "prebuild": "node scripts/kiem-vendor-build.mjs",
     "build": "vite build",
     "preview": "vite preview",
+    "pretest": "node scripts/kiem-vendor-build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "oxfmt",
     "kiem:vendor": "node scripts/kiem-vendor.mjs",
+    "kiem:vendor-build": "node scripts/kiem-vendor-build.mjs",
     "dich:vendor": "tsc -p tsconfig.vendor.json"
   },
   "dependencies": {
