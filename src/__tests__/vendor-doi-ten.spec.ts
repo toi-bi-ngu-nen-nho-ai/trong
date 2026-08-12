@@ -27,11 +27,17 @@ describe('D16 — đổi tên affine-*', () => {
     // Danh sách nhánh phải KHỚP TỪNG CHỮ với bộ che trong `scripts/doi-ten-vendor.mjs`, kể cả
     // nhánh `\bimport\s*` cho import chỉ-để-chạy và thứ tự `\bimport\s*\(\s*` đứng trước nó.
     // Lệch một nhánh là ca này đỏ giả (che ít hơn) hoặc mù (che nhiều hơn) — cả hai đều tệ.
+    // Tên GÓI cũng có thể bị nhắc NGOÀI câu import (JSDoc, comment...) — bộ che thứ hai trong
+    // `scripts/doi-ten-vendor.mjs` xử lý riêng ca này. Phải bỏ luôn phần đó ở đây, nếu không ca
+    // này đỏ giả: text được BẢO TOÀN đúng (`@blocksuite/affine-block-surface` trong comment)
+    // vẫn còn chữ `affine-` và bị ca này tưởng nhầm là sót.
     const boSpecifier = (js: string) =>
-      js.replace(
-        /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*|\bexport\s*\*\s*from\s*|\brequire\s*\(\s*)(['"])([^'"]+)\2/g,
-        '$1$2$2'
-      )
+      js
+        .replace(
+          /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*|\bexport\s*\*\s*from\s*|\brequire\s*\(\s*)(['"])([^'"]+)\2/g,
+          '$1$2$2'
+        )
+        .replace(/@blocksuite\/affine-[\w/-]*/g, '@blocksuite/__PKG__')
 
     const soPham: string[] = []
     for await (const f of diet(BUILD, '.js')) {
@@ -51,6 +57,29 @@ describe('D16 — đổi tên affine-*', () => {
       }
     }
     expect(thay).toBe(true)
+  })
+
+  // Review task 3, Finding 1 — tên gói `@blocksuite/affine-...` bị nhắc NGOÀI câu import (ví
+  // dụ trong JSDoc — xem `affine/blocks/surface/src/renderer/dom-renderer.ts` dòng 121, 141
+  // nhắc `@blocksuite/affine-block-surface` trong comment) vẫn lọt xuống luật đổi tên chung và
+  // bị biến thành `@blocksuite/drt-block-surface` — một gói không tồn tại trên npm. Hai ca ở
+  // trên KHÔNG bắt được lỗi này:
+  //   - Ca đầu chỉ soi phần CÒN LẠI sau khi bỏ câu import; một khi comment đã bị đổi thành
+  //     `drt-block-surface` thì không còn chữ `affine-` nào sót lại để ca đó tìm thấy.
+  //   - Ca thứ hai chỉ kiểm `drt-` có xuất hiện Ở ĐÂU ĐÓ hay không — một tên gói hỏng dạng
+  //     `@blocksuite/drt-...` cũng đủ làm ca đó xanh.
+  // Ca này kiểm trực diện, không qua bước bỏ specifier nào cả: KHÔNG được có chuỗi
+  // `@blocksuite/drt-` ở BẤT KỲ ĐÂU trong output, vì gói đó không tồn tại bất kể nó nằm trong
+  // câu import, JSDoc, thông báo lỗi hay chuỗi bất kỳ.
+  it('không có tên gói giả @blocksuite/drt- ở bất kỳ đâu trong output', async () => {
+    const soPham: string[] = []
+    for await (const f of diet(BUILD, '.js')) {
+      if (/@blocksuite\/drt-/.test(readFileSync(f, 'utf8'))) {
+        soPham.push(path.relative(BUILD, f))
+      }
+      if (soPham.length > 5) break
+    }
+    expect(soPham).toEqual([])
   })
 
   // Phép thay văn bản chỉ an toàn khi KHÔNG chỗ nào ghép tên thẻ động. Hôm nay đúng 1 chỗ và

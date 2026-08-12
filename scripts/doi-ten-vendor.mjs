@@ -52,6 +52,25 @@ for await (const f of dietJs(BUILD)) {
     }
   )
 
+  // Che THÊM mọi chỗ nhắc tên GÓI `@blocksuite/affine-...` NẰM NGOÀI câu import — ví dụ
+  // trong doc comment. Nhánh che ở trên chỉ bắt specifier đứng ngay sau
+  // import/require/from/export-*-from; một cái tên gói bị nhắc ở chỗ khác (JSDoc, thông báo
+  // lỗi, chuỗi bất kỳ) vẫn lọt xuống luật `\baffine-` bên dưới và bị đổi thành `drt-`, sinh ra
+  // tên gói không tồn tại trên npm (`@blocksuite/drt-block-surface`). Ca thật:
+  // `affine/blocks/surface/src/renderer/dom-renderer.ts` dòng 121 và 141 nhắc
+  // `@blocksuite/affine-block-surface` trong JSDoc bằng backtick, không phải câu import.
+  //
+  // Dùng mốc khác tiền tố (PKG, không phải SPEC) và một kho riêng (khoGoi, không phải kho) để
+  // hai lượt che không đè lên nhau: lượt này chạy SAU lượt trên nên không thấy được nội dung
+  // đã bị che thành __DRT_SPEC_i__ (đúng — specifier trong câu import đã được xử lý rồi), và
+  // khi trả về cũng phải trả đúng kho của mình, không lẫn với kho kia.
+  const khoGoi = []
+  const dungMocGoi = (i) => `__DRT_PKG_${i}__`
+  js = js.replace(/@blocksuite\/affine-[\w/-]*/g, (m) => {
+    khoGoi.push(m)
+    return dungMocGoi(khoGoi.length - 1)
+  })
+
   // 1. Biến CSS: --affine-xxx → --drt-xxx. Làm trước vì nó cũng khớp luật dưới.
   js = js.replace(/--affine-/g, `--${TIEN_TO}-`)
   // 2. Tên thẻ và class: affine-xxx → drt-xxx.
@@ -59,7 +78,9 @@ for await (const f of dietJs(BUILD)) {
   //    đổi flavour là đổi lược đồ và sẽ không đọc được tài liệu do AFFiNE tạo.
   js = js.replace(/\baffine-/g, `${TIEN_TO}-`)
 
-  // Trả specifier về nguyên trạng.
+  // Trả cả hai kho về nguyên trạng. Thứ tự giữa hai lượt trả không quan trọng — hai loại mốc
+  // (PKG, SPEC) không lồng vào nhau và nội dung gốc được trả về không chứa mốc của kho kia.
+  js = js.replace(/__DRT_PKG_(\d+)__/g, (_m, i) => khoGoi[Number(i)])
   js = js.replace(/__DRT_SPEC_(\d+)__/g, (_m, i) => kho[Number(i)])
 
   if (js !== goc) soDoiTen++
