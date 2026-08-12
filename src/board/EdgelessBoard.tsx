@@ -56,5 +56,15 @@ export function EdgelessBoard() {
     }
   }, [])
 
-  return <div ref={hostRef} className="absolute inset-0" />
+  // `ViewportElementExtension('.drt-edgeless-viewport')` (đăng ký trong extensions/view.ts của cây
+  // vendor) tìm phần tử viewport bằng `std.host.closest(...)` — đi NGƯỢC LÊN từ editor host, nên
+  // chính ứng dụng nhúng phải cấp sẵn tổ tiên mang đúng class này; cây Lit bên trong không tự tạo
+  // ra nó. Thiếu tổ tiên này là nguyên nhân lỗi "viewport element is not found".
+  // Bọc thêm một div `drt-edgeless-viewport` bên ngoài div gắn Lit — không đụng vào chính hostRef,
+  // giữ đúng ranh giới "React chỉ giữ chỗ, Lit tự lo bên trong" của hostRef.
+  return (
+    <div className="drt-edgeless-viewport block h-full relative overflow-clip">
+      <div ref={hostRef} className="absolute inset-0" />
+    </div>
+  )
 }
