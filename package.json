@@ -15,7 +15,9 @@
     "format": "oxfmt",
     "kiem:vendor": "node scripts/kiem-vendor.mjs",
     "kiem:vendor-build": "node scripts/kiem-vendor-build.mjs",
-    "dich:vendor": "tsc -p tsconfig.vendor.json"
+    "dich:vendor": "tsc -p tsconfig.vendor.json",
+    "doiten:vendor": "node scripts/doi-ten-vendor.mjs",
+    "dung:vendor": "npm run dich:vendor & npm run doiten:vendor"
   },
   "dependencies": {
     "@preact/signals-core": "^1.14.4",
