@@ -35,5 +35,11 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"],
+  // src/vendor/blocksuite là mã bên thứ ba (2634 tệp .ts), được biên dịch (transcompile) chứ
+  // không kiểm kiểu bởi cổng này — cổng kiểm kiểu type-check riêng cho cây vendored đã tắt
+  // strict/noEmitOnError với lý do tương tự. Loại khỏi tập tệp gốc để 2634 tệp đó không lấn át
+  // cổng kiểm kiểu của mã dự án; các tệp vendored vẫn có thể được kéo vào gián tiếp qua import
+  // (paths @blocksuite/*) từ src/core, và lỗi ở đó (nếu có) vẫn được báo cáo, không bị ẩn.
+  "exclude": ["src/vendor/blocksuite"]
 }
