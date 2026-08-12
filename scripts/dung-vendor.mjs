@@ -60,7 +60,25 @@ if (ketQuaKiem.status !== 0) {
   process.exit(ketQuaKiem.status ?? 1)
 }
 
-// Bước 3 — đổi tên. Ở bước này exit code CÓ Ý NGHĨA thật: script đổi tên không có lý do sẵn có
+// Bước 3 — chép package.json. `tsc` chỉ emit .js/.d.ts, không chép package.json sang outDir, nên
+// .vendor-build/ vốn không có file nào khai `"sideEffects": false` của thượng nguồn — Rollup tìm
+// package.json gần nhất theo đường dẫn ĐANG BUNDLE (tức trong .vendor-build/) để quyết định
+// tree-shake, không thấy gì thì coi mọi module là có side effect và không cắt gì. Phải đứng SAU
+// Bước 2 (đã xác nhận .vendor-build/ có thật) để thư mục đích tồn tại, và TRƯỚC Bước 4 (đổi tên)
+// theo đúng thứ tự "dựng xong cây build rồi mới hậu xử lý nó" — dù trên thực tế đổi tên chỉ đụng
+// .js nên thứ tự giữa hai bước này không ảnh hưởng kết quả (xem comment trong file script). Đo
+// được: chép xong, chunk board giảm từ 1.836 kB xuống 993 kB gzip. Xem chi tiết lý do chép nguyên
+// văn — không chạy qua bước đổi tên — trong scripts/sao-chep-package-json-vendor.mjs.
+const ketQuaChepPkg = chay('node', ['scripts/sao-chep-package-json-vendor.mjs'], 'sao-chep-package-json-vendor')
+if (ketQuaChepPkg.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — chép package.json thất bại (exit code ${ketQuaChepPkg.status}). Thiếu ` +
+      'các file này thì bundler không tree-shake được, chunk board sẽ to hơn nhiều so với đo đạc.',
+  )
+  process.exit(ketQuaChepPkg.status ?? 1)
+}
+
+// Bước 4 — đổi tên. Ở bước này exit code CÓ Ý NGHĨA thật: script đổi tên không có lý do sẵn có
 // nào để thoát khác 0, nên nếu nó thất bại thì phải báo lỗi to và dừng, không được nuốt.
 const ketQuaDoiTen = chay('node', ['scripts/doi-ten-vendor.mjs'], 'doiten:vendor')
 if (ketQuaDoiTen.status !== 0) {
@@ -70,7 +88,7 @@ if (ketQuaDoiTen.status !== 0) {
   process.exit(ketQuaDoiTen.status ?? 1)
 }
 
-// Bước 4 — sinh bản đồ `paths` cho `tsc`. Phải chạy SAU bước 1 vì nó chỉ ánh xạ những subpath
+// Bước 5 — sinh bản đồ `paths` cho `tsc`. Phải chạy SAU bước 1 vì nó chỉ ánh xạ những subpath
 // thật sự có .d.ts trong .vendor-build/. Exit code ở đây có ý nghĩa thật.
 const ketQuaPaths = chay('node', ['scripts/tao-paths-vendor.mjs'], 'tao-paths-vendor')
 if (ketQuaPaths.status !== 0) {
