@@ -799,15 +799,8 @@ select {
   transform: scale(0.94);
 }
 
-/* ─── Ancestor viewport cho bảng vẽ Edgeless nhúng (xem EdgelessBoard.tsx) ───────────────────────
-   `container-type`/`container-name` không có utility Tailwind tương ứng (không phải thiếu sót —
-   Tailwind v4 chỉ có cú pháp `@container` cho container-type: inline-size KHÔNG kèm tên riêng qua
-   class thường; đặt tên container cần chính hai khai báo CSS này), nên khai trực tiếp ở đây thay vì
-   ép vào className. Bắt buộc phải có TÊN "viewport" đúng như vậy: nhiều nơi trong cây vendor
-   (vd affine/widgets/edgeless-zoom-toolbar, affine/fragments/doc-title) viết thẳng
-   `@container viewport (width <= ...)`, truy vấn container đó chỉ khớp khi container mang đúng tên
-   này — thiếu container-name thì các truy vấn @container đó không bao giờ kích hoạt được. */
-.drt-edgeless-viewport {
-  container-type: inline-size;
-  container-name: viewport;
-}
+/* Luật `.drt-edgeless-viewport { container-type/-name }` từng nằm ở đây đã chuyển thành class
+   `@container/viewport` ngay trên phần tử trong src/board/EdgelessBoard.tsx: utility đó của
+   Tailwind v4 sinh ra đủ cả hai khai báo, nên lý do cũ ("Tailwind không có utility cho
+   container-name") là sai. Một luật chỉ dùng cho bảng vẽ không có việc gì phải nằm trong CSS của
+   vỏ app và tải cho mọi màn hình. */

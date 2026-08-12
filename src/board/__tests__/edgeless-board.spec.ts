@@ -1,8 +1,10 @@
 // Kiểm đúng thứ dự án sở hữu (D9): việc dựng bảng và hình dạng dữ liệu ban đầu.
 // KHÔNG kiểm mã của AFFiNE — họ có bộ test riêng.
 //
-// Không render component ở đây: environment là 'node' (xem vite.config.ts) nên chạm DOM sẽ đâm
-// `DOMRect is not defined`. Ca render thuộc mốc kiểm tay ở Step 8.
+// File này CỐ Ý không render component: environment mặc định là 'node' (xem vite.config.ts) nên
+// chạm DOM sẽ đâm `DOMRect is not defined`. Phần render — cầu nối React↔Lit — nằm ở
+// `edgeless-board-mount.spec.ts`, file đó tự đổi environment sang happy-dom bằng chỉ thị
+// `// @vitest-environment` ngay dòng đầu.
 import { describe, expect, it } from 'vitest'
 
 import { taoBangTrong } from '../EdgelessBoard'

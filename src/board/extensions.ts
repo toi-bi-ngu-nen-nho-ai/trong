@@ -1,11 +1,28 @@
-// Danh sách extension cắt gọn (D13). Đo được: đầy đủ 1.856 kB gzip / 293 file JS;
-// cắt gọn 1.131 kB gzip / 5 file. Phần bỏ đi kéo theo Shiki (~40 chunk ngôn ngữ), KaTeX,
-// pdfmake, mammoth — thứ một bảng vẽ không dùng tới.
+// Danh sách extension cắt gọn (D13).
 //
-// Bỏ: database, table, data-view, code, latex, attachment, bookmark, embed, embed-doc,
-//     image, callout, divider, surface-ref, edgeless-text.
-// Giữ: nền tảng, các phần tử vẽ, Note với đoạn văn và danh sách, cùng nhóm widget làm nên
-//     cảm giác thao tác.
+// GIỮ 22 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
+// LÀ ĐÃ BỎ — 36 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
+// cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
+// Phần bỏ đi trải trên cả năm nhóm của thượng nguồn, không chỉ nhóm block: 2 gfx (template, link),
+// 16 block, TOÀN BỘ 7 inline, 10 widget và TOÀN BỘ 4 fragment.
+//
+// Hệ quả cần biết trước khi tưởng Note là "note đầy đủ": Note ở đây chỉ có đoạn văn và danh sách.
+// Cả bảy inline extension đều vắng — InlinePreset, Link, Reference, Mention, Footnote,
+// InlineLatex, InlineComment — nên trong Note không có định dạng inline, không @nhắc, không liên
+// kết. Cùng lẽ đó, các widget soạn thảo quen tay như SlashMenu, DragHandle, LinkedDoc cũng không
+// có. Đây là bảng VẼ, không phải trình soạn thảo tài liệu.
+//
+// Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong EdgelessBoard.tsx vẫn nạp nguyên
+// bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
+// block lạ vẫn nạp được vào store mà không vỡ, chỉ là không có gì vẽ nó ra. Cắt phía store là
+// việc riêng, chưa làm.
+//
+// Đo được ở lần dựng ngày 2026-08-12 (npm run build, cùng một máy, chỉ đổi mảng dưới đây):
+//   - đầy đủ 58 extension: chunk bảng 6.368,52 kB → 1.703,89 kB gzip, tổng 309 file .js trong dist/
+//     (phần bỏ đi kéo theo Shiki với ~300 chunk ngôn ngữ, KaTeX, pdfmake, mammoth).
+//   - cắt gọn 22 extension: chunk bảng 4.031,25 kB → 993,69 kB gzip, tổng 6 file .js.
+// Tức còn ~58% dung lượng gzip và 6/309 số file. Vỏ app không đổi ở cả hai: 332,01 kB gzip.
 //
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.

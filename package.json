@@ -15,6 +15,7 @@
     "format": "oxfmt",
     "kiem:vendor": "node scripts/kiem-vendor.mjs",
     "kiem:vendor-build": "node scripts/kiem-vendor-build.mjs",
+    "kiem:vendor-paths": "node scripts/kiem-vendor-paths.mjs",
     "dich:vendor": "tsc -p tsconfig.vendor.json",
     "doiten:vendor": "node scripts/doi-ten-vendor.mjs",
     "dung:vendor": "node scripts/dung-vendor.mjs"
@@ -88,6 +89,14 @@
     "yjs": "^13.6.32",
     "zod": "^3.25.76"
   },
+  "_comment_overrides": "@blocksuite/icons@2.x còn khai peer @types/react@^18 / react@^18 (peerOptional) trong khi dự án đã ở React 19 — npm install trần vì thế chết với ERESOLVE và trước đây phải nhớ gõ --legacy-peer-deps, một mẹo không nằm trong repo nên checkout mới luôn hỏng. Ba mục dưới ghim peer của riêng gói đó về ĐÚNG bản mà dự án đã cài (cú pháp `$tên` = 'lấy y hệt spec ở dependencies/devDependencies gốc'), nên không có bản React thứ hai nào bị kéo về. Chọn overrides thay vì .npmrc legacy-peer-deps=true vì overrides chỉ nới đúng một gói và ghi rõ lý do, còn legacy-peer-deps tắt kiểm peer cho TOÀN BỘ cây phụ thuộc — xung đột peer thật sau này sẽ im lặng trôi qua.",
+  "overrides": {
+    "@blocksuite/icons": {
+      "@types/react": "$@types/react",
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
+  },
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@babel/plugin-proposal-decorators": "^7.29.7",
@@ -102,6 +111,7 @@
     "@types/react-dom": "^19.0.0",
     "@vanilla-extract/vite-plugin": "^5.2.6",
     "@vitejs/plugin-react": "^6.0.0",
+    "happy-dom": "^20.11.2",
     "oxfmt": "^0.2.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",

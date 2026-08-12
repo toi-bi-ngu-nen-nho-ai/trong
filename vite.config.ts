@@ -173,9 +173,11 @@ export default defineConfig(({ mode }) => {
       // Task 4 — nhưng environment vẫn CHƯA đổi. Test nào chạm `toModelCoord`/`toViewCoord`/
       // `boundingClientRect` sẽ đâm `ReferenceError: DOMRect is not defined` ngay (đã xác nhận
       // bằng probe thật, xem `Viewport.get boundingClientRect` / `Viewport.toModelCoord`
-      // trong `viewport.ts`). Muốn viết loại test chạm DOM đó thì phải đổi sang 'happy-dom'
-      // trước — việc đó ảnh hưởng toàn bộ bộ test hiện có, nên để dành cho chặng nào thật sự
-      // cần, không đổi tuỳ tiện ở đây.
+      // trong `viewport.ts`). File nào THẬT SỰ cần DOM thì khai riêng bằng chỉ thị
+      // `// @vitest-environment happy-dom` ở dòng đầu file đó (xem
+      // src/board/__tests__/edgeless-board-mount.spec.ts và dang-ky-custom-element.spec.ts) —
+      // đổi cho một file, không kéo theo 15 file spec còn lại và không phải trả giá khởi tạo DOM
+      // cho những ca không cần. Vì thế mặc định ở đây vẫn là 'node'.
       environment: 'node',
       include: ['src/**/__tests__/**/*.spec.ts'],
       // `src/vendor/blocksuite/` là bản vendor nguyên trạng của AFFiNE (D11 — cấm sửa), và glob

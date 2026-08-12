@@ -17,14 +17,20 @@
 // tay là bảo đảm sẽ lệch.
 //
 // File sinh ra ĐƯỢC commit (khác `.vendor-build/`): `tsconfig.json` extends nó, thiếu file thì
-// `tsc` chết ngay ở bước đọc cấu hình.
+// `tsc` chết ngay ở bước đọc cấu hình. Vì nó nằm trong git mà lại tả một thư mục bị gitignore,
+// nó trôi lệch được — cổng `npm run kiem:vendor-paths` (scripts/kiem-vendor-paths.mjs) sinh lại
+// ra chỗ tạm bằng CHÍNH script này rồi so với bản đã commit.
+//
+// Tham số dòng lệnh: `node scripts/tao-paths-vendor.mjs [đường-dẫn-ra]` — mặc định ghi đè
+// `tsconfig.vendor-paths.json` ở gốc repo. Cổng kiểm truyền một đường dẫn tạm vào đây để dùng
+// đúng một cách sinh duy nhất, không tự chép lại logic thành định nghĩa "đúng" thứ hai.
 import fs from 'node:fs'
 import path from 'node:path'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const NGUON = 'src/vendor/blocksuite'
 const BUILD = '.vendor-build'
-const RA = 'tsconfig.vendor-paths.json'
+const RA = process.argv[2] ?? 'tsconfig.vendor-paths.json'
 
 // Quét mọi package.json trong cây vendored, lấy tên gói và bản đồ `exports` của nó. Cùng cách
 // đọc như `vite.vendor-plugin.ts` — hai nơi phải nhìn cây vendored giống hệt nhau.
@@ -61,7 +67,13 @@ const paths = {
   // chứ không trộn, nên tsconfig.json khai `paths` là xoá sạch bản đồ dưới đây.
   '@/*': ['./src/*'],
 }
-let thieu = 0
+// Subpath được PHÉP không có .d.ts. Chỉ đúng một mục, và nó hỏng từ THƯỢNG NGUỒN: package.json
+// của @blocksuite/affine-inline-comment khai `"./store": "./src/store.ts"` trong khi thư mục
+// affine/inlines/comment/src/ không hề có file store.ts (kiểm bằng `ls`), nên tsc chẳng có gì để
+// biên dịch. Dự án không được sửa cây vendored (D11) nên chỉ có thể ghi nhận ngoại lệ ở đây.
+// Mọi subpath thiếu KHÁC là dấu hiệu bản build dở dang — cổng dưới cùng sẽ đỏ.
+const THIEU_CHO_PHEP = new Set(['@blocksuite/affine-inline-comment/store'])
+const thieuNgoaiDuKien = []
 
 for (const { ten, thuMuc, exports } of quetGoi()) {
   if (!exports) continue
@@ -76,7 +88,7 @@ for (const { ten, thuMuc, exports } of quetGoi()) {
     const khaiBao = path.join(BUILD, tuongDoiNguon).replace(/\.ts$/, '.d.ts')
 
     if (!fs.existsSync(path.join(GOC, khaiBao))) {
-      thieu++
+      if (!THIEU_CHO_PHEP.has(spec)) thieuNgoaiDuKien.push(`${spec} → ${khaiBao}`)
       continue
     }
     paths[spec] = ['./' + khaiBao.split(path.sep).join('/')]
@@ -92,10 +104,32 @@ if (soGoi === 0) {
   process.exit(1)
 }
 
+// Cổng theo SỐ THIẾU, không phải theo "lớn hơn 0". Điều kiện `soGoi === 0` ở trên chỉ bắt được
+// trường hợp cây build trống trơn; một lượt biên dịch dở dang ánh xạ 40/438 subpath vẫn lọt qua và
+// vẫn in ra dòng thành công — rồi `tsc --noEmit` mới đổ hàng trăm lỗi TS2307 trỏ vào src/board,
+// tức là báo lỗi ở nơi không có lỗi. Danh sách ngoại lệ ở đầu file là kỳ vọng tường minh: thiếu
+// đúng những mục đã biết thì xanh, thiếu thêm bất cứ mục nào là đỏ.
+if (thieuNgoaiDuKien.length) {
+  console.error(
+    `tao-paths-vendor: DỪNG — ${thieuNgoaiDuKien.length} subpath không có .d.ts tương ứng trong ` +
+      `${BUILD}/ (ngoài ${THIEU_CHO_PHEP.size} mục đã biết là hỏng từ thượng nguồn). Bản build có ` +
+      'vẻ dở dang — chạy lại "npm run dung:vendor". Không ghi ' +
+      `${RA} với bản đồ thiếu, vì tsconfig.json extends nó và lỗi sẽ hiện ra ở src/board chứ ` +
+      'không phải ở đây. Các subpath thiếu:',
+  )
+  thieuNgoaiDuKien.slice(0, 10).forEach((d) => console.error('  ', d))
+  if (thieuNgoaiDuKien.length > 10) {
+    console.error(`   ...và ${thieuNgoaiDuKien.length - 10} subpath nữa`)
+  }
+  process.exit(1)
+}
+
 const noiDung = {
   // Chú thích cho người đọc file sinh ra, vì nó nằm trong git.
   __sinh_tu: 'scripts/tao-paths-vendor.mjs — chạy lại bằng "npm run dung:vendor". Đừng sửa tay.',
   compilerOptions: { paths },
 }
-fs.writeFileSync(path.join(GOC, RA), JSON.stringify(noiDung, null, 2) + '\n')
-console.log(`tao-paths-vendor: ${soGoi} subpath → ${RA}${thieu ? ` (${thieu} subpath không có .d.ts)` : ''}`)
+fs.writeFileSync(path.resolve(GOC, RA), JSON.stringify(noiDung, null, 2) + '\n')
+console.log(
+  `tao-paths-vendor: ${soGoi} subpath → ${RA} (${THIEU_CHO_PHEP.size} subpath hỏng từ thượng nguồn, bỏ qua có chủ đích)`,
+)
