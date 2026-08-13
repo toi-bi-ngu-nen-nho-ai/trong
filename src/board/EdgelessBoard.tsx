@@ -16,7 +16,9 @@ import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affine/store/test'
 import { render as litRender } from 'lit'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -61,6 +63,20 @@ export function taoBangTrong() {
 export function EdgelessBoard() {
   const hostRef = useRef<HTMLDivElement>(null)
 
+  // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
+  // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
+  // `[data-theme=dark]` và không có nhánh `prefers-color-scheme` nào dự phòng. Mà chế độ mặc định
+  // của app là "auto", nơi lib/theme.ts CỐ Ý gỡ hẳn thuộc tính data-theme khỏi <html> để các biến
+  // --c-* của vỏ app chạy bằng @media. Hai điều đó cộng lại: máy để nền tối, cả app tối, riêng
+  // bảng vẽ vẫn trắng loá — đúng thứ chói mắt nhất lúc 2 giờ sáng.
+  // Vì thế thẻ bọc dưới đây tự mang một data-theme ĐÃ PHÂN GIẢI ("light"/"dark", không bao giờ
+  // "auto"). Đây cũng là cách vỏ React của chính AFFiNE làm (`affine-edgeless-viewport`
+  // data-theme=...). Không đụng gì tới <html> nên chủ đề của vỏ app giữ nguyên cách chạy cũ.
+  const [chuDe, setChuDe] = useState(() => resolveTheme())
+  // Đổi sống theo cả hai hướng: người dùng bấm nút chủ đề, và hệ điều hành lật sáng/tối khi app
+  // đang ở "auto". Cả hai đều đi qua applyTheme() nên chỉ cần nghe đúng một chỗ (xem lib/theme.ts).
+  useEffect(() => watchResolvedTheme(setChuDe), [])
+
   useEffect(() => {
     const el = hostRef.current
     if (!el) return
@@ -95,7 +111,7 @@ export function EdgelessBoard() {
   // Class chữ `drt-edgeless-viewport` PHẢI ở lại — nó là thứ `closest()` bên trên tìm, không phải
   // thứ tạo ra kiểu dáng.
   return (
-    <div className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip">
+    <div className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip" data-theme={chuDe}>
       <div ref={hostRef} className="absolute inset-0" />
     </div>
   )

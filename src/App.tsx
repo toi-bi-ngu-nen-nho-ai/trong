@@ -10706,6 +10706,15 @@ export default function App() {
   }
   const [screen, setScreen] = useState<Screen>(initialScreen)
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
+  // Đã từng mở tab Mindmap trong phiên này chưa. Bảng vẽ giữ nội dung TRONG BỘ NHỚ (lưu trữ là
+  // chặng sau), nên tháo nó ra là mất trắng thứ người dùng vừa vẽ — xem chỗ render bên dưới.
+  // Cờ này chỉ đi một chiều false → true: chưa vào lần nào thì không mount (giữ nguyên ranh giới
+  // nạp chậm 994 kB), vào rồi thì ở lại mãi.
+  const [daMoBangVe, setDaMoBangVe] = useState(() => initialScreen() === "mindmap")
+  // Bật cờ NGAY TRONG LÚC RENDER (mẫu "điều chỉnh state khi prop/state đổi" của React), không qua
+  // useEffect: qua effect thì lượt render đầu tiên sau khi bấm tab Mindmap chưa có bảng vẽ nào để
+  // vẽ ra — người dùng thấy một khung trống nháy lên rồi mới tới dòng "Đang tải bảng vẽ…".
+  if (screen === "mindmap" && !daMoBangVe) setDaMoBangVe(true)
   const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
   const [viewCustomId, setViewCustomId] = useState<string | null>(null)
@@ -11122,7 +11131,10 @@ export default function App() {
             hình không có cách "nhảy" qua phần đầu (disclaimer, khung bệnh nhân...) tới thẳng nội
             dung chính. Đổi thẳng thẻ, không đổi class/style — main không có style mặc định khác
             div nên an toàn với toàn bộ layout đang có. */}
-        <main className={`flex-1 overflow-hidden${isDetailScreen ? "" : " has-nav"}`}>
+        {/* `relative`: mốc neo cho thẻ bọc bảng vẽ ngay bên dưới, thứ phải nằm ĐÚNG khung của main
+            kể cả khi màn hình khác đang hiển thị. Không có nó, thẻ bọc `absolute inset-0` kia sẽ
+            neo lên #app-shell và đổi kích thước mỗi lần ẩn/hiện — đúng thứ làm mất zoom. */}
+        <main className={`relative flex-1 overflow-hidden${isDetailScreen ? "" : " has-nav"}`}>
           {screen === "home" && <HomeScreen onNavigate={navigate} ecgCount={allEcgLessons.length} recentReads={recentReadItems} />}
           {screen === "library" && <LibraryScreen onNavigate={navigate} customArticles={customArticlesCol.items} />}
           {screen === "search" && (
@@ -11137,16 +11149,42 @@ export default function App() {
           {/* FlashcardScreen vẫn hoãn lại — đưa "sắp ra mắt" thay vì để người dùng thấy một tab lỗi
               tùm lum. Vẫn giữ nguyên tab dưới thanh nav (không phải NON_TAB_SCREENS) để không phá
               cấu trúc điều hướng — chỉ đổi nội dung bên trong. */}
-          {/* Mindmap giờ render thẳng bảng vẽ nhúng. `relative h-full` vừa khớp quy ước "chiếm hết
-              main" của các màn hình khác, vừa làm điểm neo định vị cho div `absolute inset-0` bên
-              trong EdgelessBoard — thiếu điểm neo này thì nó sẽ neo lên tận #app-shell (tổ tiên
-              `position` gần nhất phía trên) và tràn ra khỏi vùng nội dung, đè lên cả thanh nav.
+          {/* Mindmap render thẳng bảng vẽ nhúng. `absolute inset-0` (mốc neo là `relative` vừa
+              thêm trên <main>) vừa khớp quy ước "chiếm hết main" của các màn hình khác, vừa làm
+              điểm neo định vị cho div `absolute inset-0` bên trong EdgelessBoard — thiếu điểm neo
+              này thì nó sẽ neo lên tận #app-shell và tràn ra khỏi vùng nội dung, đè lên thanh nav.
               Suspense KHÔNG còn ở đây: nó đã vào trong `./board` cùng với error boundary riêng của
               bảng vẽ (xem src/board/index.tsx). Hai thứ đó phải đi liền nhau — một Suspense đứng
               ngoài boundary thì lượt tải chunk thất bại vẫn nổi lên tới boundary gốc và tháo sạch
               cả app, đúng lỗi mà boundary kia sinh ra để chặn. */}
-          {screen === "mindmap" && (
-            <div className="relative h-full">
+          {/* ─── Vì sao ẩn chứ không tháo ────────────────────────────────────────────────────
+              Nội dung bảng vẽ nằm HOÀN TOÀN trong bộ nhớ (lưu trữ là chặng sau). Điều kiện cũ
+              `screen === "mindmap" && ...` tháo cả cây Lit mỗi lần rời tab, và lượt quay lại dựng
+              một workspace TRỐNG mới: bác sĩ vẽ xong sơ đồ, bấm sang tab khác tra một liều thuốc,
+              quay lại thì mất sạch, không một lời cảnh báo.
+              `daMoBangVe` giữ ranh giới nạp chậm nguyên vẹn: chưa vào Mindmap lần nào thì không có
+              gì được render, tức `import()` của chunk 994 kB chưa chạy.
+              Ẩn bằng `invisible` (visibility: hidden) chứ KHÔNG phải `hidden` (display: none).
+              Đo thật trên trình duyệt, lấy `getBoundingClientRect()` của chính phần tử mà
+              `Viewport.setShellElement()` quan sát (ở đây là <editor-host>):
+                hiện bình thường  → 1280×751
+                visibility:hidden → 1280×751  (KHÔNG đổi)
+                display:none      → 0×0
+              Khung về 0×0 là đầu vào của ResizeObserver trong framework/std/src/gfx/viewport.ts,
+              và đọc mã nhánh đó: onResize() chốt `_initialTopLeft` NGAY LƯỢT ĐẦU rồi mới
+              debounce 200 ms; lật tab nhanh hơn 200 ms thì lượt ẩn (0×0) và lượt hiện lại
+              (1280×751) gộp thành MỘT lần _completeResize, tính tâm mới bằng
+              `_initialTopLeft + width / (2 * zoom)` với `_initialTopLeft` đã chốt lúc khung bằng 0
+              — tâm bị đẩy đi nửa bề rộng khung nhìn. visibility:hidden giữ nguyên kích thước hộp
+              nên không có lượt resize nào để mà hỏng.
+              `pointer-events-none` để lúc ẩn nó không nuốt thao tác của màn hình đang hiện bên
+              dưới (đã đo: elementFromPoint giữa màn hình vẫn trả về phần tử của Trang chủ);
+              `inert` cắt luôn khỏi bàn phím và trình đọc màn hình. */}
+          {daMoBangVe && (
+            <div
+              className={`absolute inset-0${screen === "mindmap" ? "" : " invisible pointer-events-none"}`}
+              inert={screen !== "mindmap"}
+            >
               <EdgelessBoard />
             </div>
           )}
