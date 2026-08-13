@@ -60,7 +60,7 @@ export function formatVialUsage(params: {
 }): string {
   const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin, rateMlPerHour } = params
   const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml` : formatMass(vialAmount, vialUnit)
-  const countPart = vialsUsed != null ? ` ${vialsUsed > 1 ? trim(vialsUsed, 0) : "01"} ${vialLabel ?? "ống"}` : ""
+  const countPart = vialsUsed != null ? ` ${vialsUsed > 1 ? trim(vialsUsed, 0) : "1"} ${vialLabel ?? "ống"}` : ""
   // Ba trường hợp, không phải hai:
   //   - pha đủ X mL rồi RÚT một phần Y mL  → "đủ X ml lấy Y ml" (mẫu 4b)
   //   - pha đủ X mL rồi truyền TRỌN mẻ đó  → "đủ X ml" — vẫn PHẢI nói thể tích pha loãng
@@ -104,7 +104,7 @@ export function formatFixedUsage(params: {
   // quả là câu "Cách dùng" thiếu hẳn đường dùng và tốc độ truyền đúng lúc cần nhất. Gộp chung một
   // điểm `base` rồi cùng đi qua phần tốc độ ở cuối, giống hệt nhánh "lấy một phần".
   const base = doseAmount == null
-    ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : " 01 chai"}${route ? ` (${route})` : ""}`
+    ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : "1 chai"}${route ? ` (${route})` : ""}`
     : `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : ""} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
   if (route !== "TTM") return base
   if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
