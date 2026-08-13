@@ -8,21 +8,30 @@ Cập nhật: **2026-08-13**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 
 ## 0. PHIÊN MỚI ĐỌC MỤC NÀY TRƯỚC
 
-### Hai việc làm ngay, trước khi làm bất cứ gì khác
+**P1-A đã gộp vào `main` và đã đẩy lên origin.** `origin/main` ở `a10401b` (trước là `afac297`),
+gộp kiểu fast-forward nên lịch sử thẳng, không có merge commit.
 
-**1. Nhánh này CHƯA được đẩy lên origin.** `git branch -a` chỉ thấy `origin/main` và
-`origin/worktree-p0b-gfx-model`. Toàn bộ 26 commit của P1-A **chỉ nằm trên đĩa máy này**. Đổi
-máy là mất trắng. Đẩy lên trước đã:
+### Việc làm ngay
+
+**1. Checkout gốc đang tụt lại phía sau.** Việc gộp làm thẳng trên origin, nên `main` ở
+`C:/Users/LENOVO/Downloads/drtrong` vẫn đang ở `afac297`. Kéo về:
 
 ```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p1a-nhung-edgeless"
-git push -u origin worktree-p1a-nhung-edgeless
+cd "C:/Users/LENOVO/Downloads/drtrong"
+git pull
 ```
 
-**2. Sổ tiến độ không đi theo repo được.** `.superpowers/sdd/` nằm trong `.gitignore` — 38 file
-brief, báo cáo và sổ tiến độ của chặng này **sẽ không có** ở máy/tài khoản khác. File bạn đang đọc
-là bản tóm tắt duy nhất qua được. Nếu vẫn ở đúng máy này thì thư mục đó còn nguyên tại
-`.claude/worktrees/p1a-nhung-edgeless/.superpowers/sdd/`.
+**2. Máy mới thì phải dựng lại cây đã dịch.** `.vendor-build/` bị gitignore:
+
+```bash
+npm ci && npm run dung:vendor
+```
+
+Mất vài phút và **bắt buộc** — `predev`/`prebuild`/`pretest` đều chặn nếu thiếu.
+
+**3. Sổ tiến độ không đi theo repo được.** `.superpowers/sdd/` nằm trong `.gitignore` — 40 file
+brief và báo cáo của chặng này **sẽ không có** ở máy hay tài khoản khác. File bạn đang đọc cùng
+`docs/superpowers/notes/2026-08-13-p1a-so-tien-do.md` là hai bản tóm tắt duy nhất qua được.
 
 ### `/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì
 
@@ -34,9 +43,9 @@ Tuỳ mục tiêu, phiên mới chọn một trong ba đường:
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
-| Kiểm iPad xong rồi gộp vào `main` | `superpowers:finishing-a-development-branch` |
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
 | Trả nợ nhỏ ở mục 5 | Sửa thẳng, không cần kỹ năng nào |
+| iPad lộ ra lỗi | `superpowers:systematic-debugging` |
 
 ### Bản đồ phục hồi — commit của từng task
 
@@ -97,6 +106,12 @@ Kiểm trên trình duyệt (tab sạch, dev server worktree ở cổng 8444): b
 ---
 
 ## 2. CHƯA NGHIỆM THU — việc của chủ dự án
+
+> **Cập nhật 2026-08-13, sau khi gộp.** Mục 3 (chế độ tối) và mục 4 (mất hình khi chuyển tab)
+> **đã sửa** — xem `beb334f` và `a10401b`. Bảng vẽ giờ theo đúng chủ đề của app kể cả chế độ Tự
+> động, cả nền lẫn thanh công cụ; và bảng được giữ sống khi đổi tab, giữ nguyên zoom, tâm và
+> nội dung. Hai mục còn lại (iPad, công cụ shape) **vẫn còn nguyên** — chủ dự án đã cân nhắc và
+> chấp nhận rủi ro để gộp vì hiện chưa có iPad. Đọc chúng như việc phải làm, không phải việc đã bỏ.
 
 1. **iPad — toàn bộ.** Một nửa mốc nghiệm thu của kế hoạch, không có thiết bị để chạy.
    Rủi ro chưa gỡ: xử lý pointer/touch và pinch-zoom dưới mô hình cử chỉ của Safari; hành vi
