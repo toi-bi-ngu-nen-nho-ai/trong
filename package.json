@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/dam-bao-vendor-build.mjs",
     "predev": "node scripts/kiem-vendor-build.mjs && node scripts/kiem-vendor-paths.mjs",
     "dev": "vite --host 0.0.0.0",
     "prebuild": "node scripts/kiem-vendor-build.mjs && node scripts/kiem-vendor-paths.mjs",
