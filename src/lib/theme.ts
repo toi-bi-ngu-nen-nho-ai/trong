@@ -62,8 +62,17 @@ export function watchResolvedTheme(cb: (t: ResolvedTheme) => void): () => void {
 export function applyTheme(mode: ThemeMode): void {
   currentMode = mode
   const root = document.documentElement
-  if (mode === "auto") root.removeAttribute("data-theme")
-  else root.setAttribute("data-theme", mode)
+  const resolved = resolveTheme(mode)
+  // Luôn ghi giá trị ĐÃ PHÂN GIẢI ("light"/"dark"), kể cả ở "auto" — không gỡ thuộc tính nữa.
+  // Lý do: ThemeObserver của AFFiNE (dùng cho <editor-toolbar> của bảng vẽ nhúng) đọc data-theme
+  // trên CHÍNH <html>, không đọc biến --c-* hay thẻ bọc riêng của bảng vẽ. Ở "auto", việc gỡ hẳn
+  // thuộc tính khiến observer đó không thấy gì và bảng vẽ giữ nguyên toolbar sáng dù canvas đã tối
+  // theo hệ điều hành. Ghi resolved — KHÔNG BAO GIỜ chuỗi "auto" — thì observer luôn thấy đúng bản
+  // đã phân giải, còn CSS trong index.css vẫn ra đúng bảng màu cũ (xem hai bộ chọn
+  // `:root:not([data-theme="light"])` trong khối `@media (prefers-color-scheme: dark)` và
+  // `:root[data-theme="dark"]` — cả hai đều đã tương thích với giá trị "dark"/"light" tường minh,
+  // không riêng gì trạng thái "không có thuộc tính").
+  root.setAttribute("data-theme", resolved)
 
   // Thanh trạng thái của máy lấy màu từ thẻ <meta name="theme-color">. Từ khi bỏ
   // `black-translucent` (xem index.html để biết vì sao — nó là nguyên nhân gốc của khoảng trống ở
@@ -75,7 +84,6 @@ export function applyTheme(mode: ThemeMode): void {
   // teal đời đầu, sót lại qua HAI lần đổi bảng màu (teal → azure → indigo). Tệ hơn, nó chạy lúc
   // khởi động nên ÂM THẦM GHI ĐÈ giá trị đúng đặt trong index.html: sửa ở đó không bao giờ có tác
   // dụng. Đọc từ --c-surface thì không còn nguồn sự thật thứ hai nào để lệch nữa.
-  const resolved = resolveTheme(mode)
   const surface = getComputedStyle(root).getPropertyValue("--c-surface").trim() || SURFACE_FALLBACK[resolved]
   // querySelectorAll, KHÔNG phải querySelector: index.html khai BA thẻ theme-color (một cho
   // prefers-color-scheme light, một cho dark, một không điều kiện làm dự phòng — xem lý do ở đó).

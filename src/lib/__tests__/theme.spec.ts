@@ -80,6 +80,44 @@ describe('resolveTheme', () => {
   })
 })
 
+describe('applyTheme ghi data-theme lên <html>', () => {
+  // ThemeObserver của AFFiNE (điều khiển <editor-toolbar> của bảng vẽ nhúng) đọc data-theme trên
+  // CHÍNH <html>, không đọc biến --c-* hay thẻ bọc riêng của bảng vẽ. Trước lượt sửa này, "auto" cố
+  // ý GỠ HẲN thuộc tính — observer không thấy gì, toolbar giữ nguyên bản sáng dù canvas đã tối theo
+  // hệ điều hành. Ca kiểm này khoá lại: <html> phải luôn mang giá trị ĐÃ PHÂN GIẢI, kể cả ở "auto".
+  it('hai chế độ chốt cứng ghi thẳng "light"/"dark", bỏ qua hệ điều hành', () => {
+    applyTheme('light')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+
+    applyTheme('dark')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+  })
+
+  it('"auto" + hệ điều hành tối → ghi "dark", KHÔNG gỡ thuộc tính', () => {
+    mayDangToi = true
+    applyTheme('auto')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+  })
+
+  it('"auto" + hệ điều hành sáng → ghi "light", KHÔNG gỡ thuộc tính', () => {
+    mayDangToi = false
+    applyTheme('auto')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+  })
+
+  it('hệ điều hành lật trong lúc đang ở "auto" → thuộc tính đổi theo, không bị gỡ', () => {
+    mayDangToi = true
+    applyTheme('auto')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+
+    heDieuHanhLat(false)
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+
+    heDieuHanhLat(true)
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+  })
+})
+
 describe('watchResolvedTheme', () => {
   it('báo khi người dùng đổi chủ đề trong lúc app đang mở', () => {
     const thay: string[] = []
