@@ -6,6 +6,72 @@ Cập nhật: **2026-08-13**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 
 ---
 
+## 0. PHIÊN MỚI ĐỌC MỤC NÀY TRƯỚC
+
+### Hai việc làm ngay, trước khi làm bất cứ gì khác
+
+**1. Nhánh này CHƯA được đẩy lên origin.** `git branch -a` chỉ thấy `origin/main` và
+`origin/worktree-p0b-gfx-model`. Toàn bộ 26 commit của P1-A **chỉ nằm trên đĩa máy này**. Đổi
+máy là mất trắng. Đẩy lên trước đã:
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p1a-nhung-edgeless"
+git push -u origin worktree-p1a-nhung-edgeless
+```
+
+**2. Sổ tiến độ không đi theo repo được.** `.superpowers/sdd/` nằm trong `.gitignore` — 38 file
+brief, báo cáo và sổ tiến độ của chặng này **sẽ không có** ở máy/tài khoản khác. File bạn đang đọc
+là bản tóm tắt duy nhất qua được. Nếu vẫn ở đúng máy này thì thư mục đó còn nguyên tại
+`.claude/worktrees/p1a-nhung-edgeless/.superpowers/sdd/`.
+
+### `/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì
+
+Kỹ năng đó **thi hành một bản kế hoạch**. Kế hoạch P1-A đã thi hành xong toàn bộ 5 task, đã
+review toàn nhánh, đã vá xong. **Không còn task nào để chạy tiếp.** Gọi lại nó mà không có kế
+hoạch mới thì nó không có việc gì làm.
+
+Tuỳ mục tiêu, phiên mới chọn một trong ba đường:
+
+| Muốn gì | Gọi kỹ năng nào |
+|---|---|
+| Kiểm iPad xong rồi gộp vào `main` | `superpowers:finishing-a-development-branch` |
+| Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
+| Trả nợ nhỏ ở mục 5 | Sửa thẳng, không cần kỹ năng nào |
+
+### Bản đồ phục hồi — commit của từng task
+
+Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
+
+| Mốc | Khoảng commit |
+|---|---|
+| Gốc nhánh (= `main`) | `afac297` |
+| Vá kế hoạch trước khi thi hành | `fe368ea` |
+| Task 1 — vendor + cổng D11 | `fe368ea..f520662` |
+| Task 2 — dịch trước bằng tsc | `f520662..bb8c7c6` |
+| Task 3 — đổi tên `drt-*` | `bb8c7c6..92558a6` |
+| Task 4 — cầu nối React↔Lit | `92558a6..56729c4` |
+| Task 5 — xoá `src/core/gfx` | `56729c4..c38c32b` |
+| Vá review toàn nhánh | `deb6e8e` |
+
+Mỗi task đều đã qua review riêng và ít nhất một vòng vá. Đừng chạy lại task nào trong bảng này.
+
+### Chạy thử ngay
+
+```bash
+cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p1a-nhung-edgeless"
+npm ci
+npm run dung:vendor
+PORT=8444 npm run dev
+```
+
+`npm run dung:vendor` mất vài phút và **bắt buộc** — `.vendor-build/` bị gitignore nên máy mới
+không có nó, mà `predev`/`prebuild`/`pretest` đều chặn nếu thiếu.
+
+**Dùng `PORT=8444`, không dùng 8443.** Checkout gốc luôn giữ một dev server ở 8443; mở 8443 là
+xem nhầm app của cây khác, và nó sẽ hiện màn "sắp ra mắt" khiến bạn tưởng bảng chưa nối.
+
+---
+
 ## 1. Trạng thái
 
 `main` vẫn ở `afac297`, **không bị đụng**. Toàn bộ chặng nằm trên nhánh
