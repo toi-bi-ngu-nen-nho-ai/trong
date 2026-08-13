@@ -798,3 +798,9 @@ select {
 .nav-press:active {
   transform: scale(0.94);
 }
+
+/* Luật `.drt-edgeless-viewport { container-type/-name }` từng nằm ở đây đã chuyển thành class
+   `@container/viewport` ngay trên phần tử trong src/board/EdgelessBoard.tsx: utility đó của
+   Tailwind v4 sinh ra đủ cả hai khai báo, nên lý do cũ ("Tailwind không có utility cho
+   container-name") là sai. Một luật chỉ dùng cho bảng vẽ không có việc gì phải nằm trong CSS của
+   vỏ app và tải cho mọi màn hình. */

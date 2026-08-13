@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "useDefineForClassFields": false,
+    "experimentalDecorators": false,
+    // Sinh .d.ts bên cạnh .js: đó là thứ `tsconfig.vendor-paths.json` trỏ vào để `tsc --noEmit`
+    // của dự án phân giải `@blocksuite/*` mà không kéo mã nguồn AFFiNE vào diện kiểm kiểu
+    // (`skipLibCheck: true` bỏ qua nội dung .d.ts). Xem scripts/tao-paths-vendor.mjs.
+    "declaration": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmitOnError": false,
+    "allowJs": true,
+    "outDir": ".vendor-build",
+    "rootDir": "src/vendor/blocksuite"
+  },
+  "include": ["src/vendor/blocksuite/**/*.ts"],
+  "exclude": [
+    "src/vendor/blocksuite/**/__tests__/**",
+    "src/vendor/blocksuite/**/*.spec.ts",
+    "src/vendor/blocksuite/**/node_modules/**"
+  ]
+}

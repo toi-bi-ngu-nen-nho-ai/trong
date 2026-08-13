@@ -1,4 +1,12 @@
 {
+  // Bản đồ `paths` nằm trong file được SINH RA `tsconfig.vendor-paths.json` (xem
+  // scripts/tao-paths-vendor.mjs, chạy trong `npm run dung:vendor`): 437 subpath của cây
+  // vendored, trỏ vào .d.ts trong .vendor-build/ — quá nhiều để chép tay và sẽ lệch mỗi lần
+  // nâng cấp cây vendored.
+  //
+  // KHÔNG khai `paths` trong file này: `extends` GHI ĐÈ trọn khoá `paths` chứ không trộn, nên
+  // khai ở đây là xoá sạch bản đồ kia. Cả `@/*` cũng phải nằm trong file sinh ra vì lý do đó.
+  "extends": "./tsconfig.vendor-paths.json",
   "compilerOptions": {
     // ES2022 vì mã vendored (src/vendor/blocksuite) dùng `new Error(msg, { cause })` và
     // `String.replaceAll`. D11 cấm sửa mã vendored, nên chỗ phải nhượng là cấu hình của ta.
@@ -16,14 +24,6 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"],
-      "@blocksuite/global": ["./src/vendor/blocksuite/global/src/index.ts"],
-      "@blocksuite/global/*": ["./src/vendor/blocksuite/global/src/*/index.ts"],
-      "@blocksuite/store": ["./src/vendor/blocksuite/store/src/index.ts"],
-      "@blocksuite/store/*": ["./src/vendor/blocksuite/store/src/*/index.ts"],
-      "@blocksuite/sync": ["./src/vendor/blocksuite/sync/src/index.ts"]
-    },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -35,5 +35,21 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"],
+  // Tệp dưới đây chỉ khai báo kiểu global (ambient) mà không nơi nào import — TypeScript chỉ
+  // đưa các tệp ambient vào chương trình khi chúng nằm trong tập gốc (root set). Một khi
+  // src/vendor/blocksuite bị exclude, tệp này rớt khỏi tập gốc và các kiểu global của nó
+  // (VirtualKeyboard, VirtualKeyboardEventMap) biến mất dù disposable/index.ts vẫn được kéo vào
+  // gián tiếp qua alias @blocksuite/global/disposable. Đặt tên tệp trong "include" KHÔNG đủ:
+  // "exclude" vẫn lọc các đường dẫn cụ thể khớp với mẫu thư mục bị loại (đã kiểm chứng bằng
+  // `tsc --listFilesOnly`, tệp không xuất hiện dù được include tường minh). Chỉ "files" mới
+  // không bị "exclude" lọc, nên phải nêu đích danh tệp này ở đây.
+  "files": ["src/vendor/blocksuite/framework/global/src/types/virtual-keyboard.ts"],
+  // src/vendor/blocksuite là mã bên thứ ba (2634 tệp .ts), được biên dịch (transcompile) chứ
+  // không kiểm kiểu bởi cổng này — cổng kiểm kiểu type-check riêng cho cây vendored đã tắt
+  // strict/noEmitOnError với lý do tương tự. Loại khỏi tập tệp gốc để 2634 tệp đó không lấn át
+  // cổng kiểm kiểu của mã dự án; các tệp vendored vẫn có thể được kéo vào gián tiếp qua import
+  // (paths @blocksuite/*) từ mã dự án — hiện là src/board — và lỗi ở đó (nếu có) vẫn được báo
+  // cáo, không bị ẩn.
+  "exclude": ["src/vendor/blocksuite"]
 }

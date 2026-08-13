@@ -20,7 +20,7 @@ Spec: `docs/superpowers/specs/2026-08-12-nhung-edgeless-affine-design.md`
   ```bash
   node -e "const p=require('path'),f=require('fs');const t=p.resolve('<thư mục>','<specifier>');console.log(t,f.existsSync(t))"
   ```
-- Tiền tố thay cho `affine`: **`btb`** (Bảng Trọng Board). Dùng đúng chuỗi này ở mọi nơi: thẻ DOM `btb-*`, biến CSS `--btb-*`.
+- Tiền tố thay cho `affine`: **`drt`** (Doctor Trọng) — chủ dự án đã duyệt 2026-08-12. Dùng đúng chuỗi này ở mọi nơi: thẻ DOM `drt-*`, biến CSS `--drt-*`.
 - Nguồn thượng nguồn: `C:/Users/LENOVO/Downloads/AFFiNE/blocksuite`
 
 ## Ngoài phạm vi kế hoạch này
@@ -46,8 +46,15 @@ Spec: `docs/superpowers/specs/2026-08-12-nhung-edgeless-affine-design.md`
 
 Cây cũ chỉ có `global`, `store`, `sync`. Cây mới cần cả `std` và `affine`.
 
+Mọi lệnh trong kế hoạch này chạy từ **gốc cây làm việc hiện tại** — đừng `cd` sang đường dẫn tuyệt
+đối nào khác. Chặng này thi hành trong một worktree riêng, nên một dòng `cd` vào checkout gốc sẽ
+sửa nhầm `main`. Xác nhận trước khi bắt đầu:
+
 ```bash
-cd "C:/Users/LENOVO/Downloads/drtrong"
+git rev-parse --show-toplevel && git branch --show-current
+```
+
+```bash
 rm -rf src/vendor/blocksuite/global src/vendor/blocksuite/store src/vendor/blocksuite/sync
 AFF="C:/Users/LENOVO/Downloads/AFFiNE/blocksuite"
 mkdir -p src/vendor/blocksuite
@@ -396,7 +403,7 @@ Create `scripts/doi-ten-vendor.mjs`:
 
 ```js
 // Chạy SAU `dich:vendor`. Biến đổi JS đã dịch trong .vendor-build/ tại chỗ:
-//   1. D16 — đổi tiền tố `affine-` → `btb-` ở tên thẻ DOM và class, `--affine-` → `--btb-`
+//   1. D16 — đổi tiền tố `affine-` → `drt-` ở tên thẻ DOM và class, `--affine-` → `--drt-`
 //   2. D12 — thay chuỗi hiển thị tiếng Anh bằng tiếng Việt theo src/board/vi.json
 //
 // Mã nguồn trong src/vendor/ KHÔNG bị đụng — cổng `npm run kiem:vendor` vẫn xanh sau bước này.
@@ -405,7 +412,7 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
 const BUILD = '.vendor-build'
-const TIEN_TO = 'btb'
+const TIEN_TO = 'drt'
 const banDoDich = JSON.parse(readFileSync('src/board/vi.json', 'utf8'))
 
 async function* dietJs(dir) {
@@ -432,25 +439,32 @@ for await (const f of dietJs(BUILD)) {
   // đổi tên, rồi trả về chỗ cũ.
   // Mốc phải là chuỗi không thể trùng với nội dung thật, và KHÔNG dùng ký tự điều khiển —
   // ký tự điều khiển làm mọi công cụ text (grep, git diff) coi file là nhị phân.
+  //
+  // Nhánh `\bimport\s*` (không ngoặc, không `from`) che import chỉ-để-chạy: thượng nguồn có
+  // đúng một chỗ — `affine/blocks/list/src/list-block.ts:1` viết
+  // `import '@blocksuite/affine-shared/commands'` — và `list` nằm trong danh sách cắt gọn nên
+  // chỗ đó thật sự chạy tới. Thiếu nhánh này thì specifier bị đổi thành
+  // `@blocksuite/drt-shared/commands` và Vite không phân giải được.
+  // Thứ tự các nhánh có nghĩa: `\bimport\s*\(\s*` phải đứng TRƯỚC `\bimport\s*`.
   const kho = []
-  const dungMoc = (i) => `__BTB_SPEC_${i}__`
+  const dungMoc = (i) => `__DRT_SPEC_${i}__`
   js = js.replace(
-    /(\bfrom\s*|\bimport\s*\(\s*|\bexport\s*\*\s*from\s*|\brequire\s*\(\s*)(['"])([^'"]+)\2/g,
+    /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*|\bexport\s*\*\s*from\s*|\brequire\s*\(\s*)(['"])([^'"]+)\2/g,
     (m) => {
       kho.push(m)
       return dungMoc(kho.length - 1)
     }
   )
 
-  // 1. Biến CSS: --affine-xxx → --btb-xxx. Làm trước vì nó cũng khớp luật dưới.
+  // 1. Biến CSS: --affine-xxx → --drt-xxx. Làm trước vì nó cũng khớp luật dưới.
   js = js.replace(/--affine-/g, `--${TIEN_TO}-`)
-  // 2. Tên thẻ và class: affine-xxx → btb-xxx.
+  // 2. Tên thẻ và class: affine-xxx → drt-xxx.
   //    Chỉ khớp khi có gạch nối, nên `affine:page` (flavour trong dữ liệu) KHÔNG bị đụng —
   //    đổi flavour là đổi lược đồ và sẽ không đọc được tài liệu do AFFiNE tạo.
   js = js.replace(/\baffine-/g, `${TIEN_TO}-`)
 
   // Trả specifier về nguyên trạng.
-  js = js.replace(/__BTB_SPEC_(\d+)__/g, (_m, i) => kho[Number(i)])
+  js = js.replace(/__DRT_SPEC_(\d+)__/g, (_m, i) => kho[Number(i)])
 
   if (js !== goc) soDoiTen++
 
@@ -510,9 +524,13 @@ describe('D16 — đổi tên affine-*', () => {
 
     // Tên GÓI cũng chứa `affine-` (`@blocksuite/affine-block-frame/view`) và phải giữ nguyên,
     // nếu không mọi phép phân giải module gãy. Bỏ specifier ra trước rồi mới soi phần còn lại.
+    //
+    // Danh sách nhánh phải KHỚP TỪNG CHỮ với bộ che trong `scripts/doi-ten-vendor.mjs`, kể cả
+    // nhánh `\bimport\s*` cho import chỉ-để-chạy và thứ tự `\bimport\s*\(\s*` đứng trước nó.
+    // Lệch một nhánh là ca này đỏ giả (che ít hơn) hoặc mù (che nhiều hơn) — cả hai đều tệ.
     const boSpecifier = (js: string) =>
       js.replace(
-        /(\bfrom\s*|\bimport\s*\(\s*|\bexport\s*\*\s*from\s*|\brequire\s*\(\s*)(['"])([^'"]+)\2/g,
+        /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*|\bexport\s*\*\s*from\s*|\brequire\s*\(\s*)(['"])([^'"]+)\2/g,
         '$1$2$2'
       )
 
@@ -528,7 +546,7 @@ describe('D16 — đổi tên affine-*', () => {
   it('tiền tố mới thật sự có mặt — chứng minh phép thay đã chạy', async () => {
     let thay = false
     for await (const f of diet(BUILD, '.js')) {
-      if (/\bbtb-/.test(readFileSync(f, 'utf8'))) {
+      if (/\bdrt-/.test(readFileSync(f, 'utf8'))) {
         thay = true
         break
       }
@@ -617,6 +635,31 @@ git commit -m "P1-A Task 3: đổi tên affine-* và bản đồ dịch, làm l�
 **Interfaces:**
 - Consumes: `.vendor-build/` đã biến đổi từ Task 3
 - Produces: `EdgelessBoard` — React component không nhận prop, dựng một bảng trống; và `viewExtensions` — mảng extension cắt gọn
+
+- [ ] **Step 0: Cài phụ thuộc bên thứ ba mà cây vendored cần**
+
+Cây vendored import hàng chục gói không thuộc `@blocksuite/*` — `lit`, `@lit/context`,
+`@blocksuite/icons`, `@toeverything/theme`, `@floating-ui/dom`… `package.json` hiện tại mới có **16**
+dependency, đủ cho tầng model của P0 chứ không đủ cho tầng khung nhìn. Thiếu bước này thì Step 7
+chết ngay ở phép phân giải, và thông điệp lỗi sẽ trỏ vào plugin Vite chứ không trỏ vào nguyên nhân.
+
+Danh sách đúng đã được đo thực nghiệm trên nhánh probe (**67** dependency). Lấy từ đó, đừng đoán:
+
+```bash
+git show probe-nhung-lit:package.json > /tmp/probe-pkg.json
+node -e "
+const probe = JSON.parse(require('fs').readFileSync('/tmp/probe-pkg.json','utf8')).dependencies
+const nay   = require('./package.json').dependencies
+const thieu = Object.entries(probe).filter(([k]) => !nay[k]).map(([k,v]) => k+'@'+v)
+console.log(thieu.length, 'gói thiếu'); console.log(thieu.join(' '))
+"
+```
+
+Cài đúng danh sách in ra (`npm install <danh sách>`), rồi xác nhận `npm ls lit @lit/context` không
+báo `UNMET DEPENDENCY`.
+
+Nếu Step 7 vẫn còn `Failed to resolve import` cho một gói bên thứ ba mà danh sách trên không có, cài
+thêm đúng gói đó và **ghi vào báo cáo** — nghĩa là danh sách probe chưa phủ hết cây cắt gọn.
 
 - [ ] **Step 1: Viết plugin phân giải cho Vite**
 
@@ -959,7 +1002,7 @@ Mở app, vào một bảng. Kiểm bằng mắt trên **iPad** và **PC Windows
 2. Kéo hai ngón (iPad) hoặc kéo chuột giữa (PC) — bảng dịch chuyển
 3. Pinch-zoom (iPad) hoặc cuộn (PC) — bảng phóng to thu nhỏ
 4. Vẽ một hình chữ nhật bằng công cụ shape
-5. Mở dev tools, soi cây DOM — **không được thấy thẻ nào tên `affine-*`**, phải là `btb-*`
+5. Mở dev tools, soi cây DOM — **không được thấy thẻ nào tên `affine-*`**, phải là `drt-*`
 
 Trên **iPhone** chỉ kiểm mở lên xem được, không kiểm nhập liệu.
 

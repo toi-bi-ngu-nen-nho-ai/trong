@@ -1,33 +1,26 @@
 # Mã vendored từ BlockSuite — KHÔNG SỬA
 
-Xuất xứ: `AFFiNE/blocksuite/framework/{global,store}/src`, phiên bản **0.27.0**.
-Chép nguyên văn ngày 2026-08-11.
-
-## Vì sao chép mà không cài từ npm
-
-npm mới publish tới `0.22.4`. Bản `0.27.0` chỉ có trong workspace AFFiNE, và nó là bản duy
-nhất chứa `viewportRuntimeConfig` / `getEffectiveDpr` / `SKIP_REFRESH_DURING_GESTURE` — phần
-giữ WKWebView khỏi sập lúc pan/zoom trên iPhone, tức rủi ro số một của dự án.
-
-Xem D10 và D11 trong `docs/superpowers/specs/2026-08-11-blockkit-edgeless-design.md`.
+Xuất xứ: `AFFiNE/blocksuite/{framework,affine}`, phiên bản **0.27.0**. Giấy phép **MIT** —
+xem `LICENSE` trong thư mục này. Dòng bản quyền phải ở lại: MIT bắt buộc giữ nó trong bản
+phát hành, và PWA phục vụ JS cho trình duyệt chính là phát hành.
 
 ## Quy tắc
 
-**Cấm sửa một chữ nào trong thư mục này** — kể cả import, kể cả chiều lint.
-Cần đổi hành vi thì bọc ở tầng trên (`src/core/`).
+**Cấm sửa một chữ nào trong thư mục này.** Muốn đổi hành vi thì theo thứ tự:
 
-Lý do: khi `0.27.0` được publish, việc thay thư mục này bằng dependency npm phải chỉ là xoá
-thư mục và bỏ alias trong `tsconfig.json` + `vite.config.ts`. Sửa một chỗ ở đây là mất khả
-năng đó.
+1. Viết một extension — đúng cách AFFiNE tự dựng mọi thứ của họ
+2. `di.override(...)` để thay một dịch vụ có sẵn
+3. Bản đồ chuỗi / đổi tên lúc build (D12, D16) — xem `scripts/dich-vendor.mjs`
+4. File vá áp lúc build (D14) — chỉ khi ba cách trên không đủ
 
-Specifier kiểu `./vec.js` trỏ vào file `.ts` được plugin `vendor-js-to-ts` trong
-`vite.config.ts` xử lý, **không** phải bằng cách sửa mã.
+Lý do: giữ bản chép sạch thì nâng cấp = xoá thư mục, chép bản mới. Sửa vào đây một chỗ là
+mỗi lần nâng cấp phải tự tay ghép lại từng sửa đổi — tức là bị ghim.
 
-## Đã bỏ khi chép
+## Cổng kiểm
 
-- `global/src/lit/` — chỗ duy nhất dùng Lit; React thay tầng khung nhìn
-- mọi `__tests__/` — khung kiểm thử của thượng nguồn, ta không dùng
+```bash
+npm run kiem:vendor
+```
 
-`store/src/test/` (`TestWorkspace`, `TestDoc`, `TestMeta`) **đã được vendor**, không còn nằm
-trong danh sách bỏ — cần `TestWorkspace` để port thẳng 22 ca test hành vi gốc của
-`surface.unit.spec.ts` mà không phải tự dựng lại hạ tầng workspace/doc giả lập.
+So từng file `.ts` với thượng nguồn sau khi chuẩn hoá xuống dòng. **Không dùng `cmp`** —
+repo có `core.autocrlf=true` nên `cmp` báo khác trên mọi file dù nội dung giống hệt.

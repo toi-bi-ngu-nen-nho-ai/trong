@@ -10,6 +10,9 @@
 
 export type ThemeMode = "auto" | "light" | "dark"
 
+// Chủ đề ĐÃ PHÂN GIẢI: "auto" đã được quy về một trong hai bản thật. Xem resolveTheme bên dưới.
+export type ResolvedTheme = "light" | "dark"
+
 const KEY = "drtrong:theme"
 
 export function loadTheme(): ThemeMode {
@@ -29,11 +32,47 @@ const SURFACE_FALLBACK = { light: "#ffffff", dark: "#14162c" }
 // đang mở ở chế độ "auto" (xem watchSystemTheme bên dưới).
 let currentMode: ThemeMode = "auto"
 
+// ─── Phân giải "auto" → "light" | "dark" ─────────────────────────────────────────────────────────
+// Phép quy đổi này TRƯỚC ĐÂY chỉ tồn tại như một dòng cục bộ bên trong applyTheme(). Nó được tách
+// ra thành hàm xuất khẩu vì bảng vẽ nhúng (src/board) cần đúng giá trị đó: bảng màu vendored khoá
+// bản tối vào bộ chọn `[data-theme=dark]` và KHÔNG có nhánh `prefers-color-scheme` dự phòng, nên ở
+// chế độ "auto" — lúc <html> cố tình KHÔNG mang data-theme — bảng vẽ đứng nguyên bản sáng dù máy
+// đang tối. Bảng vẽ phải tự ghi một data-theme đã phân giải lên thẻ bọc của nó.
+// Tách hàm, KHÔNG chép logic sang board: chính file này đã một lần mang lỗi màu cũ vì có nguồn sự
+// thật thứ hai (xem chú thích #00766e bên dưới) — thêm một bản sao nữa là mời lại đúng loại lỗi đó.
+export function resolveTheme(mode: ThemeMode = currentMode): ResolvedTheme {
+  return mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    ? "dark"
+    : "light"
+}
+
+// Người nghe chủ đề đã phân giải. Không phải một đường thông báo THỨ HAI: applyTheme() dưới đây là
+// nơi DUY NHẤT chủ đề thật sự đổi (main.tsx gọi lúc mở app, saveTheme gọi khi người dùng bấm nút,
+// watchSystemTheme gọi khi hệ điều hành lật sáng/tối trong lúc app đang ở "auto"), nên phát tín
+// hiệu ngay tại đó là bắt được trọn cả ba lối — không cần component nào tự nghe matchMedia riêng.
+const nguoiNgheChuDe = new Set<(t: ResolvedTheme) => void>()
+
+export function watchResolvedTheme(cb: (t: ResolvedTheme) => void): () => void {
+  nguoiNgheChuDe.add(cb)
+  return () => {
+    nguoiNgheChuDe.delete(cb)
+  }
+}
+
 export function applyTheme(mode: ThemeMode): void {
   currentMode = mode
   const root = document.documentElement
-  if (mode === "auto") root.removeAttribute("data-theme")
-  else root.setAttribute("data-theme", mode)
+  const resolved = resolveTheme(mode)
+  // Luôn ghi giá trị ĐÃ PHÂN GIẢI ("light"/"dark"), kể cả ở "auto" — không gỡ thuộc tính nữa.
+  // Lý do: ThemeObserver của AFFiNE (dùng cho <editor-toolbar> của bảng vẽ nhúng) đọc data-theme
+  // trên CHÍNH <html>, không đọc biến --c-* hay thẻ bọc riêng của bảng vẽ. Ở "auto", việc gỡ hẳn
+  // thuộc tính khiến observer đó không thấy gì và bảng vẽ giữ nguyên toolbar sáng dù canvas đã tối
+  // theo hệ điều hành. Ghi resolved — KHÔNG BAO GIỜ chuỗi "auto" — thì observer luôn thấy đúng bản
+  // đã phân giải, còn CSS trong index.css vẫn ra đúng bảng màu cũ (xem hai bộ chọn
+  // `:root:not([data-theme="light"])` trong khối `@media (prefers-color-scheme: dark)` và
+  // `:root[data-theme="dark"]` — cả hai đều đã tương thích với giá trị "dark"/"light" tường minh,
+  // không riêng gì trạng thái "không có thuộc tính").
+  root.setAttribute("data-theme", resolved)
 
   // Thanh trạng thái của máy lấy màu từ thẻ <meta name="theme-color">. Từ khi bỏ
   // `black-translucent` (xem index.html để biết vì sao — nó là nguyên nhân gốc của khoảng trống ở
@@ -45,9 +84,7 @@ export function applyTheme(mode: ThemeMode): void {
   // teal đời đầu, sót lại qua HAI lần đổi bảng màu (teal → azure → indigo). Tệ hơn, nó chạy lúc
   // khởi động nên ÂM THẦM GHI ĐÈ giá trị đúng đặt trong index.html: sửa ở đó không bao giờ có tác
   // dụng. Đọc từ --c-surface thì không còn nguồn sự thật thứ hai nào để lệch nữa.
-  const dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches)
-  const surface =
-    getComputedStyle(root).getPropertyValue("--c-surface").trim() || SURFACE_FALLBACK[dark ? "dark" : "light"]
+  const surface = getComputedStyle(root).getPropertyValue("--c-surface").trim() || SURFACE_FALLBACK[resolved]
   // querySelectorAll, KHÔNG phải querySelector: index.html khai BA thẻ theme-color (một cho
   // prefers-color-scheme light, một cho dark, một không điều kiện làm dự phòng — xem lý do ở đó).
   // querySelector trả về thẻ ĐẦU TIÊN, tức thẻ `media="(prefers-color-scheme: light)"` — nên chọn tay
@@ -60,6 +97,11 @@ export function applyTheme(mode: ThemeMode): void {
   // giữ nguyên tác dụng của `media` lúc mở lạnh (trước khi JS kịp chạy) — xem index.html.
   const metas = document.querySelectorAll('meta[name="theme-color"]')
   for (const meta of metas) meta.setAttribute("content", surface)
+
+  // Báo cho những nơi KHÔNG đọc được biến --c-* qua CSS (bảng vẽ nhúng cần chính chuỗi
+  // "light"/"dark" để ghi thành thuộc tính). Đặt ở cuối, sau khi <html> đã mang giá trị mới, để
+  // người nghe nào đọc DOM cũng thấy trạng thái đã ổn định.
+  for (const cb of nguoiNgheChuDe) cb(resolved)
 }
 
 // Máy đổi sáng/tối trong lúc app đang mở: các biến --c-* tự đổi theo @media, nhưng thẻ theme-color thì

@@ -7,14 +7,22 @@ A Vite development server is **always running** on `$PORT` (default 8443). You d
 - Preview URL: The user can access the running app through the preview panel
 - Hot reload: Changes to source files are reflected immediately
 
+## Package manager
+
+**npm is authoritative.** `package-lock.json` is the lockfile that is kept current; install with
+`npm ci`. There is no pnpm setup: `pnpm-lock.yaml` used to be tracked here but described a
+2-dependency project long after `package.json` had grown to 67, so `pnpm install` produced an
+unusable tree — it has been removed rather than left as a trap.
+
 ## Key Files
 
 - `src/App.tsx` - Main application component
 - `src/main.tsx` - React entry point
+- `src/board/` - React wrapper around the vendored BlockSuite edgeless board (lazy-loaded)
 - `src/index.css` - Global styles and Tailwind CSS import
 - `package.json` - Dependencies and scripts
 - `vite.config.ts` - Vite configuration
-- `.mise.toml` - Toolchain versions (Node.js, pnpm)
+- `scripts/` - Vendor build pipeline (`npm run dung:vendor`) and the `kiem:*` gates
 
 ## Styling
 
