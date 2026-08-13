@@ -2,169 +2,169 @@
 
 Cập nhật: **2026-08-13**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
-**P1-A đã thi hành xong trên nhánh `worktree-p1a-nhung-edgeless`. Chưa gộp vào `main`.**
+**P1-A đã gộp vào `main` và đã đẩy lên origin.** Không còn nợ nhánh, không còn worktree cần dọn.
+`main` = `origin/main` = nhánh `worktree-p1a-nhung-edgeless`, cả ba đều ở **`f01c278`**.
 
 ---
 
-## 0. PHIÊN MỚI ĐỌC MỤC NÀY TRƯỚC
+## 0. PROMPT DÁN VÀO PHIÊN MỚI
 
-**P1-A đã gộp vào `main` và đã đẩy lên origin.** `origin/main` ở `a10401b` (trước là `afac297`),
-gộp kiểu fast-forward nên lịch sử thẳng, không có merge commit.
+Trên máy/tài khoản khác, mở Claude Code trong thư mục đã `git clone` repo này, rồi dán nguyên
+văn:
 
-### Việc làm ngay
+```
+Đọc file docs/superpowers/HANDOFF.md trước khi làm bất cứ gì. Đây là bản bàn giao dự án Bs Trọng
+từ một phiên Claude Code khác đã hết ngân sách token. HANDOFF ghi trạng thái thật của repo, kiến
+trúc đã dựng, nợ còn lại đã phân loại, và việc cần làm tiếp. Đừng đoán trạng thái — file đó nói
+rõ mọi lệnh git cần chạy để xác nhận trước khi bắt đầu.
 
-**1. Checkout gốc đang tụt lại phía sau.** Việc gộp làm thẳng trên origin, nên `main` ở
-`C:/Users/LENOVO/Downloads/drtrong` vẫn đang ở `afac297`. Kéo về:
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong"
-git pull
+Sau khi đọc xong, chạy phần "Việc làm ngay" trong mục 0 của file đó để dựng lại môi trường, rồi
+hỏi tôi muốn làm gì tiếp (mục 7 — Chặng kế tiếp — liệt kê các hướng khả dĩ).
 ```
 
-**2. Máy mới thì phải dựng lại cây đã dịch.** `.vendor-build/` bị gitignore:
+Prompt trên đủ để phiên mới tự định hướng mà không cần tôi giải thích lại từ đầu.
+
+---
+
+## 1. VIỆC LÀM NGAY — chạy trước khi làm bất cứ gì khác
+
+**1. Xác nhận trạng thái repo thật, đừng tin file này nếu nó lệch với `git log`:**
 
 ```bash
-npm ci && npm run dung:vendor
+git fetch origin
+git log --oneline -1                    # kỳ vọng: f01c278 hoặc mới hơn
+git status --short                      # kỳ vọng: rỗng
 ```
 
-Mất vài phút và **bắt buộc** — `predev`/`prebuild`/`pretest` đều chặn nếu thiếu.
+Nếu `git log` cho một commit khác `f01c278` mà bảng đồ phục hồi (mục 3) không có, đọc commit đó
+bằng `git show <sha> --stat` trước khi làm gì — có thể một phiên khác đã làm thêm việc.
 
-**3. Sổ tiến độ không đi theo repo được.** `.superpowers/sdd/` nằm trong `.gitignore` — 40 file
-brief và báo cáo của chặng này **sẽ không có** ở máy hay tài khoản khác. File bạn đang đọc cùng
-`docs/superpowers/notes/2026-08-13-p1a-so-tien-do.md` là hai bản tóm tắt duy nhất qua được.
+**2. Dựng lại cây đã dịch — bắt buộc, mất vài phút:**
 
-### `/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì
+```bash
+npm ci
+npm run dung:vendor
+```
 
-Kỹ năng đó **thi hành một bản kế hoạch**. Kế hoạch P1-A đã thi hành xong toàn bộ 5 task, đã
-review toàn nhánh, đã vá xong. **Không còn task nào để chạy tiếp.** Gọi lại nó mà không có kế
-hoạch mới thì nó không có việc gì làm.
+`.vendor-build/` bị `.gitignore` nên **không có sẵn** ở máy mới. `predev`/`prebuild`/`pretest`
+đều chặn cứng nếu thiếu nó — không phải lỗi, đó là cổng kiểm đang làm đúng việc.
 
-Tuỳ mục tiêu, phiên mới chọn một trong ba đường:
+Kể từ commit `07dd96f`, bước này **cũng tự chạy** ở `postinstall` (sau `npm ci`/`npm install`)
+nếu `.vendor-build/` thiếu hoặc không hợp lệ — nhưng chạy tay trước để thấy lỗi rõ ràng hơn nếu
+có, thay vì lẫn vào log cài đặt.
+
+**3. Chạy thử:**
+
+```bash
+PORT=8444 npm run dev
+```
+
+**Dùng cổng khác 5173/8443 nếu máy đó có sẵn dev server khác chạy nền** — bài học đau đã ghi ở
+mục 5. Mở trình duyệt, bấm tab "Mindmap" ở thanh nav dưới, chờ 20-30 giây cho lần tải đầu (chunk
+bảng vẽ ~994 kB gzip, nạp chậm).
+
+**4. Xác nhận năm cổng còn xanh:**
+
+```bash
+npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build && npm run kiem:dist
+```
+
+Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựng lại từ đầu để kiểm fix Vercel):
+`tsc` exit 0 · **37/37 ca** xanh (11 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
+438 mục khớp · vỏ app **~332,6 kB** gzip · chunk bảng **~993,7 kB** gzip · `kiem:dist` xanh.
+
+---
+
+## 2. TRẠNG THÁI GITHUB
+
+| | |
+|---|---|
+| Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
+| `origin/main` | `f01c278` |
+| `origin/worktree-p1a-nhung-edgeless` | `f01c278` — giữ lại làm bản sao lưu, không xoá |
+| Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
+
+**`/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì.** Kỹ năng đó thi hành *một
+bản kế hoạch*. Kế hoạch P1-A đã xong toàn bộ 5 task, đã review toàn nhánh, đã vá xong, đã gộp.
+Gọi lại nó mà không có kế hoạch mới thì nó đứng im.
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
-| Trả nợ nhỏ ở mục 5 | Sửa thẳng, không cần kỹ năng nào |
+| Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
 | iPad lộ ra lỗi | `superpowers:systematic-debugging` |
+| Lỗi build/deploy khác | `superpowers:systematic-debugging` — xem cách đã sửa lỗi Vercel ở mục 3 làm ví dụ |
 
-### Bản đồ phục hồi — commit của từng task
+---
+
+## 3. BẢN ĐỒ PHỤC HỒI — commit theo thứ tự thời gian
 
 Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
 
-| Mốc | Khoảng commit |
+| Mốc | Commit / khoảng |
 |---|---|
-| Gốc nhánh (= `main`) | `afac297` |
-| Vá kế hoạch trước khi thi hành | `fe368ea` |
+| Gốc trước P1-A | `afac297` |
 | Task 1 — vendor + cổng D11 | `fe368ea..f520662` |
 | Task 2 — dịch trước bằng tsc | `f520662..bb8c7c6` |
 | Task 3 — đổi tên `drt-*` | `bb8c7c6..92558a6` |
 | Task 4 — cầu nối React↔Lit | `92558a6..56729c4` |
 | Task 5 — xoá `src/core/gfx` | `56729c4..c38c32b` |
-| Vá review toàn nhánh | `deb6e8e` |
+| Vá review toàn nhánh (2 lỗi Critical: token màu rỗng, offline khoá app) | `deb6e8e` |
+| **Gộp vào `main`, fast-forward** | `afac297 → a10401b` |
+| Sửa lỗi chế độ tối + mất hình khi chuyển tab | `beb334f` |
+| Sửa nốt thanh công cụ theo chế độ tối (đọc `<html>`, không riêng wrapper) | `a10401b` |
+| Sửa lỗi build Vercel (postinstall tự dựng `.vendor-build/`) | `07dd96f` |
+| Bỏ `.vendor-build/` khỏi phạm vi review thiết kế (impeccable hook) | `f01c278` |
 
-Mỗi task đều đã qua review riêng và ít nhất một vòng vá. Đừng chạy lại task nào trong bảng này.
-
-### Chạy thử ngay
-
-```bash
-cd "C:/Users/LENOVO/Downloads/drtrong/.claude/worktrees/p1a-nhung-edgeless"
-npm ci
-npm run dung:vendor
-PORT=8444 npm run dev
-```
-
-`npm run dung:vendor` mất vài phút và **bắt buộc** — `.vendor-build/` bị gitignore nên máy mới
-không có nó, mà `predev`/`prebuild`/`pretest` đều chặn nếu thiếu.
-
-**Dùng `PORT=8444`, không dùng 8443.** Checkout gốc luôn giữ một dev server ở 8443; mở 8443 là
-xem nhầm app của cây khác, và nó sẽ hiện màn "sắp ra mắt" khiến bạn tưởng bảng chưa nối.
+Mỗi task P1-A đều đã qua review riêng và ít nhất một vòng vá. **Đừng chạy lại task nào ở đây.**
 
 ---
 
-## 1. Trạng thái
-
-`main` vẫn ở `afac297`, **không bị đụng**. Toàn bộ chặng nằm trên nhánh
-`worktree-p1a-nhung-edgeless` (25 commit), worktree ở `.claude/worktrees/p1a-nhung-edgeless`.
-
-Chủ dự án chọn **giữ nguyên nhánh** để tự kiểm trên iPad trước khi quyết gộp.
-
-### Cổng nghiệm thu — đã chạy thật
-
-| Cổng | Kết quả |
-|---|---|
-| `npx tsc --noEmit` | exit 0 |
-| `npm test` | 10 file / 26 ca xanh |
-| `npm run kiem:vendor` | exit 0 — 2.782 file, lệch 0 |
-| `npm run kiem:vendor-paths` | exit 0 — 438 mục khớp |
-| `npm run kiem:dist` | exit 0 |
-| `npm run build` | vỏ app 332,59 kB gzip · chunk bảng 993,69 kB gzip · CSS bảng 14,27 kB |
-
-Kiểm trên trình duyệt (tab sạch, dev server worktree ở cổng 8444): bảng mở ở màn Mindmap,
-8 thẻ custom `drt-*`, **0 thẻ `affine-*`**, console sạch, token màu phân giải
-(`--drt-primary-color` = `#1E96EB`), zoom `1 → 1.1`, pan tâm `(0,0) → (87,58)`.
-
----
-
-## 2. CHƯA NGHIỆM THU — việc của chủ dự án
-
-> **Cập nhật 2026-08-13, sau khi gộp.** Mục 3 (chế độ tối) và mục 4 (mất hình khi chuyển tab)
-> **đã sửa** — xem `beb334f` và `a10401b`. Bảng vẽ giờ theo đúng chủ đề của app kể cả chế độ Tự
-> động, cả nền lẫn thanh công cụ; và bảng được giữ sống khi đổi tab, giữ nguyên zoom, tâm và
-> nội dung. Hai mục còn lại (iPad, công cụ shape) **vẫn còn nguyên** — chủ dự án đã cân nhắc và
-> chấp nhận rủi ro để gộp vì hiện chưa có iPad. Đọc chúng như việc phải làm, không phải việc đã bỏ.
-
-1. **iPad — toàn bộ.** Một nửa mốc nghiệm thu của kế hoạch, không có thiết bị để chạy.
-   Rủi ro chưa gỡ: xử lý pointer/touch và pinch-zoom dưới mô hình cử chỉ của Safari; hành vi
-   `@container viewport` trên iPadOS; và chi phí bộ nhớ/parse của chunk 4 MB trong WKWebView —
-   đúng loại áp lực mà `SKIP_REFRESH_DURING_GESTURE` sinh ra để chịu, mà **chưa dòng mã nào trong
-   chặng này cấu hình nó**.
-2. **Vẽ hình bằng công cụ shape.** Chạy được bằng sự kiện tổng hợp bắn vào đúng phần tử canvas,
-   **chưa phải input thật của hệ điều hành**. `ShapeViewExtension`, `BrushViewExtension`,
-   `ConnectorViewExtension`, `MindmapViewExtension` đều đã đăng ký nhưng chưa từng vẽ ra gì.
-3. **Chế độ tối.** Theme khai `[data-theme=light|dark]`, nhưng app gỡ `data-theme` khi để chế độ
-   "Tự động" — bảng sẽ luôn sáng dù máy đang tối. Đã phát hiện, **cố ý chưa sửa**, chờ quyết.
-4. **Chuyển tab điều hướng là mất hình đang vẽ.** Màn Mindmap render có điều kiện nên rời tab là
-   unmount, lần sau vào dựng `TestWorkspace` mới. Lưu trữ thuộc D4 — chặng sau. Quyết định sản
-   phẩm: hoặc giấu tab khỏi thanh nav tới khi có D4, hoặc giữ component mounted, hoặc báo rõ
-   "chưa lưu được".
-
----
-
-## 3. Kiến trúc đã dựng
+## 4. KIẾN TRÚC ĐÃ DỰNG
 
 ```
 src/vendor/blocksuite/     BlockSuite 0.27.0, chép NGUYÊN VĂN, cấm sửa (D11)
-        │  npm run dung:vendor   (vài phút)
+        │  npm run dung:vendor   (vài phút — tự chạy ở postinstall nếu thiếu)
         ▼
-  .vendor-build/           JS thuần — gitignore. Bốn bước, đúng thứ tự:
+  .vendor-build/           JS thuần — gitignore. Sáu bước, đúng thứ tự (scripts/dung-vendor.mjs):
+                             0. xoá sạch build cũ (chống hỏng-im-lặng khi tsc chết giữa chừng)
                              1. tsc dịch (rolldown/oxc KHÔNG hạ cấp được `accessor`)
-                             2. đổi tên affine-* → drt-*, --affine-* → --drt-*, + theme css
-                             3. chép package.json (không có nó, bundler không thấy
-                                sideEffects:false và KHÔNG tree-shake gì cả)
+                             2. chép package.json rút gọn (không có nó, KHÔNG tree-shake được)
+                             3. đổi tên affine-* → drt-*, --affine-* → --drt-*, + theme css
                              4. sinh tsconfig.vendor-paths.json
+                             5. sinh bang-bam-vendor.json (D11 chạy được không cần checkout AFFiNE)
         │  vite.vendor-plugin.ts
         ▼
-  src/board/               vỏ React + cầu nối Lit, nạp chậm
+  src/board/               vỏ React + cầu nối Lit, nạp chậm, theo chủ đề sáng/tối của app
 ```
 
 **Tiền tố `drt`** (Doctor Trọng) thay `affine` — chủ dự án duyệt 2026-08-12.
 
-### Năm cổng và việc của từng cái
+### Sáu cổng và việc của từng cái
 
 | Lệnh | Canh cái gì |
 |---|---|
-| `kiem:vendor` | cây vendored khớp nguyên văn thượng nguồn (D11). Chạy được cả khi không có checkout AFFiNE, nhờ `bang-bam-vendor.json` |
+| `kiem:vendor` | cây vendored khớp nguyên văn thượng nguồn (D11). Chạy được không cần checkout AFFiNE, nhờ `bang-bam-vendor.json` |
 | `kiem:vendor-build` | `.vendor-build/` tồn tại và bước đổi tên đã chạy |
 | `kiem:vendor-paths` | bản đồ paths đã commit còn mô tả đúng `.vendor-build/` |
 | `kiem:dist` | **soi `dist/`** — không biến CSS nào dùng mà không định nghĩa, không chuỗi `affine-` nào sót |
 | `npm test` | mã dự án sở hữu |
+| `postinstall` (`dam-bao-vendor-build.mjs`) | tự dựng `.vendor-build/` nếu thiếu, bỏ qua nhanh nếu đã hợp lệ |
 
 `kiem:dist` sinh ra vì lượt review cuối bắt được thứ **mọi cổng khác đều mù**: chúng đều dừng ở
-`.vendor-build/`, không cái nào soi bản build thật.
+`.vendor-build/`, không cái nào soi bản build thật — bảng từng ship ra 808 lượt dùng biến CSS mà
+0 định nghĩa, không lỗi, không cảnh báo (xem bài học #2 ở mục 5).
+
+### Hai kênh chủ đề sáng/tối của bảng vẽ
+
+`src/lib/theme.ts` giờ ghi giá trị **đã phân giải** (`"light"`/`"dark"`, không bao giờ `"auto"`)
+lên `<html>` ở mọi chế độ — kể cả "Tự động". Lý do: `ThemeObserver` của AFFiNE đọc `data-theme`
+từ gốc tài liệu, không đọc thẻ bọc riêng của bảng. Đã kiểm: việc này không đổi bảng màu nào của
+app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp y hệt trước).
 
 ---
 
-## 4. Bảy bài học đã trả giá
+## 5. TÁM BÀI HỌC ĐÃ TRẢ GIÁ
 
 1. **Kế hoạch sai bốn chỗ, và mã trong kế hoạch không phải là mã đúng.** Bộ che specifier sót
    `import 'x'`; không có bước cài phụ thuộc (16 dep có, cần 67); `dung:vendor` viết bằng `&&`
@@ -172,22 +172,29 @@ src/vendor/blocksuite/     BlockSuite 0.27.0, chép NGUYÊN VĂN, cấm sửa (D
    nó tuyên bố đo. Đọc mã trong kế hoạch như bản nháp, không như lời tiên tri.
 2. **Cổng xanh không có nghĩa là sản phẩm đúng.** Bảng từng ship ra với **808 lượt dùng
    `var(--drt-…)` và 0 định nghĩa** — không màu, không viền, không bóng. Không lỗi, không cảnh
-   báo. Đếm thẻ DOM, đo kích thước, soi console: cả ba đều xanh. Phải có cổng soi *đầu ra thật*.
+   báo. Đếm thẻ DOM, đo kích thước, soi console: cả ba đều xanh. Phải có cổng soi *đầu ra thật*
+   (`kiem:dist`).
 3. **Tiêu chí xong của một task không thay được bộ cổng đầy đủ.** Task 1 vào sổ "xong" trong khi
    nó làm bộ test từ 62/62 xanh tụt xuống 70/78 file đỏ — vì tiêu chí xong của nó chỉ nhắc
-   `kiem:vendor`, nên không ai chạy `npm test`. Từ đó mọi lượt dispatch đều buộc chạy đủ ba cổng.
-4. **Server dev của checkout gốc luôn giữ cổng 8443.** Mở app từ worktree sẽ lặng lẽ xem nhầm app
-   của cây khác — đã mất một lượt dò mới phát hiện. Dùng `PORT=8444`.
-5. **Buffer console của công cụ trình duyệt không xoá khi điều hướng.** Lỗi cũ từ phiên sửa file
+   `kiem:vendor`, nên không ai chạy `npm test`. Luôn chạy đủ bộ cổng, đừng tin tiêu chí xong hẹp.
+4. **Dev server chạy nền trên một cổng cố định sẽ khiến bạn xem nhầm app.** Mở đúng cổng app của
+   phiên đang chạy, đừng giả định cổng mặc định là đúng app.
+5. **Buffer console của công cụ trình duyệt không xoá khi điều hướng.** Lỗi cũ từ phiên trước
    trông y hệt lỗi mới. Mở tab mới khi cần kết luận "console sạch".
 6. **Sự kiện tổng hợp phải bắn vào đúng phần tử có listener.** Bắn vào phần tử bọc ngoài thì
    không tới, vì sự kiện đi lên chứ không đi xuống — suýt kết luận nhầm là pan/zoom hỏng.
 7. **`npm run format` đã bị xoá hẳn.** `oxfmt` 0.2.0 không có cơ chế ignore, nên nó định dạng lại
    cả 2.764 file vendored và đổi kiểu nháy — tức phá D11. Đừng thêm lại nếu chưa có cách giới hạn.
+8. **Đọc kỹ log lỗi thật trước khi đoán nguyên nhân.** Lỗi build Vercel ghi rõ
+   `Command "vite build" exited with 1` — không phải `npm run build` — nghĩa là Vercel gọi thẳng
+   `vite build`, bỏ qua hẳn `prebuild` trong `package.json`. Kiểm chứng bằng cách mô phỏng đúng
+   checkout Vercel (xoá `.vendor-build/`, `npm install`, rồi gọi thẳng `vite build`) trước khi vá,
+   không vá theo phỏng đoán. `postinstall` là hook duy nhất chắc chắn chạy bất kể build command
+   sau đó là gì — đó là lý do fix nằm ở đó chứ không phải ở `prebuild`.
 
 ---
 
-## 5. Nợ còn lại, đã phân loại là hoãn được
+## 6. NỢ CÒN LẠI, ĐÃ PHÂN LOẠI LÀ HOÃN ĐƯỢC
 
 - `kiem-vendor.mjs`: dòng thống kê bỏ sót `gocThua.length`; in đường dẫn theo dấu phân cách HĐH.
 - `test:watch` không có cổng `pretest:watch`.
@@ -201,27 +208,34 @@ src/vendor/blocksuite/     BlockSuite 0.27.0, chép NGUYÊN VĂN, cấm sửa (D
   bắt được rồi hãy chọn cách sửa, đừng nâng timeout mò.
 - `public/sw.js` còn `CACHE = "drtrong-v8"` dù bundle đã đổi; chính file đó ghi việc tăng số là
   BẮT BUỘC.
+- **Deploy Vercel giờ tốn thêm vài phút mỗi lần** vì `postinstall` phải dựng lại `.vendor-build/`
+  từ đầu (checkout CI luôn sạch, không có gì để tái sử dụng). Nếu thời gian build trở thành vấn đề,
+  cân nhắc cache `.vendor-build/` qua Vercel Build Cache API — chưa làm, chưa cần thiết ở quy mô này.
 
 ---
 
-## 6. Bản đồ tài liệu
+## 7. CHƯA NGHIỆM THU — việc của chủ dự án, không phải nợ kỹ thuật
 
-| File | Nội dung |
-|---|---|
-| `docs/superpowers/specs/2026-08-12-nhung-edgeless-affine-design.md` | Spec có thẩm quyền |
-| `docs/superpowers/plans/2026-08-12-p1-nhung-edgeless.md` | Kế hoạch P1-A — **đã thi hành xong** |
-| `docs/superpowers/specs/2026-08-11-blockkit-edgeless-design.md` | Spec cũ — chỉ §5, §8, §9 còn giá trị |
-| `src/vendor/blocksuite/README.md` | Luật D11 |
+Hai mục ban đầu (chế độ tối, mất hình khi chuyển tab) **đã sửa** — xem `beb334f`/`a10401b` ở
+mục 3. Hai mục dưới đây **vẫn còn nguyên**; chủ dự án đã cân nhắc và chấp nhận rủi ro để gộp vì
+hiện chưa có iPad.
 
-Sổ tiến độ chi tiết của chặng nằm ở `.superpowers/sdd/progress.md` **trong worktree** — thư mục đó
-bị gitignore nên nó **không đi xa được**. File bạn đang đọc là thứ duy nhất qua được sang phiên khác.
+1. **iPad — toàn bộ.** Một nửa mốc nghiệm thu của kế hoạch, không có thiết bị để chạy.
+   Rủi ro chưa gỡ: xử lý pointer/touch và pinch-zoom dưới mô hình cử chỉ của Safari; hành vi
+   `@container viewport` trên iPadOS; và chi phí bộ nhớ/parse của chunk ~994 kB gzip (~4 MB thô)
+   trong WKWebView — đúng loại áp lực mà `SKIP_REFRESH_DURING_GESTURE` sinh ra để chịu, mà **chưa
+   dòng mã nào trong chặng này cấu hình nó** (xem mục 8).
+2. **Vẽ hình bằng công cụ shape.** Chạy được bằng sự kiện tổng hợp bắn vào đúng phần tử canvas,
+   **chưa phải input thật của hệ điều hành**. `ShapeViewExtension`, `BrushViewExtension`,
+   `ConnectorViewExtension`, `MindmapViewExtension` đều đã đăng ký nhưng chưa từng vẽ ra gì trên
+   thiết bị thật.
 
 ---
 
-## 7. Chặng kế tiếp
+## 8. CHẶNG KẾ TIẾP
 
 - **Lưu trữ (D4)** — nối y-indexeddb của AFFiNE cho nội dung bảng, nâng `DB_VERSION` lên 5 cho
-  danh sách bảng. Gỡ luôn mục 4 của phần "chưa nghiệm thu".
+  danh sách bảng.
 - **BoardGallery** — màn danh sách bảng.
 - **Bổ sung `vi.json`** — dịch dần theo mức độ hay gặp.
 - **Cấu hình `viewportRuntimeConfig` cho iOS** — chưa dòng nào làm. Nhớ: `ZOOM_MIN`/`ZOOM_MAX` đọc
@@ -229,3 +243,20 @@ bị gitignore nên nó **không đi xa được**. File bạn đang đọc là 
   initializer **chốt cứng lúc dựng `Viewport`**. Cấu hình sau khi mount là ăn sàn zoom nhưng
   **không** ăn thứ giữ WKWebView khỏi bị kill. Bộ 5 ca cưỡng chế điều này ở
   `src/board/__tests__/viewport-runtime-config.spec.ts`.
+
+---
+
+## 9. BẢN ĐỒ TÀI LIỆU
+
+| File | Nội dung |
+|---|---|
+| `docs/superpowers/specs/2026-08-12-nhung-edgeless-affine-design.md` | Spec có thẩm quyền |
+| `docs/superpowers/plans/2026-08-12-p1-nhung-edgeless.md` | Kế hoạch P1-A — đã thi hành và gộp xong |
+| `docs/superpowers/specs/2026-08-11-blockkit-edgeless-design.md` | Spec cũ — chỉ §5, §8, §9 còn giá trị |
+| `docs/superpowers/notes/2026-08-13-p1a-so-tien-do.md` | Bản chép sổ tiến độ chi tiết từng task, đông cứng lúc P1-A kết thúc |
+| `src/vendor/blocksuite/README.md` | Luật D11 |
+
+Sổ tiến độ *sống* nằm ở `.superpowers/sdd/progress.md` trong worktree cũ (nếu còn trên đĩa) — bị
+`.gitignore`, không đi theo repo. Từ giờ, **file này (`HANDOFF.md`) là nguồn tin cậy duy nhất qua
+được sang máy/tài khoản khác**. Cập nhật nó mỗi khi kết thúc một phiên có thay đổi đáng kể, thay
+vì chỉ ghi vào sổ tạm.
