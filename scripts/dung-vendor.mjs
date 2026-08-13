@@ -27,7 +27,7 @@ function chay(lenh, doiSo, nhan) {
 }
 
 // Bước 0 — xoá sạch .vendor-build/ trước khi biên dịch. Cổng kiểm ở Bước 2 chỉ nhìn SỰ TỒN TẠI
-// của ba file index.js — nó không phân biệt được "vừa biên dịch xong ở lượt này" với "còn sót
+// của vài file đại diện — nó không phân biệt được "vừa biên dịch xong ở lượt này" với "còn sót
 // từ lượt chạy trước". Nếu không xoá, một lượt biên dịch chết yểu (tsc bị crash, hết bộ nhớ,
 // tsconfig.vendor.json hỏng, `npx` không phân giải được...) mà thư mục build cũ vẫn còn nguyên
 // sẽ khiến cổng kiểm thấy "đủ file" và báo xanh giả — bước đổi tên sau đó chạy trên bản build CŨ
@@ -37,7 +37,19 @@ function chay(lenh, doiSo, nhan) {
 // Đánh đổi: xoá sạch nghĩa là MỌI lượt chạy đều biên dịch lại từ đầu (vài phút), không còn build
 // gia tăng dùng cache của tsc giữa các lần chạy liên tiếp. Chấp nhận đánh đổi này vì cổng kiểm
 // đúng quan trọng hơn tốc độ ở một script chạy tay, không chạy trong vòng lặp dev.
-rmSync(path.join(GOC, '.vendor-build'), { recursive: true, force: true })
+//
+// `maxRetries`/`retryDelay`: đây là Windows, và một dev server LUÔN chạy sẵn (xem AGENTS.md) với
+// alias trỏ thẳng vào `.vendor-build/`. Trên Windows một file đang được tiến trình khác mở không
+// xoá được (EBUSY/EPERM) — mà `rmSync` xoá theo chiều sâu, nên một lần EBUSY giữa chừng ném lỗi
+// và để lại CÂY XOÁ DỞ. Đúng thứ hỏng-im-lặng mà bước xoá này sinh ra để chặn: cổng ở Bước 2 chỉ
+// nhìn sự tồn tại của vài file, nên một cây còn sót một nửa vẫn có thể qua cửa. Node sẽ thử lại
+// tối đa 3 lần, giãn 200 ms — đủ để dev server nhả handle sau một lượt HMR.
+rmSync(path.join(GOC, '.vendor-build'), {
+  recursive: true,
+  force: true,
+  maxRetries: 3,
+  retryDelay: 200,
+})
 
 // Bước 1 — biên dịch. KHÔNG kiểm exit code ở đây: `tsc` báo lỗi kiểu từ mã nguồn bên thứ ba
 // mà dự án này cố tình không kiểm kiểu, nên exit code luôn khác 0 dù bản build vẫn được sinh ra
@@ -45,13 +57,20 @@ rmSync(path.join(GOC, '.vendor-build'), { recursive: true, force: true })
 chay('npx', ['tsc', '-p', 'tsconfig.vendor.json'], 'dich:vendor')
 
 // Bước 2 — cổng kiểm: bản biên dịch có thật sự sinh ra file không? Dùng LẠI
-// scripts/kiem-vendor-build.mjs (cổng vốn đã kiểm sự tồn tại của ba file index.js đại diện cho
-// ba gói framework/{global,store,sync}) thay vì tự bịa một cách kiểm khác — tránh hai định nghĩa
-// "biên dịch thành công" lệch nhau trong cùng một repo. Nhờ Bước 0 xoá sạch trước, "tồn tại" ở
+// scripts/kiem-vendor-build.mjs (cổng vốn đã kiểm sự tồn tại của các file đại diện cho cả hai nửa
+// cây: framework/{global,store,sync} và affine/*) thay vì tự bịa một cách kiểm khác — tránh hai
+// định nghĩa "biên dịch thành công" lệch nhau trong cùng một repo. Nhờ Bước 0 xoá sạch trước, "tồn tại" ở
 // đây chắc chắn nghĩa là "được sinh ra bởi lượt chạy này", không còn là bản sót từ trước. Nếu
 // cổng này đỏ (tsc bị crash, hết bộ nhớ, bị kill giữa chừng...) thì dừng pipeline ngay, không
 // chạy đổi tên lên một cây rỗng.
-const ketQuaKiem = chay('node', ['scripts/kiem-vendor-build.mjs'], 'kiem:vendor-build')
+// Cờ `--chi-bien-dich`: ở ĐÂY cây build mới chỉ qua bước biên dịch, chưa có package.json rút gọn
+// (Bước 3) lẫn theme/style.css đã đổi tên (Bước 4) — nên chỉ được đòi phần sản phẩm của `tsc`.
+// Phép kiểm ĐẦY ĐỦ chạy lại ở Bước 6, sau khi cả chuỗi đã xong.
+const ketQuaKiem = chay(
+  'node',
+  ['scripts/kiem-vendor-build.mjs', '--chi-bien-dich'],
+  'kiem:vendor-build (chỉ bước biên dịch)',
+)
 if (ketQuaKiem.status !== 0) {
   console.error(
     '\ndung:vendor: DỪNG — bước biên dịch không sinh ra file nào (xem thông báo cổng kiểm ở ' +
@@ -96,6 +115,30 @@ if (ketQuaPaths.status !== 0) {
     `\ndung:vendor: DỪNG — không sinh được tsconfig.vendor-paths.json (exit code ${ketQuaPaths.status}).`,
   )
   process.exit(ketQuaPaths.status ?? 1)
+}
+
+// Bước 6 — sinh bảng băm của cây vendored (`bang-bam-vendor.json`, có commit). Đây là thứ cho phép
+// cổng D11 chạy được trên máy KHÔNG có checkout AFFiNE/blocksuite — tức là trên CI và trên máy của
+// mọi người khác. Chạy ở cuối chuỗi vì nó đọc `src/vendor/blocksuite/`, không đọc `.vendor-build/`:
+// nó độc lập với mọi bước trên, chỉ cần chạy CÙNG NHỊP với chúng để bảng băm luôn phản ánh đúng cây
+// vendored tại thời điểm dựng.
+const ketQuaBam = chay('node', ['scripts/tao-bam-vendor.mjs'], 'tao-bam-vendor')
+if (ketQuaBam.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — không sinh được bang-bam-vendor.json (exit code ${ketQuaBam.status}).`,
+  )
+  process.exit(ketQuaBam.status ?? 1)
+}
+
+// Bước 7 — chạy LẠI cổng kiểm, lần này ĐẦY ĐỦ (không cờ): đúng phép kiểm mà predev/prebuild/pretest
+// sẽ chạy. Chạy ở đây để một chuỗi hỏng bị bắt ngay tại chỗ, thay vì để người dùng phát hiện ở lệnh
+// tiếp theo với một thông báo không liên quan tới việc vừa làm.
+const ketQuaKiemDay = chay('node', ['scripts/kiem-vendor-build.mjs'], 'kiem:vendor-build (đầy đủ)')
+if (ketQuaKiemDay.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — cây build vừa dựng không qua được cổng kiểm đầy đủ (exit code ${ketQuaKiemDay.status}).`,
+  )
+  process.exit(ketQuaKiemDay.status ?? 1)
 }
 
 console.log('\ndung:vendor: xong — đã biên dịch, đổi tên và sinh bản đồ paths theo đúng thứ tự.')

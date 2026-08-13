@@ -31,6 +31,14 @@ describe('D16 — đổi tên affine-*', () => {
     // `scripts/doi-ten-vendor.mjs` xử lý riêng ca này. Phải bỏ luôn phần đó ở đây, nếu không ca
     // này đỏ giả: text được BẢO TOÀN đúng (`@blocksuite/affine-block-surface` trong comment)
     // vẫn còn chữ `affine-` và bị ca này tưởng nhầm là sót.
+    //
+    // Bộ che thứ BA, cùng lý do: chú thích `//# sourceMappingURL=affine-link.js.map`. Đó là TÊN
+    // FILE trên đĩa, không phải tên thẻ DOM hay biến CSS — 7 file trong cây vendored vốn được đặt
+    // tên bắt đầu bằng `affine-`, và `tsc` đặt tên .js.map theo tên .js. `doi-ten-vendor.mjs` che
+    // chú thích này để nó tiếp tục trỏ đúng file có thật (đổi nó đi thì Vite ném ENOENT
+    // `drt-*.js.map` mỗi lượt nạp). Không che ở đây thì ca kiểm đỏ trên đúng một phép bảo toàn có
+    // chủ đích. An toàn: bản build production tắt sourcemap và minifier bỏ chú thích, nên chuỗi
+    // này KHÔNG bao giờ tới `dist/` — điều đó do `npm run kiem:dist` canh riêng.
     const boSpecifier = (js: string) =>
       js
         .replace(
@@ -38,6 +46,7 @@ describe('D16 — đổi tên affine-*', () => {
           '$1$2$2'
         )
         .replace(/@blocksuite\/affine-[\w/-]*/g, '@blocksuite/__PKG__')
+        .replace(/sourceMappingURL=\S+/g, 'sourceMappingURL=__MAP__')
 
     const soPham: string[] = []
     for await (const f of diet(BUILD, '.js')) {

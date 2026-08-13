@@ -9,6 +9,20 @@ interface State {
   error: Error | null
 }
 
+// Đường dẫn để tải lại sau khi gặp lỗi: GIỮ NGUYÊN mọi thứ, TRỪ tham số `screen`.
+//
+// Vì sao: public/manifest.json có các lối tắt kiểu `"/?screen=mindmap"` cài ra màn hình chính, và
+// App đọc tham số đó lúc mount để vào thẳng tab tương ứng. Nếu chính màn hình ĐÓ là thứ ném lỗi,
+// nút "Tải lại trang" cũ (`location.reload()`) giữ nguyên tham số và dựng lại đúng màn hình vừa
+// chết — vòng lặp kín. Trong một PWA đã cài (standalone) không có thanh địa chỉ để sửa URL, nên
+// người dùng mất luôn cả app chứ không chỉ một tab.
+// Bỏ `screen` đi thì lần tải lại nào cũng rơi về Trang chủ — một lối thoát luôn tồn tại.
+export function duongDanPhucHoi(href: string): string {
+  const url = new URL(href)
+  url.searchParams.delete('screen')
+  return url.toString()
+}
+
 export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { error: null }
 
@@ -36,7 +50,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           type="button"
           onClick={() => {
             this.setState({ error: null })
-            window.location.reload()
+            // `replace`, không phải `assign`: không để lại URL mang `?screen=` trong lịch sử để
+            // nút Back của trình duyệt đưa người dùng quay lại đúng màn hình vừa chết.
+            window.location.replace(duongDanPhucHoi(window.location.href))
           }}
           className="h-11 px-5 rounded-2xl font-bold text-[13.5px]"
           style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}

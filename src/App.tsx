@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, Suspense, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
+import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, SourceInfo } from "./data/types"
 import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
@@ -8,9 +8,9 @@ import { useIdbCollection } from "./lib/useIdbCollection"
 import { IDB_STORES } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
 import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
-// Import từ vỏ nạp chậm (./board/index.ts), KHÔNG import thẳng EdgelessBoard.tsx — import thẳng
+// Import từ vỏ nạp chậm (./board/index.tsx), KHÔNG import thẳng EdgelessBoard.tsx — import thẳng
 // kéo cả khối AFFiNE vào chung bundle vỏ app, phá mất phần tách chunk mà vỏ nạp chậm tồn tại để
-// giữ (xem comment trong board/index.ts).
+// giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem comment trong board/index.tsx).
 import { EdgelessBoard } from "./board"
 import {
   CRCL_RELIABILITY_TEXT,
@@ -11141,19 +11141,13 @@ export default function App() {
               main" của các màn hình khác, vừa làm điểm neo định vị cho div `absolute inset-0` bên
               trong EdgelessBoard — thiếu điểm neo này thì nó sẽ neo lên tận #app-shell (tổ tiên
               `position` gần nhất phía trên) và tràn ra khỏi vùng nội dung, đè lên cả thanh nav.
-              Suspense là bắt buộc vì EdgelessBoard nạp chậm (React.lazy trong board/index.ts) — bỏ
-              qua thì React ném lỗi ngay khi chunk board chưa tải xong. */}
+              Suspense KHÔNG còn ở đây: nó đã vào trong `./board` cùng với error boundary riêng của
+              bảng vẽ (xem src/board/index.tsx). Hai thứ đó phải đi liền nhau — một Suspense đứng
+              ngoài boundary thì lượt tải chunk thất bại vẫn nổi lên tới boundary gốc và tháo sạch
+              cả app, đúng lỗi mà boundary kia sinh ra để chặn. */}
           {screen === "mindmap" && (
             <div className="relative h-full">
-              <Suspense
-                fallback={
-                  <div className="h-full flex items-center justify-center text-[13px] text-slate-400">
-                    Đang tải bảng vẽ…
-                  </div>
-                }
-              >
-                <EdgelessBoard />
-              </Suspense>
+              <EdgelessBoard />
             </div>
           )}
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}

@@ -2,6 +2,7 @@ import { defaultExclude, defineConfig, type Plugin } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import * as babel from '@babel/core'
+import fs from 'node:fs'
 import path from 'node:path'
 import { blocksuiteVendor } from './vite.vendor-plugin'
 // Ba file `*.css.ts` trong khối Note của cây vendored dùng vanilla-extract. `style({...})` là
@@ -130,6 +131,120 @@ function accessorSupport(): Plugin {
   }
 }
 
+// ─── D16, nửa còn lại: các `--affine-*` KHÔNG đi qua scripts/doi-ten-vendor.mjs ───────────────
+//
+// Script đó chỉ quét `.vendor-build/`. Nhưng bảng vẽ kéo theo hai nguồn `--affine-` nữa mà nó
+// không với tới, và cả hai đều lọt tới `dist/` (đo được trên bản dựng trước lượt sửa này):
+//
+//  1. Gói npm `@toeverything/theme` (nằm trong node_modules, KHÔNG vendored). Nó không chỉ khai
+//     biến — nó còn TRẢ VỀ tên biến lúc chạy: một bộ sinh tên `` `--affine-v2-${đường/dẫn}` `` và
+//     một bảng hằng chứa sẵn chuỗi như `calc(1 / var(--affine-zoom))`. Cây vendored gọi thẳng vào
+//     đó, nên các tên này đi vào chunk bảng vẽ nguyên vẹn tiền tố thượng nguồn.
+//  2. vanilla-extract. Ba file `*.css.ts` của khối Note biên dịch `cssVar(...)` của gói trên thành
+//     CSS THẬT lúc build — tức là sau khi bước đổi tên đã chạy xong từ lâu. Kết quả:
+//     `dist/assets/EdgelessBoard-*.css` phát ra `var(--affine-black-10)`, `var(--affine-white)`,
+//     `var(--affine-active-shadow)`... trong khi cả phần còn lại của bundle đã nói `--drt-`.
+//
+// Plugin này khép kín cả hai bằng ĐÚNG một luật, ở hai chỗ:
+//   - `transform`: có tác dụng ở chế độ dev (không có bước bundle nào chạy ở đó).
+//   - `generateBundle`: lượt quét cuối trên chính sản phẩm sắp ghi ra đĩa. Không phụ thuộc vào thứ
+//     tự plugin — vanilla-extract chạy trong một instance Vite RIÊNG chỉ cho `blocksuite-vendor`
+//     đi cùng (xem khai báo bên dưới), nên CSS nó sinh ra không chắc chắn đi qua `transform` của
+//     plugin này. Ở generateBundle thì mọi thứ đã là chunk/asset, không còn chỗ nào để lọt.
+//
+// Chỉ đổi `--affine-` (biến CSS), KHÔNG đổi `affine-` trần: tên GÓI npm cũng bắt đầu bằng
+// `affine-` (`@blocksuite/affine-block-note`) và một luật rộng hơn sẽ phải mang theo cả bộ máy che
+// specifier như trong scripts/doi-ten-vendor.mjs. Không cần: đo trên bản dựng thật, TOÀN BỘ chỗ
+// `affine-` còn sót trong `dist/` đều mang tiền tố `--`. Nếu một ngày có tên thẻ `affine-*` lọt từ
+// node_modules vào bundle, `npm run kiem:dist` (quét `affine-` trần) sẽ đỏ và bắt xử lý có ý thức,
+// thay vì để luật ở đây âm thầm nuốt mất.
+const TU_KHOA_AFFINE = '--affine-'
+function doiTenBienCssAffine(): Plugin {
+  const doi = (ma: string) => ma.split(TU_KHOA_AFFINE).join('--drt-')
+  // Mã của CHÍNH DỰ ÁN nằm ngoài phạm vi: `src/` không tiêu thụ biến `--affine-` nào, nhưng nó có
+  // NÓI VỀ chúng — `src/__tests__/vendor-doi-ten.spec.ts` mang biểu thức chính quy
+  // `/\baffine-|--affine-/` làm chính công cụ phát hiện của nó. Không loại trừ ở đây thì plugin
+  // viết lại nguồn của ca kiểm đó thành `--drt-` và biến nó thành một cổng bắt nhầm mọi file. Đã
+  // xảy ra thật ở lượt sửa này (1 failed | 25 passed) trước khi thêm bộ lọc.
+  // `src/vendor/blocksuite/` cũng nằm dưới `src/` nhưng Vite không bao giờ nạp thẳng từ đó — mọi
+  // specifier `@blocksuite/*` được `blocksuiteVendor()` trỏ sang `.vendor-build/`.
+  const thuMucDuAn = path.resolve(__dirname, 'src').replace(/\\/g, '/') + '/'
+  return {
+    name: 'doi-ten-bien-css-affine',
+    enforce: 'post',
+    transform(code, id) {
+      if (id.split('?')[0].replace(/\\/g, '/').startsWith(thuMucDuAn)) return null
+      if (!code.includes(TU_KHOA_AFFINE)) return null
+      // Trả code không kèm sourcemap: phép thay đổi độ dài chuỗi này chỉ chạm gói theme và CSS do
+      // vanilla-extract sinh, không phải mã nguồn của dự án — mất map ở đó không đáng để dựng cả
+      // bộ magic-string chỉ cho một phép thay chuỗi.
+      return doi(code)
+    },
+    generateBundle(_tuyChon, bundle) {
+      for (const muc of Object.values(bundle)) {
+        if (muc.type === 'chunk') {
+          if (muc.code.includes(TU_KHOA_AFFINE)) muc.code = doi(muc.code)
+        } else if (typeof muc.source === 'string' && muc.source.includes(TU_KHOA_AFFINE)) {
+          muc.source = doi(muc.source)
+        }
+      }
+    },
+  }
+}
+
+// ─── Giấy phép bên thứ ba trong bản phát hành ────────────────────────────────────────────────
+//
+// `src/vendor/blocksuite/LICENSE` được giữ nguyên trong repo (D11) — nhưng repo không phải thứ
+// được phát hành. Bản build production bị minify và bỏ hết chú thích, nên `dist/` trước lượt sửa
+// này KHÔNG mang một dòng bản quyền nào, trong khi nó chứa mã của SÁU tác phẩm giấy phép MIT
+// (BlockSuite, cộng năm thư viện được nhúng thẳng vào cây surface/global: perfect-freehand, rough,
+// points-on-path, points-on-curve, path-data-parser). MIT đòi giữ lại thông báo bản quyền TRONG
+// các bản phân phối — đó chính là lý do luật "không được sửa/xoá LICENSE" tồn tại.
+//
+// Đọc thẳng từ đĩa lúc build thay vì chép tay một file vào repo: thêm hay bớt một thư viện nhúng
+// trong cây vendored sẽ tự động phản ánh vào bản phát hành ở lượt build kế tiếp.
+function giayPhepBenThuBa(): Plugin {
+  const goc = path.resolve(__dirname, 'src/vendor/blocksuite')
+
+  const timGiayPhep = (dir: string, ra: string[] = []): string[] => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === 'node_modules') continue
+      const f = path.join(dir, e.name)
+      if (e.isDirectory()) timGiayPhep(f, ra)
+      else if (e.name === 'LICENSE') ra.push(f)
+    }
+    return ra
+  }
+
+  return {
+    name: 'giay-phep-ben-thu-ba',
+    apply: 'build',
+    generateBundle() {
+      const files = timGiayPhep(goc).sort()
+      if (files.length === 0) {
+        this.error(
+          'giay-phep-ben-thu-ba: không thấy file LICENSE nào trong src/vendor/blocksuite/. ' +
+            'Không phát hành một bản dựng thiếu thông báo bản quyền của mã bên thứ ba.',
+        )
+      }
+      const than = files
+        .map((f) => {
+          const ten = path.relative(goc, f).split(path.sep).join('/')
+          return `${'='.repeat(78)}\n${ten}\n${'='.repeat(78)}\n\n${fs.readFileSync(f, 'utf8').trimEnd()}\n`
+        })
+        .join('\n')
+      this.emitFile({
+        type: 'asset',
+        fileName: 'THIRD-PARTY-LICENSES.txt',
+        source:
+          'Ứng dụng này nhúng mã nguồn của các tác phẩm bên thứ ba dưới đây. Nguyên văn giấy\n' +
+          'phép của từng tác phẩm được giữ lại đầy đủ, theo đúng yêu cầu của giấy phép MIT.\n\n' +
+          `Third-party notices — ${files.length} works.\n\n${than}`,
+      })
+    },
+  }
+}
+
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const emitSourcemaps = mode === 'development'
@@ -149,6 +264,8 @@ export default defineConfig(({ mode }) => {
       accessorSupport(),
       react(),
       tailwindcss(),
+      doiTenBienCssAffine(),
+      giayPhepBenThuBa(),
     ],
     resolve: {
       alias: {

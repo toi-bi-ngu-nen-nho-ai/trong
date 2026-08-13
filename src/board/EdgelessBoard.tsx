@@ -18,6 +18,20 @@ import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affin
 import { render as litRender } from 'lit'
 import { useEffect, useRef } from 'react'
 
+// ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
+// `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
+// định nghĩa nằm trong gói npm `@toeverything/theme`, và trước lượt sửa này không có gì trong src/
+// import nó. Hậu quả: mọi custom property không phân giải được, bảng vẽ dựng ra không màu, không
+// viền, không bóng — mà không có một lỗi nào bị ném, nên không lượt kiểm nào bắt được.
+// File dưới đây là bản `style.css` của gói đó ĐÃ QUA bước đổi tên `--affine-` → `--drt-`
+// (scripts/doi-ten-vendor.mjs phát hành ra `.vendor-build/theme/`, cùng chỗ và cùng luật với phần
+// còn lại của D16), nên tên hai bên khớp nhau và devtools không lộ tiền tố thượng nguồn.
+//
+// Import ở ĐÂY, trong EdgelessBoard.tsx, chứ không ở src/index.css hay src/main.tsx: file này chỉ
+// được nạp qua `React.lazy` (xem ./index.tsx), nên 102 kB stylesheet đi vào CHUNK BẢNG VẼ. Đặt ở
+// vỏ app là bắt mọi người dùng tải bảng màu của một màn hình họ có thể không bao giờ mở.
+import '../../.vendor-build/theme/style.css'
+
 import { viewExtensions } from './extensions'
 
 const viewManager = new ViewExtensionManager(viewExtensions)
