@@ -1,7 +1,9 @@
 {
   "detector": {
     "ignoreRules": [],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      ".vendor-build/**"
+    ],
     "ignoreValues": [
       {
         "rule": "bounce-easing",
