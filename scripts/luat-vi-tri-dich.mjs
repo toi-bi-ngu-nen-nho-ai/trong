@@ -67,11 +67,19 @@ export function viTriHienThi(node) {
     const truoc = vanBanTruocNhip(p)
     if (truoc == null) return null
     // Rút TÊN thuộc tính đứng ngay trước nhịp rồi so khớp CHÍNH XÁC với danh sách cho phép.
+    //
     // KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
-    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố
-    // — đúng loại lỗ mà nguyên tắc fail-closed sinh ra để chặn. Cách này cũng miễn nhiễm với
-    // metachar nếu ai thêm một tên có `.` hay `[` vào danh sách.
-    const khop = truoc.match(/([A-Za-z][\w:-]*)\s*=\s*["']$/)
+    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố.
+    //
+    // Và biên trái phải là `(?:^|\s)`, KHÔNG chỉ là "bắt đầu bằng chữ cái". Lý do đã trả giá một
+    // lượt vá: nếu lớp ký tự mở đầu (`[A-Za-z]`) hẹp hơn lớp nối (`[\w:-]`), bộ quét chỉ việc bỏ
+    // qua tiền tố rồi khớp ngay tại chữ `d` — nên `_data-tip=`, `-data-tip=`, `.data-tip=`,
+    // `?data-tip=`, `@data-tip=` đều lọt. Ba cái sau là cú pháp binding CÓ THẬT của Lit
+    // (property / boolean / event), nên đây không phải lo xa.
+    //
+    // Chuỗi khớp còn giữ được tính miễn nhiễm metachar: một tên có `.` hay `[` trong danh sách sẽ
+    // không bao giờ khớp (chúng nằm ngoài `[\w:-]`), tức im lặng không dịch — vẫn fail-closed.
+    const khop = truoc.match(/(?:^|\s)([A-Za-z][\w:-]*)\s*=\s*["']$/)
     if (khop && THUOC_TINH_HTML_HIEN_THI.includes(khop[1])) {
       return `thuộc-tính-html:${khop[1]}`
     }

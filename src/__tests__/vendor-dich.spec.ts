@@ -86,6 +86,17 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
     const ra = dich('html`<x my-data-tip="${\'Style\'}"></x>`')
     expect(ra).toContain(`'Style'`)
   })
+
+  // Neo biên trái phải là "đầu chuỗi hoặc khoảng trắng", KHÔNG chỉ là "bắt đầu bằng chữ cái".
+  // Nếu lớp mở đầu hẹp hơn lớp nối, bộ quét bỏ qua tiền tố rồi khớp ngay tại chữ `d`. Ba dạng
+  // `.x=`, `?x=`, `@x=` là cú pháp binding CÓ THẬT của Lit — property, boolean, event.
+  it.each(['_data-tip', '-data-tip', '.data-tip', '?data-tip', '@data-tip'])(
+    'tiền tố không phải chữ cái cũng không được nhận: %s',
+    (ten) => {
+      const ra = dich('html`<x ' + ten + '="${\'Style\'}"></x>`')
+      expect(ra).toContain(`'Style'`)
+    },
+  )
 })
 
 describe('D12 — nhiều lượt thay trong cùng một file', () => {
