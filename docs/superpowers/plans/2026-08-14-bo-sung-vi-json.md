@@ -371,6 +371,17 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
     const ra = dich('html`<x my-data-tip="${\'Style\'}"></x>`')
     expect(ra).toContain(`'Style'`)
   })
+
+  // Neo biên trái phải là "đầu chuỗi hoặc khoảng trắng", KHÔNG chỉ là "bắt đầu bằng chữ cái".
+  // Nếu lớp mở đầu hẹp hơn lớp nối, bộ quét bỏ qua tiền tố rồi khớp ngay tại chữ `d`. Ba dạng
+  // `.x=`, `?x=`, `@x=` là cú pháp binding CÓ THẬT của Lit — property, boolean, event.
+  it.each(['_data-tip', '-data-tip', '.data-tip', '?data-tip', '@data-tip'])(
+    'tiền tố không phải chữ cái cũng không được nhận: %s',
+    (ten) => {
+      const ra = dich('html`<x ' + ten + '="${\'Style\'}"></x>`')
+      expect(ra).toContain(`'Style'`)
+    },
+  )
 })
 
 describe('D12 — nhiều lượt thay trong cùng một file', () => {
@@ -503,11 +514,19 @@ export function viTriHienThi(node) {
     const truoc = vanBanTruocNhip(p)
     if (truoc == null) return null
     // Rút TÊN thuộc tính đứng ngay trước nhịp rồi so khớp CHÍNH XÁC với danh sách cho phép.
+    //
     // KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
-    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố
-    // — đúng loại lỗ mà nguyên tắc fail-closed sinh ra để chặn. Cách này cũng miễn nhiễm với
-    // metachar nếu ai thêm một tên có `.` hay `[` vào danh sách.
-    const khop = truoc.match(/([A-Za-z][\w:-]*)\s*=\s*["']$/)
+    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố.
+    //
+    // Và biên trái phải là `(?:^|\s)`, KHÔNG chỉ là "bắt đầu bằng chữ cái". Lý do đã trả giá một
+    // lượt vá: nếu lớp ký tự mở đầu (`[A-Za-z]`) hẹp hơn lớp nối (`[\w:-]`), bộ quét chỉ việc bỏ
+    // qua tiền tố rồi khớp ngay tại chữ `d` — nên `_data-tip=`, `-data-tip=`, `.data-tip=`,
+    // `?data-tip=`, `@data-tip=` đều lọt. Ba cái sau là cú pháp binding CÓ THẬT của Lit
+    // (property / boolean / event), nên đây không phải lo xa.
+    //
+    // Chuỗi khớp còn giữ được tính miễn nhiễm metachar: một tên có `.` hay `[` trong danh sách sẽ
+    // không bao giờ khớp (chúng nằm ngoài `[\w:-]`), tức im lặng không dịch — vẫn fail-closed.
+    const khop = truoc.match(/(?:^|\s)([A-Za-z][\w:-]*)\s*=\s*["']$/)
     if (khop && THUOC_TINH_HTML_HIEN_THI.includes(khop[1])) {
       return `thuộc-tính-html:${khop[1]}`
     }
@@ -609,7 +628,7 @@ export declare function dichMotFile(
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 21 ca.
+Kỳ vọng: XANH, 26 ca.
 
 - [ ] **Bước 6: Xác nhận bằng chứng đỏ — bắt buộc, không được suy luận thay**
 
@@ -631,13 +650,13 @@ tiếp. Ghi kết quả ba phép này vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 61/61 ca xanh (12 file).
+Kỳ vọng: `tsc` exit 0 · 66/66 ca xanh (12 file).
 
 - [ ] **Bước 8: Commit**
 
 ```bash
 git add scripts/luat-vi-tri-dich.mjs scripts/luat-vi-tri-dich.d.mts src/__tests__/vendor-dich.spec.ts
-git commit -m "Luật vị trí D12: module thuần + 21 ca kiểm, chưa nối vào pipeline"
+git commit -m "Luật vị trí D12: module thuần + 26 ca kiểm, chưa nối vào pipeline"
 ```
 
 ---
@@ -788,7 +807,7 @@ Kỳ vọng: vẫn còn các file chứa `type: 'LinkedPage'` nguyên văn (khô
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh, 61/61 ca.
+Kỳ vọng: tất cả xanh, 66/66 ca.
 
 - [ ] **Bước 6: Commit**
 
@@ -881,7 +900,7 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 23 ca.
+Kỳ vọng: XANH, 28 ca.
 
 - [ ] **Bước 3: Xác nhận bằng chứng đỏ của cổng độc lập**
 
@@ -895,7 +914,7 @@ Phép này chứng minh cổng khoá chết ở Task 3 thật sự canh. Ghi k�
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 63/63 ca xanh.
+Kỳ vọng: `tsc` exit 0 · 68/68 ca xanh.
 
 - [ ] **Bước 5: Commit**
 
@@ -996,7 +1015,7 @@ Ghi kết quả vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh · 63/63 ca · `kiem-dist` xanh với `5/5 có mặt`.
+Kỳ vọng: tất cả xanh · 68/68 ca · `kiem-dist` xanh với `5/5 có mặt`.
 
 - [ ] **Bước 5: Cập nhật `HANDOFF.md`**
 
@@ -1035,7 +1054,7 @@ npm run dung:vendor && npx tsc --noEmit && npm test && npm run kiem:vendor && np
 |---|---|
 | `dung:vendor` | `5 khoá đều còn sống`, 8 lượt dịch |
 | `tsc --noEmit` | exit 0 |
-| `npm test` | 63/63 ca xanh (12 file) |
+| `npm test` | 68/68 ca xanh (12 file) |
 | `kiem:vendor` | 2782 file, lệch 0 |
 | `kiem:vendor-paths` | 438 mục khớp |
 | `build` + `kiem:dist` | xanh, `bản dịch vi.json — 5/5 có mặt` |
