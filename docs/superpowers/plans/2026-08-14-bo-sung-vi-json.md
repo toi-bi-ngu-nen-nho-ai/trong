@@ -48,6 +48,8 @@ tiếp), Vitest 4.
 
 | File | Trách nhiệm |
 |---|---|
+| `scripts/duyet-cay-js.mjs` | **Mới.** Duyệt đệ quy một cây thư mục, trả mọi file `.js` |
+| `scripts/duyet-cay-js.d.mts` | **Mới.** Khai kiểu cho module trên |
 | `scripts/luat-vi-tri-dich.mjs` | **Mới.** Thuần, không I/O: luật vị trí + `dichMotFile()` |
 | `scripts/luat-vi-tri-dich.d.mts` | **Mới.** Khai kiểu cho module trên, để test `.ts` import được |
 | `scripts/dich-chuoi-vendor.mjs` | **Mới.** Vỏ CLI: duyệt cây, ghi file, phát báo cáo, ba cổng DỪNG |
@@ -65,8 +67,9 @@ Chỉ di chuyển mã. Thuật toán vẫn là regex cũ. Mục đích: diff c�
 toán, không lẫn với phần di chuyển.
 
 **Files:**
+- Create: `scripts/duyet-cay-js.mjs`, `scripts/duyet-cay-js.d.mts`
 - Create: `scripts/dich-chuoi-vendor.mjs`
-- Modify: `scripts/doi-ten-vendor.mjs` (gỡ dòng 14, 107–112, và mục 2 của comment đầu file)
+- Modify: `scripts/doi-ten-vendor.mjs` (gỡ dòng 14, 107–112, mục 2 của comment đầu file, và thay `dietJs` cục bộ bằng import)
 - Modify: `scripts/dung-vendor.mjs` (chèn bước mới sau khối "Bước 4 — đổi tên", dòng 102–108)
 - Modify: `package.json` (thêm script)
 
@@ -74,6 +77,51 @@ toán, không lẫn với phần di chuyển.
 - Consumes: không có (task đầu).
 - Produces: `scripts/dich-chuoi-vendor.mjs` chạy độc lập được bằng
   `node scripts/dich-chuoi-vendor.mjs`, đọc `src/board/vi.json`, sửa `.vendor-build/**/*.js` tại chỗ.
+
+- [ ] **Bước 0: Tạo module duyệt cây dùng chung**
+
+Hai bước hậu xử lý `.vendor-build/` (đổi tên D16 và dịch chuỗi D12) duyệt đúng một cây theo đúng
+một cách. Để chúng mỗi bên một bản sao y hệt là mời gọi lệch nhau lúc một bên cần đổi.
+
+`scripts/duyet-cay-js.mjs`:
+
+```js
+// Duyệt đệ quy một cây thư mục, trả về mọi file .js.
+//
+// Xuất ra dùng chung vì hai bước hậu xử lý .vendor-build/ — đổi tên (D16) và dịch chuỗi (D12) —
+// duyệt đúng một cây theo đúng một cách. Để mỗi bên giữ một bản sao y hệt là mời gọi chúng lệch
+// nhau đúng vào lúc một bên cần đổi cách duyệt (bỏ qua một thư mục, đổi phần mở rộng), rồi bên
+// kia lặng lẽ ở lại cách cũ.
+//
+// Tiền lệ trong repo: scripts/tao-bam-vendor.mjs cũng xuất dietFileVendor để dùng chung. Các hàm
+// duyệt khác (kiem-vendor.mjs, kiem-dist.mjs) KHÔNG gộp vào đây vì chúng khác chữ ký và khác bộ
+// lọc thật — gộp chúng lại sẽ đẻ ra tham số cấu hình cho một việc vốn đơn giản.
+import { readdir } from 'node:fs/promises'
+import path from 'node:path'
+
+export async function* dietJs(dir) {
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const f = path.join(dir, e.name)
+    if (e.isDirectory()) yield* dietJs(f)
+    else if (e.name.endsWith('.js')) yield f
+  }
+}
+```
+
+`scripts/duyet-cay-js.d.mts`:
+
+```ts
+// Khai kiểu cho scripts/duyet-cay-js.mjs, để ca kiểm .ts import được mà `tsc --noEmit` vẫn xanh.
+// Đặt cạnh file .mjs nên TypeScript tự tìm thấy, không cần thêm gì vào tsconfig.
+export declare function dietJs(dir: string): AsyncGenerator<string>
+```
+
+Rồi sửa `scripts/doi-ten-vendor.mjs`: xoá hàm `dietJs` cục bộ (dòng 16–22) và `readdir` khỏi câu
+import `node:fs/promises` (dòng 9), thay bằng:
+
+```js
+import { dietJs } from './duyet-cay-js.mjs'
+```
 
 - [ ] **Bước 1: Tạo `scripts/dich-chuoi-vendor.mjs`**
 
@@ -86,20 +134,13 @@ toán, không lẫn với phần di chuyển.
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
+
+import { dietJs } from './duyet-cay-js.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
 const banDoDich = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
 
 // Thoát ký tự đặc biệt của regex trong chuỗi cần dịch.
 const thoat = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -217,7 +258,7 @@ khớp · build xong, `kiem-dist` xanh.
 - [ ] **Bước 8: Commit**
 
 ```bash
-git add scripts/dich-chuoi-vendor.mjs scripts/doi-ten-vendor.mjs scripts/dung-vendor.mjs package.json
+git add scripts/duyet-cay-js.mjs scripts/duyet-cay-js.d.mts scripts/dich-chuoi-vendor.mjs scripts/doi-ten-vendor.mjs scripts/dung-vendor.mjs package.json
 git commit -m "Tách bước dịch chuỗi D12 sang script riêng, chưa đổi thuật toán"
 ```
 
@@ -585,9 +626,9 @@ git commit -m "Luật vị trí D12: module thuần + 18 ca kiểm, chưa nối 
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
+import { dietJs } from './duyet-cay-js.mjs'
 import { dichMotFile } from './luat-vi-tri-dich.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -607,14 +648,6 @@ if (trung.length) {
   )
   trung.forEach(([en]) => console.error(`   "${en}"`))
   process.exit(1)
-}
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
 }
 
 const theoKhoa = Object.fromEntries(Object.keys(banDo).map((k) => [k, []]))
@@ -742,10 +775,10 @@ Thêm vào phần import ở đầu file:
 
 ```ts
 import { readFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import ts from 'typescript'
 
+import { dietJs } from '../../scripts/duyet-cay-js.mjs'
 import { dichMotFile, viTriHienThi } from '../../scripts/luat-vi-tri-dich.mjs'
 ```
 
@@ -755,14 +788,6 @@ Thêm vào cuối file:
 
 ```ts
 const BUILD = '.vendor-build'
-
-async function* dietJs(dir: string): AsyncGenerator<string> {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
 
 describe('D12 — cổng độc lập trên đầu ra thật', () => {
   // Cổng này TÍNH LẠI TỪ ĐẦU trên .vendor-build/ và cố tình KHÔNG đọc bao-cao-dich.json: nếu bộ
