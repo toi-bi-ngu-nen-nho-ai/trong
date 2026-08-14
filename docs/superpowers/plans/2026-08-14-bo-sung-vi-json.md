@@ -409,6 +409,19 @@ describe('D12 — nhiều lượt thay trong cùng một file', () => {
   })
 })
 
+describe('D12 — chỉ chuỗi CÓ TRONG bản đồ mới được đụng', () => {
+  // Phép tra `banDo[n.text]` đi qua chuỗi prototype: `banDo['constructor']` khác `undefined` dù
+  // `vi.json` không có khoá đó. Bản "dịch" khi ấy là một HÀM, `JSON.stringify` cho `undefined`,
+  // nên mã vendored bị chèn token `undefined` TRẦN — JS vẫn hợp lệ nên không cổng nào bắt được.
+  // Khẳng định bằng `toBe` trên toàn bộ chuỗi: `toContain` sẽ vẫn xanh với output hỏng.
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
+    'tên thuộc Object.prototype không phải là khoá dịch: %s',
+    (ten) => {
+      expect(dich(`const a = { label: '${ten}' }`)).toBe(`const a = { label: '${ten}' }`)
+    },
+  )
+})
+
 describe('D12 — ca xương sống: cùng chuỗi, hai vị trí, cùng file', () => {
   // Tái hiện chính xác thứ suýt làm hỏng dữ liệu. Đây là ca quan trọng nhất của bộ này.
   it('name: được dịch, type: còn nguyên văn', () => {
@@ -560,8 +573,19 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
       n.kind === ts.SyntaxKind.StringLiteral ||
       n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
     ) {
-      const vi = banDo[n.text]
-      if (vi !== undefined) {
+      // `Object.hasOwn`, KHÔNG phải `banDo[n.text] !== undefined`. `banDo` là object thường (kể cả
+      // khi đến từ `JSON.parse`), nên phép tra khoá đi qua chuỗi prototype: `banDo['constructor']`,
+      // `['toString']`, `['valueOf']`, `['hasOwnProperty']`, `['__proto__']`… đều khác `undefined`
+      // dù `vi.json` không hề có khoá nào như vậy.
+      //
+      // Hậu quả đo được: `label: 'constructor'` bị thay thành `label: undefined`, vì bản "dịch" là
+      // một HÀM và `JSON.stringify` của hàm trả về `undefined` — tức token `undefined` TRẦN được
+      // chèn vào mã vendored. JS vẫn hợp lệ nên `parseDiagnostics` không bắt; cổng khoá chết không
+      // bắt (khoá đâu có trong `vi.json`); `kiem:dist` không bắt. Bản ghi kiểm toán cũng mất trường
+      // `chuoiDich`, nên chính báo cáo dùng để soát cũng câm. Đúng loại hỏng-im-lặng mà cả cơ chế
+      // này sinh ra để chặn.
+      if (Object.hasOwn(banDo, n.text)) {
+        const vi = banDo[n.text]
         const viTri = viTriHienThi(n)
         if (viTri) {
           const dau = n.getStart(sf)
@@ -628,7 +652,7 @@ export declare function dichMotFile(
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 26 ca.
+Kỳ vọng: XANH, 31 ca.
 
 - [ ] **Bước 6: Xác nhận bằng chứng đỏ — bắt buộc, không được suy luận thay**
 
@@ -650,13 +674,13 @@ tiếp. Ghi kết quả ba phép này vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 66/66 ca xanh (12 file).
+Kỳ vọng: `tsc` exit 0 · 71/71 ca xanh (12 file).
 
 - [ ] **Bước 8: Commit**
 
 ```bash
 git add scripts/luat-vi-tri-dich.mjs scripts/luat-vi-tri-dich.d.mts src/__tests__/vendor-dich.spec.ts
-git commit -m "Luật vị trí D12: module thuần + 26 ca kiểm, chưa nối vào pipeline"
+git commit -m "Luật vị trí D12: module thuần + 31 ca kiểm, chưa nối vào pipeline"
 ```
 
 ---
@@ -807,7 +831,7 @@ Kỳ vọng: vẫn còn các file chứa `type: 'LinkedPage'` nguyên văn (khô
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh, 66/66 ca.
+Kỳ vọng: tất cả xanh, 71/71 ca.
 
 - [ ] **Bước 6: Commit**
 
@@ -900,7 +924,7 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 28 ca.
+Kỳ vọng: XANH, 33 ca.
 
 - [ ] **Bước 3: Xác nhận bằng chứng đỏ của cổng độc lập**
 
@@ -914,7 +938,7 @@ Phép này chứng minh cổng khoá chết ở Task 3 thật sự canh. Ghi k�
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 68/68 ca xanh.
+Kỳ vọng: `tsc` exit 0 · 73/73 ca xanh.
 
 - [ ] **Bước 5: Commit**
 
@@ -1015,7 +1039,7 @@ Ghi kết quả vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh · 68/68 ca · `kiem-dist` xanh với `5/5 có mặt`.
+Kỳ vọng: tất cả xanh · 73/73 ca · `kiem-dist` xanh với `5/5 có mặt`.
 
 - [ ] **Bước 5: Cập nhật `HANDOFF.md`**
 
@@ -1054,7 +1078,7 @@ npm run dung:vendor && npx tsc --noEmit && npm test && npm run kiem:vendor && np
 |---|---|
 | `dung:vendor` | `5 khoá đều còn sống`, 8 lượt dịch |
 | `tsc --noEmit` | exit 0 |
-| `npm test` | 68/68 ca xanh (12 file) |
+| `npm test` | 73/73 ca xanh (12 file) |
 | `kiem:vendor` | 2782 file, lệch 0 |
 | `kiem:vendor-paths` | 438 mục khớp |
 | `build` + `kiem:dist` | xanh, `bản dịch vi.json — 5/5 có mặt` |
