@@ -363,6 +363,39 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
     const ra = dich('html`<x class="${\'Style\'}"></x>`')
     expect(ra).toContain(`'Style'`)
   })
+
+  // Danh sách thuộc tính HTML có ĐÚNG một tên. Một phép so khớp không neo biên trái sẽ nhận cả
+  // họ tên kết thúc bằng `data-tip`, tức luật rộng hơn danh sách — đúng loại lỗ mà fail-closed
+  // sinh ra để chặn. Ca này canh biên trái đó.
+  it('thuộc tính có tên KẾT THÚC bằng data-tip không được nhận', () => {
+    const ra = dich('html`<x my-data-tip="${\'Style\'}"></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+})
+
+describe('D12 — nhiều lượt thay trong cùng một file', () => {
+  // Phép thay chạy TỪ CUỐI VỀ ĐẦU để các vị trí chưa xử lý không bị lệch. Không có ca nào nhiều
+  // hơn một lượt thì bất biến đó KHÔNG được canh: đảo `sort` thành tăng dần vẫn xanh hết, trong
+  // khi output thật hỏng — bản dịch dài hơn bản gốc ("Style" 5 ký tự → "Phong cách" 10) nên mọi
+  // vị trí phía sau lệch và phép cắt chuỗi ăn vào mã nguồn. Khẳng định bằng `toBe` trên TOÀN BỘ
+  // chuỗi, không phải `toContain`.
+  it('ba lượt thay trong một dòng không làm lệch vị trí nhau', () => {
+    expect(dich(`const a = { label: 'Style', name: 'LinkedPage', tooltip: 'None' }`)).toBe(
+      `const a = { label: "Phong cách", name: "Trang liên kết", tooltip: "Không" }`,
+    )
+  })
+
+  it('lượt thay ở dòng sau vẫn ghi đúng số dòng', () => {
+    const { cacLuot } = dichMotFile(
+      `const a = { label: 'Style' }\nconst b = { name: 'None' }`,
+      BAN_DO,
+      'thu.js',
+    )
+    expect(cacLuot.map((l) => [l.chuoiGoc, l.dong])).toEqual([
+      ['Style', 1],
+      ['None', 2],
+    ])
+  })
 })
 
 describe('D12 — ca xương sống: cùng chuỗi, hai vị trí, cùng file', () => {
@@ -469,8 +502,14 @@ export function viTriHienThi(node) {
   if (p.kind === ts.SyntaxKind.TemplateSpan && p.expression === node) {
     const truoc = vanBanTruocNhip(p)
     if (truoc == null) return null
-    for (const a of THUOC_TINH_HTML_HIEN_THI) {
-      if (new RegExp(`${a}\\s*=\\s*["']$`).test(truoc)) return `thuộc-tính-html:${a}`
+    // Rút TÊN thuộc tính đứng ngay trước nhịp rồi so khớp CHÍNH XÁC với danh sách cho phép.
+    // KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
+    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố
+    // — đúng loại lỗ mà nguyên tắc fail-closed sinh ra để chặn. Cách này cũng miễn nhiễm với
+    // metachar nếu ai thêm một tên có `.` hay `[` vào danh sách.
+    const khop = truoc.match(/([A-Za-z][\w:-]*)\s*=\s*["']$/)
+    if (khop && THUOC_TINH_HTML_HIEN_THI.includes(khop[1])) {
+      return `thuộc-tính-html:${khop[1]}`
     }
   }
 
@@ -570,7 +609,7 @@ export declare function dichMotFile(
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 18 ca.
+Kỳ vọng: XANH, 21 ca.
 
 - [ ] **Bước 6: Xác nhận bằng chứng đỏ — bắt buộc, không được suy luận thay**
 
@@ -592,13 +631,13 @@ tiếp. Ghi kết quả ba phép này vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 58/58 ca xanh (12 file).
+Kỳ vọng: `tsc` exit 0 · 61/61 ca xanh (12 file).
 
 - [ ] **Bước 8: Commit**
 
 ```bash
 git add scripts/luat-vi-tri-dich.mjs scripts/luat-vi-tri-dich.d.mts src/__tests__/vendor-dich.spec.ts
-git commit -m "Luật vị trí D12: module thuần + 18 ca kiểm, chưa nối vào pipeline"
+git commit -m "Luật vị trí D12: module thuần + 21 ca kiểm, chưa nối vào pipeline"
 ```
 
 ---
@@ -749,7 +788,7 @@ Kỳ vọng: vẫn còn các file chứa `type: 'LinkedPage'` nguyên văn (khô
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh, 58/58 ca.
+Kỳ vọng: tất cả xanh, 61/61 ca.
 
 - [ ] **Bước 6: Commit**
 
@@ -842,7 +881,7 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 20 ca.
+Kỳ vọng: XANH, 23 ca.
 
 - [ ] **Bước 3: Xác nhận bằng chứng đỏ của cổng độc lập**
 
@@ -856,7 +895,7 @@ Phép này chứng minh cổng khoá chết ở Task 3 thật sự canh. Ghi k�
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 60/60 ca xanh.
+Kỳ vọng: `tsc` exit 0 · 63/63 ca xanh.
 
 - [ ] **Bước 5: Commit**
 
@@ -957,7 +996,7 @@ Ghi kết quả vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh · 60/60 ca · `kiem-dist` xanh với `5/5 có mặt`.
+Kỳ vọng: tất cả xanh · 63/63 ca · `kiem-dist` xanh với `5/5 có mặt`.
 
 - [ ] **Bước 5: Cập nhật `HANDOFF.md`**
 
@@ -996,7 +1035,7 @@ npm run dung:vendor && npx tsc --noEmit && npm test && npm run kiem:vendor && np
 |---|---|
 | `dung:vendor` | `5 khoá đều còn sống`, 8 lượt dịch |
 | `tsc --noEmit` | exit 0 |
-| `npm test` | 60/60 ca xanh (12 file) |
+| `npm test` | 63/63 ca xanh (12 file) |
 | `kiem:vendor` | 2782 file, lệch 0 |
 | `kiem:vendor-paths` | 438 mục khớp |
 | `build` + `kiem:dist` | xanh, `bản dịch vi.json — 5/5 có mặt` |
