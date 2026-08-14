@@ -4,11 +4,11 @@
 // với ba cách pha trong lib/mixing.ts:
 //   a. Ống dung dịch pha loãng qua bơm tiêm điện: "Noradrenalin 4 mg/4 ml 2 ống với NaCl 0.9% đủ
 //      50 ml BTĐ 5 ml/h"
-//   b. Lọ bột pha rồi truyền nhỏ giọt: "Cefoperazol 2 g 01 lọ pha với NaCl 0,9% (TTM) XX giọt/phút"
+//   b. Lọ bột pha rồi truyền nhỏ giọt: "Cefoperazol 2 g 1 lọ pha với NaCl 0,9% (TTM) XX giọt/phút"
 //      — hoặc ống dung dịch pha loãng đủ một thể tích rồi RÚT MỘT PHẦN ra truyền nhỏ giọt (liều
 //      CrCl tính ra không cần trọn lượng đã pha): "Amikacin 1 g/4 ml pha với NaCl 0.9% đủ 100 ml
 //      lấy 50 ml (TTM) XX giọt/phút"
-//   c. Chai cố định hàm lượng: "Levofloxacin 750 mg/150 ml 01 chai" (dùng trọn) hoặc "... lấy 500 mg
+//   c. Chai cố định hàm lượng: "Levofloxacin 750 mg/150 ml 1 chai" (dùng trọn) hoặc "... lấy 500 mg
 //      (TTM) XX giọt/phút" (rút một phần)
 //
 // Các hàm ở đây CHỈ định dạng câu chữ từ số đã tính sẵn (lib/mixing.ts) — không tự tính toán gì
@@ -37,8 +37,8 @@ export function formatVialUsage(params: {
   name: string
   vialAmount: number
   vialUnit: string
-  // Luôn hiện "{n} {vialLabel}" ngay sau phần hàm lượng khi có truyền vào — kể cả khi n = 1 ("01
-  // lọ"), giống cách mẫu 3c luôn nói "01 chai". Điều dưỡng đọc nhãn bơm cần thấy rõ số lượng đã
+  // Luôn hiện "{n} {vialLabel}" ngay sau phần hàm lượng khi có truyền vào — kể cả khi n = 1 ("1
+  // lọ"), giống cách mẫu 3c luôn nói "1 chai". Điều dưỡng đọc nhãn bơm cần thấy rõ số lượng đã
   // dùng, không suy luận ngầm rằng thiếu số nghĩa là 1. Không truyền vialsUsed thì không nói gì
   // (mẫu chưa biết số lượng, khác với biết chắc là 1).
   vialsUsed?: number
@@ -104,7 +104,7 @@ export function formatFixedUsage(params: {
   // quả là câu "Cách dùng" thiếu hẳn đường dùng và tốc độ truyền đúng lúc cần nhất. Gộp chung một
   // điểm `base` rồi cùng đi qua phần tốc độ ở cuối, giống hệt nhánh "lấy một phần".
   const base = doseAmount == null
-    ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : "1 chai"}${route ? ` (${route})` : ""}`
+    ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : " 1 chai"}${route ? ` (${route})` : ""}`
     : `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : ""} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
   if (route !== "TTM") return base
   if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
