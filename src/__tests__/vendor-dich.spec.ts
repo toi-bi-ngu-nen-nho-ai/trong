@@ -149,6 +149,32 @@ describe('D12 — ca xương sống: cùng chuỗi, hai vị trí, cùng file', 
   })
 })
 
+describe('D12 — giá trị bản dịch phải là chuỗi', () => {
+  // `Object.hasOwn` chỉ trả lời "khoá có thật không". Giá trị không phải chuỗi vẫn đi thẳng qua
+  // `JSON.stringify` và chèn token trần vào mã vendored — `label: 42`, `label: ["…"]`, và tệ nhất
+  // là `label: undefined`. Bốn dạng đầu đều là JSON HỢP LỆ nên tới được từ chính `vi.json` mà
+  // không cần lỗi lập trình nào. Ném lỗi là cổng duy nhất còn lại; không cổng nào phía sau bắt được.
+  //
+  // Ép kiểu ở đây là có chủ đích: `.d.mts` khai `Record<string, string>`, nhưng đầu vào THẬT lúc
+  // chạy đến từ `JSON.parse` nên `tsc` không chắn được gì. Ca kiểm phải mô phỏng đúng đầu vào thật.
+  it.each<[string, unknown]>([
+    ['số', 42],
+    ['null', null],
+    ['mảng', ['Phong cách']],
+    ['object', { vi: 'Phong cách' }],
+    ['boolean', true],
+    ['undefined', undefined],
+  ])('%s trong bản đồ thì DỪNG, không chèn token trần', (_ten, giaTri) => {
+    expect(() =>
+      dichMotFile(
+        `const a = { label: 'Style' }`,
+        { Style: giaTri } as unknown as Record<string, string>,
+        'thu.js',
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
 describe('D12 — báo cáo lượt thay', () => {
   it('ghi đúng vị trí và số dòng', () => {
     const { cacLuot } = dichMotFile(`const a = { label: 'Style' }`, BAN_DO, 'thu.js')
