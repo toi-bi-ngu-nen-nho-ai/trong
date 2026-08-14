@@ -1126,11 +1126,26 @@ if (BAN_DICH.length === 0) {
   process.exit(1)
 }
 
-// Dấu hiệu nhận ra một file thuộc cây bảng vẽ đã vendored: tiền tố `drt-` do bước đổi tên D16 sinh
-// ra. Đo trên bản dựng hiện tại: **2.026 lượt** trong chunk bảng vẽ, **0 lượt** trong bundle app và
-// mọi file còn lại. Dùng dấu hiệu này thay vì ghim cứng tên chunk, vì tên chunk mang hash và đổi
-// mỗi lần chia lại gói.
-const DAU_BANG_VE = 'drt-'
+// Bản dịch RỖNG cũng phải chặn ngay đây, vì một lý do riêng của luật C: `includes('')` LUÔN trả về
+// true, nên một khoá stub `{"Khoá mới": ""}` được đếm là "có mặt" mà không cần gì trong `dist/`.
+// Để trống ô bên phải rồi dịch sau là thao tác biên tập bình thường ở quy mô 323 chuỗi sắp tới.
+const BAN_DICH_XAU = BAN_DICH.filter((v) => typeof v !== 'string' || v.trim() === '')
+if (BAN_DICH_XAU.length) {
+  console.error(
+    `kiem-dist: DỪNG — ${BAN_DICH_XAU.length} bản dịch trong src/board/vi.json rỗng hoặc không ` +
+      'phải chuỗi. Luật C không canh được chúng: phép tìm chuỗi rỗng luôn khớp, nên chúng sẽ được ' +
+      'đếm là "có mặt" dù bản phát hành không hề chứa gì.',
+  )
+  process.exit(1)
+}
+
+// Nhận ra file thuộc cây bảng vẽ bằng MẬT ĐỘ `drt-`, không phải bằng sự có mặt. `drt-` là tiền tố
+// thương hiệu của CẢ dự án, nên chỉ một class name lọt vào bundle app là phạm vi bị nới trở lại —
+// `src/index.css` từng chứa đúng luật `.drt-edgeless-viewport`, mới dời đi vì lý do khác. Tính độc
+// quyền của dấu hiệu là ngẫu nhiên lịch sử, không phải bất biến. Mật độ thì không: đo được 2.026
+// lượt ở chunk JS bảng vẽ, 1.783 ở CSS bảng vẽ, 0 ở cả mười file còn lại.
+const NGUONG_BANG_VE = 100
+const laFileBangVe = (noiDung) => (noiDung.match(/drt-/g)?.length ?? 0) >= NGUONG_BANG_VE
 ```
 
 Thêm biến gom, cạnh `const conAffine = []` (dòng 64):
@@ -1146,7 +1161,7 @@ Thêm vào trong vòng lặp file, ngay sau khối "Luật A" (sau dòng 77):
   // `dist/` có chunk bảng vẽ HOÀN TOÀN tiếng Anh vẫn xanh, miễn bundle app tình cờ chứa mấy từ đó —
   // mà đây là app y khoa TIẾNG VIỆT với bundle riêng gần 1 MB, và chặng tới thêm 323 chuỗi nên va
   // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
-  if (noiDung.includes(DAU_BANG_VE)) {
+  if (laFileBangVe(noiDung)) {
     for (const v of thieuBanDich) {
       if (noiDung.includes(v)) thieuBanDich.delete(v)
     }

@@ -68,11 +68,35 @@ if (BAN_DICH.length === 0) {
   process.exit(1)
 }
 
-// Dấu hiệu nhận ra một file thuộc cây bảng vẽ đã vendored: tiền tố `drt-` do bước đổi tên D16 sinh
-// ra. Đo trên bản dựng hiện tại: **2.026 lượt** trong chunk bảng vẽ, **0 lượt** trong bundle app và
-// mọi file còn lại. Dùng dấu hiệu này thay vì ghim cứng tên chunk, vì tên chunk mang hash và đổi
-// mỗi lần chia lại gói.
-const DAU_BANG_VE = 'drt-'
+// Bản dịch RỖNG cũng phải chặn ngay đây, và vì một lý do riêng của luật C: `includes('')` LUÔN trả
+// về true, nên một khoá stub `{"Khoá mới": ""}` được đếm là "có mặt" mà không cần bất cứ thứ gì
+// trong `dist/`. Để trống ô bên phải rồi dịch sau là thao tác biên tập hoàn toàn bình thường ở quy
+// mô 323 chuỗi sắp tới — mỗi ô như vậy là một chuỗi được miễn kiểm vĩnh viễn trong khi bảng đếm
+// vẫn khoe đủ. Cùng lý lẽ với sàn ở trên: nơi duy nhất chặn được nó là Cổng 0 của
+// `dich-chuoi-vendor.mjs`, mà cổng đó không nằm trên đường `npm run build`.
+const BAN_DICH_XAU = BAN_DICH.filter((v) => typeof v !== 'string' || v.trim() === '')
+if (BAN_DICH_XAU.length) {
+  console.error(
+    `kiem-dist: DỪNG — ${BAN_DICH_XAU.length} bản dịch trong src/board/vi.json rỗng hoặc không ` +
+      'phải chuỗi. Luật C không canh được chúng: phép tìm chuỗi rỗng luôn khớp, nên chúng sẽ được ' +
+      'đếm là "có mặt" dù bản phát hành không hề chứa gì.',
+  )
+  process.exit(1)
+}
+
+// Nhận ra file thuộc cây bảng vẽ đã vendored bằng MẬT ĐỘ `drt-`, không phải bằng sự có mặt.
+//
+// `drt-` là tiền tố thương hiệu của CẢ dự án chứ không riêng cây vendored, nên chỉ cần một class
+// name lọt vào bundle app là phạm vi bị nới trở lại và lỗ cũ mở ra: chunk bảng vẽ tiếng Anh 100%
+// vẫn xanh vì bundle app tình cờ chứa cả `drt-` lẫn mấy chuỗi tiếng Việt. Không phải giả thuyết —
+// `src/index.css` từng chứa đúng luật `.drt-edgeless-viewport`, mới dời sang `src/board/` vì một lý
+// do hoàn toàn khác. Tính "độc quyền" của dấu hiệu là ngẫu nhiên lịch sử, không phải bất biến.
+//
+// Mật độ thì không mong manh như vậy. Đo trên bản dựng hiện tại: **2.026** lượt ở chunk JS bảng vẽ
+// và **1.783** ở CSS bảng vẽ, so với **0** ở cả mười file còn lại (kể cả bundle app 977 kB). Biên
+// rộng tới mức ngưỡng 100 vừa loại được ca lọt lẻ vừa không sợ trượt oan.
+const NGUONG_BANG_VE = 100
+const laFileBangVe = (noiDung) => (noiDung.match(/drt-/g)?.length ?? 0) >= NGUONG_BANG_VE
 
 function* dietFile(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -109,7 +133,7 @@ for (const f of dietFile(DIST)) {
   // `dist/` có chunk bảng vẽ HOÀN TOÀN tiếng Anh vẫn xanh, miễn bundle app tình cờ chứa mấy từ đó —
   // mà đây là app y khoa TIẾNG VIỆT với bundle riêng gần 1 MB, và chặng tới thêm 323 chuỗi nên va
   // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
-  if (noiDung.includes(DAU_BANG_VE)) {
+  if (laFileBangVe(noiDung)) {
     for (const v of thieuBanDich) {
       if (noiDung.includes(v)) thieuBanDich.delete(v)
     }
