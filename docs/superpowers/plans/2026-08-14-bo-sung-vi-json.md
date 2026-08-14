@@ -1211,7 +1211,7 @@ npm run dung:vendor && npx tsc --noEmit && npm test && npm run kiem:vendor && np
 
 | Cổng | Kỳ vọng |
 |---|---|
-| `dung:vendor` | `5 khoá đều còn sống`, 8 lượt dịch |
+| `dung:vendor` | `5 khoá đều còn sống`, **7 lượt dịch** (phân bố 3+1+1+1+1 — xem Task 3 Bước 2) |
 | `tsc --noEmit` | exit 0 |
 | `npm test` | 79/79 ca xanh (12 file) |
 | `kiem:vendor` | 2782 file, lệch 0 |
