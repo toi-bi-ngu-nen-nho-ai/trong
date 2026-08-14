@@ -550,6 +550,14 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L4 10m0 0l5-5M4 10h11a5 5 0 010 10h-1" />
     </svg>
   ),
+  // Hai mũi tên vòng tròn — dùng cho nút "Làm mới" các ô số máy tính liều (khác `undo`: không lùi
+  // một bước mà quay thẳng về mặc định).
+  refresh: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 11A8.1 8.1 0 006.5 5.5M4 13a8.1 8.1 0 0013.5 5.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4.5V9h4.5M20 19.5V15h-4.5" />
+    </svg>
+  ),
   // Mặt trời / mặt trăng cho nút đổi chủ đề. Chỉ hình, không chữ — ba trạng thái (Tự động/Sáng/Tối)
   // vẫn phân biệt được vì trạng thái "Tự động" vẽ CẢ HAI nửa (nửa mặt trời, nửa mặt trăng).
   sun: () => (
@@ -9363,8 +9371,26 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
     })
   }
 
+  // Chuyển sang tính cho bệnh nhân khác trước đây phải tự xoá tay từng ô (Nồng độ, Liều/Tốc độ, Thể
+  // tích bơm/chai) — lối tắt này đưa cả bốn ô về đúng mốc lúc mới mở thẻ: công thức ĐÃ LƯU nếu có
+  // (`ward`), ngược lại mặc định của thuốc (`calc.concDefault`/`calc.mix`) — cùng biểu thức với
+  // useState khởi tạo `conc`/`bagVolume` phía trên, không phải một mốc "trống" tự bịa riêng.
+  function resetCalcInputs() {
+    setConc(ward ? String(ward.concValue) : calc.concDefault != null ? String(calc.concDefault) : "")
+    setDose("")
+    setRateInput("")
+    setBagVolume(ward ? String(ward.volumeMl) : calc.mix ? String(calc.mix.volumeMl) : "")
+    tickHaptic()
+  }
+
   return (
     <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
+      <div className="flex justify-end mb-1.5">
+        <button onClick={resetCalcInputs} className={`flex items-center gap-1 text-[12px] font-bold ${TAP}`} style={{ color: "var(--c-text-soft)" }}>
+          <span className="scale-90">{icons.refresh()}</span>
+          Làm mới
+        </button>
+      </div>
       {/* Chọn chiều tính */}
       <div className="flex p-0.5 rounded-[14px] mb-2.5" style={{ background: "var(--c-line-soft)" }}>
         {([
