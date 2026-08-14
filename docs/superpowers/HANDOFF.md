@@ -52,12 +52,14 @@ Prompt trên đủ để phiên mới tự định hướng mà không cần tô
 
 ```bash
 git fetch origin
-git log --oneline -1                    # kỳ vọng: f01c278 hoặc mới hơn
+git branch --show-current               # kỳ vọng: p1b-vi-json-vi-tri
+git log --oneline -1                    # kỳ vọng: 4eae9f9 hoặc mới hơn
 git status --short                      # kỳ vọng: rỗng
 ```
 
-Nếu `git log` cho một commit khác `f01c278` mà bảng đồ phục hồi (mục 3) không có, đọc commit đó
-bằng `git show <sha> --stat` trước khi làm gì — có thể một phiên khác đã làm thêm việc.
+Nếu `git log` cho một commit mà bảng đồ phục hồi (mục 3) không có, đọc commit đó bằng
+`git show <sha> --stat` trước khi làm gì — **một phiên Claude khác có thể đang chạy song song trên
+cùng nhánh này** (đã xảy ra thật: commit `dc2f765`).
 
 **2. Dựng lại cây đã dịch — bắt buộc, mất vài phút:**
 
@@ -105,12 +107,14 @@ Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựn
 | `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
 | Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
 
-**`/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì.** Kỹ năng đó thi hành *một
-bản kế hoạch*. Kế hoạch P1-A đã xong toàn bộ 5 task, đã review toàn nhánh, đã vá xong, đã gộp.
-Gọi lại nó mà không có kế hoạch mới thì nó đứng im.
+**`/superpowers:subagent-driven-development` GIỜ CHẠY TIẾP ĐƯỢC** — đã có kế hoạch P1-B dở dang
+(mục 10), nó sẽ tiếp từ Task 4. Đây là điểm khác với bản HANDOFF trước: lúc đó không có kế hoạch
+nào chưa thi hành nên kỹ năng đó đứng im.
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
+| **Chạy tiếp P1-B (Task 4, 5)** | `superpowers:subagent-driven-development` |
+| Dịch nội dung `vi.json` sau khi P1-B xong | `superpowers:brainstorming` — cần chốt bảng thuật ngữ 61 từ trước |
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
 | Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
 | iPad lộ ra lỗi | `superpowers:systematic-debugging` |
