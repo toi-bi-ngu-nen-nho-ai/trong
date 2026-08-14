@@ -51,9 +51,10 @@ const MIEN = new Set([
 ])
 
 // Luật C — bản dịch phải tới được tay người dùng.
-const BAN_DICH = Object.values(
+const MUC_BAN_DICH = Object.entries(
   JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
 )
+const BAN_DICH = MUC_BAN_DICH.map(([, vi]) => vi)
 
 // Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
 // dính và đều phải vá. Ở đây nó nguy hiểm hơn hẳn: nơi chặn ca này (`dich-chuoi-vendor.mjs` Cổng 0)
@@ -68,19 +69,36 @@ if (BAN_DICH.length === 0) {
   process.exit(1)
 }
 
-// Bản dịch RỖNG cũng phải chặn ngay đây, và vì một lý do riêng của luật C: `includes('')` LUÔN trả
-// về true, nên một khoá stub `{"Khoá mới": ""}` được đếm là "có mặt" mà không cần bất cứ thứ gì
-// trong `dist/`. Để trống ô bên phải rồi dịch sau là thao tác biên tập hoàn toàn bình thường ở quy
-// mô 323 chuỗi sắp tới — mỗi ô như vậy là một chuỗi được miễn kiểm vĩnh viễn trong khi bảng đếm
-// vẫn khoe đủ. Cùng lý lẽ với sàn ở trên: nơi duy nhất chặn được nó là Cổng 0 của
-// `dich-chuoi-vendor.mjs`, mà cổng đó không nằm trên đường `npm run build`.
-const BAN_DICH_XAU = BAN_DICH.filter((v) => typeof v !== 'string' || v.trim() === '')
-if (BAN_DICH_XAU.length) {
+// Chặn cả chuỗi RỖNG lẫn chuỗi THOÁI HOÁ, vì luật C hỏng theo MỨC ĐỘ chứ không theo nhị phân:
+// `""` thì `includes` LUÔN khớp, còn `"-"`, `"…"`, `"x"` hay một ký tự vô hình thì GẦN NHƯ CHẮC
+// CHẮN khớp — chunk bảng vẽ thật chứa sẵn ZWSP, soft hyphen, word-joiner, và tất nhiên mọi chữ
+// cái đơn. Cả hai cho cùng một kết quả: chuỗi được đếm là "có mặt" mà bản phát hành không dịch gì.
+//
+// Mà gõ `-` hay `…` để đánh dấu "dịch sau" là thao tác biên tập bình thường ngang với để trống,
+// nhất là ở quy mô 323 chuỗi sắp tới. Cùng lý lẽ với sàn ở trên: nơi duy nhất chặn được nó là
+// Cổng 0 của `dich-chuoi-vendor.mjs`, mà cổng đó KHÔNG nằm trên đường `npm run build`.
+//
+// Bản dịch thật ngắn nhất hiện có là "Bố cục" (6 ký tự), nên đòi >=2 ký tự hữu hình và ít nhất
+// một chữ cái là ngưỡng rộng rãi, không cản trở bản dịch hợp lệ nào.
+//
+// Lớp ký tự viết bằng ESCAPE chứ không bằng ký tự thật — chúng vô hình nên một lượt sao chép làm
+// mất chúng thì không ai thấy: \u00AD soft hyphen · \u200B-\u200D zero-width space/non-joiner/joiner ·
+// \u2060 word joiner · \uFEFF BOM.
+const VO_HINH = /[\s\u00AD\u200B-\u200D\u2060\uFEFF]/gu
+const laBanDichXau = (v) => {
+  if (typeof v !== 'string') return true
+  const con = v.replace(VO_HINH, '')
+  return con.length < 2 || !/\p{L}/u.test(con)
+}
+const MUC_XAU = MUC_BAN_DICH.filter(([, vi]) => laBanDichXau(vi))
+if (MUC_XAU.length) {
   console.error(
-    `kiem-dist: DỪNG — ${BAN_DICH_XAU.length} bản dịch trong src/board/vi.json rỗng hoặc không ` +
-      'phải chuỗi. Luật C không canh được chúng: phép tìm chuỗi rỗng luôn khớp, nên chúng sẽ được ' +
-      'đếm là "có mặt" dù bản phát hành không hề chứa gì.',
+    `kiem-dist: DỪNG — ${MUC_XAU.length} bản dịch trong src/board/vi.json rỗng, thoái hoá, hoặc ` +
+      'không phải chuỗi. Luật C không canh được chúng: chuỗi rỗng thì phép tìm luôn khớp, còn chuỗi ' +
+      'một ký tự hay ký tự vô hình thì gần như chắc chắn khớp — nên chúng sẽ được đếm là "có mặt" ' +
+      'dù bản phát hành không hề chứa bản dịch nào:',
   )
+  MUC_XAU.forEach(([en, vi]) => console.error(`   "${en}" → ${JSON.stringify(vi)}`))
   process.exit(1)
 }
 
