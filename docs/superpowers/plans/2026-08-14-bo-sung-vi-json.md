@@ -677,9 +677,21 @@ process.exit(0)
 Chạy: `npm run dung:vendor`
 
 Kỳ vọng: chạy hết không lỗi. Dòng cuối của bước dịch in `5 khoá đều còn sống` và `tongLuot` là
-**8** — nhiều hơn con số 7 của regex cũ một lượt, vì `"Style"` có 3 chỗ `label:` còn regex cũ đếm
-theo *file có thay đổi*, không theo *lượt thay*. Nếu số khoá sống khác 5 thì DỪNG và đọc thông báo,
-đừng sửa `vi.json` cho xanh.
+**7**, phân bố đúng như sau (đã đo trước khi viết kế hoạch):
+
+| Khoá | Số lượt | Vị trí |
+|---|---|---|
+| `Style` | 3 | `thuộc-tính:label` (connector, mindmap, shape toolbar config) |
+| `Layout` | 1 | `thuộc-tính:label` (mindmap toolbar config) |
+| `Add media` | 1 | `thuộc-tính-html:data-tip` |
+| `Import failed, please try again` | 1 | `đối-số:toast` |
+| `Support import of FreeMind,OPML.` | 1 | `thuộc-tính-html:data-tip` |
+
+Con số này trùng với `7 lượt dịch` mà regex cũ in ra, nhưng **trùng do tình cờ**: regex cũ đếm theo
+*cặp (file, khoá) có thay đổi*, bộ mới đếm theo *lượt thay thật*. Chúng bằng nhau vì không khoá nào
+xuất hiện hai lần trong cùng một file. Đừng dùng phép trùng này làm cổng cho các lượt sau.
+
+Nếu số khoá sống khác 5 thì DỪNG và đọc thông báo, đừng sửa `vi.json` cho xanh.
 
 - [ ] **Bước 3: Xác nhận báo cáo có đúng hai khoá đi qua luật hẹp template**
 
