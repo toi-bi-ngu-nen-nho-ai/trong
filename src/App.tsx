@@ -9789,7 +9789,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         >
           {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
         </button>
-        {showMix && (
+        {/* LUÔN mount MixPanel (chỉ ẩn bằng CSS) — cùng lỗi và cùng cách vá với AntibioticMixPanel
+            (xem comment ở AntibioticDoseCard): `{showMix && <MixPanel/>}` unmount hẳn component mỗi
+            lần đóng, xoá sạch state cục bộ (số ống, thể tích, dung môi...) — mở lại là mất hết. */}
+        <div className={showMix ? undefined : "hidden"}>
           <MixPanel
             drug={drug}
             calc={calc}
@@ -9801,7 +9804,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               setShowMix(false)
             }}
           />
-        )}
+        </div>
       </Disclosure>
 
       <div className="grid grid-cols-2 gap-2 mb-2 mt-2">
