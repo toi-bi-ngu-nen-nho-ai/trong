@@ -107,6 +107,18 @@ if (ketQuaDoiTen.status !== 0) {
   process.exit(ketQuaDoiTen.status ?? 1)
 }
 
+// Bước 4b — dịch chuỗi hiển thị (D12). Phải chạy SAU đổi tên: bản dịch đáp lên cây đã đổi tên.
+// Tách khỏi bước đổi tên vì đây là phép thay có điều kiện theo ngữ cảnh — xem đầu
+// scripts/dich-chuoi-vendor.mjs. Exit code ở đây có ý nghĩa thật: script này không có lý do sẵn
+// có nào để thoát khác 0, nên thất bại là phải dừng, không được nuốt.
+const ketQuaDich = chay('node', ['scripts/dich-chuoi-vendor.mjs'], 'dichchuoi:vendor')
+if (ketQuaDich.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — bước dịch chuỗi thất bại (exit code ${ketQuaDich.status}).`,
+  )
+  process.exit(ketQuaDich.status ?? 1)
+}
+
 // Bước 5 — sinh bản đồ `paths` cho `tsc`. Phải chạy SAU bước 1 vì nó chỉ ánh xạ những subpath
 // thật sự có .d.ts trong .vendor-build/. Exit code ở đây có ý nghĩa thật.
 const ketQuaPaths = chay('node', ['scripts/tao-paths-vendor.mjs'], 'tao-paths-vendor')
