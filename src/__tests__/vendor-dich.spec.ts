@@ -240,6 +240,13 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
     expect(soPham).toEqual([])
 
+    // Mặt khẳng định phải tự kiểm nó CÓ GÌ để khẳng định hay không. Thiếu dòng này thì `vi.json`
+    // rỗng làm cả hai vế của phép so bên dưới thành `[]` và ca xanh trong khi không parse một file
+    // nào — tức cổng độc lập kế thừa đúng điểm mù mà `dich-chuoi-vendor.mjs` tự ghi là "ca duy
+    // nhất mà Cổng 3 hoàn toàn mù, không cổng nào khác chặn được". Cổng này sinh ra để KHÔNG kế
+    // thừa điểm mù của bộ thay, nên nó phải tự chặn.
+    expect(banDich.size).toBeGreaterThan(0)
+
     // Khẳng định "CÒN SỐNG", không chỉ khẳng định "không vi phạm". Thiếu nó thì ca này xanh cả khi
     // không soi được literal nào — và có đường đi thật: sửa một GIÁ TRỊ tiếng Việt trong vi.json mà
     // quên dựng lại `.vendor-build/` thì tiền lọc loại sạch cả 2.550 file và ca xanh rỗng tuếch.
