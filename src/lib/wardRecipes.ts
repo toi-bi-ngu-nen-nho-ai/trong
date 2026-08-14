@@ -10,6 +10,11 @@
 // công thức dựng sẵn thì người pha đặc gấp đôi cố định sẽ ăn cảnh báo cam mỗi lần mở máy tính.
 // Vẫn giữ nút trả về công thức chuẩn của app.
 
+// Lấy THẲNG AdminRoute từ ./ui thay vì chép lại union ở đây — bản chép tay chính là thứ vừa làm
+// gãy build khi ui.ts đổi "SC" thành "TDD". `import type` bị xoá hẳn lúc biên dịch nên không kéo
+// theo gì vào bundle.
+import type { AdminRoute } from "./ui"
+
 const KEY = "drtrong:wardRecipes"
 
 export interface WardRecipe {
@@ -31,10 +36,10 @@ export interface WardRecipe {
   displacementMl?: number
   diluent?: string
   // Đường dùng của RIÊNG công thức này — cùng một thuốc nhưng khoa A truyền TTM, khoa B tiêm TMC là
-  // chuyện thường gặp (vd Cefoperazol); cũng có thể là tiêm bắp (IM) hoặc tiêm dưới da (SC). Bản ghi
+  // chuyện thường gặp (vd Cefoperazol); cũng có thể là tiêm bắp (IM) hoặc tiêm dưới da (TDD). Bản ghi
   // cũ không có `route` thì lúc hiển thị vẫn suy ra từ `Antibiotic.route` tĩnh của thuốc như hành vi
   // trước đây — xem AntibioticMixPanel.
-  route?: "TTM" | "TMC" | "IM" | "SC"
+  route?: AdminRoute
   // Thời gian truyền dự kiến (phút) và bộ dây (giọt/mL) của RIÊNG công thức này — cần cả hai mới
   // tính được số giọt/phút. Không có thì "Cách dùng" tự tính theo CrCl (autoUsage) ẩn hẳn phần
   // giọt/phút thay vì bịa một thời gian truyền không có căn cứ — xem AntibioticDoseCard.
