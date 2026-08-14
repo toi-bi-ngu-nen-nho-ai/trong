@@ -78,6 +78,39 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
     const ra = dich('html`<x class="${\'Style\'}"></x>`')
     expect(ra).toContain(`'Style'`)
   })
+
+  // Danh sách thuộc tính HTML có ĐÚNG một tên. Một phép so khớp không neo biên trái sẽ nhận cả
+  // họ tên kết thúc bằng `data-tip`, tức luật rộng hơn danh sách — đúng loại lỗ mà fail-closed
+  // sinh ra để chặn. Ca này canh biên trái đó.
+  it('thuộc tính có tên KẾT THÚC bằng data-tip không được nhận', () => {
+    const ra = dich('html`<x my-data-tip="${\'Style\'}"></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+})
+
+describe('D12 — nhiều lượt thay trong cùng một file', () => {
+  // Phép thay chạy TỪ CUỐI VỀ ĐẦU để các vị trí chưa xử lý không bị lệch. Không có ca nào nhiều
+  // hơn một lượt thì bất biến đó KHÔNG được canh: đảo `sort` thành tăng dần vẫn xanh hết, trong
+  // khi output thật hỏng — bản dịch dài hơn bản gốc ("Style" 5 ký tự → "Phong cách" 10) nên mọi
+  // vị trí phía sau lệch và phép cắt chuỗi ăn vào mã nguồn. Khẳng định bằng `toBe` trên TOÀN BỘ
+  // chuỗi, không phải `toContain`.
+  it('ba lượt thay trong một dòng không làm lệch vị trí nhau', () => {
+    expect(dich(`const a = { label: 'Style', name: 'LinkedPage', tooltip: 'None' }`)).toBe(
+      `const a = { label: "Phong cách", name: "Trang liên kết", tooltip: "Không" }`,
+    )
+  })
+
+  it('lượt thay ở dòng sau vẫn ghi đúng số dòng', () => {
+    const { cacLuot } = dichMotFile(
+      `const a = { label: 'Style' }\nconst b = { name: 'None' }`,
+      BAN_DO,
+      'thu.js',
+    )
+    expect(cacLuot.map((l) => [l.chuoiGoc, l.dong])).toEqual([
+      ['Style', 1],
+      ['None', 2],
+    ])
+  })
 })
 
 describe('D12 — ca xương sống: cùng chuỗi, hai vị trí, cùng file', () => {

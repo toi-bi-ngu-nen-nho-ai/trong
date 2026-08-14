@@ -66,8 +66,14 @@ export function viTriHienThi(node) {
   if (p.kind === ts.SyntaxKind.TemplateSpan && p.expression === node) {
     const truoc = vanBanTruocNhip(p)
     if (truoc == null) return null
-    for (const a of THUOC_TINH_HTML_HIEN_THI) {
-      if (new RegExp(`${a}\\s*=\\s*["']$`).test(truoc)) return `thuộc-tính-html:${a}`
+    // Rút TÊN thuộc tính đứng ngay trước nhịp rồi so khớp CHÍNH XÁC với danh sách cho phép.
+    // KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
+    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố
+    // — đúng loại lỗ mà nguyên tắc fail-closed sinh ra để chặn. Cách này cũng miễn nhiễm với
+    // metachar nếu ai thêm một tên có `.` hay `[` vào danh sách.
+    const khop = truoc.match(/([A-Za-z][\w:-]*)\s*=\s*["']$/)
+    if (khop && THUOC_TINH_HTML_HIEN_THI.includes(khop[1])) {
+      return `thuộc-tính-html:${khop[1]}`
     }
   }
 
