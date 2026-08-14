@@ -3,9 +3,14 @@
 // Vì sao phải kiểm theo VỊ TRÍ chứ không theo nội dung chuỗi: cơ chế cũ khớp trọn một literal ở
 // bất cứ đâu, nên "LinkedPage" vừa là nhãn ở `name:` vừa là GIÁ TRỊ LƯỢC ĐỒ ở `type:` — dịch cả
 // hai là hỏng phân giải liên kết, không lỗi, không cổng nào đỏ.
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { dichMotFile } from '../../scripts/luat-vi-tri-dich.mjs'
+import { dietJs } from '../../scripts/duyet-cay-js.mjs'
+import { dichMotFile, viTriHienThi } from '../../scripts/luat-vi-tri-dich.mjs'
 
 const BAN_DO = { Style: 'Phong cách', LinkedPage: 'Trang liên kết', Escape: 'Thoát', None: 'Không' }
 
@@ -187,4 +192,54 @@ describe('D12 — báo cáo lượt thay', () => {
     const { cacLuot } = dichMotFile(`const a = { type: 'LinkedPage' }`, BAN_DO, 'thu.js')
     expect(cacLuot).toEqual([])
   })
+})
+
+const BUILD = '.vendor-build'
+
+describe('D12 — cổng độc lập trên đầu ra thật', () => {
+  // Cổng này TÍNH LẠI TỪ ĐẦU trên .vendor-build/ và cố tình KHÔNG đọc bao-cao-dich.json: nếu bộ
+  // thay có lỗi thì báo cáo cũng sai theo, hai thứ cùng sai một kiểu thì không cổng nào bắt được.
+  // Chỉ phép tính lại độc lập mới có giá trị.
+  it('mọi chuỗi tiếng Việt trong .vendor-build đều nằm ở vị trí cho phép', async () => {
+    const banDo = JSON.parse(readFileSync('src/board/vi.json', 'utf8')) as Record<string, string>
+    const banDich = new Set(Object.values(banDo))
+    const soPham: string[] = []
+
+    for await (const f of dietJs(BUILD)) {
+      const src = readFileSync(f, 'utf8')
+      let coKhong = false
+      for (const v of banDich) {
+        if (src.includes(v)) {
+          coKhong = true
+          break
+        }
+      }
+      if (!coKhong) continue
+
+      const sf = ts.createSourceFile(f, src, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+      const di = (n: ts.Node) => {
+        if (ts.isStringLiteral(n) && banDich.has(n.text) && viTriHienThi(n) === null) {
+          soPham.push(`${path.relative(BUILD, f)}: "${n.text}"`)
+        }
+        ts.forEachChild(n, di)
+      }
+      di(sf)
+      if (soPham.length > 5) return expect(soPham).toEqual([])
+    }
+
+    expect(soPham).toEqual([])
+  }, 120_000)
+
+  it('bộ thay là bất biến — chạy lại trên cây ĐÃ dịch không đổi gì nữa', async () => {
+    // Nếu một bản dịch tiếng Việt lại trùng một khoá tiếng Anh khác, lượt chạy thứ hai sẽ dịch
+    // tiếp và bản build khác nhau tuỳ số lần chạy. Bước 0 của dung-vendor.mjs xoá sạch nên chuyện
+    // này không xảy ra trong pipeline, nhưng ca này khoá lại tính chất đó cho các lượt sửa sau.
+    const banDo = JSON.parse(readFileSync('src/board/vi.json', 'utf8')) as Record<string, string>
+    let soFileDoi = 0
+    for await (const f of dietJs(BUILD)) {
+      const src = readFileSync(f, 'utf8')
+      if (dichMotFile(src, banDo, f).cacLuot.length > 0) soFileDoi++
+    }
+    expect(soFileDoi).toBe(0)
+  }, 120_000)
 })
