@@ -5,7 +5,7 @@
 // KIỆN THEO NGỮ CẢNH, sai thì im lặng.
 //
 // Luật vị trí nằm ở scripts/luat-vi-tri-dich.mjs (thuần, kiểm được bằng đoạn mã nhỏ). File này
-// chỉ lo I/O, báo cáo và ba cổng DỪNG.
+// chỉ lo I/O, báo cáo và bốn cổng DỪNG.
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -20,20 +20,47 @@ const BAO_CAO = path.join(BUILD, 'bao-cao-dich.json')
 
 const banDo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
 
-// ─── Cổng 0: bản đồ dịch phải phẳng ─────────────────────────────────────────────────────────
+// ─── Cổng 0: bản đồ dịch phải dùng được ──────────────────────────────────────────────────────
 // Kiểm MỘT LẦN lúc nạp. `dichMotFile` cũng ném khi gặp giá trị không phải chuỗi, nhưng nó chỉ ném
 // khi khoá hỏng THỰC SỰ xuất hiện trong file đang xử lý — nên một mục hỏng sẽ nổ ở giữa lượt duyệt
 // 2.550 file, với thông báo trỏ vào một file vendored ngẫu nhiên thay vì nói thẳng "vi.json sai
 // định dạng". Cổng ở đây trả lời đúng câu hỏi, đúng lúc.
-const saiKieu = Object.entries(banDo).filter(([, vi]) => typeof vi !== 'string')
+if (banDo === null || typeof banDo !== 'object' || Array.isArray(banDo)) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json phải là một object phẳng ' +
+      '{ "English": "Tiếng Việt" }. Không có nó thì mọi cổng phía sau đều không có gì để canh.',
+  )
+  process.exit(1)
+}
+
+// Bản đồ RỖNG là ca nguy hiểm nhất, và là ca duy nhất mà Cổng 3 hoàn toàn mù: cổng khoá chết lặp
+// trên chính bản đồ, nên không có khoá nào thì không có khoá nào chết — nó in "0 khoá đều còn
+// sống" rồi thoát 0. Toàn bộ bản dịch tiếng Việt bốc hơi mà pipeline vẫn xanh. Phải chặn ở đây,
+// không cổng nào khác chặn được.
+if (Object.keys(banDo).length === 0) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json rỗng. Nếu đúng là chưa muốn dịch gì thì gỡ hẳn ' +
+      'bước này khỏi scripts/dung-vendor.mjs, đừng để một bản đồ rỗng chạy qua: cổng khoá chết ' +
+      'lặp trên chính bản đồ nên nó KHÔNG phát hiện được ca này, và build sẽ xanh với bản dịch ' +
+      'biến mất hoàn toàn.',
+  )
+  process.exit(1)
+}
+
+// Chuỗi RỖNG cũng phải chặn: nó qua được phép kiểm kiểu (`typeof "" === 'string'`) lẫn Cổng 1
+// (`"Style" !== ""`), rồi `JSON.stringify("")` chèn `""` vào mã vendored — nhãn trên giao diện bị
+// xoá trắng, build xanh. Một ô để trống khi dán bảng dịch là chuyện thường gặp y như gõ nhầm số.
+const saiKieu = Object.entries(banDo).filter(([, vi]) => typeof vi !== 'string' || vi.trim() === '')
 if (saiKieu.length) {
   console.error(
-    'dich-chuoi-vendor: DỪNG — src/board/vi.json phải phẳng { "English": "Tiếng Việt" }. Các khoá ' +
-      'sau có giá trị KHÔNG PHẢI CHUỖI (gom nhóm lồng nhau, mảng phương án dịch để tạm, hay số gõ ' +
-      'nhầm đều là JSON hợp lệ nên lọt tới đây được):',
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json phải phẳng { "English": "Tiếng Việt" }, và mọi ' +
+      'bản dịch phải là chuỗi KHÔNG RỖNG. Gom nhóm lồng nhau, mảng phương án dịch để tạm, số gõ ' +
+      'nhầm hay một ô để trống đều là JSON hợp lệ nên lọt tới đây được:',
   )
   saiKieu.forEach(([en, vi]) =>
-    console.error(`   "${en}" → kiểu ${vi === null ? 'null' : typeof vi}`),
+    console.error(
+      `   "${en}" → ${typeof vi !== 'string' ? `kiểu ${vi === null ? 'null' : typeof vi}` : 'chuỗi rỗng'}`,
+    ),
   )
   process.exit(1)
 }
