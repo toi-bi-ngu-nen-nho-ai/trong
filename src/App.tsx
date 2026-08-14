@@ -3220,6 +3220,7 @@ interface MixDraft {
   vialVolumeMl: string
   reconstituteMl: string
   displacementMl: string
+  defaultVolumeMl: string
   diluents: string
   avoidDiluents: string
   diluentWarning: string
@@ -3237,6 +3238,7 @@ function emptyMixDraft(): MixDraft {
     vialVolumeMl: "",
     reconstituteMl: "",
     displacementMl: "",
+    defaultVolumeMl: "",
     diluents: "",
     avoidDiluents: "",
     diluentWarning: "",
@@ -3256,6 +3258,7 @@ function mixToDraft(m?: AntibioticMix): MixDraft {
     vialVolumeMl: m.vialVolumeMl != null ? String(m.vialVolumeMl) : "",
     reconstituteMl: m.reconstituteMl != null ? String(m.reconstituteMl) : "",
     displacementMl: m.displacementMl != null ? String(m.displacementMl) : "",
+    defaultVolumeMl: m.defaultVolumeMl != null ? String(m.defaultVolumeMl) : "",
     diluents: (m.diluents ?? []).join("; "),
     avoidDiluents: (m.avoidDiluents ?? []).join("; "),
     diluentWarning: m.diluentWarning ?? "",
@@ -3271,6 +3274,7 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
   const vialVolumeMl = parseFloat(d.vialVolumeMl)
   const reconstituteMl = parseFloat(d.reconstituteMl)
   const displacementMl = parseFloat(d.displacementMl)
+  const defaultVolumeMl = parseFloat(d.defaultVolumeMl)
   const maxConc = parseFloat(d.maxConc)
   const diluents = d.diluents.split(";").map((s) => s.trim()).filter(Boolean)
   const avoidDiluents = d.avoidDiluents.split(";").map((s) => s.trim()).filter(Boolean)
@@ -3280,6 +3284,7 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
     !isNaN(vialVolumeMl) ||
     !isNaN(reconstituteMl) ||
     !isNaN(displacementMl) ||
+    !isNaN(defaultVolumeMl) ||
     diluents.length > 0 ||
     avoidDiluents.length > 0 ||
     d.diluentWarning.trim() !== "" ||
@@ -3295,6 +3300,7 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
     ...(isNaN(vialVolumeMl) ? {} : { vialVolumeMl }),
     ...(isNaN(reconstituteMl) ? {} : { reconstituteMl }),
     ...(isNaN(displacementMl) ? {} : { displacementMl }),
+    ...(isNaN(defaultVolumeMl) ? {} : { defaultVolumeMl }),
     ...(diluents.length > 0 ? { diluents } : {}),
     ...(avoidDiluents.length > 0 ? { avoidDiluents } : {}),
     ...(d.diluentWarning.trim() ? { diluentWarning: d.diluentWarning.trim() } : {}),
@@ -3488,6 +3494,19 @@ function AntibioticAdvancedFields({
               <div className="fade-in">
                 <label className="text-[12px] text-slate-400 mb-1 block">Thể tích dung dịch trong ống/chai (mL)</label>
                 <input value={mix.vialVolumeMl} onChange={(e) => updateMix("vialVolumeMl", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 150" className={smallFieldClass} style={fieldStyle} />
+              </div>
+            )}
+            {(mix.vialForm === "powder" || mix.vialForm === "solution") && (
+              <div className="fade-in">
+                <label className="text-[12px] text-slate-400 mb-1 block">Thể tích pha loãng mặc định (mL)</label>
+                <input
+                  value={mix.defaultVolumeMl}
+                  onChange={(e) => updateMix("defaultVolumeMl", normalizeDecimalInput(e.target.value))}
+                  inputMode="decimal"
+                  placeholder="VD: 200"
+                  className={smallFieldClass}
+                  style={fieldStyle}
+                />
               </div>
             )}
 
@@ -6643,7 +6662,7 @@ function AntibioticMixPanel({
   const [displacement, setDisplacement] = useState(
     ward?.displacementMl != null ? String(ward.displacementMl) : mix?.displacementMl != null ? String(mix.displacementMl) : "",
   )
-  const [volume, setVolume] = useState(String(ward?.volumeMl ?? 100))
+  const [volume, setVolume] = useState(String(ward?.volumeMl ?? mix?.defaultVolumeMl ?? 100))
   const [diluent, setDiluent] = useState(ward?.diluent ?? mix?.diluents?.[0] ?? "NaCl 0,9%")
   // Chai cố định hàm lượng: liều cần LẤY (bỏ trống = dùng trọn chai) — không pha loãng thêm nên
   // không dùng chung ô "Pha loãng tới"/"Dung môi" của hai dạng kia.
@@ -6751,10 +6770,11 @@ function AntibioticMixPanel({
     if (count == null) return
     setVials(String(count))
     if (toConcMass == null) return
-    // Thể tích pha loãng mặc định: quy ước 100 mL/lọ đã dùng ở autoUsage, trừ khi nồng độ đó vượt
-    // ngưỡng trên (mix.maxConc) — khi đó nâng lên mốc 50 mL gần nhất để về lại nồng độ an toàn.
+    // Thể tích pha loãng mặc định: mix.defaultVolumeMl/lọ nếu thuốc có khai (vd Amikacin 200 mL),
+    // rơi về quy ước 100 mL/lọ như trước nếu chưa khai — trừ khi nồng độ đó vượt ngưỡng trên
+    // (mix.maxConc) — khi đó nâng lên mốc 50 mL gần nhất để về lại nồng độ an toàn.
     const totalInConcMass = count * vaValue * toConcMass
-    let vol = count * 100
+    let vol = count * (mix?.defaultVolumeMl ?? 100)
     if (mix?.maxConc != null) {
       const minSafeVol = totalInConcMass / mix.maxConc
       if (minSafeVol > vol) vol = Math.ceil(minSafeVol / 50 - 1e-9) * 50
@@ -6886,7 +6906,7 @@ function AntibioticMixPanel({
     setVialVolume(m?.vialVolumeMl != null ? String(m.vialVolumeMl) : "")
     setReconstitute(m?.reconstituteMl != null ? String(m.reconstituteMl) : "")
     setDisplacement(m?.displacementMl != null ? String(m.displacementMl) : "")
-    setVolume("100")
+    setVolume(String(m?.defaultVolumeMl ?? 100))
     setDiluent(m?.diluents?.[0] ?? "NaCl 0,9%")
     setRouteShort(defaultRoute)
     setInfuseMinutes("")
