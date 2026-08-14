@@ -788,6 +788,26 @@ if (Object.keys(banDo).length === 0) {
   process.exit(1)
 }
 
+// Cột KHOÁ cũng phải kiểm, không chỉ cột giá trị — và đây là nửa NGUY HIỂM HƠN. Một khoá rỗng (ô
+// TRÁI để trống khi dán bảng) không phải khoá chết vô hại: `Object.hasOwn(banDo, '')` khớp MỌI
+// literal rỗng ở vị trí hiển thị, mà cây vendored có sẵn hàng chục chỗ như thế — `name: ''` và
+// `caption: ''` là GIÁ TRỊ MẶC ĐỊNH của model tài liệu (attachment-model.js, image-model.js,
+// code-model.js), `title: ''` ở surface-ref-model.js. Ghi đè chúng là hỏng DỮ LIỆU, không chỉ hỏng
+// nhãn. Ba cổng còn lại đều mù trước ca này: Cổng 0 thấy giá trị là chuỗi không rỗng, Cổng 1 thấy
+// `"" !== "Trống"`, Cổng 3 thấy khoá `""` SỐNG (nó khớp được, nên không phải khoá chết).
+//
+// Khoá thừa khoảng trắng (`"Style "`) thì an toàn — nó thành khoá chết và Cổng 3 bắt.
+const saiKhoa = Object.keys(banDo).filter((en) => en.trim() === '')
+if (saiKhoa.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — src/board/vi.json có ${saiKhoa.length} khoá rỗng hoặc chỉ gồm ` +
+      'khoảng trắng. Khoá rỗng KHỚP MỌI chuỗi rỗng trong cây vendored, kể cả giá trị mặc định của ' +
+      "model tài liệu (`name: ''`, `caption: ''`, `title: ''`) — nó ghi đè dữ liệu chứ không chỉ " +
+      'ghi đè nhãn. Xoá dòng đó khỏi bảng dịch.',
+  )
+  process.exit(1)
+}
+
 // Chuỗi RỖNG cũng phải chặn: nó qua được phép kiểm kiểu (`typeof "" === 'string'`) lẫn Cổng 1
 // (`"Style" !== ""`), rồi `JSON.stringify("")` chèn `""` vào mã vendored — nhãn trên giao diện bị
 // xoá trắng, build xanh. Một ô để trống khi dán bảng dịch là chuyện thường gặp y như gõ nhầm số.
