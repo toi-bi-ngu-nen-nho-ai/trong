@@ -761,6 +761,24 @@ const BAO_CAO = path.join(BUILD, 'bao-cao-dich.json')
 
 const banDo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
 
+// ─── Cổng 0: bản đồ dịch phải phẳng ─────────────────────────────────────────────────────────
+// Kiểm MỘT LẦN lúc nạp. `dichMotFile` cũng ném khi gặp giá trị không phải chuỗi, nhưng nó chỉ ném
+// khi khoá hỏng THỰC SỰ xuất hiện trong file đang xử lý — nên một mục hỏng sẽ nổ ở giữa lượt duyệt
+// 2.550 file, với thông báo trỏ vào một file vendored ngẫu nhiên thay vì nói thẳng "vi.json sai
+// định dạng". Cổng ở đây trả lời đúng câu hỏi, đúng lúc.
+const saiKieu = Object.entries(banDo).filter(([, vi]) => typeof vi !== 'string')
+if (saiKieu.length) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json phải phẳng { "English": "Tiếng Việt" }. Các khoá ' +
+      'sau có giá trị KHÔNG PHẢI CHUỖI (gom nhóm lồng nhau, mảng phương án dịch để tạm, hay số gõ ' +
+      'nhầm đều là JSON hợp lệ nên lọt tới đây được):',
+  )
+  saiKieu.forEach(([en, vi]) =>
+    console.error(`   "${en}" → kiểu ${vi === null ? 'null' : typeof vi}`),
+  )
+  process.exit(1)
+}
+
 // ─── Cổng 1: bản dịch trùng y hệt bản gốc ───────────────────────────────────────────────────
 // Dòng thừa, hoặc dấu hiệu chép nhầm cột khi soạn bảng. Bắt ngay, đừng để nó đi tiếp rồi trở
 // thành một khoá "đã dịch" mà không dịch gì.
