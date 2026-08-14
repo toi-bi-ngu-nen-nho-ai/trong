@@ -15,10 +15,10 @@ Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 | `main` | **`4dd552d`** — đã đẩy lên origin |
 | Nhánh đang làm | **`p1b-vi-json-vi-tri`** — hơn `main` 20+ commit, đã đẩy lên origin làm bản sao lưu |
 | Cây làm việc | sạch |
-| Sáu cổng | xanh — `tsc` exit 0 · `npm test` 77/77 (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **79/79** (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
-**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp.** 3/5 task xong và đã qua review; Task 4
-và Task 5 chưa bắt đầu. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
+**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp.** **Cả 5/5 task đã thi hành xong**;
+còn lại lượt review toàn nhánh và quyết định gộp. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
 sống trên máy này) — **mục 10 dưới đây là bản chép đi được sang máy khác**.
 
 **Cảnh báo vận hành:** commit `dc2f765` trên nhánh này là của một **phiên Claude khác chạy song
@@ -108,12 +108,11 @@ Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựn
 | Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
 
 **`/superpowers:subagent-driven-development` GIỜ CHẠY TIẾP ĐƯỢC** — đã có kế hoạch P1-B dở dang
-(mục 10), nó sẽ tiếp từ Task 4. Đây là điểm khác với bản HANDOFF trước: lúc đó không có kế hoạch
-nào chưa thi hành nên kỹ năng đó đứng im.
+(mục 10). Cả 5 task đã thi hành nên nó sẽ đi thẳng tới lượt review toàn nhánh.
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
-| **Chạy tiếp P1-B (Task 4, 5)** | `superpowers:subagent-driven-development` |
+| **Kết thúc P1-B** (review toàn nhánh + gộp) | `superpowers:requesting-code-review` → `superpowers:finishing-a-development-branch` |
 | Dịch nội dung `vi.json` sau khi P1-B xong | `superpowers:brainstorming` — cần chốt bảng thuật ngữ 61 từ trước |
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
 | Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
@@ -270,7 +269,7 @@ hiện chưa có iPad.
 - **Lưu trữ (D4)** — nối y-indexeddb của AFFiNE cho nội dung bảng, nâng `DB_VERSION` lên 5 cho
   danh sách bảng.
 - **BoardGallery** — màn danh sách bảng.
-- **Bổ sung `vi.json`** — ĐANG DỞ, xem mục 10. Cơ chế làm xong 3/5 task; nội dung dịch (bảng thuật
+- **Bổ sung `vi.json`** — cơ chế ĐÃ XONG 5/5 task, xem mục 10; nội dung dịch (bảng thuật
   ngữ 61 từ, rồi 323 chuỗi) là chặng riêng sau đó.
 - **Cấu hình `viewportRuntimeConfig` cho iOS** — chưa dòng nào làm. Nhớ: `ZOOM_MIN`/`ZOOM_MAX` đọc
   qua getter động nên override lúc nào cũng ăn, còn `SKIP_REFRESH_DURING_GESTURE` là field
@@ -324,11 +323,12 @@ danh sách cho phép. Đo được 127 loại vị trí khác nhau → **danh s�
 | 1 | Tách bước dịch sang `scripts/dich-chuoi-vendor.mjs` + `duyet-cay-js.mjs` dùng chung | `4dd552d..9f9e263` | 1 |
 | 2 | `scripts/luat-vi-tri-dich.mjs` — module thuần + 37 ca kiểm | `9f9e263..cdc3132` | **4** |
 | 3 | Nối vào pipeline, `bao-cao-dich.json`, **bốn cổng DỪNG** | `cdc3132..1f78d43` | **2** |
+| 4 | Cổng độc lập tính lại từ `.vendor-build/`, không đọc báo cáo | `728843e..98e8b71` | **2** |
+| 5 | `kiem:dist` luật C — bản dịch buộc phải có trong `dist/` | `98e8b71..d4ee12c` | **1** |
 
-Cả ba đều đã qua review và được duyệt. Reviewer Task 3 kết luận: *"Sẵn sàng cho Task 4 và Task 5
-dựng lên: Có"*.
+Cả năm đều đã qua review và được duyệt (Task 5 chờ lượt review lại cuối cùng).
 
-### Bảy lỗi vòng review bắt được — TẤT CẢ nằm trong mã do kế hoạch cho sẵn
+### Mười một lỗi vòng review bắt được — TẤT CẢ nằm trong mã do kế hoạch cho sẵn
 
 Đây là phần đáng giá nhất của chặng, và là lời cảnh báo cho mọi kế hoạch sau: **mã trong kế hoạch
 là bản nháp, không phải lời tiên tri** (bài học #1 của mục 5).
@@ -342,23 +342,26 @@ là bản nháp, không phải lời tiên tri** (bài học #1 của mục 5).
 | 5 | `banDo[k] !== undefined` tra qua prototype | `label: 'constructor'` → **`label: undefined` trần** trong mã vendored |
 | 6 | Không kiểm KIỂU giá trị bản dịch | `vi.json` gom nhóm / để tạm mảng → chèn `label: [...]` trần |
 | 7 | Cổng 0 chỉ canh cột giá trị, không canh cột khoá | khoá rỗng khớp **mọi** literal rỗng — ghi đè `name: ''`, `caption: ''`, `title: ''` là **giá trị mặc định của model tài liệu** |
+| 8 | Cổng độc lập xanh rỗng tuếch — mặt khẳng định chỉ tăng khi có VI PHẠM | sửa một *giá trị* trong `vi.json` mà quên dựng lại → cả hai ca xanh, bản build cũ trôi qua |
+| 9 | Cổng độc lập vẫn xanh khi bản đồ dịch rỗng (`[]` vs `[]`) | kế thừa đúng điểm mù mà `dich-chuoi-vendor.mjs` tự ghi là "không cổng nào khác chặn được" |
+| 10 | Luật C của `kiem:dist` xanh với `0/0 có mặt` khi `vi.json` rỗng | và nơi chặn ca này KHÔNG nằm trên đường `npm run build`, nên luật C là lớp cuối cùng và duy nhất |
+| 11 | Luật C so khớp mù phạm vi — tìm ở **mọi** file của `dist/` | chunk bảng vẽ tiếng Anh 100% vẫn xanh nếu bundle app 980 kB tình cờ chứa mấy từ đó |
 
-Từ #5 tới #7 đều hỏng **im lặng**: JS vẫn hợp lệ, build vẫn xanh, không cổng nào đỏ. Đúng bài học
+Từ #5 tới #7 hỏng **im lặng**; #8 tới #11 là **cổng xanh rỗng tuếch** — cổng báo "đã kiểm" trong khi không kiểm được gì. Cả hai lớp: JS vẫn hợp lệ, build vẫn xanh, không cổng nào đỏ. Đúng bài học
 #2. Mỗi lượt vá đều kèm **bằng chứng đỏ đã thật sự chạy và thật sự đỏ**, ghi trong các file
 `.superpowers/sdd/task-*-report.md`.
 
 ### Việc làm ngay của phiên sau
 
 ```bash
-git log --oneline -1                    # kỳ vọng 1f78d43 hoặc mới hơn
+git log --oneline -1                    # kỳ vọng d4ee12c hoặc mới hơn
 git status --short                      # kỳ vọng rỗng
 npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
 ```
 
-Rồi gọi `/superpowers:subagent-driven-development` — sổ `.superpowers/sdd/progress.md` (nếu còn) sẽ
-nói tiếp từ Task 4. Nếu sổ mất, bắt đầu từ **Task 4** của kế hoạch: cổng độc lập phân tích lại
-`.vendor-build/` và khẳng định mọi chuỗi tiếng Việt đều nằm ở vị trí cho phép — **cố ý không đọc
-`bao-cao-dich.json`**, vì bộ thay sai thì báo cáo cũng sai theo.
+**Cả 5 task đã thi hành xong.** Việc còn lại là **lượt review toàn nhánh** (`git merge-base main
+HEAD`..`HEAD`) rồi quyết định gộp — dùng `superpowers:requesting-code-review` và
+`superpowers:finishing-a-development-branch`. **Đừng chạy lại task nào**; sổ và bảng trên là hồ sơ.
 
 ### Khoảng 12 mục Minor còn mở
 
