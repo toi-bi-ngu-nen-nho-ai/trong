@@ -12,8 +12,8 @@ Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 
 | | |
 |---|---|
-| `main` | **`4dd552d`** (hơn `origin/main` 1 commit) |
-| Nhánh đang làm | **`p1b-vi-json-vi-tri`** tại **`1f78d43`**, hơn `main` **20 commit** |
+| `main` | **`4dd552d`** — đã đẩy lên origin |
+| Nhánh đang làm | **`p1b-vi-json-vi-tri`** — hơn `main` 20+ commit, đã đẩy lên origin làm bản sao lưu |
 | Cây làm việc | sạch |
 | Sáu cổng | xanh — `tsc` exit 0 · `npm test` 77/77 (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh |
 
@@ -102,8 +102,8 @@ Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựn
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `main` (cục bộ) | `4dd552d` — hơn `origin/main` 1 commit |
-| `p1b-vi-json-vi-tri` | `1f78d43` — chặng đang dở, hơn `main` 20 commit |
+| `origin/main` | `4dd552d` |
+| `origin/p1b-vi-json-vi-tri` | **chặng đang dở** — đã đẩy làm bản sao lưu. Vị trí chính xác: `git log --oneline -1 p1b-vi-json-vi-tri` |
 | `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
 | Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
 
