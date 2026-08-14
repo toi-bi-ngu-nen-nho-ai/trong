@@ -171,13 +171,14 @@ src/vendor/blocksuite/     BlockSuite 0.27.0, chép NGUYÊN VĂN, cấm sửa (D
 
 **Tiền tố `drt`** (Doctor Trọng) thay `affine` — chủ dự án duyệt 2026-08-12.
 
-### Sáu cổng và việc của từng cái
+### Bảy cổng và việc của từng cái
 
 | Lệnh | Canh cái gì |
 |---|---|
 | `kiem:vendor` | cây vendored khớp nguyên văn thượng nguồn (D11). Chạy được không cần checkout AFFiNE, nhờ `bang-bam-vendor.json` |
 | `kiem:vendor-build` | `.vendor-build/` tồn tại và bước đổi tên đã chạy |
 | `kiem:vendor-paths` | bản đồ paths đã commit còn mô tả đúng `.vendor-build/` |
+| `dichchuoi:vendor` | mọi khoá `vi.json` dịch được ở ĐÚNG một vị trí hiển thị; khoá chết thì DỪNG |
 | `kiem:dist` | **soi `dist/`** — không biến CSS nào dùng mà không định nghĩa, không chuỗi `affine-` nào sót |
 | `npm test` | mã dự án sở hữu |
 | `postinstall` (`dam-bao-vendor-build.mjs`) | tự dựng `.vendor-build/` nếu thiếu, bỏ qua nhanh nếu đã hợp lệ |
@@ -231,8 +232,9 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
 - `test:watch` không có cổng `pretest:watch`.
 - Bằng chứng đỏ của hai ca board không bắt được **đổi thứ tự** widget, mà `extensions.ts` nói thứ
   tự quyết định z-index. Hiện đã kiểm tay: mảng 22 mục đúng là dãy con giữ thứ tự của thượng nguồn.
-- `src/board/vi.json` mới có **5 chuỗi**. Cơ chế D12 đã đúng, độ phủ gần bằng không — thanh công cụ
-  bảng vẫn tiếng Anh. Còn khoảng 260 chuỗi.
+- `src/board/vi.json` vẫn 5 chuỗi, nhưng cơ chế đã an toàn ở quy mô lớn (spec
+  `2026-08-14-bo-sung-vi-json-design.md`, kế hoạch `2026-08-14-bo-sung-vi-json.md`). Chặng tiếp là
+  nội dung dịch: chốt bảng thuật ngữ 61 từ rồi dịch 323 chuỗi.
 - `src/board/__tests__/edgeless-board-mount.spec.ts` từng đỏ một lần vì timeout rồi xanh lại ngay.
   Nghi hai thủ phạm: mặc định 5 giây của vitest khi mount cả cây Lit, hoặc đường render bất đồng bộ
   qua `requestIdleCallback` mà chính header file đó nhắc. **Chưa bắt được thông điệp lỗi thật** —

@@ -9,13 +9,17 @@
 // hình học đúng: một lượt kiểm bằng mắt trong trình duyệt cũng không bắt được. Chỉ có phép đếm
 // "dùng bao nhiêu / định nghĩa bao nhiêu" trên chính bản dựng mới thấy.
 //
-// Hai luật:
+// Ba luật:
 //   A. Không còn `affine-` nào trong bản phát hành (D16 — devtools không được lộ thương hiệu
 //      thượng nguồn). Chú ý luật này khớp `affine-` CÓ GẠCH NỐI, đúng như luật của
 //      scripts/doi-ten-vendor.mjs: `affine:page` / `affine:surface` là FLAVOUR trong dữ liệu, cố
 //      tình không đổi (đổi là không đọc được tài liệu do AFFiNE tạo) và không bị luật này chạm.
 //   B. Mọi biến CSS trong không gian tên `--drt-` được DÙNG thì phải được ĐỊNH NGHĨA ở đâu đó
 //      trong bản phát hành.
+//   C. Mọi bản dịch trong src/board/vi.json phải CÓ MẶT trong bản phát hành. Không đếm tổng: 121
+//      chuỗi ứng viên bị tree-shake nên tổng số trồi sụt vô nghĩa. Luật này soi đúng những chuỗi
+//      ĐÃ ĐƯỢC CHỌN dịch — nếu một cái biến mất khỏi dist/ thì hoặc bước dịch không chạy, hoặc
+//      chuỗi đó không còn trên đường render, và cả hai đều phải biết ngay.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
@@ -46,6 +50,11 @@ const MIEN = new Set([
   '--drt-background-kanban-card-color', // affine/data-view/.../kanban/{pc,mobile}/card.ts
 ])
 
+// Luật C — bản dịch phải tới được tay người dùng.
+const BAN_DICH = Object.values(
+  JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
+)
+
 function* dietFile(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const f = path.join(dir, e.name)
@@ -62,6 +71,7 @@ if (!existsSync(DIST)) {
 const dung = new Map() // tên → file đầu tiên thấy dùng
 const dinhNghia = new Set()
 const conAffine = []
+const thieuBanDich = new Set(BAN_DICH)
 let soFile = 0
 
 for (const f of dietFile(DIST)) {
@@ -74,6 +84,11 @@ for (const f of dietFile(DIST)) {
   if (soAffine) {
     const viDu = [...new Set([...noiDung.matchAll(/[-\w]*affine-[\w-]*/g)].map((m) => m[0]))]
     conAffine.push({ rel, soAffine, viDu: viDu.slice(0, 8) })
+  }
+
+  // Luật C.
+  for (const v of thieuBanDich) {
+    if (noiDung.includes(v)) thieuBanDich.delete(v)
   }
 
   // Luật B — phía ĐỊNH NGHĨA: `--x: giá trị`.
@@ -98,7 +113,8 @@ const thieuDinhNghia = dungDrt.filter((t) => !dinhNghia.has(t) && !MIEN.has(t))
 console.log(
   `kiem-dist: đã đọc ${soFile} file trong dist/\n` +
     `  biến ${KHONG_GIAN_TEN}*  — dùng ${dungDrt.length} tên, định nghĩa ${dinhNghiaDrt.length} tên\n` +
-    `  biến CSS tất cả  — dùng ${dung.size} tên, định nghĩa ${dinhNghia.size} tên`,
+    `  biến CSS tất cả  — dùng ${dung.size} tên, định nghĩa ${dinhNghia.size} tên\n` +
+    `  bản dịch vi.json — ${BAN_DICH.length - thieuBanDich.size}/${BAN_DICH.length} có mặt`,
 )
 
 let loi = 0
@@ -128,6 +144,17 @@ if (thieuDinhNghia.length) {
   if (thieuDinhNghia.length > 30) {
     console.error(`   ...và ${thieuDinhNghia.length - 30} tên nữa`)
   }
+}
+
+if (thieuBanDich.size) {
+  loi++
+  console.error(
+    `\nD12 ĐỎ — ${thieuBanDich.size} bản dịch trong src/board/vi.json KHÔNG có mặt trong dist/. ` +
+      'Nghĩa là thanh công cụ bảng vẽ đang nói tiếng Anh ở đúng chỗ đã chọn dịch. Nguyên nhân ' +
+      'thường gặp: bước dich-chuoi-vendor không chạy (kiểm dung-vendor.mjs), hoặc thượng nguồn đã ' +
+      'chuyển chuỗi sang một vị trí cú pháp ngoài danh sách cho phép:',
+  )
+  ;[...thieuBanDich].forEach((v) => console.error(`   "${v}"`))
 }
 
 if (loi) process.exit(1)
