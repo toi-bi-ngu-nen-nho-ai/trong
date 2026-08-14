@@ -1112,6 +1112,25 @@ Thêm sau khối khai báo `MIEN` (sau dòng 47):
 const BAN_DICH = Object.values(
   JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
 )
+
+// Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
+// dính và đều phải vá. Ở đây nó nguy hiểm hơn hẳn: nơi chặn ca này (`dich-chuoi-vendor.mjs` Cổng 0)
+// KHÔNG nằm trên đường `npm run build` — `prebuild` chỉ chạy `kiem-vendor-build` +
+// `kiem-vendor-paths`, còn `postinstall` bỏ qua nhanh khi `.vendor-build/` đã hợp lệ. Nghĩa là ở
+// mọi lượt build dùng cây vendor có sẵn, luật C là lớp CUỐI CÙNG và DUY NHẤT.
+if (BAN_DICH.length === 0) {
+  console.error(
+    'kiem-dist: DỪNG — src/board/vi.json không có bản dịch nào, nên luật C không có gì để canh và ' +
+      'sẽ xanh giả với "0/0 có mặt". Hoặc bảng dịch bị xoá nhầm, hoặc luật C nên được gỡ hẳn.',
+  )
+  process.exit(1)
+}
+
+// Dấu hiệu nhận ra một file thuộc cây bảng vẽ đã vendored: tiền tố `drt-` do bước đổi tên D16 sinh
+// ra. Đo trên bản dựng hiện tại: **2.026 lượt** trong chunk bảng vẽ, **0 lượt** trong bundle app và
+// mọi file còn lại. Dùng dấu hiệu này thay vì ghim cứng tên chunk, vì tên chunk mang hash và đổi
+// mỗi lần chia lại gói.
+const DAU_BANG_VE = 'drt-'
 ```
 
 Thêm biến gom, cạnh `const conAffine = []` (dòng 64):
@@ -1123,9 +1142,14 @@ const thieuBanDich = new Set(BAN_DICH)
 Thêm vào trong vòng lặp file, ngay sau khối "Luật A" (sau dòng 77):
 
 ```js
-  // Luật C.
-  for (const v of thieuBanDich) {
-    if (noiDung.includes(v)) thieuBanDich.delete(v)
+  // Luật C. CHỈ tính khi bản dịch nằm trong một file thuộc cây bảng vẽ. Đếm ở mọi file thì một
+  // `dist/` có chunk bảng vẽ HOÀN TOÀN tiếng Anh vẫn xanh, miễn bundle app tình cờ chứa mấy từ đó —
+  // mà đây là app y khoa TIẾNG VIỆT với bundle riêng gần 1 MB, và chặng tới thêm 323 chuỗi nên va
+  // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
+  if (noiDung.includes(DAU_BANG_VE)) {
+    for (const v of thieuBanDich) {
+      if (noiDung.includes(v)) thieuBanDich.delete(v)
+    }
   }
 ```
 
