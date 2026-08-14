@@ -1,9 +1,29 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-13**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
-**P1-A đã gộp vào `main` và đã đẩy lên origin.** Không còn nợ nhánh, không còn worktree cần dọn.
-`main` = `origin/main` = nhánh `worktree-p1a-nhung-edgeless`, cả ba đều ở **`f01c278`**.
+> **ĐÍNH CHÍNH bản 2026-08-13.** Bản đó viết *"P1-A đã gộp vào `main`, fast-forward
+> `afac297 → a10401b`"*. **Điều đó chưa từng xảy ra ở bản sao này.** Chuỗi cha-thứ-nhất của `main`
+> cho thấy `main` vẫn nằm ở `afac297` cho tới merge commit **`e0baa76`** (13/08 15:37), tức *sau*
+> khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
+> fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
+
+## TRẠNG THÁI HÔM NAY — có một chặng ĐANG DỞ
+
+| | |
+|---|---|
+| `main` | **`4dd552d`** (hơn `origin/main` 1 commit) |
+| Nhánh đang làm | **`p1b-vi-json-vi-tri`** tại **`1f78d43`**, hơn `main` **20 commit** |
+| Cây làm việc | sạch |
+| Sáu cổng | xanh — `tsc` exit 0 · `npm test` 77/77 (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh |
+
+**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp.** 3/5 task xong và đã qua review; Task 4
+và Task 5 chưa bắt đầu. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
+sống trên máy này) — **mục 10 dưới đây là bản chép đi được sang máy khác**.
+
+**Cảnh báo vận hành:** commit `dc2f765` trên nhánh này là của một **phiên Claude khác chạy song
+song**. Hai phiên cùng ghi một nhánh là chỗ dễ mất việc. Trước mỗi lượt làm, `git log` lại; đừng
+giả định `HEAD` là commit mình vừa tạo.
 
 ---
 
@@ -80,8 +100,9 @@ Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựn
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `f01c278` |
-| `origin/worktree-p1a-nhung-edgeless` | `f01c278` — giữ lại làm bản sao lưu, không xoá |
+| `main` (cục bộ) | `4dd552d` — hơn `origin/main` 1 commit |
+| `p1b-vi-json-vi-tri` | `1f78d43` — chặng đang dở, hơn `main` 20 commit |
+| `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
 | Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
 
 **`/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì.** Kỹ năng đó thi hành *một
@@ -115,6 +136,12 @@ Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
 | Sửa nốt thanh công cụ theo chế độ tối (đọc `<html>`, không riêng wrapper) | `a10401b` |
 | Sửa lỗi build Vercel (postinstall tự dựng `.vendor-build/`) | `07dd96f` |
 | Bỏ `.vendor-build/` khỏi phạm vi review thiết kế (impeccable hook) | `f01c278` |
+| Bàn giao đầy đủ sang máy/tài khoản khác | `ffe149c` |
+| **Gộp P1-A vào `main` — merge commit, KHÔNG phải fast-forward** | `e0baa76` |
+| Trả lại dấu cách trước "1 chai", khoá nhánh trọn-chai bằng test | `b48d2ba` |
+| Spec P1-B: bổ sung `vi.json` theo vị trí cú pháp | `d21f88f` |
+| Kế hoạch P1-B, 5 task | `a368b3d` |
+| **Nhánh `p1b-vi-json-vi-tri`** — Task 1, 2, 3 (xem mục 10) | `4dd552d..1f78d43` |
 
 Mỗi task P1-A đều đã qua review riêng và ít nhất một vòng vá. **Đừng chạy lại task nào ở đây.**
 
@@ -237,7 +264,8 @@ hiện chưa có iPad.
 - **Lưu trữ (D4)** — nối y-indexeddb của AFFiNE cho nội dung bảng, nâng `DB_VERSION` lên 5 cho
   danh sách bảng.
 - **BoardGallery** — màn danh sách bảng.
-- **Bổ sung `vi.json`** — dịch dần theo mức độ hay gặp.
+- **Bổ sung `vi.json`** — ĐANG DỞ, xem mục 10. Cơ chế làm xong 3/5 task; nội dung dịch (bảng thuật
+  ngữ 61 từ, rồi 323 chuỗi) là chặng riêng sau đó.
 - **Cấu hình `viewportRuntimeConfig` cho iOS** — chưa dòng nào làm. Nhớ: `ZOOM_MIN`/`ZOOM_MAX` đọc
   qua getter động nên override lúc nào cũng ăn, còn `SKIP_REFRESH_DURING_GESTURE` là field
   initializer **chốt cứng lúc dựng `Viewport`**. Cấu hình sau khi mount là ăn sàn zoom nhưng
@@ -260,3 +288,83 @@ Sổ tiến độ *sống* nằm ở `.superpowers/sdd/progress.md` trong worktr
 `.gitignore`, không đi theo repo. Từ giờ, **file này (`HANDOFF.md`) là nguồn tin cậy duy nhất qua
 được sang máy/tài khoản khác**. Cập nhật nó mỗi khi kết thúc một phiên có thay đổi đáng kể, thay
 vì chỉ ghi vào sổ tạm.
+
+---
+
+## 10. CHẶNG P1-B ĐANG DỞ — cơ chế thay chuỗi D12 theo vị trí cú pháp
+
+Bản chép đi được của `.superpowers/sdd/progress.md` (file đó bị `.gitignore`, không qua được sang
+máy khác). Nhánh **`p1b-vi-json-vi-tri`**, gốc `4dd552d`.
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-14-bo-sung-vi-json-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-14-bo-sung-vi-json.md` |
+
+### Vì sao chặng này tồn tại
+
+Cơ chế D12 cũ thay chuỗi bằng **regex khớp trọn một literal ở bất cứ đâu** trong 2.550 file, không
+phân biệt chuỗi hiển thị với dữ liệu. Ở mức 5 khoá chưa lộ; ở mức vài trăm khoá thì hỏng. Ca chứng
+minh có thật: `"LinkedPage"` vừa nằm ở `name:` (nhãn hiển thị) vừa ở `type:` trong
+`attributes.reference` — **giá trị lược đồ tài liệu**. Đo được **110/391 ứng viên có va chạm**.
+
+Hướng đã chốt: phân tích AST bằng `ts.createSourceFile`, chỉ thay khi **vị trí cú pháp** nằm trong
+danh sách cho phép. Đo được 127 loại vị trí khác nhau → **danh sách cho phép, hỏng thì đóng**.
+
+### Đã xong
+
+| Task | Nội dung | Commit | Lượt vá |
+|---|---|---|---|
+| 1 | Tách bước dịch sang `scripts/dich-chuoi-vendor.mjs` + `duyet-cay-js.mjs` dùng chung | `4dd552d..9f9e263` | 1 |
+| 2 | `scripts/luat-vi-tri-dich.mjs` — module thuần + 37 ca kiểm | `9f9e263..cdc3132` | **4** |
+| 3 | Nối vào pipeline, `bao-cao-dich.json`, **bốn cổng DỪNG** | `cdc3132..1f78d43` | **2** |
+
+Cả ba đều đã qua review và được duyệt. Reviewer Task 3 kết luận: *"Sẵn sàng cho Task 4 và Task 5
+dựng lên: Có"*.
+
+### Bảy lỗi vòng review bắt được — TẤT CẢ nằm trong mã do kế hoạch cho sẵn
+
+Đây là phần đáng giá nhất của chặng, và là lời cảnh báo cho mọi kế hoạch sau: **mã trong kế hoạch
+là bản nháp, không phải lời tiên tri** (bài học #1 của mục 5).
+
+| # | Lỗi | Hậu quả nếu lọt |
+|---|---|---|
+| 1 | `dietJs` trùng lặp verbatim hai nơi | nợ bảo trì |
+| 2 | Regex `data-tip` không neo biên trái | `my-data-tip=` bị dịch |
+| 3 | Lớp mở đầu `[A-Za-z]` hẹp hơn lớp nối `[\w:-]` | `.data-tip=`, `?data-tip=`, `@data-tip=` — **cú pháp binding thật của Lit** — vẫn lọt |
+| 4 | Không ca nào có ≥2 lượt thay/file | đảo `sort` thì 18 ca vẫn xanh, output hỏng |
+| 5 | `banDo[k] !== undefined` tra qua prototype | `label: 'constructor'` → **`label: undefined` trần** trong mã vendored |
+| 6 | Không kiểm KIỂU giá trị bản dịch | `vi.json` gom nhóm / để tạm mảng → chèn `label: [...]` trần |
+| 7 | Cổng 0 chỉ canh cột giá trị, không canh cột khoá | khoá rỗng khớp **mọi** literal rỗng — ghi đè `name: ''`, `caption: ''`, `title: ''` là **giá trị mặc định của model tài liệu** |
+
+Từ #5 tới #7 đều hỏng **im lặng**: JS vẫn hợp lệ, build vẫn xanh, không cổng nào đỏ. Đúng bài học
+#2. Mỗi lượt vá đều kèm **bằng chứng đỏ đã thật sự chạy và thật sự đỏ**, ghi trong các file
+`.superpowers/sdd/task-*-report.md`.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng 1f78d43 hoặc mới hơn
+git status --short                      # kỳ vọng rỗng
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+Rồi gọi `/superpowers:subagent-driven-development` — sổ `.superpowers/sdd/progress.md` (nếu còn) sẽ
+nói tiếp từ Task 4. Nếu sổ mất, bắt đầu từ **Task 4** của kế hoạch: cổng độc lập phân tích lại
+`.vendor-build/` và khẳng định mọi chuỗi tiếng Việt đều nằm ở vị trí cho phép — **cố ý không đọc
+`bao-cao-dich.json`**, vì bộ thay sai thì báo cáo cũng sai theo.
+
+### Khoảng 12 mục Minor còn mở
+
+Đã gom trong `.superpowers/sdd/progress.md`, dành cho **lượt review toàn nhánh cuối** phân xử.
+Đáng nhắc nhất: `catch (err)` ở vỏ CLI bắt rộng hơn thứ nó tuyên bố canh; báo cáo kiểm toán được
+ghi **trước** cổng khoá chết nên một lượt bị từ chối vẫn để lại file; script không idempotent và
+thông báo cổng khoá chết dẫn sai hướng khi chạy lần hai; và `text`/`title` trong danh sách 11 tên
+cho phép **cũng là trường dữ liệu tài liệu** trong BlockSuite — phải đo số lượt trúng ở hai vị trí
+đó trước khi mở rộng `vi.json`.
+
+### Ngoài phạm vi chặng này
+
+Chặng này **không thêm khoá dịch nào** — `vi.json` vẫn đúng 5 khoá. Nó chỉ làm cho việc thêm về sau
+trở nên an toàn. Nội dung dịch là chặng riêng: chốt bảng thuật ngữ (**61 từ lặp ≥3 lần**) rồi dịch
+**323 chuỗi** tới được `dist/`.
