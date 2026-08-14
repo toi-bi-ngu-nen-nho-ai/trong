@@ -204,6 +204,8 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
     const banDo = JSON.parse(readFileSync('src/board/vi.json', 'utf8')) as Record<string, string>
     const banDich = new Set(Object.values(banDo))
     const soPham: string[] = []
+    // Gom những bản dịch THẬT SỰ bắt gặp ở vị trí cho phép — xem khẳng định "còn sống" ở cuối ca.
+    const daThay = new Set<string>()
 
     for await (const f of dietJs(BUILD)) {
       const src = readFileSync(f, 'utf8')
@@ -218,8 +220,17 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
       const sf = ts.createSourceFile(f, src, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
       const di = (n: ts.Node) => {
-        if (ts.isStringLiteral(n) && banDich.has(n.text) && viTriHienThi(n) === null) {
-          soPham.push(`${path.relative(BUILD, f)}: "${n.text}"`)
+        // Nhận CẢ `NoSubstitutionTemplateLiteral`, đúng như bộ thay ở luat-vi-tri-dich.mjs. Chỉ
+        // nhìn `StringLiteral` là cổng soi hẹp hơn chính thứ nó đang soi — hôm nay đo được 0 ca,
+        // nhưng một cổng hẹp hơn đối tượng của nó là chỗ để lọt về sau.
+        const laLiteral =
+          ts.isStringLiteral(n) || n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+        if (laLiteral) {
+          const chu = (n as ts.StringLiteralLike).text
+          if (banDich.has(chu)) {
+            if (viTriHienThi(n) === null) soPham.push(`${path.relative(BUILD, f)}: "${chu}"`)
+            else daThay.add(chu)
+          }
         }
         ts.forEachChild(n, di)
       }
@@ -228,6 +239,16 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
     }
 
     expect(soPham).toEqual([])
+
+    // Khẳng định "CÒN SỐNG", không chỉ khẳng định "không vi phạm". Thiếu nó thì ca này xanh cả khi
+    // không soi được literal nào — và có đường đi thật: sửa một GIÁ TRỊ tiếng Việt trong vi.json mà
+    // quên dựng lại `.vendor-build/` thì tiền lọc loại sạch cả 2.550 file và ca xanh rỗng tuếch.
+    // Ca "bất biến" bên dưới cũng không đỡ được, vì `dichMotFile` khớp theo KHOÁ chứ không theo giá
+    // trị, nên khoá không đổi thì nó cũng không thấy gì.
+    //
+    // Đây đúng là phần mà bộ thay đang TỰ KHAI — nó in "5 khoá đều còn sống" rồi thoát 0. Cổng này
+    // sinh ra để không tin lời tự khai đó, nên nó phải tự đếm lại.
+    expect([...daThay].sort()).toEqual([...banDich].sort())
   }, 120_000)
 
   it('bộ thay là bất biến — chạy lại trên cây ĐÃ dịch không đổi gì nữa', async () => {
