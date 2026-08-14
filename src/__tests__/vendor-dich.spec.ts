@@ -124,6 +124,19 @@ describe('D12 — nhiều lượt thay trong cùng một file', () => {
   })
 })
 
+describe('D12 — chỉ chuỗi CÓ TRONG bản đồ mới được đụng', () => {
+  // Phép tra `banDo[n.text]` đi qua chuỗi prototype: `banDo['constructor']` khác `undefined` dù
+  // `vi.json` không có khoá đó. Bản "dịch" khi ấy là một HÀM, `JSON.stringify` cho `undefined`,
+  // nên mã vendored bị chèn token `undefined` TRẦN — JS vẫn hợp lệ nên không cổng nào bắt được.
+  // Khẳng định bằng `toBe` trên toàn bộ chuỗi: `toContain` sẽ vẫn xanh với output hỏng.
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
+    'tên thuộc Object.prototype không phải là khoá dịch: %s',
+    (ten) => {
+      expect(dich(`const a = { label: '${ten}' }`)).toBe(`const a = { label: '${ten}' }`)
+    },
+  )
+})
+
 describe('D12 — ca xương sống: cùng chuỗi, hai vị trí, cùng file', () => {
   // Tái hiện chính xác thứ suýt làm hỏng dữ liệu. Đây là ca quan trọng nhất của bộ này.
   it('name: được dịch, type: còn nguyên văn', () => {

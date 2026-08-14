@@ -113,8 +113,19 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
       n.kind === ts.SyntaxKind.StringLiteral ||
       n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
     ) {
-      const vi = banDo[n.text]
-      if (vi !== undefined) {
+      // `Object.hasOwn`, KHÔNG phải `banDo[n.text] !== undefined`. `banDo` là object thường (kể cả
+      // khi đến từ `JSON.parse`), nên phép tra khoá đi qua chuỗi prototype: `banDo['constructor']`,
+      // `['toString']`, `['valueOf']`, `['hasOwnProperty']`, `['__proto__']`… đều khác `undefined`
+      // dù `vi.json` không hề có khoá nào như vậy.
+      //
+      // Hậu quả đo được: `label: 'constructor'` bị thay thành `label: undefined`, vì bản "dịch" là
+      // một HÀM và `JSON.stringify` của hàm trả về `undefined` — tức token `undefined` TRẦN được
+      // chèn vào mã vendored. JS vẫn hợp lệ nên `parseDiagnostics` không bắt; cổng khoá chết không
+      // bắt (khoá đâu có trong `vi.json`); `kiem:dist` không bắt. Bản ghi kiểm toán cũng mất trường
+      // `chuoiDich`, nên chính báo cáo dùng để soát cũng câm. Đúng loại hỏng-im-lặng mà cả cơ chế
+      // này sinh ra để chặn.
+      if (Object.hasOwn(banDo, n.text)) {
+        const vi = banDo[n.text]
         const viTri = viTriHienThi(n)
         if (viTri) {
           const dau = n.getStart(sf)
