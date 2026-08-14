@@ -183,7 +183,8 @@ Số lượt là số **literal ứng viên** đo được ở vị trí đó, k
 | `thuộc-tính: menuName` | 17 |
 | `thuộc-tính: displayName` | 17 |
 | `thuộc-tính: placeholder` | 10 |
-| **Tổng** | **822** |
+| `thuộc-tính-html: data-tip` (luật hẹp §5.1b) | 12 |
+| **Tổng** | **834** |
 
 Đo lại đúng theo danh sách này (chứ không theo tập con của §2.1, vốn thiếu `caption`, `menuName`,
 `displayName`, `group`, `toast`):
@@ -195,15 +196,46 @@ Số lượt là số **literal ứng viên** đo được ở vị trí đó, k
 | · tới được `dist/` | **323** |
 | · bị tree-shake | 121 |
 
-**323 là khối lượng dịch thật của đợt đầu.** Con số 391/275 ở §2.1 và §2.3 là ước lượng của lượt đo
-sớm bằng regex; 444/323 mới là số đúng, đo bằng chính luật vị trí ở §5.1.
+**323 là khối lượng dịch thật của đợt đầu**, cộng thêm phần của §5.1b. Con số 391/275 ở §2.1 và
+§2.3 là ước lượng của lượt đo sớm bằng regex; 444/323 mới là số đúng, đo bằng chính luật vị trí ở
+§5.1.
+
+### 5.1b Luật hẹp cho template — bắt buộc phải có
+
+Bước lập kế hoạch làm lộ một mâu thuẫn trong bản spec đầu: §5.2 gác toàn bộ vị trí `template` lại
+đợt sau, nhưng **2 trong 5 khoá `vi.json` đang ship nằm đúng ở đó** —
+
+```js
+data-tip="${'Add media'}"
+data-tip="${'Support import of FreeMind,OPML.'}"
+```
+
+Gác `template` thì hai khoá này mất bản dịch **và** cổng "khoá chết → DỪNG" ở §6.1 đánh gãy build.
+Chủ dự án chốt hướng gỡ: thêm một luật hẹp thay vì gác cả nhóm.
+
+**Luật:** một `StringLiteral` nằm ở vị trí template được dịch khi và chỉ khi
+
+1. nó là **toàn bộ** biểu thức của một nhịp template (`${'…'}`), không phải một vế của phép ghép; **và**
+2. đoạn văn bản ngay trước nhịp đó kết thúc bằng một **thuộc tính HTML hiển thị** — hiện là
+   `data-tip="`.
+
+Danh sách thuộc tính có đúng một mục vì đó là mục duy nhất đo được. Thượng nguồn thêm `title=` hay
+`aria-label=` thì chuỗi đó **không được dịch** — hỏng theo hướng nhìn thấy được, đúng nguyên tắc
+§5. Mở rộng danh sách khi đo được chỗ mới, không thêm trước.
+
+**Số đo:** 12 lượt / 10 chuỗi, **toàn bộ** qua `data-tip=`, **cả 10 đều tới `dist/`**. Ngoài 2 khoá
+đang ship, 8 chuỗi còn lại đúng là các nút thanh công cụ edgeless: `Frame`, `Shape`, `Note`, `Link`,
+`Eraser`, `Mind Map`, `Edgeless Text`, `Cutting mode`.
+
+Nhánh "nội dung thẻ" (`>${'…'}<`) đã cân nhắc và **bỏ**: đo được 0 chỗ khớp. Không viết luật cho
+thứ không tồn tại.
 
 ### 5.2 Gác lại đợt sau — lẫn cả hai loại
 
 | Vị trí | Lượt | Vì sao gác |
 |---|---|---|
 | `ConditionalExpression` | 77 | có `"Loading..."`, `"Failed to retrieve link information."` là hiển thị thật, lẫn với chuỗi điều kiện |
-| `template` | 57 | có `"Rename"`, `"Background Color"` là hiển thị, lẫn với chuỗi ghép |
+| `template` **ngoài** luật hẹp §5.1b | 45 | có `"Rename"`, `"Background Color"`, `"More"`, `"Open doc"`, `"Color"`, `"Align"` là hiển thị, lẫn với chuỗi ghép |
 | `return` | 26 | có `"Plain Text"`, `"Block Type"`, `"Today"` là hiển thị, lẫn với giá trị trả về nội bộ |
 | `phần-tử-mảng` | 69 | lẫn `"Code"`, `"Link"` (hiển thị) với `"Mod-Alt-ArrowUp"` (phím tắt) |
 
