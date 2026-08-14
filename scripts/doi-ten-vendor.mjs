@@ -6,19 +6,12 @@
 //
 // Mã nguồn trong src/vendor/ KHÔNG bị đụng — cổng `npm run kiem:vendor` vẫn xanh sau bước này.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
+
+import { dietJs } from './duyet-cay-js.mjs'
 
 const BUILD = '.vendor-build'
 const TIEN_TO = 'drt'
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
 
 let soFile = 0
 let soDoiTen = 0

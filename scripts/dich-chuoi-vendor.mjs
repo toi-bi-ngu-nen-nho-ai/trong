@@ -6,20 +6,13 @@
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
+
+import { dietJs } from './duyet-cay-js.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
 const banDoDich = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
 
 // Thoát ký tự đặc biệt của regex trong chuỗi cần dịch.
 const thoat = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
