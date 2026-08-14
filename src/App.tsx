@@ -3330,7 +3330,11 @@ function draftToMixList(d: MixDraft): AntibioticMix[] | undefined {
 // đứng trước tủ thuốc, nên không thêm chữ nào khác vào.
 function mixOptionLabel(m: AntibioticMix): string {
   const amount = m.vialAmount != null ? `${trim(m.vialAmount)} ${m.vialUnit ?? "mg"}` : "Chưa rõ hàm lượng"
-  return m.vialVolumeMl != null ? `${amount}/${trim(m.vialVolumeMl)} mL` : amount
+  const withVolume = m.vialVolumeMl != null ? `${amount}/${trim(m.vialVolumeMl)} mL` : amount
+  // Không nêu chế phẩm (lọ/ống/chai) thì hai quy cách cùng hàm lượng nhưng khác dạng đóng gói (vd
+  // Amikacin 500 mg bột 1 lọ và 500 mg/2 mL dung dịch 1 ống) hiện ra giống hệt nhau trên chip — người
+  // dùng không cách nào phân biệt trước khi bấm vào xem chi tiết.
+  return `${withVolume} · ${m.vialLabel ?? "lọ"}`
 }
 
 // ─── Mức độ cảnh báo của kháng sinh ──────────────────────────────────────────
@@ -8160,9 +8164,13 @@ function AntibioticDoseCard({
               >
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
-              {showMix && (
+              {/* LUÔN mount AntibioticMixPanel (chỉ ẩn bằng CSS) — giống mọi Disclosure khác trong thẻ
+                  này (xem comment ở Disclosure). Trước đây `{showMix && <AntibioticMixPanel/>}` unmount
+                  hẳn component mỗi lần đóng, xoá sạch state cục bộ (số lọ, thể tích pha loãng, dung
+                  môi...) — mở lại bảng pha là mất hết số vừa gõ tay, quay về mặc định từ đầu. */}
+              <div className={showMix ? undefined : "hidden"}>
                 <AntibioticMixPanel drug={drug} mixList={mixList} mixIndex={mixIndex} setMixIndex={setMixIndex} doseTargetMg={doseTargetMg} doseNotComputable={notComputableDose} routeShort={routeShort} setRouteShort={setRouteShort} />
-              )}
+              </div>
             </>
           )}
         </Disclosure>
