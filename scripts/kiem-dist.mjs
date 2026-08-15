@@ -27,6 +27,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
+import { timTrungBanDich } from './so-khop-ban-dich.mjs'
 import { soanThongBaoThieu, timTrongCayVendor } from './tim-ban-dich-vendor.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -61,9 +62,8 @@ const MIEN = new Set([
 ])
 
 // Luật C — bản dịch phải tới được tay người dùng.
-const MUC_BAN_DICH = Object.entries(
-  JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
-)
+const BAN_DO = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
+const MUC_BAN_DICH = Object.entries(BAN_DO)
 const BAN_DICH = MUC_BAN_DICH.map(([, vi]) => vi)
 
 // Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
@@ -109,6 +109,29 @@ if (MUC_XAU.length) {
       'dù bản phát hành không hề chứa bản dịch nào:',
   )
   MUC_XAU.forEach(([en, vi]) => console.error(`   "${en}" → ${JSON.stringify(vi)}`))
+  process.exit(1)
+}
+
+// Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép so khớp chặt KHÔNG cứu được: hai chuỗi
+// bằng nhau từng ký tự, nên chỉ cần một trong hai còn sống trong dist/ là CẢ HAI được đếm là "có
+// mặt" — kể cả khi chỗ của cái kia đã bị tree-shake. Mẫu số của luật C sai mà không ai biết.
+//
+// Đây là ràng buộc BIÊN TẬP, chủ dự án đã chốt: không được dịch `Delete` và `Remove` cùng thành
+// "Xoá" — phải chọn chữ khác nhau, hoặc bỏ bớt một khoá.
+//
+// Đặt ở đây chứ không ở Cổng 0 của dich-chuoi-vendor.mjs vì cổng đó KHÔNG nằm trên đường
+// `npm run build` (xem chú thích sàn rỗng phía trên) — luật C là lớp duy nhất chắc chắn chạy.
+const TRUNG = timTrungBanDich(BAN_DO)
+if (TRUNG.length) {
+  console.error(
+    `kiem-dist: DỪNG — ${TRUNG.length} bản dịch trong src/board/vi.json bị nhiều khoá dùng chung. ` +
+      'Luật C tìm bản dịch trong dist/ theo GIÁ TRỊ, nên hai khoá cùng giá trị thì một cái còn ' +
+      'sống là cả hai được tính "có mặt" — mẫu số sai mà cổng vẫn xanh. Đổi chữ cho khác nhau, ' +
+      'hoặc bỏ bớt khoá:',
+  )
+  TRUNG.forEach(({ vi, khoa }) =>
+    console.error(`   ${JSON.stringify(vi)} ← ${khoa.map((k) => `"${k}"`).join(', ')}`),
+  )
   process.exit(1)
 }
 
