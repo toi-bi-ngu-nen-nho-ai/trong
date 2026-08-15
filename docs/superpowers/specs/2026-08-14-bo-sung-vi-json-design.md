@@ -90,7 +90,7 @@ chặng P1-C dựng cơ chế nói đúng điều đó khi ai đó lỡ thêm kh
 Cả 5 bản dịch hiện có đều tới được `dist/`, tức cơ chế chạy thông từ đầu tới cuối.
 
 Lưu ý: bề mặt 1.205 **không phải** "số chuỗi cần dịch" — nó có lẫn thứ rõ ràng không phải chữ
-hiển thị (`"4_Content & Media@3"`, `"bookmark"`, `"PDF"`, `"="`, `"x"`)
+hiển thị (`"4_Content & Media@3"`, `"bookmark"`, `"PDF"`, `"="`, `"x"`).
 
 ### 2.4 Phân loại vị trí cú pháp bằng AST
 
@@ -203,7 +203,7 @@ Số lượt là số **literal ứng viên** đo được ở vị trí đó, k
 Đo lại đúng theo danh sách này (chứ không theo tập con của §2.1, vốn thiếu `caption`, `menuName`,
 `displayName`, `group`, `toast`):
 
-| | Số |
+| | Số (ƯỚC LƯỢNG SAI — xem đính chính ngay dưới bảng) |
 |---|---|
 | Lượt literal ở vị trí cho phép | **822** |
 | **Chuỗi khác nhau** | **444** |
@@ -314,7 +314,7 @@ hai thứ cùng sai một kiểu thì không cổng nào bắt được. Chỉ p
 
 ### 6.3 `kiem:dist` — danh sách "buộc phải ra tiếng Việt"
 
-Không đếm tổng: 116/391 chuỗi bị tree-shake nên tổng số sẽ trồi sụt vô nghĩa. Thay vào đó là một
+Không đếm tổng: một phần đáng kể chuỗi ứng viên bị tree-shake (số có ngày đo ở §2.3) nên tổng số sẽ trồi sụt vô nghĩa. Thay vào đó là một
 danh sách nhỏ, cố định, gồm các nhãn trên thanh công cụ mindmap/edgeless mà chủ dự án thấy mỗi
 ngày; thiếu bất kỳ cái nào trong `dist/` là đỏ.
 
@@ -360,6 +360,12 @@ Chưa xác nhận được thì ca kiểm chưa tính là xong.
 
 Chủ dự án chọn: **chốt thuật ngữ trước, rồi duyệt bảng**.
 
+> **CẢNH BÁO 2026-08-15 — số liệu dưới đây dựa trên phép đo đã bị bác bỏ.** Tập "323 chuỗi tới
+> được `dist/`" là ước lượng sai; số đúng là **899** (xem §2.3 đã đính chính). Con số **61 từ lặp
+> ≥3 lần** được suy ra TỪ tập 323 đó, nên nó cũng chưa còn giá trị — phép đếm từ lặp **chưa từng
+> được chạy lại** trên tập 899. Trước khi bắt đầu nhịp 1, phải đo lại cả hai con số. Đừng đổi 323
+> thành 899 rồi giữ nguyên 61: đó là hai phép đo khác nhau.
+
 **Nhịp 1 — bảng thuật ngữ.** Trong 323 chuỗi tới được `dist/` có **61 từ lặp từ 3 lần trở lên** —
 `heading` (21), `insert` (17), `click` (13), `list` (12), `drag` (12), `empty` (11), `size` (10),
 `add` (10), `view` (9), `font` (9), `count` (8), `shadow` (7), `frame` (6), `align` (4)… Bảng thuật
@@ -379,7 +385,7 @@ soát. Danh sách §6.3 chốt ở nhịp này.
 - **Đổi sang hệ i18n thật (nhiều ngôn ngữ, đổi lúc chạy).** Cây vendored không có hạ tầng i18n —
   khảo sát tìm được đúng 1 file nhắc tới i18n trong toàn bộ `src/vendor/blocksuite`. App chỉ có một
   ngôn ngữ. Thay chuỗi lúc build là đúng mức cần thiết.
-- **Dịch 116 chuỗi bị tree-shake** (§2.3). Nếu sau này bật thêm khối chức năng, chúng sẽ vào `dist/`
+- **Dịch những chuỗi bị tree-shake** (§2.3). Nếu sau này bật thêm khối chức năng, chúng sẽ vào `dist/`
   và được xử lý ở đợt đó.
 - **Dịch chuỗi của mã dự án sở hữu** (`src/App.tsx`…). Vốn đã tiếng Việt.
 - **Bốn vị trí gác lại ở §5.2.** Đợt sau.
