@@ -8,18 +8,18 @@ Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — có một chặng ĐANG DỞ
+## TRẠNG THÁI HÔM NAY — P1-B đã gộp, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`4dd552d`** — đã đẩy lên origin |
-| Nhánh đang làm | **`p1b-vi-json-vi-tri`** — hơn `main` 20+ commit, đã đẩy lên origin làm bản sao lưu |
+| `main` | **`d24ee83`** — đã gộp P1-B bằng merge commit, đã đẩy lên origin |
+| `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch |
 | Bảy cổng | xanh — `tsc` exit 0 · `npm test` **82/82** (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
-**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp.** **Xong 5/5 task, đã qua lượt review
-toàn nhánh (KHÔNG có Critical), đã đóng cả 5 mục Important.** Chỉ còn **quyết định gộp** — việc của
-chủ dự án. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
+**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp — ĐÃ XONG VÀ ĐÃ GỘP** (`d24ee83`).
+5/5 task, review toàn nhánh không có Critical, 5 mục Important đã đóng, bảy cổng xanh trên `main`
+sau khi gộp. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
 sống trên máy này) — **mục 10 dưới đây là bản chép đi được sang máy khác**.
 
 **Cảnh báo vận hành:** commit `dc2f765` trên nhánh này là của một **phiên Claude khác chạy song
@@ -53,8 +53,8 @@ Prompt trên đủ để phiên mới tự định hướng mà không cần tô
 
 ```bash
 git fetch origin
-git branch --show-current               # kỳ vọng: p1b-vi-json-vi-tri
-git log --oneline -1                    # kỳ vọng: 4eae9f9 hoặc mới hơn
+git branch --show-current               # kỳ vọng: main
+git log --oneline -1                    # kỳ vọng: d24ee83 hoặc mới hơn
 git status --short                      # kỳ vọng: rỗng
 ```
 
@@ -103,17 +103,18 @@ Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựn
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `4dd552d` |
-| `origin/p1b-vi-json-vi-tri` | **chặng đang dở** — đã đẩy làm bản sao lưu. Vị trí chính xác: `git log --oneline -1 p1b-vi-json-vi-tri` |
+| `origin/main` | `d24ee83` — đã gộp P1-B |
+| `origin/p1b-vi-json-vi-tri` | `39315f3` — giữ làm bản sao lưu, không xoá |
 | `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
 | Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
 
-**`/superpowers:subagent-driven-development` GIỜ CHẠY TIẾP ĐƯỢC** — đã có kế hoạch P1-B dở dang
-(mục 10). Cả 5 task đã thi hành nên nó sẽ đi thẳng tới lượt review toàn nhánh.
+**`/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì** — kế hoạch P1-B đã thi hành
+xong toàn bộ 5 task, đã review toàn nhánh, đã vá, đã gộp. Gọi lại mà không có kế hoạch mới thì nó
+đứng im. Chặng sau cần `brainstorming` → `writing-plans` trước.
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
-| **Gộp P1-B vào `main`** | `superpowers:finishing-a-development-branch` |
+| **Dịch 323 chuỗi** (chặng kế tiếp) | `superpowers:brainstorming` — chốt bảng thuật ngữ 61 từ, VÀ chốt quy tắc cho 116 chuỗi bị tree-shake (mục 10) |
 | Dịch nội dung `vi.json` sau khi P1-B xong | `superpowers:brainstorming` — cần chốt bảng thuật ngữ 61 từ trước |
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
 | Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
@@ -145,7 +146,8 @@ Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
 | Trả lại dấu cách trước "1 chai", khoá nhánh trọn-chai bằng test | `b48d2ba` |
 | Spec P1-B: bổ sung `vi.json` theo vị trí cú pháp | `d21f88f` |
 | Kế hoạch P1-B, 5 task | `a368b3d` |
-| **Nhánh `p1b-vi-json-vi-tri`** — Task 1, 2, 3 (xem mục 10) | `4dd552d..1f78d43` |
+| **Nhánh `p1b-vi-json-vi-tri`** — cả 5 task (xem mục 10) | `4dd552d..39315f3` |
+| **Gộp P1-B vào `main` — merge commit** | `d24ee83` |
 
 Mỗi task P1-A đều đã qua review riêng và ít nhất một vòng vá. **Đừng chạy lại task nào ở đây.**
 
