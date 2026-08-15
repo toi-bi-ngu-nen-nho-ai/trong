@@ -19,7 +19,7 @@ Cập nhật: **2026-08-15**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 | Bảy cổng | xanh — `tsc` exit 0 · `npm test` **98/98** (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
 > **Về con số 98/98.** Ngay sau khi gộp, `npm test` từng đỏ **1 ca (97/98)** — ca đỏ chập chờn đã
-> gặp ba lần mà không ai bắt được thông điệp. Lần này **đã bắt được và đã vá** (`b4c8f11`): thủ
+> gặp ba lần mà không ai bắt được thông điệp. Lần này **đã bắt được và đã vá** (`40f90e9`): thủ
 > phạm là ba ca duyệt trọn cây trong `vendor-doi-ten.spec.ts` hết giờ ở ngân sách mặc định 5 giây,
 > **không phải** file mà dự án nghi suốt ba lần. Chi tiết ở **mục 6**.
 >
@@ -73,7 +73,7 @@ vài phút), rồi superpowers:brainstorming → writing-plans → subagent-driv
 ```bash
 git fetch origin
 git branch --show-current               # kỳ vọng: main
-git log --oneline -1                    # kỳ vọng: 47d9a35 hoặc mới hơn
+git log --oneline -1                    # kỳ vọng: 40f90e9 hoặc mới hơn
 git status --short                      # kỳ vọng: chỉ hai file sinh ra ở mục 6
 ```
 
@@ -123,7 +123,7 @@ Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `ma
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `2736c0a` — đã gộp P1-C (`d165b92`) |
+| `origin/main` | `40f90e9` — đã gộp P1-C (`d165b92`) + vá ca chập chờn |
 | `origin/p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ làm bản sao lưu, không xoá |
 | `origin/p1b-vi-json-vi-tri` | `39315f3` — giữ làm bản sao lưu, không xoá |
 | `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
@@ -173,6 +173,7 @@ Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
 | Kế hoạch P1-C, 4 task | `a61c77d` |
 | **Nhánh `p1c-chuoi-khong-toi-dist`** — cả 4 task + 3 lượt vá (xem mục 12) | `0648e08..1c1a93d` |
 | **Gộp P1-C vào `main` — merge commit** | `d165b92` |
+| Vá ca đỏ chập chờn — ngân sách thời gian cho ca duyệt trọn cây (mục 6) | `40f90e9` |
 
 Mỗi task P1-A đều đã qua review riêng và ít nhất một vòng vá. **Đừng chạy lại task nào ở đây.**
 
