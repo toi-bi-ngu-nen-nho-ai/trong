@@ -299,7 +299,7 @@ vì chỉ ghi vào sổ tạm.
 
 ---
 
-## 10. CHẶNG P1-B ĐANG DỞ — cơ chế thay chuỗi D12 theo vị trí cú pháp
+## 10. CHẶNG P1-B ĐÃ XONG VÀ ĐÃ GỘP — cơ chế thay chuỗi D12 theo vị trí cú pháp
 
 Bản chép đi được của `.superpowers/sdd/progress.md` (file đó bị `.gitignore`, không qua được sang
 máy khác). Nhánh **`p1b-vi-json-vi-tri`**, gốc `4dd552d`.
@@ -397,3 +397,96 @@ cho phép **cũng là trường dữ liệu tài liệu** trong BlockSuite — p
 Chặng này **không thêm khoá dịch nào** — `vi.json` vẫn đúng 5 khoá. Nó chỉ làm cho việc thêm về sau
 trở nên an toàn. Nội dung dịch là chặng riêng: chốt bảng thuật ngữ (**61 từ lặp ≥3 lần**) rồi dịch
 **323 chuỗi** tới được `dist/`.
+
+---
+
+## 11. CHẶNG P1-C ĐANG BRAINSTORM DỞ — quy tắc cho chuỗi không tới `dist/`
+
+**Đây là việc của phiên tiếp theo.** Đã chốt xong ba quyết định, chưa trình bày thiết kế, chưa viết
+spec. Phiên sau tiếp từ **bước "trình bày thiết kế"** của `superpowers:brainstorming`.
+
+### Vấn đề
+
+Hai cổng đặt hai yêu cầu khác nhau, và giữa chúng có một vùng không ai nói ra:
+
+| Cổng | Đòi gì | Với chuỗi thuộc gói chưa bật |
+|---|---|---|
+| Cổng 3 (`dich-chuoi-vendor.mjs`) | mỗi khoá phải dịch được ở đâu đó trong 2.550 file | **THOẢ** |
+| Luật C (`kiem-dist.mjs`) | mỗi bản dịch phải có mặt trong `dist/` | **KHÔNG THOẢ** |
+
+Tức có một lớp chuỗi **"dịch được nhưng không được phép dịch"**. Khi ai đó dịch nhầm một cái, luật C
+đỏ với thông báo nêu hai nguyên nhân — *"bước dịch không chạy"* và *"thượng nguồn chuyển chuỗi ra
+ngoài danh sách"* — mà **cả hai đều sai**. Đúng bài học #2: cổng đỏ chỉ sai chỗ thì đẩy người ta đi
+sửa nhầm.
+
+### Số đo — ĐÍNH CHÍNH spec §2.3
+
+Đo lại bằng **chính luật vị trí đang chạy** (import `viTriHienThi` thật), không phải regex ước lượng:
+
+| | Spec §2.3 (ước lượng cũ) | Đo lại bằng luật thật |
+|---|---|---|
+| Chuỗi ở vị trí cho phép | 444 | **1.196** |
+| Tới được chunk bảng vẽ | 323 | **890** |
+| **Không tới** | 121 | **306** |
+
+Lượt đo cũ lọc "viết hoa chữ đầu", luật sản xuất không có bộ lọc đó. **Spec đang ghi số thấp hơn
+thực tế gần ba lần — phiên sau nên đính chính spec.**
+
+**306 chuỗi không tới KHÔNG rải rác, chúng dồn theo GÓI** — nguyên những tính năng chưa nối vào
+`src/board/extensions.ts`:
+
+```
+ 46 affine/blocks/embed        21 affine/widgets/slash-menu    13 affine/widgets/drag-handle
+ 46 affine/blocks/embed-doc    16 affine/widgets/linked-doc    12 affine/blocks/attachment
+ 31 affine/widgets/keyboard-toolbar  15 affine/blocks/code     11 affine/blocks/bookmark
+ 29 affine/fragments/frame-panel     14 affine/blocks/surface-ref  10 affine/inlines/reference
+ 23 affine/fragments/outline         22 affine/blocks/table        10 affine/blocks/image
+```
+
+Lưu ý: bề mặt 1.196 có lẫn thứ rõ ràng **không phải chữ hiển thị** — `"4_Content & Media@3"`,
+`"bookmark"`, `"PDF"`. Con số thô đó không phải "số chuỗi cần dịch".
+
+Cách nhận ra chunk bảng vẽ trong `dist/`: mật độ `drt-` >= 100 (đo được 2/8 file).
+
+### Ba quyết định ĐÃ CHỐT với chủ dự án
+
+1. **Từ chối, nói rõ vì sao.** Thêm khoá cho chuỗi thuộc nhóm 306 là lỗi soạn bảng. Thông báo phải
+   nói thật: chuỗi nằm trong gói X chưa bật ở `extensions.ts` nên không tới người dùng, dịch nó là
+   công không. Muốn dịch thì **bật tính năng trước** — đúng thứ tự.
+2. **KHÔNG có danh sách miễn.** YAGNI: chưa có ca thật nào cần dịch trước một chuỗi thuộc tính năng
+   chưa bật. Cơ chế miễn không ai dùng là gánh nặng, và là cửa để sau này nhét vào cho cổng xanh —
+   đúng thứ mà comment của `MIEN` (luật B) đã cảnh báo.
+3. **Hướng A — soi `.vendor-build/` trên ĐƯỜNG ĐỎ.** Khi luật C phát hiện thiếu, quét cây đã dịch
+   tìm **giá trị tiếng Việt**:
+   - thấy → *"đã dịch ở `affine/blocks/table/...`, gói đó chưa bật trong `src/board/extensions.ts`"*
+   - không thấy → *"bước dịch không chạy"*
+
+   **Phải quét theo TIẾNG VIỆT, không phải tiếng Anh** — sau khi dịch thì bản gốc tiếng Anh đã biến
+   mất khỏi đúng những chỗ đó.
+
+   Được ba điểm: **độc lập** (tính lại từ cây thật, KHÔNG đọc `bao-cao-dich.json` của chính bộ thay);
+   **chỉ tốn khi đỏ** (đường xanh không quét gì); và `.vendor-build/` chắc chắn có mặt vì `prebuild`
+   đã chạy `kiem-vendor-build` trước đó.
+
+   Hai hướng đã loại: đọc `bao-cao-dich.json` (nhanh hơn nhưng ghép luật C vào lời tự khai của bộ
+   thay); và chỉ thêm nguyên nhân thứ ba vào thông báo (rẻ nhất nhưng để người đọc tự mò giữa ba
+   khả năng, trong khi phân biệt được chỉ tốn một phép quét).
+
+### Việc phiên sau làm
+
+1. Đọc mục này. Xác nhận trạng thái repo bằng `git log`.
+2. Gọi `superpowers:brainstorming`, tiếp từ bước **"trình bày thiết kế"** — ba quyết định trên đã
+   chốt, ĐỪNG hỏi lại.
+3. Viết spec vào `docs/superpowers/specs/`, đính chính luôn số liệu §2.3 của spec P1-B.
+4. `superpowers:writing-plans` → `superpowers:subagent-driven-development`.
+
+### Việc chủ dự án tự làm, ĐỪNG đụng
+
+`src/data/antibiotics.ts` — ba quy cách Amikacin mới đều chép nguyên văn
+`infuseNote: "Pha 500 mg amikacin…"` kể cả quy cách **1000 mg**, kèm một entry thụt lề sai. Chủ dự
+án tự sửa. Đây là dữ liệu lâm sàng.
+
+### Không còn phiên song song
+
+Chủ dự án xác nhận đã đóng phiên Claude thứ hai và **không chạy song song nữa**. Cảnh báo ở đầu file
+chỉ còn giá trị lịch sử (commit `dc2f765` và ba commit UI trên nhánh P1-B là của phiên đó).
