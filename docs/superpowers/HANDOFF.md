@@ -8,23 +8,23 @@ Cập nhật: **2026-08-15**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — P1-C đã gộp, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — P1-D đã gộp, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`d165b92`** — đã gộp P1-C bằng merge commit |
+| `main` | **`9ce6955`** — đã gộp P1-D bằng merge commit |
+| `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **98/98** (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **122/122** (14 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
-> **Về con số 98/98.** Ngay sau khi gộp, `npm test` từng đỏ **1 ca (97/98)** — ca đỏ chập chờn đã
-> gặp ba lần mà không ai bắt được thông điệp. Lần này **đã bắt được và đã vá** (`40f90e9`): thủ
-> phạm là ba ca duyệt trọn cây trong `vendor-doi-ten.spec.ts` hết giờ ở ngân sách mặc định 5 giây,
-> **không phải** file mà dự án nghi suốt ba lần. Chi tiết ở **mục 6**.
->
-> Vẫn nên đọc 98/98 là "lượt chạy gần nhất xanh": lượt vá xoá được nguyên nhân đã chứng minh,
-> nhưng **chưa chứng minh** 120 giây đủ cho mọi đợt tải xấu. Ca đỏ quay lại là **tin tức**.
+> **Về con số 122/122.** Nó là "lượt chạy gần nhất xanh", không phải "bộ test ổn định". Ca đỏ chập
+> chờn từng gặp bốn lần đã **bắt được và vá** ở `40f90e9` (mục 6) — nhưng **chưa chứng minh** ngân
+> sách 120 giây đủ cho mọi đợt tải xấu. **Ca đỏ quay lại là tin tức**, không phải phiền toái.
+
+**Chặng P1-D — siết phép so khớp bản dịch — ĐÃ XONG VÀ ĐÃ GỘP** (`9ce6955`). 4/4 task, review toàn
+nhánh **không có Critical**, ba Important đã đóng. Chi tiết ở **mục 13**.
 
 **Chặng P1-C — quy tắc cho chuỗi không tới `dist/` — ĐÃ XONG VÀ ĐÃ GỘP** (`d165b92`). 4/4 task,
 review toàn nhánh **không có Critical**, bốn Important đã đóng. Chi tiết ở **mục 12**.
@@ -51,14 +51,14 @@ hướng và làm tiếp mà không cần giải thích lại từ đầu.
 phiên Claude Code khác đã hết ngân sách. Đừng đoán trạng thái repo — file đó ghi mọi lệnh git cần
 chạy để xác nhận.
 
-Không còn chặng nào đang dở. P1-C đã gộp (mục 12). Chặng kế tiếp là NỘI DUNG DỊCH cho vi.json.
+Không còn chặng nào đang dở. P1-D đã gộp (mục 13). Chặng kế tiếp là NỘI DUNG DỊCH cho vi.json.
 
-Trước khi thêm khoá đầu tiên phải làm HAI việc, mục 12 ghi rõ cả hai:
-1. Xử nợ `includes` — luật C và timTrongCayVendor đều dùng phép so khớp chuỗi con, nên một bản
-   dịch ngắn là chuỗi con của bản dịch khác ("Tô" trong "Tô màu") sẽ được tính "có mặt" sai.
-   Phải sửa CẢ HAI chỗ, không phải một.
-2. Đo lại số chuỗi VÀ số từ lặp. Con số "323 chuỗi" đã bị bác bỏ (đúng là 899), và "61 từ lặp"
-   được suy ra TỪ tập 323 đó nên cũng hết giá trị. Đừng đổi 323 thành 899 rồi giữ nguyên 61.
+Nợ `includes` ĐÃ TRẢ ở chặng P1-D (mục 13) — cả hai chỗ đã dùng phép literal trọn vẹn, và có
+thêm cổng cấm hai khoá dịch ra cùng một chuỗi.
+
+Việc còn phải làm trước khi thêm khoá đầu tiên: ĐO LẠI số chuỗi VÀ số từ lặp. Con số "323 chuỗi"
+đã bị bác bỏ (đúng là 899), và "61 từ lặp" được suy ra TỪ tập 323 đó nên cũng hết giá trị.
+Đừng đổi 323 thành 899 rồi giữ nguyên 61 — đó là hai phép đo khác nhau.
 
 Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
 vài phút), rồi superpowers:brainstorming → writing-plans → subagent-driven-development.
@@ -73,7 +73,7 @@ vài phút), rồi superpowers:brainstorming → writing-plans → subagent-driv
 ```bash
 git fetch origin
 git branch --show-current               # kỳ vọng: main
-git log --oneline -1                    # kỳ vọng: 40f90e9 hoặc mới hơn
+git log --oneline -1                    # kỳ vọng: 9ce6955 hoặc mới hơn
 git status --short                      # kỳ vọng: chỉ hai file sinh ra ở mục 6
 ```
 
@@ -111,8 +111,8 @@ bảng vẽ ~994 kB gzip, nạp chậm).
 npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build && npm run kiem:dist
 ```
 
-Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `main` sau khi gộp P1-C):
-`tsc` exit 0 · **98/98 ca** xanh (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
+Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `main` sau khi gộp P1-D):
+`tsc` exit 0 · **122/122 ca** xanh (14 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
 438 mục khớp · vỏ app **~333,0 kB** gzip · chunk bảng **~993,7 kB** gzip · `kiem:dist` xanh với
 `bản dịch vi.json — 5/5 có mặt`.
 
@@ -123,7 +123,8 @@ Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `ma
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `40f90e9` — đã gộp P1-C (`d165b92`) + vá ca chập chờn |
+| `origin/main` | `9ce6955` — đã gộp P1-D |
+| `origin/p1d-siet-so-khop` | `b36a398` — giữ làm bản sao lưu, không xoá |
 | `origin/p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ làm bản sao lưu, không xoá |
 | `origin/p1b-vi-json-vi-tri` | `39315f3` — giữ làm bản sao lưu, không xoá |
 | `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
@@ -174,6 +175,10 @@ Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
 | **Nhánh `p1c-chuoi-khong-toi-dist`** — cả 4 task + 3 lượt vá (xem mục 12) | `0648e08..1c1a93d` |
 | **Gộp P1-C vào `main` — merge commit** | `d165b92` |
 | Vá ca đỏ chập chờn — ngân sách thời gian cho ca duyệt trọn cây (mục 6) | `40f90e9` |
+| Spec P1-D: siết phép so khớp bản dịch | `ed8b143` |
+| Kế hoạch P1-D, 4 task | `87e79bc` |
+| **Nhánh `p1d-siet-so-khop`** — 4 task + 2 lượt vá (xem mục 13) | `9828fbb..b36a398` |
+| **Gộp P1-D vào `main` — merge commit** | `9ce6955` |
 
 Mỗi task P1-A đều đã qua review riêng và ít nhất một vòng vá. **Đừng chạy lại task nào ở đây.**
 
@@ -640,7 +645,10 @@ I1 và I4 đều là **lỗ hổng của KẾ HOẠCH**, không phải của ng�
 dùng `loiChanDoan` làm bộ phân biệt, và §10 của spec chỉ liệt kê ba chỗ số liệu trong khi tài liệu
 thật có bảy. Lặp lại bài học #1: **mã trong kế hoạch là bản nháp, không phải lời tiên tri.**
 
-### NỢ ĐÃ ĐO ĐƯỢC — phải xử TRƯỚC khi thêm khoá hàng loạt
+### NỢ ĐÃ ĐO ĐƯỢC — ✅ ĐÃ TRẢ Ở CHẶNG P1-D (mục 13)
+
+> **Mục này giờ là HỒ SƠ.** Cả hai chỗ dùng `includes` đã chuyển sang phép literal trọn vẹn ở
+> `9ce6955`. Giữ lại vì nó ghi số đo và lý do — thứ mục 13 không lặp lại.
 
 Luật C hỏi *"bản dịch có trong chunk không"* bằng `noiDung.includes(v)`. Đo 2026-08-15 trên cùng
 một `dist/`:
@@ -691,3 +699,95 @@ npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải 
 
 **Chặng kế tiếp là NỘI DUNG DỊCH** — và trước khi thêm khoá đầu tiên phải làm hai việc: xử nợ
 `includes` ở trên, và **đo lại cả số chuỗi lẫn số từ lặp** (xem cảnh báo ở cuối mục 10).
+
+---
+
+## 13. CHẶNG P1-D ĐÃ XONG VÀ ĐÃ GỘP — siết phép so khớp bản dịch
+
+Nhánh **`p1d-siet-so-khop`**, gốc `87e79bc`, gộp tại `9ce6955`.
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-15-siet-so-khop-ban-dich-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-15-siet-so-khop-ban-dich.md` |
+
+### Chặng này làm gì
+
+Trả nợ `includes` ghi ở mục 12. Hai chỗ hỏi *"bản dịch này có mặt không"* bằng so khớp **chuỗi
+con** giờ dùng **literal trọn vẹn**:
+
+| Chỗ | Phép mới | Vì sao khác nhau |
+|---|---|---|
+| Luật C, `kiem-dist.mjs` | `coNhuLiteral` | `dist/` đã minify nên kiểu nháy do bộ đóng gói chọn — phải chấp cả `"`, `'`, `` ` `` |
+| `timTrongCayVendor` | `coDungNhuDaChen` | `.vendor-build/` là đầu ra `tsc` chưa minify, bản dịch chèn bằng đúng `JSON.stringify` — so khớp **chính xác** được |
+
+Cộng **cổng cấm hai khoá dịch ra cùng một chuỗi** (lớp lỗi phép chặt không cứu được), và **ghi
+chú** phân biệt "khớp nhầm bản dịch khác" với "bộ đóng gói ghép chuỗi".
+
+`vi.json` vẫn đúng **5 khoá**. `npm test` **122/122** (trước chặng 98/98).
+
+### Phép thử quyết định — chạy đủ hai lượt
+
+Thêm `"Clear column style": "Phong"` vào `vi.json`. `"Phong"` là **tiền tố** của `"Phong cách"`
+đang ship; gói `affine/blocks/table` chưa bật nên chỗ thật của nó không tới `dist/`.
+
+| | `kiem:dist` |
+|---|---|
+| **Trước khi vá** | **XANH** với `6/6 có mặt` — **SAI**, khớp nhầm vào `"Phong cách"` |
+| **Sau khi vá** | **ĐỎ** `5/6`, nêu đúng gói chưa bật |
+
+Cùng một `vi.json`, cùng một `dist/`, **chỉ đổi mã cổng**. Reviewer xác nhận hai lượt thật sự không
+có lượt dựng lại xen giữa: cả hai in cùng `đã đọc 12 file trong dist/` và cùng số biến CSS.
+
+### Ba Important của lượt review toàn nhánh
+
+| # | Lỗi | Vì sao đáng nhớ |
+|---|---|---|
+| I1 | `giaiThichKhopTho` trả bản dịch **đầu tiên theo thứ tự khoá** chứa `v`, không kiểm nó có thật trong chunk — nhưng thông báo nói dứt khoát *"chỉ vì nó nằm trong bản dịch X"* | **Lớp lỗi P1-C bị bắt hai lần, lặp lại trong chính chặng sinh ra để chống nó.** Ca hỏng: `Xoá` / `Xoá cột` (chưa ship) / `Xoá dòng` (ship) — nếu `Xoá cột` đứng trước, thông báo đổ nguyên nhân cho một khoá **cũng đang thiếu** |
+| I2 | Spec §4.2/§7.1 và Task 1 của kế hoạch vẫn kê toa `nhayHoa` — hàm đã bị gỡ vì thoát sai quy ước | Ai thi hành lại Task 1 sẽ **dựng lại đúng con bug**. Kế hoạch còn tự mâu thuẫn với chính nó |
+| I3 | Tham số `ghiChu` và bất biến "ghi chú in TRƯỚC kết luận" không có ca kiểm nào | Chỉ chạy tay một lần; đảo hai dòng `dong.push` là hồi quy im lặng |
+
+I1 và I2 đều là **lỗ hổng của kế hoạch/spec**, không phải của người thi hành.
+
+Trước đó, lượt review Task 1 còn bắt một Important **plan-mandated**: `coNhuLiteral` dò cả ba kiểu
+nháy nhưng thoát theo **một** quy ước (JSON = quy ước nháy kép). Đo được cả **5 bản dịch đang ship
+nằm trong literal BACKTICK** (chunk có ~30.936 backtick, ~12.507 nháy kép, ~977 nháy đơn) — mà
+trong backtick thì `"` **không cần thoát**. Một bản dịch chứa `"` sẽ bị tìm ở dạng không bao giờ
+tồn tại → luật C **đỏ giả** trên bản dịch hợp lệ. Đã thay bằng `dangTrongNhay(s, nhay)`.
+
+### Bài học lặp lại lần thứ ba
+
+**Mã trong kế hoạch là bản nháp, không phải lời tiên tri.** P1-B: 11 lỗi, tất cả trong mã kế hoạch
+cho sẵn. P1-C: 4 Important, hai trong số đó là kế hoạch. P1-D: Important của Task 1 **và** I1 **và**
+I2 đều là kế hoạch/spec.
+
+### Nợ còn mở, chuyển chặng sau
+
+- **M2** — `dangTrongNhay` **hỏng im lặng** với ký tự nháy lạ: không có nhánh `else`, truyền `'“'`
+  thì trả về chuỗi chỉ thoát gạch chéo mà không báo gì. Hôm nay không với tới được nhờ khai kiểu
+  union, nhưng đúng lớp lỗi P1-B trả giá nhất. Thêm `else throw` là 3 dòng.
+- **M3** — `coNhuLiteral` gọi `dangTrongNhay` **ba lần** mỗi lượt thay vì tính một lần; nằm trong
+  vòng lặp O(file × chuỗi).
+- **M4** — chuyển đổi ở `timTrongCayVendor` không có ca kiểm tích hợp; fixture đã sẵn.
+- **M5** — `dangTrongNhay` không xử lý ký tự điều khiển (`\n`) — một bề mặt **đỏ giả** chưa ghi vào
+  §8 của spec.
+- **M6** (từ mục 12) — chi phí quét tăng tuyến tính theo số khoá thiếu: ~28 GB lượt quét nếu ~900
+  khoá thiếu. Chỉ trên đường đỏ, nhưng chẩn đoán chạy hàng phút thì người ta Ctrl-C.
+
+### Cố ý KHÔNG làm, đã cân nhắc
+
+**Không cấm một bản dịch là chuỗi con của bản dịch khác.** Tiếng Việt chia nhau tiền tố quá nhiều
+(`Xoá` / `Xoá dòng`). Reviewer đo được `"Phong cách"` chặt=true và `"Phong"` chặt=false ở **cùng
+một file** — phép chặt đã xử triệt để, nên thêm ràng buộc biên tập ở đây là trả giá thật cho lợi
+ích bằng không.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng 9ce6955 hoặc mới hơn
+git status --short                      # kỳ vọng chỉ hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp là NỘI DUNG DỊCH.** Nợ `includes` đã trả. Việc còn lại trước khi thêm khoá đầu
+tiên: **đo lại cả số chuỗi lẫn số từ lặp** — xem cảnh báo ở cuối mục 10.
