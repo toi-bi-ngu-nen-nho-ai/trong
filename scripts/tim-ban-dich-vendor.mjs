@@ -88,13 +88,20 @@ export async function timTrongCayVendor(goc, canTim) {
 // đoạn mã nhỏ thay vì phải dựng một dist/ thật.
 //
 // Ba nhánh, và ranh giới giữa chúng là ranh giới giữa ĐIỀU ĐO ĐƯỢC và ĐIỀU CHỈ LÀ CHỈ DẪN:
-//   - thấy trong cây  → "bước dịch đã chạy, gói không vào được bản build" là SUY RA TRỰC TIẾP từ
-//                        hai phép đo vừa làm; còn "thường vì chưa bật trong extensions.ts" thì
-//                        KHÔNG đo, nên phải viết như một chỉ dẫn chứ không phải một khẳng định.
+//   - thấy trong cây  → "bước dịch đã đáp vào cây, gói không vào được bản build" là SUY RA TRỰC
+//                        TIẾP từ hai phép đo vừa làm; còn "thường vì chưa bật trong
+//                        extensions.ts" thì KHÔNG đo, nên phải viết như một chỉ dẫn chứ không
+//                        phải một khẳng định. Ngay cả kết luận "tree-shake" cũng không tuyệt đối:
+//                        xem I3 — có thể dist/ chỉ đơn giản chưa được dựng lại từ cây đang đo.
 //   - không thấy      → hai nguyên nhân cũ, với ca này chúng đúng.
 //   - chẩn đoán hỏng  → KHÔNG khẳng định gì. Đây là chỗ dễ tự thua nhất: nói "KHÔNG thấy" khi
 //                        phép quét chưa chạy được là lặp lại đúng lỗi mà cả chặng này sinh ra để
-//                        sửa, chỉ khác chỗ đứng.
+//                        sửa, chỉ khác chỗ đứng. Bộ phân biệt PHẢI là `daDich === null` — không
+//                        phải `loiChanDoan` — vì `loiChanDoan` có thể rỗng/undefined (`new
+//                        Error()`, hoặc thứ bị ném không phải Error) mà quét vẫn chưa chạy được
+//                        gì; dùng `loiChanDoan` làm bộ phân biệt thì rơi thẳng xuống nhánh "không
+//                        thấy" và khẳng định điều chưa đo — đúng lỗi #I1 của lượt review toàn
+//                        nhánh.
 export function soanThongBaoThieu(thieu, daDich, loiChanDoan = null) {
   const ds = [...thieu]
   const dong = [
@@ -110,11 +117,14 @@ export function soanThongBaoThieu(thieu, daDich, loiChanDoan = null) {
     dong.push(`   "${v}"`)
     const noi = daDich?.get(v)
 
-    if (loiChanDoan) {
+    // Bất biến I1: `daDich === null` ⇒ KHÔNG một phần nào của cây đã được quét, nên KHÔNG được
+    // khẳng định gì về chuỗi này — độc lập với việc `loiChanDoan` có nội dung hay không.
+    if (daDich === null) {
       dong.push(
-        '      chưa chẩn đoán được chuỗi này. Nguyên nhân thường gặp: bước dich-chuoi-vendor ' +
-          'không chạy, hoặc thượng nguồn đã chuyển chuỗi ra ngoài danh sách vị trí cho phép, ' +
-          'hoặc gói chứa nó chưa được bật trong src/board/extensions.ts.',
+        `      chưa chẩn đoán được chuỗi này${loiChanDoan ? ` (${loiChanDoan})` : ''}. Nguyên ` +
+          'nhân thường gặp: bước dich-chuoi-vendor không chạy, hoặc thượng nguồn đã chuyển chuỗi ' +
+          'ra ngoài danh sách vị trí cho phép, hoặc gói chứa nó chưa được bật trong ' +
+          'src/board/extensions.ts.',
       )
       continue
     }
@@ -128,12 +138,24 @@ export function soanThongBaoThieu(thieu, daDich, loiChanDoan = null) {
       }
       const goi = [...new Set(noi.map((n) => n.goi).filter(Boolean))]
       dong.push(
-        '      → bước dịch ĐÃ chạy và ĐÃ thay đúng chỗ, nên chuỗi mất ở dist/ là do mã chứa nó ' +
-          `bị tree-shake: ${goi.length ? `gói ${goi.join(', ')}` : 'gói chứa nó'} không vào được bản build.`,
+        '      → bước dịch ĐÃ đáp bản dịch vào cây, nên chuỗi mất ở dist/ nhiều khả năng là do ' +
+          `mã chứa nó bị tree-shake: ${goi.length ? `gói ${goi.join(', ')}` : 'gói chứa nó'} ` +
+          'không vào được bản build.',
       )
+      if (goi.length) {
+        dong.push(
+          '        Thường vì gói đó chưa được bật trong src/board/extensions.ts — nghĩa là chuỗi ' +
+            'này không tới tay người dùng, và dịch nó là công không.',
+        )
+      } else {
+        dong.push(
+          '        Không quy được nó về gói nào trong .vendor-build/ — soi trực tiếp các file trên.',
+        )
+      }
       dong.push(
-        '        Thường vì gói đó chưa được bật trong src/board/extensions.ts — nghĩa là chuỗi ' +
-          'này không tới tay người dùng, và dịch nó là công không.',
+        '        Nhưng kiểm điều này TRƯỚC khi gỡ khoá: nếu bạn vừa chạy `npm run dung:vendor` ' +
+          'mà chưa chạy `npm run build`, thì dist/ này không sinh ra từ cây .vendor-build/ hiện ' +
+          'tại — chạy `npm run build` rồi hãy kết luận.',
       )
       dong.push(
         '        Cách sửa: gỡ khoá khỏi src/board/vi.json, HOẶC bật tính năng đó trước rồi mới dịch.',

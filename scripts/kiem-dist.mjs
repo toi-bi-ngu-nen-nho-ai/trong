@@ -243,7 +243,12 @@ if (thieuBanDich.size) {
       // ở đó fail-open biến "mất khả năng kiểm" thành "coi như không có lỗi" trên đường XANH;
       // ở đây kết quả xấu nhất là một thông báo nghèo hơn trên một cổng ĐÃ ĐỎ RỒI. Để lỗi này
       // ném ra thì người đọc mất luôn cả thông tin cũ và nhận về một stack trace.
-      loiChanDoan = err.message
+      //
+      // `err?.message` chứ không phải `err.message`: nếu thứ bị ném là `null`/`undefined` (một
+      // rejection trần), `err.message` tự nó ném TypeError NGAY TRONG khối catch này — không ai
+      // bắt — và phá đúng cái try/catch dựng lên để tránh chuyện đó. `String(err)` làm dự phòng
+      // khi `err` không có `.message` (ví dụ ném ra một chuỗi hoặc một object thường).
+      loiChanDoan = err?.message || String(err)
     }
   }
 

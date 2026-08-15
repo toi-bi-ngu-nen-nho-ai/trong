@@ -90,6 +90,23 @@ describe('timTrongCayVendor', () => {
       /không thấy cây/,
     )
   })
+
+  // M2 — fixture 'ngoai/d.js' đã có sẵn trong beforeAll (dùng cho goiCuaDuongDan ở trên) nhưng
+  // chưa ca nào tra tới nó QUA timTrongCayVendor. Ghim rằng goi === null được trả về đúng khi
+  // chuỗi trúng nằm ở một file không dưới package.json nào.
+  it('chuỗi trúng ở file không nằm dưới gói nào → goi là null', async () => {
+    const ra = await timTrongCayVendor(GOC, ['Lạc lối'])
+    expect(ra.get('Lạc lối')).toEqual([{ file: 'ngoai/d.js', goi: null }])
+  })
+
+  // M7 — header của module tuyên bố chẩn đoán ĐỘC LẬP với bao-cao-dich.json. Tính độc lập đó hiện
+  // chỉ nhờ dietJs lọc .js; ghim nó bằng HÀNH VI: đặt một bao-cao-dich.json giả có chứa chuỗi tiếng
+  // Việt vào cây, rồi khẳng định timTrongCayVendor không trúng nó.
+  it('KHÔNG đọc bao-cao-dich.json — độc lập với lời tự khai của bộ thay chuỗi', async () => {
+    ghi('bao-cao-dich.json', JSON.stringify({ 'Chèn ảnh': 'Chèn ảnh giả từ báo cáo' }))
+    const ra = await timTrongCayVendor(GOC, ['Chèn ảnh giả từ báo cáo'])
+    expect(ra.has('Chèn ảnh giả từ báo cáo')).toBe(false)
+  })
 })
 
 describe('soanThongBaoThieu', () => {
@@ -126,6 +143,24 @@ describe('soanThongBaoThieu', () => {
     expect(ra).toContain('EACCES: permission denied')
     expect(ra).not.toContain('KHÔNG thấy')
     expect(ra).not.toContain('đã dịch ở')
+  })
+
+  // M3 — ghim bất biến của I1: `daDich === null` phải chọn nhánh "chẩn đoán hỏng" ĐỘC LẬP với
+  // loiChanDoan. Gọi với HAI tham số — không có loiChanDoan — nên nếu bộ phân biệt vẫn còn là
+  // `if (loiChanDoan)` (falsy ở đây) thì mã sẽ rơi xuống nhánh "không thấy" và khẳng định sai.
+  it('daDich === null mà KHÔNG có loiChanDoan → vẫn không được khẳng định "KHÔNG thấy"', () => {
+    const ra = soanThongBaoThieu(['Chèn ảnh'], null)
+    expect(ra).not.toContain('KHÔNG thấy')
+  })
+
+  // M2 (phần 2) — khi goi === null ở MỌI chỗ trúng, câu "Thường vì gói đó..." mất chủ ngữ. Ca này
+  // ghim rằng thông báo cho tình huống đó không chứa cụm "gói đó".
+  it('mọi chỗ trúng đều goi === null → không nói "gói đó" (mất chủ ngữ)', () => {
+    const ra = soanThongBaoThieu(
+      ['Chèn ảnh'],
+      new Map([['Chèn ảnh', [cho('ngoai/d.js', null)]]]),
+    )
+    expect(ra).not.toContain('gói đó')
   })
 
   it('nhiều hơn TOI_DA_CHO chỗ → cắt bớt và đếm phần còn lại', () => {
