@@ -16,10 +16,14 @@
 //      tình không đổi (đổi là không đọc được tài liệu do AFFiNE tạo) và không bị luật này chạm.
 //   B. Mọi biến CSS trong không gian tên `--drt-` được DÙNG thì phải được ĐỊNH NGHĨA ở đâu đó
 //      trong bản phát hành.
-//   C. Mọi bản dịch trong src/board/vi.json phải CÓ MẶT trong bản phát hành. Không đếm tổng: 121
-//      chuỗi ứng viên bị tree-shake nên tổng số trồi sụt vô nghĩa. Luật này soi đúng những chuỗi
-//      ĐÃ ĐƯỢC CHỌN dịch — nếu một cái biến mất khỏi dist/ thì hoặc bước dịch không chạy, hoặc
-//      chuỗi đó không còn trên đường render, và cả hai đều phải biết ngay.
+//   C. Mọi bản dịch trong src/board/vi.json phải CÓ MẶT trong bản phát hành. Không đếm tổng: một
+//      phần đáng kể chuỗi ứng viên bị tree-shake nên tổng số trồi sụt vô nghĩa. (Con số cụ thể cố
+//      tình KHÔNG ghi ở đây: nó đã mục ba lần trong repo này — §2.3 và §5.1 của spec P1-B từng
+//      ghi hai bộ khác nhau và comment này từng ghi bộ thứ ba. Số có ngày đo nằm ở §2.3 của
+//      docs/superpowers/specs/2026-08-14-bo-sung-vi-json-design.md.) Luật này soi đúng những chuỗi
+//      ĐÃ ĐƯỢC CHỌN dịch — nếu một cái biến mất khỏi dist/ thì bước dịch không chạy, chuỗi không
+//      còn trên đường render, hoặc gói chứa nó chưa được bật; chẩn đoán phân biệt ba ca đó nằm ở
+//      scripts/tim-ban-dich-vendor.mjs và chỉ chạy trên đường đỏ.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 

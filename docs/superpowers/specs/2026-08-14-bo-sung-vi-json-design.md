@@ -69,14 +69,28 @@ loại bỏ hướng "ghim bản dịch theo đường dẫn file".
 
 ### 2.3 Bao nhiêu chuỗi thật sự đi tới `dist/`
 
-| | Số |
-|---|---|
-| Có mặt trong `dist/` | **275** |
-| Bị tree-shake, không tới | 116 |
+> **ĐÍNH CHÍNH 2026-08-15.** Bảng gốc của mục này ghi 391 ứng viên / 275 có mặt / **116** không
+> tới, và §5.1 bên dưới ghi một bộ khác (444/323). **Cả hai đều sai** — chúng đến từ những lượt đo
+> sớm có lọc "chuỗi viết hoa chữ đầu", còn luật sản xuất không có bộ lọc đó. Số dưới đây đo bằng
+> chính `viTriHienThi` của `scripts/luat-vi-tri-dich.mjs` trên cây `.vendor-build/` và `dist/`
+> dựng lại từ đầu. Phương pháp đầy đủ: §2 của
+> `docs/superpowers/specs/2026-08-15-chuoi-khong-toi-dist-design.md`.
 
-116 chuỗi kia (`"Replace attachment"`, `"Card view"`, `"Icon Picker"`, `"Callout"`…) thuộc các khối
-không được nạp — dịch chúng là công không. Cả 5 bản dịch hiện có đều tới được `dist/`, tức cơ chế
-chạy thông từ đầu tới cuối.
+| | Số (đo 2026-08-15) |
+|---|---|
+| Chuỗi phân biệt ở vị trí cho phép | **1.205** |
+| Có mặt trong chunk bảng vẽ của `dist/` | **899** |
+| Bị tree-shake, không tới | **306** |
+
+306 chuỗi kia **không rải rác — chúng dồn theo GÓI**: nguyên các tính năng chưa được nối vào
+`src/board/extensions.ts` (`affine/blocks/embed` 33, `affine/blocks/embed-doc` 33,
+`affine/fragments/frame-panel` 19, `affine/widgets/slash-menu` 19…). Dịch chúng là công không, và
+chặng P1-C dựng cơ chế nói đúng điều đó khi ai đó lỡ thêm khoá.
+
+Cả 5 bản dịch hiện có đều tới được `dist/`, tức cơ chế chạy thông từ đầu tới cuối.
+
+Lưu ý: bề mặt 1.205 **không phải** "số chuỗi cần dịch" — nó có lẫn thứ rõ ràng không phải chữ
+hiển thị (`"4_Content & Media@3"`, `"bookmark"`, `"PDF"`, `"="`, `"x"`)
 
 ### 2.4 Phân loại vị trí cú pháp bằng AST
 
@@ -196,9 +210,9 @@ Số lượt là số **literal ứng viên** đo được ở vị trí đó, k
 | · tới được `dist/` | **323** |
 | · bị tree-shake | 121 |
 
-**323 là khối lượng dịch thật của đợt đầu**, cộng thêm phần của §5.1b. Con số 391/275 ở §2.1 và
-§2.3 là ước lượng của lượt đo sớm bằng regex; 444/323 mới là số đúng, đo bằng chính luật vị trí ở
-§5.1.
+§2.3 là ước lượng của lượt đo sớm bằng regex — và 444/323 ở đây **cũng là ước lượng sai**, cùng
+nguyên nhân (bộ lọc "viết hoa chữ đầu" mà luật sản xuất không có). Số đúng, đo ngày 2026-08-15
+bằng chính luật vị trí: **1.205 / 899 / 306**. Xem bảng đã đính chính ở §2.3.
 
 ### 5.1b Luật hẹp cho template — bắt buộc phải có
 
