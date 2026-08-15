@@ -58,6 +58,21 @@ thuộc nào.
   - `coDungNhuDaChen(noiDung: string, s: string): boolean` — dùng cho `.vendor-build/`.
   - `timTrungBanDich(banDo: Record<string, string>): Array<{ vi: string; khoa: string[] }>`
 
+> ⚠️ **CẢNH BÁO (thêm sau lượt review toàn nhánh P1-D, I2) — các khối mã ở Bước 1–4 dưới đây là
+> BẢN NHÁP ĐÃ BỊ THAY, đừng thi hành nguyên văn.** Chúng còn dùng `nhayHoa(s)` — hàm thoát theo
+> MỘT quy ước duy nhất (`JSON.stringify(s).slice(1, -1)`, tức quy ước của nháy KÉP) rồi đem áp
+> cho cả ba kiểu nháy khi dò `dist/`. Đó chính là con bug mà lượt vá Task 1 thật đã sửa: literal
+> **backtick** không cần thoát `"`, nhưng quy ước JSON lại thoát nó thành `\"` — khớp trượt, đỏ
+> giả trên bản dịch hợp lệ. Cả 5 bản dịch đang ship đều nằm trong literal backtick, nên đây không
+> phải một ca biên hiếm.
+>
+> Giao diện THẬT đã thi hành là `dangTrongNhay(s, nhay)` — nhận thêm ký tự `nhay` và thoát theo
+> ĐÚNG luật của kiểu nháy đó (xem §4.2 của spec, và mã nguồn có chú thích đầy đủ tại
+> `scripts/so-khop-ban-dich.mjs`, `scripts/so-khop-ban-dich.d.mts`,
+> `src/__tests__/vendor-so-khop.spec.ts`). Nếu thi hành lại chặng này từ đầu, hãy đọc mã nguồn đó
+> làm nguồn thật, không phải các khối mã bên dưới. Đừng dựng lại `nhayHoa` ở bất cứ đâu — xem
+> thêm ghi chú tương tự ở Task 4 bên dưới.
+
 - [ ] **Bước 1: Viết ca kiểm đỏ**
 
 Tạo `src/__tests__/vendor-so-khop.spec.ts`:

@@ -292,13 +292,25 @@ if (thieuBanDich.size) {
   const ghiChu = new Map()
   for (const v of thieuBanDich) {
     if (!khopTho.has(v)) continue
-    const nguon = giaiThichKhopTho(v, BAN_DO)
+    // Truyền `thieuBanDich` (đã ổn định — vòng quét file phía trên đã chạy xong) làm `dangThieu`,
+    // để giaiThichKhopTho ưu tiên một ứng viên ĐANG SHIP thay vì một ứng viên cũng đang thiếu —
+    // xem I1 của lượt review toàn nhánh P1-D.
+    const nguon = giaiThichKhopTho(v, BAN_DO, thieuBanDich)
     ghiChu.set(
       v,
       nguon
-        ? `lưu ý: chuỗi này CÓ trong chunk, nhưng chỉ vì nó nằm trong bản dịch ` +
-          `${JSON.stringify(nguon.vi)} của khoá "${nguon.khoa}". Phép so khớp cũ đã tính nhầm ` +
-          'đây là "có mặt".'
+        ? nguon.cungThieu
+          ? // cungThieu === true: KHÔNG có ứng viên nào đang ship chứa chuỗi này — bản dịch tìm
+            // được cũng đang nằm trong danh sách thiếu, nên đây chỉ là một khả năng, không phải
+            // nguyên nhân đã xác nhận. Thể dè dặt, không khẳng định dứt khoát.
+            `lưu ý: chuỗi này có thể trùng với bản dịch ${JSON.stringify(nguon.vi)} của khoá ` +
+            `"${nguon.khoa}", nhưng bản dịch đó CŨNG đang thiếu — chưa xác định được chuỗi nào ` +
+            'trong chunk làm phép so khớp cũ trúng.'
+          : // cungThieu === false: nguon.vi THẬT SỰ có mặt (nó không nằm trong thieuBanDich), nên
+            // đây là một khẳng định ĐÃ ĐO, không phải suy đoán.
+            `lưu ý: chuỗi này CÓ trong chunk, nhưng chỉ vì nó nằm trong bản dịch ` +
+            `${JSON.stringify(nguon.vi)} của khoá "${nguon.khoa}". Phép so khớp cũ đã tính nhầm ` +
+            'đây là "có mặt".'
         : 'lưu ý: chuỗi này CÓ trong chunk nhưng KHÔNG ở dạng literal trọn vẹn, và không nằm ' +
           'trong bản dịch nào khác — có thể bộ đóng gói đã ghép/tách chuỗi. Kiểm tay trước khi ' +
           'kết luận.',

@@ -187,4 +187,39 @@ describe('soanThongBaoThieu', () => {
     expect(ra).toContain('a/x')
     expect(ra).toContain('b/y')
   })
+
+  // I3 (review toàn nhánh P1-D). Tham số `ghiChu` và bất biến "ghi chú in NGAY dưới tên chuỗi,
+  // TRƯỚC mọi kết luận" (Task 4) trước lượt vá này không có guard nào — chỉ chạy tay một lần.
+  describe('ghi chú (tham số ghiChu)', () => {
+    it('in ra ghi chú khi ghiChu có mục cho chuỗi đó', () => {
+      const ghiChu = new Map([['Chèn ảnh', 'lưu ý: ghi chú thử nghiệm cho Chèn ảnh']])
+      const ra = soanThongBaoThieu(['Chèn ảnh'], new Map(), null, ghiChu)
+      expect(ra).toContain('lưu ý: ghi chú thử nghiệm cho Chèn ảnh')
+    })
+
+    // Khẳng định theo THỨ TỰ DÒNG — không dùng toContain đơn thuần, vì toContain vẫn xanh kể cả
+    // khi thứ tự hai dòng dong.push bị đảo (đúng hồi quy im lặng mà I3 cảnh báo).
+    it('ghi chú xuất hiện TRƯỚC dòng kết luận, ngay sau dòng tên chuỗi', () => {
+      const ghiChu = new Map([['Chèn ảnh', 'lưu ý: ghi chú thử nghiệm cho Chèn ảnh']])
+      const ra = soanThongBaoThieu(['Chèn ảnh'], new Map(), null, ghiChu)
+      const dong = ra.split('\n')
+      const idxTen = dong.findIndex((d) => d.includes('"Chèn ảnh"'))
+      const idxGhiChu = dong.findIndex((d) => d.includes('lưu ý: ghi chú thử nghiệm cho Chèn ảnh'))
+      const idxKetLuan = dong.findIndex((d) => d.includes('KHÔNG thấy'))
+      expect(idxTen).toBeGreaterThanOrEqual(0)
+      expect(idxKetLuan).toBeGreaterThanOrEqual(0)
+      // Ghi chú phải là dòng NGAY SAU dòng tên chuỗi — không chỉ "ở đâu đó trước kết luận".
+      expect(idxGhiChu).toBe(idxTen + 1)
+      expect(idxKetLuan).toBeGreaterThan(idxGhiChu)
+    })
+
+    it('không có ghiChu (hoặc không có mục cho chuỗi) → thông báo y hệt như trước, không thêm dòng lạ', () => {
+      const raKhongThamSo = soanThongBaoThieu(['Chèn ảnh'], new Map())
+      const raThamSoNull = soanThongBaoThieu(['Chèn ảnh'], new Map(), null, null)
+      const raKhongMuc = soanThongBaoThieu(['Chèn ảnh'], new Map(), null, new Map())
+      expect(raThamSoNull).toBe(raKhongThamSo)
+      expect(raKhongMuc).toBe(raKhongThamSo)
+      expect(raKhongThamSo).not.toContain('lưu ý')
+    })
+  })
 })

@@ -18,4 +18,5 @@ export declare function timTrungBanDich(banDo: Record<string, string>): NhomTrun
 export declare function giaiThichKhopTho(
   v: string,
   banDo: Record<string, string>,
-): { khoa: string; vi: string } | null
+  dangThieu?: Set<string>,
+): { khoa: string; vi: string; cungThieu: boolean } | null

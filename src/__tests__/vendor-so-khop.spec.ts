@@ -109,9 +109,21 @@ describe('dangTrongNhay', () => {
   })
 
   // Gạch chéo ngược phải thoát TRƯỚC mọi phép thoát khác, nếu không phép thoát dấu nháy sau sẽ
-  // nhân đôi nhầm gạch chéo do chính nó sinh ra. Chuỗi gốc một gạch chéo → kết quả hai gạch chéo.
-  it('thoát gạch chéo ngược trước — một gạch chéo gốc thành hai ở kết quả', () => {
-    expect(dangTrongNhay('a\\b', '"')).toBe('a\\\\b')
+  // nhân đôi nhầm gạch chéo do chính nó sinh ra.
+  //
+  // MINOR (review toàn nhánh P1-D): ca cũ dùng đầu vào 'a\\b' — KHÔNG chứa ký tự nháy nào, nên
+  // nhánh thoát nháy là no-op và ca đó cho CÙNG một kết quả dù thoát gạch chéo trước hay sau
+  // (không chứng minh được thứ tự như tên ca tuyên bố). Đầu vào dưới đây chứa CẢ gạch chéo lẫn
+  // dấu nháy kép — kết quả kỳ vọng tính tay từng bước:
+  //   s = a \ " b                                  (4 ký tự)
+  //   bước 1 (thoát \ trước): a \\ " b              (mỗi \ thành \\  → 5 ký tự)
+  //   bước 2 (thoát " sau):   a \\ \" b             (mỗi " thành \" → 6 ký tự: a \ \ \ " b)
+  // Nếu thoát " TRƯỚC \ (thứ tự sai) thì bước 1 biến " thành \", bước 2 nhân đôi CẢ hai gạch chéo
+  // đó (gạch chéo gốc lẫn gạch chéo vừa sinh ra) → kết quả khác, dài hơn. Đã đối chiếu bằng cách
+  // chạy trực tiếp `dangTrongNhay` hiện có (đúng thứ tự) trên chuỗi này để xác nhận phép tính tay.
+  it('thoát gạch chéo ngược trước — đầu vào chứa cả gạch chéo và dấu nháy đích', () => {
+    const s = 'a\\"b'
+    expect(dangTrongNhay(s, '"')).toBe('a\\\\\\"b')
   })
 })
 
@@ -119,7 +131,11 @@ describe('giaiThichKhopTho', () => {
   const BAN_DO = { Style: 'Phong cách', Layout: 'Bố cục', Test: 'Phong' }
 
   it('tìm được bản dịch khác chứa chuỗi này', () => {
-    expect(giaiThichKhopTho('Phong', BAN_DO)).toEqual({ khoa: 'Style', vi: 'Phong cách' })
+    expect(giaiThichKhopTho('Phong', BAN_DO)).toEqual({
+      khoa: 'Style',
+      vi: 'Phong cách',
+      cungThieu: false,
+    })
   })
 
   // Không được tự giải thích bằng CHÍNH nó — nếu không thì mọi chuỗi đều "giải thích được" và
@@ -130,5 +146,42 @@ describe('giaiThichKhopTho', () => {
 
   it('trả null khi không bản dịch nào khác chứa nó', () => {
     expect(giaiThichKhopTho('Khung', BAN_DO)).toBeNull()
+  })
+
+  // I1 (review toàn nhánh P1-D). Ca hỏng thật: vi.json có "Xoá" (khoá thô đang tìm), "Xoá cột"
+  // (khoá KHÔNG ship, đang thiếu) và "Xoá dòng" (đang ship). "Xoá cột" đứng TRƯỚC "Xoá dòng"
+  // trong thứ tự khoá — bản cũ (duyệt theo thứ tự khoá, lấy ứng viên đầu tiên) sẽ đổ nguyên nhân
+  // cho "Xoá cột", một khoá cũng đang nằm trong danh sách thiếu, khiến ghi chú vô nghĩa. Ứng viên
+  // CÓ MẶT ("Xoá dòng") phải thắng dù đứng SAU trong thứ tự khoá.
+  it('ưu tiên ứng viên CÓ MẶT hơn ứng viên ĐANG THIẾU dù ứng viên thiếu đứng trước theo khoá', () => {
+    const banDo = { XoaCot: 'Xoá cột', XoaDong: 'Xoá dòng' }
+    const dangThieu = new Set(['Xoá cột'])
+    expect(giaiThichKhopTho('Xoá', banDo, dangThieu)).toEqual({
+      khoa: 'XoaDong',
+      vi: 'Xoá dòng',
+      cungThieu: false,
+    })
+  })
+
+  // Khi KHÔNG có ứng viên nào có mặt, đành lấy một ứng viên đang thiếu — nhưng phải đánh dấu
+  // cungThieu: true để bên gọi dùng thể dè dặt thay vì khẳng định dứt khoát.
+  it('mọi ứng viên đều đang thiếu → cungThieu: true', () => {
+    const banDo = { XoaCot: 'Xoá cột', XoaDong: 'Xoá dòng' }
+    const dangThieu = new Set(['Xoá cột', 'Xoá dòng'])
+    expect(giaiThichKhopTho('Xoá', banDo, dangThieu)).toEqual({
+      khoa: 'XoaCot',
+      vi: 'Xoá cột',
+      cungThieu: true,
+    })
+  })
+
+  // Tham số dangThieu không bắt buộc — gọi không truyền vẫn phải chạy được, mặc định coi như
+  // không ứng viên nào đang thiếu (tập rỗng), nên cungThieu luôn false.
+  it('gọi không truyền dangThieu vẫn chạy như cũ', () => {
+    expect(giaiThichKhopTho('Phong', BAN_DO)).toEqual({
+      khoa: 'Style',
+      vi: 'Phong cách',
+      cungThieu: false,
+    })
   })
 })

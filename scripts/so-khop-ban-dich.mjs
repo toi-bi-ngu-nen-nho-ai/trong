@@ -89,12 +89,26 @@ export function timTrungBanDich(banDo) {
 //   - bộ đóng gói đã ghép/tách chuỗi nên nó không còn là một literal trọn vẹn — hiếm.
 // Hàm này trả lời được vế thứ nhất, và chỉ vế thứ nhất. Không thấy gì thì bên gọi phải nói là
 // KHÔNG giải thích được, chứ không được kết luận sang vế thứ hai.
-export function giaiThichKhopTho(v, banDo) {
+//
+// I1 (review toàn nhánh P1-D). Bản trước chỉ lấy ứng viên ĐẦU TIÊN theo thứ tự khoá — mà một ứng
+// viên đang THIẾU cũng chứa `v` vừa như một ứng viên ĐANG SHIP: vi.json có "Xoá", "Xoá cột" (gói
+// chưa bật, đang thiếu) và "Xoá dòng" (đang ship). Nếu "Xoá cột" đứng trước "Xoá dòng" trong thứ
+// tự khoá, bản cũ trả về "Xoá cột" — đổ nguyên nhân cho một chuỗi CHÍNH NÓ cũng đang nằm trong
+// danh sách thiếu, khiến ghi chú vô nghĩa: người đọc đi tìm một chuỗi không có ở đó.
+//
+// `dangThieu` (tham số thứ ba, không bắt buộc — mặc định tập rỗng để hàm vẫn dùng độc lập được)
+// là tập các bản dịch đang thiếu, lấy sẵn từ chỗ gọi (`thieuBanDich`). Ưu tiên ứng viên KHÔNG nằm
+// trong tập đó — chỉ khi không có ứng viên nào như vậy mới đành lấy một ứng viên đang thiếu, và
+// đánh dấu `cungThieu: true` để bên gọi hạ giọng xuống thể dè dặt thay vì khẳng định dứt khoát.
+export function giaiThichKhopTho(v, banDo, dangThieu = new Set()) {
+  let ungVienDangThieu = null
   for (const [khoa, vi] of Object.entries(banDo)) {
     if (typeof vi !== 'string') continue
     // `vi !== v` để không tự giải thích bằng chính mục của nó — nếu không thì mọi chuỗi đều
     // "giải thích được" và ghi chú thành vô nghĩa.
-    if (vi !== v && vi.includes(v)) return { khoa, vi }
+    if (vi === v || !vi.includes(v)) continue
+    if (!dangThieu.has(vi)) return { khoa, vi, cungThieu: false }
+    if (!ungVienDangThieu) ungVienDangThieu = { khoa, vi, cungThieu: true }
   }
-  return null
+  return ungVienDangThieu
 }
