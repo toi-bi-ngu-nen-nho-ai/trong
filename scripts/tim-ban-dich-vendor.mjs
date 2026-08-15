@@ -107,7 +107,7 @@ export async function timTrongCayVendor(goc, canTim) {
 //                        gì; dùng `loiChanDoan` làm bộ phân biệt thì rơi thẳng xuống nhánh "không
 //                        thấy" và khẳng định điều chưa đo — đúng lỗi #I1 của lượt review toàn
 //                        nhánh.
-export function soanThongBaoThieu(thieu, daDich, loiChanDoan = null) {
+export function soanThongBaoThieu(thieu, daDich, loiChanDoan = null, ghiChu = null) {
   const ds = [...thieu]
   const dong = [
     `D12 ĐỎ — ${ds.length} bản dịch trong src/board/vi.json KHÔNG có mặt trong dist/. Nghĩa là ` +
@@ -120,6 +120,10 @@ export function soanThongBaoThieu(thieu, daDich, loiChanDoan = null) {
 
   for (const v of ds) {
     dong.push(`   "${v}"`)
+    // Ghi chú in NGAY dưới tên chuỗi, trước mọi kết luận — nó nói về phép so khớp, không phải về
+    // nguyên nhân chuỗi không tới dist/. Ba kết cục bên dưới vẫn trả lời câu hỏi đó.
+    const gc = ghiChu?.get(v)
+    if (gc) dong.push(`      ${gc}`)
     const noi = daDich?.get(v)
 
     // Bất biến I1: `daDich === null` ⇒ KHÔNG một phần nào của cây đã được quét, nên KHÔNG được

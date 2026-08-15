@@ -27,7 +27,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
-import { coNhuLiteral, timTrungBanDich } from './so-khop-ban-dich.mjs'
+import { coNhuLiteral, giaiThichKhopTho, timTrungBanDich } from './so-khop-ban-dich.mjs'
 import { soanThongBaoThieu, timTrongCayVendor } from './tim-ban-dich-vendor.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -286,7 +286,26 @@ if (thieuBanDich.size) {
     }
   }
 
-  console.error('\n' + soanThongBaoThieu(thieuBanDich, daDich, loiChanDoan))
+  // Ghi chú cho những chuỗi mà phép THÔ trúng nhưng phép CHẶT không. Chúng có mặt trong chunk
+  // dưới một dạng nào đó, và người đọc cần biết dạng nào — nếu không họ sẽ tưởng cổng đang nói
+  // "chuỗi này hoàn toàn vắng mặt".
+  const ghiChu = new Map()
+  for (const v of thieuBanDich) {
+    if (!khopTho.has(v)) continue
+    const nguon = giaiThichKhopTho(v, BAN_DO)
+    ghiChu.set(
+      v,
+      nguon
+        ? `lưu ý: chuỗi này CÓ trong chunk, nhưng chỉ vì nó nằm trong bản dịch ` +
+          `${JSON.stringify(nguon.vi)} của khoá "${nguon.khoa}". Phép so khớp cũ đã tính nhầm ` +
+          'đây là "có mặt".'
+        : 'lưu ý: chuỗi này CÓ trong chunk nhưng KHÔNG ở dạng literal trọn vẹn, và không nằm ' +
+          'trong bản dịch nào khác — có thể bộ đóng gói đã ghép/tách chuỗi. Kiểm tay trước khi ' +
+          'kết luận.',
+    )
+  }
+
+  console.error('\n' + soanThongBaoThieu(thieuBanDich, daDich, loiChanDoan, ghiChu))
 }
 
 if (loi) process.exit(1)

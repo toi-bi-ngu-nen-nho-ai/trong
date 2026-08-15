@@ -82,3 +82,19 @@ export function timTrungBanDich(banDo) {
     .filter(([, khoa]) => khoa.length > 1)
     .map(([vi, khoa]) => ({ vi, khoa }))
 }
+
+// Khi phép chặt trượt mà phép thô trúng, có HAI nguyên nhân khác hẳn nhau và không được đoán bừa
+// một cái:
+//   - chuỗi khớp nhầm vào một BẢN DỊCH KHÁC bao nó ("Phong" nằm trong "Phong cách") — thường gặp;
+//   - bộ đóng gói đã ghép/tách chuỗi nên nó không còn là một literal trọn vẹn — hiếm.
+// Hàm này trả lời được vế thứ nhất, và chỉ vế thứ nhất. Không thấy gì thì bên gọi phải nói là
+// KHÔNG giải thích được, chứ không được kết luận sang vế thứ hai.
+export function giaiThichKhopTho(v, banDo) {
+  for (const [khoa, vi] of Object.entries(banDo)) {
+    if (typeof vi !== 'string') continue
+    // `vi !== v` để không tự giải thích bằng chính mục của nó — nếu không thì mọi chuỗi đều
+    // "giải thích được" và ghi chú thành vô nghĩa.
+    if (vi !== v && vi.includes(v)) return { khoa, vi }
+  }
+  return null
+}

@@ -22,4 +22,5 @@ export declare function soanThongBaoThieu(
   thieu: Iterable<string>,
   daDich: Map<string, ChoDich[]> | null,
   loiChanDoan?: string | null,
+  ghiChu?: Map<string, string> | null,
 ): string

@@ -9,6 +9,7 @@ import {
   coDungNhuDaChen,
   coNhuLiteral,
   dangTrongNhay,
+  giaiThichKhopTho,
   timTrungBanDich,
 } from '../../scripts/so-khop-ban-dich.mjs'
 
@@ -111,5 +112,23 @@ describe('dangTrongNhay', () => {
   // nhân đôi nhầm gạch chéo do chính nó sinh ra. Chuỗi gốc một gạch chéo → kết quả hai gạch chéo.
   it('thoát gạch chéo ngược trước — một gạch chéo gốc thành hai ở kết quả', () => {
     expect(dangTrongNhay('a\\b', '"')).toBe('a\\\\b')
+  })
+})
+
+describe('giaiThichKhopTho', () => {
+  const BAN_DO = { Style: 'Phong cách', Layout: 'Bố cục', Test: 'Phong' }
+
+  it('tìm được bản dịch khác chứa chuỗi này', () => {
+    expect(giaiThichKhopTho('Phong', BAN_DO)).toEqual({ khoa: 'Style', vi: 'Phong cách' })
+  })
+
+  // Không được tự giải thích bằng CHÍNH nó — nếu không thì mọi chuỗi đều "giải thích được" và
+  // ghi chú thành vô nghĩa.
+  it('KHÔNG tự giải thích bằng chính mục của nó', () => {
+    expect(giaiThichKhopTho('Bố cục', { Layout: 'Bố cục' })).toBeNull()
+  })
+
+  it('trả null khi không bản dịch nào khác chứa nó', () => {
+    expect(giaiThichKhopTho('Khung', BAN_DO)).toBeNull()
   })
 })
