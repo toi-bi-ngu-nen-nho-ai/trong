@@ -123,7 +123,7 @@ Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `ma
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `9ce6955` — đã gộp P1-D |
+| `origin/main` | `de6136a` — đã gộp P1-D (`9ce6955`) |
 | `origin/p1d-siet-so-khop` | `b36a398` — giữ làm bản sao lưu, không xoá |
 | `origin/p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ làm bản sao lưu, không xoá |
 | `origin/p1b-vi-json-vi-tri` | `39315f3` — giữ làm bản sao lưu, không xoá |
