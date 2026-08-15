@@ -30,22 +30,25 @@ giả định `HEAD` là commit mình vừa tạo.
 
 ## 0. PROMPT DÁN VÀO PHIÊN MỚI
 
-Trên máy/tài khoản khác, mở Claude Code trong thư mục đã `git clone` repo này, rồi dán nguyên
-văn:
+Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dưới. Nó đủ để phiên mới tự định
+hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc file docs/superpowers/HANDOFF.md trước khi làm bất cứ gì. Đây là bản bàn giao dự án Bs Trọng
-từ một phiên Claude Code khác đã hết ngân sách token. HANDOFF ghi trạng thái thật của repo, kiến
-trúc đã dựng, nợ còn lại đã phân loại, và việc cần làm tiếp. Đừng đoán trạng thái — file đó nói
-rõ mọi lệnh git cần chạy để xác nhận trước khi bắt đầu.
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì. Đây là bàn giao dự án Bs Trọng từ một
+phiên Claude Code khác đã hết ngân sách. Đừng đoán trạng thái repo — file đó ghi mọi lệnh git cần
+chạy để xác nhận.
 
-Sau khi đọc xong, chạy phần "Việc làm ngay" trong mục 0 của file đó để dựng lại môi trường, rồi
-hỏi tôi muốn làm gì tiếp (mục 7 — Chặng kế tiếp — liệt kê các hướng khả dĩ).
+Việc cần làm: MỤC 11 — chặng P1-C, quy tắc cho chuỗi không tới dist/. Mục đó đã chốt sẵn BA quyết
+định với tôi rồi, đừng hỏi lại: (1) từ chối chuỗi thuộc gói chưa bật, nói rõ vì sao; (2) KHÔNG làm
+danh sách miễn; (3) hướng A — soi .vendor-build trên đường đỏ, quét theo bản dịch TIẾNG VIỆT.
+
+Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
+vài phút), rồi gọi superpowers:brainstorming và tiếp từ đúng bước "trình bày thiết kế" — không phải
+từ đầu. Xong thiết kế thì viết spec (đính chính luôn số liệu §2.3 của spec P1-B, mục 11 nói rõ sai
+chỗ nào), rồi writing-plans, rồi subagent-driven-development.
+
+Đừng đụng src/data/antibiotics.ts — tôi tự sửa.
 ```
-
-Prompt trên đủ để phiên mới tự định hướng mà không cần tôi giải thích lại từ đầu.
-
----
 
 ## 1. VIỆC LÀM NGAY — chạy trước khi làm bất cứ gì khác
 
