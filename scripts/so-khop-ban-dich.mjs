@@ -100,6 +100,13 @@ export function timTrungBanDich(banDo) {
 // là tập các bản dịch đang thiếu, lấy sẵn từ chỗ gọi (`thieuBanDich`). Ưu tiên ứng viên KHÔNG nằm
 // trong tập đó — chỉ khi không có ứng viên nào như vậy mới đành lấy một ứng viên đang thiếu, và
 // đánh dấu `cungThieu: true` để bên gọi hạ giọng xuống thể dè dặt thay vì khẳng định dứt khoát.
+//
+// CẢNH BÁO CHO NGƯỜI GỌI SAU: gọi mà KHÔNG kèm `dangThieu` nghĩa là hàm không biết gì về hàng
+// thiếu, nên `cungThieu: false` ở nhánh đó **KHÔNG phải một khẳng định đã đo** — nó chỉ là "không
+// có thông tin". Dựng một câu chữ dứt khoát ("chỉ vì nó nằm trong bản dịch X") lên trên nhánh mặc
+// định là tái tạo đúng I1 ở chỗ đứng mới. Hôm nay chỉ có một chỗ gọi (`kiem-dist.mjs`) và nó luôn
+// truyền `thieuBanDich`, nên nhánh mặc định chưa với tới được — đừng để lượt tích hợp sau làm nó
+// với tới mà quên điều này.
 export function giaiThichKhopTho(v, banDo, dangThieu = new Set()) {
   let ungVienDangThieu = null
   for (const [khoa, vi] of Object.entries(banDo)) {
