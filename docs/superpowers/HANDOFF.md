@@ -123,7 +123,7 @@ Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `ma
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `de6136a` — đã gộp P1-D (`9ce6955`) |
+| `origin/main` | tại hoặc sau merge commit **`9ce6955`** (P1-D). Đừng ghi SHA đỉnh vào đây — mỗi lượt cập nhật file này lại làm nó mục; tin `git log --first-parent origin/main` |
 | `origin/p1d-siet-so-khop` | `b36a398` — giữ làm bản sao lưu, không xoá |
 | `origin/p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ làm bản sao lưu, không xoá |
 | `origin/p1b-vi-json-vi-tri` | `39315f3` — giữ làm bản sao lưu, không xoá |
