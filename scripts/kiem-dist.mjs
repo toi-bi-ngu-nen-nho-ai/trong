@@ -9,13 +9,17 @@
 // hình học đúng: một lượt kiểm bằng mắt trong trình duyệt cũng không bắt được. Chỉ có phép đếm
 // "dùng bao nhiêu / định nghĩa bao nhiêu" trên chính bản dựng mới thấy.
 //
-// Hai luật:
+// Ba luật:
 //   A. Không còn `affine-` nào trong bản phát hành (D16 — devtools không được lộ thương hiệu
 //      thượng nguồn). Chú ý luật này khớp `affine-` CÓ GẠCH NỐI, đúng như luật của
 //      scripts/doi-ten-vendor.mjs: `affine:page` / `affine:surface` là FLAVOUR trong dữ liệu, cố
 //      tình không đổi (đổi là không đọc được tài liệu do AFFiNE tạo) và không bị luật này chạm.
 //   B. Mọi biến CSS trong không gian tên `--drt-` được DÙNG thì phải được ĐỊNH NGHĨA ở đâu đó
 //      trong bản phát hành.
+//   C. Mọi bản dịch trong src/board/vi.json phải CÓ MẶT trong bản phát hành. Không đếm tổng: 121
+//      chuỗi ứng viên bị tree-shake nên tổng số trồi sụt vô nghĩa. Luật này soi đúng những chuỗi
+//      ĐÃ ĐƯỢC CHỌN dịch — nếu một cái biến mất khỏi dist/ thì hoặc bước dịch không chạy, hoặc
+//      chuỗi đó không còn trên đường render, và cả hai đều phải biết ngay.
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
@@ -46,6 +50,72 @@ const MIEN = new Set([
   '--drt-background-kanban-card-color', // affine/data-view/.../kanban/{pc,mobile}/card.ts
 ])
 
+// Luật C — bản dịch phải tới được tay người dùng.
+const MUC_BAN_DICH = Object.entries(
+  JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
+)
+const BAN_DICH = MUC_BAN_DICH.map(([, vi]) => vi)
+
+// Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
+// dính và đều phải vá. Ở đây nó nguy hiểm hơn hẳn: nơi chặn ca này (`dich-chuoi-vendor.mjs` Cổng 0)
+// KHÔNG nằm trên đường `npm run build` — `prebuild` chỉ chạy `kiem-vendor-build` +
+// `kiem-vendor-paths`, còn `postinstall` bỏ qua nhanh khi `.vendor-build/` đã hợp lệ. Nghĩa là ở
+// mọi lượt build dùng cây vendor có sẵn, luật C là lớp CUỐI CÙNG và DUY NHẤT.
+if (BAN_DICH.length === 0) {
+  console.error(
+    'kiem-dist: DỪNG — src/board/vi.json không có bản dịch nào, nên luật C không có gì để canh và ' +
+      'sẽ xanh giả với "0/0 có mặt". Hoặc bảng dịch bị xoá nhầm, hoặc luật C nên được gỡ hẳn.',
+  )
+  process.exit(1)
+}
+
+// Chặn cả chuỗi RỖNG lẫn chuỗi THOÁI HOÁ, vì luật C hỏng theo MỨC ĐỘ chứ không theo nhị phân:
+// `""` thì `includes` LUÔN khớp, còn `"-"`, `"…"`, `"x"` hay một ký tự vô hình thì GẦN NHƯ CHẮC
+// CHẮN khớp — chunk bảng vẽ thật chứa sẵn ZWSP, soft hyphen, word-joiner, và tất nhiên mọi chữ
+// cái đơn. Cả hai cho cùng một kết quả: chuỗi được đếm là "có mặt" mà bản phát hành không dịch gì.
+//
+// Mà gõ `-` hay `…` để đánh dấu "dịch sau" là thao tác biên tập bình thường ngang với để trống,
+// nhất là ở quy mô 323 chuỗi sắp tới. Cùng lý lẽ với sàn ở trên: nơi duy nhất chặn được nó là
+// Cổng 0 của `dich-chuoi-vendor.mjs`, mà cổng đó KHÔNG nằm trên đường `npm run build`.
+//
+// Bản dịch thật ngắn nhất hiện có là "Bố cục" (6 ký tự), nên đòi >=2 ký tự hữu hình và ít nhất
+// một chữ cái là ngưỡng rộng rãi, không cản trở bản dịch hợp lệ nào.
+//
+// Lớp ký tự viết bằng ESCAPE chứ không bằng ký tự thật — chúng vô hình nên một lượt sao chép làm
+// mất chúng thì không ai thấy: \u00AD soft hyphen · \u200B-\u200D zero-width space/non-joiner/joiner ·
+// \u2060 word joiner · \uFEFF BOM.
+const VO_HINH = /[\s\u00AD\u200B-\u200D\u2060\uFEFF]/gu
+const laBanDichXau = (v) => {
+  if (typeof v !== 'string') return true
+  const con = v.replace(VO_HINH, '')
+  return con.length < 2 || !/\p{L}/u.test(con)
+}
+const MUC_XAU = MUC_BAN_DICH.filter(([, vi]) => laBanDichXau(vi))
+if (MUC_XAU.length) {
+  console.error(
+    `kiem-dist: DỪNG — ${MUC_XAU.length} bản dịch trong src/board/vi.json rỗng, thoái hoá, hoặc ` +
+      'không phải chuỗi. Luật C không canh được chúng: chuỗi rỗng thì phép tìm luôn khớp, còn chuỗi ' +
+      'một ký tự hay ký tự vô hình thì gần như chắc chắn khớp — nên chúng sẽ được đếm là "có mặt" ' +
+      'dù bản phát hành không hề chứa bản dịch nào:',
+  )
+  MUC_XAU.forEach(([en, vi]) => console.error(`   "${en}" → ${JSON.stringify(vi)}`))
+  process.exit(1)
+}
+
+// Nhận ra file thuộc cây bảng vẽ đã vendored bằng MẬT ĐỘ `drt-`, không phải bằng sự có mặt.
+//
+// `drt-` là tiền tố thương hiệu của CẢ dự án chứ không riêng cây vendored, nên chỉ cần một class
+// name lọt vào bundle app là phạm vi bị nới trở lại và lỗ cũ mở ra: chunk bảng vẽ tiếng Anh 100%
+// vẫn xanh vì bundle app tình cờ chứa cả `drt-` lẫn mấy chuỗi tiếng Việt. Không phải giả thuyết —
+// `src/index.css` từng chứa đúng luật `.drt-edgeless-viewport`, mới dời sang `src/board/` vì một lý
+// do hoàn toàn khác. Tính "độc quyền" của dấu hiệu là ngẫu nhiên lịch sử, không phải bất biến.
+//
+// Mật độ thì không mong manh như vậy. Đo trên bản dựng hiện tại: **2.026** lượt ở chunk JS bảng vẽ
+// và **1.783** ở CSS bảng vẽ, so với **0** ở cả mười file còn lại (kể cả bundle app 977 kB). Biên
+// rộng tới mức ngưỡng 100 vừa loại được ca lọt lẻ vừa không sợ trượt oan.
+const NGUONG_BANG_VE = 100
+const laFileBangVe = (noiDung) => (noiDung.match(/drt-/g)?.length ?? 0) >= NGUONG_BANG_VE
+
 function* dietFile(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const f = path.join(dir, e.name)
@@ -62,6 +132,7 @@ if (!existsSync(DIST)) {
 const dung = new Map() // tên → file đầu tiên thấy dùng
 const dinhNghia = new Set()
 const conAffine = []
+const thieuBanDich = new Set(BAN_DICH)
 let soFile = 0
 
 for (const f of dietFile(DIST)) {
@@ -74,6 +145,16 @@ for (const f of dietFile(DIST)) {
   if (soAffine) {
     const viDu = [...new Set([...noiDung.matchAll(/[-\w]*affine-[\w-]*/g)].map((m) => m[0]))]
     conAffine.push({ rel, soAffine, viDu: viDu.slice(0, 8) })
+  }
+
+  // Luật C. CHỈ tính khi bản dịch nằm trong một file thuộc cây bảng vẽ. Đếm ở mọi file thì một
+  // `dist/` có chunk bảng vẽ HOÀN TOÀN tiếng Anh vẫn xanh, miễn bundle app tình cờ chứa mấy từ đó —
+  // mà đây là app y khoa TIẾNG VIỆT với bundle riêng gần 1 MB, và chặng tới thêm 323 chuỗi nên va
+  // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
+  if (laFileBangVe(noiDung)) {
+    for (const v of thieuBanDich) {
+      if (noiDung.includes(v)) thieuBanDich.delete(v)
+    }
   }
 
   // Luật B — phía ĐỊNH NGHĨA: `--x: giá trị`.
@@ -98,7 +179,8 @@ const thieuDinhNghia = dungDrt.filter((t) => !dinhNghia.has(t) && !MIEN.has(t))
 console.log(
   `kiem-dist: đã đọc ${soFile} file trong dist/\n` +
     `  biến ${KHONG_GIAN_TEN}*  — dùng ${dungDrt.length} tên, định nghĩa ${dinhNghiaDrt.length} tên\n` +
-    `  biến CSS tất cả  — dùng ${dung.size} tên, định nghĩa ${dinhNghia.size} tên`,
+    `  biến CSS tất cả  — dùng ${dung.size} tên, định nghĩa ${dinhNghia.size} tên\n` +
+    `  bản dịch vi.json — ${BAN_DICH.length - thieuBanDich.size}/${BAN_DICH.length} có mặt`,
 )
 
 let loi = 0
@@ -128,6 +210,17 @@ if (thieuDinhNghia.length) {
   if (thieuDinhNghia.length > 30) {
     console.error(`   ...và ${thieuDinhNghia.length - 30} tên nữa`)
   }
+}
+
+if (thieuBanDich.size) {
+  loi++
+  console.error(
+    `\nD12 ĐỎ — ${thieuBanDich.size} bản dịch trong src/board/vi.json KHÔNG có mặt trong dist/. ` +
+      'Nghĩa là thanh công cụ bảng vẽ đang nói tiếng Anh ở đúng chỗ đã chọn dịch. Nguyên nhân ' +
+      'thường gặp: bước dich-chuoi-vendor không chạy (kiểm dung-vendor.mjs), hoặc thượng nguồn đã ' +
+      'chuyển chuỗi sang một vị trí cú pháp ngoài danh sách cho phép:',
+  )
+  ;[...thieuBanDich].forEach((v) => console.error(`   "${v}"`))
 }
 
 if (loi) process.exit(1)

@@ -94,6 +94,7 @@ export const ANTIBIOTICS: Antibiotic[] = [
         vialLabel: "ống",
         vialForm: "solution",
         vialVolumeMl: 4,
+        defaultVolumeMl: 200,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
         infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
@@ -104,14 +105,35 @@ export const ANTIBIOTICS: Antibiotic[] = [
         vialLabel: "ống",
         vialForm: "solution",
         vialVolumeMl: 2,
+        defaultVolumeMl: 200,
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
+        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
+      },
+      {
+        vialAmount: 1000,
+        vialUnit: "mg",
+        vialLabel: "lọ",
+        vialForm: "powder",
+        reconstituteMl: 20,
+        defaultVolumeMl: 200,
+        diluents: ["NaCl 0,9%", "Glucose 5%"],
+        maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
+        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
+      },
+            {
+        vialAmount: 500,
+        vialUnit: "mg",
+        vialLabel: "lọ",
+        vialForm: "powder",
+        reconstituteMl: 20,
+        defaultVolumeMl: 200,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
         infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
       },
     ],
   },
-
-  
   {
     id: "ampicillin-iv",
     name: "Ampicillin",

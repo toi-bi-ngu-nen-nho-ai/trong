@@ -20,6 +20,7 @@
     "kiem:dist": "node scripts/kiem-dist.mjs",
     "dich:vendor": "tsc -p tsconfig.vendor.json",
     "doiten:vendor": "node scripts/doi-ten-vendor.mjs",
+    "dichchuoi:vendor": "node scripts/dich-chuoi-vendor.mjs",
     "tao:bam-vendor": "node scripts/tao-bam-vendor.mjs",
     "dung:vendor": "node scripts/dung-vendor.mjs"
   },

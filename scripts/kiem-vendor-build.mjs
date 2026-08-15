@@ -46,6 +46,14 @@ const SAU_HAU_XU_LY = [
   '.vendor-build/affine/blocks/root/package.json',
   // Bước 3 — bản theme đã đổi tên; thiếu là bảng vẽ không có biến CSS nào để phân giải.
   '.vendor-build/theme/style.css',
+  // Bước 4b — báo cáo của bước dịch chuỗi (D12, scripts/dich-chuoi-vendor.mjs). File này là BẰNG
+  // CHỨNG ĐỦ rằng bước dịch đã chạy Ở ĐÚNG LƯỢT NÀY, không phải sót lại từ lượt trước: Bước 0 của
+  // dung-vendor.mjs xoá sạch `.vendor-build/` trước mỗi lượt, và dich-chuoi-vendor.mjs chỉ ghi file
+  // này SAU khi qua hết Cổng 3 (khoá chết) của chính nó. Thiếu dòng này, một cây `.vendor-build/`
+  // dựng TRƯỚC khi D12 tồn tại (chỉ có bước đổi tên, không có bước dịch) vẫn qua được cổng ở đây —
+  // `postinstall` (scripts/dam-bao-vendor-build.mjs) coi là "đã hợp lệ" và bỏ qua `dung:vendor`,
+  // bảng vẽ chạy với giao diện tiếng Anh mà không cổng nào báo.
+  '.vendor-build/bao-cao-dich.json',
 ]
 
 const CAN_KIEM = chiBienDich ? SAU_BIEN_DICH : [...SAU_BIEN_DICH, ...SAU_HAU_XU_LY]
@@ -92,7 +100,8 @@ if (thieu.length || saiNoiDung.length) {
       'Chạy lệnh sau rồi thử lại (tốn vài phút):\n\n' +
       '    npm run dung:vendor\n\n' +
       'CHÚ Ý: `npm run dich:vendor` KHÔNG đủ — nó chỉ biên dịch, không đổi tên (D16), không chép ' +
-      'package.json (tree-shaking) và không sinh lại bản đồ paths.',
+      'package.json (tree-shaking), không dịch chuỗi hiển thị sang tiếng Việt (D12) và không sinh ' +
+      'lại bản đồ paths.',
   )
   if (thieu.length) {
     console.error('\nCác file kỳ vọng nhưng không thấy:')

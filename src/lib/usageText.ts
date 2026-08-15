@@ -14,7 +14,10 @@
 // Các hàm ở đây CHỈ định dạng câu chữ từ số đã tính sẵn (lib/mixing.ts) — không tự tính toán gì
 // thêm, để nơi gọi (App.tsx) chịu trách nhiệm tính đúng số trước khi format.
 
-import { trim } from "./ui"
+// Lấy THẲNG AdminRoute từ ./ui thay vì chép lại union "TTM" | "TMC" | "IM" | ... ở đây: bản chép
+// tay chính là thứ vừa làm gãy build khi ui.ts đổi "SC" thành "TDD" mà hai bản chép ở file này
+// không đổi theo. Một nguồn sự thật thì lượt đổi sau không thể lệch nữa.
+import { trim, type AdminRoute } from "./ui"
 import { formatMass } from "./perKgDose"
 
 export function formatAmpouleUsage(params: {
@@ -47,7 +50,7 @@ export function formatVialUsage(params: {
   // — bỏ trống cho lọ bột chưa có thể tích tới khi hoàn nguyên (Cefoperazol, mẫu 3b).
   vialVolumeMl?: number
   diluentName: string
-  route: "TTM" | "TMC" | "IM" | "SC"
+  route: AdminRoute
   // Pha loãng đủ finalVolumeMl rồi RÚT MỘT PHẦN drawMl ra dùng (mẫu 4b: đủ 100 ml lấy 50 ml) — bỏ
   // trống nếu liều cần đúng bằng trọn lượng vừa pha, không cần rút riêng (mẫu 3b).
   finalVolumeMl?: number
@@ -92,7 +95,7 @@ export function formatFixedUsage(params: {
   // Trọn chai: bỏ trống doseAmount/drawMl. Lấy một phần: truyền đủ doseAmount + drawMl + đơn vị liều.
   doseAmount?: number
   doseUnit?: string
-  route?: "TTM" | "TMC" | "IM" | "SC"
+  route?: AdminRoute
   dropsPerMin?: number | null
   rateMlPerHour?: number | null
 }): string {

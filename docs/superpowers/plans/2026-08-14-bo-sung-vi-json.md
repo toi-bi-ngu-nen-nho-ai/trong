@@ -9,7 +9,7 @@
 
 **Kiến trúc:** Tách bước dịch khỏi `doi-ten-vendor.mjs` thành script riêng. Bộ luật vị trí nằm
 trong một module thuần, phân tích `.vendor-build/**/*.js` bằng `ts.createSourceFile` và chỉ thay
-`StringLiteral` khi vị trí cú pháp của nó thuộc danh sách cho phép. Ba cổng DỪNG trong script, một
+`StringLiteral` khi vị trí cú pháp của nó thuộc danh sách cho phép. Bốn cổng DỪNG trong script, một
 cổng độc lập tính lại từ đầu ra, một danh sách "buộc phải ra tiếng Việt" trong `kiem:dist`.
 
 **Công nghệ:** Node ESM, `typescript` 5.9.3 (`ts.createSourceFile` — đã là devDependency trực
@@ -48,9 +48,11 @@ tiếp), Vitest 4.
 
 | File | Trách nhiệm |
 |---|---|
+| `scripts/duyet-cay-js.mjs` | **Mới.** Duyệt đệ quy một cây thư mục, trả mọi file `.js` |
+| `scripts/duyet-cay-js.d.mts` | **Mới.** Khai kiểu cho module trên |
 | `scripts/luat-vi-tri-dich.mjs` | **Mới.** Thuần, không I/O: luật vị trí + `dichMotFile()` |
 | `scripts/luat-vi-tri-dich.d.mts` | **Mới.** Khai kiểu cho module trên, để test `.ts` import được |
-| `scripts/dich-chuoi-vendor.mjs` | **Mới.** Vỏ CLI: duyệt cây, ghi file, phát báo cáo, ba cổng DỪNG |
+| `scripts/dich-chuoi-vendor.mjs` | **Mới.** Vỏ CLI: duyệt cây, ghi file, phát báo cáo, bốn cổng DỪNG |
 | `scripts/doi-ten-vendor.mjs` | **Sửa.** Gỡ bước 3 (dịch chuỗi) ra |
 | `scripts/dung-vendor.mjs` | **Sửa.** Chèn bước dịch sau Bước 4 (đổi tên) |
 | `scripts/kiem-dist.mjs` | **Sửa.** Thêm luật C — danh sách "buộc phải ra tiếng Việt" |
@@ -65,8 +67,9 @@ Chỉ di chuyển mã. Thuật toán vẫn là regex cũ. Mục đích: diff c�
 toán, không lẫn với phần di chuyển.
 
 **Files:**
+- Create: `scripts/duyet-cay-js.mjs`, `scripts/duyet-cay-js.d.mts`
 - Create: `scripts/dich-chuoi-vendor.mjs`
-- Modify: `scripts/doi-ten-vendor.mjs` (gỡ dòng 14, 107–112, và mục 2 của comment đầu file)
+- Modify: `scripts/doi-ten-vendor.mjs` (gỡ dòng 14, 107–112, mục 2 của comment đầu file, và thay `dietJs` cục bộ bằng import)
 - Modify: `scripts/dung-vendor.mjs` (chèn bước mới sau khối "Bước 4 — đổi tên", dòng 102–108)
 - Modify: `package.json` (thêm script)
 
@@ -74,6 +77,51 @@ toán, không lẫn với phần di chuyển.
 - Consumes: không có (task đầu).
 - Produces: `scripts/dich-chuoi-vendor.mjs` chạy độc lập được bằng
   `node scripts/dich-chuoi-vendor.mjs`, đọc `src/board/vi.json`, sửa `.vendor-build/**/*.js` tại chỗ.
+
+- [ ] **Bước 0: Tạo module duyệt cây dùng chung**
+
+Hai bước hậu xử lý `.vendor-build/` (đổi tên D16 và dịch chuỗi D12) duyệt đúng một cây theo đúng
+một cách. Để chúng mỗi bên một bản sao y hệt là mời gọi lệch nhau lúc một bên cần đổi.
+
+`scripts/duyet-cay-js.mjs`:
+
+```js
+// Duyệt đệ quy một cây thư mục, trả về mọi file .js.
+//
+// Xuất ra dùng chung vì hai bước hậu xử lý .vendor-build/ — đổi tên (D16) và dịch chuỗi (D12) —
+// duyệt đúng một cây theo đúng một cách. Để mỗi bên giữ một bản sao y hệt là mời gọi chúng lệch
+// nhau đúng vào lúc một bên cần đổi cách duyệt (bỏ qua một thư mục, đổi phần mở rộng), rồi bên
+// kia lặng lẽ ở lại cách cũ.
+//
+// Tiền lệ trong repo: scripts/tao-bam-vendor.mjs cũng xuất dietFileVendor để dùng chung. Các hàm
+// duyệt khác (kiem-vendor.mjs, kiem-dist.mjs) KHÔNG gộp vào đây vì chúng khác chữ ký và khác bộ
+// lọc thật — gộp chúng lại sẽ đẻ ra tham số cấu hình cho một việc vốn đơn giản.
+import { readdir } from 'node:fs/promises'
+import path from 'node:path'
+
+export async function* dietJs(dir) {
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const f = path.join(dir, e.name)
+    if (e.isDirectory()) yield* dietJs(f)
+    else if (e.name.endsWith('.js')) yield f
+  }
+}
+```
+
+`scripts/duyet-cay-js.d.mts`:
+
+```ts
+// Khai kiểu cho scripts/duyet-cay-js.mjs, để ca kiểm .ts import được mà `tsc --noEmit` vẫn xanh.
+// Đặt cạnh file .mjs nên TypeScript tự tìm thấy, không cần thêm gì vào tsconfig.
+export declare function dietJs(dir: string): AsyncGenerator<string>
+```
+
+Rồi sửa `scripts/doi-ten-vendor.mjs`: xoá hàm `dietJs` cục bộ (dòng 16–22) và `readdir` khỏi câu
+import `node:fs/promises` (dòng 9), thay bằng:
+
+```js
+import { dietJs } from './duyet-cay-js.mjs'
+```
 
 - [ ] **Bước 1: Tạo `scripts/dich-chuoi-vendor.mjs`**
 
@@ -86,20 +134,13 @@ toán, không lẫn với phần di chuyển.
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
+
+import { dietJs } from './duyet-cay-js.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
 const banDoDich = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
 
 // Thoát ký tự đặc biệt của regex trong chuỗi cần dịch.
 const thoat = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -217,7 +258,7 @@ khớp · build xong, `kiem-dist` xanh.
 - [ ] **Bước 8: Commit**
 
 ```bash
-git add scripts/dich-chuoi-vendor.mjs scripts/doi-ten-vendor.mjs scripts/dung-vendor.mjs package.json
+git add scripts/duyet-cay-js.mjs scripts/duyet-cay-js.d.mts scripts/dich-chuoi-vendor.mjs scripts/doi-ten-vendor.mjs scripts/dung-vendor.mjs package.json
 git commit -m "Tách bước dịch chuỗi D12 sang script riêng, chưa đổi thuật toán"
 ```
 
@@ -321,6 +362,89 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
   it('literal sau thuộc tính KHÔNG hiển thị trong template', () => {
     const ra = dich('html`<x class="${\'Style\'}"></x>`')
     expect(ra).toContain(`'Style'`)
+  })
+
+  // Danh sách thuộc tính HTML có ĐÚNG một tên. Một phép so khớp không neo biên trái sẽ nhận cả
+  // họ tên kết thúc bằng `data-tip`, tức luật rộng hơn danh sách — đúng loại lỗ mà fail-closed
+  // sinh ra để chặn. Ca này canh biên trái đó.
+  it('thuộc tính có tên KẾT THÚC bằng data-tip không được nhận', () => {
+    const ra = dich('html`<x my-data-tip="${\'Style\'}"></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+
+  // Neo biên trái phải là "đầu chuỗi hoặc khoảng trắng", KHÔNG chỉ là "bắt đầu bằng chữ cái".
+  // Nếu lớp mở đầu hẹp hơn lớp nối, bộ quét bỏ qua tiền tố rồi khớp ngay tại chữ `d`. Ba dạng
+  // `.x=`, `?x=`, `@x=` là cú pháp binding CÓ THẬT của Lit — property, boolean, event.
+  it.each(['_data-tip', '-data-tip', '.data-tip', '?data-tip', '@data-tip'])(
+    'tiền tố không phải chữ cái cũng không được nhận: %s',
+    (ten) => {
+      const ra = dich('html`<x ' + ten + '="${\'Style\'}"></x>`')
+      expect(ra).toContain(`'Style'`)
+    },
+  )
+})
+
+describe('D12 — nhiều lượt thay trong cùng một file', () => {
+  // Phép thay chạy TỪ CUỐI VỀ ĐẦU để các vị trí chưa xử lý không bị lệch. Không có ca nào nhiều
+  // hơn một lượt thì bất biến đó KHÔNG được canh: đảo `sort` thành tăng dần vẫn xanh hết, trong
+  // khi output thật hỏng — bản dịch dài hơn bản gốc ("Style" 5 ký tự → "Phong cách" 10) nên mọi
+  // vị trí phía sau lệch và phép cắt chuỗi ăn vào mã nguồn. Khẳng định bằng `toBe` trên TOÀN BỘ
+  // chuỗi, không phải `toContain`.
+  it('ba lượt thay trong một dòng không làm lệch vị trí nhau', () => {
+    expect(dich(`const a = { label: 'Style', name: 'LinkedPage', tooltip: 'None' }`)).toBe(
+      `const a = { label: "Phong cách", name: "Trang liên kết", tooltip: "Không" }`,
+    )
+  })
+
+  it('lượt thay ở dòng sau vẫn ghi đúng số dòng', () => {
+    const { cacLuot } = dichMotFile(
+      `const a = { label: 'Style' }\nconst b = { name: 'None' }`,
+      BAN_DO,
+      'thu.js',
+    )
+    expect(cacLuot.map((l) => [l.chuoiGoc, l.dong])).toEqual([
+      ['Style', 1],
+      ['None', 2],
+    ])
+  })
+})
+
+describe('D12 — chỉ chuỗi CÓ TRONG bản đồ mới được đụng', () => {
+  // Phép tra `banDo[n.text]` đi qua chuỗi prototype: `banDo['constructor']` khác `undefined` dù
+  // `vi.json` không có khoá đó. Bản "dịch" khi ấy là một HÀM, `JSON.stringify` cho `undefined`,
+  // nên mã vendored bị chèn token `undefined` TRẦN — JS vẫn hợp lệ nên không cổng nào bắt được.
+  // Khẳng định bằng `toBe` trên toàn bộ chuỗi: `toContain` sẽ vẫn xanh với output hỏng.
+  it.each(['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__'])(
+    'tên thuộc Object.prototype không phải là khoá dịch: %s',
+    (ten) => {
+      expect(dich(`const a = { label: '${ten}' }`)).toBe(`const a = { label: '${ten}' }`)
+    },
+  )
+})
+
+describe('D12 — giá trị bản dịch phải là chuỗi', () => {
+  // `Object.hasOwn` chỉ trả lời "khoá có thật không". Giá trị không phải chuỗi vẫn đi thẳng qua
+  // `JSON.stringify` và chèn token trần vào mã vendored — `label: 42`, `label: ["…"]`, và tệ nhất
+  // là `label: undefined`. Bốn dạng đầu đều là JSON HỢP LỆ nên tới được từ chính `vi.json` mà
+  // không cần lỗi lập trình nào. Ném lỗi là cổng duy nhất còn lại; không cổng nào phía sau bắt được.
+  //
+  // Ép kiểu ở đây là có chủ đích: `.d.mts` khai `Record<string, string>`, nhưng đầu vào THẬT lúc
+  // chạy đến từ `JSON.parse` nên `tsc` không chắn được gì. Ca kiểm phải mô phỏng đúng đầu vào thật.
+  it.each<[string, unknown]>([
+    ['số', 42],
+    ['null', null],
+    ['mảng', ['Phong cách']],
+    ['object', { vi: 'Phong cách' }],
+    ['boolean', true],
+    ['undefined', undefined],
+  ])('%s trong bản đồ thì DỪNG, không chèn token trần', (_ten, giaTri) => {
+    expect(() =>
+      dichMotFile(
+        `const a = { label: 'Style' }`,
+        { Style: giaTri } as unknown as Record<string, string>,
+        'thu.js',
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })
 
@@ -428,8 +552,22 @@ export function viTriHienThi(node) {
   if (p.kind === ts.SyntaxKind.TemplateSpan && p.expression === node) {
     const truoc = vanBanTruocNhip(p)
     if (truoc == null) return null
-    for (const a of THUOC_TINH_HTML_HIEN_THI) {
-      if (new RegExp(`${a}\\s*=\\s*["']$`).test(truoc)) return `thuộc-tính-html:${a}`
+    // Rút TÊN thuộc tính đứng ngay trước nhịp rồi so khớp CHÍNH XÁC với danh sách cho phép.
+    //
+    // KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
+    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố.
+    //
+    // Và biên trái phải là `(?:^|\s)`, KHÔNG chỉ là "bắt đầu bằng chữ cái". Lý do đã trả giá một
+    // lượt vá: nếu lớp ký tự mở đầu (`[A-Za-z]`) hẹp hơn lớp nối (`[\w:-]`), bộ quét chỉ việc bỏ
+    // qua tiền tố rồi khớp ngay tại chữ `d` — nên `_data-tip=`, `-data-tip=`, `.data-tip=`,
+    // `?data-tip=`, `@data-tip=` đều lọt. Ba cái sau là cú pháp binding CÓ THẬT của Lit
+    // (property / boolean / event), nên đây không phải lo xa.
+    //
+    // Chuỗi khớp còn giữ được tính miễn nhiễm metachar: một tên có `.` hay `[` trong danh sách sẽ
+    // không bao giờ khớp (chúng nằm ngoài `[\w:-]`), tức im lặng không dịch — vẫn fail-closed.
+    const khop = truoc.match(/(?:^|\s)([A-Za-z][\w:-]*)\s*=\s*["']$/)
+    if (khop && THUOC_TINH_HTML_HIEN_THI.includes(khop[1])) {
+      return `thuộc-tính-html:${khop[1]}`
     }
   }
 
@@ -461,8 +599,35 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
       n.kind === ts.SyntaxKind.StringLiteral ||
       n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
     ) {
-      const vi = banDo[n.text]
-      if (vi !== undefined) {
+      // `Object.hasOwn`, KHÔNG phải `banDo[n.text] !== undefined`. `banDo` là object thường (kể cả
+      // khi đến từ `JSON.parse`), nên phép tra khoá đi qua chuỗi prototype: `banDo['constructor']`,
+      // `['toString']`, `['valueOf']`, `['hasOwnProperty']`, `['__proto__']`… đều khác `undefined`
+      // dù `vi.json` không hề có khoá nào như vậy.
+      //
+      // Hậu quả đo được: `label: 'constructor'` bị thay thành `label: undefined`, vì bản "dịch" là
+      // một HÀM và `JSON.stringify` của hàm trả về `undefined` — tức token `undefined` TRẦN được
+      // chèn vào mã vendored. JS vẫn hợp lệ nên `parseDiagnostics` không bắt; cổng khoá chết không
+      // bắt (khoá đâu có trong `vi.json`); `kiem:dist` không bắt. Bản ghi kiểm toán cũng mất trường
+      // `chuoiDich`, nên chính báo cáo dùng để soát cũng câm. Đúng loại hỏng-im-lặng mà cả cơ chế
+      // này sinh ra để chặn.
+      if (Object.hasOwn(banDo, n.text)) {
+        const vi = banDo[n.text]
+        // `Object.hasOwn` mới trả lời "khoá có thật không", KHÔNG trả lời "giá trị có phải chuỗi
+        // không". `vi.json` đi qua `JSON.parse`, nên một bản đồ gom nhóm (`"toolbar": { … }`), một
+        // mảng phương án dịch để tạm, hay một con số gõ nhầm đều là JSON HỢP LỆ — và
+        // `JSON.stringify` sẽ chèn thẳng `label: 42`, `label: ["…"]`, `label: {…}` vào mã vendored.
+        // Với `undefined` thì tệ nhất: `JSON.stringify(undefined)` trả về `undefined`, chèn ra
+        // token TRẦN và bản ghi kiểm toán mất luôn trường `chuoiDich` — chính báo cáo dùng để soát
+        // cũng câm. JS vẫn hợp lệ nên không cổng nào phía sau bắt được: `parseDiagnostics` im, cổng
+        // khoá chết thấy khoá "đã dịch ở đúng một chỗ" nên xanh, và `kiem:dist` luật C tìm chuỗi
+        // bản dịch trong `dist/` thì `["Phong cách"]` vẫn chứa "Phong cách" nên cũng xanh.
+        if (typeof vi !== 'string') {
+          throw new Error(
+            `luat-vi-tri-dich: khoá "${n.text}" trong bản đồ dịch có giá trị KHÔNG PHẢI CHUỖI ` +
+              `(kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}. Bản đồ dịch phải ` +
+              'phẳng: { "English": "Tiếng Việt" }.',
+          )
+        }
         const viTri = viTriHienThi(n)
         if (viTri) {
           const dau = n.getStart(sf)
@@ -529,7 +694,7 @@ export declare function dichMotFile(
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 18 ca.
+Kỳ vọng: XANH, 37 ca.
 
 - [ ] **Bước 6: Xác nhận bằng chứng đỏ — bắt buộc, không được suy luận thay**
 
@@ -551,18 +716,18 @@ tiếp. Ghi kết quả ba phép này vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 58/58 ca xanh (12 file).
+Kỳ vọng: `tsc` exit 0 · 77/77 ca xanh (12 file).
 
 - [ ] **Bước 8: Commit**
 
 ```bash
 git add scripts/luat-vi-tri-dich.mjs scripts/luat-vi-tri-dich.d.mts src/__tests__/vendor-dich.spec.ts
-git commit -m "Luật vị trí D12: module thuần + 18 ca kiểm, chưa nối vào pipeline"
+git commit -m "Luật vị trí D12: module thuần + 37 ca kiểm, chưa nối vào pipeline"
 ```
 
 ---
 
-## Task 3: Nối luật vị trí vào pipeline, phát báo cáo, ba cổng DỪNG
+## Task 3: Nối luật vị trí vào pipeline, phát báo cáo, bốn cổng DỪNG
 
 **Files:**
 - Modify: `scripts/dich-chuoi-vendor.mjs` (viết lại phần lõi)
@@ -581,13 +746,13 @@ git commit -m "Luật vị trí D12: module thuần + 18 ca kiểm, chưa nối 
 // KIỆN THEO NGỮ CẢNH, sai thì im lặng.
 //
 // Luật vị trí nằm ở scripts/luat-vi-tri-dich.mjs (thuần, kiểm được bằng đoạn mã nhỏ). File này
-// chỉ lo I/O, báo cáo và ba cổng DỪNG.
+// chỉ lo I/O, báo cáo và bốn cổng DỪNG.
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
+import { dietJs } from './duyet-cay-js.mjs'
 import { dichMotFile } from './luat-vi-tri-dich.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -595,6 +760,71 @@ const BUILD = path.join(GOC, '.vendor-build')
 const BAO_CAO = path.join(BUILD, 'bao-cao-dich.json')
 
 const banDo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
+
+// ─── Cổng 0: bản đồ dịch phải dùng được ──────────────────────────────────────────────────────
+// Kiểm MỘT LẦN lúc nạp. `dichMotFile` cũng ném khi gặp giá trị không phải chuỗi, nhưng nó chỉ ném
+// khi khoá hỏng THỰC SỰ xuất hiện trong file đang xử lý — nên một mục hỏng sẽ nổ ở giữa lượt duyệt
+// 2.550 file, với thông báo trỏ vào một file vendored ngẫu nhiên thay vì nói thẳng "vi.json sai
+// định dạng". Cổng ở đây trả lời đúng câu hỏi, đúng lúc.
+if (banDo === null || typeof banDo !== 'object' || Array.isArray(banDo)) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json phải là một object phẳng ' +
+      '{ "English": "Tiếng Việt" }. Không có nó thì mọi cổng phía sau đều không có gì để canh.',
+  )
+  process.exit(1)
+}
+
+// Bản đồ RỖNG là ca nguy hiểm nhất, và là ca duy nhất mà Cổng 3 hoàn toàn mù: cổng khoá chết lặp
+// trên chính bản đồ, nên không có khoá nào thì không có khoá nào chết — nó in "0 khoá đều còn
+// sống" rồi thoát 0. Toàn bộ bản dịch tiếng Việt bốc hơi mà pipeline vẫn xanh. Phải chặn ở đây,
+// không cổng nào khác chặn được.
+if (Object.keys(banDo).length === 0) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json rỗng. Nếu đúng là chưa muốn dịch gì thì gỡ hẳn ' +
+      'bước này khỏi scripts/dung-vendor.mjs, đừng để một bản đồ rỗng chạy qua: cổng khoá chết ' +
+      'lặp trên chính bản đồ nên nó KHÔNG phát hiện được ca này, và build sẽ xanh với bản dịch ' +
+      'biến mất hoàn toàn.',
+  )
+  process.exit(1)
+}
+
+// Cột KHOÁ cũng phải kiểm, không chỉ cột giá trị — và đây là nửa NGUY HIỂM HƠN. Một khoá rỗng (ô
+// TRÁI để trống khi dán bảng) không phải khoá chết vô hại: `Object.hasOwn(banDo, '')` khớp MỌI
+// literal rỗng ở vị trí hiển thị, mà cây vendored có sẵn hàng chục chỗ như thế — `name: ''` và
+// `caption: ''` là GIÁ TRỊ MẶC ĐỊNH của model tài liệu (attachment-model.js, image-model.js,
+// code-model.js), `title: ''` ở surface-ref-model.js. Ghi đè chúng là hỏng DỮ LIỆU, không chỉ hỏng
+// nhãn. Ba cổng còn lại đều mù trước ca này: Cổng 0 thấy giá trị là chuỗi không rỗng, Cổng 1 thấy
+// `"" !== "Trống"`, Cổng 3 thấy khoá `""` SỐNG (nó khớp được, nên không phải khoá chết).
+//
+// Khoá thừa khoảng trắng (`"Style "`) thì an toàn — nó thành khoá chết và Cổng 3 bắt.
+const saiKhoa = Object.keys(banDo).filter((en) => en.trim() === '')
+if (saiKhoa.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — src/board/vi.json có ${saiKhoa.length} khoá rỗng hoặc chỉ gồm ` +
+      'khoảng trắng. Khoá rỗng KHỚP MỌI chuỗi rỗng trong cây vendored, kể cả giá trị mặc định của ' +
+      "model tài liệu (`name: ''`, `caption: ''`, `title: ''`) — nó ghi đè dữ liệu chứ không chỉ " +
+      'ghi đè nhãn. Xoá dòng đó khỏi bảng dịch.',
+  )
+  process.exit(1)
+}
+
+// Chuỗi RỖNG cũng phải chặn: nó qua được phép kiểm kiểu (`typeof "" === 'string'`) lẫn Cổng 1
+// (`"Style" !== ""`), rồi `JSON.stringify("")` chèn `""` vào mã vendored — nhãn trên giao diện bị
+// xoá trắng, build xanh. Một ô để trống khi dán bảng dịch là chuyện thường gặp y như gõ nhầm số.
+const saiKieu = Object.entries(banDo).filter(([, vi]) => typeof vi !== 'string' || vi.trim() === '')
+if (saiKieu.length) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi.json phải phẳng { "English": "Tiếng Việt" }, và mọi ' +
+      'bản dịch phải là chuỗi KHÔNG RỖNG. Gom nhóm lồng nhau, mảng phương án dịch để tạm, số gõ ' +
+      'nhầm hay một ô để trống đều là JSON hợp lệ nên lọt tới đây được:',
+  )
+  saiKieu.forEach(([en, vi]) =>
+    console.error(
+      `   "${en}" → ${typeof vi !== 'string' ? `kiểu ${vi === null ? 'null' : typeof vi}` : 'chuỗi rỗng'}`,
+    ),
+  )
+  process.exit(1)
+}
 
 // ─── Cổng 1: bản dịch trùng y hệt bản gốc ───────────────────────────────────────────────────
 // Dòng thừa, hoặc dấu hiệu chép nhầm cột khi soạn bảng. Bắt ngay, đừng để nó đi tiếp rồi trở
@@ -607,14 +837,6 @@ if (trung.length) {
   )
   trung.forEach(([en]) => console.error(`   "${en}"`))
   process.exit(1)
-}
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
 }
 
 const theoKhoa = Object.fromEntries(Object.keys(banDo).map((k) => [k, []]))
@@ -716,13 +938,13 @@ Kỳ vọng: vẫn còn các file chứa `type: 'LinkedPage'` nguyên văn (khô
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh, 58/58 ca.
+Kỳ vọng: tất cả xanh, 77/77 ca.
 
 - [ ] **Bước 6: Commit**
 
 ```bash
 git add scripts/dich-chuoi-vendor.mjs
-git commit -m "Nối luật vị trí vào pipeline dịch, phát báo cáo kiểm toán, ba cổng DỪNG"
+git commit -m "Nối luật vị trí vào pipeline dịch, phát báo cáo kiểm toán, bốn cổng DỪNG"
 ```
 
 ---
@@ -742,10 +964,10 @@ Thêm vào phần import ở đầu file:
 
 ```ts
 import { readFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import ts from 'typescript'
 
+import { dietJs } from '../../scripts/duyet-cay-js.mjs'
 import { dichMotFile, viTriHienThi } from '../../scripts/luat-vi-tri-dich.mjs'
 ```
 
@@ -756,14 +978,6 @@ Thêm vào cuối file:
 ```ts
 const BUILD = '.vendor-build'
 
-async function* dietJs(dir: string): AsyncGenerator<string> {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
-
 describe('D12 — cổng độc lập trên đầu ra thật', () => {
   // Cổng này TÍNH LẠI TỪ ĐẦU trên .vendor-build/ và cố tình KHÔNG đọc bao-cao-dich.json: nếu bộ
   // thay có lỗi thì báo cáo cũng sai theo, hai thứ cùng sai một kiểu thì không cổng nào bắt được.
@@ -772,6 +986,8 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
     const banDo = JSON.parse(readFileSync('src/board/vi.json', 'utf8')) as Record<string, string>
     const banDich = new Set(Object.values(banDo))
     const soPham: string[] = []
+    // Gom những bản dịch THẬT SỰ bắt gặp ở vị trí cho phép — xem khẳng định "còn sống" ở cuối ca.
+    const daThay = new Set<string>()
 
     for await (const f of dietJs(BUILD)) {
       const src = readFileSync(f, 'utf8')
@@ -786,8 +1002,17 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
       const sf = ts.createSourceFile(f, src, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
       const di = (n: ts.Node) => {
-        if (ts.isStringLiteral(n) && banDich.has(n.text) && viTriHienThi(n) === null) {
-          soPham.push(`${path.relative(BUILD, f)}: "${n.text}"`)
+        // Nhận CẢ `NoSubstitutionTemplateLiteral`, đúng như bộ thay ở luat-vi-tri-dich.mjs. Chỉ
+        // nhìn `StringLiteral` là cổng soi hẹp hơn chính thứ nó đang soi — hôm nay đo được 0 ca,
+        // nhưng một cổng hẹp hơn đối tượng của nó là chỗ để lọt về sau.
+        const laLiteral =
+          ts.isStringLiteral(n) || n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+        if (laLiteral) {
+          const chu = (n as ts.StringLiteralLike).text
+          if (banDich.has(chu)) {
+            if (viTriHienThi(n) === null) soPham.push(`${path.relative(BUILD, f)}: "${chu}"`)
+            else daThay.add(chu)
+          }
         }
         ts.forEachChild(n, di)
       }
@@ -796,6 +1021,23 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
     }
 
     expect(soPham).toEqual([])
+
+    // Mặt khẳng định phải tự kiểm nó CÓ GÌ để khẳng định hay không. Thiếu dòng này thì `vi.json`
+    // rỗng làm cả hai vế thành `[]` và ca xanh trong khi không parse một file nào — tức cổng độc
+    // lập kế thừa đúng điểm mù mà `dich-chuoi-vendor.mjs` tự ghi là "ca duy nhất mà Cổng 3 hoàn
+    // toàn mù, không cổng nào khác chặn được". Cổng này sinh ra để KHÔNG kế thừa điểm mù của bộ
+    // thay, nên nó phải tự chặn.
+    expect(banDich.size).toBeGreaterThan(0)
+
+    // Khẳng định "CÒN SỐNG", không chỉ khẳng định "không vi phạm". Thiếu nó thì ca này xanh cả khi
+    // không soi được literal nào — và có đường đi thật: sửa một GIÁ TRỊ tiếng Việt trong vi.json mà
+    // quên dựng lại `.vendor-build/` thì tiền lọc loại sạch cả 2.550 file và ca xanh rỗng tuếch.
+    // Ca "bất biến" bên dưới cũng không đỡ được, vì `dichMotFile` khớp theo KHOÁ chứ không theo giá
+    // trị, nên khoá không đổi thì nó cũng không thấy gì.
+    //
+    // Đây đúng là phần mà bộ thay đang TỰ KHAI — nó in "5 khoá đều còn sống" rồi thoát 0. Cổng này
+    // sinh ra để không tin lời tự khai đó, nên nó phải tự đếm lại.
+    expect([...daThay].sort()).toEqual([...banDich].sort())
   }, 120_000)
 
   it('bộ thay là bất biến — chạy lại trên cây ĐÃ dịch không đổi gì nữa', async () => {
@@ -817,7 +1059,7 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
 
 Chạy: `npx vitest run src/__tests__/vendor-dich.spec.ts`
 
-Kỳ vọng: XANH, 20 ca.
+Kỳ vọng: XANH, 39 ca.
 
 - [ ] **Bước 3: Xác nhận bằng chứng đỏ của cổng độc lập**
 
@@ -831,7 +1073,7 @@ Phép này chứng minh cổng khoá chết ở Task 3 thật sự canh. Ghi k�
 
 Chạy: `npx tsc --noEmit && npm test`
 
-Kỳ vọng: `tsc` exit 0 · 60/60 ca xanh.
+Kỳ vọng: `tsc` exit 0 · 79/79 ca xanh.
 
 - [ ] **Bước 5: Commit**
 
@@ -867,9 +1109,55 @@ Thêm sau khối khai báo `MIEN` (sau dòng 47):
 
 ```js
 // Luật C — bản dịch phải tới được tay người dùng.
-const BAN_DICH = Object.values(
+const MUC_BAN_DICH = Object.entries(
   JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
 )
+const BAN_DICH = MUC_BAN_DICH.map(([, vi]) => vi)
+
+// Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
+// dính và đều phải vá. Ở đây nó nguy hiểm hơn hẳn: nơi chặn ca này (`dich-chuoi-vendor.mjs` Cổng 0)
+// KHÔNG nằm trên đường `npm run build` — `prebuild` chỉ chạy `kiem-vendor-build` +
+// `kiem-vendor-paths`, còn `postinstall` bỏ qua nhanh khi `.vendor-build/` đã hợp lệ. Nghĩa là ở
+// mọi lượt build dùng cây vendor có sẵn, luật C là lớp CUỐI CÙNG và DUY NHẤT.
+if (BAN_DICH.length === 0) {
+  console.error(
+    'kiem-dist: DỪNG — src/board/vi.json không có bản dịch nào, nên luật C không có gì để canh và ' +
+      'sẽ xanh giả với "0/0 có mặt". Hoặc bảng dịch bị xoá nhầm, hoặc luật C nên được gỡ hẳn.',
+  )
+  process.exit(1)
+}
+
+// Chặn cả chuỗi RỖNG lẫn chuỗi THOÁI HOÁ, vì luật C hỏng theo MỨC ĐỘ chứ không theo nhị phân:
+// `""` thì `includes` LUÔN khớp, còn `"-"`, `"…"`, `"x"` hay một ký tự vô hình thì GẦN NHƯ CHẮC
+// CHẮN khớp — chunk bảng vẽ thật chứa sẵn ZWSP, soft hyphen, word-joiner. Cả hai cho cùng kết quả:
+// chuỗi được đếm là "có mặt" mà bản phát hành không dịch gì. Gõ `-` để đánh dấu "dịch sau" là thao
+// tác biên tập bình thường ngang với để trống, nhất là ở quy mô 323 chuỗi sắp tới.
+// Bản dịch thật ngắn nhất hiện có là "Bố cục", nên đòi >=2 ký tự hữu hình và ít nhất một chữ cái.
+
+const VO_HINH = /[\s\u00AD\u200B-\u200D\u2060\uFEFF]/gu
+const laBanDichXau = (v) => {
+  if (typeof v !== 'string') return true
+  const con = v.replace(VO_HINH, '')
+  return con.length < 2 || !/\p{L}/u.test(con)
+}
+const MUC_XAU = MUC_BAN_DICH.filter(([, vi]) => laBanDichXau(vi))
+if (MUC_XAU.length) {
+  console.error(
+    `kiem-dist: DỪNG — ${MUC_XAU.length} bản dịch trong src/board/vi.json rỗng, thoái hoá, hoặc ` +
+      'không phải chuỗi. Chuỗi rỗng thì phép tìm luôn khớp, chuỗi một ký tự thì gần như chắc chắn ' +
+      'khớp — chúng sẽ được đếm là "có mặt" dù bản phát hành không chứa bản dịch nào:',
+  )
+  MUC_XAU.forEach(([en, vi]) => console.error(`   "${en}" → ${JSON.stringify(vi)}`))
+  process.exit(1)
+}
+
+// Nhận ra file thuộc cây bảng vẽ bằng MẬT ĐỘ `drt-`, không phải bằng sự có mặt. `drt-` là tiền tố
+// thương hiệu của CẢ dự án, nên chỉ một class name lọt vào bundle app là phạm vi bị nới trở lại —
+// `src/index.css` từng chứa đúng luật `.drt-edgeless-viewport`, mới dời đi vì lý do khác. Tính độc
+// quyền của dấu hiệu là ngẫu nhiên lịch sử, không phải bất biến. Mật độ thì không: đo được 2.026
+// lượt ở chunk JS bảng vẽ, 1.783 ở CSS bảng vẽ, 0 ở cả mười file còn lại.
+const NGUONG_BANG_VE = 100
+const laFileBangVe = (noiDung) => (noiDung.match(/drt-/g)?.length ?? 0) >= NGUONG_BANG_VE
 ```
 
 Thêm biến gom, cạnh `const conAffine = []` (dòng 64):
@@ -881,9 +1169,14 @@ const thieuBanDich = new Set(BAN_DICH)
 Thêm vào trong vòng lặp file, ngay sau khối "Luật A" (sau dòng 77):
 
 ```js
-  // Luật C.
-  for (const v of thieuBanDich) {
-    if (noiDung.includes(v)) thieuBanDich.delete(v)
+  // Luật C. CHỈ tính khi bản dịch nằm trong một file thuộc cây bảng vẽ. Đếm ở mọi file thì một
+  // `dist/` có chunk bảng vẽ HOÀN TOÀN tiếng Anh vẫn xanh, miễn bundle app tình cờ chứa mấy từ đó —
+  // mà đây là app y khoa TIẾNG VIỆT với bundle riêng gần 1 MB, và chặng tới thêm 323 chuỗi nên va
+  // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
+  if (laFileBangVe(noiDung)) {
+    for (const v of thieuBanDich) {
+      if (noiDung.includes(v)) thieuBanDich.delete(v)
+    }
   }
 ```
 
@@ -932,7 +1225,7 @@ Ghi kết quả vào báo cáo task.
 
 Chạy: `npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build`
 
-Kỳ vọng: tất cả xanh · 60/60 ca · `kiem-dist` xanh với `5/5 có mặt`.
+Kỳ vọng: tất cả xanh · 79/79 ca · `kiem-dist` xanh với `5/5 có mặt`.
 
 - [ ] **Bước 5: Cập nhật `HANDOFF.md`**
 
@@ -969,9 +1262,9 @@ npm run dung:vendor && npx tsc --noEmit && npm test && npm run kiem:vendor && np
 
 | Cổng | Kỳ vọng |
 |---|---|
-| `dung:vendor` | `5 khoá đều còn sống`, 8 lượt dịch |
+| `dung:vendor` | `5 khoá đều còn sống`, **7 lượt dịch** (phân bố 3+1+1+1+1 — xem Task 3 Bước 2) |
 | `tsc --noEmit` | exit 0 |
-| `npm test` | 60/60 ca xanh (12 file) |
+| `npm test` | 79/79 ca xanh (12 file) |
 | `kiem:vendor` | 2782 file, lệch 0 |
 | `kiem:vendor-paths` | 438 mục khớp |
 | `build` + `kiem:dist` | xanh, `bản dịch vi.json — 5/5 có mặt` |

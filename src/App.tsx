@@ -550,6 +550,14 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L4 10m0 0l5-5M4 10h11a5 5 0 010 10h-1" />
     </svg>
   ),
+  // Hai mũi tên vòng tròn — dùng cho nút "Làm mới" các ô số máy tính liều (khác `undo`: không lùi
+  // một bước mà quay thẳng về mặc định).
+  refresh: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 11A8.1 8.1 0 006.5 5.5M4 13a8.1 8.1 0 0013.5 5.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4.5V9h4.5M20 19.5V15h-4.5" />
+    </svg>
+  ),
   // Mặt trời / mặt trăng cho nút đổi chủ đề. Chỉ hình, không chữ — ba trạng thái (Tự động/Sáng/Tối)
   // vẫn phân biệt được vì trạng thái "Tự động" vẽ CẢ HAI nửa (nửa mặt trời, nửa mặt trăng).
   sun: () => (
@@ -3220,6 +3228,7 @@ interface MixDraft {
   vialVolumeMl: string
   reconstituteMl: string
   displacementMl: string
+  defaultVolumeMl: string
   diluents: string
   avoidDiluents: string
   diluentWarning: string
@@ -3237,6 +3246,7 @@ function emptyMixDraft(): MixDraft {
     vialVolumeMl: "",
     reconstituteMl: "",
     displacementMl: "",
+    defaultVolumeMl: "",
     diluents: "",
     avoidDiluents: "",
     diluentWarning: "",
@@ -3256,6 +3266,7 @@ function mixToDraft(m?: AntibioticMix): MixDraft {
     vialVolumeMl: m.vialVolumeMl != null ? String(m.vialVolumeMl) : "",
     reconstituteMl: m.reconstituteMl != null ? String(m.reconstituteMl) : "",
     displacementMl: m.displacementMl != null ? String(m.displacementMl) : "",
+    defaultVolumeMl: m.defaultVolumeMl != null ? String(m.defaultVolumeMl) : "",
     diluents: (m.diluents ?? []).join("; "),
     avoidDiluents: (m.avoidDiluents ?? []).join("; "),
     diluentWarning: m.diluentWarning ?? "",
@@ -3271,6 +3282,7 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
   const vialVolumeMl = parseFloat(d.vialVolumeMl)
   const reconstituteMl = parseFloat(d.reconstituteMl)
   const displacementMl = parseFloat(d.displacementMl)
+  const defaultVolumeMl = parseFloat(d.defaultVolumeMl)
   const maxConc = parseFloat(d.maxConc)
   const diluents = d.diluents.split(";").map((s) => s.trim()).filter(Boolean)
   const avoidDiluents = d.avoidDiluents.split(";").map((s) => s.trim()).filter(Boolean)
@@ -3280,6 +3292,7 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
     !isNaN(vialVolumeMl) ||
     !isNaN(reconstituteMl) ||
     !isNaN(displacementMl) ||
+    !isNaN(defaultVolumeMl) ||
     diluents.length > 0 ||
     avoidDiluents.length > 0 ||
     d.diluentWarning.trim() !== "" ||
@@ -3295,6 +3308,7 @@ function draftToMix(d: MixDraft): AntibioticMix | undefined {
     ...(isNaN(vialVolumeMl) ? {} : { vialVolumeMl }),
     ...(isNaN(reconstituteMl) ? {} : { reconstituteMl }),
     ...(isNaN(displacementMl) ? {} : { displacementMl }),
+    ...(isNaN(defaultVolumeMl) ? {} : { defaultVolumeMl }),
     ...(diluents.length > 0 ? { diluents } : {}),
     ...(avoidDiluents.length > 0 ? { avoidDiluents } : {}),
     ...(d.diluentWarning.trim() ? { diluentWarning: d.diluentWarning.trim() } : {}),
@@ -3324,7 +3338,11 @@ function draftToMixList(d: MixDraft): AntibioticMix[] | undefined {
 // đứng trước tủ thuốc, nên không thêm chữ nào khác vào.
 function mixOptionLabel(m: AntibioticMix): string {
   const amount = m.vialAmount != null ? `${trim(m.vialAmount)} ${m.vialUnit ?? "mg"}` : "Chưa rõ hàm lượng"
-  return m.vialVolumeMl != null ? `${amount}/${trim(m.vialVolumeMl)} mL` : amount
+  const withVolume = m.vialVolumeMl != null ? `${amount}/${trim(m.vialVolumeMl)} mL` : amount
+  // Không nêu chế phẩm (lọ/ống/chai) thì hai quy cách cùng hàm lượng nhưng khác dạng đóng gói (vd
+  // Amikacin 500 mg bột 1 lọ và 500 mg/2 mL dung dịch 1 ống) hiện ra giống hệt nhau trên chip — người
+  // dùng không cách nào phân biệt trước khi bấm vào xem chi tiết.
+  return `${withVolume} · ${m.vialLabel ?? "lọ"}`
 }
 
 // ─── Mức độ cảnh báo của kháng sinh ──────────────────────────────────────────
@@ -3488,6 +3506,19 @@ function AntibioticAdvancedFields({
               <div className="fade-in">
                 <label className="text-[12px] text-slate-400 mb-1 block">Thể tích dung dịch trong ống/chai (mL)</label>
                 <input value={mix.vialVolumeMl} onChange={(e) => updateMix("vialVolumeMl", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 150" className={smallFieldClass} style={fieldStyle} />
+              </div>
+            )}
+            {(mix.vialForm === "powder" || mix.vialForm === "solution") && (
+              <div className="fade-in">
+                <label className="text-[12px] text-slate-400 mb-1 block">Thể tích pha loãng mặc định (mL)</label>
+                <input
+                  value={mix.defaultVolumeMl}
+                  onChange={(e) => updateMix("defaultVolumeMl", normalizeDecimalInput(e.target.value))}
+                  inputMode="decimal"
+                  placeholder="VD: 200"
+                  className={smallFieldClass}
+                  style={fieldStyle}
+                />
               </div>
             )}
 
@@ -6643,7 +6674,7 @@ function AntibioticMixPanel({
   const [displacement, setDisplacement] = useState(
     ward?.displacementMl != null ? String(ward.displacementMl) : mix?.displacementMl != null ? String(mix.displacementMl) : "",
   )
-  const [volume, setVolume] = useState(String(ward?.volumeMl ?? 100))
+  const [volume, setVolume] = useState(String(ward?.volumeMl ?? mix?.defaultVolumeMl ?? 100))
   const [diluent, setDiluent] = useState(ward?.diluent ?? mix?.diluents?.[0] ?? "NaCl 0,9%")
   // Chai cố định hàm lượng: liều cần LẤY (bỏ trống = dùng trọn chai) — không pha loãng thêm nên
   // không dùng chung ô "Pha loãng tới"/"Dung môi" của hai dạng kia.
@@ -6751,10 +6782,11 @@ function AntibioticMixPanel({
     if (count == null) return
     setVials(String(count))
     if (toConcMass == null) return
-    // Thể tích pha loãng mặc định: quy ước 100 mL/lọ đã dùng ở autoUsage, trừ khi nồng độ đó vượt
-    // ngưỡng trên (mix.maxConc) — khi đó nâng lên mốc 50 mL gần nhất để về lại nồng độ an toàn.
+    // Thể tích pha loãng mặc định: mix.defaultVolumeMl/lọ nếu thuốc có khai (vd Amikacin 200 mL),
+    // rơi về quy ước 100 mL/lọ như trước nếu chưa khai — trừ khi nồng độ đó vượt ngưỡng trên
+    // (mix.maxConc) — khi đó nâng lên mốc 50 mL gần nhất để về lại nồng độ an toàn.
     const totalInConcMass = count * vaValue * toConcMass
-    let vol = count * 100
+    let vol = count * (mix?.defaultVolumeMl ?? 100)
     if (mix?.maxConc != null) {
       const minSafeVol = totalInConcMass / mix.maxConc
       if (minSafeVol > vol) vol = Math.ceil(minSafeVol / 50 - 1e-9) * 50
@@ -6886,7 +6918,7 @@ function AntibioticMixPanel({
     setVialVolume(m?.vialVolumeMl != null ? String(m.vialVolumeMl) : "")
     setReconstitute(m?.reconstituteMl != null ? String(m.reconstituteMl) : "")
     setDisplacement(m?.displacementMl != null ? String(m.displacementMl) : "")
-    setVolume("100")
+    setVolume(String(m?.defaultVolumeMl ?? 100))
     setDiluent(m?.diluents?.[0] ?? "NaCl 0,9%")
     setRouteShort(defaultRoute)
     setInfuseMinutes("")
@@ -8140,9 +8172,13 @@ function AntibioticDoseCard({
               >
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
-              {showMix && (
+              {/* LUÔN mount AntibioticMixPanel (chỉ ẩn bằng CSS) — giống mọi Disclosure khác trong thẻ
+                  này (xem comment ở Disclosure). Trước đây `{showMix && <AntibioticMixPanel/>}` unmount
+                  hẳn component mỗi lần đóng, xoá sạch state cục bộ (số lọ, thể tích pha loãng, dung
+                  môi...) — mở lại bảng pha là mất hết số vừa gõ tay, quay về mặc định từ đầu. */}
+              <div className={showMix ? undefined : "hidden"}>
                 <AntibioticMixPanel drug={drug} mixList={mixList} mixIndex={mixIndex} setMixIndex={setMixIndex} doseTargetMg={doseTargetMg} doseNotComputable={notComputableDose} routeShort={routeShort} setRouteShort={setRouteShort} />
-              )}
+              </div>
             </>
           )}
         </Disclosure>
@@ -9335,8 +9371,26 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
     })
   }
 
+  // Chuyển sang tính cho bệnh nhân khác trước đây phải tự xoá tay từng ô (Nồng độ, Liều/Tốc độ, Thể
+  // tích bơm/chai) — lối tắt này đưa cả bốn ô về đúng mốc lúc mới mở thẻ: công thức ĐÃ LƯU nếu có
+  // (`ward`), ngược lại mặc định của thuốc (`calc.concDefault`/`calc.mix`) — cùng biểu thức với
+  // useState khởi tạo `conc`/`bagVolume` phía trên, không phải một mốc "trống" tự bịa riêng.
+  function resetCalcInputs() {
+    setConc(ward ? String(ward.concValue) : calc.concDefault != null ? String(calc.concDefault) : "")
+    setDose("")
+    setRateInput("")
+    setBagVolume(ward ? String(ward.volumeMl) : calc.mix ? String(calc.mix.volumeMl) : "")
+    tickHaptic()
+  }
+
   return (
     <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
+      <div className="flex justify-end mb-1.5">
+        <button onClick={resetCalcInputs} className={`flex items-center gap-1 text-[12px] font-bold ${TAP}`} style={{ color: "var(--c-text-soft)" }}>
+          <span className="scale-90">{icons.refresh()}</span>
+          Làm mới
+        </button>
+      </div>
       {/* Chọn chiều tính */}
       <div className="flex p-0.5 rounded-[14px] mb-2.5" style={{ background: "var(--c-line-soft)" }}>
         {([
@@ -9761,7 +9815,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         >
           {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
         </button>
-        {showMix && (
+        {/* LUÔN mount MixPanel (chỉ ẩn bằng CSS) — cùng lỗi và cùng cách vá với AntibioticMixPanel
+            (xem comment ở AntibioticDoseCard): `{showMix && <MixPanel/>}` unmount hẳn component mỗi
+            lần đóng, xoá sạch state cục bộ (số ống, thể tích, dung môi...) — mở lại là mất hết. */}
+        <div className={showMix ? undefined : "hidden"}>
           <MixPanel
             drug={drug}
             calc={calc}
@@ -9773,7 +9830,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               setShowMix(false)
             }}
           />
-        )}
+        </div>
       </Disclosure>
 
       <div className="grid grid-cols-2 gap-2 mb-2 mt-2">

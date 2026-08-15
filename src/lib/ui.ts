@@ -150,9 +150,9 @@ export function shortRoute(route: string): string {
 
 // Đường TIÊM/TRUYỀN có thể suy ra được từ câu chữ `route` hay không — CHỈ bốn đường này mới cần
 // hoàn nguyên/pha loãng (bảng pha): truyền tĩnh mạch (TTM), tiêm tĩnh mạch chậm (TMC), tiêm bắp (IM),
-// tiêm dưới da (SC). Đường khác (uống, nhỏ mắt...) không có gì để pha nên KHÔNG được hiện "Bảng pha
+// tiêm dưới da (TDD). Đường khác (uống, nhỏ mắt...) không có gì để pha nên KHÔNG được hiện "Bảng pha
 // thuốc". Đây là cổng duy nhất quyết định nút đó có hiện hay không (xem AntibioticDoseCard).
-export type AdminRoute = "TTM" | "TMC" | "IM" | "SC"
+export type AdminRoute = "TTM" | "TMC" | "IM" | "TDD"
 
 // Đọc CHỮ VIẾT TẮT cuối chuỗi (trong ngoặc, xem shortRoute) thay vì dò cả câu — dò cả câu sẽ hiểu
 // nhầm "Tiêm/truyền tĩnh mạch (IV)" (chứa sẵn cụm "truyền tĩnh mạch") thành CHỈ truyền được, mất hẳn
@@ -169,7 +169,10 @@ export function inferAdminRoutes(route: string): AdminRoute[] {
   if (abbr === "TMC") return ["TMC"]
   if (abbr === "IV") return ["TTM", "TMC"]
   if (abbr === "TB" || abbr === "IM") return ["IM"]
-  if (abbr === "TDD" || abbr === "SC") return ["SC"]
+  // Giữ "SC" làm bí danh ĐỌC VÀO dù mã nội bộ đã đổi sang "TDD": dữ liệu thuốc còn ghi
+  // "Tiêm dưới da (SC)" (xem src/data/others.ts). Bỏ nhánh này thì thuốc đó trả về mảng rỗng và
+  // nút "Bảng pha thuốc" của nó lặng lẽ biến mất — không lỗi, không cảnh báo, tsc không bắt được.
+  if (abbr === "TDD" || abbr === "SC") return ["TDD"]
   return []
 }
 
@@ -182,8 +185,8 @@ export function adminRouteLabel(r: AdminRoute): string {
       return "TMC · Tiêm tĩnh mạch chậm"
     case "IM":
       return "IM · Tiêm bắp"
-    case "SC":
-      return "SC · Tiêm dưới da"
+    case "TDD":
+      return "TDD · Tiêm dưới da"
   }
 }
 

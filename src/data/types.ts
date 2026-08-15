@@ -174,6 +174,11 @@ export interface AntibioticMix {
   // Lọ bột: thể tích dung môi hoàn nguyên một lọ, và thể tích bột chiếm chỗ sau khi tan.
   reconstituteMl?: number
   displacementMl?: number
+  // Thể tích pha loãng MẶC ĐỊNH mà công thức chuẩn khuyến cáo (mL) — con số "x" trong "pha vừa đủ
+  // x mL" trước khi tính RÚT một phần (nếu cần), vd Amikacin 500 mg pha vừa đủ 200 mL. Chỉ có ý
+  // nghĩa với "powder"/"solution" (còn phải tự pha loãng); "fixed" đã có thể tích cố định riêng qua
+  // vialVolumeMl nên không dùng trường này. Bỏ trống = giữ mốc 100 mL/lọ như trước nay.
+  defaultVolumeMl?: number
   diluents?: string[]
   avoidDiluents?: string[]
   diluentWarning?: string

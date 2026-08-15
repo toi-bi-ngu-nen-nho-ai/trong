@@ -1,32 +1,20 @@
 // Chạy SAU `dich:vendor`. Biến đổi JS đã dịch trong .vendor-build/ tại chỗ:
 //   1. D16 — đổi tiền tố `affine-` → `drt-` ở tên thẻ DOM và class, `--affine-` → `--drt-`
-//   2. D12 — thay chuỗi hiển thị tiếng Anh bằng tiếng Việt theo src/board/vi.json
+//   2. (Bước dịch chuỗi D12 đã tách sang scripts/dich-chuoi-vendor.mjs — chạy ngay sau file này)
 // Rồi phát HÀNH ĐỊNH NGHĨA biến CSS: chép `@toeverything/theme/dist/style.css` sang
 // `.vendor-build/theme/style.css` qua ĐÚNG hai luật đổi tên ở trên (xem khối cuối file).
 //
 // Mã nguồn trong src/vendor/ KHÔNG bị đụng — cổng `npm run kiem:vendor` vẫn xanh sau bước này.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
 import path from 'node:path'
+
+import { dietJs } from './duyet-cay-js.mjs'
 
 const BUILD = '.vendor-build'
 const TIEN_TO = 'drt'
-const banDoDich = JSON.parse(readFileSync('src/board/vi.json', 'utf8'))
-
-async function* dietJs(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const f = path.join(dir, e.name)
-    if (e.isDirectory()) yield* dietJs(f)
-    else if (e.name.endsWith('.js')) yield f
-  }
-}
-
-// Thoát ký tự đặc biệt của regex trong chuỗi cần dịch.
-const thoat = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 let soFile = 0
 let soDoiTen = 0
-let soDich = 0
 
 for await (const f of dietJs(BUILD)) {
   let js = readFileSync(f, 'utf8')
@@ -104,20 +92,13 @@ for await (const f of dietJs(BUILD)) {
 
   if (js !== goc) soDoiTen++
 
-  // 3. Chuỗi hiển thị. Chỉ thay khi nằm trọn trong một literal, tránh đụng tên biến.
-  for (const [en, vi] of Object.entries(banDoDich)) {
-    const truoc = js
-    js = js.replace(new RegExp(`(['"\`])${thoat(en)}\\1`, 'g'), (_m, q) => `${q}${vi}${q}`)
-    if (js !== truoc) soDich++
-  }
-
   if (js !== goc) {
     writeFileSync(f, js)
     soFile++
   }
 }
 
-console.log(`Đã biến đổi ${soFile} file · ${soDoiTen} file đổi tên · ${soDich} lượt dịch`)
+console.log(`Đã biến đổi ${soFile} file · ${soDoiTen} file đổi tên`)
 
 // ─── ĐỊNH NGHĨA biến CSS ─────────────────────────────────────────────────────────────────────
 // Vòng lặp trên đổi tên mọi chỗ DÙNG biến (`var(--affine-x)` → `var(--drt-x)`) trong .js. Nhưng
