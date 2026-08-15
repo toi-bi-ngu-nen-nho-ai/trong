@@ -27,7 +27,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
-import { timTrungBanDich } from './so-khop-ban-dich.mjs'
+import { coNhuLiteral, timTrungBanDich } from './so-khop-ban-dich.mjs'
 import { soanThongBaoThieu, timTrongCayVendor } from './tim-ban-dich-vendor.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -166,6 +166,10 @@ const dung = new Map() // tên → file đầu tiên thấy dùng
 const dinhNghia = new Set()
 const conAffine = []
 const thieuBanDich = new Set(BAN_DICH)
+// Bản dịch mà phép THÔ trúng nhưng phép CHẶT thì không — tức chuỗi có trong chunk nhưng không ở
+// dạng literal trọn vẹn. Task 4 dùng tập này để thêm ghi chú vào thông báo đỏ. Ghi lại ở đây vì
+// đây là chỗ duy nhất còn đọc nội dung file.
+const khopTho = new Set()
 let soFile = 0
 
 for (const f of dietFile(DIST)) {
@@ -186,7 +190,14 @@ for (const f of dietFile(DIST)) {
   // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
   if (laFileBangVe(noiDung)) {
     for (const v of thieuBanDich) {
-      if (noiDung.includes(v)) thieuBanDich.delete(v)
+      // Phép CHẶT: chuỗi phải nằm trọn trong một literal. `includes` chuỗi con tính nhầm một bản
+      // dịch là "có mặt" khi nó chỉ là chuỗi con của một bản dịch KHÁC — đo được trên dist/ thật:
+      // "Phong" khớp thô vào "Phong cách" đang ship, dù chỗ thật của nó đã bị tree-shake.
+      if (coNhuLiteral(noiDung, v)) thieuBanDich.delete(v)
+      // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa
+      // được ghi vào đây rồi sau đó khớp chặt ở file khác thì vẫn bị xoá khỏi `thieuBanDich`, nên
+      // nó không bao giờ được in ra — thông báo chỉ lặp trên `thieuBanDich`.
+      else if (noiDung.includes(v)) khopTho.add(v)
     }
   }
 

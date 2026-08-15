@@ -20,6 +20,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 
 import { dietJs } from './duyet-cay-js.mjs'
+import { coDungNhuDaChen } from './so-khop-ban-dich.mjs'
 
 // Số chỗ in ra tối đa cho mỗi chuỗi, để một lượt đỏ nhiều khoá không đẩy thông báo thật ra khỏi
 // màn hình.
@@ -76,7 +77,11 @@ export async function timTrongCayVendor(goc, canTim) {
     const noiDung = await readFile(f, 'utf8')
     const rel = path.relative(goc, f).split(path.sep).join('/')
     for (const s of can) {
-      if (!noiDung.includes(s)) continue
+      // Phép CHẶT, dạng chính xác: `dich-chuoi-vendor.mjs` chèn bản dịch bằng đúng
+      // `JSON.stringify(chuoiDich)`, và cây này là đầu ra `tsc` chưa minify — nên không cần chấp
+      // ba kiểu nháy như ở dist/. `includes` chuỗi con ở đây làm chẩn đoán nêu SAI TÊN GÓI: một
+      // bản dịch ngắn sẽ "thấy" ở mọi file chứa bản dịch dài hơn bao nó.
+      if (!coDungNhuDaChen(noiDung, s)) continue
       if (!ra.has(s)) ra.set(s, [])
       ra.get(s).push({ file: rel, goi: goiCuaDuongDan(rel, gocGoi) })
     }
