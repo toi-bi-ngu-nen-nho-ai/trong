@@ -1,6 +1,6 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-15**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
 > **ĐÍNH CHÍNH bản 2026-08-13.** Bản đó viết *"P1-A đã gộp vào `main`, fast-forward
 > `afac297 → a10401b`"*. **Điều đó chưa từng xảy ra ở bản sao này.** Chuỗi cha-thứ-nhất của `main`
@@ -8,22 +8,27 @@ Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — P1-B đã gộp, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — P1-C đã gộp, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`d24ee83`** — đã gộp P1-B bằng merge commit, đã đẩy lên origin |
+| `main` | **`d165b92`** — đã gộp P1-C bằng merge commit |
+| `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
-| Cây làm việc | sạch |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **82/82** (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
+| Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **98/98** (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
+
+**Chặng P1-C — quy tắc cho chuỗi không tới `dist/` — ĐÃ XONG VÀ ĐÃ GỘP** (`d165b92`). 4/4 task,
+review toàn nhánh **không có Critical**, bốn Important đã đóng. Chi tiết ở **mục 12**.
 
 **Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp — ĐÃ XONG VÀ ĐÃ GỘP** (`d24ee83`).
-5/5 task, review toàn nhánh không có Critical, 5 mục Important đã đóng, bảy cổng xanh trên `main`
-sau khi gộp. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
-sống trên máy này) — **mục 10 dưới đây là bản chép đi được sang máy khác**.
+5/5 task, review toàn nhánh không có Critical, 5 mục Important đã đóng. Chi tiết ở **mục 10**.
 
-**Cảnh báo vận hành:** commit `dc2f765` trên nhánh này là của một **phiên Claude khác chạy song
-song**. Hai phiên cùng ghi một nhánh là chỗ dễ mất việc. Trước mỗi lượt làm, `git log` lại; đừng
+Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ sống trên máy này) —
+**mục 10 và mục 12 dưới đây là bản chép đi được sang máy khác**.
+
+**Cảnh báo vận hành (chỉ còn giá trị lịch sử):** commit `dc2f765` là của một **phiên Claude khác
+chạy song song**, nay đã đóng. Dù vậy thói quen vẫn đúng: trước mỗi lượt làm, `git log` lại; đừng
 giả định `HEAD` là commit mình vừa tạo.
 
 ---
@@ -151,6 +156,10 @@ Nếu ngữ cảnh mất, tin `git log` và bảng này, đừng tin trí nhớ.
 | Kế hoạch P1-B, 5 task | `a368b3d` |
 | **Nhánh `p1b-vi-json-vi-tri`** — cả 5 task (xem mục 10) | `4dd552d..39315f3` |
 | **Gộp P1-B vào `main` — merge commit** | `d24ee83` |
+| Spec P1-C: quy tắc cho chuỗi không tới `dist/` | `c986f4a` |
+| Kế hoạch P1-C, 4 task | `a61c77d` |
+| **Nhánh `p1c-chuoi-khong-toi-dist`** — cả 4 task + 3 lượt vá (xem mục 12) | `0648e08..1c1a93d` |
+| **Gộp P1-C vào `main` — merge commit** | `d165b92` |
 
 Mỗi task P1-A đều đã qua review riêng và ít nhất một vòng vá. **Đừng chạy lại task nào ở đây.**
 
@@ -411,10 +420,11 @@ trở nên an toàn. Nội dung dịch là chặng riêng: chốt bảng thuật
 
 ---
 
-## 11. CHẶNG P1-C ĐANG BRAINSTORM DỞ — quy tắc cho chuỗi không tới `dist/`
+## 11. HỒ SƠ BRAINSTORM CỦA P1-C — chặng này ĐÃ XONG, xem mục 12
 
-**Đây là việc của phiên tiếp theo.** Đã chốt xong ba quyết định, chưa trình bày thiết kế, chưa viết
-spec. Phiên sau tiếp từ **bước "trình bày thiết kế"** của `superpowers:brainstorming`.
+> **Mục này giờ là HỒ SƠ, không phải việc cần làm.** Chặng P1-C đã thi hành xong và đã gộp
+> (`d165b92`) — kết quả ở **mục 12**. Giữ mục này lại vì nó ghi ba quyết định gốc của chủ dự án
+> và lý do loại hai hướng khác, thứ mà mục 12 không lặp lại.
 
 ### Vấn đề
 
@@ -490,13 +500,10 @@ Cách nhận ra chunk bảng vẽ trong `dist/`: mật độ `drt-` >= 100 (đo 
    thay); và chỉ thêm nguyên nhân thứ ba vào thông báo (rẻ nhất nhưng để người đọc tự mò giữa ba
    khả năng, trong khi phân biệt được chỉ tốn một phép quét).
 
-### Việc phiên sau làm
+### Việc phiên sau làm — ĐÃ LÀM XONG HẾT, xem mục 12
 
-1. Đọc mục này. Xác nhận trạng thái repo bằng `git log`.
-2. Gọi `superpowers:brainstorming`, tiếp từ bước **"trình bày thiết kế"** — ba quyết định trên đã
-   chốt, ĐỪNG hỏi lại.
-3. Viết spec vào `docs/superpowers/specs/`, đính chính luôn số liệu §2.3 của spec P1-B.
-4. `superpowers:writing-plans` → `superpowers:subagent-driven-development`.
+~~1. Đọc mục này. 2. brainstorming. 3. Viết spec. 4. writing-plans →
+subagent-driven-development.~~ Cả bốn bước đã thi hành trong phiên 2026-08-15.
 
 ### Việc chủ dự án tự làm, ĐỪNG đụng
 
@@ -508,3 +515,131 @@ Cách nhận ra chunk bảng vẽ trong `dist/`: mật độ `drt-` >= 100 (đo 
 
 Chủ dự án xác nhận đã đóng phiên Claude thứ hai và **không chạy song song nữa**. Cảnh báo ở đầu file
 chỉ còn giá trị lịch sử (commit `dc2f765` và ba commit UI trên nhánh P1-B là của phiên đó).
+
+---
+
+## 12. CHẶNG P1-C ĐÃ XONG VÀ ĐÃ GỘP — quy tắc cho chuỗi không tới `dist/`
+
+Nhánh **`p1c-chuoi-khong-toi-dist`**, gốc `a61c77d`, gộp tại `d165b92`.
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-15-chuoi-khong-toi-dist-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-15-chuoi-khong-toi-dist.md` |
+
+### Chặng này làm gì
+
+**Chỉ một việc: khi luật C đã đỏ, nói đúng nguyên nhân.** Không thêm khoá dịch nào (`vi.json` vẫn
+đúng 5 khoá), không đổi hành vi xanh/đỏ của cổng nào.
+
+Trước đó, với chuỗi thuộc gói chưa bật trong `extensions.ts`, luật C đỏ và nêu hai nguyên nhân
+(*"bước dịch không chạy"* / *"thượng nguồn đổi vị trí cú pháp"*) mà **cả hai đều sai** — nó đẩy
+người sửa đi dựng lại `.vendor-build/` rồi đi soi `luat-vi-tri-dich.mjs`, cả hai đều vô ích, trong
+khi việc cần làm là gỡ khoá khỏi `vi.json`.
+
+Giờ trên **đường đỏ** (đường xanh không đọc thêm byte nào), `kiem-dist.mjs` quét `.vendor-build/`
+tìm **giá trị TIẾNG VIỆT** — không phải chuỗi gốc tiếng Anh, vì sau khi dịch thì bản gốc đã biến
+mất khỏi đúng những chỗ đó:
+
+| Kết quả quét | Kết luận |
+|---|---|
+| **Thấy** | bước dịch đã đáp bản dịch vào cây → nhiều khả năng gói chứa nó bị tree-shake. Nêu tên gói + đường dẫn file, và **cảnh báo kiểm `dist/` có cũ không trước khi gỡ khoá** |
+| **Không thấy** | giữ hai nguyên nhân cũ — với ca này chúng đúng |
+| **Chẩn đoán không chạy được** | **không khẳng định gì**, chỉ liệt kê các khả năng |
+
+### Đã xong
+
+| Task | Nội dung | Commit | Lượt vá |
+|---|---|---|---|
+| 1 | `scripts/tim-ban-dich-vendor.mjs` + `.d.mts` + 7 ca kiểm | `a61c77d..0648e08` | 0 |
+| 2 | `soanThongBaoThieu` — hàm thuần, ba kết cục, + 5 ca | `0648e08..a5b8d88` | 0 |
+| 3 | Nối vào luật C, **ba bằng chứng đỏ thật** | `a5b8d88..8357952` | 0 |
+| 4 | Đính chính số liệu | `8357952..47c510e` | **1** |
+| — | Vá lượt review toàn nhánh | `..5faeb69`, `..1c1a93d` | — |
+
+`npm test` **98/98** (13 file), trước chặng là 82/82.
+
+### Tính chất kết cấu quan trọng nhất — reviewer đã tự kiểm, không tin lời khai
+
+**Không có đường đi nào từ mã mới tới `process.exit(0)`.** Khối chẩn đoán nằm trọn trong
+`if (thieuBanDich.size)` **sau `loi++`**, chỉ ghi `console.error`, không nhánh nào chạm `loi` hay
+gọi `process.exit`. Chẩn đoán hỏng, quét rỗng, cây rỗng — cổng vẫn đỏ.
+
+Đây là lý do chặng này **không** dựng cổng mới để "chặn sớm": một cổng mới thì lại phải tự chứng
+minh nó không xanh rỗng tuếch, tức thêm đúng lớp rủi ro mà bốn trong mười một lỗi của P1-B thuộc về.
+
+**Tính độc lập với `bao-cao-dich.json` cũng đã kiểm bằng hành vi**, không bằng lời: file đó chứa
+nguyên `chuoiDich` tiếng Việt nên nếu bộ quét chạm vào thì **mọi** khoá đều "thấy" và chẩn đoán
+thành lời tự khai của chính bộ thay chuỗi. `dietJs` chỉ sinh `.js` nên nó bị loại — và giờ có một
+ca kiểm ghim điều đó.
+
+### Bốn Important của lượt review toàn nhánh — HAI trong số đó là chặng này VI PHẠM CHÍNH NÓ
+
+Chặng này tự đặt một tiêu chuẩn: **không bao giờ khẳng định điều chưa đo**. Reviewer tìm ra hai chỗ
+nó vi phạm chính tiêu chuẩn đó. Đây là phần đáng học nhất.
+
+| # | Lỗi | Hậu quả nếu lọt |
+|---|---|---|
+| I1 | Nhánh phân biệt bằng `loiChanDoan` thay vì `daDich === null`. `err.message` là `''` với `new Error()` và `undefined` khi thứ bị ném không phải `Error` — cả hai đều falsy | Thông báo khẳng định *"KHÔNG thấy ở đâu trong `.vendor-build/`"* trong khi **không có gì được quét** |
+| I2 | `err.message` tự nó ném `TypeError` khi `err` là `null`/`undefined` — **ngay trong `catch`** | Script chết bằng stack trace, người đọc mất luôn thông báo D12 — đúng thứ `try/catch` sinh ra để tránh |
+| I3 | Thiếu nguyên nhân **"`dist/` cũ"**. `sửa vi.json → dung:vendor → kiem:dist` (chưa build): cây có bản dịch, `dist/` chưa | Chẩn đoán kết luận tree-shake rồi khuyên *"gỡ khoá"* — **đẩy người sửa đi xoá một khoá ĐÚNG**, nặng hơn cả thông báo cũ nó thay thế |
+| I4 | Chính `HANDOFF.md` mang **bộ số thứ tư** | Chặng sinh ra để chấm dứt "một đại lượng, ba con số" gộp lại với bốn |
+
+Lỗ hổng logic của I3 đáng nhớ: từ *"có trong `.vendor-build/`"* + *"không có trong `dist/`"*
+**không** suy ra tree-shake, mà suy ra *"hoặc tree-shake, HOẶC `dist/` không sinh từ cây này"*.
+
+I1 và I4 đều là **lỗ hổng của KẾ HOẠCH**, không phải của người thi hành — kế hoạch cho sẵn đoạn mã
+dùng `loiChanDoan` làm bộ phân biệt, và §10 của spec chỉ liệt kê ba chỗ số liệu trong khi tài liệu
+thật có bảy. Lặp lại bài học #1: **mã trong kế hoạch là bản nháp, không phải lời tiên tri.**
+
+### NỢ ĐÃ ĐO ĐƯỢC — phải xử TRƯỚC khi thêm khoá hàng loạt
+
+Luật C hỏi *"bản dịch có trong chunk không"* bằng `noiDung.includes(v)`. Đo 2026-08-15 trên cùng
+một `dist/`:
+
+| Phép so khớp | Tới được | Không tới |
+|---|---|---|
+| `includes` — **đúng phép đang dùng** | 969 | 236 |
+| Chuỗi nằm trọn trong một literal có nháy | **899** | **306** |
+
+Lệch **70 chuỗi**; thủ phạm là chuỗi ngắn (`"="`, `"x"`, `"on"`, `"PDF"`) khớp ngẫu nhiên vào mã
+đã minify.
+
+Ở quy mô vài trăm khoá: một bản dịch ngắn là **chuỗi con của bản dịch khác** (`"Tô"` trong
+`"Tô màu"`) sẽ được tính "có mặt" kể cả khi chỗ của chính nó đã bị tree-shake. Đúng dạng lỗi #11
+của P1-B ("so khớp mù phạm vi") ở trục khác.
+
+**Với 5 khoá hiện tại nợ này KHÔNG THỂ lộ** — cả 5 bản dịch ≥ 6 ký tự, phân biệt, không cái nào là
+chuỗi con của cái nào. Hoãn có lý do: đổi phép so khớp là **đổi hàm quyết định xanh/đỏ của một
+cổng**, cần bằng chứng đỏ riêng.
+
+**Chặng sửa phải sửa CẢ HAI chỗ dùng `includes`** — luật C trong `kiem-dist.mjs` **và**
+`timTrongCayVendor` trong `tim-ban-dich-vendor.mjs`. Nếu chỉ sửa một, chẩn đoán vừa dựng lên sẽ
+liệt kê sai gói đúng lúc nó cần đúng nhất.
+
+### Minor còn mở, chuyển chặng sau
+
+- **M5** — chi phí quét tăng tuyến tính theo số khoá thiếu: `.vendor-build/` là 31 MB / 2.550 file,
+  với ~900 khoá thiếu là ~28 GB lượt quét chuỗi con. Chỉ trên đường đỏ, nhưng chẩn đoán chạy hàng
+  phút thì người ta Ctrl-C. Sửa rẻ: bỏ một chuỗi khỏi tập cần tìm sau khi đã gom đủ 4 chỗ.
+- **M8** — `docGocGoi` thêm `''` vào tập khi có `package.json` ở gốc cây, nhưng `goiCuaDuongDan`
+  không bao giờ trả `''`. Hợp đồng lệch giữa hai hàm; chưa lộ vì cây hiện tại không có.
+
+### Cố ý KHÔNG sửa, đã cân nhắc
+
+- `timTrongCayVendor` duyệt cây **hai lượt** (`docGocGoi` rồi `dietJs`). Lượt thứ hai không đọc
+  nội dung file nên không đáng kể so với 31 MB đọc thật; gộp lại sẽ trộn hai mối quan tâm đang
+  tách sạch.
+- **KHÔNG có danh sách miễn** — quyết định 2 của chủ dự án, YAGNI. Một cơ chế miễn không ai dùng
+  là cửa để sau này nhét khoá vào cho cổng xanh.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng d165b92 hoặc mới hơn
+git status --short                      # kỳ vọng chỉ có hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp là NỘI DUNG DỊCH** — và trước khi thêm khoá đầu tiên phải làm hai việc: xử nợ
+`includes` ở trên, và **đo lại cả số chuỗi lẫn số từ lặp** (xem cảnh báo ở cuối mục 10).
