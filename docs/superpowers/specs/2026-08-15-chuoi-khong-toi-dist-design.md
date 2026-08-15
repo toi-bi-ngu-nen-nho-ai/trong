@@ -183,7 +183,7 @@ Theo đúng khuôn đã dựng ở P1-B: **phần thuần tách khỏi phần v�
 | `scripts/tim-ban-dich-vendor.mjs` | **mới** | Tra cứu: cho gốc cây `.vendor-build/` và tập bản dịch cần tìm → trả về mỗi chuỗi thấy ở file nào, gói nào. Không in gì, không `process.exit`. |
 | `scripts/tim-ban-dich-vendor.d.mts` | **mới** | Khai kiểu, để ca kiểm `.ts` import được mà `tsc --noEmit` vẫn xanh (cùng lý do `luat-vi-tri-dich.d.mts` tồn tại). |
 | `scripts/kiem-dist.mjs` | sửa | Gọi module trên **chỉ khi `thieuBanDich.size > 0`**, rồi soạn thông báo theo ba kết cục ở §5. |
-| `scripts/__tests__/tim-ban-dich-vendor.spec.ts` | **mới** | Ca kiểm cho module thuần. |
+| `src/__tests__/vendor-tim-ban-dich.spec.ts` | **mới** | Ca kiểm cho module thuần. Đặt dưới `src/__tests__/` chứ không cạnh script: `vite.config.ts` khai `include: ['src/**/__tests__/**/*.spec.ts']`, nên một file spec đặt trong `scripts/` sẽ **không bao giờ được chạy** — cổng xanh vì không có ca nào, đúng lớp lỗi #8. Tiền lệ: `src/__tests__/vendor-dich.spec.ts` kiểm `scripts/luat-vi-tri-dich.mjs` theo đúng cách này. |
 
 ### 4.1 Dùng lại `dietJs`, không viết bộ duyệt thứ hai
 
