@@ -18,6 +18,11 @@ Cập nhật: **2026-08-15**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 | Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
 | Bảy cổng | xanh — `tsc` exit 0 · `npm test` **98/98** (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
+> **Một lưu ý trung thực về con số 98/98.** Ở lượt chạy ngay sau khi gộp, `npm test` đỏ **1 ca
+> (97/98)**; chạy lại ngay thì 98/98 xanh. Đó là **ca đỏ chập chờn đã gặp ba lần** — xem mục 6.
+> Không có mã nào của P1-C nằm gần ca đó (P1-C chỉ thêm ca kiểm cho hai script Node thuần), nhưng
+> **đừng đọc 98/98 như "bộ test ổn định"** — nó là "lượt chạy gần nhất xanh".
+
 **Chặng P1-C — quy tắc cho chuỗi không tới `dist/` — ĐÃ XONG VÀ ĐÃ GỘP** (`d165b92`). 4/4 task,
 review toàn nhánh **không có Critical**, bốn Important đã đóng. Chi tiết ở **mục 12**.
 
@@ -43,14 +48,17 @@ hướng và làm tiếp mà không cần giải thích lại từ đầu.
 phiên Claude Code khác đã hết ngân sách. Đừng đoán trạng thái repo — file đó ghi mọi lệnh git cần
 chạy để xác nhận.
 
-Việc cần làm: MỤC 11 — chặng P1-C, quy tắc cho chuỗi không tới dist/. Mục đó đã chốt sẵn BA quyết
-định với tôi rồi, đừng hỏi lại: (1) từ chối chuỗi thuộc gói chưa bật, nói rõ vì sao; (2) KHÔNG làm
-danh sách miễn; (3) hướng A — soi .vendor-build trên đường đỏ, quét theo bản dịch TIẾNG VIỆT.
+Không còn chặng nào đang dở. P1-C đã gộp (mục 12). Chặng kế tiếp là NỘI DUNG DỊCH cho vi.json.
+
+Trước khi thêm khoá đầu tiên phải làm HAI việc, mục 12 ghi rõ cả hai:
+1. Xử nợ `includes` — luật C và timTrongCayVendor đều dùng phép so khớp chuỗi con, nên một bản
+   dịch ngắn là chuỗi con của bản dịch khác ("Tô" trong "Tô màu") sẽ được tính "có mặt" sai.
+   Phải sửa CẢ HAI chỗ, không phải một.
+2. Đo lại số chuỗi VÀ số từ lặp. Con số "323 chuỗi" đã bị bác bỏ (đúng là 899), và "61 từ lặp"
+   được suy ra TỪ tập 323 đó nên cũng hết giá trị. Đừng đổi 323 thành 899 rồi giữ nguyên 61.
 
 Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
-vài phút), rồi gọi superpowers:brainstorming và tiếp từ đúng bước "trình bày thiết kế" — không phải
-từ đầu. Xong thiết kế thì viết spec (đính chính luôn số liệu §2.3 của spec P1-B, mục 11 nói rõ sai
-chỗ nào), rồi writing-plans, rồi subagent-driven-development.
+vài phút), rồi superpowers:brainstorming → writing-plans → subagent-driven-development.
 
 Đừng đụng src/data/antibiotics.ts — tôi tự sửa.
 ```
@@ -62,8 +70,8 @@ chỗ nào), rồi writing-plans, rồi subagent-driven-development.
 ```bash
 git fetch origin
 git branch --show-current               # kỳ vọng: main
-git log --oneline -1                    # kỳ vọng: d24ee83 hoặc mới hơn
-git status --short                      # kỳ vọng: rỗng
+git log --oneline -1                    # kỳ vọng: 47d9a35 hoặc mới hơn
+git status --short                      # kỳ vọng: chỉ hai file sinh ra ở mục 6
 ```
 
 Nếu `git log` cho một commit mà bảng đồ phục hồi (mục 3) không có, đọc commit đó bằng
@@ -100,9 +108,10 @@ bảng vẽ ~994 kB gzip, nạp chậm).
 npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build && npm run kiem:dist
 ```
 
-Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựng lại từ đầu để kiểm fix Vercel):
-`tsc` exit 0 · **37/37 ca** xanh (11 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
-438 mục khớp · vỏ app **~332,6 kB** gzip · chunk bảng **~993,7 kB** gzip · `kiem:dist` xanh.
+Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `main` sau khi gộp P1-C):
+`tsc` exit 0 · **98/98 ca** xanh (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
+438 mục khớp · vỏ app **~333,0 kB** gzip · chunk bảng **~993,7 kB** gzip · `kiem:dist` xanh với
+`bản dịch vi.json — 5/5 có mặt`.
 
 ---
 
@@ -249,10 +258,26 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
 - `src/board/vi.json` vẫn 5 chuỗi, nhưng cơ chế đã an toàn ở quy mô lớn (spec
   `2026-08-14-bo-sung-vi-json-design.md`, kế hoạch `2026-08-14-bo-sung-vi-json.md`). Chặng tiếp là
   nội dung dịch: chốt bảng thuật ngữ rồi dịch. Số chuỗi và số từ phải ĐO LẠI — xem cảnh báo mục 12.
-- `src/board/__tests__/edgeless-board-mount.spec.ts` từng đỏ một lần vì timeout rồi xanh lại ngay.
-  Nghi hai thủ phạm: mặc định 5 giây của vitest khi mount cả cây Lit, hoặc đường render bất đồng bộ
-  qua `requestIdleCallback` mà chính header file đó nhắc. **Chưa bắt được thông điệp lỗi thật** —
-  bắt được rồi hãy chọn cách sửa, đừng nâng timeout mò.
+- **CA ĐỎ CHẬP CHỜN — đã gặp BA lần, vẫn CHƯA bắt được thông điệp lỗi thật.**
+  Lần gần nhất: **2026-08-15**, ngay sau khi gộp P1-C — `npm test` đỏ **1 ca / 1 file (97/98)**,
+  chạy lại ngay thì **98/98 xanh**. Hai lần trước cũng đúng dạng đó.
+
+  Nghi `src/board/__tests__/edgeless-board-mount.spec.ts`: mặc định 5 giây của vitest khi mount cả
+  cây Lit, hoặc đường render bất đồng bộ qua `requestIdleCallback` mà chính header file đó nhắc.
+  Ở lượt xanh, ca này chạy **363 ms** — còn xa 5 giây, nên nếu nó là thủ phạm thì phải có thứ khác
+  làm chậm đột biến. **Đây vẫn là phỏng đoán, chưa có bằng chứng.**
+
+  > **LÝ DO CẢ BA LẦN ĐỀU HỤT — đọc kỹ, đây là lỗi thao tác lặp lại.** Cả ba lượt đều chạy
+  > `npm test` qua ống dẫn `| tail -N`. Vitest in chi tiết ca đỏ **trước** khối tổng kết, nên
+  > `tail` **vứt đúng phần cần giữ** và chỉ để lại dòng đếm. Lượt 2026-08-15 mất thông điệp đúng
+  > vì lý do đó, không phải vì khó bắt.
+  >
+  > **Lần sau chạy bộ test để lấy bằng chứng: KHÔNG BAO GIỜ nối `| tail`.** Ghi ra file rồi đọc:
+  > `npx vitest run --reporter=verbose > kq.txt 2>&1` — và đọc `kq.txt` TRƯỚC khi làm bất cứ gì
+  > khác. Ống dẫn cũng nuốt luôn exit code (`$?` thành của `tail`), nên một lượt đỏ vẫn trông như
+  > exit 0.
+
+  Bắt được thông điệp rồi hãy chọn cách sửa; **đừng nâng timeout mò**.
 - `public/sw.js` còn `CACHE = "drtrong-v8"` dù bundle đã đổi; chính file đó ghi việc tăng số là
   BẮT BUỘC.
 - **Deploy Vercel giờ tốn thêm vài phút mỗi lần** vì `postinstall` phải dựng lại `.vendor-build/`
