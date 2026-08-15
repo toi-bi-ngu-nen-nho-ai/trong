@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   docGocGoi,
   goiCuaDuongDan,
+  soanThongBaoThieu,
   timTrongCayVendor,
 } from '../../scripts/tim-ban-dich-vendor.mjs'
 
@@ -88,5 +89,67 @@ describe('timTrongCayVendor', () => {
     await expect(timTrongCayVendor(path.join(GOC, 'khong-he-co'), ['x'])).rejects.toThrow(
       /không thấy cây/,
     )
+  })
+})
+
+describe('soanThongBaoThieu', () => {
+  const cho = (file: string, goi: string | null) => ({ file, goi })
+
+  it('thấy trong cây → nói bước dịch ĐÃ chạy, nêu gói, và bảo cách sửa', () => {
+    const ra = soanThongBaoThieu(
+      ['Chèn ảnh'],
+      new Map([['Chèn ảnh', [cho('affine/blocks/image/src/a.js', 'affine/blocks/image')]]]),
+    )
+    expect(ra).toContain('đã dịch ở affine/blocks/image/src/a.js')
+    expect(ra).toContain('affine/blocks/image')
+    expect(ra).toContain('extensions.ts')
+    expect(ra).toContain('gỡ khoá')
+    // Không được nêu hai nguyên nhân cũ — với ca này CẢ HAI ĐỀU SAI. Đó là toàn bộ lý do chặng
+    // này tồn tại.
+    expect(ra).not.toContain('không chạy')
+  })
+
+  it('không thấy trong cây → giữ nguyên hai nguyên nhân cũ, vì với ca này chúng đúng', () => {
+    const ra = soanThongBaoThieu(['Chèn ảnh'], new Map())
+    expect(ra).toContain('KHÔNG thấy')
+    expect(ra).toContain('dich-chuoi-vendor')
+    expect(ra).toContain('luat-vi-tri-dich.mjs')
+    expect(ra).not.toContain('đã dịch ở')
+  })
+
+  // Ca quan trọng nhất của khối này. Khi phép quét hỏng, ta KHÔNG BIẾT chuỗi có trong cây hay
+  // không — nên không được khẳng định "KHÔNG thấy". Khẳng định một nguyên nhân không đo được
+  // chính là lỗi mà chặng này sinh ra để sửa; lặp lại nó ở nhánh lỗi là tự thua.
+  it('chẩn đoán hỏng → nói rõ là chưa chẩn đoán được, KHÔNG khẳng định gì', () => {
+    const ra = soanThongBaoThieu(['Chèn ảnh'], null, 'EACCES: permission denied')
+    expect(ra).toContain('chẩn đoán bổ sung không chạy được')
+    expect(ra).toContain('EACCES: permission denied')
+    expect(ra).not.toContain('KHÔNG thấy')
+    expect(ra).not.toContain('đã dịch ở')
+  })
+
+  it('nhiều hơn TOI_DA_CHO chỗ → cắt bớt và đếm phần còn lại', () => {
+    const ds = [
+      cho('a/x/1.js', 'a/x'),
+      cho('a/x/2.js', 'a/x'),
+      cho('a/x/3.js', 'a/x'),
+      cho('a/x/4.js', 'a/x'),
+      cho('a/x/5.js', 'a/x'),
+    ]
+    const ra = soanThongBaoThieu(['Nhãn'], new Map([['Nhãn', ds]]))
+    expect(ra).toContain('a/x/3.js')
+    expect(ra).not.toContain('a/x/4.js')
+    expect(ra).toContain('...và 2 chỗ nữa')
+  })
+
+  // §5.4 của spec: liệt kê MỌI gói trúng, không tự chọn một cái. `"Frame"` đo được ở bốn gói,
+  // một số đã bật một số chưa — tự chọn cái đầu tiên là kết luận mà dữ liệu không đỡ.
+  it('một chuỗi ở nhiều gói → nêu ĐỦ các gói, không chọn giùm', () => {
+    const ra = soanThongBaoThieu(
+      ['Khung'],
+      new Map([['Khung', [cho('a/x/1.js', 'a/x'), cho('b/y/2.js', 'b/y')]]]),
+    )
+    expect(ra).toContain('a/x')
+    expect(ra).toContain('b/y')
   })
 })

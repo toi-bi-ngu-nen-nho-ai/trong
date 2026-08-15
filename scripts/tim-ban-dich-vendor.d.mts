@@ -17,3 +17,9 @@ export declare function timTrongCayVendor(
   goc: string,
   canTim: Iterable<string>,
 ): Promise<Map<string, ChoDich[]>>
+
+export declare function soanThongBaoThieu(
+  thieu: Iterable<string>,
+  daDich: Map<string, ChoDich[]> | null,
+  loiChanDoan?: string | null,
+): string
