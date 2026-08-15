@@ -18,10 +18,13 @@ Cập nhật: **2026-08-15**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 | Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
 | Bảy cổng | xanh — `tsc` exit 0 · `npm test` **98/98** (13 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
-> **Một lưu ý trung thực về con số 98/98.** Ở lượt chạy ngay sau khi gộp, `npm test` đỏ **1 ca
-> (97/98)**; chạy lại ngay thì 98/98 xanh. Đó là **ca đỏ chập chờn đã gặp ba lần** — xem mục 6.
-> Không có mã nào của P1-C nằm gần ca đó (P1-C chỉ thêm ca kiểm cho hai script Node thuần), nhưng
-> **đừng đọc 98/98 như "bộ test ổn định"** — nó là "lượt chạy gần nhất xanh".
+> **Về con số 98/98.** Ngay sau khi gộp, `npm test` từng đỏ **1 ca (97/98)** — ca đỏ chập chờn đã
+> gặp ba lần mà không ai bắt được thông điệp. Lần này **đã bắt được và đã vá** (`b4c8f11`): thủ
+> phạm là ba ca duyệt trọn cây trong `vendor-doi-ten.spec.ts` hết giờ ở ngân sách mặc định 5 giây,
+> **không phải** file mà dự án nghi suốt ba lần. Chi tiết ở **mục 6**.
+>
+> Vẫn nên đọc 98/98 là "lượt chạy gần nhất xanh": lượt vá xoá được nguyên nhân đã chứng minh,
+> nhưng **chưa chứng minh** 120 giây đủ cho mọi đợt tải xấu. Ca đỏ quay lại là **tin tức**.
 
 **Chặng P1-C — quy tắc cho chuỗi không tới `dist/` — ĐÃ XONG VÀ ĐÃ GỘP** (`d165b92`). 4/4 task,
 review toàn nhánh **không có Critical**, bốn Important đã đóng. Chi tiết ở **mục 12**.
@@ -259,26 +262,44 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
 - `src/board/vi.json` vẫn 5 chuỗi, nhưng cơ chế đã an toàn ở quy mô lớn (spec
   `2026-08-14-bo-sung-vi-json-design.md`, kế hoạch `2026-08-14-bo-sung-vi-json.md`). Chặng tiếp là
   nội dung dịch: chốt bảng thuật ngữ rồi dịch. Số chuỗi và số từ phải ĐO LẠI — xem cảnh báo mục 12.
-- **CA ĐỎ CHẬP CHỜN — đã gặp BA lần, vẫn CHƯA bắt được thông điệp lỗi thật.**
-  Lần gần nhất: **2026-08-15**, ngay sau khi gộp P1-C — `npm test` đỏ **1 ca / 1 file (97/98)**,
-  chạy lại ngay thì **98/98 xanh**. Hai lần trước cũng đúng dạng đó.
+- **CA ĐỎ CHẬP CHỜN — ĐÃ BẮT ĐƯỢC VÀ ĐÃ VÁ (2026-08-15).** Ba lần trước không ai bắt được thông
+  điệp lỗi; lần thứ tư bắt được ngay lượt săn đầu tiên.
 
-  Nghi `src/board/__tests__/edgeless-board-mount.spec.ts`: mặc định 5 giây của vitest khi mount cả
-  cây Lit, hoặc đường render bất đồng bộ qua `requestIdleCallback` mà chính header file đó nhắc.
-  Ở lượt xanh, ca này chạy **363 ms** — còn xa 5 giây, nên nếu nó là thủ phạm thì phải có thứ khác
-  làm chậm đột biến. **Đây vẫn là phỏng đoán, chưa có bằng chứng.**
+  **Thủ phạm KHÔNG phải file mà dự án nghi suốt ba lần.** Không phải `edgeless-board-mount.spec.ts`
+  (ở đúng lượt đỏ đó nó chạy 288 ms và xanh). Thủ phạm là **ba ca duyệt trọn cây** trong
+  `src/__tests__/vendor-doi-ten.spec.ts`, cùng một lỗi:
 
-  > **LÝ DO CẢ BA LẦN ĐỀU HỤT — đọc kỹ, đây là lỗi thao tác lặp lại.** Cả ba lượt đều chạy
-  > `npm test` qua ống dẫn `| tail -N`. Vitest in chi tiết ca đỏ **trước** khối tổng kết, nên
-  > `tail` **vứt đúng phần cần giữ** và chỉ để lại dòng đếm. Lượt 2026-08-15 mất thông điệp đúng
-  > vì lý do đó, không phải vì khó bắt.
+  ```
+  × output không còn tiền tố affine- nào ... 5063ms   Error: Test timed out in 5000ms.
+  × không có tên gói giả @blocksuite/drt- ... 5015ms   Error: Test timed out in 5000ms.
+  × không có chỗ ghép tên thẻ động        ... 5094ms   Error: Test timed out in 5000ms.
+  ```
+
+  Chúng đọc từng file của 2.550 file `.js` (hoặc 2.782 file `.ts`) bằng `readFileSync` — việc I/O
+  hàng nghìn lượt — nhưng chạy trên **ngân sách mặc định 5 giây**, có được do **bỏ sót**. Hai ca
+  làm việc y hệt ở `vendor-dich.spec.ts` (`:297`, `:309`) đã được cấp `120_000` từ trước; đây là
+  bất đối xứng trong cùng một repo.
+
+  Phép kiểm chéo xác nhận: **đúng ba ca phải duyệt trọn cây là đúng ba ca đỏ**; hai ca `break` sớm
+  thì xanh. Cùng lượt đó cả bộ test chậm 2,6 lần (195 s so với 74 s), tức thời gian đi theo tải
+  máy còn ngân sách thì cố định.
+
+  **Đã vá:** `HAN_DUYET_CAY = 120_000` áp cho **cả năm** ca của file đó. Phủ cả hai ca thường nhanh
+  vì chúng chỉ nhanh KHI CỔNG ĐẠT — nếu bước đổi tên hỏng thật hoặc `vi.json` có khoá chết, chúng
+  phải duyệt trọn cây rồi chết vì timeout, tức **một lượt gác thật sự đỏ bị nguỵ trang thành flake**.
+
+  **Chưa chứng minh được:** 120 giây đủ cho mọi đợt tải xấu. Lượt đỏ bị giết ở 5 s nên không biết
+  nó cần bao lâu; ép tải bằng hai tiến trình vitest song song chỉ đẩy được tới 2,7 s.
+  **Nếu ca đỏ chập chờn còn quay lại sau lượt vá này thì đó là tin tức** — quay lại Phase 1, đừng
+  nâng tiếp con số. Hồ sơ điều tra đầy đủ: `.superpowers/flake/dieu-tra.md` (bị gitignore).
+
+  > **VÌ SAO BA LẦN TRƯỚC ĐỀU HỤT — lỗi thao tác lặp lại, đọc kỹ.** Cả ba lượt đều chạy `npm test`
+  > qua ống dẫn `| tail -N`. Vitest in chi tiết ca đỏ **trước** khối tổng kết, nên `tail` **vứt
+  > đúng phần cần giữ** và chỉ để lại dòng đếm. Ống dẫn còn nuốt exit code (`$?` thành của `tail`),
+  > nên lượt đỏ trông như exit 0 và chuỗi `&&` vẫn chạy tiếp.
   >
-  > **Lần sau chạy bộ test để lấy bằng chứng: KHÔNG BAO GIỜ nối `| tail`.** Ghi ra file rồi đọc:
-  > `npx vitest run --reporter=verbose > kq.txt 2>&1` — và đọc `kq.txt` TRƯỚC khi làm bất cứ gì
-  > khác. Ống dẫn cũng nuốt luôn exit code (`$?` thành của `tail`), nên một lượt đỏ vẫn trông như
-  > exit 0.
-
-  Bắt được thông điệp rồi hãy chọn cách sửa; **đừng nâng timeout mò**.
+  > **Chạy bộ test để lấy bằng chứng: KHÔNG BAO GIỜ nối `| tail`.** Ghi ra file rồi đọc:
+  > `npx vitest run --reporter=verbose > kq.txt 2>&1`, đọc `kq.txt` TRƯỚC khi làm gì khác.
 - `public/sw.js` còn `CACHE = "drtrong-v8"` dù bundle đã đổi; chính file đó ghi việc tăng số là
   BẮT BUỘC.
 - **Deploy Vercel giờ tốn thêm vài phút mỗi lần** vì `postinstall` phải dựng lại `.vendor-build/`

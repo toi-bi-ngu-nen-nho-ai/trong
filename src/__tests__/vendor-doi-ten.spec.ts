@@ -7,6 +7,34 @@ import { describe, expect, it } from 'vitest'
 const BUILD = '.vendor-build'
 const NGUON = 'src/vendor/blocksuite'
 
+// Ngân sách thời gian cho các ca DUYỆT TRỌN CÂY. Mọi ca trong file này đọc từng file của
+// `.vendor-build/` (2.550 file .js) hoặc `src/vendor/blocksuite/` (2.782 file .ts) bằng
+// `readFileSync` — đó là việc I/O hàng nghìn lượt, không phải phép kiểm cỡ mili-giây.
+//
+// KHÔNG phải "nâng timeout cho hết đỏ". Đây là lượt vá có bằng chứng, sau ba lần ca đỏ chập chờn
+// mà không ai bắt được thông điệp (xem HANDOFF mục 6). Lượt bắt được ngày 2026-08-15 cho:
+//
+//   × output không còn tiền tố affine- nào ... 5063ms   Error: Test timed out in 5000ms.
+//   × không có tên gói giả @blocksuite/drt-  ... 5015ms  Error: Test timed out in 5000ms.
+//   × không có chỗ ghép tên thẻ động          ... 5094ms  Error: Test timed out in 5000ms.
+//
+// Đúng BA ca phải duyệt trọn cây, và chỉ ba ca đó. Cùng lượt ấy, cả bộ test chậm 2,6 lần so với
+// lượt xanh (195s so với 74s) — tức thời gian của chúng dao động theo tải máy, còn ngân sách mặc
+// định 5 giây thì không. Ở lượt xanh ba ca này chạy 645/449/382 ms, nên biên chỉ khoảng 10 lần.
+//
+// Con số 120 giây lấy đúng bằng hai ca làm việc y hệt ở `vendor-dich.spec.ts` (:297, :309) — chúng
+// đã được cấp ngân sách này từ trước. File này thiếu nó do BỎ SÓT, không do cân nhắc; lượt vá này
+// chỉ xoá sự bất đối xứng đó.
+//
+// Áp cho CẢ NĂM ca, kể cả hai ca thường nhanh (`break` sớm ở file đầu khớp): chúng chỉ nhanh KHI
+// CỔNG ĐẠT. Nếu bước đổi tên thật sự hỏng, hoặc `vi.json` có khoá chết, chúng phải duyệt trọn cây
+// rồi chết vì timeout — nghĩa là một lượt gác THẬT SỰ ĐỎ bị nguỵ trang thành ca chập chờn, đúng
+// loại thông báo sai chỗ mà bài học #2 của dự án cảnh báo.
+//
+// Đặt riêng ở đây thay vì `testTimeout` toàn cục trong vite.config.ts: các ca DOM phải giữ ngân
+// sách chặt, nếu không một lượt treo thật sẽ nằm im 2 phút thay vì đỏ ngay.
+const HAN_DUYET_CAY = 120_000
+
 async function* diet(dir: string, duoi: string): AsyncGenerator<string> {
   for (const e of await readdir(dir, { withFileTypes: true })) {
     const f = path.join(dir, e.name)
@@ -55,7 +83,7 @@ describe('D16 — đổi tên affine-*', () => {
       if (soPham.length > 5) break
     }
     expect(soPham).toEqual([])
-  })
+  }, HAN_DUYET_CAY)
 
   it('tiền tố mới thật sự có mặt — chứng minh phép thay đã chạy', async () => {
     let thay = false
@@ -66,7 +94,7 @@ describe('D16 — đổi tên affine-*', () => {
       }
     }
     expect(thay).toBe(true)
-  })
+  }, HAN_DUYET_CAY)
 
   // Review task 3, Finding 1 — tên gói `@blocksuite/affine-...` bị nhắc NGOÀI câu import (ví
   // dụ trong JSDoc — xem `affine/blocks/surface/src/renderer/dom-renderer.ts` dòng 121, 141
@@ -89,7 +117,7 @@ describe('D16 — đổi tên affine-*', () => {
       if (soPham.length > 5) break
     }
     expect(soPham).toEqual([])
-  })
+  }, HAN_DUYET_CAY)
 
   // Phép thay văn bản chỉ an toàn khi KHÔNG chỗ nào ghép tên thẻ động. Hôm nay đúng 1 chỗ và
   // nó nằm trong test-utils. Nếu bản nâng cấp sau thêm chỗ thứ hai trong mã sản phẩm, tên thẻ
@@ -103,7 +131,7 @@ describe('D16 — đổi tên affine-*', () => {
       if (mau.test(readFileSync(f, 'utf8'))) soPham.push(rel)
     }
     expect(soPham).toEqual([])
-  })
+  }, HAN_DUYET_CAY)
 })
 
 describe('D12 — bản đồ dịch', () => {
@@ -122,5 +150,5 @@ describe('D12 — bản đồ dịch', () => {
 
     const khoaChet = khoa.filter((k) => !conSong.has(k))
     expect(khoaChet).toEqual([])
-  })
+  }, HAN_DUYET_CAY)
 })
