@@ -120,14 +120,15 @@ Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `ma
 | | |
 |---|---|
 | Repo | `https://github.com/toi-bi-ngu-nen-nho-ai/trong.git` |
-| `origin/main` | `d24ee83` — đã gộp P1-B |
+| `origin/main` | `2736c0a` — đã gộp P1-C (`d165b92`) |
+| `origin/p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ làm bản sao lưu, không xoá |
 | `origin/p1b-vi-json-vi-tri` | `39315f3` — giữ làm bản sao lưu, không xoá |
 | `origin/worktree-p1a-nhung-edgeless` | `ffe149c` — giữ lại làm bản sao lưu, không xoá |
 | Worktree cũ trên đĩa (`p0a`, `p0b`, `p0c`, `blockkit-edgeless`) | vẫn còn treo, xoá lúc nào cũng được |
 
-**`/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì** — kế hoạch P1-B đã thi hành
-xong toàn bộ 5 task, đã review toàn nhánh, đã vá, đã gộp. Gọi lại mà không có kế hoạch mới thì nó
-đứng im. Chặng sau cần `brainstorming` → `writing-plans` trước.
+**`/superpowers:subagent-driven-development` KHÔNG chạy tiếp được gì** — cả hai kế hoạch P1-B và
+P1-C đã thi hành xong toàn bộ, đã review toàn nhánh, đã vá, đã gộp. Gọi lại mà không có kế hoạch
+mới thì nó đứng im. Chặng sau cần `brainstorming` → `writing-plans` trước.
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
