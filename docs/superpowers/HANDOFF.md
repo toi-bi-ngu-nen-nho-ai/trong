@@ -15,10 +15,11 @@ Cập nhật: **2026-08-14**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 | `main` | **`4dd552d`** — đã đẩy lên origin |
 | Nhánh đang làm | **`p1b-vi-json-vi-tri`** — hơn `main` 20+ commit, đã đẩy lên origin làm bản sao lưu |
 | Cây làm việc | sạch |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **79/79** (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **82/82** (12 file) · `kiem:vendor` lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
 
-**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp.** **Cả 5/5 task đã thi hành xong**;
-còn lại lượt review toàn nhánh và quyết định gộp. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
+**Chặng P1-B — cơ chế thay chuỗi D12 theo vị trí cú pháp.** **Xong 5/5 task, đã qua lượt review
+toàn nhánh (KHÔNG có Critical), đã đóng cả 5 mục Important.** Chỉ còn **quyết định gộp** — việc của
+chủ dự án. Sổ tiến độ chi tiết ở `.superpowers/sdd/progress.md` (bị `.gitignore`, chỉ
 sống trên máy này) — **mục 10 dưới đây là bản chép đi được sang máy khác**.
 
 **Cảnh báo vận hành:** commit `dc2f765` trên nhánh này là của một **phiên Claude khác chạy song
@@ -112,7 +113,7 @@ Số liệu kỳ vọng ở lần chạy gần nhất (2026-08-13, sau khi dựn
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
-| **Kết thúc P1-B** (review toàn nhánh + gộp) | `superpowers:requesting-code-review` → `superpowers:finishing-a-development-branch` |
+| **Gộp P1-B vào `main`** | `superpowers:finishing-a-development-branch` |
 | Dịch nội dung `vi.json` sau khi P1-B xong | `superpowers:brainstorming` — cần chốt bảng thuật ngữ 61 từ trước |
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
 | Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
@@ -324,9 +325,26 @@ danh sách cho phép. Đo được 127 loại vị trí khác nhau → **danh s�
 | 2 | `scripts/luat-vi-tri-dich.mjs` — module thuần + 37 ca kiểm | `9f9e263..cdc3132` | **4** |
 | 3 | Nối vào pipeline, `bao-cao-dich.json`, **bốn cổng DỪNG** | `cdc3132..1f78d43` | **2** |
 | 4 | Cổng độc lập tính lại từ `.vendor-build/`, không đọc báo cáo | `728843e..98e8b71` | **2** |
-| 5 | `kiem:dist` luật C — bản dịch buộc phải có trong `dist/` | `98e8b71..d4ee12c` | **1** |
+| 5 | `kiem:dist` luật C — bản dịch buộc phải có trong `dist/` | `98e8b71..f29702a` | **3** |
+| — | Siết 5 cổng theo lượt review toàn nhánh | `f29702a..f759296` | — |
 
-Cả năm đều đã qua review và được duyệt (Task 5 chờ lượt review lại cuối cùng).
+Cả năm đã qua review và được duyệt. **Lượt review toàn nhánh (opus) kết luận KHÔNG có Critical**;
+năm mục Important đã đóng ở `f759296`, ba phép bằng chứng đỏ đều đúng kỳ vọng.
+
+Reviewer tự đo lại và xác nhận mục tiêu cốt lõi ĐẠT: chuỗi `LinkedPage` có 23 lượt trong cây, **22
+lượt bị loại fail-closed**, đúng **1 lượt** được dịch — và đó là nhãn thật ở
+`keyboard-toolbar/src/config.js:232`. Regex cũ dịch cả 23.
+
+### HAI VIỆC CÒN MỞ, KHÔNG CHẶN GỘP
+
+**1. Trước khi thêm khoá đầu tiên của chặng 323 chuỗi** — spec §2.3 tự đo 116/391 chuỗi ứng viên
+KHÔNG tới `dist/` vì tree-shake. Cổng khoá chết chấp nhận chúng, luật C thì không. Tức có lớp chuỗi
+"dịch được nhưng không được phép dịch", và khi ai đó dịch nhầm một cái, luật C đỏ với thông báo nêu
+hai nguyên nhân **đều sai**. Phải chốt quy tắc trước, không phải sau.
+
+**2. Dữ liệu lâm sàng cần chủ dự án xác nhận** — `src/data/antibiotics.ts` thêm ba quy cách Amikacin,
+cả ba chép nguyên văn `infuseNote: "Pha 500 mg amikacin…"`, **kể cả quy cách 1000 mg**. Đây là chữ
+hiển thị cho người đang pha thuốc. Nằm ngoài chặng P1-B (commit của phiên song song).
 
 ### Mười một lỗi vòng review bắt được — TẤT CẢ nằm trong mã do kế hoạch cho sẵn
 
