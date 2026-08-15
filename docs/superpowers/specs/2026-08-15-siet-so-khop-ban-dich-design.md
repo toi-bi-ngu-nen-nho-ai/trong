@@ -126,8 +126,16 @@ chữ.
 
 ### 4.2 Giao diện
 
-- **`nhayHoa(s): string`** — dạng đã thoát của `s` để nhúng vào literal, tức
-  `JSON.stringify(s).slice(1, -1)`.
+- **`dangTrongNhay(s, nhay): string`** — dạng đã thoát của `s` khi nhúng vào một literal dùng ký
+  tự `nhay` (`'"'`, `"'"`, hoặc `` '`' ``) để mở/đóng. BA KIỂU NHÁY CÓ BA LUẬT THOÁT KHÁC NHAU — đây
+  KHÔNG phải một quy ước JSON dùng chung cho cả ba (bản nháp ban đầu sai đúng ở chỗ này — xem ghi
+  chú tại Task 1 của kế hoạch thi hành):
+  - nháy kép (`"`): thoát `\` rồi thoát `"` thành `\"`.
+  - nháy đơn (`'`): thoát `\` rồi thoát `'` thành `\'`.
+  - backtick (`` ` ``): thoát `\` rồi thoát `` ` `` thành `` \` ``, rồi thoát `${` (mở nội suy)
+    thành `` \${ ``. **Không** thoát `"` trong nhánh này — literal backtick không cần.
+  Gạch chéo ngược luôn thoát TRƯỚC mọi phép thoát khác ở cả ba nhánh, để phép thoát dấu nháy không
+  nhân đôi nhầm gạch chéo mà chính nó vừa sinh ra.
 - **`coNhuLiteral(noiDung, s): boolean`** — `s` xuất hiện trọn vẹn trong một literal có nháy
   (`"…"`, `'…'`, `` `…` ``). Dùng cho `dist/`.
 - **`coDungNhuDaChen(noiDung, s): boolean`** — `noiDung` chứa **chính xác** `JSON.stringify(s)`.
@@ -189,7 +197,7 @@ Phép thô thêm **một dòng ghi chú** vào bất kỳ kết cục nào ở t
 | 2 | thấy cả nháy đơn và backtick | bộ đóng gói chọn kiểu nháy nào cũng được |
 | 3 | **chuỗi là TIỀN TỐ của literal dài hơn → KHÔNG khớp** | `"Tô"` trong `"Tô màu"`. **Đây là ca ghim đúng con bug đang sửa** |
 | 4 | chuỗi là HẬU TỐ / nằm giữa → KHÔNG khớp | `"màu"` trong `"Tô màu"` |
-| 5 | bản dịch chứa `"` hoặc `\` khớp đúng dạng đã thoát | `nhayHoa` phải dùng, không so thô |
+| 5 | bản dịch chứa `"` hoặc `\` khớp đúng dạng đã thoát | `dangTrongNhay` phải dùng, theo đúng luật thoát của TỪNG kiểu nháy — không so thô, và không dùng chung một quy ước JSON cho cả ba kiểu |
 | 6 | `coDungNhuDaChen` khớp `JSON.stringify(s)`, từ chối nháy đơn | phép chặt hơn cho cây vendored |
 | 7 | `timTrungBanDich` rỗng khi mọi bản dịch duy nhất | không đỏ giả |
 | 8 | `timTrungBanDich` gom đúng nhóm khi hai khoá trùng giá trị | §1.3 |

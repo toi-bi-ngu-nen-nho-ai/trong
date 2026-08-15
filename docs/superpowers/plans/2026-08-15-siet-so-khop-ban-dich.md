@@ -53,10 +53,25 @@ thuộc nào.
 **Interfaces:**
 - Dùng của trước đó: không có.
 - Sinh ra cho task sau:
-  - `nhayHoa(s: string): string` — dạng đã thoát của `s` để nhúng vào literal.
+  - `dangTrongNhay(s: string, nhay: string): string` — dạng đã thoát của `s` khi nằm trong literal dùng ký tự `nhay`.
   - `coNhuLiteral(noiDung: string, s: string): boolean` — dùng cho `dist/`.
   - `coDungNhuDaChen(noiDung: string, s: string): boolean` — dùng cho `.vendor-build/`.
   - `timTrungBanDich(banDo: Record<string, string>): Array<{ vi: string; khoa: string[] }>`
+
+> ⚠️ **CẢNH BÁO (thêm sau lượt review toàn nhánh P1-D, I2) — các khối mã ở Bước 1–4 dưới đây là
+> BẢN NHÁP ĐÃ BỊ THAY, đừng thi hành nguyên văn.** Chúng còn dùng `nhayHoa(s)` — hàm thoát theo
+> MỘT quy ước duy nhất (`JSON.stringify(s).slice(1, -1)`, tức quy ước của nháy KÉP) rồi đem áp
+> cho cả ba kiểu nháy khi dò `dist/`. Đó chính là con bug mà lượt vá Task 1 thật đã sửa: literal
+> **backtick** không cần thoát `"`, nhưng quy ước JSON lại thoát nó thành `\"` — khớp trượt, đỏ
+> giả trên bản dịch hợp lệ. Cả 5 bản dịch đang ship đều nằm trong literal backtick, nên đây không
+> phải một ca biên hiếm.
+>
+> Giao diện THẬT đã thi hành là `dangTrongNhay(s, nhay)` — nhận thêm ký tự `nhay` và thoát theo
+> ĐÚNG luật của kiểu nháy đó (xem §4.2 của spec, và mã nguồn có chú thích đầy đủ tại
+> `scripts/so-khop-ban-dich.mjs`, `scripts/so-khop-ban-dich.d.mts`,
+> `src/__tests__/vendor-so-khop.spec.ts`). Nếu thi hành lại chặng này từ đầu, hãy đọc mã nguồn đó
+> làm nguồn thật, không phải các khối mã bên dưới. Đừng dựng lại `nhayHoa` ở bất cứ đâu — xem
+> thêm ghi chú tương tự ở Task 4 bên dưới.
 
 - [ ] **Bước 1: Viết ca kiểm đỏ**
 
@@ -242,7 +257,7 @@ export declare function timTrungBanDich(banDo: Record<string, string>): NhomTrun
 
 Chạy: `npx vitest run --reporter=verbose src/__tests__/vendor-so-khop.spec.ts > kq-xanh.txt 2>&1`
 
-Đọc `kq-xanh.txt`. Kỳ vọng: **PASS**, 10 ca xanh (5 cho `coNhuLiteral`, 2 cho `coDungNhuDaChen`, 2 cho `timTrungBanDich`, 1 cho `nhayHoa`).
+Đọc `kq-xanh.txt`. Kỳ vọng: **PASS**. (Số ca thật sau lượt vá Task 1 là **15** — lượt vá thêm 5 ca cho `dangTrongNhay` và ca hồi quy backtick.)
 
 - [ ] **Bước 5: Kiểm kiểu**
 
@@ -536,7 +551,7 @@ npx vitest run --reporter=verbose > kq-bo-test.txt 2>&1; echo "EXIT=$?"
 npm run build && npm run kiem:dist
 ```
 
-Đọc `kq-bo-test.txt`. Kỳ vọng: tất cả xanh, `npm test` cho **108 ca** (98 trước chặng + 10 ca Task 1).
+Đọc `kq-bo-test.txt`. Kỳ vọng: tất cả xanh, `npm test` cho **113 ca** (98 trước chặng + 15 ca Task 1).
 Ghi con số thật vào báo cáo — bài học #3: đừng tin tiêu chí xong hẹp, chạy đủ bộ.
 
 **Nhắc lại ràng buộc toàn cục: KHÔNG nối `| tail`.**
@@ -604,18 +619,22 @@ Và sửa khối import ở đầu file đó để thêm `giaiThichKhopTho`:
 import {
   coDungNhuDaChen,
   coNhuLiteral,
+  dangTrongNhay,
   giaiThichKhopTho,
-  nhayHoa,
   timTrungBanDich,
 } from '../../scripts/so-khop-ban-dich.mjs'
 ```
+
+> **Lưu ý:** `nhayHoa` đã bị **gỡ hẳn** ở lượt vá Task 1 và thay bằng `dangTrongNhay(s, nhay)` —
+> thoát theo TỪNG kiểu nháy, vì ba kiểu nháy có ba luật thoát khác nhau và cả 5 bản dịch đang ship
+> đều nằm trong literal **backtick**. Đừng nhắc lại `nhayHoa` ở bất cứ đâu.
 
 - [ ] **Bước 2: Chạy để xác nhận ĐỎ**
 
 Chạy: `npx vitest run --reporter=verbose src/__tests__/vendor-so-khop.spec.ts > kq-do4.txt 2>&1`
 
 Đọc `kq-do4.txt`. Kỳ vọng: **FAIL** — 3 ca mới đỏ với `TypeError: giaiThichKhopTho is not a
-function`; 10 ca của Task 1 vẫn xanh. Chép nguyên văn vào báo cáo.
+function`; 15 ca của Task 1 vẫn xanh. Chép nguyên văn vào báo cáo.
 
 - [ ] **Bước 3: Viết `giaiThichKhopTho`**
 
@@ -728,7 +747,7 @@ Thay bằng:
 
 Chạy: `npx vitest run --reporter=verbose src/__tests__/vendor-so-khop.spec.ts > kq-xanh4.txt 2>&1`
 
-Đọc file. Kỳ vọng: **PASS**, 13 ca xanh (10 của Task 1 + 3 mới).
+Đọc file. Kỳ vọng: **PASS**, 18 ca xanh (15 của Task 1 + 3 mới).
 
 Chạy: `npx tsc --noEmit` → exit 0.
 
@@ -760,7 +779,7 @@ npm run build && npm run kiem:dist
 git status --short
 ```
 
-Đọc `kq-cuoi.txt`. Kỳ vọng: tất cả xanh, `npm test` cho **111 ca** (98 trước chặng + 13), `kiem:dist` báo
+Đọc `kq-cuoi.txt`. Kỳ vọng: tất cả xanh, `npm test` cho **116 ca** (98 trước chặng + 18), `kiem:dist` báo
 `bản dịch vi.json — 5/5 có mặt`, `git status --short` **không** thấy `src/board/vi.json`.
 
 - [ ] **Bước 9: Commit**

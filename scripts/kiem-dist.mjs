@@ -27,6 +27,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
+import { coNhuLiteral, giaiThichKhopTho, timTrungBanDich } from './so-khop-ban-dich.mjs'
 import { soanThongBaoThieu, timTrongCayVendor } from './tim-ban-dich-vendor.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -61,9 +62,8 @@ const MIEN = new Set([
 ])
 
 // Luật C — bản dịch phải tới được tay người dùng.
-const MUC_BAN_DICH = Object.entries(
-  JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8')),
-)
+const BAN_DO = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
+const MUC_BAN_DICH = Object.entries(BAN_DO)
 const BAN_DICH = MUC_BAN_DICH.map(([, vi]) => vi)
 
 // Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
@@ -112,6 +112,29 @@ if (MUC_XAU.length) {
   process.exit(1)
 }
 
+// Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép so khớp chặt KHÔNG cứu được: hai chuỗi
+// bằng nhau từng ký tự, nên chỉ cần một trong hai còn sống trong dist/ là CẢ HAI được đếm là "có
+// mặt" — kể cả khi chỗ của cái kia đã bị tree-shake. Mẫu số của luật C sai mà không ai biết.
+//
+// Đây là ràng buộc BIÊN TẬP, chủ dự án đã chốt: không được dịch `Delete` và `Remove` cùng thành
+// "Xoá" — phải chọn chữ khác nhau, hoặc bỏ bớt một khoá.
+//
+// Đặt ở đây chứ không ở Cổng 0 của dich-chuoi-vendor.mjs vì cổng đó KHÔNG nằm trên đường
+// `npm run build` (xem chú thích sàn rỗng phía trên) — luật C là lớp duy nhất chắc chắn chạy.
+const TRUNG = timTrungBanDich(BAN_DO)
+if (TRUNG.length) {
+  console.error(
+    `kiem-dist: DỪNG — ${TRUNG.length} bản dịch trong src/board/vi.json bị nhiều khoá dùng chung. ` +
+      'Luật C tìm bản dịch trong dist/ theo GIÁ TRỊ, nên hai khoá cùng giá trị thì một cái còn ' +
+      'sống là cả hai được tính "có mặt" — mẫu số sai mà cổng vẫn xanh. Đổi chữ cho khác nhau, ' +
+      'hoặc bỏ bớt khoá:',
+  )
+  TRUNG.forEach(({ vi, khoa }) =>
+    console.error(`   ${JSON.stringify(vi)} ← ${khoa.map((k) => `"${k}"`).join(', ')}`),
+  )
+  process.exit(1)
+}
+
 // Nhận ra file thuộc cây bảng vẽ đã vendored bằng MẬT ĐỘ `drt-`, không phải bằng sự có mặt.
 //
 // `drt-` là tiền tố thương hiệu của CẢ dự án chứ không riêng cây vendored, nên chỉ cần một class
@@ -143,6 +166,10 @@ const dung = new Map() // tên → file đầu tiên thấy dùng
 const dinhNghia = new Set()
 const conAffine = []
 const thieuBanDich = new Set(BAN_DICH)
+// Bản dịch mà phép THÔ trúng nhưng phép CHẶT thì không — tức chuỗi có trong chunk nhưng không ở
+// dạng literal trọn vẹn. Task 4 dùng tập này để thêm ghi chú vào thông báo đỏ. Ghi lại ở đây vì
+// đây là chỗ duy nhất còn đọc nội dung file.
+const khopTho = new Set()
 let soFile = 0
 
 for (const f of dietFile(DIST)) {
@@ -163,7 +190,14 @@ for (const f of dietFile(DIST)) {
   // chạm gần như chắc chắn. Mỗi va chạm là một chuỗi được miễn kiểm vĩnh viễn mà không ai biết.
   if (laFileBangVe(noiDung)) {
     for (const v of thieuBanDich) {
-      if (noiDung.includes(v)) thieuBanDich.delete(v)
+      // Phép CHẶT: chuỗi phải nằm trọn trong một literal. `includes` chuỗi con tính nhầm một bản
+      // dịch là "có mặt" khi nó chỉ là chuỗi con của một bản dịch KHÁC — đo được trên dist/ thật:
+      // "Phong" khớp thô vào "Phong cách" đang ship, dù chỗ thật của nó đã bị tree-shake.
+      if (coNhuLiteral(noiDung, v)) thieuBanDich.delete(v)
+      // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa
+      // được ghi vào đây rồi sau đó khớp chặt ở file khác thì vẫn bị xoá khỏi `thieuBanDich`, nên
+      // nó không bao giờ được in ra — thông báo chỉ lặp trên `thieuBanDich`.
+      else if (noiDung.includes(v)) khopTho.add(v)
     }
   }
 
@@ -252,7 +286,38 @@ if (thieuBanDich.size) {
     }
   }
 
-  console.error('\n' + soanThongBaoThieu(thieuBanDich, daDich, loiChanDoan))
+  // Ghi chú cho những chuỗi mà phép THÔ trúng nhưng phép CHẶT không. Chúng có mặt trong chunk
+  // dưới một dạng nào đó, và người đọc cần biết dạng nào — nếu không họ sẽ tưởng cổng đang nói
+  // "chuỗi này hoàn toàn vắng mặt".
+  const ghiChu = new Map()
+  for (const v of thieuBanDich) {
+    if (!khopTho.has(v)) continue
+    // Truyền `thieuBanDich` (đã ổn định — vòng quét file phía trên đã chạy xong) làm `dangThieu`,
+    // để giaiThichKhopTho ưu tiên một ứng viên ĐANG SHIP thay vì một ứng viên cũng đang thiếu —
+    // xem I1 của lượt review toàn nhánh P1-D.
+    const nguon = giaiThichKhopTho(v, BAN_DO, thieuBanDich)
+    ghiChu.set(
+      v,
+      nguon
+        ? nguon.cungThieu
+          ? // cungThieu === true: KHÔNG có ứng viên nào đang ship chứa chuỗi này — bản dịch tìm
+            // được cũng đang nằm trong danh sách thiếu, nên đây chỉ là một khả năng, không phải
+            // nguyên nhân đã xác nhận. Thể dè dặt, không khẳng định dứt khoát.
+            `lưu ý: chuỗi này có thể trùng với bản dịch ${JSON.stringify(nguon.vi)} của khoá ` +
+            `"${nguon.khoa}", nhưng bản dịch đó CŨNG đang thiếu — chưa xác định được chuỗi nào ` +
+            'trong chunk làm phép so khớp cũ trúng.'
+          : // cungThieu === false: nguon.vi THẬT SỰ có mặt (nó không nằm trong thieuBanDich), nên
+            // đây là một khẳng định ĐÃ ĐO, không phải suy đoán.
+            `lưu ý: chuỗi này CÓ trong chunk, nhưng chỉ vì nó nằm trong bản dịch ` +
+            `${JSON.stringify(nguon.vi)} của khoá "${nguon.khoa}". Phép so khớp cũ đã tính nhầm ` +
+            'đây là "có mặt".'
+        : 'lưu ý: chuỗi này CÓ trong chunk nhưng KHÔNG ở dạng literal trọn vẹn, và không nằm ' +
+          'trong bản dịch nào khác — có thể bộ đóng gói đã ghép/tách chuỗi. Kiểm tay trước khi ' +
+          'kết luận.',
+    )
+  }
+
+  console.error('\n' + soanThongBaoThieu(thieuBanDich, daDich, loiChanDoan, ghiChu))
 }
 
 if (loi) process.exit(1)
