@@ -23,8 +23,14 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
+import { soanThongBaoThieu, timTrongCayVendor } from './tim-ban-dich-vendor.mjs'
+
 const GOC = path.resolve(import.meta.dirname, '..')
 const DIST = path.join(GOC, 'dist')
+// Cây đã dịch — chỉ đọc trên ĐƯỜNG ĐỎ của luật C, để phân biệt "gói bị tree-shake" với "bước dịch
+// không chạy". Chắc chắn có mặt trên đường `npm run build` vì `prebuild` đã chạy
+// kiem-vendor-build; nhưng `npm run kiem:dist` gọi tay được nên vẫn phải kiểm sự tồn tại.
+const BUILD = path.join(GOC, '.vendor-build')
 
 // Chỉ đọc các đuôi văn bản mà trình duyệt thật sự nạp. Ảnh/icon nhị phân không có gì để đọc.
 const DUOI = new Set(['.js', '.css', '.html', '.json', '.txt', '.webmanifest'])
@@ -214,13 +220,30 @@ if (thieuDinhNghia.length) {
 
 if (thieuBanDich.size) {
   loi++
-  console.error(
-    `\nD12 ĐỎ — ${thieuBanDich.size} bản dịch trong src/board/vi.json KHÔNG có mặt trong dist/. ` +
-      'Nghĩa là thanh công cụ bảng vẽ đang nói tiếng Anh ở đúng chỗ đã chọn dịch. Nguyên nhân ' +
-      'thường gặp: bước dich-chuoi-vendor không chạy (kiểm dung-vendor.mjs), hoặc thượng nguồn đã ' +
-      'chuyển chuỗi sang một vị trí cú pháp ngoài danh sách cho phép:',
-  )
-  ;[...thieuBanDich].forEach((v) => console.error(`   "${v}"`))
+
+  // Chẩn đoán: quét cây đã dịch tìm GIÁ TRỊ TIẾNG VIỆT. Thấy → bước dịch đã chạy, chuỗi mất ở
+  // dist/ vì gói chứa nó bị tree-shake. Không thấy → bước dịch chưa đáp được vào cây.
+  //
+  // Chỉ chạy ở ĐÂY, trên đường đỏ: đường xanh không đọc thêm một byte nào. Và vì cả nhánh này
+  // nằm sau `loi++`, không có cách nào mã dưới đây biến một lượt đỏ thành xanh — chẩn đoán hỏng,
+  // quét rỗng, cây rỗng thì cổng vẫn đỏ.
+  let daDich = null
+  let loiChanDoan = null
+  if (!existsSync(BUILD)) {
+    loiChanDoan = 'không có .vendor-build/ để đối chiếu — dựng lại bằng `npm run dung:vendor`'
+  } else {
+    try {
+      daDich = await timTrongCayVendor(BUILD, thieuBanDich)
+    } catch (err) {
+      // FAIL-OPEN có chủ đích, ngược với `?? []` bị cấm trong luat-vi-tri-dich.mjs. Khác biệt:
+      // ở đó fail-open biến "mất khả năng kiểm" thành "coi như không có lỗi" trên đường XANH;
+      // ở đây kết quả xấu nhất là một thông báo nghèo hơn trên một cổng ĐÃ ĐỎ RỒI. Để lỗi này
+      // ném ra thì người đọc mất luôn cả thông tin cũ và nhận về một stack trace.
+      loiChanDoan = err.message
+    }
+  }
+
+  console.error('\n' + soanThongBaoThieu(thieuBanDich, daDich, loiChanDoan))
 }
 
 if (loi) process.exit(1)
