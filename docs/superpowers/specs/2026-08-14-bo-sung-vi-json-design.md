@@ -69,14 +69,28 @@ loại bỏ hướng "ghim bản dịch theo đường dẫn file".
 
 ### 2.3 Bao nhiêu chuỗi thật sự đi tới `dist/`
 
-| | Số |
-|---|---|
-| Có mặt trong `dist/` | **275** |
-| Bị tree-shake, không tới | 116 |
+> **ĐÍNH CHÍNH 2026-08-15.** Bảng gốc của mục này ghi 391 ứng viên / 275 có mặt / **116** không
+> tới, và §5.1 bên dưới ghi một bộ khác (444/323). **Cả hai đều sai** — chúng đến từ những lượt đo
+> sớm có lọc "chuỗi viết hoa chữ đầu", còn luật sản xuất không có bộ lọc đó. Số dưới đây đo bằng
+> chính `viTriHienThi` của `scripts/luat-vi-tri-dich.mjs` trên cây `.vendor-build/` và `dist/`
+> dựng lại từ đầu. Phương pháp đầy đủ: §2 của
+> `docs/superpowers/specs/2026-08-15-chuoi-khong-toi-dist-design.md`.
 
-116 chuỗi kia (`"Replace attachment"`, `"Card view"`, `"Icon Picker"`, `"Callout"`…) thuộc các khối
-không được nạp — dịch chúng là công không. Cả 5 bản dịch hiện có đều tới được `dist/`, tức cơ chế
-chạy thông từ đầu tới cuối.
+| | Số (đo 2026-08-15) |
+|---|---|
+| Chuỗi phân biệt ở vị trí cho phép | **1.205** |
+| Có mặt trong chunk bảng vẽ của `dist/` | **899** |
+| Bị tree-shake, không tới | **306** |
+
+306 chuỗi kia **không rải rác — chúng dồn theo GÓI**: nguyên các tính năng chưa được nối vào
+`src/board/extensions.ts` (`affine/blocks/embed` 33, `affine/blocks/embed-doc` 33,
+`affine/fragments/frame-panel` 19, `affine/widgets/slash-menu` 19…). Dịch chúng là công không, và
+chặng P1-C dựng cơ chế nói đúng điều đó khi ai đó lỡ thêm khoá.
+
+Cả 5 bản dịch hiện có đều tới được `dist/`, tức cơ chế chạy thông từ đầu tới cuối.
+
+Lưu ý: bề mặt 1.205 **không phải** "số chuỗi cần dịch" — nó có lẫn thứ rõ ràng không phải chữ
+hiển thị (`"4_Content & Media@3"`, `"bookmark"`, `"PDF"`, `"="`, `"x"`).
 
 ### 2.4 Phân loại vị trí cú pháp bằng AST
 
@@ -189,16 +203,16 @@ Số lượt là số **literal ứng viên** đo được ở vị trí đó, k
 Đo lại đúng theo danh sách này (chứ không theo tập con của §2.1, vốn thiếu `caption`, `menuName`,
 `displayName`, `group`, `toast`):
 
-| | Số |
+| | Số (ƯỚC LƯỢNG SAI — xem đính chính ngay dưới bảng) |
 |---|---|
 | Lượt literal ở vị trí cho phép | **822** |
 | **Chuỗi khác nhau** | **444** |
 | · tới được `dist/` | **323** |
 | · bị tree-shake | 121 |
 
-**323 là khối lượng dịch thật của đợt đầu**, cộng thêm phần của §5.1b. Con số 391/275 ở §2.1 và
-§2.3 là ước lượng của lượt đo sớm bằng regex; 444/323 mới là số đúng, đo bằng chính luật vị trí ở
-§5.1.
+§2.3 là ước lượng của lượt đo sớm bằng regex — và 444/323 ở đây **cũng là ước lượng sai**, cùng
+nguyên nhân (bộ lọc "viết hoa chữ đầu" mà luật sản xuất không có). Số đúng, đo ngày 2026-08-15
+bằng chính luật vị trí: **1.205 / 899 / 306**. Xem bảng đã đính chính ở §2.3.
 
 ### 5.1b Luật hẹp cho template — bắt buộc phải có
 
@@ -300,7 +314,7 @@ hai thứ cùng sai một kiểu thì không cổng nào bắt được. Chỉ p
 
 ### 6.3 `kiem:dist` — danh sách "buộc phải ra tiếng Việt"
 
-Không đếm tổng: 116/391 chuỗi bị tree-shake nên tổng số sẽ trồi sụt vô nghĩa. Thay vào đó là một
+Không đếm tổng: một phần đáng kể chuỗi ứng viên bị tree-shake (số có ngày đo ở §2.3) nên tổng số sẽ trồi sụt vô nghĩa. Thay vào đó là một
 danh sách nhỏ, cố định, gồm các nhãn trên thanh công cụ mindmap/edgeless mà chủ dự án thấy mỗi
 ngày; thiếu bất kỳ cái nào trong `dist/` là đỏ.
 
@@ -346,6 +360,12 @@ Chưa xác nhận được thì ca kiểm chưa tính là xong.
 
 Chủ dự án chọn: **chốt thuật ngữ trước, rồi duyệt bảng**.
 
+> **CẢNH BÁO 2026-08-15 — số liệu dưới đây dựa trên phép đo đã bị bác bỏ.** Tập "323 chuỗi tới
+> được `dist/`" là ước lượng sai; số đúng là **899** (xem §2.3 đã đính chính). Con số **61 từ lặp
+> ≥3 lần** được suy ra TỪ tập 323 đó, nên nó cũng chưa còn giá trị — phép đếm từ lặp **chưa từng
+> được chạy lại** trên tập 899. Trước khi bắt đầu nhịp 1, phải đo lại cả hai con số. Đừng đổi 323
+> thành 899 rồi giữ nguyên 61: đó là hai phép đo khác nhau.
+
 **Nhịp 1 — bảng thuật ngữ.** Trong 323 chuỗi tới được `dist/` có **61 từ lặp từ 3 lần trở lên** —
 `heading` (21), `insert` (17), `click` (13), `list` (12), `drag` (12), `empty` (11), `size` (10),
 `add` (10), `view` (9), `font` (9), `count` (8), `shadow` (7), `frame` (6), `align` (4)… Bảng thuật
@@ -365,7 +385,7 @@ soát. Danh sách §6.3 chốt ở nhịp này.
 - **Đổi sang hệ i18n thật (nhiều ngôn ngữ, đổi lúc chạy).** Cây vendored không có hạ tầng i18n —
   khảo sát tìm được đúng 1 file nhắc tới i18n trong toàn bộ `src/vendor/blocksuite`. App chỉ có một
   ngôn ngữ. Thay chuỗi lúc build là đúng mức cần thiết.
-- **Dịch 116 chuỗi bị tree-shake** (§2.3). Nếu sau này bật thêm khối chức năng, chúng sẽ vào `dist/`
+- **Dịch những chuỗi bị tree-shake** (§2.3). Nếu sau này bật thêm khối chức năng, chúng sẽ vào `dist/`
   và được xử lý ở đợt đó.
 - **Dịch chuỗi của mã dự án sở hữu** (`src/App.tsx`…). Vốn đã tiếng Việt.
 - **Bốn vị trí gác lại ở §5.2.** Đợt sau.

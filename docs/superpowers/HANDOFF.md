@@ -117,8 +117,8 @@ xong toàn bộ 5 task, đã review toàn nhánh, đã vá, đã gộp. Gọi l�
 
 | Muốn gì | Gọi kỹ năng nào |
 |---|---|
-| **Dịch 323 chuỗi** (chặng kế tiếp) | `superpowers:brainstorming` — chốt bảng thuật ngữ 61 từ, VÀ chốt quy tắc cho 116 chuỗi bị tree-shake (mục 10) |
-| Dịch nội dung `vi.json` sau khi P1-B xong | `superpowers:brainstorming` — cần chốt bảng thuật ngữ 61 từ trước |
+| **Dịch bề mặt hiển thị** (chặng kế tiếp) | `superpowers:brainstorming` — chốt bảng thuật ngữ. Quy tắc cho chuỗi bị tree-shake ĐÃ chốt xong ở P1-C (mục 12). Đọc cảnh báo ở mục 12 trước: cả "323 chuỗi" lẫn "61 từ" đều là số đã bị bác bỏ |
+| Dịch nội dung `vi.json` | `superpowers:brainstorming` — cần chốt bảng thuật ngữ trước; số từ phải ĐO LẠI, xem mục 12 |
 | Làm chặng sau (lưu trữ D4 / BoardGallery) | `superpowers:brainstorming` → `superpowers:writing-plans` → rồi mới `subagent-driven-development` |
 | Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
 | iPad lộ ra lỗi | `superpowers:systematic-debugging` |
@@ -239,7 +239,7 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
   tự quyết định z-index. Hiện đã kiểm tay: mảng 22 mục đúng là dãy con giữ thứ tự của thượng nguồn.
 - `src/board/vi.json` vẫn 5 chuỗi, nhưng cơ chế đã an toàn ở quy mô lớn (spec
   `2026-08-14-bo-sung-vi-json-design.md`, kế hoạch `2026-08-14-bo-sung-vi-json.md`). Chặng tiếp là
-  nội dung dịch: chốt bảng thuật ngữ 61 từ rồi dịch 323 chuỗi.
+  nội dung dịch: chốt bảng thuật ngữ rồi dịch. Số chuỗi và số từ phải ĐO LẠI — xem cảnh báo mục 12.
 - `src/board/__tests__/edgeless-board-mount.spec.ts` từng đỏ một lần vì timeout rồi xanh lại ngay.
   Nghi hai thủ phạm: mặc định 5 giây của vitest khi mount cả cây Lit, hoặc đường render bất đồng bộ
   qua `requestIdleCallback` mà chính header file đó nhắc. **Chưa bắt được thông điệp lỗi thật** —
@@ -275,8 +275,9 @@ hiện chưa có iPad.
 - **Lưu trữ (D4)** — nối y-indexeddb của AFFiNE cho nội dung bảng, nâng `DB_VERSION` lên 5 cho
   danh sách bảng.
 - **BoardGallery** — màn danh sách bảng.
-- **Bổ sung `vi.json`** — cơ chế ĐÃ XONG 5/5 task, xem mục 10; nội dung dịch (bảng thuật
-  ngữ 61 từ, rồi 323 chuỗi) là chặng riêng sau đó.
+- **Bổ sung `vi.json`** — cơ chế ĐÃ XONG 5/5 task (mục 10); quy tắc cho chuỗi không tới `dist/`
+  ĐÃ XONG ở P1-C (mục 12). Nội dung dịch là chặng riêng sau đó — **số chuỗi và số từ phải đo
+  lại**, xem cảnh báo mục 12.
 - **Cấu hình `viewportRuntimeConfig` cho iOS** — chưa dòng nào làm. Nhớ: `ZOOM_MIN`/`ZOOM_MAX` đọc
   qua getter động nên override lúc nào cũng ăn, còn `SKIP_REFRESH_DURING_GESTURE` là field
   initializer **chốt cứng lúc dựng `Viewport`**. Cấu hình sau khi mount là ăn sàn zoom nhưng
@@ -342,7 +343,8 @@ lượt bị loại fail-closed**, đúng **1 lượt** được dịch — và 
 
 ### HAI VIỆC CÒN MỞ, KHÔNG CHẶN GỘP
 
-**1. Trước khi thêm khoá đầu tiên của chặng 323 chuỗi** — spec §2.3 tự đo 116/391 chuỗi ứng viên
+**1. ĐÃ GIẢI QUYẾT ở chặng P1-C — xem mục 12.** (Con số 116/391 dưới đây thuộc bộ đã bị bác bỏ;
+số đúng ở mục 12.) Trước khi thêm khoá đầu tiên — spec §2.3 khi đó tự đo 116/391 chuỗi ứng viên
 KHÔNG tới `dist/` vì tree-shake. Cổng khoá chết chấp nhận chúng, luật C thì không. Tức có lớp chuỗi
 "dịch được nhưng không được phép dịch", và khi ai đó dịch nhầm một cái, luật C đỏ với thông báo nêu
 hai nguyên nhân **đều sai**. Phải chốt quy tắc trước, không phải sau.
@@ -398,8 +400,14 @@ cho phép **cũng là trường dữ liệu tài liệu** trong BlockSuite — p
 ### Ngoài phạm vi chặng này
 
 Chặng này **không thêm khoá dịch nào** — `vi.json` vẫn đúng 5 khoá. Nó chỉ làm cho việc thêm về sau
-trở nên an toàn. Nội dung dịch là chặng riêng: chốt bảng thuật ngữ (**61 từ lặp ≥3 lần**) rồi dịch
-**323 chuỗi** tới được `dist/`.
+trở nên an toàn. Nội dung dịch là chặng riêng: chốt bảng thuật ngữ rồi dịch những chuỗi tới được
+`dist/`.
+
+> **Hai con số bản gốc của đoạn này đã bị BÁC BỎ.** Nó từng ghi "**61 từ lặp ≥3 lần**" và
+> "**323 chuỗi** tới được `dist/`". Số chuỗi đúng là **899** (đo 2026-08-15, xem mục 12). Con số
+> **61 từ** được suy ra TỪ tập 323 đó nên cũng hết giá trị — phép đếm từ lặp **chưa từng được
+> chạy lại** trên tập 899. **Đừng đổi 323 thành 899 rồi giữ nguyên 61: đó là hai phép đo khác
+> nhau.** Phải đo lại cả hai trước khi bắt đầu chặng dịch.
 
 ---
 
@@ -422,34 +430,41 @@ Tức có một lớp chuỗi **"dịch được nhưng không được phép d�
 ngoài danh sách"* — mà **cả hai đều sai**. Đúng bài học #2: cổng đỏ chỉ sai chỗ thì đẩy người ta đi
 sửa nhầm.
 
-### Số đo — ĐÍNH CHÍNH spec §2.3
+### Số đo — ĐÃ ĐÍNH CHÍNH, và đây KHÔNG phải nguồn có thẩm quyền
 
-Đo lại bằng **chính luật vị trí đang chạy** (import `viTriHienThi` thật), không phải regex ước lượng:
+> **Nguồn có thẩm quyền cho đại lượng này là §2.3 của
+> `docs/superpowers/specs/2026-08-14-bo-sung-vi-json-design.md`** (đã đính chính 2026-08-15, kèm
+> phương pháp đo ở §2 của spec P1-C). Đừng chép số từ đây; trỏ về đó.
 
-| | Spec §2.3 (ước lượng cũ) | Đo lại bằng luật thật |
-|---|---|---|
-| Chuỗi ở vị trí cho phép | 444 | **1.196** |
-| Tới được chunk bảng vẽ | 323 | **890** |
-| **Không tới** | 121 | **306** |
+| | Đo 2026-08-15 bằng chính `viTriHienThi` |
+|---|---|
+| Chuỗi phân biệt ở vị trí cho phép | **1.205** |
+| Tới được chunk bảng vẽ | **899** |
+| **Không tới** | **306** |
 
-Lượt đo cũ lọc "viết hoa chữ đầu", luật sản xuất không có bộ lọc đó. **Spec đang ghi số thấp hơn
-thực tế gần ba lần — phiên sau nên đính chính spec.**
+Bản HANDOFF trước ghi **1.196 / 890 / 306** — đó là một lượt đo sớm hơn bằng script khác, nay đã
+mất. Con số quyết định (**306**) tái lập chính xác giữa hai lượt; bề mặt lệch 9 chuỗi và cả 9 rơi
+vào nhóm "tới được". Chênh lệch nằm ở chi tiết phương pháp của lượt cũ, không tái dựng được.
+
+Mọi bộ số cũ hơn (**116/391**, **121/444/323**) đều **SAI** — chúng đến từ lượt đo lọc "viết hoa
+chữ đầu", bộ lọc mà luật sản xuất không có.
 
 **306 chuỗi không tới KHÔNG rải rác, chúng dồn theo GÓI** — nguyên những tính năng chưa nối vào
-`src/board/extensions.ts`:
+`src/board/extensions.ts` (đo 2026-08-15, gói = thư mục có `package.json` gần nhất):
 
 ```
- 46 affine/blocks/embed        21 affine/widgets/slash-menu    13 affine/widgets/drag-handle
- 46 affine/blocks/embed-doc    16 affine/widgets/linked-doc    12 affine/blocks/attachment
- 31 affine/widgets/keyboard-toolbar  15 affine/blocks/code     11 affine/blocks/bookmark
- 29 affine/fragments/frame-panel     14 affine/blocks/surface-ref  10 affine/inlines/reference
- 23 affine/fragments/outline         22 affine/blocks/table        10 affine/blocks/image
+ 33 affine/blocks/embed          12 affine/widgets/drag-handle    7 affine/inlines/link
+ 33 affine/blocks/embed-doc      12 affine/fragments/outline      7 affine/gfx/template
+ 19 affine/fragments/frame-panel 10 affine/blocks/attachment      6 affine/inlines/reference
+ 19 affine/widgets/slash-menu    10 affine/blocks/code            6 affine/blocks/callout
+ 15 affine/widgets/linked-doc     9 affine/blocks/bookmark        6 affine/blocks/latex
+ 14 affine/blocks/table           9 affine/blocks/surface-ref     4 affine/blocks/image
 ```
 
-Lưu ý: bề mặt 1.196 có lẫn thứ rõ ràng **không phải chữ hiển thị** — `"4_Content & Media@3"`,
-`"bookmark"`, `"PDF"`. Con số thô đó không phải "số chuỗi cần dịch".
+Lưu ý: bề mặt 1.205 có lẫn thứ rõ ràng **không phải chữ hiển thị** — `"4_Content & Media@3"`,
+`"bookmark"`, `"PDF"`, `"="`, `"x"`. Con số thô đó không phải "số chuỗi cần dịch".
 
-Cách nhận ra chunk bảng vẽ trong `dist/`: mật độ `drt-` >= 100 (đo được 2/8 file).
+Cách nhận ra chunk bảng vẽ trong `dist/`: mật độ `drt-` >= 100 (đo được 2/12 file).
 
 ### Ba quyết định ĐÃ CHỐT với chủ dự án
 

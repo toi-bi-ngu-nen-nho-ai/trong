@@ -346,6 +346,14 @@ một bản dịch khác** (`"Tô"` trong `"Tô màu"`) sẽ được tính là 
 bị tree-shake. Ở 5 khoá tiếng Việt phân biệt hiện nay thì chưa lộ; ở vài trăm khoá thì đây đúng
 dạng lỗi #11 ("so khớp mù phạm vi") ở một trục khác. **Phải xử trước khi thêm khoá hàng loạt.**
 
+**Cập nhật (lượt vá review toàn nhánh P1-C):** nợ này có ở **HAI** chỗ, không phải một. Luật C
+trong `scripts/kiem-dist.mjs` dùng `noiDung.includes(v)`, và `timTrongCayVendor` trong
+`scripts/tim-ban-dich-vendor.mjs` — chính bộ chẩn đoán mà chặng này dựng lên — cũng dùng
+`noiDung.includes(s)` với cùng lỗ hổng chuỗi con. Nghĩa là ở quy mô vài trăm khoá, không chỉ luật C
+đếm sai "có mặt", mà bộ chẩn đoán của chặng này cũng sẽ liệt kê sai gói (một chuỗi ngắn bị tính là
+"đã dịch ở" một file chỉ vì nó là chuỗi con của một bản dịch khác trong file đó). Chặng sửa phép so
+khớp phải sửa **cả hai** chỗ dùng `includes`, không phải một.
+
 **Không chốt danh sách chuỗi cần dịch**, không chốt bảng thuật ngữ. Bề mặt 1.205 là số kỹ thuật,
 không phải khối lượng dịch (§2.6).
 
