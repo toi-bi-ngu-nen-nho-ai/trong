@@ -8,7 +8,7 @@
 // chỉ lo I/O, báo cáo và bốn cổng DỪNG.
 //
 // Chạy SAU doi-ten-vendor.mjs: bản dịch phải đáp lên cây đã đổi tên, không ngược lại.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { dietJs } from './duyet-cay-js.mjs'
@@ -17,6 +17,30 @@ import { dichMotFile } from './luat-vi-tri-dich.mjs'
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
 const BAO_CAO = path.join(BUILD, 'bao-cao-dich.json')
+
+// ─── Cổng sớm: cây này đã dịch chưa? ─────────────────────────────────────────────────────────
+// Đặt TRƯỚC MỌI cổng khác, kể cả Cổng 0. Sự có mặt của `bao-cao-dich.json` là bằng chứng đủ rằng
+// bước dịch đã chạy trên chính cây `.vendor-build/` hiện tại — script này chỉ ghi file đó SAU khi
+// qua Cổng 3 (xem cuối file), và Bước 0 của dung-vendor.mjs xoá sạch `.vendor-build/` trước mỗi
+// lượt nên không có chuyện file sót lại từ một cây cũ.
+//
+// Không có cổng này, chạy lại `npm run dichchuoi:vendor` lần hai trên cây ĐÃ dịch sẽ khiến MỌI
+// khoá thành khoá chết (bản dịch tiếng Việt đã thay chỗ tiếng Anh, không còn gì để khớp) và Cổng 3
+// in "thượng nguồn đã đổi chuỗi… Đừng xoá khoá cho xanh" — sai nguyên nhân hoàn toàn. Đây đúng
+// loại cổng đỏ vô nghĩa mà bài học #2 của dự án cảnh báo: nó đẩy người sửa `vi.json` (thao tác
+// chính khi mở rộng bản dịch) đi tìm "khoá chết" không có thật. Nguyên nhân thật là "cây này đã
+// dịch rồi" — và cách dịch lại đúng là dựng lại từ đầu bằng `npm run dung:vendor`.
+if (existsSync(BAO_CAO)) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — .vendor-build/bao-cao-dich.json đã tồn tại, tức cây build này ĐÃ ' +
+      'được dịch ở một lượt trước. Chạy lại script này trên một cây đã dịch sẽ khiến MỌI khoá ' +
+      'trong vi.json thành "khoá chết" (bản dịch đã thay chỗ tiếng Anh, không còn gì để khớp) — ' +
+      'đó không phải dấu hiệu thượng nguồn đổi chuỗi, đừng đi sửa vi.json theo hướng đó.\n' +
+      'Muốn dịch lại (sau khi sửa vi.json hay cây vendored): chạy `npm run dung:vendor` — nó xoá ' +
+      'sạch .vendor-build/ rồi dựng lại từ đầu.',
+  )
+  process.exit(1)
+}
 
 const banDo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
 
@@ -127,8 +151,6 @@ for await (const f of dietJs(BUILD)) {
   soFile++
 }
 
-writeFileSync(BAO_CAO, JSON.stringify({ tongLuot, theoKhoa }, null, 2))
-
 // ─── Cổng 3: khoá chết ──────────────────────────────────────────────────────────────────────
 // Đây là bộ bắt trôi thượng nguồn CHÍNH XÁC HƠN cổng D12 cũ ở src/__tests__/vendor-doi-ten.spec.ts.
 // Cổng cũ hỏi "chuỗi này còn nằm đâu đó trong cây nguồn không"; cổng này hỏi "chuỗi này có thật sự
@@ -145,6 +167,13 @@ if (khoaChet.length) {
   khoaChet.forEach((k) => console.error(`   "${k}"`))
   process.exit(1)
 }
+
+// Ghi báo cáo SAU Cổng 3, không phải trước: nếu ghi trước, một lượt bị Cổng 3 từ chối (khoá chết)
+// vẫn để lại `bao-cao-dich.json` trên đĩa dù việc dịch coi như thất bại. Từ khi cổng ở đầu file
+// này (xem "Cổng sớm" phía trên) và cổng ở scripts/kiem-vendor-build.mjs đều coi sự có mặt của
+// file này là bằng chứng "đã dịch xong hợp lệ", ghi trước cổng khoá chết là một lời khẳng định
+// sai sự thật trên đĩa — không chỉ thừa, mà THẬT SỰ SAI.
+writeFileSync(BAO_CAO, JSON.stringify({ tongLuot, theoKhoa }, null, 2))
 
 console.log(
   `dich-chuoi-vendor: ${soFile} file đã sửa · ${tongLuot} lượt dịch · ` +

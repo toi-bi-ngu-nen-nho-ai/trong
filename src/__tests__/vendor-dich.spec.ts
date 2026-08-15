@@ -10,11 +10,49 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 import { dietJs } from '../../scripts/duyet-cay-js.mjs'
-import { dichMotFile, viTriHienThi } from '../../scripts/luat-vi-tri-dich.mjs'
+import {
+  DOI_SO_HIEN_THI,
+  dichMotFile,
+  THUOC_TINH_HIEN_THI,
+  THUOC_TINH_HTML_HIEN_THI,
+  viTriHienThi,
+} from '../../scripts/luat-vi-tri-dich.mjs'
 
 const BAN_DO = { Style: 'Phong cách', LinkedPage: 'Trang liên kết', Escape: 'Thoát', None: 'Không' }
 
 const dich = (js: string) => dichMotFile(js, BAN_DO, 'thu.js').js
+
+// Ràng buộc toàn cục DUY NHẤT của chặng D12: đúng 11 tên thuộc tính, đúng 1 tên đối số, đúng 1 tên
+// thuộc tính HTML được phép làm vị trí hiển thị. Không ca nào ở trên khẳng định KÍCH THƯỚC hay NỘI
+// DUNG của ba danh sách này — chúng chỉ thử từng cái tên riêng lẻ có/không được dịch. Ba ca dưới
+// đây tồn tại để một lượt SAU nới rộng danh sách (rất dễ xảy ra khi chặng kế tiếp phải với tới 323
+// chuỗi) trở thành một lượt nới CÓ CHỮ KÝ — phải sửa test này mới xanh được — chứ không phải một
+// lượt nới im lặng lọt qua mà không ai để ý.
+describe('D12 — danh sách vị trí cho phép đúng kích thước và nội dung', () => {
+  it('THUOC_TINH_HIEN_THI có đúng 11 tên, đúng thứ tự đo được', () => {
+    expect([...THUOC_TINH_HIEN_THI]).toEqual([
+      'name',
+      'label',
+      'tooltip',
+      'description',
+      'caption',
+      'group',
+      'text',
+      'title',
+      'menuName',
+      'displayName',
+      'placeholder',
+    ])
+  })
+
+  it('DOI_SO_HIEN_THI có đúng 1 tên: toast', () => {
+    expect([...DOI_SO_HIEN_THI]).toEqual(['toast'])
+  })
+
+  it('THUOC_TINH_HTML_HIEN_THI có đúng 1 tên: data-tip', () => {
+    expect(THUOC_TINH_HTML_HIEN_THI).toEqual(['data-tip'])
+  })
+})
 
 describe('D12 — vị trí ĐƯỢC dịch', () => {
   it('giá trị của thuộc tính label', () => {

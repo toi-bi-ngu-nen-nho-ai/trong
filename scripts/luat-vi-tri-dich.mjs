@@ -99,7 +99,20 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
   // `parseDiagnostics` RỖNG, tức cổng này không báo đỏ giả; và một file cố tình hỏng (`const a = {`)
   // cho đúng 1 chẩn đoán, tức nó thật sự canh. Nếu về sau cổng đỏ hàng loạt trên file hợp lệ thì
   // đó là tin tức, không phải phiền toái — báo BLOCKED, đừng gỡ cổng cho xanh.
-  const loiCuPhap = sf.parseDiagnostics ?? []
+  //
+  // `?? []` là FAIL-OPEN và bị cấm ở đây: nếu một bản TypeScript sau này đổi tên hay bỏ hẳn trường
+  // nội bộ `parseDiagnostics`, `sf.parseDiagnostics` thành `undefined`, `?? []` biến "mất khả năng
+  // kiểm cú pháp" thành "coi như không có lỗi" — cổng này lặng lẽ thành no-op trên cả 2.550 file,
+  // và không cổng nào khác ở D12 canh cú pháp thay nó. Phải ném ngay khi trường đó không còn là
+  // mảng, để BLOCKED hiện ra ngay thay vì im lặng bỏ qua.
+  if (!Array.isArray(sf.parseDiagnostics)) {
+    throw new Error(
+      'luat-vi-tri-dich: sf.parseDiagnostics không còn là mảng — TypeScript đã đổi API nội bộ mà ' +
+        'cổng này dựa vào, không còn cách nào biết cây cú pháp có hỏng hay không. Đây là tin tức ' +
+        'cần xử lý (tìm cách kiểm cú pháp khác), không phải phiền toái để bỏ qua bằng `?? []`.',
+    )
+  }
+  const loiCuPhap = sf.parseDiagnostics
   if (loiCuPhap.length > 0) {
     throw new Error(
       `luat-vi-tri-dich: không phân tích được ${tenFile} — ${loiCuPhap.length} lỗi cú pháp. ` +
