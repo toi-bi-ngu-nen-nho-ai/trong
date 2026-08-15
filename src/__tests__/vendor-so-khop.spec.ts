@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import {
   coDungNhuDaChen,
   coNhuLiteral,
-  nhayHoa,
+  dangTrongNhay,
   timTrungBanDich,
 } from '../../scripts/so-khop-ban-dich.mjs'
 
@@ -40,6 +40,34 @@ describe('coNhuLiteral — dùng cho dist/ đã minify', () => {
     expect(coNhuLiteral('const a={label:"Nhấn \\"OK\\""}', 'Nhấn "OK"')).toBe(true)
     expect(coNhuLiteral('const a={label:"Ngăn cách\\\\dòng"}', 'Ngăn cách\\dòng')).toBe(true)
   })
+
+  // CA HỒI QUY CHÍNH. Ba kiểu nháy có ba luật thoát khác nhau; mã cũ luôn thoát theo quy ước
+  // JSON (nháy kép) dù đang dò literal backtick. Đây đúng hình dạng thật của cả 5 bản dịch đang
+  // ship trong dist/ ngày 2026-08-15: nằm trong literal backtick, có dấu ngoặc kép bên trong.
+  // Trong backtick, `"` KHÔNG cần thoát — bộ đóng gói ghi `Nhấn "OK" đi` nguyên vẹn. Mã cũ đi
+  // tìm dạng nháy-kép-hoá `Nhấn \"OK\" đi` bên trong backtick nên trượt: đỏ giả trên bản dịch
+  // hoàn toàn hợp lệ.
+  it('CA HỒI QUY CHÍNH — bản dịch chứa dấu ngoặc kép, nằm trong literal backtick', () => {
+    expect(coNhuLiteral('html`Nhấn "OK" đi`', 'Nhấn "OK" đi')).toBe(true)
+  })
+
+  // Literal nháy đơn thoát nháy đơn bằng gạch chéo ngược, không đụng tới nháy kép hay backtick.
+  it('bản dịch chứa dấu nháy đơn nằm trong literal nháy đơn', () => {
+    const noiDung = "x='Đừng \\'bỏ\\' qua'"
+    expect(coNhuLiteral(noiDung, "Đừng 'bỏ' qua")).toBe(true)
+  })
+
+  // Literal backtick thoát backtick bên trong bằng gạch chéo ngược — khác quy ước nháy đơn/kép.
+  it('bản dịch chứa backtick nằm trong literal backtick', () => {
+    const noiDung = 'x=`má \\`đỏ\\``'
+    expect(coNhuLiteral(noiDung, 'má `đỏ`')).toBe(true)
+  })
+
+  // Riêng backtick còn phải thoát `${` (mở nội suy) thành `\${`, việc ba kiểu nháy kia không có.
+  it('bản dịch chứa ${ nằm trong literal backtick khớp dạng đã thoát \\${', () => {
+    const noiDung = 'x=`Tổng: \\${n}`'
+    expect(coNhuLiteral(noiDung, 'Tổng: ${n}')).toBe(true)
+  })
 })
 
 describe('coDungNhuDaChen — dùng cho .vendor-build/ chưa minify', () => {
@@ -69,8 +97,19 @@ describe('timTrungBanDich', () => {
   })
 })
 
-describe('nhayHoa', () => {
-  it('trả dạng đã thoát, không kèm dấu nháy bao ngoài', () => {
-    expect(nhayHoa('Nhấn "OK"')).toBe('Nhấn \\"OK\\"')
+describe('dangTrongNhay', () => {
+  // Cùng một chuỗi chứa `"`, ba kiểu nháy phải cho ba kết quả khác nhau: nháy kép là kiểu duy
+  // nhất cần thoát `"`; nháy đơn và backtick để nguyên vì `"` không có ý nghĩa gì với chúng.
+  it('trả đúng ba dạng khác nhau cho cùng một chuỗi chứa dấu ngoặc kép', () => {
+    const s = 'Nhấn "OK"'
+    expect(dangTrongNhay(s, '"')).toBe('Nhấn \\"OK\\"')
+    expect(dangTrongNhay(s, "'")).toBe('Nhấn "OK"')
+    expect(dangTrongNhay(s, '`')).toBe('Nhấn "OK"')
+  })
+
+  // Gạch chéo ngược phải thoát TRƯỚC mọi phép thoát khác, nếu không phép thoát dấu nháy sau sẽ
+  // nhân đôi nhầm gạch chéo do chính nó sinh ra. Chuỗi gốc một gạch chéo → kết quả hai gạch chéo.
+  it('thoát gạch chéo ngược trước — một gạch chéo gốc thành hai ở kết quả', () => {
+    expect(dangTrongNhay('a\\b', '"')).toBe('a\\\\b')
   })
 })

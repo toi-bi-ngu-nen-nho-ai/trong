@@ -7,7 +7,7 @@ export interface NhomTrung {
   khoa: string[]
 }
 
-export declare function nhayHoa(s: string): string
+export declare function dangTrongNhay(s: string, nhay: '"' | "'" | '`'): string
 
 export declare function coNhuLiteral(noiDung: string, s: string): boolean
 
