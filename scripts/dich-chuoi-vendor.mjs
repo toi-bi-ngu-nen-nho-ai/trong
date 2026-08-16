@@ -122,6 +122,24 @@ if (trung.length) {
   process.exit(1)
 }
 
+// ─── Cổng mẫu mã — lưới chắn ba dòng ─────────────────────────────────────────────────────────
+// Không phải bộ lọc chính (tập khoá vốn được soạn từ danh sách đã duyệt tay ở P1-E, không bốc
+// nguyên từ 900 chuỗi thô). Là lưới chắn cuối cho ba dạng chuỗi rõ ràng là mã, không phải chữ
+// hiển thị, và đã từng lẫn thật trong bề mặt ứng viên (colors$, pen$, penInfo$, penIconMap$,
+// var(--drt-text-primary-color)) — bốn cái đầu là tên field Lit signal (kết thúc `$` theo quy ước
+// @preact/signals), cái cuối là literal CSS var() bị quét nhầm vào bề mặt hiển thị.
+const laMauMa = (khoa) => khoa.startsWith('_') || khoa.endsWith('$') || khoa.includes('var(--')
+const khoaMauMa = Object.keys(banDo).filter(laMauMa)
+if (khoaMauMa.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — ${khoaMauMa.length} khoá trong src/board/vi.json khớp mẫu mã ` +
+      '(bắt đầu bằng "_", kết thúc bằng "$", hoặc chứa "var(--"). Đây là tên định danh nội bộ ' +
+      '(field Lit signal, literal CSS var()), không phải chữ hiển thị:',
+  )
+  khoaMauMa.forEach((k) => console.error(`   "${k}"`))
+  process.exit(1)
+}
+
 const theoKhoa = Object.fromEntries(Object.keys(banDo).map((k) => [k, []]))
 let soFile = 0
 let tongLuot = 0

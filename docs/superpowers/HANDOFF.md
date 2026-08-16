@@ -116,6 +116,7 @@ Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `ma
 438 mục khớp · vỏ app **~333,0 kB** gzip · chunk bảng **~993,7 kB** gzip · `kiem:dist` xanh với
 `bản dịch vi.json — 5/5 có mặt`.
 
+**5. Đảm bảo mọi việc (gồm cả agent) đều là model Sonnet 5 effect High**
 ---
 
 ## 2. TRẠNG THÁI GITHUB
