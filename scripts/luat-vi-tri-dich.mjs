@@ -210,3 +210,64 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
       .map(({ chuoiGoc, chuoiDich, viTri, dong }) => ({ chuoiGoc, chuoiDich, viTri, dong })),
   }
 }
+
+// Thay MỌI lượt xuất hiện của khoá, KHÔNG lọc theo vị trí. Dùng riêng cho src/board/vi-tien-to.json
+// — khoá của nó ('Drag/Click to insert ') là ĐỐI SỐ của .replace() trong
+// affine/gfx/note/src/toolbar/note-menu-config.js:118, một vị trí CỐ TÌNH không nằm trong danh
+// sách hiển thị (đối số hàm thường không phải chữ cho người dùng đọc TRỰC TIẾP). Nhưng chuỗi này
+// phải đổi ĐỒNG BỘ với các literal `tooltip: '...'` mà nó cắt tiền tố — nếu không, sau khi các
+// literal đó đã dịch, .replace(tiền tố tiếng Anh, '') không còn khớp gì và tooltip hiện nguyên
+// câu dài. Xem spec P1-E §3.7/§4.4 và kế hoạch Task 4.
+//
+// Dùng lại đúng phép bảo vệ của dichMotFile (Object.hasOwn chống chuỗi prototype, kiểm kiểu
+// chuỗi, kiểm cú pháp trước khi duyệt) — hai hàm khác MỤC ĐÍCH lọc vị trí nhưng CÙNG rủi ro dữ
+// liệu đầu vào, nên cùng một bộ vá.
+export function thayTrenToanCay(js, banDoTienTo, tenFile = 'khong-ten.js') {
+  const sf = ts.createSourceFile(tenFile, js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+
+  if (!Array.isArray(sf.parseDiagnostics)) {
+    throw new Error(
+      'luat-vi-tri-dich: sf.parseDiagnostics không còn là mảng (thayTrenToanCay) — xem ghi chú ' +
+        'tương tự trong dichMotFile.',
+    )
+  }
+  if (sf.parseDiagnostics.length > 0) {
+    throw new Error(
+      `luat-vi-tri-dich: không phân tích được ${tenFile} (thayTrenToanCay) — ` +
+        `${sf.parseDiagnostics.length} lỗi cú pháp.`,
+    )
+  }
+
+  const thayTienTo = []
+  const diTienTo = (n) => {
+    if (
+      n.kind === ts.SyntaxKind.StringLiteral ||
+      n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+    ) {
+      if (Object.hasOwn(banDoTienTo, n.text)) {
+        const vi = banDoTienTo[n.text]
+        if (typeof vi !== 'string') {
+          throw new Error(
+            `luat-vi-tri-dich: khoá tiền tố "${n.text}" có giá trị KHÔNG PHẢI CHUỖI (kiểu ` +
+              `${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+          )
+        }
+        thayTienTo.push({ dau: n.getStart(sf), cuoi: n.getEnd(), chuoiGoc: n.text, chuoiDich: vi })
+      }
+    }
+    ts.forEachChild(n, diTienTo)
+  }
+  diTienTo(sf)
+
+  let raTienTo = js
+  for (const t of [...thayTienTo].sort((a, b) => b.dau - a.dau)) {
+    raTienTo = raTienTo.slice(0, t.dau) + JSON.stringify(t.chuoiDich) + raTienTo.slice(t.cuoi)
+  }
+
+  return {
+    js: raTienTo,
+    cacLuot: thayTienTo
+      .sort((a, b) => a.dau - b.dau)
+      .map(({ chuoiGoc, chuoiDich }) => ({ chuoiGoc, chuoiDich })),
+  }
+}

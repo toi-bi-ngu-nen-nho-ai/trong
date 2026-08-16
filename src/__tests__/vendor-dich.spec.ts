@@ -13,6 +13,7 @@ import { dietJs } from '../../scripts/duyet-cay-js.mjs'
 import {
   DOI_SO_HIEN_THI,
   dichMotFile,
+  thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
   THUOC_TINH_HTML_HIEN_THI,
   viTriHienThi,
@@ -317,4 +318,40 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
     }
     expect(soFileDoi).toBe(0)
   }, 120_000)
+})
+
+describe('thayTrenToanCay — thay MỌI vị trí, dùng cho khoá tiền tố', () => {
+  const TIEN_TO = { 'Drag/Click to insert ': 'Kéo/Bấm để chèn ' }
+
+  it('thay literal ở vị trí đối số .replace() — vị trí KHÔNG nằm trong danh sách hiển thị', () => {
+    const ra = thayTrenToanCay(
+      `item.tooltip.replace('Drag/Click to insert ', '')`,
+      TIEN_TO,
+      'thu.js',
+    ).js
+    expect(ra).toContain('Kéo/Bấm để chèn ')
+    expect(ra).not.toContain('Drag/Click to insert')
+  })
+
+  it('không đụng khoá không khớp', () => {
+    const ra = thayTrenToanCay(`const a = 'Style'`, TIEN_TO, 'thu.js').js
+    expect(ra).toBe(`const a = 'Style'`)
+  })
+
+  it('giá trị không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayTrenToanCay(
+        `const a = 'Drag/Click to insert '`,
+        { 'Drag/Click to insert ': 42 } as unknown as Record<string, string>,
+        'thu.js',
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+
+  it('báo cáo lượt thay đúng chuoiGoc/chuoiDich', () => {
+    const { cacLuot } = thayTrenToanCay(`const a = 'Drag/Click to insert '`, TIEN_TO, 'thu.js')
+    expect(cacLuot).toEqual([
+      { chuoiGoc: 'Drag/Click to insert ', chuoiDich: 'Kéo/Bấm để chèn ' },
+    ])
+  })
 })

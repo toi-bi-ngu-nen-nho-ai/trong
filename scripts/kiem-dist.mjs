@@ -61,9 +61,13 @@ const MIEN = new Set([
   '--drt-background-kanban-card-color', // affine/data-view/.../kanban/{pc,mobile}/card.ts
 ])
 
-// Luật C — bản dịch phải tới được tay người dùng.
+// Luật C — bản dịch phải tới được tay người dùng. Gộp CẢ HAI file: vi.json (thay theo vị trí
+// hiển thị) và vi-tien-to.json (thay trọn cây, P1-E) — cả hai đều phải "có mặt" trong dist/,
+// nếu không N/N sẽ chỉ đếm một nửa sự thật.
 const BAN_DO = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
-const MUC_BAN_DICH = Object.entries(BAN_DO)
+const BAN_DO_TIEN_TO = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi-tien-to.json'), 'utf8'))
+const BAN_DO_GOP = { ...BAN_DO, ...BAN_DO_TIEN_TO }
+const MUC_BAN_DICH = Object.entries(BAN_DO_GOP)
 const BAN_DICH = MUC_BAN_DICH.map(([, vi]) => vi)
 
 // Bản đồ dịch rỗng làm luật C xanh với "0/0 có mặt" — đúng con bug mà cả ba lớp cổng trước đều
@@ -121,7 +125,7 @@ if (MUC_XAU.length) {
 //
 // Đặt ở đây chứ không ở Cổng 0 của dich-chuoi-vendor.mjs vì cổng đó KHÔNG nằm trên đường
 // `npm run build` (xem chú thích sàn rỗng phía trên) — luật C là lớp duy nhất chắc chắn chạy.
-const TRUNG = timTrungBanDich(BAN_DO)
+const TRUNG = timTrungBanDich(BAN_DO_GOP)
 if (TRUNG.length) {
   console.error(
     `kiem-dist: DỪNG — ${TRUNG.length} bản dịch trong src/board/vi.json bị nhiều khoá dùng chung. ` +

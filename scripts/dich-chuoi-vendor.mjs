@@ -12,8 +12,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { dietJs } from './duyet-cay-js.mjs'
-import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile } from './kiem-quan-he-dich.mjs'
-import { dichMotFile } from './luat-vi-tri-dich.mjs'
+import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile, kiemTienTo } from './kiem-quan-he-dich.mjs'
+import { dichMotFile, thayTrenToanCay } from './luat-vi-tri-dich.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
@@ -44,6 +44,28 @@ if (existsSync(BAO_CAO)) {
 }
 
 const banDo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
+const banDoTienTo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi-tien-to.json'), 'utf8'))
+
+// Cổng 0 cho bản đồ tiền tố — cùng hình dạng với Cổng 0 của banDo, nhưng KHÔNG cấm rỗng: batch
+// sau có thể không cần thêm tiền tố mới. Vẫn cấm sai hình dạng và giá trị không phải chuỗi không
+// rỗng, vì đó là lỗi soạn file bất kể có bao nhiêu mục.
+if (banDoTienTo === null || typeof banDoTienTo !== 'object' || Array.isArray(banDoTienTo)) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi-tien-to.json phải là một object phẳng ' +
+      '{ "English": "Tiếng Việt" }.',
+  )
+  process.exit(1)
+}
+const saiKieuTienTo = Object.entries(banDoTienTo).filter(
+  ([, vi]) => typeof vi !== 'string' || vi.trim() === '',
+)
+if (saiKieuTienTo.length) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi-tien-to.json có bản dịch không phải chuỗi hoặc rỗng:',
+  )
+  saiKieuTienTo.forEach(([en]) => console.error(`   "${en}"`))
+  process.exit(1)
+}
 
 // ─── Cổng 0: bản đồ dịch phải dùng được ──────────────────────────────────────────────────────
 // Kiểm MỘT LẦN lúc nạp. `dichMotFile` cũng ném khi gặp giá trị không phải chuỗi, nhưng nó chỉ ném
@@ -141,10 +163,30 @@ if (khoaMauMa.length) {
   process.exit(1)
 }
 
+// ─── Cổng 5: tính nhất quán tiền tố ──────────────────────────────────────────────────────────
+const viPhamTienTo = kiemTienTo(banDo, banDoTienTo)
+if (viPhamTienTo.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — ${viPhamTienTo.length} bản dịch trong src/board/vi.json không bắt ` +
+      'đầu bằng bản dịch của tiền tố tương ứng trong src/board/vi-tien-to.json. Chuỗi mẫu bị cắt ' +
+      'lúc chạy (.replace(tiền tố, "")) sẽ không còn khớp gì, và phần chưa-cắt hiện nguyên vẹn ' +
+      'thay vì phần đã cắt:',
+  )
+  viPhamTienTo.forEach((v) =>
+    console.error(
+      `   "${v.khoa}" → "${v.banDichKhoa}" (phải bắt đầu bằng "${v.banDichTienTo}", ` +
+        `tiền tố "${v.tienTo}")`,
+    ),
+  )
+  process.exit(1)
+}
+
 const theoKhoa = Object.fromEntries(Object.keys(banDo).map((k) => [k, []]))
 let soFile = 0
 let tongLuot = 0
 const diemTieuThu = []
+const theoKhoaTienTo = Object.fromEntries(Object.keys(banDoTienTo).map((k) => [k, []]))
+let tongLuotTienTo = 0
 
 for await (const f of dietJs(BUILD)) {
   const goc = readFileSync(f, 'utf8')
@@ -167,13 +209,33 @@ for await (const f of dietJs(BUILD)) {
   // dichMotFile phía trên.
   diemTieuThu.push(...diemTieuThuTrongFile(goc, rel))
 
-  if (ketQua.cacLuot.length === 0) continue
+  let jsSauTienTo = ketQua.js
+  let coDoiTienTo = false
+  if (Object.keys(banDoTienTo).length) {
+    let ketQuaTienTo
+    try {
+      ketQuaTienTo = thayTrenToanCay(ketQua.js, banDoTienTo, rel)
+    } catch (err) {
+      console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+      process.exit(1)
+    }
+    jsSauTienTo = ketQuaTienTo.js
+    if (ketQuaTienTo.cacLuot.length) {
+      coDoiTienTo = true
+      for (const l of ketQuaTienTo.cacLuot) {
+        theoKhoaTienTo[l.chuoiGoc].push({ file: rel })
+        tongLuotTienTo++
+      }
+    }
+  }
+
+  if (ketQua.cacLuot.length === 0 && !coDoiTienTo) continue
 
   for (const l of ketQua.cacLuot) {
     theoKhoa[l.chuoiGoc].push({ file: rel, viTri: l.viTri, dong: l.dong, chuoiDich: l.chuoiDich })
     tongLuot++
   }
-  writeFileSync(f, ketQua.js)
+  writeFileSync(f, jsSauTienTo)
   soFile++
 }
 
@@ -191,6 +253,17 @@ if (khoaChet.length) {
       'tìm chỗ mới của nó trước:',
   )
   khoaChet.forEach((k) => console.error(`   "${k}"`))
+  process.exit(1)
+}
+
+// ─── Cổng 3b: khoá tiền tố chết ─────────────────────────────────────────────────────────────
+const khoaTienToChet = Object.entries(theoKhoaTienTo).filter(([, v]) => v.length === 0).map(([k]) => k)
+if (khoaTienToChet.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — ${khoaTienToChet.length} khoá trong src/board/vi-tien-to.json ` +
+      'không tìm thấy chỗ nào trong cây để thay:',
+  )
+  khoaTienToChet.forEach((k) => console.error(`   "${k}"`))
   process.exit(1)
 }
 
@@ -230,7 +303,8 @@ if (lechTieuThu) {
 writeFileSync(BAO_CAO, JSON.stringify({ tongLuot, theoKhoa }, null, 2))
 
 console.log(
-  `dich-chuoi-vendor: ${soFile} file đã sửa · ${tongLuot} lượt dịch · ` +
-    `${Object.keys(banDo).length} khoá đều còn sống · báo cáo: ${path.relative(GOC, BAO_CAO)}`,
+  `dich-chuoi-vendor: ${soFile} file đã sửa · ${tongLuot} lượt dịch · ${tongLuotTienTo} lượt ` +
+    `tiền tố · ${Object.keys(banDo).length} khoá đều còn sống · ` +
+    `báo cáo: ${path.relative(GOC, BAO_CAO)}`,
 )
 process.exit(0)
