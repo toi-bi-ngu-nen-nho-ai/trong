@@ -53,10 +53,13 @@ export function dangTrongNhay(s, nhay) {
 // \uXXXX (nếu nó thoát thì phép này sẽ trượt hết và bản vá sẽ PHÁ luật C thay vì siết nó — đó là
 // rủi ro đã được loại trước khi thiết kế).
 export function coNhuLiteral(noiDung, s) {
+  const nhayKep = dangTrongNhay(s, '"')
+  const nhayDon = dangTrongNhay(s, "'")
+  const backtick = dangTrongNhay(s, '`')
   return (
-    noiDung.includes('"' + dangTrongNhay(s, '"') + '"') ||
-    noiDung.includes("'" + dangTrongNhay(s, "'") + "'") ||
-    noiDung.includes('`' + dangTrongNhay(s, '`') + '`')
+    noiDung.includes('"' + nhayKep + '"') ||
+    noiDung.includes("'" + nhayDon + "'") ||
+    noiDung.includes('`' + backtick + '`')
   )
 }
 
