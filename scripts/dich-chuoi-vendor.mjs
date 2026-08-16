@@ -12,7 +12,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { dietJs } from './duyet-cay-js.mjs'
-import { dichMotFile } from './luat-vi-tri-dich.mjs'
+import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile, kiemTienTo } from './kiem-quan-he-dich.mjs'
+import { dichMotFile, thayTrenToanCay } from './luat-vi-tri-dich.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
@@ -43,6 +44,28 @@ if (existsSync(BAO_CAO)) {
 }
 
 const banDo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi.json'), 'utf8'))
+const banDoTienTo = JSON.parse(readFileSync(path.join(GOC, 'src/board/vi-tien-to.json'), 'utf8'))
+
+// Cổng 0 cho bản đồ tiền tố — cùng hình dạng với Cổng 0 của banDo, nhưng KHÔNG cấm rỗng: batch
+// sau có thể không cần thêm tiền tố mới. Vẫn cấm sai hình dạng và giá trị không phải chuỗi không
+// rỗng, vì đó là lỗi soạn file bất kể có bao nhiêu mục.
+if (banDoTienTo === null || typeof banDoTienTo !== 'object' || Array.isArray(banDoTienTo)) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi-tien-to.json phải là một object phẳng ' +
+      '{ "English": "Tiếng Việt" }.',
+  )
+  process.exit(1)
+}
+const saiKieuTienTo = Object.entries(banDoTienTo).filter(
+  ([, vi]) => typeof vi !== 'string' || vi.trim() === '',
+)
+if (saiKieuTienTo.length) {
+  console.error(
+    'dich-chuoi-vendor: DỪNG — src/board/vi-tien-to.json có bản dịch không phải chuỗi hoặc rỗng:',
+  )
+  saiKieuTienTo.forEach(([en]) => console.error(`   "${en}"`))
+  process.exit(1)
+}
 
 // ─── Cổng 0: bản đồ dịch phải dùng được ──────────────────────────────────────────────────────
 // Kiểm MỘT LẦN lúc nạp. `dichMotFile` cũng ném khi gặp giá trị không phải chuỗi, nhưng nó chỉ ném
@@ -122,9 +145,48 @@ if (trung.length) {
   process.exit(1)
 }
 
+// ─── Cổng mẫu mã — lưới chắn ba dòng ─────────────────────────────────────────────────────────
+// Không phải bộ lọc chính (tập khoá vốn được soạn từ danh sách đã duyệt tay ở P1-E, không bốc
+// nguyên từ 900 chuỗi thô). Là lưới chắn cuối cho ba dạng chuỗi rõ ràng là mã, không phải chữ
+// hiển thị, và đã từng lẫn thật trong bề mặt ứng viên (colors$, pen$, penInfo$, penIconMap$,
+// var(--drt-text-primary-color)) — bốn cái đầu là tên field Lit signal (kết thúc `$` theo quy ước
+// @preact/signals), cái cuối là literal CSS var() bị quét nhầm vào bề mặt hiển thị.
+const laMauMa = (khoa) => khoa.startsWith('_') || khoa.endsWith('$') || khoa.includes('var(--')
+const khoaMauMa = Object.keys(banDo).filter(laMauMa)
+if (khoaMauMa.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — ${khoaMauMa.length} khoá trong src/board/vi.json khớp mẫu mã ` +
+      '(bắt đầu bằng "_", kết thúc bằng "$", hoặc chứa "var(--"). Đây là tên định danh nội bộ ' +
+      '(field Lit signal, literal CSS var()), không phải chữ hiển thị:',
+  )
+  khoaMauMa.forEach((k) => console.error(`   "${k}"`))
+  process.exit(1)
+}
+
+// ─── Cổng 5: tính nhất quán tiền tố ──────────────────────────────────────────────────────────
+const viPhamTienTo = kiemTienTo(banDo, banDoTienTo)
+if (viPhamTienTo.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — ${viPhamTienTo.length} bản dịch trong src/board/vi.json không bắt ` +
+      'đầu bằng bản dịch của tiền tố tương ứng trong src/board/vi-tien-to.json. Chuỗi mẫu bị cắt ' +
+      'lúc chạy (.replace(tiền tố, "")) sẽ không còn khớp gì, và phần chưa-cắt hiện nguyên vẹn ' +
+      'thay vì phần đã cắt:',
+  )
+  viPhamTienTo.forEach((v) =>
+    console.error(
+      `   "${v.khoa}" → "${v.banDichKhoa}" (phải bắt đầu bằng "${v.banDichTienTo}", ` +
+        `tiền tố "${v.tienTo}")`,
+    ),
+  )
+  process.exit(1)
+}
+
 const theoKhoa = Object.fromEntries(Object.keys(banDo).map((k) => [k, []]))
 let soFile = 0
 let tongLuot = 0
+const diemTieuThu = []
+const theoKhoaTienTo = Object.fromEntries(Object.keys(banDoTienTo).map((k) => [k, []]))
+let tongLuotTienTo = 0
 
 for await (const f of dietJs(BUILD)) {
   const goc = readFileSync(f, 'utf8')
@@ -141,13 +203,39 @@ for await (const f of dietJs(BUILD)) {
     process.exit(1)
   }
 
-  if (ketQua.cacLuot.length === 0) continue
+  // Cổng 4 — quét trên bản gốc TRƯỚC khi dịch: các dạng tiêu thụ (X[e], e===, includes, switch)
+  // đọc TÊN THUỘC TÍNH (item.label, i.description...), không đọc GIÁ TRỊ literal — nên bản dịch
+  // đã chạy hay chưa không ảnh hưởng kết quả quét. Quét trên `goc` để không phụ thuộc thứ tự với
+  // dichMotFile phía trên.
+  diemTieuThu.push(...diemTieuThuTrongFile(goc, rel))
+
+  let jsSauTienTo = ketQua.js
+  let coDoiTienTo = false
+  if (Object.keys(banDoTienTo).length) {
+    let ketQuaTienTo
+    try {
+      ketQuaTienTo = thayTrenToanCay(ketQua.js, banDoTienTo, rel)
+    } catch (err) {
+      console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+      process.exit(1)
+    }
+    jsSauTienTo = ketQuaTienTo.js
+    if (ketQuaTienTo.cacLuot.length) {
+      coDoiTienTo = true
+      for (const l of ketQuaTienTo.cacLuot) {
+        theoKhoaTienTo[l.chuoiGoc].push({ file: rel })
+        tongLuotTienTo++
+      }
+    }
+  }
+
+  if (ketQua.cacLuot.length === 0 && !coDoiTienTo) continue
 
   for (const l of ketQua.cacLuot) {
     theoKhoa[l.chuoiGoc].push({ file: rel, viTri: l.viTri, dong: l.dong, chuoiDich: l.chuoiDich })
     tongLuot++
   }
-  writeFileSync(f, ketQua.js)
+  writeFileSync(f, jsSauTienTo)
   soFile++
 }
 
@@ -168,6 +256,45 @@ if (khoaChet.length) {
   process.exit(1)
 }
 
+// ─── Cổng 3b: khoá tiền tố chết ─────────────────────────────────────────────────────────────
+const khoaTienToChet = Object.entries(theoKhoaTienTo).filter(([, v]) => v.length === 0).map(([k]) => k)
+if (khoaTienToChet.length) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — ${khoaTienToChet.length} khoá trong src/board/vi-tien-to.json ` +
+      'không tìm thấy chỗ nào trong cây để thay:',
+  )
+  khoaTienToChet.forEach((k) => console.error(`   "${k}"`))
+  process.exit(1)
+}
+
+// ─── Cổng 4: dây bẫy quét ngược ─────────────────────────────────────────────────────────────
+// Không phải cổng chặn khoá — nó không đọc vi.json. Nó DỪNG khi tập điểm tiêu thụ thật sự đo
+// được TRÊN CÂY THẬT lệch khỏi BAN_KHAI_TIEU_THU đã ghim trong kiem-quan-he-dich.mjs — thêm một
+// chỗ, bớt một chỗ, hay đổi file/dòng đều đỏ. Đúng khuôn bang-bam-vendor.json của D11: khai thứ
+// đã soi, để cổng gào khi thượng nguồn đổi.
+const sapXep = (ds) => [...ds].sort((a, b) => `${a.file}:${a.dong}`.localeCompare(`${b.file}:${b.dong}`))
+const thucTe = sapXep(diemTieuThu)
+const khaiBao = sapXep(BAN_KHAI_TIEU_THU)
+const lechTieuThu = JSON.stringify(thucTe) !== JSON.stringify(khaiBao)
+if (lechTieuThu) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — tập điểm tiêu thụ giá trị hiển thị đo được trên cây THẬT SỰ khác ` +
+      'bản khai được ghim ở scripts/kiem-quan-he-dich.mjs (BAN_KHAI_TIEU_THU). Nghĩa là thượng ' +
+      'nguồn đã thêm/bớt một chỗ đọc lại tooltip/label/description/caption/placeholder làm khoá ' +
+      'tra cứu hay vế so sánh — chỗ đó CẦN NGƯỜI ĐỌC, không tự động kết luận an toàn hay nguy hiểm:',
+  )
+  console.error('   ĐO ĐƯỢC (' + thucTe.length + ' chỗ):')
+  thucTe.forEach((d) => console.error(`     ${d.file}:${d.dong}  [${d.dang} · ${d.thuocTinh}]`))
+  console.error('   BẢN KHAI (' + khaiBao.length + ' chỗ):')
+  khaiBao.forEach((d) => console.error(`     ${d.file}:${d.dong}  [${d.dang} · ${d.thuocTinh}]`))
+  console.error(
+    '   Nếu chỗ mới thật sự an toàn (không phải lớp lỗi §3.1 của spec P1-E): cập nhật ' +
+      'BAN_KHAI_TIEU_THU trong scripts/kiem-quan-he-dich.mjs. Nếu KHÔNG an toàn: gỡ khoá liên ' +
+      'quan khỏi src/board/vi.json hoặc bỏ tên thuộc tính khỏi THUOC_TINH_HIEN_THI.',
+  )
+  process.exit(1)
+}
+
 // Ghi báo cáo SAU Cổng 3, không phải trước: nếu ghi trước, một lượt bị Cổng 3 từ chối (khoá chết)
 // vẫn để lại `bao-cao-dich.json` trên đĩa dù việc dịch coi như thất bại. Từ khi cổng ở đầu file
 // này (xem "Cổng sớm" phía trên) và cổng ở scripts/kiem-vendor-build.mjs đều coi sự có mặt của
@@ -176,7 +303,8 @@ if (khoaChet.length) {
 writeFileSync(BAO_CAO, JSON.stringify({ tongLuot, theoKhoa }, null, 2))
 
 console.log(
-  `dich-chuoi-vendor: ${soFile} file đã sửa · ${tongLuot} lượt dịch · ` +
-    `${Object.keys(banDo).length} khoá đều còn sống · báo cáo: ${path.relative(GOC, BAO_CAO)}`,
+  `dich-chuoi-vendor: ${soFile} file đã sửa · ${tongLuot} lượt dịch · ${tongLuotTienTo} lượt ` +
+    `tiền tố · ${Object.keys(banDo).length} khoá đều còn sống · ` +
+    `báo cáo: ${path.relative(GOC, BAO_CAO)}`,
 )
 process.exit(0)

@@ -20,3 +20,14 @@ export declare function dichMotFile(
   banDo: Record<string, string>,
   tenFile?: string,
 ): { js: string; cacLuot: Luot[] }
+
+export interface LuotTrenToanCay {
+  chuoiGoc: string
+  chuoiDich: string
+}
+
+export declare function thayTrenToanCay(
+  js: string,
+  banDoTienTo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotTrenToanCay[] }

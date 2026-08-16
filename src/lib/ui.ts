@@ -50,6 +50,17 @@ export const NUM = "tabular-nums"
 // việc đặt bơm, không phải mọi nơi có số.
 export const NUM_DOSE = "tabular-nums font-mono-dose"
 
+// Nhiều câu "Cách dùng" (autoUsage.text, tier.dose...) là một chuỗi văn xuôi lắp sẵn từ
+// formatVialUsage/formatFixedUsage hay dữ liệu thuốc — không tách sẵn số ra khỏi câu để bọc NUM_DOSE
+// qua JSX như con số đơn lẻ (vd tốc độ bơm). Hàm này bọc riêng CÁC CỤM SỐ (kể cả khoảng số kiểu
+// "1050–1400") bằng font-mono-dose, giữ nguyên chữ xung quanh — đúng đối tượng quy tắc NUM_DOSE nhắm
+// tới (chữ số dễ đọc nhầm 1/l, 0/O), không monospace hoá cả câu. An toàn dùng dangerouslySetInnerHTML:
+// nguồn luôn là chuỗi app tự dựng (định dạng số + dữ liệu thuốc), không phải nội dung người dùng gõ.
+const DOSE_NUMBER_RE = /\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?/g
+export function highlightDoseNumbers(text: string): string {
+  return text.replace(DOSE_NUMBER_RE, (m) => `<span class="${NUM_DOSE}">${m}</span>`)
+}
+
 // ─── Bo góc: đúng 4 giá trị ──────────────────────────────────────────────────
 // Bo góc mềm hơn hẳn (đợt đổi bảng màu 2026-08, 10/12/16px → 14/14/20px) — cùng hướng cao cấp hơn
 // với --c-primary indigo mới. input/box dùng chung 14px để đường viền ô nhập và khối/thẻ nhỏ khớp

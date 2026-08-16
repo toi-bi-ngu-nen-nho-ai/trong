@@ -50,8 +50,8 @@ export const ANTIBIOTICS: Antibiotic[] = [
     source: "Dược thư quốc gia 2022, tr.193",
     reviewedOn: "2026-08",
     warnings: [
-      { text: "Thận trọng: người cao tuổi, trẻ nhỏ. rối loạn/suy giảm chức năng thận do có nguy cơ độc tai và thận (tránh dùng chung các nhóm độc tính tương tự)", severity: "cao" },
-      { text: "Thận trọng: người bệnh rối loạn hoạt động cơ (nhược cơ hoặc Parkinson) - tác dụng kiểu cura (yếu cơ trầm trọng)", severity: "cao" },
+      { text: "Người cao tuổi, trẻ nhỏ. rối loạn/suy giảm chức năng thận do có nguy cơ độc tai và thận (tránh dùng chung các nhóm độc tính tương tự)", severity: "cao" },
+      { text: "Người bệnh rối loạn hoạt động cơ (nhược cơ hoặc Parkinson) - tác dụng kiểu cura (yếu cơ trầm trọng)", severity: "cao" },
       { text: "Không dùng quá liều khuyến cáo, dùng đủ nước trong thời gian điều trị", severity: "cao" }
     ],
     indications: [
@@ -105,7 +105,7 @@ export const ANTIBIOTICS: Antibiotic[] = [
         vialLabel: "ống",
         vialForm: "solution",
         vialVolumeMl: 2,
-        defaultVolumeMl: 200,
+        defaultVolumeMl: 100,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
         infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
@@ -127,7 +127,7 @@ export const ANTIBIOTICS: Antibiotic[] = [
         vialLabel: "lọ",
         vialForm: "powder",
         reconstituteMl: 20,
-        defaultVolumeMl: 200,
+        defaultVolumeMl: 100,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
         infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",

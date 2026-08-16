@@ -13,6 +13,7 @@ import { dietJs } from '../../scripts/duyet-cay-js.mjs'
 import {
   DOI_SO_HIEN_THI,
   dichMotFile,
+  thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
   THUOC_TINH_HTML_HIEN_THI,
   viTriHienThi,
@@ -22,25 +23,19 @@ const BAN_DO = { Style: 'Phong cách', LinkedPage: 'Trang liên kết', Escape: 
 
 const dich = (js: string) => dichMotFile(js, BAN_DO, 'thu.js').js
 
-// Ràng buộc toàn cục DUY NHẤT của chặng D12: đúng 11 tên thuộc tính, đúng 1 tên đối số, đúng 1 tên
+// Ràng buộc toàn cục DUY NHẤT của chặng D12: đúng 5 tên thuộc tính, đúng 1 tên đối số, đúng 1 tên
 // thuộc tính HTML được phép làm vị trí hiển thị. Không ca nào ở trên khẳng định KÍCH THƯỚC hay NỘI
 // DUNG của ba danh sách này — chúng chỉ thử từng cái tên riêng lẻ có/không được dịch. Ba ca dưới
 // đây tồn tại để một lượt SAU nới rộng danh sách (rất dễ xảy ra khi chặng kế tiếp phải với tới 323
 // chuỗi) trở thành một lượt nới CÓ CHỮ KÝ — phải sửa test này mới xanh được — chứ không phải một
 // lượt nới im lặng lọt qua mà không ai để ý.
 describe('D12 — danh sách vị trí cho phép đúng kích thước và nội dung', () => {
-  it('THUOC_TINH_HIEN_THI có đúng 11 tên, đúng thứ tự đo được', () => {
+  it('THUOC_TINH_HIEN_THI có đúng 5 tên, đúng thứ tự đo được', () => {
     expect([...THUOC_TINH_HIEN_THI]).toEqual([
-      'name',
       'label',
       'tooltip',
       'description',
       'caption',
-      'group',
-      'text',
-      'title',
-      'menuName',
-      'displayName',
       'placeholder',
     ])
   })
@@ -57,10 +52,6 @@ describe('D12 — danh sách vị trí cho phép đúng kích thước và nội
 describe('D12 — vị trí ĐƯỢC dịch', () => {
   it('giá trị của thuộc tính label', () => {
     expect(dich(`const a = { label: 'Style' }`)).toContain('Phong cách')
-  })
-
-  it('giá trị của thuộc tính name', () => {
-    expect(dich(`const a = { name: 'Style' }`)).toContain('Phong cách')
   })
 
   it('giá trị của thuộc tính tooltip', () => {
@@ -82,6 +73,25 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
   // danh sách cho phép trong scripts/luat-vi-tri-dich.mjs thì ca đó PHẢI đỏ.
   it('giá trị lược đồ ở type:', () => {
     expect(dich(`const a = { type: 'LinkedPage' }`)).toContain('LinkedPage')
+  })
+
+  it('giá trị của thuộc tính name (đã loại khỏi danh sách — P1-E)', () => {
+    // name: chứa bốn mối nối nguy hiểm đo được ở spec P1-E §3.1: tooltips[name],
+    // ['Code','Link'].includes(i.name), item.name !== 'Divider'. Dịch tại đây là đứt mối nối.
+    expect(dich(`const a = { name: 'Style' }`)).toContain(`'Style'`)
+  })
+
+  it('giá trị của thuộc tính group (là khoá sắp xếp có cấu trúc, không phải nhãn)', () => {
+    // Giá trị thật dạng '0_Basic@0', bị parseGroup mổ (widgets/slash-menu/src/utils.js).
+    expect(dich(`const a = { group: 'Style' }`)).toContain(`'Style'`)
+  })
+
+  it('giá trị của thuộc tính title (đi vào file xuất ra Markdown/PDF)', () => {
+    expect(dich(`const a = { title: 'Style' }`)).toContain(`'Style'`)
+  })
+
+  it('giá trị của thuộc tính text (là enum số Flag.Text, không phải chuỗi)', () => {
+    expect(dich(`const a = { text: 'Style' }`)).toContain(`'Style'`)
   })
 
   it('định danh mục menu ở key:', () => {
@@ -150,13 +160,13 @@ describe('D12 — nhiều lượt thay trong cùng một file', () => {
   // chuỗi, không phải `toContain`.
   it('ba lượt thay trong một dòng không làm lệch vị trí nhau', () => {
     expect(dich(`const a = { label: 'Style', name: 'LinkedPage', tooltip: 'None' }`)).toBe(
-      `const a = { label: "Phong cách", name: "Trang liên kết", tooltip: "Không" }`,
+      `const a = { label: "Phong cách", name: 'LinkedPage', tooltip: "Không" }`,
     )
   })
 
   it('lượt thay ở dòng sau vẫn ghi đúng số dòng', () => {
     const { cacLuot } = dichMotFile(
-      `const a = { label: 'Style' }\nconst b = { name: 'None' }`,
+      `const a = { label: 'Style' }\nconst b = { tooltip: 'None' }`,
       BAN_DO,
       'thu.js',
     )
@@ -182,12 +192,12 @@ describe('D12 — chỉ chuỗi CÓ TRONG bản đồ mới được đụng', (
 
 describe('D12 — ca xương sống: cùng chuỗi, hai vị trí, cùng file', () => {
   // Tái hiện chính xác thứ suýt làm hỏng dữ liệu. Đây là ca quan trọng nhất của bộ này.
-  it('name: được dịch, type: còn nguyên văn', () => {
+  it('label: được dịch, type: còn nguyên văn', () => {
     const ra = dich(`
-      const muc = { name: 'LinkedPage', icon: I() }
+      const muc = { label: 'LinkedPage', icon: I() }
       const du_lieu = { reference: { type: 'LinkedPage', pageId: p } }
     `)
-    expect(ra).toContain(`name: "Trang liên kết"`)
+    expect(ra).toContain(`label: "Trang liên kết"`)
     expect(ra).toContain(`type: 'LinkedPage'`)
   })
 })
@@ -308,4 +318,40 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
     }
     expect(soFileDoi).toBe(0)
   }, 120_000)
+})
+
+describe('thayTrenToanCay — thay MỌI vị trí, dùng cho khoá tiền tố', () => {
+  const TIEN_TO = { 'Drag/Click to insert ': 'Kéo/Bấm để chèn ' }
+
+  it('thay literal ở vị trí đối số .replace() — vị trí KHÔNG nằm trong danh sách hiển thị', () => {
+    const ra = thayTrenToanCay(
+      `item.tooltip.replace('Drag/Click to insert ', '')`,
+      TIEN_TO,
+      'thu.js',
+    ).js
+    expect(ra).toContain('Kéo/Bấm để chèn ')
+    expect(ra).not.toContain('Drag/Click to insert')
+  })
+
+  it('không đụng khoá không khớp', () => {
+    const ra = thayTrenToanCay(`const a = 'Style'`, TIEN_TO, 'thu.js').js
+    expect(ra).toBe(`const a = 'Style'`)
+  })
+
+  it('giá trị không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayTrenToanCay(
+        `const a = 'Drag/Click to insert '`,
+        { 'Drag/Click to insert ': 42 } as unknown as Record<string, string>,
+        'thu.js',
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+
+  it('báo cáo lượt thay đúng chuoiGoc/chuoiDich', () => {
+    const { cacLuot } = thayTrenToanCay(`const a = 'Drag/Click to insert '`, TIEN_TO, 'thu.js')
+    expect(cacLuot).toEqual([
+      { chuoiGoc: 'Drag/Click to insert ', chuoiDich: 'Kéo/Bấm để chèn ' },
+    ])
+  })
 })

@@ -6,13 +6,35 @@
 // thấy được) thay vì "dữ liệu bị dịch" (im lặng).
 import ts from 'typescript'
 
-// Giá trị của các thuộc tính này là chuỗi hiển thị. Đo trên cây vendored: 822 lượt.
+// Giá trị của các thuộc tính này là chuỗi hiển thị. Đo trên cây vendored ban đầu: 822 lượt, gồm
+// cả `name`/`group`/`title`/`text`/`menuName`/`displayName`. Chặng P1-E đã BỎ SÁU tên đó khỏi
+// danh sách (11 tên → 5 tên), không phải bốn. Spec
+// docs/superpowers/specs/2026-08-15-noi-dung-dich-design.md §3.1-§4.1 đo được BỐN mối nối nguy
+// hiểm đọc lại giá trị hiển thị làm khoá tra cứu / vế so sánh, và cả bốn đều đọc `.name` — trong
+// bảng phân bố 158 chỗ tiêu thụ ngược ở §3.3, `name` chiếm 96 lượt, `group` 38, `title` 12, `text`
+// 8 (còn `label`/`description` — vẫn được giữ — chỉ 2 lượt mỗi tên, canh bằng Cổng 4):
+//   tooltips[name]                          — affine/blocks/note/src/configs/slash-menu.js:51,83
+//   ['Code','Link'].includes(i.name)        — affine/blocks/note/src/configs/slash-menu.js:39
+//   item.name !== 'Divider'                 — affine/gfx/note/src/toolbar/note-menu-config.js:113
+// Bảng tooltip của BlockSuite trộn khoá CÓ NHÁY ('Heading 1': {...}) với khoá KHÔNG NHÁY
+// (Italic: {...}, Divider: {...}) trong CÙNG một object — nên không có cách quét literal nào tách
+// được "name: an toàn" khỏi "name: nguy hiểm" một cách đáng tin. `title` đi vào file xuất ra
+// (Markdown/PDF, adapters/markdown/markdown.js:212). `text` là thành viên enum số
+// (Flag[Flag["Text"] = 4] = "Text", affine/shared/src/services/toolbar-service/flags.js:7) — người
+// dùng viết Flag.Text (truy cập thuộc tính), phép thay chuỗi không với tới được. `group` là khoá
+// sắp xếp có cấu trúc ('0_Basic@0'), bị parseGroup mổ (affine/widgets/slash-menu/src/utils.js:11).
+//
+// `menuName` và `displayName` đo được 0 lượt tiêu thụ ngược trong cùng bảng phân bố đó — an toàn
+// ngang `tooltip`/`caption`/`placeholder` (những tên vẫn được giữ ở dưới). Nhưng spec §4.1 (dòng
+// ~140-142) chỉ liệt kê "bảy vị trí đầu cuối" cuối cùng — `tooltip` `label` `description` `caption`
+// `placeholder` `data-tip` đối số `toast` — không có `menuName`/`displayName`, và KHÔNG giải thích
+// vì sao hai tên này bị loại dù đo an toàn như các tên được giữ. Đây là khoảng trống tài liệu kế
+// thừa từ chính spec, không phải quyết định có lý do đã biết — đừng suy diễn lý do khi đọc comment
+// này; nếu cần dùng lại hai tên, phải hỏi lại/đo lại trước.
+//
 // KHÔNG được thêm `key` vào đây: nó chứa "Align left", "Align right" — đọc lên y hệt nhãn hiển
 // thị nhưng là ĐỊNH DANH mục menu, dịch vào là gãy tra cứu.
-export const THUOC_TINH_HIEN_THI = new Set([
-  'name', 'label', 'tooltip', 'description', 'caption',
-  'group', 'text', 'title', 'menuName', 'displayName', 'placeholder',
-])
+export const THUOC_TINH_HIEN_THI = new Set(['label', 'tooltip', 'description', 'caption', 'placeholder'])
 
 // Đối số của các hàm này là chuỗi hiển thị cho người dùng cuối.
 // KHÔNG thêm `error`/`warn`/`debugLog` (thông báo cho lập trình viên) hay `track` (tên sự kiện đo
@@ -186,5 +208,66 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
     cacLuot: thay
       .sort((a, b) => a.dau - b.dau)
       .map(({ chuoiGoc, chuoiDich, viTri, dong }) => ({ chuoiGoc, chuoiDich, viTri, dong })),
+  }
+}
+
+// Thay MỌI lượt xuất hiện của khoá, KHÔNG lọc theo vị trí. Dùng riêng cho src/board/vi-tien-to.json
+// — khoá của nó ('Drag/Click to insert ') là ĐỐI SỐ của .replace() trong
+// affine/gfx/note/src/toolbar/note-menu-config.js:118, một vị trí CỐ TÌNH không nằm trong danh
+// sách hiển thị (đối số hàm thường không phải chữ cho người dùng đọc TRỰC TIẾP). Nhưng chuỗi này
+// phải đổi ĐỒNG BỘ với các literal `tooltip: '...'` mà nó cắt tiền tố — nếu không, sau khi các
+// literal đó đã dịch, .replace(tiền tố tiếng Anh, '') không còn khớp gì và tooltip hiện nguyên
+// câu dài. Xem spec P1-E §3.7/§4.4 và kế hoạch Task 4.
+//
+// Dùng lại đúng phép bảo vệ của dichMotFile (Object.hasOwn chống chuỗi prototype, kiểm kiểu
+// chuỗi, kiểm cú pháp trước khi duyệt) — hai hàm khác MỤC ĐÍCH lọc vị trí nhưng CÙNG rủi ro dữ
+// liệu đầu vào, nên cùng một bộ vá.
+export function thayTrenToanCay(js, banDoTienTo, tenFile = 'khong-ten.js') {
+  const sf = ts.createSourceFile(tenFile, js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+
+  if (!Array.isArray(sf.parseDiagnostics)) {
+    throw new Error(
+      'luat-vi-tri-dich: sf.parseDiagnostics không còn là mảng (thayTrenToanCay) — xem ghi chú ' +
+        'tương tự trong dichMotFile.',
+    )
+  }
+  if (sf.parseDiagnostics.length > 0) {
+    throw new Error(
+      `luat-vi-tri-dich: không phân tích được ${tenFile} (thayTrenToanCay) — ` +
+        `${sf.parseDiagnostics.length} lỗi cú pháp.`,
+    )
+  }
+
+  const thayTienTo = []
+  const diTienTo = (n) => {
+    if (
+      n.kind === ts.SyntaxKind.StringLiteral ||
+      n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+    ) {
+      if (Object.hasOwn(banDoTienTo, n.text)) {
+        const vi = banDoTienTo[n.text]
+        if (typeof vi !== 'string') {
+          throw new Error(
+            `luat-vi-tri-dich: khoá tiền tố "${n.text}" có giá trị KHÔNG PHẢI CHUỖI (kiểu ` +
+              `${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+          )
+        }
+        thayTienTo.push({ dau: n.getStart(sf), cuoi: n.getEnd(), chuoiGoc: n.text, chuoiDich: vi })
+      }
+    }
+    ts.forEachChild(n, diTienTo)
+  }
+  diTienTo(sf)
+
+  let raTienTo = js
+  for (const t of [...thayTienTo].sort((a, b) => b.dau - a.dau)) {
+    raTienTo = raTienTo.slice(0, t.dau) + JSON.stringify(t.chuoiDich) + raTienTo.slice(t.cuoi)
+  }
+
+  return {
+    js: raTienTo,
+    cacLuot: thayTienTo
+      .sort((a, b) => a.dau - b.dau)
+      .map(({ chuoiGoc, chuoiDich }) => ({ chuoiGoc, chuoiDich })),
   }
 }
