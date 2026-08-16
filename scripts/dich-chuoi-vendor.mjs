@@ -12,6 +12,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { dietJs } from './duyet-cay-js.mjs'
+import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile } from './kiem-quan-he-dich.mjs'
 import { dichMotFile } from './luat-vi-tri-dich.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -143,6 +144,7 @@ if (khoaMauMa.length) {
 const theoKhoa = Object.fromEntries(Object.keys(banDo).map((k) => [k, []]))
 let soFile = 0
 let tongLuot = 0
+const diemTieuThu = []
 
 for await (const f of dietJs(BUILD)) {
   const goc = readFileSync(f, 'utf8')
@@ -158,6 +160,12 @@ for await (const f of dietJs(BUILD)) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
   }
+
+  // Cổng 4 — quét trên bản gốc TRƯỚC khi dịch: các dạng tiêu thụ (X[e], e===, includes, switch)
+  // đọc TÊN THUỘC TÍNH (item.label, i.description...), không đọc GIÁ TRỊ literal — nên bản dịch
+  // đã chạy hay chưa không ảnh hưởng kết quả quét. Quét trên `goc` để không phụ thuộc thứ tự với
+  // dichMotFile phía trên.
+  diemTieuThu.push(...diemTieuThuTrongFile(goc, rel))
 
   if (ketQua.cacLuot.length === 0) continue
 
@@ -183,6 +191,34 @@ if (khoaChet.length) {
       'tìm chỗ mới của nó trước:',
   )
   khoaChet.forEach((k) => console.error(`   "${k}"`))
+  process.exit(1)
+}
+
+// ─── Cổng 4: dây bẫy quét ngược ─────────────────────────────────────────────────────────────
+// Không phải cổng chặn khoá — nó không đọc vi.json. Nó DỪNG khi tập điểm tiêu thụ thật sự đo
+// được TRÊN CÂY THẬT lệch khỏi BAN_KHAI_TIEU_THU đã ghim trong kiem-quan-he-dich.mjs — thêm một
+// chỗ, bớt một chỗ, hay đổi file/dòng đều đỏ. Đúng khuôn bang-bam-vendor.json của D11: khai thứ
+// đã soi, để cổng gào khi thượng nguồn đổi.
+const sapXep = (ds) => [...ds].sort((a, b) => `${a.file}:${a.dong}`.localeCompare(`${b.file}:${b.dong}`))
+const thucTe = sapXep(diemTieuThu)
+const khaiBao = sapXep(BAN_KHAI_TIEU_THU)
+const lechTieuThu = JSON.stringify(thucTe) !== JSON.stringify(khaiBao)
+if (lechTieuThu) {
+  console.error(
+    `dich-chuoi-vendor: DỪNG — tập điểm tiêu thụ giá trị hiển thị đo được trên cây THẬT SỰ khác ` +
+      'bản khai được ghim ở scripts/kiem-quan-he-dich.mjs (BAN_KHAI_TIEU_THU). Nghĩa là thượng ' +
+      'nguồn đã thêm/bớt một chỗ đọc lại tooltip/label/description/caption/placeholder làm khoá ' +
+      'tra cứu hay vế so sánh — chỗ đó CẦN NGƯỜI ĐỌC, không tự động kết luận an toàn hay nguy hiểm:',
+  )
+  console.error('   ĐO ĐƯỢC (' + thucTe.length + ' chỗ):')
+  thucTe.forEach((d) => console.error(`     ${d.file}:${d.dong}  [${d.dang} · ${d.thuocTinh}]`))
+  console.error('   BẢN KHAI (' + khaiBao.length + ' chỗ):')
+  khaiBao.forEach((d) => console.error(`     ${d.file}:${d.dong}  [${d.dang} · ${d.thuocTinh}]`))
+  console.error(
+    '   Nếu chỗ mới thật sự an toàn (không phải lớp lỗi §3.1 của spec P1-E): cập nhật ' +
+      'BAN_KHAI_TIEU_THU trong scripts/kiem-quan-he-dich.mjs. Nếu KHÔNG an toàn: gỡ khoá liên ' +
+      'quan khỏi src/board/vi.json hoặc bỏ tên thuộc tính khỏi THUOC_TINH_HIEN_THI.',
+  )
   process.exit(1)
 }
 
