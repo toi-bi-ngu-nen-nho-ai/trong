@@ -9621,9 +9621,20 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               {resultDisplay}
             </span>
             <span className={T.body} style={{ color: C.textSoft }}>{mode === "doseToRate" ? "mL/giờ" : unitId}</span>
-            {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai */}
+            {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai.
+                Màu XANH LÁ (--c-green), không phải C.accent — accent trỏ thẳng vào --c-primary
+                (thương hiệu), và DESIGN.md đã nói rõ "một liều bình thường không đọc bằng màu
+                thương hiệu" (xem chú thích ok: ở SEVERITY_STYLE, lib/doseSafety.ts). "Xanh lá =
+                xác nhận an toàn" đã là quy ước dùng lại nhiều nơi trong app (vd dòng lịch dùng
+                thuốc, mục thêm mới) — badge này nối theo đúng quy ước đó, tách hẳn khỏi màu chọn/nhấn
+                thông thường. `badge-pop-in` (index.css) chỉ chạy MỘT LẦN lúc span này được mount —
+                span chỉ tồn tại khi severity === "ok" nên đổi số liều trong lúc vẫn "ok" không
+                remount lại, không lặp lại hoạt ảnh liên tục. */}
             {severity === "ok" && result != null && check != null && (
-              <span className={`${T.meta} ml-auto flex items-center gap-1 flex-none`} style={{ color: C.accent }}>
+              <span
+                className={`${T.meta} ml-auto flex items-center gap-1 flex-none badge-pop-in`}
+                style={{ color: "var(--c-green)" }}
+              >
                 <span className="scale-75">{icons.check()}</span>
                 Trong khoảng
               </span>
