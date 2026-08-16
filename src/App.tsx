@@ -5258,7 +5258,11 @@ function formatReviewedOn(value: string): string {
 function SourceLine({ item, bare }: { item: SourceInfo; bare?: boolean }) {
   const hasAny = Boolean(item.source || item.reviewedOn)
   const inner = hasAny ? (
-    <p className={T.meta} style={{ color: C.textSoft }}>
+    // py-1: khi bare=true (Disclosure "Nguồn dữ liệu" ở AntibioticDoseCard/InfusionDrugCard) và
+    // bệnh lý đang chọn chưa tự khai nguồn riêng, đây là dòng ĐẦU TIÊN trong nội dung Disclosure —
+    // không có wrapper mt-3 pt-2.5 border-t (chỉ áp dụng khi !bare) nên chữ chạm thẳng vào nút
+    // gấp/mở phía trên, đo được padding dọc 0px trên chữ 12px.
+    <p className={`${T.meta} py-1`} style={{ color: C.textSoft }}>
       {item.source && <>Nguồn: {item.source}</>}
       {item.source && item.reviewedOn && " · "}
       {item.reviewedOn && <>Rà soát: {formatReviewedOn(item.reviewedOn)}</>}
@@ -6249,7 +6253,12 @@ function DrugWarnings({ warnings, bare }: { warnings?: AntibioticWarning[]; bare
             <p className={`${T.bodyStrong}`} style={{ color: "var(--c-danger-deep)" }}>{w.text}</p>
           </div>
         ) : (
-          <div key={i} className="flex items-start gap-1.5">
+          // py-1: dòng cảnh báo mức thường (không "cao") không có khung nền như dòng trên, nên
+          // không có padding nào cả — dòng ĐẦU trong danh sách (bare, vd Disclosure "Lưu ý khác")
+          // chạm thẳng vào nút gấp/mở phía trên. Thêm py-1 cho cả hàng (không chỉ dòng đầu) để mọi
+          // dòng cảnh báo đều có khoảng thở đều nhau; đặt trên div cha nên chấm tròn và chữ cùng
+          // dịch xuống/lên như nhau, không lệch canh so với nhau.
+          <div key={i} className="flex items-start gap-1.5 py-1">
             <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-none" style={{ background: "var(--c-warn-icon)" }} />
             <p className="text-[12px] text-slate-600 leading-[1.45]">{w.text}</p>
           </div>
@@ -8154,7 +8163,11 @@ function AntibioticDoseCard({
               </div>
             </div>
           ) : (
-            drug.preparation && <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
+            // py-1: khi CHƯA có công thức đã lưu nào (wardList rỗng) và không xem công thức của bạn,
+            // đây là dòng ĐẦU TIÊN trong nội dung Disclosure — đứng sát ngay dưới nút gấp/mở
+            // (.disc-body không có padding, xem ghi chú ở Disclosure) nên chữ chạm thẳng vào cạnh
+            // trên, đo được padding dọc 0px trên chữ 14px. Thêm khoảng thở mà không đụng .disc-body.
+            drug.preparation && <p className={`${T.body} py-1`} style={{ color: C.textSoft }}>{drug.preparation}</p>
           )}
           {indication?.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{indication.note}</p>}
           {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
@@ -8369,11 +8382,22 @@ function AntibioticsScreen({
           setSelectedEntryId(null)
         }}
         placeholder="Tìm kháng sinh..."
+        // Chỉ tự nhận focus lúc màn VỪA MỞ mà CHƯA có thuốc nào đang chọn — vào tab lần đầu thì bàn
+        // phím bật sẵn, đỡ một chạm để bắt đầu gõ tìm. Đã có thuốc đang chọn (quay lại từ sticky
+        // state, thẻ liều đang mở) thì KHÔNG cướp focus khỏi nội dung thẻ — autoFocus là thuộc tính
+        // chỉ có tác dụng đúng một lần lúc input được gắn vào DOM (screen này remount mỗi lần đổi
+        // tab, xem key={`${tab}-${jumpKey}`} ở DungThuocScreen) nên không tự bật lại khi selectedEntry
+        // đổi giữa chừng.
+        autoFocus={!selectedEntry}
       />
       {/* Đã chọn một hoạt chất: gấp cả danh sách lại, chỉ còn ĐÚNG chip đang chọn — bước Chỉ định/
           Đường dùng/thẻ liều kéo lên ngay sát ô tìm thay vì phải cuộn qua hết ~28 chip mới tới. Bấm
-          lại đúng chip đó (cùng onClick selectGroup toggle như cũ) để bỏ chọn, danh sách hiện lại. */}
-      <div className="flex flex-wrap gap-2 mb-3 items-center">
+          lại đúng chip đó (cùng onClick selectGroup toggle như cũ) để bỏ chọn, danh sách hiện lại.
+          opacity-90 khi CHƯA chọn hoạt chất nào: giảm nhẹ độ nổi bật của cả khối chip A-Z so với lưới
+          "Đang dùng cho bệnh nhân" (nếu có) đứng ngay trên — hai khối không còn cạnh tranh sự chú ý
+          ngang nhau lúc vừa vào tab. Đã chọn thì khối này chỉ còn ĐÚNG một chip (xem nhánh dưới), tự
+          nhiên không cần giảm nổi bật nữa. */}
+      <div className={`flex flex-wrap gap-2 mb-3 items-center${!selectedGroup ? " opacity-90" : ""}`}>
         {selectedGroup ? (
           <Chip active onClick={() => selectGroup(null)}>
             {selectedGroup.name}
@@ -10133,8 +10157,15 @@ function InfusionCategoryScreen({
           selectDrug(null)
         }}
         placeholder={`Tìm ${categoryLabel.toLowerCase()}...`}
+        // Xem chú thích cùng dòng ở AntibioticsScreen: chỉ tự focus lúc màn vừa mount VÀ chưa chọn
+        // thuốc nào, tránh cướp focus khỏi thẻ liều khi quay lại từ sticky state.
+        autoFocus={!selected}
       />
-      <div className="flex flex-wrap gap-2 mb-3">
+      {/* opacity-90 khi CHƯA chọn thuốc nào — xem chú thích cùng dòng ở AntibioticsScreen: giảm nhẹ
+          độ nổi bật của cả lưới chip so với khối "Đang dùng cho bệnh nhân" (nếu có) đứng trên, lúc
+          đây vẫn là danh sách đầy đủ chưa được lọc còn một lựa chọn. Đã chọn thuốc thì bỏ giảm nổi
+          bật — người dùng có thể quay lại đổi thuốc khác từ lưới này bất cứ lúc nào. */}
+      <div className={`flex flex-wrap gap-2 mb-3${!selected ? " opacity-90" : ""}`}>
         {/* index chỉ truyền khi CHƯA lọc — xem ghi chú tương tự ở AntibioticsScreen. */}
         {filtered.map((d, i) => (
           <Chip key={d.id} index={query.trim() ? undefined : i} tone="accent" active={effectiveId === d.id} onClick={() => selectDrug(effectiveId === d.id ? null : d.id)}>
