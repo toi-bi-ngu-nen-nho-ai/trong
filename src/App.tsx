@@ -5385,6 +5385,13 @@ function PatientField({ label, children }: { label: string; children: React.Reac
   )
 }
 
+// "Xoá bệnh nhân" là hành động phá huỷ có khung hoàn-tác 10 giây riêng ở DungThuocScreen
+// (resetUndoTimer, xem 10_000 gần đó) — khung xác nhận-xoá TRƯỚC khi xoá thật phải khớp đúng
+// con số đó, không dùng CONFIRM_ICON_RESET_MS (2500ms, dùng cho các nút xác nhận-xoá KHÁC như
+// xoá công thức đã lưu) kẻo hai mốc thời gian an toàn của CÙNG một hành động lệch nhau, người
+// dùng bị phân tâm dễ lỡ khung xác nhận ngắn hơn khung hoàn tác thật.
+const PATIENT_RESET_CONFIRM_MS = 10_000
+
 function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const { patient, setPatientField, resetPatient, running, abwKg, heightCm, ageYears, crcl, crclUsable } = useDosing()
   const hasData = patientHasData(patient)
@@ -5465,7 +5472,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               if (!confirmReset) {
                 setConfirmReset(true)
                 tickHaptic()
-                confirmResetTimer.current = setTimeout(() => setConfirmReset(false), CONFIRM_ICON_RESET_MS)
+                confirmResetTimer.current = setTimeout(() => setConfirmReset(false), PATIENT_RESET_CONFIRM_MS)
                 return
               }
               if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current)
