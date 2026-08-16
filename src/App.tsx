@@ -10619,6 +10619,21 @@ function DungThuocScreen({
           style={{ scrollbarWidth: "none" }}
           role="tablist"
           aria-label="Nhóm thuốc"
+          // Trái/Phải khớp hướng cuộn ngang thật của hàng (không phải Lên/Xuống như danh sách kết
+          // quả tìm kiếm). Dừng ở hai đầu mảng, không vòng tròn. Sau khi đổi tab, focus đi theo
+          // sang đúng nút vừa active — nút đích luôn có sẵn trong DOM (10 tab render đồng thời,
+          // chỉ đổi style/aria-selected) nên focus ngay được, không cần đợi hiệu ứng render lại.
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
+            const idx = MIXING_TABS.findIndex((t) => t.id === tab)
+            if (idx === -1) return
+            const nextIdx = e.key === "ArrowRight" ? Math.min(idx + 1, MIXING_TABS.length - 1) : Math.max(idx - 1, 0)
+            if (nextIdx === idx) return
+            e.preventDefault()
+            const nextId = MIXING_TABS[nextIdx].id
+            setTab(nextId)
+            document.getElementById(`mixing-tab-${nextId}`)?.focus()
+          }}
         >
           {MIXING_TABS.map((t) => (
             <button
@@ -10634,6 +10649,10 @@ function DungThuocScreen({
               role="tab"
               aria-selected={tab === t.id}
               aria-controls="mixing-tabpanel"
+              // Roving tabindex chuẩn ARIA APG: chỉ tab đang active nằm trong thứ tự Tab của trình
+              // duyệt, các tab còn lại chỉ tới được bằng Trái/Phải — Tab-key không phải lướt qua cả
+              // 10 nút mới ra khỏi hàng.
+              tabIndex={tab === t.id ? 0 : -1}
             >
               {t.label}
             </button>
