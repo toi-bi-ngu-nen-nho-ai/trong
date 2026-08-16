@@ -22,7 +22,7 @@ const BAN_DO = { Style: 'Phong cách', LinkedPage: 'Trang liên kết', Escape: 
 
 const dich = (js: string) => dichMotFile(js, BAN_DO, 'thu.js').js
 
-// Ràng buộc toàn cục DUY NHẤT của chặng D12: đúng 11 tên thuộc tính, đúng 1 tên đối số, đúng 1 tên
+// Ràng buộc toàn cục DUY NHẤT của chặng D12: đúng 5 tên thuộc tính, đúng 1 tên đối số, đúng 1 tên
 // thuộc tính HTML được phép làm vị trí hiển thị. Không ca nào ở trên khẳng định KÍCH THƯỚC hay NỘI
 // DUNG của ba danh sách này — chúng chỉ thử từng cái tên riêng lẻ có/không được dịch. Ba ca dưới
 // đây tồn tại để một lượt SAU nới rộng danh sách (rất dễ xảy ra khi chặng kế tiếp phải với tới 323

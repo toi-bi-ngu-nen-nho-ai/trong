@@ -7,9 +7,12 @@
 import ts from 'typescript'
 
 // Giá trị của các thuộc tính này là chuỗi hiển thị. Đo trên cây vendored ban đầu: 822 lượt, gồm
-// cả `name`/`group`/`title`/`text`. Chặng P1-E đã BỎ bốn tên đó khỏi danh sách — spec
+// cả `name`/`group`/`title`/`text`/`menuName`/`displayName`. Chặng P1-E đã BỎ SÁU tên đó khỏi
+// danh sách (11 tên → 5 tên), không phải bốn. Spec
 // docs/superpowers/specs/2026-08-15-noi-dung-dich-design.md §3.1-§4.1 đo được BỐN mối nối nguy
-// hiểm đọc lại giá trị hiển thị làm khoá tra cứu / vế so sánh, và cả bốn đều đọc `.name`:
+// hiểm đọc lại giá trị hiển thị làm khoá tra cứu / vế so sánh, và cả bốn đều đọc `.name` — trong
+// bảng phân bố 158 chỗ tiêu thụ ngược ở §3.3, `name` chiếm 96 lượt, `group` 38, `title` 12, `text`
+// 8 (còn `label`/`description` — vẫn được giữ — chỉ 2 lượt mỗi tên, canh bằng Cổng 4):
 //   tooltips[name]                          — affine/blocks/note/src/configs/slash-menu.js:51,83
 //   ['Code','Link'].includes(i.name)        — affine/blocks/note/src/configs/slash-menu.js:39
 //   item.name !== 'Divider'                 — affine/gfx/note/src/toolbar/note-menu-config.js:113
@@ -20,6 +23,14 @@ import ts from 'typescript'
 // (Flag[Flag["Text"] = 4] = "Text", affine/shared/src/services/toolbar-service/flags.js:7) — người
 // dùng viết Flag.Text (truy cập thuộc tính), phép thay chuỗi không với tới được. `group` là khoá
 // sắp xếp có cấu trúc ('0_Basic@0'), bị parseGroup mổ (affine/widgets/slash-menu/src/utils.js:11).
+//
+// `menuName` và `displayName` đo được 0 lượt tiêu thụ ngược trong cùng bảng phân bố đó — an toàn
+// ngang `tooltip`/`caption`/`placeholder` (những tên vẫn được giữ ở dưới). Nhưng spec §4.1 (dòng
+// ~140-142) chỉ liệt kê "bảy vị trí đầu cuối" cuối cùng — `tooltip` `label` `description` `caption`
+// `placeholder` `data-tip` đối số `toast` — không có `menuName`/`displayName`, và KHÔNG giải thích
+// vì sao hai tên này bị loại dù đo an toàn như các tên được giữ. Đây là khoảng trống tài liệu kế
+// thừa từ chính spec, không phải quyết định có lý do đã biết — đừng suy diễn lý do khi đọc comment
+// này; nếu cần dùng lại hai tên, phải hỏi lại/đo lại trước.
 //
 // KHÔNG được thêm `key` vào đây: nó chứa "Align left", "Align right" — đọc lên y hệt nhãn hiển
 // thị nhưng là ĐỊNH DANH mục menu, dịch vào là gãy tra cứu.
