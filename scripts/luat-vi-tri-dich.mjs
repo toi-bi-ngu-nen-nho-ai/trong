@@ -6,13 +6,24 @@
 // thấy được) thay vì "dữ liệu bị dịch" (im lặng).
 import ts from 'typescript'
 
-// Giá trị của các thuộc tính này là chuỗi hiển thị. Đo trên cây vendored: 822 lượt.
+// Giá trị của các thuộc tính này là chuỗi hiển thị. Đo trên cây vendored ban đầu: 822 lượt, gồm
+// cả `name`/`group`/`title`/`text`. Chặng P1-E đã BỎ bốn tên đó khỏi danh sách — spec
+// docs/superpowers/specs/2026-08-15-noi-dung-dich-design.md §3.1-§4.1 đo được BỐN mối nối nguy
+// hiểm đọc lại giá trị hiển thị làm khoá tra cứu / vế so sánh, và cả bốn đều đọc `.name`:
+//   tooltips[name]                          — affine/blocks/note/src/configs/slash-menu.js:51,83
+//   ['Code','Link'].includes(i.name)        — affine/blocks/note/src/configs/slash-menu.js:39
+//   item.name !== 'Divider'                 — affine/gfx/note/src/toolbar/note-menu-config.js:113
+// Bảng tooltip của BlockSuite trộn khoá CÓ NHÁY ('Heading 1': {...}) với khoá KHÔNG NHÁY
+// (Italic: {...}, Divider: {...}) trong CÙNG một object — nên không có cách quét literal nào tách
+// được "name: an toàn" khỏi "name: nguy hiểm" một cách đáng tin. `title` đi vào file xuất ra
+// (Markdown/PDF, adapters/markdown/markdown.js:212). `text` là thành viên enum số
+// (Flag[Flag["Text"] = 4] = "Text", affine/shared/src/services/toolbar-service/flags.js:7) — người
+// dùng viết Flag.Text (truy cập thuộc tính), phép thay chuỗi không với tới được. `group` là khoá
+// sắp xếp có cấu trúc ('0_Basic@0'), bị parseGroup mổ (affine/widgets/slash-menu/src/utils.js:11).
+//
 // KHÔNG được thêm `key` vào đây: nó chứa "Align left", "Align right" — đọc lên y hệt nhãn hiển
 // thị nhưng là ĐỊNH DANH mục menu, dịch vào là gãy tra cứu.
-export const THUOC_TINH_HIEN_THI = new Set([
-  'name', 'label', 'tooltip', 'description', 'caption',
-  'group', 'text', 'title', 'menuName', 'displayName', 'placeholder',
-])
+export const THUOC_TINH_HIEN_THI = new Set(['label', 'tooltip', 'description', 'caption', 'placeholder'])
 
 // Đối số của các hàm này là chuỗi hiển thị cho người dùng cuối.
 // KHÔNG thêm `error`/`warn`/`debugLog` (thông báo cho lập trình viên) hay `track` (tên sự kiện đo
