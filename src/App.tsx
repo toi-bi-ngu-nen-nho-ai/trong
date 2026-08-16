@@ -8030,7 +8030,7 @@ function AntibioticDoseCard({
           báo màu vàng nói RÕ vì sao thay vì im lặng biến mất (trông y hệt lỗi hiển thị). */}
       {autoUsage && autoUsage.insufficient ? (
         <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>{autoUsage.text}</p>
+          <p className={`text-[12px] font-bold leading-[1.45] ${NUM_DOSE}`} style={{ color: "var(--c-warn-icon)" }}>{autoUsage.text}</p>
         </div>
       ) : (
         autoUsage &&
