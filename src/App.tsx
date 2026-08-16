@@ -5499,7 +5499,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
 
       {/* Trước đây `{open && <div>}` — gấp/mở khối ~700px này NHẢY TỨC THÌ, đúng khoảnh khắc "chọn
           thuốc → panel gấp lại → cuộn tới thẻ" bị giật nhiều nhất màn hình. Dùng lại kỹ thuật
-          .disc-body (grid-template-rows 0fr→1fr, xem Disclosure) để chiều cao co giãn mượt. */}
+          .disc-body (max-height 0→1400px, xem Disclosure) để chiều cao co giãn mượt. */}
       <div className="disc-body disc-body--flush" data-open={open}>
         <div className="px-4 pb-4">
           {/* Mọi ô đều có hàng nhãn CAO BẰNG NHAU (PatientField) nên đáy các ô nhập thẳng một đường.
