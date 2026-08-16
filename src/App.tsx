@@ -8382,13 +8382,6 @@ function AntibioticsScreen({
           setSelectedEntryId(null)
         }}
         placeholder="Tìm kháng sinh..."
-        // Chỉ tự nhận focus lúc màn VỪA MỞ mà CHƯA có thuốc nào đang chọn — vào tab lần đầu thì bàn
-        // phím bật sẵn, đỡ một chạm để bắt đầu gõ tìm. Đã có thuốc đang chọn (quay lại từ sticky
-        // state, thẻ liều đang mở) thì KHÔNG cướp focus khỏi nội dung thẻ — autoFocus là thuộc tính
-        // chỉ có tác dụng đúng một lần lúc input được gắn vào DOM (screen này remount mỗi lần đổi
-        // tab, xem key={`${tab}-${jumpKey}`} ở DungThuocScreen) nên không tự bật lại khi selectedEntry
-        // đổi giữa chừng.
-        autoFocus={!selectedEntry}
       />
       {/* Đã chọn một hoạt chất: gấp cả danh sách lại, chỉ còn ĐÚNG chip đang chọn — bước Chỉ định/
           Đường dùng/thẻ liều kéo lên ngay sát ô tìm thay vì phải cuộn qua hết ~28 chip mới tới. Bấm
@@ -9828,7 +9821,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             </div>
           </div>
         ) : (
-          <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
+          <p className={`${T.body} py-1`} style={{ color: C.textSoft }}>{drug.preparation}</p>
         )}
         {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
@@ -10157,9 +10150,6 @@ function InfusionCategoryScreen({
           selectDrug(null)
         }}
         placeholder={`Tìm ${categoryLabel.toLowerCase()}...`}
-        // Xem chú thích cùng dòng ở AntibioticsScreen: chỉ tự focus lúc màn vừa mount VÀ chưa chọn
-        // thuốc nào, tránh cướp focus khỏi thẻ liều khi quay lại từ sticky state.
-        autoFocus={!selected}
       />
       {/* opacity-90 khi CHƯA chọn thuốc nào — xem chú thích cùng dòng ở AntibioticsScreen: giảm nhẹ
           độ nổi bật của cả lưới chip so với khối "Đang dùng cho bệnh nhân" (nếu có) đứng trên, lúc
