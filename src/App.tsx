@@ -88,7 +88,7 @@ import { BlockEditor, type LinkTarget } from "./components/BlockEditor"
 import { BlockContent } from "./components/BlockContent"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
-import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, R, T, TAP, adminRouteLabel, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
+import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -7540,6 +7540,9 @@ function AntibioticDoseCard({
   // dùng không có dấu hiệu nào để biết con số đang giả định thận bình thường. Chỉ nhắc khi thuốc
   // THẬT SỰ có nhiều bậc liều; thuốc một bậc (metronidazole, azithromycin) thì CrCl không đổi gì.
   const missingCrcl = crcl == null && patient.rrt === "none" && !patient.akiUnstable && tiers.length > 1
+  // Chỉ hiện "Liều chuẩn" khi nó KHÁC dòng liều ở trên — trước đây meropenem in ra "1 g mỗi 8h" rồi
+  // ngay dưới lại "Liều chuẩn: 1 g mỗi 8h (IV)", đọc như hai thông tin khác nhau.
+  const showStandardDose = !!standardDose && effectiveCrcl == null && !standardDose.startsWith(tier.dose)
   const dosingWeight = useMemo(
     () => resolveDosingWeight(abwKg, heightCm, patient.sex, drug.doseWeightBasis ?? "actual"),
     [abwKg, heightCm, patient.sex, drug.doseWeightBasis],
@@ -7887,23 +7890,16 @@ function AntibioticDoseCard({
           Chỉ định: {disease.name}
         </p>
       )}
-      {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && (
-        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>          {dosingWeight.used != null && dosingWeight.usedLabel ? (
-            <>
-              <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
-                Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1)} kg
-              </p>
-              <p className="text-[12px] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
-                ABW {dosingWeight.abw?.toFixed(1)} kg
-                {dosingWeight.ibw != null && ` · IBW ${dosingWeight.ibw.toFixed(1)} kg`}
-                {dosingWeight.adjBw != null && ` · AdjBW ${dosingWeight.adjBw.toFixed(1)} kg`}
-              </p>
-            </>
-          ) : (
-            <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
-              Thuốc này cần cân nặng lý tưởng/hiệu chỉnh — nhập cân nặng và chiều cao ở trên để tính chính xác.
-            </p>
-          )}
+      {/* Chỉ khối GIẢI THÍCH (đã có cân nặng, đang nói ABW/IBW/AdjBW dùng để nhân) mới gấp lại —
+          con số cân nặng dùng để tính vẫn hiện ngay trong khối liều mg/kg bên dưới, nên gấp phần
+          này không giấu số liệu, chỉ giấu phần diễn giải thêm. Nhánh CHƯA CÓ cân nặng vẫn phải hiện
+          thẳng (không gấp): đó là lời nhắc hành động, cùng loại với "Chưa có CrCl" ở dưới — gấp một
+          lời nhắc "còn thiếu dữ liệu" đi thì người dùng không biết vì sao liều mg/kg không ra số. */}
+      {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used == null && (
+        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+            Thuốc này cần cân nặng lý tưởng/hiệu chỉnh — nhập cân nặng và chiều cao ở trên để tính chính xác.
+          </p>
         </div>
       )}
       {/* Lọc máu / CRRT: đây chính là nhóm bệnh nhân cần app nhất, và cũng là nhóm app dễ im lặng
@@ -7965,7 +7961,7 @@ function AntibioticDoseCard({
         </button>
       )}
 
-      <p className={T.body} style={{ color: "var(--c-text-2)" }}>{tier.dose}</p>
+      <p className={T.body} style={{ color: "var(--c-text-2)" }} dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(tier.dose) }} />
 
       {/* Nhân sẵn mg/kg × cân nặng — phần trước đây bắt người dùng tự nhẩm */}
       {perKgDoses.length > 0 && (
@@ -7992,16 +7988,18 @@ function AntibioticDoseCard({
             <>
               {perKgDoses.map((d, i) => (
                 <p key={i} className="text-[12px] leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
-                  <b>{d.raw}</b> × {dosingWeight.used?.toFixed(1)} kg
-                  {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
+                  <b className={NUM_DOSE}>{d.raw}</b> × <b className={NUM_DOSE}>{dosingWeight.used?.toFixed(1)}</b> kg
+                  {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b className={NUM_DOSE}>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
                 </p>
               ))}
               {/* Ngưỡng liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
                   không để dưới đáy thẻ: chỗ người dùng đang nhìn là dòng mg/kg này. */}
               {doseCapText && (
-                <p className="text-[12px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
-                  {doseCapText}
-                </p>
+                <p
+                  className="text-[12px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg"
+                  style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}
+                  dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(doseCapText) }}
+                />
               )}
               {/* notComputableDose: con số mg/kg vừa nhân ở trên là liều NẠP, còn liều DUY TRÌ (thứ
                   "Cách dùng"/gợi ý số lọ bên dưới cần) lại "theo nồng độ đo được" — không có con số
@@ -8030,13 +8028,21 @@ function AntibioticDoseCard({
           báo màu vàng nói RÕ vì sao thay vì im lặng biến mất (trông y hệt lỗi hiển thị). */}
       {autoUsage && autoUsage.insufficient ? (
         <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>{autoUsage.text}</p>
+          <p
+            className="text-[12px] font-bold leading-[1.45]"
+            style={{ color: "var(--c-warn-icon)" }}
+            dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(autoUsage.text) }}
+          />
         </div>
       ) : (
         autoUsage &&
         !vialGuard.blocked && (
           <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-            <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage.text}</p>
+            <p
+              className="text-[12px] font-bold leading-[1.45]"
+              style={{ color: "var(--c-primary)" }}
+              dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(autoUsage.text) }}
+            />
             <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
               Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
             </p>
@@ -8051,12 +8057,6 @@ function AntibioticDoseCard({
           và người dùng phải đổi được chiều làm tròn ngay tại đây, không phải đi tìm. */}
       {autoUsage && !autoUsage.insufficient && !vialGuard.blocked && (
         <RoundingSwitch on={roundUp} setOn={setRoundUp} excess={autoUsage.excess} delivered={autoUsage.deliveredDose} unit={doseTargetMg?.unit ?? "mg"} />
-      )}
-
-      {/* Chỉ hiện "Liều chuẩn" khi nó KHÁC dòng liều ở trên — trước đây meropenem in ra "1 g mỗi 8h"
-          rồi ngay dưới lại "Liều chuẩn: 1 g mỗi 8h (IV)", đọc như hai thông tin khác nhau. */}
-      {standardDose && effectiveCrcl == null && !standardDose.startsWith(tier.dose) && (
-        <p className={`${T.meta} mt-1`} style={{ color: C.textSoft }}>Liều chuẩn: {standardDose}</p>
       )}
 
       {/* Cảnh báo mức cao luôn hiện; phần còn lại gấp lại giống thẻ thuốc truyền */}
@@ -8093,6 +8093,28 @@ function AntibioticDoseCard({
       >
         Thêm vào danh sách đang dùng
       </button>
+
+      {/* Gộp phần diễn giải cân nặng dùng để tính (ABW/IBW/AdjBW) và câu nhắc lại liều chuẩn vào một
+          Disclosure — cả hai đều là THÔNG TIN THAM KHẢO thêm cho con số đã hiện ở trên, không phải
+          cảnh báo cần đọc ngay. Con số cân nặng THẬT SỰ dùng để nhân liều mg/kg vẫn hiện sẵn trong
+          khối liều/kg phía trên; gấp mục này không giấu số nào, chỉ giấu phần diễn giải. */}
+      {((drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used != null) || showStandardDose) && (
+        <Disclosure label="Điều kiện đặc biệt">
+          {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used != null && dosingWeight.usedLabel && (
+            <div className={showStandardDose ? "mb-2" : undefined}>
+              <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+                Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1)} kg
+              </p>
+              <p className="text-[12px] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
+                ABW {dosingWeight.abw?.toFixed(1)} kg
+                {dosingWeight.ibw != null && ` · IBW ${dosingWeight.ibw.toFixed(1)} kg`}
+                {dosingWeight.adjBw != null && ` · AdjBW ${dosingWeight.adjBw.toFixed(1)} kg`}
+              </p>
+            </div>
+          )}
+          {showStandardDose && <p className={T.meta} style={{ color: C.textSoft }}>Liều chuẩn: {standardDose}</p>}
+        </Disclosure>
+      )}
 
       {(drug.boluses?.length ?? 0) > 0 && (
         <Disclosure label="Liều nạp / bolus" count={drug.boluses?.length}>
@@ -10286,7 +10308,9 @@ function DungThuocScreen({
   }, [log])
   const [showLog, setShowLog] = useState(false)
   const [wardRecipes, setWardRecipes] = useState<Record<string, WardRecipe[]>>(loadWardRecipes)
-  // Bản sao 10 giây cho "Hoàn tác" — xoá bệnh nhân là hành động phá huỷ nhất màn hình này.
+  // Bản sao 20 giây cho "Hoàn tác" — xoá bệnh nhân là hành động phá huỷ nhất màn hình này, và đúng
+  // kiểu hành động dễ bị một cuộc gọi/báo động cắt ngang giữa chừng (xem PRODUCT.md, bối cảnh trực
+  // cấp cứu một tay trên điện thoại) — 10 giây từng dùng là quá ngắn cho tình huống đó.
   const [resetUndo, setResetUndo] = useState<{ patient: PatientVitals; running: RunningDrug[] } | null>(null)
   const resetUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current) }, [])
@@ -10392,7 +10416,7 @@ function DungThuocScreen({
       patient,
       setPatientField: setField,
       // "Bệnh nhân mới" phải xoá SẠCH (số cũ còn sót là sai nguy hiểm nhất — nhìn vẫn "có số"),
-      // gồm cả bảng Đang truyền. Giữ bản sao 10 giây để "Hoàn tác".
+      // gồm cả bảng Đang truyền. Giữ bản sao 20 giây để "Hoàn tác".
       resetPatient: () => {
         setResetUndo({ patient, running })
         if (resetUndoTimer.current) clearTimeout(resetUndoTimer.current)
@@ -10410,11 +10434,11 @@ function DungThuocScreen({
               drug: "Bệnh nhân hiện tại",
               kind: "patientReset",
               inputs: [clearedSummary],
-              output: `Đã xoá${clearedRunningCount > 0 ? ` bệnh nhân và ${clearedRunningCount} thuốc đang dùng` : " bệnh nhân"} — không hoàn tác kịp trong 10 giây`,
+              output: `Đã xoá${clearedRunningCount > 0 ? ` bệnh nhân và ${clearedRunningCount} thuốc đang dùng` : " bệnh nhân"} — không hoàn tác kịp trong 20 giây`,
               weightKg: abwKg,
             }),
           )
-        }, 10_000)
+        }, 20_000)
         reset()
         setRunning([])
         saveRunning([])
