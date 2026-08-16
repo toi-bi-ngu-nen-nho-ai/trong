@@ -5262,7 +5262,7 @@ function SourceLine({ item, bare }: { item: SourceInfo; bare?: boolean }) {
     // bệnh lý đang chọn chưa tự khai nguồn riêng, đây là dòng ĐẦU TIÊN trong nội dung Disclosure —
     // không có wrapper mt-3 pt-2.5 border-t (chỉ áp dụng khi !bare) nên chữ chạm thẳng vào nút
     // gấp/mở phía trên, đo được padding dọc 0px trên chữ 12px.
-    <p className={`${T.meta} py-1`} style={{ color: C.textSoft }}>
+    <p className={`${T.meta}${bare ? " py-1" : ""}`} style={{ color: C.textSoft }}>
       {item.source && <>Nguồn: {item.source}</>}
       {item.source && item.reviewedOn && " · "}
       {item.reviewedOn && <>Rà soát: {formatReviewedOn(item.reviewedOn)}</>}
