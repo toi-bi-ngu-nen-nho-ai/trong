@@ -7705,6 +7705,9 @@ function AntibioticDoseCard({
         }),
         vialCount: bottleCount,
         vialForm: "fixed" as VialForm,
+        // formatFixedUsage() luôn nói "chai" cho dạng đóng gói cố định hàm lượng — không tham số hoá
+        // qua vialLabel như hai nhánh lọ/ống bên dưới, nên khớp cứng chuỗi tại đây cho nhất quán.
+        vialLabel: "chai",
         // Số lần lượng thuốc thực nhận so với liều tính được — dùng để giải thích/cảnh báo phần dư
         // do làm tròn, xem roundingExcess và khối RoundingNote bên dưới.
         excess: roundingExcess(pickedDose, doseTargetMg.high ?? doseTargetMg.low),
@@ -7734,6 +7737,7 @@ function AntibioticDoseCard({
           text: `Công thức đã lưu chỉ có ${formatDoseNumber(haveDoseUnit)} ${doseTargetMg.unit} (${vials} ${vialLabel}) — KHÔNG đủ cho liều cần ${formatDoseNumber(doseTargetMg.high ?? doseTargetMg.low)} ${doseTargetMg.unit}. Sửa số ${vialLabel} trong "Bảng pha thuốc" rồi lưu lại, hoặc chuyển về công thức hệ thống.`,
           vialCount: vials,
           vialForm: mixCfg.vialForm,
+          vialLabel,
           insufficient: true as const,
         }
       }
@@ -7778,13 +7782,14 @@ function AntibioticDoseCard({
       routeShort === "TTM" && !onPump && mixCfg.infuseMinutes != null ? dropsPerMinute(pickedMl, mixCfg.infuseMinutes, mixCfg.dropFactor ?? DEFAULT_DROP_FACTOR) : null
     const rateMlPerHourRaw = onPump && mixCfg.infuseMinutes != null ? pumpRateMlPerHour(pickedMl, mixCfg.infuseMinutes) : null
     const rateMlPerHour = rateMlPerHourRaw != null ? roundToStep(rateMlPerHourRaw, DEFAULT_PUMP_STEP) : null
+    const usageVialLabel = activeMix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ")
     return {
       text: formatVialUsage({
         name: drug.name,
         vialAmount: mixCfg.vialAmount,
         vialUnit: mixCfg.vialUnit,
         vialsUsed: vials,
-        vialLabel: activeMix?.vialLabel ?? (mixCfg.vialForm === "solution" ? "ống" : "lọ"),
+        vialLabel: usageVialLabel,
         // Chỉ ống dung dịch mới có thể tích riêng đáng nói kiểu "1 g/4 ml" (mẫu 4b) — lọ bột chưa có
         // thể tích tới khi hoàn nguyên, thể tích đó đã nằm trong "đủ X ml" bên dưới rồi.
         vialVolumeMl: mixCfg.vialForm === "solution" ? mixCfg.vialVolumeMl ?? undefined : undefined,
@@ -7799,11 +7804,17 @@ function AntibioticDoseCard({
       }),
       vialCount: vials,
       vialForm: mixCfg.vialForm,
+      vialLabel: usageVialLabel,
       excess: roundingExcess(deliveredDose, doseTargetMg.high ?? doseTargetMg.low),
       deliveredDose,
     }
   }, [mixCfg, doseTargetMg, drug.name, activeMix?.vialLabel, routeShort, roundUp])
   const vialGuard = useVialCountGuard(autoUsage?.vialCount ?? null, autoUsage?.vialForm ?? "powder")
+  // Số lọ/ống/chai tự tính đổi khi công tắc làm tròn hay cân nặng đổi (giống CrCl đổi khi nhập liệu
+  // bệnh nhân) — đếm chạy từ số cũ sang số mới thay vì bật thẳng, cùng hiệu ứng dùng cho CrCl/tốc độ
+  // bơm, để người dùng THẤY con số vừa tăng hay giảm, không chỉ đọc lại một con số tĩnh khác.
+  const vialCountFinalText = autoUsage?.vialCount != null ? trim(autoUsage.vialCount, 0) : "—"
+  const vialCountDisplay = useCountUp(autoUsage?.vialCount ?? null, 0, vialCountFinalText)
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
   const otherWarnings = (drug.warnings ?? []).filter((w) => w.severity !== "cao")
   const rrtDoseText =
@@ -8038,6 +8049,13 @@ function AntibioticDoseCard({
         autoUsage &&
         !vialGuard.blocked && (
           <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
+            {/* Số lọ/ống/chai đếm chạy khi đổi (công tắc làm tròn, cân nặng...) — cùng hiệu ứng đếm
+                của CrCl, đặt trước câu "Cách dùng" đầy đủ để mắt bắt được NGAY con số vừa đổi trước
+                khi đọc hết câu bên dưới. */}
+            <p className="flex items-baseline gap-1.5 mb-1">
+              <span className={`${T.critical} ${NUM_DOSE}`} style={{ color: "var(--c-primary)" }}>{vialCountDisplay}</span>
+              <span className={T.meta} style={{ color: "var(--c-primary)" }}>{autoUsage.vialLabel}</span>
+            </p>
             <p
               className="text-[12px] font-bold leading-[1.45]"
               style={{ color: "var(--c-primary)" }}
