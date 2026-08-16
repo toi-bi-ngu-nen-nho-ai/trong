@@ -7965,7 +7965,7 @@ function AntibioticDoseCard({
         </button>
       )}
 
-      <p className={T.body} style={{ color: "var(--c-text-2)" }}>{tier.dose}</p>
+      <p className={`${T.body} ${NUM_DOSE}`} style={{ color: "var(--c-text-2)" }}>{tier.dose}</p>
 
       {/* Nhân sẵn mg/kg × cân nặng — phần trước đây bắt người dùng tự nhẩm */}
       {perKgDoses.length > 0 && (
@@ -7999,7 +7999,7 @@ function AntibioticDoseCard({
               {/* Ngưỡng liều một lần dùng đã cắt vào khoảng liều vừa nhân — phải nói ngay cạnh con số,
                   không để dưới đáy thẻ: chỗ người dùng đang nhìn là dòng mg/kg này. */}
               {doseCapText && (
-                <p className="text-[12px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
+                <p className={`text-[12px] font-bold leading-[1.45] mt-1 px-2 py-1.5 rounded-lg ${NUM_DOSE}`} style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
                   {doseCapText}
                 </p>
               )}
@@ -8036,7 +8036,7 @@ function AntibioticDoseCard({
         autoUsage &&
         !vialGuard.blocked && (
           <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-            <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-primary)" }}>{autoUsage.text}</p>
+            <p className={`text-[12px] font-bold leading-[1.45] ${NUM_DOSE}`} style={{ color: "var(--c-primary)" }}>{autoUsage.text}</p>
             <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
               Tự tính theo {tier.label} {ward ? "và công thức pha của bạn" : "và công thức pha mặc định"} — kiểm tra lại trước khi dùng.
             </p>
