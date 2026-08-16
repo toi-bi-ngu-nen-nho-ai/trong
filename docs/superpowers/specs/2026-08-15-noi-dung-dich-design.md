@@ -110,10 +110,10 @@ loại theo vai trò cú pháp. Bốn vai trò dưới đây là **định danh*
 `Triangle` `Diamond` `Ellipse` `Curve` `Straight` `square bracket` `Move Up` `Move Down`
 `Heading 1`–`Heading 6` `Code Block` `Bulleted List` `Numbered List` `To-do List`.
 
-### 3.3 Bốn mức, KHÔNG phải một
+### 3.3 Năm mức, KHÔNG phải một
 
 Lượt soi kỹ cho thấy 27 chuỗi này **không cùng một mức**. Gộp chúng vào một bảng là sai, và bản đầu
-của spec này đã sai đúng chỗ đó.
+của spec này đã sai đúng chỗ đó. Sau khi phân loại xong, **chỉ còn 3 chuỗi thật sự phải từ chối**.
 
 **Mức 1 — chỗ định danh là GIÁ TRỊ ĐƯỢC LƯU XUỐNG.** Chỉ `Triangle` và `Diamond`:
 
@@ -129,25 +129,30 @@ nhãn hình tam giác trong menu Hình, *và* kiểu đầu mũi tên connector 
 theo chuỗi nên không phân biệt được; dịch nhãn menu Hình là dịch luôn nhãn đầu connector trong khi
 `case` giữ tiếng Anh. Đây là con `LinkedPage` của P1-B tái sinh ở trục khác.
 
-**Mức 2 — chỗ định danh là THÀNH VIÊN ENUM đã dịch.** `Ellipse` `Italic` `Light` `Dark` `Normal`
-`Text`:
+**Mức 2 — chỗ định danh là THÀNH VIÊN ENUM đã dịch.** Chỉ `Text` còn ở mức này; năm chuỗi kia
+(`Ellipse` `Italic` `Light` `Dark` `Normal`) hoá ra là **mức 5**, xem §3.6:
 
 ```js
 ShapeType["Ellipse"] = "ellipse";   FontStyle["Italic"] = "italic";   Flag[Flag["Text"] = 4] = "Text";
 ```
 
 Giá trị lưu xuống (`"ellipse"`, `"italic"`, `4`) **khác** chuỗi hiển thị, nên chúng KHÔNG nằm trong
-dữ liệu tài liệu. Nhưng vẫn phải từ chối, và lý do khác hẳn mức 1: người dùng enum viết `Flag.Text`
-— **truy cập thuộc tính, không phải chuỗi**, nên bộ thay không với tới được. Dịch chuỗi là biến
-`Flag.Text` thành `undefined`.
+dữ liệu tài liệu. `Text` vẫn phải từ chối vì một lý do khác hẳn mức 1: người dùng enum viết
+`Flag.Text` — **truy cập thuộc tính, không phải chuỗi**, nên bộ thay không với tới được. Dịch chuỗi
+là biến `Flag.Text` thành `undefined`.
 
-**Mức 3 — chỗ định danh nằm TRỌN trong cây vendored và không đi vào tài liệu.** 15 chuỗi:
+Ranh giới giữa mức 2 và mức 5 là: **chỗ hiển thị và chỗ enum có chung một dòng dữ liệu không.** Với
+`Text` thì có (`note-menu-config.js` vừa định nghĩa nhãn vừa nhánh theo `item.type`); với năm chuỗi
+kia thì không.
+
+**Mức 3 — chỗ định danh nằm TRỌN trong cây vendored và không đi vào tài liệu.** 16 khoá:
 
 - nhóm menu note (11): `Heading 1`–`Heading 6` `Bulleted List` `Numbered List` `To-do List`
   `Code Block` `Divider`;
-- nhóm menu More và slash-menu (4): `Copy` `Delete` `Move Up` `Move Down`.
+- nhóm menu More và slash-menu (4): `Copy` `Delete` `Move Up` `Move Down`;
+- tiền tố `Drag/Click to insert ` (1) — không phải nhãn, xem §3.7.
 
-Đã kiểm chứng bằng phép đếm toàn cây (§3.4): **0/15 xuất hiện trong `affine/model/`**; mọi chỗ định
+Đã kiểm chứng bằng phép đếm toàn cây (§3.4): **0/16 xuất hiện trong `affine/model/`**; mọi chỗ định
 danh đều là khoá bảng tooltip, map nhãn của outline, placeholder của paragraph, hoặc phép so sánh
 nội bộ.
 
@@ -193,6 +198,73 @@ Ba ca đã đo và **bị loại** dù thoạt nhìn giống mức 3:
 `Text` là **ca suýt lọt** — nó nằm trong nhóm menu note theo mọi dấu hiệu bề ngoài và chỉ rụng ra khi
 đếm thật. Đó là lý do §4.6 phải có cổng riêng chứ không tin danh sách chép tay.
 
+### 3.6 Vì sao 9 chuỗi mức 5 là báo động giả
+
+Cổng 4 hỏi *"chuỗi này có xuất hiện ở vị trí định danh ở đâu đó không"*. Đó là **phép đại diện** cho
+câu hỏi thật: *"nó có phải mối nối giữa hai chỗ không"*. Với 9 chuỗi này, chỗ định danh duy nhất là
+**định nghĩa enum trong `affine/model/`**, không bao giờ nhận chuỗi hiển thị:
+
+```js
+// gfx/shape/src/toolbar/shape-menu-config.js
+{ name: ShapeType.Ellipse,   // truy cập thuộc tính → giá trị "ellipse", bộ thay KHÔNG chạm
+  tooltip: 'Ellipse' }       // nhãn hiển thị, chỉ mình nó bị thay
+// ShapeComponentConfigMap khoá theo config.name = "ellipse", KHÔNG theo tooltip
+
+// gfx/connector/src/toolbar/connector-dense-menu.js
+menu.action({ name: 'Curve', select: createSelect(ConnectorMode.Curve) })
+// model/src/consts/connector.js — ConnectorMode là enum SỐ:
+ConnectorMode[ConnectorMode["Straight"] = 0] = "Straight";   // lưu xuống là 0
+
+// components/src/color-picker/color-picker.js — so sánh bằng chữ THƯỜNG
+if (type !== 'normal') { const another = type === 'light' ? 'dark' : 'light'; }
+
+// gfx/text/src/toolbar/actions.js
+{ key: 'Italic', value: FontStyle.Italic }   // nhãn và giá trị tách rời
+```
+
+Đối chiếu ca thật để thấy khác biệt: `Divider` có `name: 'Divider'` ở dòng 105 và
+`item.name !== 'Divider'` ở dòng 113 — **cùng file, cùng một dòng dữ liệu**.
+
+**Không có quy tắc cú pháp rẻ nào thay được phép kiểm tay.** Đã thử hai quy tắc trên dữ liệu thật:
+
+| Quy tắc nới lỏng | `Divider` | `Ellipse` | `square bracket` |
+|---|---|---|---|
+| chỗ định danh **cùng gói** với chỗ hiển thị | refuse ✓ | allow ✓ | **allow ✗ SAI** |
+| chỗ định danh **cùng file** với chỗ hiển thị | refuse ✓ | allow ✓ | **allow ✗ SAI** |
+
+`square bracket` định nghĩa ở `affine/shared/consts/bracket-pairs.js` và so sánh ở
+`affine/inlines/preset/keymap/bracket.js` — khác file, khác gói, **mà vẫn là mối nối thật**. Nó
+chứng minh mối nối vượt được mọi ranh giới cú pháp, nên mọi quy tắc tự động nới lỏng đều bỏ lọt đúng
+lớp ca này. Đó là lý do §4.8 dùng **bản khai được ghim** chứ không nới Cổng 4.
+
+### 3.7 Lớp lỗi THỨ HAI: phẫu thuật chuỗi trên literal đã dịch
+
+Không thuộc vai trò định danh, và không cổng nào trong spec bắt được:
+
+```js
+// gfx/note/src/toolbar/note-menu-config.js:117-119
+tooltip: item.type !== 'text'
+    ? item.tooltip.replace('Drag/Click to insert ', '')   // ← cắt tiền tố khỏi literal ĐÃ DỊCH
+    : 'Text',
+```
+
+Menu note dựng tooltip bằng cách **cắt tiền tố** khỏi chính chuỗi mà đợt 2 sẽ dịch. Chuỗi mẫu
+`'Drag/Click to insert '` nằm ở vị trí đối số — ngoài danh sách cho phép — nên **không** được dịch.
+Sau lượt dịch, `.replace` hết khớp và tooltip hiện nguyên câu dài thay vì mỗi cái nhãn. Chuỗi vẫn có
+mặt trong `dist/`, **luật C vẫn xanh**.
+
+Đã quét toàn cây tìm mọi literal là đối số của `replace`/`split`/`startsWith`/`includes`/`match`… mà
+lại là mảnh của một khoá sắp dịch: **12 chỗ trúng, 11 là báo động giả** (chúng cắt trên `flavour`,
+trên hướng kéo `'top-left'`, hoặc nằm trong `test-utils` không ship). **Đúng 1 chỗ là thật**, và nó
+làm gãy 12 khoá.
+
+Vì tỉ lệ báo động giả 11/12, **không dựng cổng cho lớp này** — một cổng đỏ sai 11 lần trên 12 là
+đúng thứ bài học #2 cảnh báo. Thay vào đó vá tại gốc: đưa `'Drag/Click to insert '` vào
+`vi-tron-cay.json` (đúng **1 chỗ** trong toàn cây), cộng Cổng 10 canh tính nhất quán tiền tố (§4.9).
+
+Ghi chú: `TEXT_ITEMS`/`LIST_ITEMS` không được dùng ở đâu khác, nên 12 chuỗi
+`Drag/Click to insert X` **chưa bao giờ hiện ra nguyên vẹn** — chúng chỉ tồn tại để bị cắt.
+
 ### 3.5 Hai hướng đã cân nhắc và loại
 
 **Dịch cả vai trò định danh cho TOÀN BỘ 27 chuỗi.** Loại vì mức 1 và mức 2 ở trên: `Triangle` đi vào
@@ -201,8 +273,23 @@ tài liệu, `Flag.Text` không với tới được bằng phép thay chuỗi.
 **Chặn hết rồi bù bằng lớp dịch thứ hai lúc chạy trong `src/board/`.** Loại vì nó dựng hai nguồn sự
 thật cho cùng một câu chữ, và `kiem:dist` không canh được cái thứ hai.
 
-**Chốt: fail-closed cho 12 chuỗi mức 1, mức 2 và `Untitled`; chế độ dịch trọn cây cho 15 chuỗi
-mức 3; `square bracket` rụng theo §4.5 vì thuộc mức 4.**
+**Mức 5 — báo động giả.** 9 chuỗi: `Ellipse` `Diamond` `Triangle` `Curve` `Straight` `Normal`
+`Light` `Dark` `Italic`. Cổng 4 từ chối chúng, nhưng đọc dây nối thật thì **nhãn hiển thị và giá trị
+được lưu là hai literal khác nhau, ở hai không gian tên khác nhau** — xem §3.6. Chúng được nhận lại
+qua bản khai được ghim (§4.8).
+
+**Chốt phân loại:**
+
+| Mức | Chuỗi | Xử |
+|---|---|---|
+| 1 — giá trị lưu xuống | `Triangle` `Diamond` (vai trò đầu connector) | phần connector không dịch; nhãn menu Hình nhận qua §4.8 |
+| 2 — thành viên enum | `Text` | **từ chối** |
+| 3 — định danh nội bộ | 15 chuỗi + tiền tố `Drag/Click to insert ` | **trọn cây** (§4.6) |
+| 4 — không phải chữ hiển thị | `square bracket` + 10 tên ngoặc | **không thành khoá** (§4.5) |
+| 5 — báo động giả | 9 chuỗi menu Hình / Connector / màu | **nhận, có bản khai ghim** (§4.8) |
+| — | `Untitled` | **từ chối** — đi vào file xuất ra |
+
+Còn đúng **3 chuỗi bị từ chối**: `Text`, `Untitled`, `square bracket`.
 
 ---
 
@@ -224,7 +311,7 @@ Fail-closed: trúng thì DỪNG, exit khác 0, nêu khoá + `file:dòng` + vai t
 
 ### 4.2 Bảng thuật ngữ — 28 từ
 
-Đo trên **đúng tập 147 khoá cuối cùng** (§5), đã bỏ hư từ tiếng Anh, đếm theo **số chuỗi phân biệt
+Đo trên **đúng tập 157 khoá cuối cùng** (§5), đã bỏ hư từ tiếng Anh, đếm theo **số chuỗi phân biệt
 chứa từ đó** (không đếm lặp trong cùng một chuỗi):
 
 ```
@@ -236,13 +323,14 @@ divider(3)
 
 > **Đây là con số thứ TƯ của đại lượng "từ lặp", và ba con số kia đều đã hết giá trị.** "61 từ" suy
 > ra từ tập 323 chuỗi đã bị bác bỏ. "33 từ" đo trên tập 185, trước Cổng 4. "29 từ" đo trên tập 148,
-> trước khi chế độ trọn cây (§4.6) kéo 15 khoá về. Chỉ **28** ứng với tập khoá thật — và nó giữ
-> nguyên 28 qua cả hai lượt mở rộng trọn cây, **đừng đọc đó là dấu hiệu con số đã ổn định**.
+> trước khi §4.6 và §4.8 kéo 25 khoá về. Chỉ **28** ứng với tập khoá thật — và nó giữ nguyên 28 qua
+> **ba** lượt mở rộng liên tiếp (147 → 156 → 157 khoá), **đừng đọc đó là dấu hiệu con số đã ổn định**;
+> thành phần bên trong đổi mỗi lượt, chỉ số đếm tình cờ trùng.
 >
 > Đại lượng này đã đổi giá trị bốn lần trong một ngày, mỗi lần vì phạm vi đổi chứ không vì phép đếm
 > sai. **Ai đổi phạm vi §2, §3.3 hay §4.6 thì phải đo lại, không được mang theo con số cũ.**
 
-Chủ dự án chốt 28 mục, 147 chuỗi dịch theo — thay vì quyết định câu chữ 147 lần rời rạc.
+Chủ dự án chốt 28 mục, 157 chuỗi dịch theo — thay vì quyết định câu chữ 157 lần rời rạc.
 
 ### 4.3 Quy tắc biên tập
 
@@ -310,7 +398,7 @@ cùng file cấu hình, cùng chẳng bao giờ hiện ra, nhưng không có ph�
 Hai lớp bảo vệ này **bù nhau chứ không thay nhau**. Danh sách 31 chuỗi chỉ xuất hiện ở `name:` đủ
 ngắn để đọc hết bằng mắt một lượt; đó là lớp bắt được nhóm này. Dự kiến loại 10 tên ngoặc.
 
-### 4.6 Chế độ dịch trọn cây — 15 khoá mức 3
+### 4.6 Chế độ dịch trọn cây — 16 khoá mức 3
 
 `src/board/vi.json` giữ nguyên hình dạng và nguyên nghĩa: **thay ở vị trí hiển thị**. Khoá mức 3 đi
 vào một file thứ hai, `src/board/vi-tron-cay.json`, cùng hình dạng phẳng `{ "English": "Tiếng Việt" }`
@@ -353,20 +441,56 @@ Cổng 4 từ chối, mà lại có một `tooltip:`/`description:`/`caption:`/`
 Bằng chứng đỏ: giữ `"Drag/Click to insert Text block"` trong `vi.json` (nhãn `Text` của nó vẫn bị
 Cổng 4 từ chối) → phải đỏ, nêu `note-menu-config.js:36` cùng nhãn `"Text"`.
 
+### 4.8 Cổng 9 — bản khai được ghim cho 9 chuỗi mức 5
+
+Không nới Cổng 4 (§3.6 đã chứng minh mọi quy tắc nới lỏng tự động đều bỏ lọt `square bracket`).
+Thay vào đó dùng **đúng khuôn `bang-bam-vendor.json` của D11**: khai những gì đã kiểm, rồi để cổng
+gào lên khi thực tế lệch khỏi bản khai.
+
+`src/board/vi-mien-dinh-danh.json` — mỗi chuỗi khai **chính xác** tập chỗ định danh đã soi:
+
+```json
+{ "Ellipse": ["affine/model/src/consts/shape.js:14"],
+  "Curve":   ["affine/model/src/consts/connector.js:29",
+              "affine/model/src/elements/connector/connector.js:44"] }
+```
+
+Cổng 9 quét lại cây, tính tập chỗ định danh thật của từng khoá, và **DỪNG khi lệch bản khai** — thêm
+một chỗ, bớt một chỗ, đổi file, đều đỏ. Khác danh sách miễn ở đúng điểm này: danh sách miễn mục đi
+trong im lặng khi thượng nguồn đổi, bản khai được ghim thì đỏ ngay lượt `dung:vendor` kế tiếp.
+
+Chuỗi được nhận vào đây thì **vẫn dịch theo luật vị trí thường** (`vi.json`), không phải trọn cây —
+chính vì chỗ định danh của nó phải giữ nguyên tiếng Anh.
+
+Bằng chứng đỏ bắt buộc: sửa một dòng bản khai của `Ellipse` thành đường dẫn khác → Cổng 9 phải đỏ và
+nêu cả chỗ khai lẫn chỗ đo được.
+
+### 4.9 Cổng 10 — tiền tố nhất quán
+
+Cưỡng chế lớp lỗi §3.7. Với mỗi khoá trọn cây `P` **kết thúc bằng dấu cách** (tức nó là tiền tố bị
+đem đi cắt), mọi khoá `K` bắt đầu bằng `P` phải có bản dịch bắt đầu bằng bản dịch của `P`.
+
+Hôm nay đúng một cặp: `P = "Drag/Click to insert "`, `K` = 12 chuỗi `Drag/Click to insert X`. Nếu
+`P → "Kéo/Bấm để chèn "` thì cả 12 bản dịch phải mở đầu bằng `"Kéo/Bấm để chèn "`, để
+`.replace(P_vi, '')` vẫn cắt đúng.
+
+Kiểm bằng phép so chuỗi thuần, không cần duyệt cây. Bằng chứng đỏ: đổi một trong 12 bản dịch sang
+mở đầu khác → đỏ, nêu đúng khoá đó.
+
 ---
 
 ## 5. Ba đợt
 
 Mỗi đợt là một vòng khép kín: soạn khoá → `npm run dung:vendor` → bảy cổng → mở app soi mắt → chủ dự
-án duyệt câu chữ. Một khoá làm hỏng thứ gì thì nó lẫn giữa 24 thay đổi, không phải giữa 147.
+án duyệt câu chữ. Một khoá làm hỏng thứ gì thì nó lẫn giữa 24 thay đổi, không phải giữa 157.
 
 | Đợt | Khoá | Bề mặt |
 |---|---:|---|
 | **1** | 24 | toast + `data-tip` + tooltip thanh công cụ edgeless — bấm một cái là thấy |
-| **2** | 79 | nhãn menu shape / connector / frame / group / brush |
 | **3** | 29 | câu mô tả dài (`description:`) + tên định dạng |
-| **trọn cây** | 15 | nhóm menu note + `Copy`/`Delete`/`Move Up`/`Move Down` (§4.6) |
-| | **147** | **tổng, theo quy tắc cơ học** |
+| **2** | 88 | nhãn menu Hình / Connector / frame / group / brush — gồm 9 khoá nhận qua §4.8 |
+| **trọn cây** | 16 | nhóm menu note + `Copy`/`Delete`/`Move Up`/`Move Down` + tiền tố (§4.6) |
+| | **157** | **tổng** |
 
 Đợt 1 gồm: `Copied to clipboard` `Link` `Frame` `Cutting mode` `Inline Equation` `Create Table`
 `Release from group` `Group` `Align objects` `Draw connector` `Lock` `Zoom to selection` `Mind Map`
@@ -375,12 +499,17 @@ Mỗi đợt là một vòng khép kín: soạn khoá → `npm run dung:vendor` 
 chiếu (`You have reached the {first,last} frame`, `The presentation requires at least 1 frame. …`).
 
 Nhóm trọn cây: `Heading 1`–`Heading 6` `Bulleted List` `Numbered List` `To-do List` `Code Block`
-`Divider` `Copy` `Delete` `Move Up` `Move Down`.
+`Divider` `Copy` `Delete` `Move Up` `Move Down` `Drag/Click to insert `.
 
-**147 là con số CƠ HỌC** — đã trừ 4 cặp va chạm (§4.3.2), 10 tên ngoặc (§4.5) và 2 chuỗi phụ dính
-nhãn `Text` (§4.3.4). Còn một lớp trừ nữa **không cơ học được**: quy tắc nhóm anh em §4.3.5, dự kiến
-lấy đi khoảng 5 khoá (`Elbowed`; `Square` + `Rounded rectangle`; hai khoá của bộ chọn màu). Đích thực
-tế **khoảng 142**.
+Bản khai ghim (§4.8), nằm trong đợt 2: `Ellipse` `Diamond` `Triangle` `Curve` `Straight` `Normal`
+`Light` `Dark` `Italic`.
+
+**157 đã trừ hết** 4 cặp va chạm (§4.3.2), 10 tên ngoặc (§4.5) và 2 chuỗi phụ dính nhãn `Text`
+(§4.3.4).
+
+**Quy tắc nhóm anh em §4.3.5 giờ không lấy đi khoá nào** — nó chỉ kích hoạt khi một nhóm menu bị xẻ
+đôi, mà sau §4.8 cả ba menu Hình / kiểu Connector / bộ chọn màu đều ra tiếng Việt trọn vẹn. Năm khoá
+mà bản trước dự định bỏ (`Square`, `Rounded rectangle`, `Elbowed`, `Custom`, `Colors`) nay ở lại.
 
 Kế hoạch phải tự đo lại con số cuối của từng đợt và ghi vào báo cáo, **không chép các con số này**.
 
@@ -391,9 +520,9 @@ Kế hoạch phải tự đo lại con số cuối của từng đợt và ghi v
 
 | VI | EN | % Anh | File |
 |---:|---:|---:|---|
-| 1 | 2 | 67% | `gfx/connector/.../connector-dense-menu.js` — `Curve` `Straight` |
-| 2 | 3 | 60% | `components/.../color-picker.js` — `Normal` `Light` `Dark` |
-| 2 | 3 | 60% | `gfx/shape/.../shape-menu-config.js` — `Ellipse` `Diamond` `Triangle` |
+| 1 | 2 | 67% | `gfx/connector/.../connector-dense-menu.js` — `Curve` `Straight`; **§4.8 gỡ cả hai** |
+| 2 | 3 | 60% | `components/.../color-picker.js` — `Normal` `Light` `Dark`; **§4.8 gỡ cả ba** |
+| 2 | 3 | 60% | `gfx/shape/.../shape-menu-config.js` — `Ellipse` `Diamond` `Triangle`; **§4.8 gỡ cả ba** |
 | 16 | 12 | 43% | `rich-text/src/conversion.js` |
 | 10 | 7 | 41% | `blocks/note/src/configs/tooltips.js` |
 | 27 | 12 | 31% | `gfx/note/.../note-menu-config.js` |
@@ -404,8 +533,10 @@ Con số 31% của menu note **là ảo**: 24 trong 27 chuỗi Việt của nó 
 dính nhãn ở §4.3.4. Trừ chúng đi thì menu note còn **3 VI / 12 EN = 80% tiếng Anh** — và đó chính là
 lý do §4.6 tồn tại. Sau §4.6 menu note ra tiếng Việt trọn vẹn.
 
-Ba menu còn hỏng — Hình, kiểu Connector, bộ chọn màu — thuộc mức 1 và mức 2 nên không cứu được ở
-chặng này; quy tắc §4.3.5 để chúng nguyên tiếng Anh thay vì pha trộn.
+Bảng trên là **ảnh chụp trước §4.6 và §4.8**. Sau cả hai, mọi dòng trong bảng về 0% tiếng Anh trừ
+một chỗ: mục **`Text`** của menu note, cùng tooltip và description của nó (§4.3.4 bắt bỏ theo). Một
+mục tiếng Anh giữa mười ba mục tiếng Việt — chấp nhận, vì §4.3.5 chỉ áp khi nhóm bị xẻ *phần lớn*,
+không áp cho một mục lẻ.
 
 ---
 
@@ -426,11 +557,12 @@ lượt review.
 - **306 chuỗi không tới `dist/`.** Quy tắc đã chốt ở P1-C, không đụng lại.
 - **Cơ chế dịch thứ hai lúc chạy.** Đã cân nhắc và loại ở §3.5.
 - **Đổi sang hệ i18n thật.** Giữ nguyên phán quyết §9 của spec `2026-08-14`.
-- **12 khoá còn bị từ chối** (§3.3): `Triangle` `Diamond` `Curve` `Straight` · `Text` `Light` `Dark`
-  `Normal` `Italic` `Ellipse` · `Untitled` · `square bracket`. Mức 1 cần chặng riêng về dữ liệu đã
-  lưu; mức 2 cần cách với tới `Flag.Text` mà phép thay chuỗi không có; `Untitled` đi vào file xuất
-  ra. Hệ quả nhìn thấy: **menu Hình, menu kiểu Connector và bộ chọn màu ở lại tiếng Anh** — ba bề
-  mặt, không hơn.
+- **3 khoá còn bị từ chối**: `Text` (enum `Flag.Text`, không với tới bằng phép thay chuỗi),
+  `Untitled` (đi vào file xuất ra Markdown/PDF), `square bracket` (mức 4, không phải chữ hiển thị).
+  Hệ quả nhìn thấy duy nhất: **mục `Text` của menu note ở lại tiếng Anh**.
+- **Vai trò đầu connector của `Triangle`/`Diamond`.** Nhãn menu Hình được dịch qua §4.8, nhưng
+  `PointStyleMap` và `getConnectorModeName` giữ bản tiếng Anh vì khoá của chúng là biểu thức tính
+  toán, ngoài luật vị trí. Không hỏng, nhưng nếu hai map đó có hiện ra thì sẽ lệch ngôn ngữ.
 
 ---
 
@@ -445,14 +577,20 @@ bảy cổng, không chỉ cổng liên quan trực tiếp.
 
    | Cổng | Cách ép đỏ | Phải nêu đúng |
    |---|---|---|
-   | 4 — vai trò định danh | thêm `"Ellipse"` vào `vi.json` | chỗ `ShapeType["Ellipse"]` |
-   | 6 — thành viên enum | thêm `"Text"` vào `vi-tron-cay.json` | `shared/src/services/toolbar-service/flags.js:7` |
+   | 4 — vai trò định danh | thêm `"Untitled"` vào `vi.json` | một trong 29 chỗ định danh của nó |
    | 5 — còn lượt sót | dịch trọn cây `"Divider"` rồi cố tình bỏ qua một chỗ so sánh | số lượt còn lại ≠ 0 |
+   | 6 — thành viên enum | thêm `"Text"` vào `vi-tron-cay.json` | `shared/src/services/toolbar-service/flags.js:7` |
+   | 7 — khoá ở cả hai file | để `"Copy"` trong cả `vi.json` lẫn `vi-tron-cay.json` | tên khoá trùng |
    | 8 — chuỗi phụ dính nhãn | giữ `"Drag/Click to insert Text block"` trong `vi.json` | `note-menu-config.js:36` cùng nhãn `"Text"` |
+   | 9 — bản khai ghim | đổi một dòng bản khai của `"Ellipse"` sang đường dẫn khác | cả chỗ khai lẫn chỗ đo được |
+   | 10 — tiền tố nhất quán | đổi một bản dịch `Drag/Click to insert X` sang mở đầu khác | đúng khoá đó |
 
-   Ca của Cổng 4 dùng `"Ellipse"` chứ **không** dùng `"Divider"` lẫn `"Copy"`: sau §4.6 cả hai đều
-   là khoá trọn cây hợp lệ nên không ép Cổng 4 đỏ được nữa. Bản đầu kê `"Divider"`, bản thứ hai kê
-   `"Copy"` — cả hai hỏng vì cùng một lý do: phạm vi §4.6 nới ra dưới chân bằng chứng.
+   **Bằng chứng đỏ của Cổng 4 đã hỏng ba lần liên tiếp**, mỗi lần vì cùng một lý do: chuỗi được chọn
+   làm mẫu sau đó được một cơ chế mới nhận về, nên hết ép cổng đỏ được. `"Divider"` rụng vì §4.6,
+   `"Copy"` rụng vì §4.6 mở rộng, `"Ellipse"` rụng vì §4.8. Chốt ở `"Untitled"` — nó nằm trong danh
+   sách **3 chuỗi từ chối cuối cùng**, và lý do từ chối (đi vào file xuất ra) không có cơ chế nào
+   trong spec này gỡ được. Người lập kế hoạch **phải kiểm lại điều đó còn đúng không** trước khi
+   dùng, thay vì chép.
 4. **Mặt xanh có nội dung** cho từng cổng mới. Cổng 4 phải khẳng định duyệt qua **đủ số khoá thật của
    đợt**; Cổng 5 phải khẳng định **mẫu số** — 5 tới 6 lượt mỗi chuỗi trước khi thay, 0 lượt sau. Bốn
    trong mười một lỗi của P1-B là cổng xanh rỗng tuếch; ba cổng mới phải tự chứng minh không thuộc
@@ -463,9 +601,14 @@ bảy cổng, không chỉ cổng liên quan trực tiếp.
    `vi-tron-cay.json`, sau khi áp §4.3.4, §4.3.5 và §4.5.
 8. Mở app ở màn Mindmap, thanh công cụ và menu hiện tiếng Việt; **chủ dự án xác nhận câu chữ từng
    đợt**, không gộp các đợt vào một lượt duyệt.
-9. Riêng nhóm trọn cây, xác nhận bằng tay bốn hành vi mà Cổng 5 không thấy: mục `Divider` **vẫn bị
-   ẩn** khỏi menu note; tooltip của `Heading 1`–`6` **vẫn hiện**; placeholder của đoạn văn ra tiếng
-   Việt; tip mặc định của công cụ Note ra tiếng Việt.
+9. Riêng nhóm trọn cây, xác nhận bằng tay **năm** hành vi mà Cổng 5 không thấy: mục `Divider` **vẫn
+   bị ẩn** khỏi menu note; tooltip của `Heading 1`–`6` **vẫn hiện**; placeholder của đoạn văn ra tiếng
+   Việt; tip mặc định của công cụ Note ra tiếng Việt; và **tooltip menu note hiện nhãn ngắn** (`Danh
+   sách dấu chấm`) chứ không phải nguyên câu dài — đó là lớp lỗi §3.7, Cổng 10 canh phần chuỗi nhưng
+   không canh được kết quả trên màn hình.
+10. Ba menu Hình / kiểu Connector / bộ chọn màu ra tiếng Việt **và vẫn hoạt động**: đổi hình, đổi
+    kiểu đường nối, chọn màu tuỳ chỉnh ở cả ba chế độ. Đây là mặt kiểm cho §4.8 — bản khai ghim nói
+    rằng nhãn và giá trị tách rời, việc bấm thật là thứ chứng minh nó.
 
 ---
 
@@ -485,9 +628,17 @@ Và chính spec này đã sai bốn chỗ trong bản đầu, cả bốn đều 
 | Gộp 27 chuỗi vào một mức nguy hiểm duy nhất; `Ellipse`/`Italic`/`Light`/`Dark`/`Normal` thật ra là artifact enum, giá trị lưu xuống khác chuỗi hiển thị | §3.3 chia bốn mức |
 | Bỏ sót hẳn lớp "chuỗi phụ cùng một mục" — 32 chuỗi | §4.3.4 + Cổng 8 |
 | Phân loại ba mức không phủ hết 27 chuỗi: `Copy` `Delete` `Move Up` `Move Down` cũng là mức 3, `square bracket` là mức 4 | §3.3 thêm mức 4, §3.4 đo nốt |
+| Coi 9 chuỗi menu Hình / Connector / màu là nguy hiểm, trong khi nhãn và giá trị lưu xuống là hai literal ở hai không gian tên | §3.6 mức 5, §4.8 bản khai ghim |
+| Bỏ sót hẳn lớp lỗi **phẫu thuật chuỗi** — `.replace('Drag/Click to insert ', '')` cắt trên literal sắp dịch, làm hỏng 12 tooltip mà không cổng nào đỏ | §3.7, Cổng 10 |
+| Số khoá 147 → **157**; số chuỗi bị từ chối 12 → **3** | §5, §7 |
 | Ghi 148 khoá, số cơ học thật là 147 và đích thực tế ~142 | §5 |
 | Lấy `"Divider"` làm bằng chứng đỏ cho Cổng 4, trong khi nó là khoá trọn cây hợp lệ | §8.3 đổi sang `"Copy"` |
 
-Con số duy nhất **không** đổi qua cả hai bản là **306 chuỗi không tới `dist/`** — nó tái lập lần thứ
+Con số duy nhất **không** đổi qua cả ba bản là **306 chuỗi không tới `dist/`** — nó tái lập lần thứ
 ba bằng ba script khác nhau. Mọi con số khác trong tài liệu này đều đã đổi ít nhất một lần trong
 cùng một ngày. Đo lại, đừng chép.
+
+**Bài học riêng của lượt soi kỹ này, đáng ghi vào `HANDOFF.md`:** hai lớp lỗi lớn nhất (§3.6 báo động
+giả, §3.7 phẫu thuật chuỗi) đều **không** lộ ra từ phép quét AST — chúng lộ ra khi *đọc mã xung
+quanh* chỗ mà phép quét chỉ tới. Phép quét trả lời "chuỗi này xuất hiện ở đâu"; nó không trả lời
+"những chỗ đó có chung một dòng dữ liệu không". Câu thứ hai vẫn phải đọc bằng mắt.
