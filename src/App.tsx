@@ -5174,6 +5174,13 @@ function Disclosure({
 // đang soạn dở NGAY TRONG FORM (cảnh báo, mức liều...) trước khi bấm Lưu — những dòng đó chưa từng
 // được lưu nên mất đi không tốn công gì để làm lại.
 const CONFIRM_ICON_RESET_MS = 2500
+// "Xoá bệnh nhân" là chạm-hai KHỞI ĐỘNG cho cùng kịch bản bị cắt ngang (cuộc gọi, báo động) mà
+// undoWindow 20 giây bên dưới (resetPatient) đã dùng để biện minh cho việc kéo dài — nếu chạm 1
+// (vũ trang) rồi bị cắt ngang hơn 2.5 giây, khoá tự huỷ và người dùng quay lại thấy nút đã về nhãn
+// gốc dù họ tưởng mình đang ở giữa việc xác nhận. Không dùng chung CONFIRM_ICON_RESET_MS: hằng số
+// đó giờ còn canh khoá ghim/chép liều cực đoan (App.tsx, InfusionCalculator) — nơi cửa sổ NGẮN là
+// chủ đích (buộc hai chạm sát nhau, tránh chạm nhầm sau khi đãng trí), khác hẳn lý do ở đây.
+const CONFIRM_PATIENT_RESET_MS = 20_000
 
 function ConfirmIconButton({
   onConfirm,
@@ -5461,7 +5468,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               if (!confirmReset) {
                 setConfirmReset(true)
                 tickHaptic()
-                confirmResetTimer.current = setTimeout(() => setConfirmReset(false), CONFIRM_ICON_RESET_MS)
+                confirmResetTimer.current = setTimeout(() => setConfirmReset(false), CONFIRM_PATIENT_RESET_MS)
                 return
               }
               if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current)
