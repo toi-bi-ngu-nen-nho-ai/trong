@@ -46,7 +46,7 @@ const SAU_HAU_XU_LY = [
   '.vendor-build/affine/blocks/root/package.json',
   // Bước 3 — bản theme đã đổi tên; thiếu là bảng vẽ không có biến CSS nào để phân giải.
   '.vendor-build/theme/style.css',
-  // Bước 4b — báo cáo của bước dịch chuỗi (D12, scripts/dich-chuoi-vendor.mjs). File này là BẰNG
+  // Bước 4c — báo cáo của bước dịch chuỗi (D12, scripts/dich-chuoi-vendor.mjs). File này là BẰNG
   // CHỨNG ĐỦ rằng bước dịch đã chạy Ở ĐÚNG LƯỢT NÀY, không phải sót lại từ lượt trước: Bước 0 của
   // dung-vendor.mjs xoá sạch `.vendor-build/` trước mỗi lượt, và dich-chuoi-vendor.mjs chỉ ghi file
   // này SAU khi qua hết Cổng 3 (khoá chết) của chính nó. Thiếu dòng này, một cây `.vendor-build/`

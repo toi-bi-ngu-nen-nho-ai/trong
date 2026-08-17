@@ -185,10 +185,11 @@ khai" mà P1-B lỗi #9 đã cảnh báo (cổng độc lập đọc lại lời
 | Khoá tiếng Anh | Bản dịch | Vì sao chọn chữ này |
 |---|---|---|
 | `"Images"` | `"Hình ảnh"` | Chưa có bản dịch nào khác dùng — không trùng `"Shape"` → `"Hình"` đã có trong `vi.json`, không gây lẫn |
-| `"MindMap"` | `"Sơ đồ tư duy"` | **Khớp đúng** bản dịch đã có sẵn của khoá khác cùng nghĩa: `"Mind Map": "Sơ đồ tư duy"` (đã ship). Cùng một khái niệm, phải cùng một chữ trong toàn app |
+| `"MindMap"` | `"Bản đồ tư duy"` | **ĐÍNH CHÍNH (phát hiện lúc thi hành Task 3, 2026-08-18).** Bản gốc của mục này chọn `"Sơ đồ tư duy"` để khớp đúng bản dịch đã có sẵn của khoá khác cùng nghĩa (`"Mind Map": "Sơ đồ tư duy"`) — **SAI**, vì việc đó đụng thẳng cổng cấm trùng bản dịch của chặng P1-D (`scripts/kiem-dist.mjs`, hàm `timTrungBanDich`): hai khoá tiếng Anh khác nhau không được dịch ra cùng một chuỗi, vì luật C tìm bản dịch trong `dist/` theo GIÁ TRỊ — một trong hai còn sống là cả hai được tính "có mặt", mẫu số sai mà cổng vẫn xanh (đúng lớp lỗi P1-D §1.3). Đổi sang `"Bản đồ tư duy"` — đồng nghĩa hoàn toàn với "Sơ đồ tư duy" trong tiếng Việt (cả hai đều là cách dịch thông dụng của "mind map"), nhưng là chuỗi KHÁC nên không trùng |
 
 Cả hai khoá đi qua đúng bộ cổng hiện có của `dich-chuoi-vendor.mjs` như mọi khoá khác — không cần cổng
-riêng cho nội dung.
+riêng cho nội dung. **Trước khi thêm bất kỳ khoá mới nào vào `vi.json` ở các chặng sau, LUÔN kiểm
+bản dịch dự định có trùng một giá trị đã có sẵn trong `vi.json` không** — bài học của chính mục này.
 
 **Điều kiện tiên quyết trước khi thêm khoá `"Images"`:** phải đo lại bằng `kiem:dist` xem chỗ dịch
 thật của `description: 'Images'` có tới `dist/` hay không — đúng quyết định 1 của P1-C ("gói chưa bật
@@ -196,6 +197,26 @@ thật của `description: 'Images'` có tới `dist/` hay không — đúng quy
 nhưng "gần như chắc chắn" không phải phép đo; việc này chuyển cho kế hoạch thi hành, không giả định
 trước ở đây. Nếu đo ra KHÔNG tới `dist/`: chỉ thêm `"MindMap"`, ghi lại `"Images"` vào danh sách loại
 trừ giống P1-E đã làm với 6 khoá khác.
+
+### 5.1 Hệ quả của ĐÍNH CHÍNH — hai chữ tiếng Việt khác nhau cho cùng một khái niệm
+
+Nguyên tắc mở đầu mục này (§0/§5 bản gốc) là "cùng một khái niệm, phải cùng một chữ trong toàn app".
+ĐÍNH CHÍNH ở bảng trên vi phạm chính nguyên tắc đó: app hiện có **hai chuỗi tiếng Việt khác nhau**
+cho cùng một khái niệm thực tế ("mind map") ở hai bề mặt UI khác nhau — khoá cũ `"Mind Map"` (nhãn
+nút trên toolbar, đã ship từ trước) dịch `"Sơ đồ tư duy"`, khoá mới `"MindMap"` của chặng này (nhãn
+bộ lọc kiểu tệp trong hộp thoại mở tệp) phải dịch `"Bản đồ tư duy"`. Đây không phải lựa chọn có chủ
+đích để phân biệt hai bề mặt — nó bị ép bởi cổng cấm trùng bản dịch (`scripts/kiem-dist.mjs`, hàm
+`timTrungBanDich`, chặng P1-D): cổng đó cấm hai khoá tiếng Anh khác nhau dịch ra cùng một chuỗi tiếng
+Việt, bất kể hai khoá đó có cùng nghĩa hay không. Kết quả là người dùng thấy hai chữ khác nhau cho
+cùng một khái niệm tuỳ vào việc họ đang ở toolbar hay hộp thoại mở tệp — một sự căng thẳng cấu trúc
+đáng biết, không phải lỗi cần sửa ngay (giá trị hiện tại, `"Bản đồ tư duy"`, đã đo và xác nhận hoạt
+động đúng, không cần xét lại).
+
+Đáng chú ý cho công việc dịch sau này: đợt dịch `affine/data-view` (nhắc tới ở nơi khác trong tài
+liệu dự án như chặng kế tiếp) nhiều khả năng gặp lại đúng kiểu va chạm này ở quy mô lớn hơn, nếu cây
+vendor còn nhiều khoá tiếng Anh gần-trùng-nghĩa khác (ví dụ hai khoá cùng dịch "table"/"list"/"view"
+theo cách thông thường). Kế hoạch cho chặng đó nên tính trước bước dò trùng giá trị dự định, thay vì
+phát hiện giữa chừng như chặng này.
 
 ---
 
@@ -304,7 +325,7 @@ rõ lý do không kiểm được thay vì bỏ qua im lặng.
    `src/__tests__/vendor-quan-he-dich.spec.ts` đã cập nhật khớp nhau, còn đúng 2 mục.
 4. Bằng chứng đỏ ở §6.3 đã chạy đủ hai lượt (đỏ trước khi sửa bản khai, xanh sau khi sửa), chép
    nguyên văn vào báo cáo task.
-5. `src/board/vi.json` có thêm `"MindMap": "Sơ đồ tư duy"`, và `"Images": "Hình ảnh"` **nếu** đo
+5. `src/board/vi.json` có thêm `"MindMap": "Bản đồ tư duy"`, và `"Images": "Hình ảnh"` **nếu** đo
    `kiem:dist` xác nhận gói `affine/shared` tới được `dist/` (§5) — nếu không, ghi rõ lý do loại trừ
    theo đúng khuôn P1-E.
 6. Kiểm tay trên trình duyệt thật theo §6.4, chép lại kết quả (kể cả ảnh chụp màn hình nếu có).

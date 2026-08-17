@@ -27,8 +27,10 @@ tích cú pháp, không type-check), Vitest cho ca kiểm.
   `window.showOpenFilePicker()`; chỉ thêm mảng `FILE_TYPE_IDS` song song, tách rời.
 - **Danh sách kỳ vọng cứng, không suy luận:** `['Images', 'Videos', 'Audios', 'Markdown', 'Html',
   'Zip', 'Docx', 'OneNote', 'MindMap']`, đúng thứ tự.
-- **Bản dịch mới:** `"Images"` → `"Hình ảnh"`, `"MindMap"` → `"Sơ đồ tư duy"` (khớp `"Mind Map"` đã
-  có sẵn trong `vi.json`). `"Images"` CHỈ được giữ lại nếu đo `kiem:dist` xác nhận nó tới `dist/`.
+- **Bản dịch mới:** `"Images"` → `"Hình ảnh"`, `"MindMap"` → `"Bản đồ tư duy"` (xem ĐÍNH CHÍNH ở
+  Task 4 bên dưới — ban đầu định chọn `"Sơ đồ tư duy"` để khớp `"Mind Map"` đã có sẵn nhưng việc đó
+  đụng cổng cấm trùng bản dịch). `"Images"` CHỈ được giữ lại nếu đo `kiem:dist` xác nhận nó tới
+  `dist/`.
 - **Không đụng `src/data/antibiotics.ts`** — dữ liệu lâm sàng, chủ dự án tự sửa.
 - **Bảy cổng phải xanh ở cuối:** `tsc --noEmit` · `npm test` · `kiem:vendor` · `kiem:vendor-paths` ·
   `kiem:vendor-build` · `build` · `kiem:dist`.
@@ -542,7 +544,9 @@ Expected: dừng tại bước `dichchuoi:vendor` (Bước 4c) với thông báo
 `scripts/kiem-quan-he-dich.mjs` — `dich-chuoi-vendor: DỪNG — tập điểm tiêu thụ giá trị hiển thị đo
 được trên cây THẬT SỰ khác bản khai được ghim...`, liệt kê "ĐO ĐƯỢC" chỉ còn 2 mục (thiếu hai dòng
 `filesys.js`) so với "BẢN KHAI" còn 4 mục cũ. **Chép nguyên văn output đầy đủ vào báo cáo task** —
-đây là bằng chứng đỏ chứng minh Bước 4a đã thực sự đổi được `.find(...)` sang `.id`, không phải suy
+đây là bằng chứng đỏ chứng minh Bước 4a đã thực sự đổi được `.find(i => i.description ===
+acceptType)` sang `FileTypes[FILE_TYPE_IDS.indexOf(acceptType)]` (tra chỉ số qua mảng định danh
+song song `FILE_TYPE_IDS`, không phải thêm trường `id` vào object `FileTypes`), không phải suy
 luận.
 
 Nếu thay vào đó Bước 4a (`tach-dinh-danh-loai-tep`) tự đỏ: đọc thông báo lỗi, so với cấu trúc thật
@@ -733,10 +737,18 @@ Thay bằng:
 ```json
   "Videos": "Video",
   "Audios": "Âm thanh",
-  "MindMap": "Sơ đồ tư duy",
+  "MindMap": "Bản đồ tư duy",
   "Images": "Hình ảnh"
 }
 ```
+
+> **ĐÍNH CHÍNH (2026-08-18, phát hiện lúc thi hành).** Bản gốc của task này ghi
+> `"MindMap": "Sơ đồ tư duy"` để khớp bản dịch đã có sẵn của `"Mind Map"` — **SAI**: đụng thẳng cổng
+> cấm trùng bản dịch của `scripts/kiem-dist.mjs` (hàm `timTrungBanDich`, chặng P1-D) — hai khoá khác
+> nhau dịch ra cùng một chuỗi làm luật C đếm sai mẫu số, cổng DỪNG ngay, không in được dòng
+> `X/Y có mặt` nào cả. Đã đổi sang `"Bản đồ tư duy"` (đồng nghĩa, chuỗi khác). Xem spec §5, mục
+> đính chính. Nếu bạn đang đọc plan này để thi hành, dùng JSON ở trên (đã sửa), KHÔNG dùng
+> `"Sơ đồ tư duy"`.
 
 - [ ] **Step 2: Dựng lại cây, build, đo `kiem:dist`**
 
@@ -770,7 +782,7 @@ Sửa `src/board/vi.json`, bỏ dòng `"Images": "Hình ảnh"`:
 ```json
   "Videos": "Video",
   "Audios": "Âm thanh",
-  "MindMap": "Sơ đồ tư duy"
+  "MindMap": "Bản đồ tư duy"
 }
 ```
 
@@ -794,9 +806,10 @@ git add src/board/vi.json
 git commit -m "$(cat <<'EOF'
 vi.json: thêm nội dung dịch MindMap/Images sau khi gỡ nút thắt
 
-"MindMap" -> "Sơ đồ tư duy" (khớp "Mind Map" đã có sẵn). "Images" ->
-"Hình ảnh" nếu kiem:dist xác nhận tới dist/, ngược lại bị loại — xem
-báo cáo task cho kết quả đo thật.
+"MindMap" -> "Bản đồ tư duy" (không dùng "Sơ đồ tư duy" — trùng bản
+dịch có sẵn của "Mind Map", phạm cổng cấm trùng của kiem-dist.mjs).
+"Images" -> "Hình ảnh" nếu kiem:dist xác nhận tới dist/, ngược lại bị
+loại — xem báo cáo task cho kết quả đo thật.
 EOF
 )"
 ```
@@ -828,7 +841,7 @@ qua menu chèn). Bấm, xác nhận:
   `BlockSuiteError`/`Unexpected acceptType` nào xuất hiện).
 - Hộp thoại mở tệp của hệ điều hành/trình duyệt xuất hiện.
 - Nếu trình duyệt hỗ trợ File System Access API (Chrome desktop): ô lọc kiểu tệp trong hộp thoại
-  hiện đúng chữ **"Sơ đồ tư duy"**, không còn "MindMap" tiếng Anh.
+  hiện đúng chữ **"Bản đồ tư duy"**, không còn "MindMap" tiếng Anh.
 
 Nếu công cụ nhập mindmap từ file KHÔNG lộ ra trên UI hiện tại (tính năng chưa nối đủ trên thanh công
 cụ), ghi rõ điều đó thay vì bỏ qua im lặng — đối chiếu với mục "Chưa nghiệm thu" (mục 7) của

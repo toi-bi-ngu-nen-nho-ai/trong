@@ -107,10 +107,29 @@ if (ketQuaDoiTen.status !== 0) {
   process.exit(ketQuaDoiTen.status ?? 1)
 }
 
-// Bước 4b — dịch chuỗi hiển thị (D12). Phải chạy SAU đổi tên: bản dịch đáp lên cây đã đổi tên.
-// Tách khỏi bước đổi tên vì đây là phép thay có điều kiện theo ngữ cảnh — xem đầu
-// scripts/dich-chuoi-vendor.mjs. Exit code ở đây có ý nghĩa thật: script này không có lý do sẵn
-// có nào để thoát khác 0, nên thất bại là phải dừng, không được nuốt.
+// Bước 4a — tách định danh tra cứu khỏi description hiển thị trong FileTypes (gỡ nút thắt
+// Images/MindMap). Phải chạy TRƯỚC bước dịch chuỗi: Cổng 4 của D12 (bên trong bước đó) đo trên
+// cây tại đúng thời điểm nó chạy, và phải thấy filesys.js đã qua bước tách này để không còn đọc
+// lại "description" ở hai chỗ đã ghim cũ trong BAN_KHAI_TIEU_THU. Xem
+// docs/superpowers/specs/2026-08-17-go-nut-that-loai-tep-design.md. Exit code ở đây có ý nghĩa
+// thật: script này không có lý do sẵn có nào để thoát khác 0, nên thất bại là phải dừng.
+const ketQuaTachDinhDanh = chay(
+  'node',
+  ['scripts/tach-dinh-danh-loai-tep.mjs'],
+  'tach-dinh-danh-loai-tep',
+)
+if (ketQuaTachDinhDanh.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — bước tách định danh loại tệp thất bại (exit code ${ketQuaTachDinhDanh.status}).`,
+  )
+  process.exit(ketQuaTachDinhDanh.status ?? 1)
+}
+
+// Bước 4c — dịch chuỗi hiển thị (D12). Phải chạy SAU đổi tên VÀ SAU tách định danh: bản dịch phải
+// đáp lên cây đã đổi tên và đã tách định danh, không ngược lại. Tách khỏi bước đổi tên vì đây là
+// phép thay có điều kiện theo ngữ cảnh — xem đầu scripts/dich-chuoi-vendor.mjs. Exit code ở đây
+// có ý nghĩa thật: script này không có lý do sẵn có nào để thoát khác 0, nên thất bại là phải
+// dừng, không được nuốt.
 const ketQuaDich = chay('node', ['scripts/dich-chuoi-vendor.mjs'], 'dichchuoi:vendor')
 if (ketQuaDich.status !== 0) {
   console.error(

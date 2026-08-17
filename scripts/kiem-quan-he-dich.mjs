@@ -11,11 +11,13 @@
 // phải từ phía chuỗi. Đo trên .vendor-build/ 2026-08-15, giới hạn 5 tên còn trong danh sách hiển
 // thị sau Task 1 của chặng này (tooltip/label/description/caption/placeholder — 4 tên còn lại,
 // name/group/title/text, đã bị loại khỏi danh sách hiển thị nên KHÔNG cần dây bẫy: chúng vĩnh
-// viễn không được dịch): đúng 4 chỗ, xem BAN_KHAI_TIEU_THU.
+// viễn không được dịch): ban đầu đúng 4 chỗ; chặng "Gỡ nút thắt Images/MindMap" (2026-08-18) xoá
+// hai chỗ ở filesys.js (tách khoá tra cứu khỏi description), còn lại đúng 2 chỗ, xem
+// BAN_KHAI_TIEU_THU.
 //
-// Không phải cổng CHẶN KHOÁ — nó không biết gì về vi.json. Nó là dây bẫy CƠ CHẾ: nếu bốn toạ độ
-// này đổi (thượng nguồn thêm một chỗ mới, hay bốn chỗ cũ biến mất), cổng đỏ và người sửa phải tự
-// đánh giá — không có phán quyết "an toàn/nguy hiểm" được mã hoá cứng ở đây.
+// Không phải cổng CHẶN KHOÁ — nó không biết gì về vi.json. Nó là dây bẫy CƠ CHẾ: nếu các toạ độ
+// đang ghim ở BAN_KHAI_TIEU_THU đổi (thượng nguồn thêm một chỗ mới, hay một chỗ cũ biến mất), cổng
+// đỏ và người sửa phải tự đánh giá — không có phán quyết "an toàn/nguy hiểm" được mã hoá cứng ở đây.
 //
 // CỔNG 5 — tính nhất quán tiền tố. Lớp lỗi khác hẳn: PHẪU THUẬT CHUỖI trên một literal ĐÃ dịch.
 // affine/gfx/note/src/toolbar/note-menu-config.js:118 dựng tooltip bằng
@@ -84,6 +86,13 @@ export function diemTieuThuTrongFile(js, tenFile = 'khong-ten.js') {
 // Bản khai được ghim — đúng khuôn bang-bam-vendor.json của D11: khai thứ đã soi, để cổng gào khi
 // thực tế lệch. Đo 2026-08-15, xem chi tiết ở docs/superpowers/plans/2026-08-15-noi-dung-dich.md
 // Task 3.
+//
+// Hai mục filesys.js:175/205 (description trong FileTypes.find, gỡ nút thắt Images/MindMap) đã
+// RỤNG khỏi bản khai này kể từ 2026-08-17: sau khi scripts/tach-dinh-danh-loai-tep.mjs đổi hai chỗ
+// so sánh đó sang FILE_TYPE_IDS.indexOf(acceptType), chúng không còn đọc lại "description" nữa nên
+// không còn là điểm tiêu thụ giá trị hiển thị — đây là hệ quả ĐÚNG mong muốn của việc gỡ nút thắt,
+// không phải một điểm tiêu thụ bị bỏ sót. Xem
+// docs/superpowers/specs/2026-08-17-go-nut-that-loai-tep-design.md.
 export const BAN_KHAI_TIEU_THU = [
   { file: 'affine/components/src/toolbar/utils.js', dong: 50, dang: 'so-sánh', thuocTinh: 'label' },
   {
@@ -91,18 +100,6 @@ export const BAN_KHAI_TIEU_THU = [
     dong: 114,
     dang: 'so-sánh',
     thuocTinh: 'label',
-  },
-  {
-    file: 'affine/shared/src/utils/file/filesys.js',
-    dong: 175,
-    dang: 'so-sánh',
-    thuocTinh: 'description',
-  },
-  {
-    file: 'affine/shared/src/utils/file/filesys.js',
-    dong: 205,
-    dang: 'so-sánh',
-    thuocTinh: 'description',
   },
 ]
 
