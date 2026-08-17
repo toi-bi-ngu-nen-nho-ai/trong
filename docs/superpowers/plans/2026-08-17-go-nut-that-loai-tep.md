@@ -733,10 +733,18 @@ Thay bằng:
 ```json
   "Videos": "Video",
   "Audios": "Âm thanh",
-  "MindMap": "Sơ đồ tư duy",
+  "MindMap": "Bản đồ tư duy",
   "Images": "Hình ảnh"
 }
 ```
+
+> **ĐÍNH CHÍNH (2026-08-18, phát hiện lúc thi hành).** Bản gốc của task này ghi
+> `"MindMap": "Sơ đồ tư duy"` để khớp bản dịch đã có sẵn của `"Mind Map"` — **SAI**: đụng thẳng cổng
+> cấm trùng bản dịch của `scripts/kiem-dist.mjs` (hàm `timTrungBanDich`, chặng P1-D) — hai khoá khác
+> nhau dịch ra cùng một chuỗi làm luật C đếm sai mẫu số, cổng DỪNG ngay, không in được dòng
+> `X/Y có mặt` nào cả. Đã đổi sang `"Bản đồ tư duy"` (đồng nghĩa, chuỗi khác). Xem spec §5, mục
+> đính chính. Nếu bạn đang đọc plan này để thi hành, dùng JSON ở trên (đã sửa), KHÔNG dùng
+> `"Sơ đồ tư duy"`.
 
 - [ ] **Step 2: Dựng lại cây, build, đo `kiem:dist`**
 
@@ -770,7 +778,7 @@ Sửa `src/board/vi.json`, bỏ dòng `"Images": "Hình ảnh"`:
 ```json
   "Videos": "Video",
   "Audios": "Âm thanh",
-  "MindMap": "Sơ đồ tư duy"
+  "MindMap": "Bản đồ tư duy"
 }
 ```
 
@@ -794,9 +802,10 @@ git add src/board/vi.json
 git commit -m "$(cat <<'EOF'
 vi.json: thêm nội dung dịch MindMap/Images sau khi gỡ nút thắt
 
-"MindMap" -> "Sơ đồ tư duy" (khớp "Mind Map" đã có sẵn). "Images" ->
-"Hình ảnh" nếu kiem:dist xác nhận tới dist/, ngược lại bị loại — xem
-báo cáo task cho kết quả đo thật.
+"MindMap" -> "Bản đồ tư duy" (không dùng "Sơ đồ tư duy" — trùng bản
+dịch có sẵn của "Mind Map", phạm cổng cấm trùng của kiem-dist.mjs).
+"Images" -> "Hình ảnh" nếu kiem:dist xác nhận tới dist/, ngược lại bị
+loại — xem báo cáo task cho kết quả đo thật.
 EOF
 )"
 ```

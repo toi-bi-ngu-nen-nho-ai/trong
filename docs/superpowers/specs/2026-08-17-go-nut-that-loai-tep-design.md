@@ -185,10 +185,11 @@ khai" mà P1-B lỗi #9 đã cảnh báo (cổng độc lập đọc lại lời
 | Khoá tiếng Anh | Bản dịch | Vì sao chọn chữ này |
 |---|---|---|
 | `"Images"` | `"Hình ảnh"` | Chưa có bản dịch nào khác dùng — không trùng `"Shape"` → `"Hình"` đã có trong `vi.json`, không gây lẫn |
-| `"MindMap"` | `"Sơ đồ tư duy"` | **Khớp đúng** bản dịch đã có sẵn của khoá khác cùng nghĩa: `"Mind Map": "Sơ đồ tư duy"` (đã ship). Cùng một khái niệm, phải cùng một chữ trong toàn app |
+| `"MindMap"` | `"Bản đồ tư duy"` | **ĐÍNH CHÍNH (phát hiện lúc thi hành Task 3, 2026-08-18).** Bản gốc của mục này chọn `"Sơ đồ tư duy"` để khớp đúng bản dịch đã có sẵn của khoá khác cùng nghĩa (`"Mind Map": "Sơ đồ tư duy"`) — **SAI**, vì việc đó đụng thẳng cổng cấm trùng bản dịch của chặng P1-D (`scripts/kiem-dist.mjs`, hàm `timTrungBanDich`): hai khoá tiếng Anh khác nhau không được dịch ra cùng một chuỗi, vì luật C tìm bản dịch trong `dist/` theo GIÁ TRỊ — một trong hai còn sống là cả hai được tính "có mặt", mẫu số sai mà cổng vẫn xanh (đúng lớp lỗi P1-D §1.3). Đổi sang `"Bản đồ tư duy"` — đồng nghĩa hoàn toàn với "Sơ đồ tư duy" trong tiếng Việt (cả hai đều là cách dịch thông dụng của "mind map"), nhưng là chuỗi KHÁC nên không trùng |
 
 Cả hai khoá đi qua đúng bộ cổng hiện có của `dich-chuoi-vendor.mjs` như mọi khoá khác — không cần cổng
-riêng cho nội dung.
+riêng cho nội dung. **Trước khi thêm bất kỳ khoá mới nào vào `vi.json` ở các chặng sau, LUÔN kiểm
+bản dịch dự định có trùng một giá trị đã có sẵn trong `vi.json` không** — bài học của chính mục này.
 
 **Điều kiện tiên quyết trước khi thêm khoá `"Images"`:** phải đo lại bằng `kiem:dist` xem chỗ dịch
 thật của `description: 'Images'` có tới `dist/` hay không — đúng quyết định 1 của P1-C ("gói chưa bật
