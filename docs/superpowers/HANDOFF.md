@@ -1,6 +1,10 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-15**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-16**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **P1-E đang trên nhánh `p1e-noi-dung-dich`, CHƯA GỘP vào `main`.** `main` ở bảng dưới vẫn đứng
+> yên tại P1-D (`9ce6955`). 8/8 task nội dung dịch đã xong trên nhánh — chi tiết, số liệu thật, và
+> cảnh báo vận hành ở **mục 14**. Đọc mục 14 trước khi làm gì tiếp trên nhánh đó.
 
 > **ĐÍNH CHÍNH bản 2026-08-13.** Bản đó viết *"P1-A đã gộp vào `main`, fast-forward
 > `afac297 → a10401b`"*. **Điều đó chưa từng xảy ra ở bản sao này.** Chuỗi cha-thứ-nhất của `main`
@@ -792,3 +796,136 @@ npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải 
 
 **Chặng kế tiếp là NỘI DUNG DỊCH.** Nợ `includes` đã trả. Việc còn lại trước khi thêm khoá đầu
 tiên: **đo lại cả số chuỗi lẫn số từ lặp** — xem cảnh báo ở cuối mục 10.
+
+---
+
+## 14. CHẶNG P1-E — nội dung dịch, đợt đầu — 9/9 TASK XONG, CHƯA REVIEW TOÀN NHÁNH, CHƯA GỘP
+
+Nhánh: `p1e-noi-dung-dich`, gốc `ec9623e` (= `main` lúc rẽ nhánh, chưa có commit nào khác trên
+`main` từ đó tới giờ — nhánh này đang **fast-forward thẳng** từ `main`, không có merge commit nào
+xen giữa lịch sử của nó).
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-15-noi-dung-dich-design.md` (bản 4) |
+| Kế hoạch | `docs/superpowers/plans/2026-08-15-noi-dung-dich.md` |
+
+### Chặng này làm gì
+
+Thêm khoá dịch vào `src/board/vi.json` (5 → **129**, không phải 135 như kế hoạch dự tính — xem
+"Sáu khoá bị loại" dưới đây) và 1 khoá vào `src/board/vi-tien-to.json` (file mới). Ba đợt nội
+dung: 24 (toast/data-tip/tooltip edgeless) / **76** (nhãn menu, kế hoạch ghi 82) / 24 (mô tả dài).
+
+Năm cơ chế/vá mới:
+- **Thu hẹp D12 còn 5 vị trí hiển thị** (Task 1, đã xong TRƯỚC phiên này), bỏ `name`/`group`/
+  `title`/`text`.
+- **Cổng mẫu mã** (Task 2) — lưới chắn 3 dòng trong `dich-chuoi-vendor.mjs` cho khoá dạng
+  `_tên`/`tên$`/`var(--…)`.
+- **Cổng 4** (Task 3, `scripts/kiem-quan-he-dich.mjs`) — dây bẫy quét NGƯỢC: tìm mọi chỗ 5 tên còn
+  giữ bị đọc lại làm khoá tra cứu/vế so sánh, so với bản khai ghim 4 toạ độ.
+- **Cổng 5** (Task 4) — tính nhất quán tiền tố cho `vi-tien-to.json` (thay TRỌN CÂY qua
+  `thayTrenToanCay`, không lọc vị trí) — vá lớp lỗi cắt chuỗi bằng `.replace()` trên literal đã dịch.
+- **Vá nợ M3 của P1-D** (Task 5) — `coNhuLiteral` tính mỗi kiểu nháy một lần thay vì ba lần mỗi lượt gọi.
+
+### Đã xong
+
+| Task | Nội dung | Commit |
+|---|---|---|
+| 1 | Thu hẹp D12 còn 5 vị trí | `aaaf94d`, vá review `911481d` (đã xong TRƯỚC phiên này) |
+| 2 | Cổng mẫu mã | code nằm trong `4e49cf1` (commit "dọn sạch" — TÊN SAI, xem cảnh báo dưới); vá cách ly test `2f1aa13` |
+| 3 | Cổng 4 — dây bẫy quét ngược | `490ae7f` |
+| 4 | `vi-tien-to.json` + thay trọn cây + Cổng 5 | `4a03735` |
+| 5 | Vá nợ M3 (P1-D) | `d9bc3c5` |
+| 6 | Nội dung Đợt 1 — 24 khoá | `7f6eea5` |
+| 7 | Nội dung Đợt 2 — 76/82 khoá (6 bị loại, xem dưới) | `d61bf4b` |
+| 8 | Nội dung Đợt 3 — 24 khoá | `589ad15` |
+
+`npm test` **148/148** (16 file), trước chặng **122/122** (14 file).
+Bảy cổng xanh: `tsc` exit 0 · `kiem:vendor` 2.782 lệch 0 · `kiem:vendor-paths` 438 · `build` +
+`kiem:dist` xanh `bản dịch vi.json — 130/130 có mặt` (129 `vi.json` + 1 `vi-tien-to.json`).
+
+### CẢNH BÁO VẬN HÀNH — commit "dọn sạch" mang lẫn nội dung Task 2
+
+`4e49cf1` ("Dọn sạch superpower — xoá critique impeccable và output tạm") **không chỉ xoá file tạm
+như tên nói** — nó còn mang theo toàn bộ mã Cổng mẫu mã của Task 2 (`dich-chuoi-vendor.mjs` +
+test mới) VÀ hai chỉnh sửa UI không liên quan trong `src/App.tsx` (chữ "BS TRỌNG", vị trí cụm nút).
+Không rõ vì sao ba việc khác bản chất gộp chung một commit — có thể do soạn tay ngoài quy trình
+task-by-task. **Bài học: đọc `git show --stat` trước khi tin tên commit**, đừng giả định nội dung
+khớp tên.
+
+### Test isolation bug — Task 2 vượt qua CI mà không thật sự kiểm được gì
+
+`src/__tests__/vendor-dich-chuoi-vendor.spec.ts` (Task 2) spawn `dich-chuoi-vendor.mjs` qua
+`child_process` với `cwd` trỏ một thư mục tạm, giả định điều đó cách ly được script khỏi
+`src/board/vi.json`/`.vendor-build/` của repo thật. **Sai** — `dich-chuoi-vendor.mjs` suy `GOC` từ
+`import.meta.dirname` của CHÍNH NÓ (đúng quy ước dùng khắp `scripts/`), không phải từ `cwd` tiến
+trình con. Nên bài test LUÔN đọc nhầm cây thật, và chỉ "xanh" tình cờ vì tại thời điểm Task 2 được
+soạn, `.vendor-build/bao-cao-dich.json` của repo thật chưa tồn tại (cổng sớm chưa chặn được).
+Lộ ra ngay khi phiên này chạy `npm run dung:vendor` thật rồi chạy lại test: cả ba ca "DỪNG" đều
+fail sai lý do (bị chặn bởi cổng "cây đã dịch" thay vì cổng mẫu mã).
+
+Vá ở `2f1aa13`: chép cả `scripts/` vào cây tạm để `import.meta.dirname` của bản chép tự trỏ đúng
+GOC tạm; đặt cây tạm **dưới gốc repo** (không phải `os.tmpdir()`) để gói `typescript` vẫn phân giải
+được qua `node_modules` của repo (ESM bare-specifier resolution duyệt node_modules từ thư mục chứa
+file lên tổ tiên).
+
+**Bài học cho chặng sau:** một cổng "xanh" từ `child_process` + `cwd` không tự động có nghĩa là đã
+cách ly — phải kiểm cách script suy thư mục gốc của chính nó trước khi tin `cwd` cách ly được gì.
+
+### Sáu khoá bị loại ở Đợt 2 — kế hoạch đoán sai gói, đo lại mới biết
+
+Kế hoạch soạn 82 khoá cho Đợt 2 kèm một bảng "29 khoá pha trộn" khẳng định các vị trí `tooltip:`
+còn lại của `Align left`/`Align center`/`Align right`/`Equation`/`Move Up`/`Move Down` nằm trong gói
+ĐANG BẬT (`frame`/`gfx-group`). **Sai** — chạy `kiem:dist` thật sau khi thêm đủ 82 khoá cho thấy
+106/112 có mặt, thiếu đúng 6 khoá này. Đo lại bằng `grep` trực tiếp `.vendor-build/`: vị trí
+`tooltip:` DUY NHẤT của cả 6 khoá nằm trong `affine/blocks/image/src/configs/toolbar.js`,
+`affine/blocks/latex/src/configs/slash-menu.js`, và `affine/widgets/slash-menu/src/tooltips/index.js`
+— cả ba gói này **không có** trong `src/board/extensions.ts`. Các vị trí `name:`/`key:` của cùng
+chuỗi ở gói đang bật (`blocks/note`, `blocks/table`, `data-view`) không phải vị trí hiển thị
+(Task 1 đã loại `name`/`key` khỏi danh sách dịch) nên không tính.
+
+Theo đúng quyết định đã chốt ở P1-C (không có danh sách miễn, từ chối và nói rõ vì sao): gỡ cả 6
+khoá khỏi `vi.json` thay vì tìm cách ép chúng vào. Đợt 2 còn **76/82** khoá; tổng `vi.json` cuối
+chặng là **129**, không phải 135 như kế hoạch dự tính.
+
+**Bài học lặp lại lần thứ tư:** bảng phán quyết gói-nào-đang-bật trong một kế hoạch là suy luận lúc
+lập kế hoạch, KHÔNG PHẢI phép đo — phải chạy `kiem:dist` thật sau mỗi đợt nội dung để xác nhận,
+đừng tin bảng đó tới khi cổng còn chưa xanh.
+
+### Tự soát trực tiếp, KHÔNG dùng subagent-driven-development đầy đủ
+
+Theo phản hồi của chủ dự án ở chính chặng này từ phiên trước ("có mỗi dịch sang tiếng việt sau lại
+tốn hết limit token 1 week mà vẫn chưa chạy được dịch, cứ làm tới làm lui"), phiên này làm trực tiếp
+bằng Edit/Bash — tự chạy đủ bảy cổng sau mỗi task, tự soát diff, tự commit — **không** dispatch
+implementer/reviewer/fixer subagent riêng cho từng task. Hai lỗi thật ở trên (cách ly test, 6 khoá
+sai gói) đều bắt được bằng cách CHẠY THẬT (`npm run dung:vendor` + bảy cổng), không phải bằng đọc mã.
+
+**Chưa có lượt review toàn nhánh kiểu opus** như P1-B/C/D từng có. Nếu muốn mức tin cậy tương đương
+trước khi gộp, chạy `superpowers:requesting-code-review` hoặc `/code-review` trên khoảng
+`ec9623e..HEAD` trước — phiên này chỉ tự soát, không phải review độc lập.
+
+### Lưu ý vận hành — commit xen kẽ từ phiên khác
+
+Lịch sử nhánh có hai commit `DungThuocScreen: đếm chạy...` (`e255938`) và `DungThuocScreen: font
+mono...` (`db6f7cf`) xen giữa các commit P1-E — **không do phiên này tạo**, có vẻ là một phiên
+Claude Code khác chạy song song trên cùng nhánh, chỉ sửa `src/App.tsx`/`lib/ui.ts`, không đụng gì
+tới D12/`vi.json`/`scripts/`. Bảy cổng vẫn xanh sau khi các commit đó xen vào — không có xung đột
+thật, nhưng đúng bài học đã ghi nhiều lần: `git log` lại trước mỗi lượt dispatch, đừng giả định
+`HEAD` là commit mình vừa tạo.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng 589ad15 hoặc mới hơn
+git status --short                      # kỳ vọng chỉ hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Còn lại trước khi gộp:** quyết định có chạy lượt review toàn nhánh (opus) hay không — mục "Tự
+soát trực tiếp" ở trên giải thích vì sao chặng này bỏ qua nó. Nếu chủ dự án chấp nhận mức tự soát
+này thì dùng `superpowers:finishing-a-development-branch` để gộp thẳng.
+
+**Chặng kế tiếp** (sau khi gộp P1-E): đợt dịch thứ hai cho phần chuỗi thuộc nhóm gói chưa bật (162
+chuỗi nhóm C cũ, chủ yếu `affine/data-view` — cần bật tính năng trước, xem quyết định 1 của P1-C);
+hoặc giải quyết mối nối `Images`/`MindMap` để mở khoá hai chuỗi đó (xem Global Constraints của kế
+hoạch P1-E); hoặc Lưu trữ (D4)/BoardGallery như mục 8 cũ đã ghi.
