@@ -954,7 +954,7 @@ Lưu trữ (D4)/BoardGallery như mục 8 cũ đã ghi.
 
 ---
 
-## 15. NỢ THIẾT KẾ — `/impeccable critique DungThuocScreen` (2026-08-17) — CẢ BỐN P0-P3 ĐÃ SỬA
+## 15. NỢ THIẾT KẾ — `/impeccable critique DungThuocScreen` (2026-08-17) — HAI ĐỢT CRITIQUE, TẤT CẢ ĐÃ SỬA
 
 Đường track riêng, không thuộc chặng P1 (vendor/dịch) ở trên. Ghi nợ ở phiên 2026-08-17 (mục này
 từng ghi "CHƯA SỬA GÌ"); hai phiên kế tiếp cùng ngày đã trả hết cả bốn mục trực tiếp bằng Edit
@@ -1000,16 +1000,43 @@ là một hằng số) nên không thêm ca kiểm — xác nhận bằng kiểm
 `// @vitest-environment happy-dom` cho file đầu (đọc `sessionStorage`), file sau thì không (thuần,
 không đụng DOM).
 
+### Lượt critique THỨ HAI (2026-08-17T17-38, cùng ngày) — 5 vấn đề mới, TẤT CẢ ĐÃ SỬA
+
+Chạy lại `/impeccable critique DungThuocScreen` (dual-agent) sau khi bốn P0-P3 ở trên đã gộp trong
+cùng phiên. Điểm **28/40** — TỤT so với 36/40 lần trước, nhưng không phải vì màn hình xấu đi: cả
+hai P0 mới là **hệ quả trực tiếp** của chính bốn lượt sửa vừa xong (khoá sticky-state của P1 gặp
+"xoá bệnh nhân" của track khác), bị bỏ sót vì trước đó chỉ kiểm tay từng tình huống RIÊNG LẺ, chưa
+kiểm CHUỖI thao tác nối tiếp giữa chúng. Báo cáo đầy đủ đã lưu tại
+`.impeccable/critique/2026-08-17T17-38-15Z__src-app-tsx-dungthuocscreen.md`. Xu hướng điểm 5 lượt:
+37 → 29 → 34 → 36 → **28**.
+
+| Mức | Vấn đề | Đã làm gì |
+|---|---|---|
+| **P0 — ĐÃ SỬA** | "Xoá bệnh nhân" không xoá liều đang nhớ của `InfusionCalculator`; đổi cân nặng cho "bệnh nhân mới" tính ra kết quả cực đoan CHƯA xác nhận, khoá không tự vũ trang lại | `useEffect` reset `confirmed`/`confirmPin`/`confirmCopyExtreme` trước chỉ theo dõi `[dose, rateInput, conc, unitId, mode]` — thêm `weightKg` vào mảng phụ thuộc. Kiểm tay: xoá bệnh nhân → khoá tự vũ trang lại (hiện "Tôi đã kiểm tra lại"); nhập cân nặng mới → khoá VẪN còn, không nhảy thẳng ra kết quả sẵn sàng ghim. |
+| **P0 — ĐÃ SỬA** | Liều đã ghim mất hết tín hiệu severity khi vào "Đang dùng" (`RunningPanel`) — liều cần double-tap mới ghim được lại trông y hệt liều thường trong bảng dùng để bàn giao ca | Thêm `severity?: DoseSeverity` vào `RunningDrug` (`lib/runningDrugs.ts`), ghi lại lúc `pinRunning()` trong `InfusionCalculator`. `RunningPanel` áp `SEVERITY_STYLE[r.severity]` (màu chữ + icon cảnh báo) cho mục severity high/extreme — dùng lại ĐÚNG bảng màu của máy tính liều, không bịa bảng riêng. Kiểm tay: liều 50×ghim vào RunningPanel hiện màu đỏ + icon, xác nhận qua `getComputedStyle`. |
+| P1 — ĐÃ SỬA | Cửa sổ vũ trang 20s của "Xoá bệnh nhân" (P3 chặng trước) không có đồng hồ đếm ngược nhìn thấy, khác `ConfirmIconButton` | Thêm dải đếm ngược dạng thanh (`@keyframes confirmDrain`, `src/index.css`) — khác vòng tròn của `confirmRing` vì đây là pill có chữ, không phải icon vuông. Tôn trọng `prefers-reduced-motion`. Thêm `aria-label` báo "chạm lần nữa để xác nhận, tự huỷ sau 20 giây". Kiểm tay: phần tử `span[style*="confirmDrain"]` có mặt khi armed. |
+| P2 — ĐÃ SỬA | Con số liều chính (hero) và dòng "Đặt bơm" có thể lệch số lẻ ở tốc độ ≥100 mL/giờ (`formatDoseNumber` làm tròn theo độ lớn, "Đặt bơm" làm tròn theo bước bơm — hai quy tắc độc lập) | Chuyển `rateDecimals` lên định nghĩa sớm hơn (ngay sau `pumpStep`); ở chế độ `doseToRate`, `resultFinalText`/`resultDecimals` dùng `result.toFixed(rateDecimals)` thay vì `formatDoseNumber(result)`. Chế độ `rateToDose` (kết quả là LIỀU, không có dòng "Đặt bơm" đối chiếu) giữ nguyên `formatDoseNumber`. Kiểm tay: "2625.0" và "Đặt bơm 2625.0" nay khớp số lẻ (trước đây sẽ là "2625" vs "2625.0"). |
+| P2 — ĐÃ SỬA | Sắp tab theo MRU (chặng trước) tính lại mỗi lần `DungThuocScreen` DỰNG, không phải mỗi PHIÊN — rẽ qua màn khác 5 giây rồi quay lại có thể xáo hàng tab | Thêm `reconcileOrder()` (`lib/tabUsage.ts`, thuần, 5 ca kiểm) — không bao giờ làm mất một tab nếu `MIXING_TABS` đổi giữa chừng. Thứ tự lưu vào `sessionStorage` (`dungthuoc.tabOrder`, qua `useStickyState`) ngay sau khi tính lần đầu trong phiên; các lần dựng màn SAU trong CÙNG phiên đọc lại y nguyên. Kiểm tay: bấm "Giải độc" 5 lần, rời/quay lại màn trong CÙNG tab trình duyệt → thứ tự KHÔNG đổi; mở TAB MỚI (sessionStorage sạch, `localStorage` vẫn còn đếm) → "Giải độc" nhảy lên đầu đúng như tính lại từ đầu phiên. |
+
+Xác nhận đã chạy sau lượt sửa này: `tsc --noEmit` exit 0 · `npm test` **176/176** (19 file — 171
+trước đó + 5 ca mới của `reconcileOrder`) · `npm run build` + `kiem:dist` xanh (`bản dịch vi.json —
+130/130 có mặt`). Cả 5 vấn đề đã kiểm tay trực tiếp trên trình duyệt (không chỉ tin ca kiểm đơn vị),
+gồm cả kịch bản CHUỖI thao tác đầy đủ (ghim liều cực đoan → xoá bệnh nhân → nhập cân nặng mới →
+xác nhận khoá còn hiệu lực) — đúng bài học của chính lượt critique này: kiểm từng tình huống riêng
+lẻ không đủ, phải kiểm chuỗi nối tiếp.
+
 ### Việc còn lại — không phải nợ kỹ thuật, chỉ là gợi ý cho phiên sau
 
 ```
-Cả bốn P0-P3 của nợ thiết kế DungThuocScreen (mục 15 HANDOFF.md) đã sửa xong. Nếu muốn có điểm số
-MỚI làm mốc so sánh (điểm 36/40 hiện ghi trong file là điểm TRƯỚC bốn lượt sửa này), chạy lại
-/impeccable critique DungThuocScreen.
+Chín vấn đề (bốn P0-P3 chặng đầu + năm vấn đề chặng critique thứ hai) của nợ thiết kế DungThuocScreen
+(mục 15 HANDOFF.md) đều đã sửa xong, cùng trong phiên 2026-08-17. Nếu muốn có điểm số MỚI làm mốc so
+sánh (điểm 28/40 hiện ghi trong file là điểm TRƯỚC lượt sửa 5-vấn-đề cuối), chạy lại
+/impeccable critique DungThuocScreen — và LẦN NÀY, nếu lại tìm ra vấn đề mới, ưu tiên kiểm xem nó có
+phải hệ quả của các lượt sửa TRƯỚC ĐÓ hay không trước khi coi là nợ hoàn toàn mới.
 
-Chưa có lượt review toàn nhánh kiểu opus cho các sửa này — nếu muốn mức tin cậy tương đương các
-chặng P1-B/C/D trước khi coi là "đóng nợ hẳn", chạy superpowers:requesting-code-review hoặc
-/code-review. Track này KHÔNG nằm trong bản đồ phục hồi ở mục 3 (đường track riêng, không thuộc
-chặng P1 vendor/dịch) — dùng `git log --oneline` để tìm bốn commit "DungThuocScreen: sửa P0..."
-"...P3..." + "Spec P2..." của phiên 2026-08-17, thay vì tin một bảng chép tay có thể lệch.
+Chưa có lượt review toàn nhánh kiểu opus cho bất kỳ sửa nào trong cả hai đợt — nếu muốn mức tin cậy
+tương đương các chặng P1-B/C/D trước khi coi là "đóng nợ hẳn", chạy superpowers:requesting-code-review
+hoặc /code-review. Track này KHÔNG nằm trong bản đồ phục hồi ở mục 3 (đường track riêng, không thuộc
+chặng P1 vendor/dịch) — dùng `git log --oneline` để tìm các commit "DungThuocScreen: sửa..." + "Spec
+P2..." của phiên 2026-08-17, thay vì tin một bảng chép tay có thể lệch.
 ```

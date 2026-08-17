@@ -4,7 +4,7 @@
 // (vite.config.ts), không có localStorage toàn cục, nên ca kiểm của module này cần happy-dom.
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { recordTabUse, sortByUsage } from "../tabUsage"
+import { recordTabUse, reconcileOrder, sortByUsage } from "../tabUsage"
 
 beforeEach(() => {
   localStorage.clear()
@@ -67,5 +67,38 @@ describe("recordTabUse", () => {
     const items = [{ id: "a" }, { id: "b" }]
     expect(sortByUsage(items)).toEqual(items)
     spy.mockRestore()
+  })
+})
+
+// P2 (nợ thiết kế DungThuocScreen, critique /impeccable 2026-08-17T17-38): orderedTabs trước đây
+// tính lại bằng sortByUsage() mỗi lần DungThuocScreen DỰNG — nhưng màn này bị gỡ khỏi cây mỗi lần
+// rời màn hình, nên hàng tab có thể xáo trộn giữa hai lượt ghé thăm trong CÙNG một ca trực, không
+// chỉ giữa các ca. reconcileOrder() giữ một thứ tự đã "đóng băng" (lưu id vào sessionStorage) ổn
+// định suốt phiên, mà vẫn không bao giờ làm mất một tab nếu MIXING_TABS đổi giữa chừng (bản cập
+// nhật ứng dụng).
+describe("reconcileOrder", () => {
+  it("không có id nào đã lưu thì giữ nguyên thứ tự đầu vào", () => {
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }]
+    expect(reconcileOrder(items, []).map((x) => x.id)).toEqual(["a", "b", "c"])
+  })
+
+  it("sắp theo đúng thứ tự id đã lưu", () => {
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }]
+    expect(reconcileOrder(items, ["c", "a", "b"]).map((x) => x.id)).toEqual(["c", "a", "b"])
+  })
+
+  it("id đã lưu nhưng KHÔNG còn trong items (đã bị xoá khỏi danh mục) thì bỏ qua, không văng lỗi", () => {
+    const items = [{ id: "a" }, { id: "b" }]
+    expect(reconcileOrder(items, ["z", "b", "a"]).map((x) => x.id)).toEqual(["b", "a"])
+  })
+
+  it("id MỚI trong items nhưng chưa có trong bản lưu (thêm nhóm mới) được nối vào CUỐI, không bị mất", () => {
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }]
+    expect(reconcileOrder(items, ["b"]).map((x) => x.id)).toEqual(["b", "a", "c"])
+  })
+
+  it("id trùng lặp trong bản lưu chỉ tính một lần", () => {
+    const items = [{ id: "a" }, { id: "b" }]
+    expect(reconcileOrder(items, ["a", "a", "b"]).map((x) => x.id)).toEqual(["a", "b"])
   })
 })

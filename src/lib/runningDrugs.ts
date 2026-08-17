@@ -10,6 +10,8 @@
 // trung tâm. Lưu trên máy để còn nguyên khi chuyển tab hay mở lại app; xoá cùng lúc với "Bệnh nhân
 // mới".
 
+import type { DoseSeverity } from "./doseSafety"
+
 const RUNNING_KEY = "drtrong:running"
 
 export const MAX_LINES = 4
@@ -35,6 +37,11 @@ export interface RunningDrug {
   weightKgAtPin?: number | null
   // Nồng độ pha tại thời điểm ghim (chuỗi hiển thị) — dùng cùng mục đích với weightKgAtPin.
   concAtPin?: string
+  // Mức nghiêm trọng của liều LÚC GHIM (chỉ có ở kind "infusion" — InfusionCalculator đã tính sẵn).
+  // Thiếu trường này thì một liều vừa bắt buộc chạm-hai-lần xác nhận vì "GẤP 50 LẦN" lại hiện y hệt
+  // một liều bình thường trong bảng này — đúng bảng dùng để bàn giao ca/đối chiếu tương hợp, tức nơi
+  // tín hiệu nguy hiểm cần rõ nhất lại là nơi nó biến mất (critique /impeccable 2026-08-17T17-38, P0).
+  severity?: DoseSeverity
 }
 
 // Ngưỡng coi một mục ghim là "đã lâu, cần xem lại". Một ca trực đổi sau 8 giờ; tốc độ vận mạch ghim

@@ -34,3 +34,24 @@ export function sortByUsage<T extends { id: string }>(items: T[]): T[] {
     .sort((a, b) => b.count - a.count || a.i - b.i)
     .map((x) => x.item)
 }
+
+// Giữ một thứ tự đã "đóng băng" (vd đã lưu vào sessionStorage lúc đầu phiên) ổn định suốt phiên,
+// mà không bao giờ làm mất một mục nếu `items` đổi giữa chừng (bản cập nhật ứng dụng thêm/bớt
+// nhóm): id đã lưu nhưng không còn trong `items` bị bỏ qua; id mới trong `items` nhưng chưa có
+// trong bản lưu được nối vào CUỐI theo đúng thứ tự gốc của chúng trong `items`.
+export function reconcileOrder<T extends { id: string }>(items: T[], storedIds: string[]): T[] {
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const seen = new Set<string>()
+  const ordered: T[] = []
+  storedIds.forEach((id) => {
+    if (seen.has(id)) return
+    const item = byId.get(id)
+    if (!item) return
+    ordered.push(item)
+    seen.add(id)
+  })
+  items.forEach((item) => {
+    if (!seen.has(item.id)) ordered.push(item)
+  })
+  return ordered
+}

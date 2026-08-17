@@ -741,6 +741,22 @@ select {
   }
 }
 
+/* Dải đếm ngược cho nút "Xoá bệnh nhân" (pill có chữ, không phải icon vuông nên vòng tròn confirmRing
+   không hợp hình) — chạy từ đầy tới rỗng trong đúng CONFIRM_PATIENT_RESET_MS, cùng lý do với
+   confirmRing: chạm 1 mà không thấy còn bao lâu thì dễ tưởng máy không nhận, chạm lại giữa lúc khoá
+   sắp tự huỷ là chạm hụt (App.tsx, nút "Xoá bệnh nhân"). transform-origin bên trái nên dải "ăn mòn"
+   từ phải sang, đúng quy ước thanh đếm ngược thông thường. */
+@keyframes confirmDrain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  div[style*="confirmDrain"] {
+    animation-duration: 0.01ms !important;
+  }
+}
+
 /* Ô kết quả nảy một nhịp mỗi khi con số đổi. Ở ICU người dùng gõ liều rồi nhìn sang chỗ khác rồi
    nhìn lại — cái nảy này là dấu hiệu "số bạn đang nhìn là số MỚI", tránh đọc lại con số cũ. */
 @keyframes popValue {

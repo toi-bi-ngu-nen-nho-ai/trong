@@ -73,7 +73,7 @@ import {
   type WardRecipe,
 } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
-import { recordTabUse, sortByUsage } from "./lib/tabUsage"
+import { reconcileOrder, recordTabUse, sortByUsage } from "./lib/tabUsage"
 import { resolveConfirmTap, shouldRequireExtraConfirm } from "./lib/confirmGate"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
@@ -5478,16 +5478,34 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               resetPatient()
               tickHaptic()
             }}
-            className="flex-none min-h-[44px] px-2.5 rounded-full text-[12px] font-bold border"
+            className="flex-none min-h-[44px] px-2.5 rounded-full text-[12px] font-bold border relative overflow-hidden"
             style={
               confirmReset
                 ? { background: "var(--c-danger)", borderColor: "var(--c-danger)", color: "var(--c-on-bright)" }
                 : { background: "var(--c-surface)", borderColor: "var(--c-danger-line)", color: "var(--c-danger)" }
             }
+            aria-label={
+              confirmReset
+                ? `Xoá bệnh nhân${running.length > 0 ? ` và ${running.length} thuốc` : ""} — chạm lần nữa để xác nhận, tự huỷ sau 20 giây`
+                : "Xoá bệnh nhân"
+            }
           >
-            {confirmReset
-              ? `Xoá bệnh nhân${running.length > 0 ? ` + ${running.length} thuốc?` : "?"}`
-              : "Xoá bệnh nhân"}
+            {/* Cửa sổ 20 giây (CONFIRM_PATIENT_RESET_MS) dài hơn hẳn CONFIRM_ICON_RESET_MS của
+                ConfirmIconButton, đúng để sống sót qua gián đoạn — nhưng thiếu dải đếm ngược thì
+                người quay lại sau 5-10s không biết khoá còn hiệu lực hay đã tự huỷ, dễ chạm hụt vào
+                đúng chạm-hai-lần thật sự xoá (critique /impeccable 2026-08-17T17-38, P1). */}
+            {confirmReset && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0"
+                style={{ background: "rgba(255,255,255,0.28)", transformOrigin: "left", animation: `confirmDrain ${CONFIRM_PATIENT_RESET_MS}ms linear forwards` }}
+              />
+            )}
+            <span className="relative">
+              {confirmReset
+                ? `Xoá bệnh nhân${running.length > 0 ? ` + ${running.length} thuốc?` : "?"}`
+                : "Xoá bệnh nhân"}
+            </span>
           </button>
         )}
         <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }} aria-label={open ? "Thu gọn" : "Mở rộng"}>
@@ -5892,7 +5910,15 @@ function RunningPanel() {
           <p className="text-[12px] font-bold text-slate-500 mb-1">{lineLabel(line)}</p>
           {running
             .filter((r) => r.line === line)
-            .map((r) => (
+            .map((r) => {
+              // Liều đã high/extreme LÚC GHIM (severity ghi lại từ InfusionCalculator) phải vẫn nhìn
+              // nguy hiểm ở đây — đây là bảng dùng để bàn giao ca/đối chiếu tương hợp, đúng chỗ một
+              // liều gấp N lần bình thường không được trông y hệt liều thường (critique /impeccable
+              // 2026-08-17T17-38, P0). Dùng chung SEVERITY_STYLE với InfusionCalculator, không tự
+              // bịa bảng màu riêng cho bảng này.
+              const dangerous = r.severity === "high" || r.severity === "extreme"
+              const runningStyle = r.severity ? SEVERITY_STYLE[r.severity] : null
+              return (
               <div
                 key={r.id}
                 className="rise-in flex items-start gap-2 px-2.5 py-2 rounded-[14px] mb-1"
@@ -5907,7 +5933,8 @@ function RunningPanel() {
                       </span>
                     )}
                   </div>
-                  <p className={T.meta} style={{ color: C.textSoft }}>
+                  <p className={`${T.meta} flex items-center gap-1`} style={{ color: dangerous && runningStyle ? runningStyle.text : C.textSoft }}>
+                    {dangerous && <span className="flex-none scale-75">{icons.alert()}</span>}
                     {r.doseText}
                     {r.rateText ? ` · ${r.rateText}` : ""}
                   </p>
@@ -5976,7 +6003,8 @@ function RunningPanel() {
                   )}
                 </div>
               </div>
-            ))}
+              )
+            })}
         </div>
       ))}
 
@@ -9292,6 +9320,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const c = parseFloat(conc)
   const concValue = isNaN(c) ? null : c
   const pumpStep = calc.pumpStep ?? DEFAULT_PUMP_STEP
+  // Số lẻ của tốc độ bơm — chuyển lên đây (từ chỗ dùng đầu tiên cũ, gần dòng "Đặt bơm") để con số
+  // to nhất màn hình (resultFinalText bên dưới) dùng ĐÚNG quy tắc này, không phải quy tắc riêng của
+  // formatDoseNumber() theo độ lớn con số.
+  const rateDecimals = pumpStep >= 1 ? 0 : 1
 
   const result = useMemo(() => {
     if (!unit || concValue == null) return null
@@ -9314,14 +9346,26 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
     return checkInfusionDose(doseUnderCheck, unit, ownUnit, calc.doseMin, calc.doseMax, weightKg, calc.doseAbsMax)
   }, [unit, ownUnit, doseUnderCheck, calc.doseMin, calc.doseMax, calc.doseAbsMax, weightKg])
 
-  // Con số này chạy thẳng lên bơm thật — số lẻ khi đếm chạy phải khớp CHÍNH XÁC số lẻ mà
-  // formatDoseNumber() sẽ chốt lại lúc nghỉ, không tự bịa một quy tắc làm tròn riêng.
-  const resultFinalText = result != null ? formatDoseNumber(result) : "—"
-  const resultDecimals = result != null ? (formatDoseNumber(result).split(".")[1]?.length ?? 0) : 0
+  // Con số này chạy thẳng lên bơm thật — số lẻ khi đếm chạy phải khớp CHÍNH XÁC số lẻ mà bản tĩnh
+  // bên dưới dùng, không tự bịa một quy tắc làm tròn riêng.
+  //
+  // Chế độ "Liều → Tốc độ": đây CHÍNH LÀ con số sẽ đặt lên bơm (dòng "Đặt bơm" bên dưới chỉ làm
+  // tròn thêm theo bước bơm) — nên phải dùng ĐÚNG số lẻ của bước bơm (rateDecimals), không phải
+  // quy tắc làm tròn theo ĐỘ LỚN con số của formatDoseNumber(). Trước đây hai quy tắc độc lập từng
+  // hiện "2063 mL/giờ" ở đây và "Đặt bơm 2062.5 mL/giờ" một dòng dưới — cùng một tốc độ, hai cách
+  // đọc khác nhau, đúng lúc tốc độ cao/liều cực đoan là lúc chép số chính xác quan trọng nhất
+  // (critique /impeccable 2026-08-17T17-38, P2). Chế độ "Tốc độ → Liều" không có dòng "Đặt bơm" đối
+  // chiếu (kết quả là LIỀU, không phải tốc độ bơm) nên vẫn dùng formatDoseNumber() như cũ.
+  const resultFinalText =
+    result != null ? (mode === "doseToRate" ? result.toFixed(rateDecimals) : formatDoseNumber(result)) : "—"
+  const resultDecimals = mode === "doseToRate" ? rateDecimals : result != null ? (formatDoseNumber(result).split(".")[1]?.length ?? 0) : 0
   const resultDisplay = useCountUp(result, resultDecimals, resultFinalText)
 
   // Đổi bất kỳ đầu vào nào là phải xác nhận lại — không để một lần bấm xác nhận che cho mọi con số
-  // gõ sau đó.
+  // gõ sau đó. `weightKg` PHẢI có trong mảng phụ thuộc: liều mcg/kg/phút không đổi số nhưng đổi cân
+  // nặng (vd "Xoá bệnh nhân" rồi nhập cân nặng bệnh nhân mới) là một liều TUYỆT ĐỐI khác hẳn — thiếu
+  // nó thì khoá cũ (kể cả khoá ghim/chép của liều cực đoan) vẫn mở cho một bệnh nhân chưa từng xác
+  // nhận gì (critique /impeccable 2026-08-17T17-38, P0).
   useEffect(() => {
     setConfirmed(false)
     setSavedNote("")
@@ -9331,7 +9375,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
     setConfirmCopyExtreme(false)
     if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)
     if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
-  }, [dose, rateInput, conc, unitId, mode])
+  }, [dose, rateInput, conc, unitId, mode, weightKg])
 
   // Ô "Nồng độ" là đường vào phổ biến hơn bảng pha rất nhiều, nên nó phải được canh bằng ĐÚNG bộ
   // luật đã dùng cho bảng pha. Trước đây gõ 50 thay vì 5 mg/mL thì bảng pha chặn đỏ còn ô này chỉ
@@ -9394,7 +9438,6 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
     }
     return { text: "Chưa đủ dữ liệu để tính — kiểm tra lại các ô phía trên." }
   })()
-  const rateDecimals = pumpStep >= 1 ? 0 : 1
   // Ô nồng độ điền sẵn là con dao hai lưỡi: tiện, nhưng nếu chỗ bạn pha khác chuẩn mà quên sửa thì
   // app im lặng tính ra một con số sai trông hoàn toàn hợp lý. Vì vậy khi con số đã bị sửa khác mốc
   // thì phải nói rõ nó đang so với cái gì.
@@ -9775,6 +9818,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 rateText,
                 concText: `${conc} ${calc.concUnit}`,
                 kind: "infusion",
+                severity,
                 weightKgAtPin: weightKg,
                 concAtPin: conc,
               })
@@ -10396,10 +10440,26 @@ function DungThuocScreen({
   // Tab đang mở phải sống sót qua việc rời màn hình rồi quay lại — xem lib/uiState.ts.
   const [tab, setTab] = useStickyState<MixingTab>("dungthuoc.tab", "antibiotics")
   // Thứ tự HIỂN THỊ của hàng tab (khác `tab` ở trên — đó là tab đang MỞ) theo tần suất đã chọn,
-  // tích luỹ nhiều ca trực qua localStorage (lib/tabUsage.ts). Tính đúng MỘT LẦN lúc màn dựng —
-  // không tính lại mỗi lần bấm, để hàng không tự nhảy vị trí giữa lúc đang thao tác. Xem
+  // tích luỹ nhiều ca trực qua localStorage (lib/tabUsage.ts). Xem
   // docs/superpowers/specs/2026-08-17-dungthuoc-tab-mru-design.md.
-  const orderedTabs = useMemo(() => sortByUsage(MIXING_TABS), [])
+  //
+  // Trước đây tính lại bằng sortByUsage() mỗi lần MÀN NÀY DỰNG — tưởng là "một lần", nhưng
+  // DungThuocScreen bị gỡ khỏi cây mỗi khi rời màn hình (xem lib/uiState.ts), nên chỉ cần rẽ qua
+  // Mindmap năm giây rồi quay lại là hàng tab có thể đã xáo trộn — phá trí nhớ vị trí thường xuyên
+  // hơn dự tính (critique /impeccable 2026-08-17T17-38, P2). Nay ĐÓNG BĂNG theo cả PHIÊN: thứ tự
+  // tính một lần rồi lưu id vào sessionStorage (`dungthuoc.tabOrder`), đọc lại y nguyên ở mọi lần
+  // dựng màn sau trong cùng phiên; chỉ một phiên MỚI (tab/cửa sổ mới) mới tính lại theo số đếm
+  // localStorage mới nhất. reconcileOrder() không bao giờ làm mất một tab nếu MIXING_TABS đổi giữa
+  // chừng (bản cập nhật ứng dụng).
+  const [tabOrderIds, setTabOrderIds] = useStickyState<string[]>("dungthuoc.tabOrder", [])
+  const orderedTabs = useMemo(
+    () => (tabOrderIds.length > 0 ? reconcileOrder(MIXING_TABS, tabOrderIds) : MIXING_TABS),
+    [tabOrderIds],
+  )
+  useEffect(() => {
+    if (tabOrderIds.length === 0) setTabOrderIds(sortByUsage(MIXING_TABS).map((t) => t.id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const { patient, setField, reset, restore } = usePatientVitals()
   const [patientOpen, setPatientOpen] = useState(() => !patientHasData(patient))
   const [running, setRunning] = useState<RunningDrug[]>(loadRunning)
