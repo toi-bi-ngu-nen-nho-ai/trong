@@ -84,6 +84,13 @@ export function diemTieuThuTrongFile(js, tenFile = 'khong-ten.js') {
 // Bản khai được ghim — đúng khuôn bang-bam-vendor.json của D11: khai thứ đã soi, để cổng gào khi
 // thực tế lệch. Đo 2026-08-15, xem chi tiết ở docs/superpowers/plans/2026-08-15-noi-dung-dich.md
 // Task 3.
+//
+// Hai mục filesys.js:175/205 (description trong FileTypes.find, gỡ nút thắt Images/MindMap) đã
+// RỤNG khỏi bản khai này kể từ 2026-08-17: sau khi scripts/tach-dinh-danh-loai-tep.mjs đổi hai chỗ
+// so sánh đó sang FILE_TYPE_IDS.indexOf(acceptType), chúng không còn đọc lại "description" nữa nên
+// không còn là điểm tiêu thụ giá trị hiển thị — đây là hệ quả ĐÚNG mong muốn của việc gỡ nút thắt,
+// không phải một điểm tiêu thụ bị bỏ sót. Xem
+// docs/superpowers/specs/2026-08-17-go-nut-that-loai-tep-design.md.
 export const BAN_KHAI_TIEU_THU = [
   { file: 'affine/components/src/toolbar/utils.js', dong: 50, dang: 'so-sánh', thuocTinh: 'label' },
   {
@@ -91,18 +98,6 @@ export const BAN_KHAI_TIEU_THU = [
     dong: 114,
     dang: 'so-sánh',
     thuocTinh: 'label',
-  },
-  {
-    file: 'affine/shared/src/utils/file/filesys.js',
-    dong: 175,
-    dang: 'so-sánh',
-    thuocTinh: 'description',
-  },
-  {
-    file: 'affine/shared/src/utils/file/filesys.js',
-    dong: 205,
-    dang: 'so-sánh',
-    thuocTinh: 'description',
   },
 ]
 

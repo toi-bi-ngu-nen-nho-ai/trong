@@ -68,7 +68,7 @@ describe('diemTieuThuTrongFile — bốn hình dạng tiêu thụ', () => {
 })
 
 describe('BAN_KHAI_TIEU_THU — bản khai được ghim, đúng khuôn bang-bam-vendor.json của D11', () => {
-  it('có đúng 4 mục, đúng toạ độ đã đo 2026-08-15', () => {
+  it('có đúng 2 mục — hai mục filesys.js đã rụng sau khi gỡ nút thắt Images/MindMap (2026-08-17)', () => {
     expect(BAN_KHAI_TIEU_THU).toEqual([
       {
         file: 'affine/components/src/toolbar/utils.js',
@@ -81,18 +81,6 @@ describe('BAN_KHAI_TIEU_THU — bản khai được ghim, đúng khuôn bang-bam
         dong: 114,
         dang: 'so-sánh',
         thuocTinh: 'label',
-      },
-      {
-        file: 'affine/shared/src/utils/file/filesys.js',
-        dong: 175,
-        dang: 'so-sánh',
-        thuocTinh: 'description',
-      },
-      {
-        file: 'affine/shared/src/utils/file/filesys.js',
-        dong: 205,
-        dang: 'so-sánh',
-        thuocTinh: 'description',
       },
     ])
   })
