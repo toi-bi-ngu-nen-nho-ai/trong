@@ -951,3 +951,46 @@ npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải 
 chủ yếu `affine/data-view` — cần bật tính năng trước, xem quyết định 1 của P1-C); hoặc giải quyết
 mối nối `Images`/`MindMap` để mở khoá hai chuỗi đó (xem Global Constraints của kế hoạch P1-E); hoặc
 Lưu trữ (D4)/BoardGallery như mục 8 cũ đã ghi.
+
+---
+
+## 15. NỢ THIẾT KẾ — `/impeccable critique DungThuocScreen` (2026-08-17), CHƯA SỬA GÌ
+
+Đường track riêng, không thuộc chặng P1 (vendor/dịch) ở trên. Chủ dự án chọn **ghi nợ + chuẩn bị
+prompt, để tự bàn giao ở phiên sau** thay vì sửa ngay trong phiên này — không có commit nào của
+mục này.
+
+Báo cáo đầy đủ (dual-agent: 1 review thiết kế + 1 detector/bằng chứng trình duyệt độc lập), điểm
+**36/40 (Good)**, đã lưu tại `.impeccable/critique/2026-08-17T04-00-34Z__src-app-tsx-dungthuocscreen.md`.
+Xu hướng điểm bốn lượt gần nhất: 37 → 29 → 34 → **36**.
+
+### Bốn vấn đề, đã xếp ưu tiên — CHƯA sửa cái nào
+
+| Mức | Vấn đề | File:dòng | Việc cần làm |
+|---|---|---|---|
+| **P0** | Xác nhận "liều gấp N lần bình thường" chỉ chặn *nhìn thấy* kết quả, không chặn hành động ghim vào Đang truyền / sao chép dòng cho biểu đồ — hai hành động đó dễ bấm y hệt như với liều bình thường | `InfusionCalculator`, `src/App.tsx:9304, 9589-9604, 9688-9713` | Thêm bước xác nhận riêng (nút đổi trạng thái tạm thời, kiểu double-tap giống xoá bệnh nhân) cho nút ghim/copy khi `severity` là `high`/`extreme` |
+| **P1** | `dose`/`rateInput`/`conc`/`bagVolume` trong máy tính liều dùng `useState` thường, trong khi mọi lớp chọn khác của CÙNG màn (tab, thuốc, bệnh lý, đường dùng) đều `useStickyState` để sống sót qua gián đoạn — bị cắt ngang (cuộc gọi/báo động) thì số đang gõ mất sạch, không có dấu hiệu gì báo đã mất | `InfusionCalculator`, `src/App.tsx:9214-9217` | Chuyển sang `useStickyState`, khoá theo id thuốc, giống các lớp chọn một tầng phía trên |
+| P2 | Hàng 10 tab + hàng 6 chip đơn vị đều vượt ngưỡng ≤4 lựa chọn cùng lúc; chỉ tab mở gần nhất được nhớ, không có thứ tự theo tần suất dùng | Hàng tab: `src/App.tsx` gần `MIXING_TABS.map` (~10630) | Cân nhắc sắp tab theo tần suất dùng, hoặc đưa ô Tìm thành luôn hiện thay vì phải bấm mở |
+| P3 | Cửa sổ xác nhận xoá bệnh nhân (double-tap) chỉ 2.5s, ngắn hơn nhiều so với lý do đã dùng để kéo dài cửa sổ Hoàn tác lên 20s cho ĐÚNG cùng kịch bản bị cắt ngang | `CONFIRM_ICON_RESET_MS`, `src/App.tsx:5176` | Kéo dài `CONFIRM_ICON_RESET_MS`, áp cùng lý do đã dùng cho cửa sổ 20s |
+
+Chi tiết đầy đủ (điểm 10 tiêu chí Nielsen, persona Alex/Casey, phần đối chiếu detector tĩnh vs.
+overlay trình duyệt sống) nằm trong file đã lưu ở trên — đừng chép lại số liệu vào đây, đọc file gốc.
+
+### Prompt dán vào phiên sau để trả nợ này
+
+```
+Đọc mục 15 của docs/superpowers/HANDOFF.md, rồi đọc toàn bộ file
+.impeccable/critique/2026-08-17T04-00-34Z__src-app-tsx-dungthuocscreen.md để có đủ chi tiết.
+
+Đây là nợ THIẾT KẾ của màn DungThuocScreen (src/App.tsx, tìm `function DungThuocScreen(`),
+tách biệt hoàn toàn với track vendor/dịch ở các mục khác của HANDOFF.md — đừng lẫn hai việc.
+
+Làm P0 và P1 trước (an toàn lâm sàng): P0 là hành động ghim/copy liều cực đoan chưa bị chặn thêm
+dù đã xác nhận nhìn thấy cảnh báo; P1 là ô nhập liều đang gõ mất trắng khi bị gián đoạn, trong khi
+mọi lớp chọn khác cùng màn đều sống sót qua gián đoạn nhờ useStickyState. P2/P3 làm sau nếu còn
+ngân sách.
+
+Dùng superpowers:brainstorming trước khi sửa nếu cách chặn P0 (đổi trạng thái nút tạm thời hay
+modal riêng) chưa rõ ràng, rồi tự sửa trực tiếp — không cần subagent-driven-development đầy đủ cho
+việc nhỏ thế này.
+```
