@@ -999,3 +999,73 @@ mốc so sánh — điểm 36/40 hiện ghi trong file là điểm TRƯỚC lư�
 Dùng superpowers:brainstorming trước khi sửa P2 nếu hướng (sắp theo tần suất hay luôn hiện ô Tìm)
 chưa rõ ràng, rồi tự sửa trực tiếp — không cần subagent-driven-development đầy đủ cho việc nhỏ.
 ```
+
+---
+
+## 16. GỠ NÚT THẮT IMAGES/MINDMAP — ĐÃ XONG VÀ ĐÃ GỘP
+
+Track MindmapScreen, không thuộc chặng P1 (vendor/dịch nội dung) nào có số hiệu riêng — xem
+docs/superpowers/specs/2026-08-17-go-nut-that-loai-tep-design.md.
+
+### Chặng này làm gì
+
+`FileTypes.description` trong `affine/shared/src/utils/file/filesys.js` vừa là nhãn hiển thị vừa
+là khoá tra cứu (`FileTypes.find(i => i.description === acceptType)`, hai lượt). Dịch
+`"Images"`/`"MindMap"` sang tiếng Việt trước đây sẽ làm `openFilesWith`/`importMindmap` ném lỗi khi
+người dùng bấm nhập sơ đồ tư duy hoặc chèn ảnh. Đã thêm bước mới ("Bước 4a" của `dung:vendor`,
+`scripts/tach-dinh-danh-loai-tep.mjs`) chèn mảng định danh song song `FILE_TYPE_IDS` (không đụng
+object `FileTypes` — object đó được truyền nguyên vẹn vào `window.showOpenFilePicker()`), đổi hai
+lượt `.find(...)` sang tra chỉ số. Cổng 4 của D12 (`BAN_KHAI_TIEU_THU`) rụng hai mục
+`filesys.js:175/205` — hệ quả đúng mong muốn.
+
+### Đã xong
+
+| Task | Nội dung | Commit |
+|---|---|---|
+| 1 | `tachDinhDanhLoaiTep` — hàm thuần, 11 ca kiểm | `766c477` |
+| 2 | Nối vào pipeline, cập nhật Cổng 4 | `7ce96ce` |
+| — | Đính chính spec+plan giữa chừng: khoá `"MindMap"` đổi từ `"Sơ đồ tư duy"` sang `"Bản đồ tư duy"` (trùng giá trị với khoá `"Mind Map"` có sẵn, bị Cổng `kiem-dist.mjs`/`timTrungBanDich` chặn) | `fcfec0b` |
+| 3 | Nội dung dịch — cả hai khoá `"MindMap"` và `"Images"` | `62a4420` |
+
+`npm test` **159/159** (17 file), trước chặng 148/148 — tăng đúng 1 file (bộ kiểm
+`tach-dinh-danh-loai-tep`, 11 ca) so với trước chặng.
+`kiem:dist` báo `bản dịch vi.json — 132/132` khoá có mặt (130 khoá cũ trước chặng + 2 khoá mới
+`MindMap`/`Images`, không khoá nào bị loại).
+
+Bảy cổng đo lại trực tiếp trong phiên đóng chặng (2026-08-18), không chép số cũ: `npx tsc --noEmit`
+exit 0 · `npm test` 159/159 (17 file) · `kiem:vendor` — so 2782 file với `bang-bam-vendor.json` và
+thượng nguồn, lệch 0, không đối chiếu được 0 · `kiem:vendor-paths` — khớp 438 mục paths ·
+`npm run build` xanh · `kiem:dist` — `bản dịch vi.json — 132/132 có mặt`, không còn `"affine-"`,
+mọi biến `--drt-*` dùng đều có định nghĩa.
+
+### Kiểm tay trên trình duyệt thật
+
+**Xác nhận được bằng dò mã nguồn/console/DOM của bundle đã dựng** (không phải bằng thao tác chạm
+thật): dev server khởi động sạch, board tải lên với console không lỗi, nút nhập bản đồ tư duy trên
+toolbar tồn tại trong DOM. Chuỗi gọi trong bundle thật đã served —
+`mindmap-tool-button.js → importMindmap() → openSingleFileWith('MindMap') → filesys.js` tra
+`FILE_TYPE_IDS` → `description: "Bản đồ tư duy"` — đã lần theo đúng, khớp thiết kế Cổng 4.
+
+**KHÔNG xác nhận được** bằng thao tác bấm thật: liệu hộp thoại chọn tệp của hệ điều hành có thật sự
+mở ra và hiển thị "Bản đồ tư duy" làm nhãn bộ lọc hay không. Công cụ Browser pane trong phiên không
+người theo dõi này (không ai đang thực sự xem màn hình) trả lỗi
+`"the Browser pane is not displayed, so the page is not compositing frames"` cho MỌI thao tác
+screenshot/click theo toạ độ — không phải lỗi thử lại được, đã tái hiện độc lập ở phiên kiểm soát,
+xác nhận đây là giới hạn môi trường thật, không phải lỗi có thể sửa bằng cách đổi subagent hay thử
+lại. **Còn nợ:** kiểm tay ~2 phút khi chủ dự án ở trước màn hình thật — bấm nút nhập bản đồ tư duy,
+xác nhận hộp thoại chọn tệp hiện nhãn "Bản đồ tư duy" (không phải "MindMap" hay lỗi).
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này (sau 62a4420) hoặc mới hơn
+git status --short                      # kỳ vọng chỉ hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+Commit HANDOFF của mục này được tạo NGAY SAU `62a4420` (HEAD lúc đo bảy cổng ở trên) — SHA thật của
+nó chưa biết tại thời điểm viết mục này; kỳ vọng ở dòng `git log` trên là "SHA của chính commit đó
+hoặc mới hơn", không phải `62a4420`.
+
+**Chặng kế tiếp** (không đổi so với mục 14 cũ, trừ mục vừa xong): đợt dịch thứ hai cho nhóm gói
+chưa bật (chủ yếu `affine/data-view`, cần bật tính năng trước); hoặc Lưu trữ (D4)/BoardGallery.
