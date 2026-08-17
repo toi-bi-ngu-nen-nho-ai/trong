@@ -7810,11 +7810,6 @@ function AntibioticDoseCard({
     }
   }, [mixCfg, doseTargetMg, drug.name, activeMix?.vialLabel, routeShort, roundUp])
   const vialGuard = useVialCountGuard(autoUsage?.vialCount ?? null, autoUsage?.vialForm ?? "powder")
-  // Số lọ/ống/chai tự tính đổi khi công tắc làm tròn hay cân nặng đổi (giống CrCl đổi khi nhập liệu
-  // bệnh nhân) — đếm chạy từ số cũ sang số mới thay vì bật thẳng, cùng hiệu ứng dùng cho CrCl/tốc độ
-  // bơm, để người dùng THẤY con số vừa tăng hay giảm, không chỉ đọc lại một con số tĩnh khác.
-  const vialCountFinalText = autoUsage?.vialCount != null ? trim(autoUsage.vialCount, 0) : "—"
-  const vialCountDisplay = useCountUp(autoUsage?.vialCount ?? null, 0, vialCountFinalText)
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
   const otherWarnings = (drug.warnings ?? []).filter((w) => w.severity !== "cao")
   const rrtDoseText =
@@ -8049,11 +8044,17 @@ function AntibioticDoseCard({
         autoUsage &&
         !vialGuard.blocked && (
           <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-            {/* Số lọ/ống/chai đếm chạy khi đổi (công tắc làm tròn, cân nặng...) — cùng hiệu ứng đếm
-                của CrCl, đặt trước câu "Cách dùng" đầy đủ để mắt bắt được NGAY con số vừa đổi trước
-                khi đọc hết câu bên dưới. */}
+            {/* Số lọ/ống/chai nảy một nhịp khi đổi (công tắc làm tròn, cân nặng...) — dùng `pop-value`,
+                cùng hiệu ứng đã dùng cho "Bệnh nhân đang dùng · N thuốc" trên chính màn này, KHÔNG
+                dùng đếm-chạy-liên-tục (useCountUp): số này hầu hết chỉ đổi ±1 (2 ống → 1 ống), nội
+                suy liên tục rồi làm tròn về nguyên chỉ giữ nguyên số cũ gần hết animation rồi mới bật
+                thẳng sang số mới ở khung hình cuối — không tạo được cảm giác "đang đếm" như CrCl (đổi
+                trong khoảng rộng, nhiều số nguyên để chạy qua). `key` đổi theo giá trị để React dựng
+                lại phần tử, kích hoạt lại animation mỗi lần số đổi — kể cả đổi rồi đổi lại cùng một số. */}
             <p className="flex items-baseline gap-1.5 mb-1">
-              <span className={`${T.critical} ${NUM_DOSE}`} style={{ color: "var(--c-primary)" }}>{vialCountDisplay}</span>
+              <span key={autoUsage.vialCount} className={`${T.critical} ${NUM_DOSE} pop-value inline-block`} style={{ color: "var(--c-primary)" }}>
+                {trim(autoUsage.vialCount, 0)}
+              </span>
               <span className={T.meta} style={{ color: "var(--c-primary)" }}>{autoUsage.vialLabel}</span>
             </p>
             <p
