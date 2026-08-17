@@ -12,7 +12,12 @@ import ts from 'typescript'
 // docs/superpowers/specs/2026-08-15-noi-dung-dich-design.md §3.1-§4.1 đo được BỐN mối nối nguy
 // hiểm đọc lại giá trị hiển thị làm khoá tra cứu / vế so sánh, và cả bốn đều đọc `.name` — trong
 // bảng phân bố 158 chỗ tiêu thụ ngược ở §3.3, `name` chiếm 96 lượt, `group` 38, `title` 12, `text`
-// 8 (còn `label`/`description` — vẫn được giữ — chỉ 2 lượt mỗi tên, canh bằng Cổng 4):
+// 8 (còn `label`/`description` — vẫn được giữ — đo được 2 lượt mỗi tên lúc đó, canh bằng Cổng 4;
+// SAU chặng "Gỡ nút thắt Images/MindMap" (2026-08-18), hai lượt của `description` ở filesys.js đã
+// bị xoá — `BAN_KHAI_TIEU_THU` hiện tại (`scripts/kiem-quan-he-dich.mjs`) chỉ còn 2 mục, cả hai đều
+// `label`, `description` đo được 0. Đừng tin con số "2 lượt mỗi tên" ở trên cho `description` nữa —
+// đo lại `BAN_KHAI_TIEU_THU` trước khi quyết định có nên bỏ `description` khỏi
+// `THUOC_TINH_HIEN_THI` hay không):
 //   tooltips[name]                          — affine/blocks/note/src/configs/slash-menu.js:51,83
 //   ['Code','Link'].includes(i.name)        — affine/blocks/note/src/configs/slash-menu.js:39
 //   item.name !== 'Divider'                 — affine/gfx/note/src/toolbar/note-menu-config.js:113

@@ -1,6 +1,6 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-17**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-18**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
 > **ĐÍNH CHÍNH bản 2026-08-16 (viết đêm 16, trước khi gộp xong).** Bản đó ghi P1-E "8/8 task xong,
 > CHƯA GỘP". Sáng 17/08 phát sinh tình huống hai lượt gộp tách rời — xem "CẢNH BÁO VẬN HÀNH — gộp
@@ -23,10 +23,13 @@ Cập nhật: **2026-08-17**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **148/148** (16 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 130/130 có mặt` |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **159/159** (17 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 132/132 có mặt` |
 
-> **Về con số 148/148.** Nó là "lượt chạy gần nhất xanh", không phải "bộ test ổn định" — xem bài
-> học ca đỏ chập chờn ở mục 6 (vẫn còn giá trị, dù chưa tái phát từ lượt vá `40f90e9`).
+> **Về con số 159/159 (trước đó 148/148).** Đây là "lượt chạy gần nhất xanh", không phải "bộ test ổn
+> định" — xem bài học ca đỏ chập chờn ở mục 6 (vẫn còn giá trị, dù chưa tái phát từ lượt vá
+> `40f90e9`). Số 159/159 (17 file) là kết quả đo lại trực tiếp trong phiên đóng chặng "Gỡ nút thắt
+> Images/MindMap" (mục 16, 2026-08-18) — tăng đúng 1 file/11 ca so với 148/148 (16 file) trước đó,
+> không phải hồi quy về số lượng file.
 
 **Chặng P1-E — nội dung dịch, đợt đầu — ĐÃ XONG VÀ ĐÃ GỘP** (`4babe67`, sau khi PR GitHub #1 gộp
 thiếu — xem cảnh báo vận hành ngay dưới). 9/9 task, **tự soát trực tiếp, KHÔNG có lượt review toàn
@@ -1002,7 +1005,7 @@ chưa rõ ràng, rồi tự sửa trực tiếp — không cần subagent-driven
 
 ---
 
-## 16. GỠ NÚT THẮT IMAGES/MINDMAP — ĐÃ XONG VÀ ĐÃ GỘP
+## 16. GỠ NÚT THẮT IMAGES/MINDMAP — ĐÃ XONG, CHỜ GỘP
 
 Track MindmapScreen, không thuộc chặng P1 (vendor/dịch nội dung) nào có số hiệu riêng — xem
 docs/superpowers/specs/2026-08-17-go-nut-that-loai-tep-design.md.
@@ -1054,6 +1057,22 @@ screenshot/click theo toạ độ — không phải lỗi thử lại được, 
 xác nhận đây là giới hạn môi trường thật, không phải lỗi có thể sửa bằng cách đổi subagent hay thử
 lại. **Còn nợ:** kiểm tay ~2 phút khi chủ dự án ở trước màn hình thật — bấm nút nhập bản đồ tư duy,
 xác nhận hộp thoại chọn tệp hiện nhãn "Bản đồ tư duy" (không phải "MindMap" hay lỗi).
+
+### Bài học / nợ còn lại
+
+**Hai chữ tiếng Việt cho cùng một khái niệm.** Khoá cũ `"Mind Map"` dịch `"Sơ đồ tư duy"` (nhãn
+toolbar), khoá mới `"MindMap"` của chặng này phải dịch `"Bản đồ tư duy"` (nhãn bộ lọc hộp thoại mở
+tệp) — hai chuỗi khác nhau cho cùng một khái niệm "mind map", ép buộc bởi cổng cấm trùng bản dịch
+(`kiem-dist.mjs`/`timTrungBanDich`), không phải lựa chọn tự nguyện. Vi phạm chính nguyên tắc "cùng
+khái niệm, cùng chữ" mà spec ban đầu đề ra (§5). Xem giải thích đầy đủ ở
+`docs/superpowers/specs/2026-08-17-go-nut-that-loai-tep-design.md` §5 (đoạn ngay sau ĐÍNH CHÍNH) —
+đợt dịch `affine/data-view` sắp tới nhiều khả năng gặp lại đúng kiểu va chạm này ở quy mô lớn hơn
+nếu cây vendor còn khoá tiếng Anh gần-trùng-nghĩa khác.
+
+**Cố ý hoãn (không phải thiếu sót):** gộp hàm chung kiểm `parseDiagnostics` dùng 3 lần rải rác giữa
+`luat-vi-tri-dich.mjs` và `tach-dinh-danh-loai-tep.mjs` — bị hoãn vì đây là refactor xuyên suốt mã
+D12 gốc đã được review/chốt từ trước, nằm ngoài phạm vi chặng này; rủi ro đổi mã đã ổn định không
+đáng để đóng một mối DRY nhỏ. Chưa có task nào nhận việc này.
 
 ### Việc làm ngay của phiên sau
 

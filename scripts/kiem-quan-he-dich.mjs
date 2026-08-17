@@ -11,11 +11,13 @@
 // phải từ phía chuỗi. Đo trên .vendor-build/ 2026-08-15, giới hạn 5 tên còn trong danh sách hiển
 // thị sau Task 1 của chặng này (tooltip/label/description/caption/placeholder — 4 tên còn lại,
 // name/group/title/text, đã bị loại khỏi danh sách hiển thị nên KHÔNG cần dây bẫy: chúng vĩnh
-// viễn không được dịch): đúng 4 chỗ, xem BAN_KHAI_TIEU_THU.
+// viễn không được dịch): ban đầu đúng 4 chỗ; chặng "Gỡ nút thắt Images/MindMap" (2026-08-18) xoá
+// hai chỗ ở filesys.js (tách khoá tra cứu khỏi description), còn lại đúng 2 chỗ, xem
+// BAN_KHAI_TIEU_THU.
 //
-// Không phải cổng CHẶN KHOÁ — nó không biết gì về vi.json. Nó là dây bẫy CƠ CHẾ: nếu bốn toạ độ
-// này đổi (thượng nguồn thêm một chỗ mới, hay bốn chỗ cũ biến mất), cổng đỏ và người sửa phải tự
-// đánh giá — không có phán quyết "an toàn/nguy hiểm" được mã hoá cứng ở đây.
+// Không phải cổng CHẶN KHOÁ — nó không biết gì về vi.json. Nó là dây bẫy CƠ CHẾ: nếu các toạ độ
+// đang ghim ở BAN_KHAI_TIEU_THU đổi (thượng nguồn thêm một chỗ mới, hay một chỗ cũ biến mất), cổng
+// đỏ và người sửa phải tự đánh giá — không có phán quyết "an toàn/nguy hiểm" được mã hoá cứng ở đây.
 //
 // CỔNG 5 — tính nhất quán tiền tố. Lớp lỗi khác hẳn: PHẪU THUẬT CHUỖI trên một literal ĐÃ dịch.
 // affine/gfx/note/src/toolbar/note-menu-config.js:118 dựng tooltip bằng

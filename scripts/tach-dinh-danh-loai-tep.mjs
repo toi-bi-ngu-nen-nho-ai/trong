@@ -245,6 +245,19 @@ if (dieuHanhTrucTiep) {
     console.error(`tach-dinh-danh-loai-tep: DỪNG — ${err.message}`)
     process.exit(1)
   }
+  const sfKiem = ts.createSourceFile(relDich, ketQua.js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+  if (!Array.isArray(sfKiem.parseDiagnostics) || sfKiem.parseDiagnostics.length > 0) {
+    console.error('tach-dinh-danh-loai-tep: DỪNG — văn bản sau khi vá không còn phân tích cú pháp được. Không ghi đĩa.')
+    process.exit(1)
+  }
+  const soLuotThayThe = ketQua.js.match(/FileTypes\[FILE_TYPE_IDS\.indexOf\(acceptType\)\]/g)?.length ?? 0
+  if (soLuotThayThe !== 2) {
+    console.error(
+      `tach-dinh-danh-loai-tep: DỪNG — kỳ vọng đúng 2 lượt thay thế trong văn bản đầu ra, đếm được ${soLuotThayThe}. Không ghi đĩa.`,
+    )
+    process.exit(1)
+  }
+
   writeFileSync(DICH, ketQua.js)
   console.log(
     `tach-dinh-danh-loai-tep: đã tách ${ketQua.danhSachId.length} định danh khỏi description ` +
