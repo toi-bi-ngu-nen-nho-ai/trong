@@ -984,6 +984,22 @@ xanh (`bản dịch vi.json — 130/130 có mặt`, vỏ app ~333,6 kB gzip — 
 review toàn nhánh kiểu opus** cho bốn sửa này — chỉ tự soát + kiểm tay trên trình duyệt (đúng thói
 quen `superpowers:verification-before-completion`).
 
+**Lượt kiểm thử lại (TDD thật, `/superpowers:test-driven-development`) ngay sau đó** đã lấp hai lỗ
+hổng: `lib/uiState.ts` (dùng khắp màn Dùng thuốc từ trước, kể cả bởi P1) chưa từng có ca kiểm nào —
+xuất công khai `readStickyState` (đổi tên hàm nội bộ `read`, hành vi y hệt) và thêm
+`src/lib/__tests__/uiState.spec.ts` (7 ca, quan trọng nhất: hai khoá khác nhau không đè nhau — đúng
+bất biến P1 dựa vào để khoá theo `drug.id`). Logic chặn xác nhận của P0 (severity nào cần khoá,
+chạm này nên vũ trang hay thực thi) tách sang `src/lib/confirmGate.ts`
+(`shouldRequireExtraConfirm`/`resolveConfirmTap`, 8 ca ở `confirmGate.spec.ts`), rồi nối lại vào
+`InfusionCalculator` thay cho `if (isExtremeSeverity && !confirmPin) {...}` inline cũ — hành vi y
+hệt, đã kiểm tay lại trên trình duyệt (Noradrenaline 50×liều: chạm 1 vũ trang, chạm 2 mới ghim).
+Cả hai module MỚI đều theo đúng trình tự RED (import lỗi/hàm không tồn tại) → GREEN (viết code tối
+thiểu) → refactor nối vào App.tsx, không viết trước rồi test sau. P3 không có logic tách được (chỉ
+là một hằng số) nên không thêm ca kiểm — xác nhận bằng kiểm tay như cũ. `npm test` sau lượt này:
+**171/171** (19 file). `uiState.spec.ts`/`confirmGate.spec.ts` cũng cần
+`// @vitest-environment happy-dom` cho file đầu (đọc `sessionStorage`), file sau thì không (thuần,
+không đụng DOM).
+
 ### Việc còn lại — không phải nợ kỹ thuật, chỉ là gợi ý cho phiên sau
 
 ```

@@ -74,6 +74,7 @@ import {
 } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
 import { recordTabUse, sortByUsage } from "./lib/tabUsage"
+import { resolveConfirmTap, shouldRequireExtraConfirm } from "./lib/confirmGate"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
 import { MAX_LINES, STALE_AFTER_MS, formatAgo, formatClock, lineLabel, loadRunning, saveRunning, upsertRunning, type RunningDrug } from "./lib/runningDrugs"
@@ -9351,8 +9352,9 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const severityStyle = SEVERITY_STYLE[severity === "unknown" && result != null ? "ok" : severity]
   // Ngưỡng riêng cho nút ghim/chép — "extreme" mở khoá nhìn kết quả ở `blocked` rồi, nhưng ghim vào
   // Đang truyền hay chép vào bệnh án là hành động có hậu quả cao hơn hẳn việc nhìn, nên cần chạm
-  // xác nhận thứ hai (xem confirmPin/confirmCopyExtreme) trước khi thực sự chạy.
-  const isExtremeSeverity = severity === "high" || severity === "extreme"
+  // xác nhận thứ hai (xem confirmPin/confirmCopyExtreme) trước khi thực sự chạy. Quyết định thuần,
+  // kiểm ở lib/__tests__/confirmGate.spec.ts — xem lib/confirmGate.ts.
+  const needsExtraConfirm = shouldRequireExtraConfirm(severity)
   // Cảnh báo đi kèm mọi dòng nhật ký của phép tính này — gồm cả cảnh báo liều lẫn cảnh báo nồng độ.
   const activeFlag = [check?.headline, concGrade.headline].filter(Boolean).join(" + ") || undefined
 
@@ -9662,7 +9664,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 onClick={async () => {
                   // Liều high/extreme: chạm đầu chỉ vũ trang khoá xác nhận, chưa chép gì — giống
                   // "Xoá công thức này". Đổi bất kỳ ô nào ở trên tắt khoá này ngay (useEffect trên).
-                  if (isExtremeSeverity && !confirmCopyExtreme) {
+                  if (resolveConfirmTap(confirmCopyExtreme, needsExtraConfirm) === "arm") {
                     setConfirmCopyExtreme(true)
                     tickHaptic()
                     if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
@@ -9757,7 +9759,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               // Liều high/extreme: chạm đầu chỉ vũ trang khoá xác nhận riêng cho việc GHIM — xem
               // xong kết quả (đã xác nhận ở `blocked` phía trên) không có nghĩa là chắc chắn muốn
               // đưa liều này vào bảng Đang truyền. Đổi bất kỳ ô nhập nào tắt khoá này ngay.
-              if (isExtremeSeverity && !confirmPin) {
+              if (resolveConfirmTap(confirmPin, needsExtraConfirm) === "arm") {
                 setConfirmPin(true)
                 tickHaptic()
                 if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)

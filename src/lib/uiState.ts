@@ -13,7 +13,10 @@ import { useCallback, useState } from "react"
 
 const PREFIX = "drtrong:ui:"
 
-function read<T>(key: string, fallback: T): T {
+// Xuất công khai để kiểm được trực tiếp bất biến "hai khoá khác nhau không đè nhau" mà
+// useStickyState dựa vào (vd InfusionCalculator khoá theo drug.id) — không phải hàm dựng riêng cho
+// test, chỉ là cùng hàm nội bộ mà useStickyState/writeStickyState đã dùng từ trước.
+export function readStickyState<T>(key: string, fallback: T): T {
   try {
     const raw = sessionStorage.getItem(PREFIX + key)
     if (raw == null) return fallback
@@ -41,7 +44,7 @@ export function writeStickyState<T>(key: string, value: T): void {
 // Giống useState, nhưng giá trị sống sót qua việc chuyển màn hình. `key` phải là duy nhất trong
 // toàn app (thêm hậu tố khi cùng một component được dựng nhiều lần, vd theo từng nhóm thuốc).
 export function useStickyState<T>(key: string, initial: T): [T, (value: T) => void] {
-  const [value, setValue] = useState<T>(() => read(key, initial))
+  const [value, setValue] = useState<T>(() => readStickyState(key, initial))
   const set = useCallback(
     (next: T) => {
       setValue(next)
