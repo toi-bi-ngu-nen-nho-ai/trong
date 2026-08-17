@@ -143,11 +143,18 @@ Các bước, MỖI bước sai đều `throw` (fail-closed, không bỏ qua im 
    `acceptType`). Không đúng hai lượt → `throw`.
 6. Sinh `danhSachId` = đúng danh sách `description` đo được ở bước 4 (không hard-code lại — lấy từ
    phép đo, để không có hai nguồn sự thật lệch nhau).
-7. Dựng chuỗi mới: chèn `const FILE_TYPE_IDS = ${JSON.stringify(danhSachId)};` ngay sau dấu `;` kết
+7. **Quét TOÀN BỘ danh sách statement cấp module** (`sf.statements`) tìm bất kỳ `VariableStatement`
+   nào đã khai một biến tên `FILE_TYPE_IDS` (hoặc một `FunctionDeclaration`/`ClassDeclaration` cùng
+   tên — quét tên định danh ở CẢ BA hình dạng khai báo cấp module). Thấy → `throw`, in rõ dòng đã có
+   tên đó. Đây là bước loại bỏ HẲN rủi ro trùng tên đã ghi ở §7 (rủi ro #2) — không còn "khó xảy ra,
+   giảm nhẹ bằng đặt tên", mà là "không thể lọt qua mà không bị `throw`". Chạy bước này ĐỘC LẬP VỚI
+   TÊN CỤ THỂ `FILE_TYPE_IDS`: nhận tên hằng số cần chèn làm tham số của hàm nội bộ, để nếu sau này
+   đổi tên hằng số, phép quét vẫn đúng theo tên mới — không có hai nguồn sự thật cho "tên sắp chèn".
+8. Dựng chuỗi mới: chèn `const FILE_TYPE_IDS = ${JSON.stringify(danhSachId)};` ngay sau dấu `;` kết
    thúc khai báo `FileTypes`; đổi cả hai `CallExpression` ở bước 5 thành
    `FileTypes[FILE_TYPE_IDS.indexOf(acceptType)]`. Thay từ CUỐI file về ĐẦU (như `dichMotFile`) để vị
    trí các lượt thay chưa xử lý không bị lệch.
-8. Trả `{ js: <chuỗi mới>, danhSachId }`.
+9. Trả `{ js: <chuỗi mới>, danhSachId }`.
 
 ### 4.2 Vị trí trong `dung-vendor.mjs`
 
@@ -207,6 +214,8 @@ trừ giống P1-E đã làm với 6 khoá khác.
 | 7 | Chỉ có 1 lượt `.find(...description...)` thay vì 2 → `throw` | fail-closed khi số điểm so sánh lệch |
 | 8 | Có 3 lượt `.find(...description...)` (giả lập thượng nguồn thêm một chỗ mới) → `throw` | fail-closed theo hướng ngược lại |
 | 9 | Chạy hàm HAI LẦN liên tiếp trên cùng input gốc → cả hai lượt cho kết quả giống hệt nhau (idempotent theo nghĩa đầu vào-đầu ra, KHÔNG chạy lần hai trên đầu ra của lần một — xem ghi chú Cổng sớm của D12, đây không phải ca "chạy lại trên cây đã vá") | không có trạng thái ẩn giữa hai lượt gọi |
+| 10 | Input có sẵn `const FILE_TYPE_IDS = [1, 2, 3];` (khác nội dung, cùng tên) ở đâu đó TRƯỚC khai báo `FileTypes` → `throw`, thông báo nêu đúng dòng đã có tên đó | bước 7 mới (§4.1) — loại trừ rủi ro #2 ở §7, không chỉ giảm nhẹ bằng tên đặc thù |
+| 11 | Input có `function FILE_TYPE_IDS() {}` (khai báo hàm trùng tên, không phải `const`) → `throw` | bước 7 phải quét CẢ BA hình dạng khai báo cấp module, không chỉ `VariableStatement` |
 
 Mỗi ca phải thật sự đỏ trước khi có mã.
 
@@ -251,12 +260,19 @@ rõ lý do không kiểm được thay vì bỏ qua im lặng.
   ra sẽ không đẹp bằng mã do `tsc` sinh, nhưng đây là `.vendor-build/` (không ai đọc bằng mắt trong
   vận hành bình thường, không đi qua `git diff`), nên không phải vấn đề — đúng như `luat-vi-tri-dich.mjs`
   đã chấp nhận đánh đổi này từ trước.
-- **Chèn `FILE_TYPE_IDS` là biến `const` cấp module** — trùng tên với biến khác trong CHÍNH file đó
-  (hiếm nhưng không phải không thể) sẽ làm `tsc`/runtime lỗi. Giảm thiểu: chọn tên đủ đặc thù
-  (`FILE_TYPE_IDS`, viết hoa toàn bộ theo quy ước hằng số, không giống style camelCase còn lại của
-  file) và ca kiểm §6.1.3 (phân tích cú pháp lại được) sẽ bắt nếu có xung đột thật gây ra mã vỡ — dù
-  trùng tên `const` hợp lệ về cú pháp (chỉ lỗi lúc chạy "redeclaration"), nên ca kiểm cú pháp không
-  đủ; bằng chứng đỏ ở §6.2 (grep xác nhận đúng 1 khai báo) là lớp chặn thật.
+- **~~Chèn `FILE_TYPE_IDS` là biến `const` cấp module — trùng tên với biến khác trong CHÍNH file đó~~
+  — ĐÃ LOẠI TRỪ, không còn là rủi ro "giảm nhẹ", là bất khả thi có kiểm chứng.** Bước 7 mới ở §4.1
+  quét toàn bộ khai báo cấp module trước khi chèn, `throw` ngay nếu trùng tên — không phụ thuộc vào
+  việc "chọn tên đặc thù" nữa (dù vẫn giữ `FILE_TYPE_IDS` viết hoa toàn bộ cho dễ đọc, tách biệt khỏi
+  style camelCase còn lại của file). Ca kiểm §6.1.10-11 ghim đúng hai hình dạng trùng tên (biến,
+  hàm). **Lưu ý một điều đã xét rồi loại:** ca kiểm §6.1.3 (`parseDiagnostics` rỗng sau khi thay)
+  KHÔNG phải lớp chặn dự phòng cho ca này — trùng khai báo `const`/`let` trong cùng scope là lỗi ngữ
+  nghĩa sớm ("early error") của JS, đòi hỏi phân tích ràng buộc (binder), mà `ts.createSourceFile` +
+  `parseDiagnostics` chỉ làm phân tích CÚ PHÁP thuần (đúng lý do file gốc `luat-vi-tri-dich.mjs` chọn
+  API này, không phải `ts.createProgram`) — nên nó sẽ KHÔNG phát hiện trùng tên. Bước 7 là lớp chặn
+  DUY NHẤT cho ca này ở tầng `tach-dinh-danh-loai-tep.mjs`; nếu lọt qua, lỗi vẫn sẽ nổ sau đó ở
+  `npm run dev`/`npm run build` (Vite/esbuild parse thật, có kiểm ràng buộc), nhưng muộn hơn nhiều và
+  thông báo lỗi không trỏ thẳng vào nguyên nhân.
 - **Nếu về sau có caller thứ ba gọi `FileTypes.find(...)` bằng một biểu thức KHÁC hình dạng** (ví dụ
   gọi qua biến trung gian, hoặc destructure `description` ra trước rồi so sánh) — bước 5 của §4.1 sẽ
   không nhận diện được và số lượt đo được sẽ khác 2, khiến toàn bộ bước 4a `throw`. Đây là hành vi
@@ -280,7 +296,7 @@ rõ lý do không kiểm được thay vì bỏ qua im lặng.
 
 ## 9. Tiêu chí xong
 
-1. `scripts/tach-dinh-danh-loai-tep.mjs` + khai kiểu + 9 ca kiểm ở §6.1, mỗi ca có bằng chứng đỏ đã
+1. `scripts/tach-dinh-danh-loai-tep.mjs` + khai kiểu + 11 ca kiểm ở §6.1, mỗi ca có bằng chứng đỏ đã
    thật sự chạy và thật sự đỏ trước khi có mã.
 2. Bước 4a chạy trong `scripts/dung-vendor.mjs`, đúng vị trí (sau đổi tên, trước dịch chuỗi), thất
    bại thì dừng pipeline.
