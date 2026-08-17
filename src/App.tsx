@@ -73,6 +73,7 @@ import {
   type WardRecipe,
 } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
+import { recordTabUse, sortByUsage } from "./lib/tabUsage"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
 import { MAX_LINES, STALE_AFTER_MS, formatAgo, formatClock, lineLabel, loadRunning, saveRunning, upsertRunning, type RunningDrug } from "./lib/runningDrugs"
@@ -10392,6 +10393,11 @@ function DungThuocScreen({
 }) {
   // Tab đang mở phải sống sót qua việc rời màn hình rồi quay lại — xem lib/uiState.ts.
   const [tab, setTab] = useStickyState<MixingTab>("dungthuoc.tab", "antibiotics")
+  // Thứ tự HIỂN THỊ của hàng tab (khác `tab` ở trên — đó là tab đang MỞ) theo tần suất đã chọn,
+  // tích luỹ nhiều ca trực qua localStorage (lib/tabUsage.ts). Tính đúng MỘT LẦN lúc màn dựng —
+  // không tính lại mỗi lần bấm, để hàng không tự nhảy vị trí giữa lúc đang thao tác. Xem
+  // docs/superpowers/specs/2026-08-17-dungthuoc-tab-mru-design.md.
+  const orderedTabs = useMemo(() => sortByUsage(MIXING_TABS), [])
   const { patient, setField, reset, restore } = usePatientVitals()
   const [patientOpen, setPatientOpen] = useState(() => !patientHasData(patient))
   const [running, setRunning] = useState<RunningDrug[]>(loadRunning)
@@ -10475,6 +10481,7 @@ function DungThuocScreen({
       writeStickyState<string | null>(`infusion.sel.${cat.categoryLabel}`, r.id)
       writeStickyState<string | null>(`infusion.disease.${cat.categoryLabel}`, null)
     }
+    recordTabUse(r.tab)
     setTab(r.tab)
     setJumpKey((n) => n + 1)
     setSearchOpen(false)
@@ -10697,7 +10704,8 @@ function DungThuocScreen({
         </div>
       )}
 
-      {/* 10 tab cuộn ngang, hai dải mờ hai mép báo còn cuộn được. */}
+      {/* 10 tab cuộn ngang, hai dải mờ hai mép báo còn cuộn được. Thứ tự = orderedTabs (theo tần
+          suất đã chọn, xem khai báo ở trên) — KHÔNG phải MIXING_TABS gốc. */}
       <div className="flex-none pb-3 relative">
         <div
           ref={tabRowRef}
@@ -10707,12 +10715,15 @@ function DungThuocScreen({
           role="tablist"
           aria-label="Nhóm thuốc"
         >
-          {MIXING_TABS.map((t) => (
+          {orderedTabs.map((t) => (
             <button
               key={t.id}
               id={`mixing-tab-${t.id}`}
               ref={tab === t.id ? activeTabRef : null}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                recordTabUse(t.id)
+                setTab(t.id)
+              }}
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
               // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
               className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
