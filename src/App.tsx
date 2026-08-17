@@ -9211,10 +9211,20 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const unitOptions = useMemo(() => doseUnitOptions(calc.doseUnit, calc.concUnit), [calc.doseUnit, calc.concUnit])
   const [unitId, setUnitId] = useState(calc.doseUnit)
   const [mode, setMode] = useState<"doseToRate" | "rateToDose">("doseToRate")
-  const [conc, setConc] = useState(ward ? String(ward.concValue) : calc.concDefault != null ? String(calc.concDefault) : "")
-  const [dose, setDose] = useState("")
-  const [rateInput, setRateInput] = useState("")
-  const [bagVolume, setBagVolume] = useState(ward ? String(ward.volumeMl) : calc.mix ? String(calc.mix.volumeMl) : "")
+  // Bốn ô này trước đây dùng useState thường, trong khi mọi lớp chọn khác của thẻ thuốc (tab, thuốc,
+  // bệnh lý, đường dùng) đều useStickyState — bị cắt ngang (cuộc gọi, báo động, chuyển màn xem cái
+  // khác rồi quay lại) là mất trắng số đang gõ, không một dấu hiệu. Khoá theo drug.id vì
+  // InfusionCalculator bị gỡ khỏi cây và dựng lại mỗi lần đổi thuốc đang mở.
+  const [conc, setConc] = useStickyState(
+    `infusion.calc.conc.${drug.id}`,
+    ward ? String(ward.concValue) : calc.concDefault != null ? String(calc.concDefault) : "",
+  )
+  const [dose, setDose] = useStickyState(`infusion.calc.dose.${drug.id}`, "")
+  const [rateInput, setRateInput] = useStickyState(`infusion.calc.rate.${drug.id}`, "")
+  const [bagVolume, setBagVolume] = useStickyState(
+    `infusion.calc.bagVolume.${drug.id}`,
+    ward ? String(ward.volumeMl) : calc.mix ? String(calc.mix.volumeMl) : "",
+  )
   const [showMix, setShowMix] = useState(false)
   // Cảnh báo ngoại biên trước đây LUÔN vẽ đủ 2 câu (~257px) ngay khi vượt ngưỡng, đẩy khung kết quả
   // ra xa ô nhập liều gần nửa màn hình. Mặc định chỉ hiện một dòng khẳng định + nút xem chi tiết —
@@ -9226,6 +9236,22 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const [confirmClearWard, setConfirmClearWard] = useState(false)
   // Chỉ hiện con số tốc độ sau khi người dùng xác nhận, với các liều vượt xa khoảng khuyến cáo.
   const [confirmed, setConfirmed] = useState(false)
+  // `confirmed` ở trên chỉ mở khoá NHÌN THẤY kết quả — nó không chặn được việc ghim liều đó vào
+  // "Đang truyền" hay chép câu Cách dùng vào bệnh án, hai hành động có hậu quả cao hơn hẳn việc
+  // nhìn. Với liều severity high/extreme, hai nút đó cần một chạm xác nhận RIÊNG (double-tap, hết
+  // hạn sau CONFIRM_ICON_RESET_MS) — giống cách "Xoá công thức này" đã làm, không dùng chung khoá
+  // với `confirmed` vì xem xong không có nghĩa là đã chắc chắn muốn ghim/chép.
+  const [confirmPin, setConfirmPin] = useState(false)
+  const [confirmCopyExtreme, setConfirmCopyExtreme] = useState(false)
+  const confirmPinTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const confirmCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)
+      if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
+    },
+    [],
+  )
   // usageLine là câu chuẩn để chép vào bệnh án — gần như chắc chắn là tính năng dùng nhiều nhất
   // trong ngày, nhưng trước đây muốn lấy nó phải mở Nhật ký rồi sao chép cả mục. Nút chép nhỏ ngay
   // cạnh câu, không cần rời khỏi thẻ thuốc.
@@ -9290,6 +9316,12 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   useEffect(() => {
     setConfirmed(false)
     setSavedNote("")
+    // Đổi liều thì khoá ghim/chép cũ (nếu đang chờ chạm lần hai) không còn nói đúng liều nào nữa —
+    // tắt luôn, đừng để chạm lần hai vô tình xác nhận một liều khác đã gõ sau đó.
+    setConfirmPin(false)
+    setConfirmCopyExtreme(false)
+    if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)
+    if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
   }, [dose, rateInput, conc, unitId, mode])
 
   // Ô "Nồng độ" là đường vào phổ biến hơn bảng pha rất nhiều, nên nó phải được canh bằng ĐÚNG bộ
@@ -9309,6 +9341,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   const RANK: Record<string, number> = { ok: 0, unknown: 0, below: 1, "far-below": 2, above: 2, high: 3, extreme: 4 }
   const severity = RANK[concAsDoseSeverity] > RANK[doseSeverity] ? concAsDoseSeverity : doseSeverity
   const severityStyle = SEVERITY_STYLE[severity === "unknown" && result != null ? "ok" : severity]
+  // Ngưỡng riêng cho nút ghim/chép — "extreme" mở khoá nhìn kết quả ở `blocked` rồi, nhưng ghim vào
+  // Đang truyền hay chép vào bệnh án là hành động có hậu quả cao hơn hẳn việc nhìn, nên cần chạm
+  // xác nhận thứ hai (xem confirmPin/confirmCopyExtreme) trước khi thực sự chạy.
+  const isExtremeSeverity = severity === "high" || severity === "extreme"
   // Cảnh báo đi kèm mọi dòng nhật ký của phép tính này — gồm cả cảnh báo liều lẫn cảnh báo nồng độ.
   const activeFlag = [check?.headline, concGrade.headline].filter(Boolean).join(" + ") || undefined
 
@@ -9616,20 +9652,41 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               <button
                 type="button"
                 onClick={async () => {
+                  // Liều high/extreme: chạm đầu chỉ vũ trang khoá xác nhận, chưa chép gì — giống
+                  // "Xoá công thức này". Đổi bất kỳ ô nào ở trên tắt khoá này ngay (useEffect trên).
+                  if (isExtremeSeverity && !confirmCopyExtreme) {
+                    setConfirmCopyExtreme(true)
+                    tickHaptic()
+                    if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
+                    confirmCopyTimer.current = setTimeout(() => setConfirmCopyExtreme(false), CONFIRM_ICON_RESET_MS)
+                    return
+                  }
                   try {
                     await navigator.clipboard.writeText(usageLine)
                     setUsageCopied(true)
+                    setConfirmCopyExtreme(false)
+                    if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
                     setTimeout(() => setUsageCopied(false), 1500)
                     tickHaptic()
                   } catch {
                     // Trình duyệt chặn clipboard: không làm gì, nút vẫn giữ nguyên nhãn.
                   }
                 }}
-                aria-label={usageCopied ? "Đã chép" : "Chép câu Cách dùng"}
+                aria-label={
+                  confirmCopyExtreme
+                    ? "Liều bất thường — chạm lần nữa để chép"
+                    : usageCopied
+                      ? "Đã chép"
+                      : "Chép câu Cách dùng"
+                }
                 className="flex-none w-11 h-11 -m-2 rounded-lg flex items-center justify-center"
-                style={{ color: severityStyle.text, opacity: 0.75 }}
+                style={
+                  confirmCopyExtreme
+                    ? { color: "var(--c-on-bright)", background: "var(--c-danger-icon)", opacity: 1 }
+                    : { color: severityStyle.text, opacity: 0.75 }
+                }
               >
-                {usageCopied ? icons.check() : icons.copy()}
+                {confirmCopyExtreme ? icons.alert() : usageCopied ? icons.check() : icons.copy()}
               </button>
             </div>
           )}
@@ -9689,6 +9746,16 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         <div className="flex flex-col gap-1.5 mt-2">
           <button
             onClick={() => {
+              // Liều high/extreme: chạm đầu chỉ vũ trang khoá xác nhận riêng cho việc GHIM — xem
+              // xong kết quả (đã xác nhận ở `blocked` phía trên) không có nghĩa là chắc chắn muốn
+              // đưa liều này vào bảng Đang truyền. Đổi bất kỳ ô nhập nào tắt khoá này ngay.
+              if (isExtremeSeverity && !confirmPin) {
+                setConfirmPin(true)
+                tickHaptic()
+                if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)
+                confirmPinTimer.current = setTimeout(() => setConfirmPin(false), CONFIRM_ICON_RESET_MS)
+                return
+              }
               pinRunning({
                 drugId: drug.id,
                 name: drug.name,
@@ -9701,15 +9768,21 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 weightKgAtPin: weightKg,
                 concAtPin: conc,
               })
+              setConfirmPin(false)
+              if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)
               logCurrent(activeFlag ? `${activeFlag} — vẫn ghim vào bảng đang dùng` : undefined)
               confirmSaved("Đã thêm vào danh sách đang dùng")
               tickHaptic()
             }}
             className={`${BTN_TALL} border-transparent flex items-center justify-center gap-1.5`}
-            style={{ background: C.accent, color: "var(--c-on-bright)" }}
+            style={
+              confirmPin
+                ? { background: "var(--c-danger-icon)", color: "var(--c-on-bright)" }
+                : { background: C.accent, color: "var(--c-on-bright)" }
+            }
           >
-            <span className="flex-none scale-90">{icons.plus()}</span>
-            Thêm vào danh sách đang dùng
+            <span className="flex-none scale-90">{confirmPin ? icons.alert() : icons.plus()}</span>
+            {confirmPin ? "Liều bất thường — chạm lần nữa để ghim" : "Thêm vào danh sách đang dùng"}
           </button>
           <button
             onClick={() => {
