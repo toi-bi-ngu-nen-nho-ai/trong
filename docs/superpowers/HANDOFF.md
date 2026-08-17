@@ -1,10 +1,11 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-16**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-17**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
-> **P1-E đang trên nhánh `p1e-noi-dung-dich`, CHƯA GỘP vào `main`.** `main` ở bảng dưới vẫn đứng
-> yên tại P1-D (`9ce6955`). 8/8 task nội dung dịch đã xong trên nhánh — chi tiết, số liệu thật, và
-> cảnh báo vận hành ở **mục 14**. Đọc mục 14 trước khi làm gì tiếp trên nhánh đó.
+> **ĐÍNH CHÍNH bản 2026-08-16 (viết đêm 16, trước khi gộp xong).** Bản đó ghi P1-E "8/8 task xong,
+> CHƯA GỘP". Sáng 17/08 phát sinh tình huống hai lượt gộp tách rời — xem "CẢNH BÁO VẬN HÀNH — gộp
+> PR trên GitHub bị THIẾU NỘI DUNG" ngay dưới mục 14. Trạng thái ĐÚNG bây giờ: **đã gộp đủ, bằng
+> merge commit cục bộ `4babe67` sau khi PR trên GitHub chỉ mang được một phần.**
 
 > **ĐÍNH CHÍNH bản 2026-08-13.** Bản đó viết *"P1-A đã gộp vào `main`, fast-forward
 > `afac297 → a10401b`"*. **Điều đó chưa từng xảy ra ở bản sao này.** Chuỗi cha-thứ-nhất của `main`
@@ -12,20 +13,24 @@ Cập nhật: **2026-08-16**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — P1-D đã gộp, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — P1-E đã gộp, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`9ce6955`** — đã gộp P1-D bằng merge commit |
+| `main` | **`4babe67`** — merge commit cục bộ, gộp nốt phần P1-E mà PR GitHub #1 thiếu (xem cảnh báo dưới) |
+| `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **122/122** (14 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 5/5 có mặt` |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **148/148** (16 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 130/130 có mặt` |
 
-> **Về con số 122/122.** Nó là "lượt chạy gần nhất xanh", không phải "bộ test ổn định". Ca đỏ chập
-> chờn từng gặp bốn lần đã **bắt được và vá** ở `40f90e9` (mục 6) — nhưng **chưa chứng minh** ngân
-> sách 120 giây đủ cho mọi đợt tải xấu. **Ca đỏ quay lại là tin tức**, không phải phiền toái.
+> **Về con số 148/148.** Nó là "lượt chạy gần nhất xanh", không phải "bộ test ổn định" — xem bài
+> học ca đỏ chập chờn ở mục 6 (vẫn còn giá trị, dù chưa tái phát từ lượt vá `40f90e9`).
+
+**Chặng P1-E — nội dung dịch, đợt đầu — ĐÃ XONG VÀ ĐÃ GỘP** (`4babe67`, sau khi PR GitHub #1 gộp
+thiếu — xem cảnh báo vận hành ngay dưới). 9/9 task, **tự soát trực tiếp, KHÔNG có lượt review toàn
+nhánh kiểu opus** (lý do đã ghi ở mục 14). Chi tiết ở **mục 14**.
 
 **Chặng P1-D — siết phép so khớp bản dịch — ĐÃ XONG VÀ ĐÃ GỘP** (`9ce6955`). 4/4 task, review toàn
 nhánh **không có Critical**, ba Important đã đóng. Chi tiết ở **mục 13**.
@@ -799,11 +804,30 @@ tiên: **đo lại cả số chuỗi lẫn số từ lặp** — xem cảnh báo
 
 ---
 
-## 14. CHẶNG P1-E — nội dung dịch, đợt đầu — 9/9 TASK XONG, CHƯA REVIEW TOÀN NHÁNH, CHƯA GỘP
+## 14. CHẶNG P1-E — nội dung dịch, đợt đầu — 9/9 TASK XONG, ĐÃ GỘP (hai lượt, xem cảnh báo)
 
-Nhánh: `p1e-noi-dung-dich`, gốc `ec9623e` (= `main` lúc rẽ nhánh, chưa có commit nào khác trên
-`main` từ đó tới giờ — nhánh này đang **fast-forward thẳng** từ `main`, không có merge commit nào
-xen giữa lịch sử của nó).
+Nhánh: `p1e-noi-dung-dich`, gốc `ec9623e` (= `main` lúc rẽ nhánh). Gộp vào `main` làm **hai lượt**:
+PR GitHub #1 (`02e72de`, chỉ mang Task 1-5) rồi merge commit cục bộ `4babe67` (mang nốt Task 6-9).
+Xem cảnh báo ngay dưới — đừng lặp lại tình huống này.
+
+### CẢNH BÁO VẬN HÀNH — gộp PR trên GitHub bị THIẾU NỘI DUNG, phải gộp lượt hai bằng tay
+
+Phiên trước (đêm 16/08) làm xong 9/9 task NHƯNG chỉ push tới `origin/p1e-noi-dung-dich` tới commit
+`e255938` (hết Task 5) rồi dừng — Task 6-9 (129 khoá nội dung dịch + bản tự soát cuối) chỉ nằm trên
+máy, **chưa push**. Sáng 17/08, chủ dự án tự mở Pull Request trên GitHub và bấm gộp — **PR đó chỉ
+thấy tới `e255938`**, nên `origin/main` được gộp (`02e72de`, merge PR #1) **THIẾU HẲN nội dung dịch
+thật** (`vi.json` vẫn 5 khoá, không phải 129).
+
+Phiên sau (17/08) phát hiện ra khi `git fetch` thấy `origin/main` đã có merge commit lạ mà nhánh cục
+bộ chưa từng thấy. Xử lý: push nốt phần còn lại lên `origin/p1e-noi-dung-dich`, rồi `git merge
+p1e-noi-dung-dich` một lần nữa vào `main` cục bộ (merge sạch, không xung đột — vì `e255938` là tổ
+tiên chung của cả `02e72de` và nhánh, git tự nối được), dựng lại cây, chạy đủ bảy cổng, rồi push
+`main`.
+
+**Bài học:** `git push origin <nhánh>` không tự động nghĩa là "toàn bộ commit của phiên đã lên
+GitHub" nếu phiên dừng giữa chừng ở một task chưa push. **Trước khi mở PR hay bấm gộp trên GitHub,
+luôn `git log origin/<nhánh> -1` để xác nhận SHA khớp với `HEAD` cục bộ** — đừng tin PR hiển thị đủ
+nội dung chỉ vì tiêu đề PR đúng tên nhánh.
 
 | Tài liệu | Đường dẫn |
 |---|---|
@@ -916,16 +940,14 @@ thật, nhưng đúng bài học đã ghi nhiều lần: `git log` lại trướ
 ### Việc làm ngay của phiên sau
 
 ```bash
-git log --oneline -1                    # kỳ vọng 589ad15 hoặc mới hơn
+git log --oneline -1                    # kỳ vọng 4babe67 hoặc mới hơn, trên main
 git status --short                      # kỳ vọng chỉ hai file sinh ra ở mục 6
 npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
 ```
 
-**Còn lại trước khi gộp:** quyết định có chạy lượt review toàn nhánh (opus) hay không — mục "Tự
-soát trực tiếp" ở trên giải thích vì sao chặng này bỏ qua nó. Nếu chủ dự án chấp nhận mức tự soát
-này thì dùng `superpowers:finishing-a-development-branch` để gộp thẳng.
+**Đã gộp xong** (`4babe67`, đã push `origin/main`). Không còn việc gì dở của P1-E.
 
-**Chặng kế tiếp** (sau khi gộp P1-E): đợt dịch thứ hai cho phần chuỗi thuộc nhóm gói chưa bật (162
-chuỗi nhóm C cũ, chủ yếu `affine/data-view` — cần bật tính năng trước, xem quyết định 1 của P1-C);
-hoặc giải quyết mối nối `Images`/`MindMap` để mở khoá hai chuỗi đó (xem Global Constraints của kế
-hoạch P1-E); hoặc Lưu trữ (D4)/BoardGallery như mục 8 cũ đã ghi.
+**Chặng kế tiếp:** đợt dịch thứ hai cho phần chuỗi thuộc nhóm gói chưa bật (162 chuỗi nhóm C cũ,
+chủ yếu `affine/data-view` — cần bật tính năng trước, xem quyết định 1 của P1-C); hoặc giải quyết
+mối nối `Images`/`MindMap` để mở khoá hai chuỗi đó (xem Global Constraints của kế hoạch P1-E); hoặc
+Lưu trữ (D4)/BoardGallery như mục 8 cũ đã ghi.
