@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
+import { createContext, useCallback, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, SourceInfo } from "./data/types"
 import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
@@ -19,6 +19,7 @@ import {
   SCR_UMOL_PER_MGDL,
   crclReliability,
   estimateCrCl,
+  isPatientStale,
   isRenalStatusStale,
   needsCrrtFlow,
   patientHasData,
@@ -4986,6 +4987,23 @@ function useCountUp(target: number | null, decimals: number, finalText: string, 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, finalText, decimals, durationMs])
+  // Con số này là tốc độ bơm/CrCl — không được phép đứng ở một giá trị GIỮA CHỪNG lâu hơn cần thiết.
+  // Trình duyệt thường tự tạm dừng requestAnimationFrame khi tab bị chuyển nền rồi tính bù khi quay
+  // lại (t bị kẹp về 1 ở lần tick kế tiếp — tự đúng), nhưng hành vi tạm dừng rAF không phải chuẩn bắt
+  // buộc trên mọi engine. Snap thẳng về finalText ngay khi tab ẩn đi, không đợi rAF tự sửa — cùng
+  // tinh thần "sống sót qua gián đoạn" mà màn hình này đã áp dụng cho hoàn tác xoá bệnh nhân/khoá xác
+  // nhận (critique /impeccable 2026-08-17T22-03, P1).
+  useEffect(() => {
+    function snapIfHidden() {
+      if (!document.hidden || rafRef.current == null) return
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+      prevValueRef.current = target
+      setDisplay(finalText)
+    }
+    document.addEventListener("visibilitychange", snapIfHidden)
+    return () => document.removeEventListener("visibilitychange", snapIfHidden)
+  }, [target, finalText])
   return display
 }
 
@@ -5295,7 +5313,9 @@ const DISCLAIMER_VERSION = "2026-07"
 const DISCLAIMER_TEXT =
   "Đây là sổ tay tra cứu nhanh cho nhân viên y tế, không thay thế phác đồ của cơ sở và tờ hướng dẫn sử dụng thuốc."
 
-function DisclaimerGate() {
+// Nâng trạng thái "đã đọc" lên component cha (thay vì state riêng trong DisclaimerGate) để cha biết
+// LÚC NÀO tấm phủ đang mở — cần cho `inert` trên nội dung phía sau (xem useDisclaimerAck bên dưới).
+function useDisclaimerAck() {
   const [ack, setAck] = useState<boolean>(() => {
     try {
       return localStorage.getItem(DISCLAIMER_KEY) === DISCLAIMER_VERSION
@@ -5303,6 +5323,18 @@ function DisclaimerGate() {
       return false
     }
   })
+  const acknowledge = useCallback(() => {
+    try {
+      localStorage.setItem(DISCLAIMER_KEY, DISCLAIMER_VERSION)
+    } catch {
+      // Không lưu được thì lần sau vẫn hiện lại — chấp nhận được, không chặn việc dùng app.
+    }
+    setAck(true)
+  }, [])
+  return { ack, acknowledge }
+}
+
+function DisclaimerGate({ ack, onAcknowledge }: { ack: boolean; onAcknowledge: () => void }) {
   const panelRef = useRef<HTMLDivElement | null>(null)
   // Không truyền onEscape: đây là màn xác nhận BẮT BUỘC đọc trước khi dùng, không có lối tắt Esc để
   // né qua — chỉ đóng được bằng cách chạm "Tôi đã hiểu". Vẫn cần bẫy Tab để bàn phím không lọt ra
@@ -5330,14 +5362,7 @@ function DisclaimerGate() {
           Mỗi mục đều ghi nguồn và ngày rà soát ngay trên thẻ thuốc; mục nào chưa có thì được đánh dấu rõ.
         </p>
         <button
-          onClick={() => {
-            try {
-              localStorage.setItem(DISCLAIMER_KEY, DISCLAIMER_VERSION)
-            } catch {
-              // Không lưu được thì lần sau vẫn hiện lại — chấp nhận được, không chặn việc dùng app.
-            }
-            setAck(true)
-          }}
+          onClick={onAcknowledge}
           className="w-full py-3.5 rounded-[20px] font-semibold text-[13px] mb-2"
           style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
         >
@@ -5512,6 +5537,27 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           <span style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}>{icons.chevronDown()}</span>
         </button>
       </div>
+
+      {/* Nhắc "còn đúng bệnh nhân này không" — nằm ở HÀNG LUÔN HIỆN, ngoài disc-body, vì mọi phép
+          tính liều trên màn hình đọc từ khối này, và trước đây chỉ isRenalStatusStale nhắc riêng
+          tình trạng thận (nằm sâu trong khung đã gấp) — người quay lại máy cho bệnh nhân/ca trực
+          khác không có gì báo ngoài trí nhớ của chính họ (critique /impeccable 2026-08-17T22-03, P1).
+          Không lưu tên/ID (xem PatientVitals) nên tín hiệu này chỉ dựa vào THỜI GIAN, không định
+          danh — đúng ràng buộc riêng tư đã có sẵn của màn hình. */}
+      {hasData && isPatientStale(patient) && (
+        <div className="flex items-center gap-2 mx-4 mb-3 px-2.5 py-2 rounded-[14px] fade-in" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <p className="flex-1 text-[12px] font-bold leading-[1.4]" style={{ color: "var(--c-warn)" }}>
+            Thông số nhập từ lâu — còn đúng bệnh nhân này không?
+          </p>
+          <button
+            onClick={() => setPatientField("weight", patient.weight)}
+            className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[12px] font-bold`}
+            style={{ background: "var(--c-warn)", color: "var(--c-on-bright)" }}
+          >
+            Vẫn đúng
+          </button>
+        </div>
+      )}
 
       {/* Trước đây `{open && <div>}` — gấp/mở khối ~700px này NHẢY TỨC THÌ, đúng khoảnh khắc "chọn
           thuốc → panel gấp lại → cuộn tới thẻ" bị giật nhiều nhất màn hình. Dùng lại kỹ thuật
@@ -6015,10 +6061,22 @@ function RunningPanel() {
           <Disclosure label="Tương hợp · Tương tác">
             <p className={T.meta} style={{ color: C.textSoft }}>{COMPAT_DISCLAIMER}</p>
           </Disclosure>
-          <p className={`${T.meta} flex items-center gap-1.5 mt-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.accentSoft, color: C.accent }}>
-            <span className="flex-none scale-90">{icons.check()}</span>
-            Chưa thấy xung đột nào trong bảng dữ liệu của app
-          </p>
+          {/* Dấu tích xanh khẳng định "đã kiểm, sạch" chỉ có ý nghĩa khi có ÍT NHẤT 2 thuốc để so
+              sánh — với đúng 1 thuốc đang ghim, danh sách rỗng chỉ vì chưa có gì để đối chiếu, không
+              phải vì đã kiểm và không thấy gì. Trước đây hai trường hợp hiện y hệt nhau, trong khi
+              phần còn lại của màn hình luôn nói rõ "chưa ghi nguồn"/"CHƯA đối chiếu" — đây là chỗ
+              duy nhất một tín hiệu trấn an có thể bị đọc nhầm thành đã-kiểm (critique /impeccable
+              2026-08-17T22-03, P2). */}
+          {running.length >= 2 ? (
+            <p className={`${T.meta} flex items-center gap-1.5 mt-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.accentSoft, color: C.accent }}>
+              <span className="flex-none scale-90">{icons.check()}</span>
+              Chưa thấy xung đột nào trong bảng dữ liệu của app
+            </p>
+          ) : (
+            <p className={`${T.meta} mt-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.surfaceAlt, color: C.textSoft }}>
+              Ghim thêm thuốc để kiểm tương hợp
+            </p>
+          )}
         </div>
       ) : (
       <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
@@ -9657,9 +9715,15 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         </div>
       )}
       {/* Cảnh báo vượt/thấp hơn khoảng liều — đổi màu, in hoa, và với mức nguy hiểm thì CHẶN kết quả
-          cho tới khi người dùng xác nhận. */}
+          cho tới khi người dùng xác nhận. Trước đây khối này KHÔNG nằm trong vùng aria-live nào —
+          trình đọc màn hình chỉ biết có cảnh báo nếu focus tình cờ đọc tới. high/extreme dùng
+          assertive (ngắt lời đang đọc dở) vì đây đúng loại việc assertive sinh ra để xử lý — liều
+          gấp nhiều lần ngưỡng tuyệt đối không nên đợi tới lượt như một cập nhật thông thường
+          (critique /impeccable 2026-08-17T22-03, P2). */}
       {check?.headline && (
         <div
+          aria-live={severity === "extreme" || severity === "high" ? "assertive" : "polite"}
+          aria-atomic="true"
           className="flex items-start gap-2 px-3 py-2.5 rounded-[14px] mb-2"
           style={{ background: severityStyle.bg, border: `1px solid ${severityStyle.border}` }}
         >
@@ -10461,6 +10525,10 @@ function DungThuocScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const { patient, setField, reset, restore } = usePatientVitals()
+  // Nâng lên từ DisclaimerGate: cha cần biết tấm phủ có đang mở hay không để đánh dấu `inert` cho
+  // nội dung phía sau nó (bàn phím/trình đọc màn hình vẫn thấy được các control nền dù aria-modal
+  // đã khai đúng — không phải mọi AT tôn trọng aria-modal một mình, xem DisclaimerGate bên dưới).
+  const { ack: disclaimerAck, acknowledge: acknowledgeDisclaimer } = useDisclaimerAck()
   const [patientOpen, setPatientOpen] = useState(() => !patientHasData(patient))
   const [running, setRunning] = useState<RunningDrug[]>(loadRunning)
   const [log, setLog] = useState<CalcLogEntry[]>(loadCalcLog)
@@ -10669,6 +10737,13 @@ function DungThuocScreen({
   return (
     <DosingContext.Provider value={dosingCtx}>
     <div className="scr-dose h-full flex flex-col relative">
+      {/* `inert` trên toàn bộ nội dung nền trong khi DisclaimerGate còn mở — role="dialog" +
+          aria-modal="true" + bẫy Tab (useDialogFocus) đã đúng chuẩn, nhưng không phải mọi trình đọc
+          màn hình tôn trọng aria-modal một mình; `inert` chặn cả focus lẫn cây accessibility của nội
+          dung phía sau một cách chắc chắn, không phụ thuộc AT có hỗ trợ hay không (critique
+          /impeccable 2026-08-17T22-03, P3). Bọc thêm MỘT lớp flex thay vì rải `inert` trên từng khối
+          con — `flex-1 min-h-0` giữ nguyên hành vi chiều cao của flex-col cha, không đổi layout. */}
+      <div className="flex-1 min-h-0 flex flex-col" inert={!disclaimerAck || undefined}>
       <ScreenHeader
         title={MIXING_TITLES[tab]}
         actions={
@@ -10878,7 +10953,8 @@ function DungThuocScreen({
           </button>
         </div>
       )}
-      <DisclaimerGate />
+      </div>
+      <DisclaimerGate ack={disclaimerAck} onAcknowledge={acknowledgeDisclaimer} />
     </div>
     </DosingContext.Provider>
   )

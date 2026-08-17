@@ -128,6 +128,23 @@ export function usePatientVitals() {
   return { patient, setField, reset, restore }
 }
 
+// ─── Toàn bộ bối cảnh bệnh nhân ────────────────────────────────────────────────
+//
+// isRenalStatusStale (bên dưới) chỉ nhắc riêng tình trạng thận — nhưng CẢ khối cân nặng/tuổi/CrCl mà
+// mọi phép tính liều trên màn hình đọc chung mới là thứ nguy hiểm khi cũ: máy trực hay được chuyền
+// tay, và không có tài khoản/khoá màn hình riêng để "đổi ca" là một tín hiệu tự nhiên (critique
+// /impeccable 2026-08-17T22-03, P1). 8 giờ ~ một ca trực — dài hơn RENAL_STALE_MS vì danh tính bệnh
+// nhân không cần xác nhận lại giữa ca như tình trạng thận, chỉ cần nhắc khi khả năng cao đã sang
+// bệnh nhân/ca trực khác.
+export const PATIENT_STALE_MS = 8 * 60 * 60 * 1000
+
+// true khi bệnh nhân đã từng có dữ liệu (updatedAt > 0) NHƯNG quá lâu chưa ai chạm tới bất kỳ trường
+// nào. Bệnh nhân vừa tạo, chưa nhập gì thì không được tính là "cũ" — cùng lý do isRenalStatusStale
+// loại bệnh nhân mới.
+export function isPatientStale(p: PatientVitals, now: number = Date.now()): boolean {
+  return p.updatedAt > 0 && now - p.updatedAt > PATIENT_STALE_MS
+}
+
 // ─── Chức năng thận ───────────────────────────────────────────────────────────
 
 // 4 giờ ~ nửa ca trực thông thường. Không có ngưỡng "đúng" tuyệt đối cho việc này — chọn một mốc
