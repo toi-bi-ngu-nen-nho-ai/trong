@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Ca kiểm CẦU NỐI React↔Lit — thứ mà `edgeless-board.spec.ts` không chạm tới (file đó chỉ gọi
-// `taoBangTrong()`, nên xoá sạch component `EdgelessBoard` nó vẫn xanh).
+// `taoHoacMoBang()`, nên xoá sạch component `EdgelessBoard` nó vẫn xanh).
 //
 // Vì sao có dòng `@vitest-environment happy-dom` ở đầu file: environment mặc định của dự án là
 // 'node' (xem vite.config.ts) và mọi thứ chạm DOM sẽ đâm `DOMRect is not defined`. Chỉ thị trên
@@ -57,7 +57,15 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     root = createRoot(container)
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Tháo cây React TRƯỚC khi xoá container khỏi tài liệu. Chỉ gọi `container.remove()` (bản cũ)
+    // để lại `TestWorkspace`/`DocEngine` của bất kỳ ca kiểm nào kết thúc mà không tự unmount (2 ca
+    // kiểm mới hơn trong file này làm vậy) vẫn chạy nền, tiếp tục đồng bộ với CÙNG CSDL giả lập
+    // 'drtrong-board' trong lúc các ca kiểm sau chạy — một nguồn nhiễu chéo thật giữa các ca kiểm,
+    // từng bị nhầm là "chập chờn" thuần tuý ở các lượt trước trong lịch sử nhánh này.
+    await act(async () => {
+      root.unmount()
+    })
     container.remove()
   })
 
@@ -179,6 +187,8 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
   })
 
   it('unmount ngay khi đang chờ đồng bộ không ném lỗi "set state sau unmount"', async () => {
+    // Giữ khung bắt console.error làm lưới an toàn phụ (không phải khẳng định chính — xem lý do
+    // bên dưới), lỡ có lỗi console khác nổi lên trong lúc ca kiểm này chạy.
     const loiConsole: unknown[][] = []
     const consoleErrorGoc = console.error
     console.error = (...doiSo: unknown[]) => {
@@ -201,9 +211,14 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       console.error = consoleErrorGoc
     }
 
-    const coLoiSetStateSauUnmount = loiConsole.some((doiSo) =>
-      doiSo.some((phan) => typeof phan === 'string' && phan.includes('unmounted component')),
-    )
-    expect(coLoiSetStateSauUnmount).toBe(false)
+    // React 19 đã BỎ chuỗi cảnh báo "set state sau unmount"/"unmounted component" — khẳng định cũ
+    // dựa trên chuỗi đó luôn đúng bất kể guard `huyBo` có hoạt động hay không (kiểm bằng
+    // `package.json`: dự án đã ở React 19), nên nó không còn tín hiệu thật. Khẳng định thay thế:
+    // sau nhịp chờ ở trên, `drt-edgeless-root` PHẢI vẫn chưa từng được gắn vào tài liệu — đây là
+    // bằng chứng trực tiếp guard `huyBo` trong EdgelessBoard.tsx đã chặn `litRender` đúng lúc. Nếu
+    // guard bị hỏng (vd điều kiện `if (huyBo)` bị xoá hoặc đảo ngược), `taoHoacMoBang()` resolve
+    // sau khi unmount vẫn sẽ gắn cây Lit vào một thẻ div đã bị gỡ khỏi tài liệu, và phép kiểm dưới
+    // đây sẽ bắt được điều đó.
+    expect(document.querySelector('drt-edgeless-root')).toBeNull()
   })
 })

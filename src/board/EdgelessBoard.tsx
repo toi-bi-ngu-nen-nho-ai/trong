@@ -55,8 +55,20 @@ const TEN_CSDL_BANG = 'drtrong-board'
 // cho IndexedDB cục bộ (bình thường xong trong vài chục ms).
 const HAN_GIO_MAC_DINH_MS = 4000
 
-function cho(ms: number) {
-  return new Promise<'het-gio'>((resolve) => setTimeout(() => resolve('het-gio'), ms))
+// Cơ chế đua-với-hạn-giờ dùng chung cho CẢ HAI lượt race bên dưới (đợi đồng bộ lần đầu, đợi đồng bộ
+// sau khi seed) — trước đây `Promise.race([waitForSynced()..., cho(hanGioMs)])` bị lặp nguyên văn ở
+// hai chỗ, mỗi chỗ tự dựng `setTimeout` riêng. CHỈ cơ chế đua được gom lại; cách xử lý khi hết giờ ở
+// mỗi nơi vẫn khác nhau (huỷ và dựng lại workspace bộ nhớ ở lượt đầu, chỉ cảnh báo ở lượt sau) nên
+// phần đó vẫn nằm riêng tại từng chỗ gọi.
+// `.finally(() => clearTimeout(...))` dọn timer dù bên nào thắng — thiếu bước này thì khi
+// `waitForSynced()` thắng trước, `setTimeout` của nhánh thua vẫn treo tới khi tự bắn, giữ event loop
+// của Node/vitest sống lâu hơn cần thiết (vô hại trên trình duyệt, nhưng làm chậm dọn dẹp ca kiểm).
+function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio'> {
+  let idTimer: ReturnType<typeof setTimeout>
+  const homHanGio = new Promise<'het-gio'>((giai) => {
+    idTimer = setTimeout(() => giai('het-gio'), hanGioMs)
+  })
+  return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
 }
 
 /**
@@ -69,6 +81,10 @@ function cho(ms: number) {
  * QUAN TRỌNG: `createDoc('board')` ném lỗi nếu doc đã tồn tại. Với người dùng cũ, sau khi đồng bộ
  * xong thì `getDoc('board')` đã trả về non-null — PHẢI kiểm trước khi gọi `createDoc`, nếu không
  * mọi lần mở app sau lần đầu đều vỡ ngay lúc mount.
+ *
+ * Trả về `khongLuuDuoc: true` khi (và chỉ khi) lượt race đồng bộ ĐẦU TIÊN hết giờ và workspace phải
+ * dựng lại ở chế độ chỉ-trong-bộ-nhớ — bên gọi (EdgelessBoard()) dùng cờ này để hiện một băng cảnh
+ * báo thay vì im lặng để người dùng mất nội dung mà không biết.
  */
 export async function taoHoacMoBang(tuyChon?: {
   docSources?: { main: DocSource }
@@ -88,16 +104,21 @@ export async function taoHoacMoBang(tuyChon?: {
   workspace.meta.initialize()
   workspace.start()
 
-  const ketQua = await Promise.race([
-    workspace.waitForSynced().then(() => 'xong' as const),
-    cho(hanGioMs),
-  ])
+  const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
+
+  // `khongLuuDuoc` đúng nghĩa CHỈ khi lượt race NÀY (lượt đầu) hết giờ và workspace bị huỷ/dựng lại
+  // không docSources/blobSources — đó là lúc phiên làm việc thật sự chuyển sang "không lưu gì cho
+  // tới khi tải lại trang". Lượt race thứ hai (sau khi seed, bên dưới) hết giờ KHÔNG bật cờ này: cửa
+  // sổ đó hẹp hơn nhiều (chỉ một lượt ghi seed chưa xác nhận đẩy xong) và không có nghĩa "mất lưu trữ
+  // cho cả phiên" — quyết định phạm vi này là của chủ dự án sau khi xem lượt review toàn nhánh.
+  let khongLuuDuoc = false
 
   if (ketQua === 'het-gio') {
     console.warn(
       `taoHoacMoBang: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — dùng bảng chỉ trong ` +
         'bộ nhớ, nội dung sẽ không được lưu.',
     )
+    khongLuuDuoc = true
     workspace.forceStop()
     workspace = new TestWorkspace({
       id: 'bs-trong-board',
@@ -116,7 +137,19 @@ export async function taoHoacMoBang(tuyChon?: {
   const store = doc.getStore({ extensions: storeManager.get('store') })
   doc.load()
 
-  if (laLanDau) {
+  // Tự hồi phục khi doc đã ĐĂNG KÝ trong metadata IndexedDB (nên `getDoc('board')` khác null) nhưng
+  // khối gốc (`affine:page`/`affine:surface`) chưa bao giờ được ghi xong — vd tab bị đóng đúng vào
+  // khe vài mili-giây giữa lượt ghi metadata và lượt ghi khối lúc mở app lần đầu, hai tab cùng mở
+  // app lần đầu và đua nhau, hoặc (ở dev) React StrictMode mount-rồi-remount hai lần tạo ra hai
+  // `TestWorkspace` cùng chạm một IndexedDB. Khi đó `store.root` là `null` dù `laLanDau` là false —
+  // seed như bình thường vẫn AN TOÀN vì không có gì để mất: doc rỗng thật sự thì ghi đè cũng chỉ là
+  // lấp vào chỗ trống, không bao giờ đè lên nội dung thật (nội dung thật luôn có `store.root`).
+  // Không kiểm điều kiện này thì lần mở kế tiếp gặp đúng doc hỏng này sẽ ném
+  // `BlockSuiteError: This doc is missing surface/root block` sâu trong `EditorHost.connectedCallback`
+  // — một unhandled rejection không ai bắt — và bảng vẽ hỏng vĩnh viễn từ đó về sau, âm thầm.
+  const canSeed = laLanDau || !store.root
+
+  if (canSeed) {
     const rootId = store.addBlock('affine:page', {})
     store.addBlock('affine:surface', {}, rootId)
 
@@ -127,10 +160,8 @@ export async function taoHoacMoBang(tuyChon?: {
     // đẩy rỗng (xem framework/sync/src/doc/engine.ts, updateSyncingState). Đua với CÙNG hạn giờ như
     // lượt đầu — nhưng KHÔNG rơi về workspace bộ nhớ nếu hết giờ: nội dung seed đã có trong `store`
     // sắp trả về, huỷ nó mới là mất dữ liệu thật; ghi trễ vào IndexedDB không phải mất, chỉ cảnh báo.
-    const ketQuaSeed = await Promise.race([
-      workspace.waitForSynced().then(() => 'xong' as const),
-      cho(hanGioMs),
-    ])
+    // (Và KHÔNG bật `khongLuuDuoc` — phạm vi cờ này chỉ là lượt race đầu, xem chú thích ở trên.)
+    const ketQuaSeed = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
     if (ketQuaSeed === 'het-gio') {
       console.warn(
         'taoHoacMoBang: lượt ghi nội dung ban đầu chưa xác nhận đẩy xong lên IndexedDB trong ' +
@@ -139,12 +170,21 @@ export async function taoHoacMoBang(tuyChon?: {
     }
   }
 
-  return { workspace, store }
+  return { workspace, store, khongLuuDuoc }
 }
 
 export function EdgelessBoard() {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
+  // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
+  // về bộ nhớ ở taoHoacMoBang() chứ không reject). Trước lượt sửa này, một promise reject ở đây
+  // không có .catch() nào bắt: React ném "Đang mở bảng…" treo mãi, còn lỗi thật thì trôi thành một
+  // unhandled rejection không ai thấy. Component này không có cơ chế thử lại riêng (khác error
+  // boundary ở src/board/index.tsx, nơi có nút "Thử lại" thật) nên chỉ cần gợi ý tải lại trang.
+  const [loi, setLoi] = useState<Error | null>(null)
+  // true khi taoHoacMoBang() phải rơi về workspace chỉ-trong-bộ-nhớ (lượt race đồng bộ đầu tiên hết
+  // giờ) — quyết định của chủ dự án sau lượt review toàn nhánh: hiện băng cảnh báo thay vì im lặng.
+  const [khongLuuDuoc, setKhongLuuDuoc] = useState(false)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -166,18 +206,26 @@ export function EdgelessBoard() {
     let huyBo = false
     let workspaceHienTai: TestWorkspace | null = null
 
-    taoHoacMoBang().then(({ workspace, store }) => {
-      if (huyBo) {
-        // Component đã unmount trong lúc đang đợi đồng bộ — đóng ngay, không render, không giữ
-        // engine chạy nền cho một cây Lit sẽ không bao giờ được gắn.
-        workspace.forceStop()
-        return
-      }
-      workspaceHienTai = workspace
-      const std = new BlockStdScope({ store, extensions: viewManager.get('edgeless') })
-      litRender(std.render(), el)
-      setDangMo(false)
-    })
+    taoHoacMoBang()
+      .then(({ workspace, store, khongLuuDuoc: khongLuuDuocKetQua }) => {
+        if (huyBo) {
+          // Component đã unmount trong lúc đang đợi đồng bộ — đóng ngay, không render, không giữ
+          // engine chạy nền cho một cây Lit sẽ không bao giờ được gắn.
+          workspace.forceStop()
+          return
+        }
+        workspaceHienTai = workspace
+        const std = new BlockStdScope({ store, extensions: viewManager.get('edgeless') })
+        litRender(std.render(), el)
+        setKhongLuuDuoc(khongLuuDuocKetQua)
+        setDangMo(false)
+      })
+      .catch((err: unknown) => {
+        if (huyBo) return
+        console.error('EdgelessBoard: không mở được bảng:', err)
+        setLoi(err instanceof Error ? err : new Error(String(err)))
+        setDangMo(false)
+      })
 
     // Dọn khi React tháo component. Thiếu bước này thì mỗi lần vào ra một bảng là một cây Lit
     // nữa còn sống, giữ nguyên listener và rAF của nó — cộng thêm giờ là một engine đồng bộ
@@ -208,13 +256,36 @@ export function EdgelessBoard() {
   //
   // "Đang mở bảng…" hiện TRONG lớp bọc này (không phải thay thế nó) — lớp bọc phải render ngay từ
   // đầu để giữ cấu trúc DOM ổn định cho `closest()` ở trên, kể cả trước khi Lit gắn vào. Khớp thị
-  // giác với dòng "Đang tải bảng vẽ…" của Suspense fallback ở src/board/index.tsx.
+  // giác với dòng "Đang tải bảng vẽ…" của Suspense fallback ở src/board/index.tsx. Trạng thái lỗi
+  // (`loi`) dùng đúng khung chứa và kiểu chữ nhạt màu tương tự, cho cảm giác nhất quán thay vì một
+  // màn hình lỗi đột ngột khác kiểu.
   return (
     <div
       className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip"
       data-theme={chuDe}
     >
-      {dangMo && (
+      {khongLuuDuoc && (
+        // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ cao
+        // một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx cho các
+        // băng cảnh báo lâm sàng khác trong app, để không tạo thêm một ngôn ngữ màu mới.
+        <div
+          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center"
+          style={{
+            background: 'var(--c-warn-soft)',
+            borderBottom: '1px solid var(--c-warn-line)',
+            color: 'var(--c-warn-icon)',
+          }}
+        >
+          Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
+        </div>
+      )}
+      {loi && (
+        <div className="h-full flex flex-col items-center justify-center gap-1 text-[13px] text-slate-400 text-center px-6">
+          <p>Không mở được bảng.</p>
+          <p>Hãy tải lại trang để thử lại.</p>
+        </div>
+      )}
+      {dangMo && !loi && (
         <div className="h-full flex items-center justify-center text-[13px] text-slate-400">
           Đang mở bảng…
         </div>

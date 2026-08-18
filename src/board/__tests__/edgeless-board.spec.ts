@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest'
 import { mergeUpdates } from 'yjs'
 
 import type { BlobSource, DocSource } from '@blocksuite/sync'
+import { Text } from '@blocksuite/store'
 
 import { taoHoacMoBang } from '../EdgelessBoard'
 
@@ -85,6 +86,41 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const lanHai = await taoHoacMoBang({ docSources, blobSources })
     const surfaces = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
     expect(surfaces).toHaveLength(1)
+    lanHai.workspace.forceStop()
+  })
+
+  it('nội dung thêm SAU khi mở lần đầu còn nguyên khi mở lại (spec §6.2 ca 6) — không chỉ seed không nhân đôi', async () => {
+    // Hai ca kiểm ở trên chứng minh "mở lại không tạo trùng seed" — một tính chất LIÊN QUAN nhưng
+    // YẾU hơn thứ spec §6.2 ca 6 thật sự đòi: nội dung người dùng TỰ THÊM (không phải seed) phải
+    // sống sót qua một lượt lưu/mở lại. Ca kiểm này đóng đúng khoảng trống đó bằng cách thêm một
+    // note + một đoạn văn bản (mô phỏng người dùng gõ chữ trên bảng) rồi mở lại trên CÙNG cặp
+    // docSources/blobSources giả — đúng cách hai ca kiểm phía trên mô phỏng "đóng rồi mở lại app".
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const lanMot = await taoHoacMoBang({ docSources, blobSources })
+    // 'affine:note' có `parent: ['@root']` (xem note-model.ts) nên gắn thẳng vào store.root — cùng
+    // hình dạng cây mà một bảng vẽ thật có khi người dùng gõ nội dung. 'affine:paragraph' là con
+    // hợp lệ của 'affine:note' (xem paragraph-model.ts) và mang một `Text` — kiểu dữ liệu văn bản
+    // thật của BlockSuite, không phải một chuỗi JS trần.
+    const noiDungMau = 'nội dung kiểm thử sống sót qua lưu rồi mở lại'
+    const noteId = lanMot.store.addBlock('affine:note', {}, lanMot.store.root!.id)
+    lanMot.store.addBlock('affine:paragraph', { text: new Text(noiDungMau) }, noteId)
+
+    // Đợi lượt ghi này đẩy xong lên cặp source giả trước khi đóng — cùng lý do đã giải thích trong
+    // EdgelessBoard.tsx cho lượt ghi seed: forceStop() không điều kiện có thể cắt ngang lượt ghi
+    // đang dở, làm mất đúng nội dung ca kiểm này định kiểm tra.
+    await lanMot.workspace.waitForSynced()
+    lanMot.workspace.forceStop()
+
+    const lanHai = await taoHoacMoBang({ docSources, blobSources })
+    const note = lanHai.store.root!.children.find((c) => c.flavour === 'affine:note')
+    expect(note).toBeDefined()
+    const doanVan = note!.children.find((c) => c.flavour === 'affine:paragraph')
+    expect(doanVan).toBeDefined()
+    const text = (doanVan as unknown as { props: { text: { toString(): string } } }).props.text
+    expect(text.toString()).toBe(noiDungMau)
+
     lanHai.workspace.forceStop()
   })
 
