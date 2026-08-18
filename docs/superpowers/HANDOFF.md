@@ -1150,9 +1150,10 @@ BoardGallery dời sang chặng riêng, cùng hack "mount vĩnh viễn" ở `App
 
 ### Đã xong
 
-Lịch sử thật có **5 commit** ngoài kế hoạch gốc (kế hoạch chỉ tính 2 task) — giữa chừng phát hiện
-một race điều kiện thật, đúng tinh thần "ghi lại lỗi thật tìm được, không chỉ đường thuận buồm" mà
-HANDOFF này đã theo ở các mục trước (ví dụ mục 16, dòng `fcfec0b`):
+Lịch sử thật có **7 commit** ngoài kế hoạch gốc (kế hoạch chỉ tính 2 task) — giữa chừng phát hiện
+một race điều kiện thật và lượt review toàn nhánh (2 vòng) bắt thêm 1 Critical + nhiều Important,
+đúng tinh thần "ghi lại lỗi thật tìm được, không chỉ đường thuận buồm" mà HANDOFF này đã theo ở các
+mục trước (ví dụ mục 16, dòng `fcfec0b`):
 
 | Task | Nội dung | Commit |
 |---|---|---|
@@ -1161,21 +1162,24 @@ HANDOFF này đã theo ở các mục trước (ví dụ mục 16, dòng `fcfec0
 | 2 | 3 ca kiểm vòng đời mount mới (thứ tự trạng thái chờ, vòng lưu-mở-lại, unmount giữa chừng) — chỉ thêm kiểm, không đụng `EdgelessBoard.tsx`. Lúc viết ca kiểm vòng lưu-mở-lại, phát hiện race điều kiện THẬT trong mã Task 1 (xem dòng dưới) — báo cáo đúng phạm vi thay vì tự vá ngoài task | `9540be9` |
 | 2b (bổ sung ngoài kế hoạch, controller điều phối trực tiếp giữa phiên) | Vá race Task 2 phát hiện: `forceStop()` lúc unmount có thể cắt ngang việc ghi block seed xuống IndexedDB trước khi flush xong → `npm test` chớp nhoáng đỏ dưới tải song song (quan sát 2/3 lượt chạy toàn bộ suite đỏ). Thêm `waitForSynced()` có hạn giờ THỨ HAI (cùng cơ chế Task 1) sau khi ghi seed — nhưng KHÔNG đối xứng với lần đợi đầu: hết giờ chỉ cảnh báo và tiếp tục, KHÔNG huỷ nội dung đã seed (lần đợi đầu hết giờ thì dựng lại workspace bộ nhớ mới, vì lúc đó chưa có gì để mất). Xác minh: chạy `npm test` toàn suite 3 lần liên tiếp, cả 3 xanh (so với 2/3 đỏ trước vá, cùng điều kiện tải) | `ece47f4` |
 | Sửa kiểu (phát hiện lúc kiểm 2b) | `tsc --noEmit` thật ra đã đỏ từ ngay sau commit Task 2 (`9540be9`) — lỗi kiểu thật `unknown[]` khác `unknown[][]` trong file ca kiểm, lọt qua review Task 2 vì lượt đó không được yêu cầu chạy `tsc`. Sửa 1 dòng chú thích kiểu, không đổi hành vi; xác nhận `tsc --noEmit` exit 0 và các ca kiểm liên quan vẫn xanh. Review chung với diff của 2b | `cdca4bc` |
+| Review toàn nhánh, vòng 1 | 1 Critical + nhiều Important/Minor: seed điều kiện tự hồi phục doc đăng ký trong IndexedDB nhưng chưa từng ghi xong block gốc (đóng tab giữa hai lượt ghi, hai tab đua, StrictMode double-mount) — trước đây ném `BlockSuiteError` và brick bảng vĩnh viễn; thêm `.catch()` cho chuỗi promise (lỗi thật hiện "Không mở được bảng." thay vì treo mãi); băng cảnh báo `khongLuuDuoc` khi rơi về chế độ chỉ-trong-bộ-nhớ (quyết định chủ dự án, đã hỏi qua AskUserQuestion); gom `doiCoHanGio()` dùng chung cho hai lần đua hạn giờ; thêm ca kiểm nội dung thật sống sót qua lưu/mở lại; `afterEach` unmount cây React trước khi gỡ container. Xác minh: `npm test` toàn suite chạy 3 lần liên tiếp đều 196/196 xanh | `decf919` |
+| Review toàn nhánh, vòng 2 (tái kiểm sau vòng 1) | Bắt được 2 lỗ hổng trong CHÍNH các fix của vòng 1: (a) ca kiểm unmount-giữa-chừng "đã sửa" ở vòng 1 vẫn không thể đỏ thật — `querySelector` trên `document`/`container` sau khi React gỡ cả cây luôn trả `null` bất kể guard đúng hay sai, cùng lớp lỗi bản gốc; (b) fix Critical (tự hồi phục doc thiếu block) hoàn toàn chưa có ca kiểm hồi quy. Sửa cả hai bằng kỹ thuật ca kiểm #1 trong file đã chứng minh đúng: giữ tham chiếu DOM TRƯỚC unmount, kiểm trên tham chiếu đó sau khi tháo — không phải `document`. Ca kiểm hồi quy mới mô phỏng ghi dở dang bằng xoá đúng entry subdoc `'board'` khỏi kho giả lập DocSource. Cả hai xác nhận ĐỎ THẬT khi tắt guard, XANH sau khi hoàn tác (bằng chứng trong `.superpowers/sdd/`). Kèm: bỏ `laLanDau` khỏi điều kiện seed (chỉ `!store.root` — an toàn hơn, tránh seed đè nội dung thật nếu mất metadata mà subdoc còn sống); nhánh tự hồi phục "có root nhưng thiếu surface"; `try/catch` quanh `taoHoacMoBang()` chống rò rỉ `DocEngine`; băng cảnh báo thêm `pointer-events-none`+`role=status`/`aria-live`; sửa comment lỗi thời ở `scripts/tao-paths-vendor.mjs`. Xác minh cuối: `npx tsc --noEmit` sạch, `npm test` toàn suite **197/197** (21 file, 71.4s) | `498cab1` |
 
-`npm test` **195/195** (21 file), trước chặng (tại điểm nhánh này rẽ khỏi `main`, commit `9ea9928`)
-**188/188** (21 file) — tăng đúng 7 ca kiểm trong 2 file ĐÃ CÓ SẴN (không thêm file mới):
-`edgeless-board.spec.ts` +4 (Task 1, hàm thuần), `edgeless-board-mount.spec.ts` +3 (Task 2, vòng
-đời mount).
+`npm test` **197/197** (21 file), trước chặng (tại điểm nhánh này rẽ khỏi `main`, commit `9ea9928`)
+**188/188** (21 file) — tăng 9 ca kiểm ròng trong 2 file ĐÃ CÓ SẴN (không thêm file mới):
+`edgeless-board.spec.ts` (hàm thuần: seed, hồi phục doc dở dang, nội dung sống sót qua lưu/mở lại),
+`edgeless-board-mount.spec.ts` (vòng đời mount: trạng thái chờ, vòng lưu-mở-lại, unmount giữa
+chừng, băng cảnh báo).
 
-Bảy cổng đo lại trực tiếp trong phiên đóng chặng (2026-08-18), không chép số cũ: `npx tsc --noEmit`
-exit 0 · `npm test` 195/195 (21 file, 81.95s) · `kiem:vendor` — so 2782 file với
-`bang-bam-vendor.json`, 0 sai lệch; so 2782 file với thượng nguồn, lệch 0, không đối chiếu được 0 ·
-`kiem:vendor-paths` — khớp 438 mục paths · `npm run build` xanh (16.41s, cảnh báo chunk >500kB chỉ
-mang tính thông tin, không phải lỗi cổng) · `kiem:dist` — đọc 12 file trong `dist/`, biến `--drt-*`
-dùng 73/định nghĩa 639, biến CSS dùng 315/định nghĩa 924, **bản dịch vi.json — 132/132 có mặt**,
-không còn `"affine-"`, mọi biến `--drt-*` dùng đều có định nghĩa. Chặng này không đụng cây vendored
-hay `vi.json` nên ba cổng vendor/dist giữ nguyên số so với mục 16 — đúng như dự đoán, đã CHẠY THẬT
-để xác nhận chứ không chỉ suy luận.
+Bảy cổng đo lại trực tiếp ở điểm gộp cuối cùng (2026-08-18, sau commit `498cab1`), không chép số
+cũ: `npx tsc --noEmit` exit 0 · `npm test` **197/197** (21 file, 71.4s) · `kiem:vendor` — so 2782
+file với `bang-bam-vendor.json`, 0 sai lệch; so 2782 file với thượng nguồn, lệch 0, không đối chiếu
+được 0 · `kiem:vendor-paths` — khớp 438 mục paths · `npm run build` xanh (16.19s, cảnh báo chunk
+>500kB chỉ mang tính thông tin, không phải lỗi cổng) · `kiem:dist` — đọc 12 file trong `dist/`,
+biến `--drt-*` dùng 73/định nghĩa 639, biến CSS dùng 315/định nghĩa 924, **bản dịch vi.json —
+132/132 có mặt**, không còn `"affine-"`, mọi biến `--drt-*` dùng đều có định nghĩa. Chặng này không
+đụng cây vendored hay `vi.json` nên ba cổng vendor/dist giữ nguyên số so với mục 16 — đúng như dự
+đoán, đã CHẠY THẬT để xác nhận chứ không chỉ suy luận.
 
 ### Kiểm tay trên trình duyệt thật
 
@@ -1208,13 +1212,12 @@ thật — mở tab Mindmap, gõ vài chữ vào bảng, tải lại trang (F5),
   thay vì unmount) — cố ý chưa gỡ, chờ persistence chạy ổn định thật trước (spec §8).
 - Tên CSDL `'drtrong-board'` cố định, chưa theo id bảng — nợ kỹ thuật thật cho chặng multi-board,
   xem spec §7.
-- Hai khoản nợ nhỏ chưa vá (cố ý, không phải thiếu sót — nợ nhỏ hợp lệ, một từ review Task 1 và một từ Task 2b):
-  - Thiếu `.catch()` trên chuỗi promise của `taoHoacMoBang()` trong `EdgelessBoard()` — lỗi bất đồng
-    bộ ngoài các nhánh dự phòng đã có sẽ thành unhandled rejection thay vì rơi vào trạng thái lỗi
-    nhìn thấy được.
-  - Chưa có ca kiểm riêng ghim đúng nhánh "hết giờ chỉ cảnh báo, không huỷ nội dung" của Task 2b
-    (`waitForSynced()` thứ hai) — nhánh này mới được xác minh gián tiếp qua 3 lượt chạy suite đầy
-    đủ, chưa có ca kiểm đơn lẻ ép buộc timeout để ghim hành vi.
+- Hai khoản nợ nhỏ từng ghi ở đây (thiếu `.catch()` trên chuỗi promise; thiếu ca kiểm cho nhánh
+  "tự hồi phục doc dở dang") đã vá ở `decf919`/`498cab1` — xem bảng "Đã xong" ở trên. Nợ còn lại
+  thật sự: nhánh "`waitForSynced()` thứ hai hết giờ chỉ cảnh báo, không huỷ nội dung" (Task 2b) vẫn
+  chỉ được xác minh gián tiếp qua nhiều lượt chạy suite đầy đủ, chưa có ca kiểm đơn lẻ ép buộc
+  timeout ở đúng thời điểm đó để ghim hành vi — cố ý để lại vì cần giả lập timing chính xác giữa
+  seed-write và race thứ hai, rủi ro thấp hơn giá trị ca kiểm mang lại ở quy mô chặng này.
 
 ### Việc làm ngay của phiên sau
 
