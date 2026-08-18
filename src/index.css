@@ -725,7 +725,7 @@ select {
 }
 
 /* Vòng đếm ngược quanh ConfirmIconButton (icon xoá cần chạm hai lần) — chạy từ đầy tới rỗng trong
-   đúng CONFIRM_ICON_RESET_MS, cho biết "đã nhận chạm, đang chờ lần hai, còn bấy nhiêu thời gian".
+   đúng CONFIRM_DELETE_RESET_MS (App.tsx), cho biết "đã nhận chạm, đang chờ lần hai, còn bấy nhiêu thời gian".
    stroke-dasharray đặt trực tiếp trên phần tử (bằng chu vi vòng tròn) nên dashoffset 0→dasharray
    vẽ từ đầy về rỗng bất kể bán kính cụ thể. */
 @keyframes confirmRing {
@@ -752,7 +752,10 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  div[style*="confirmDrain"] {
+  /* Cả hai chỗ dùng confirmDrain ("Xoá bệnh nhân" trong PatientPanel, "Hoàn tác" bỏ ghim trong
+     RunningPanel) đều là <span>, không phải <div> — bộ chọn cũ (div[style*="confirmDrain"]) không
+     bao giờ khớp phần tử thật, nên quy tắc giảm-chuyển-động này chưa từng có tác dụng. */
+  span[style*="confirmDrain"] {
     animation-duration: 0.01ms !important;
   }
 }

@@ -75,6 +75,7 @@ import {
 } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
 import { reconcileOrder, recordTabUse, sortByUsage } from "./lib/tabUsage"
+import { recordAbxGroupUse, sortGroupsByUsage } from "./lib/drugUsage"
 import { resolveConfirmTap, shouldRequireExtraConfirm } from "./lib/confirmGate"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
 import { CALC_KIND_LABELS, appendCalcLog, calcLogToText, clearCalcLog, formatLogTime, loadCalcLog, removeCalcLogEntries, type CalcLogEntry } from "./lib/calcLog"
@@ -5030,6 +5031,10 @@ function SearchField({ value, onChange, placeholder, autoFocus }: { value: strin
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        // aria-label riêng, không dựa vào placeholder: placeholder biến mất khỏi cây accessibility
+        // ngay khi người dùng gõ chữ đầu tiên — đúng lúc trình đọc màn hình cần biết ô này TÊN GÌ
+        // nhất (đang điều hướng qua danh sách trường form) (/impeccable critique 2026-08-18, P2).
+        aria-label={placeholder}
         // Ô này được mở CÓ CHỦ ĐÍCH bằng nút kính lúp — không tự focus là bắt người dùng chạm
         // thêm một lần nữa đúng lúc đang vội. type="search" + enterKeyHint cho bàn phím ảo đúng
         // nút "Tìm"; tắt viết-hoa-đầu-câu/tự-sửa-chính-tả vì đây là tên thuốc, không phải văn xuôi.
@@ -5188,18 +5193,30 @@ function Disclosure({
   )
 }
 
-// Nút icon-only XOÁ VĨNH VIỄN dữ liệu đã lưu (bài viết/ECG/kháng sinh/thuốc truyền tự nhập/công
-// thức pha đã lưu) — chạm lần 1 chuyển icon sang dấu cảnh báo và giữ vậy vài giây chờ chạm lần 2
-// mới thực sự xoá; không chạm tiếp thì tự quay lại icon thùng rác. Khác các nút "×" xoá một DÒNG
-// đang soạn dở NGAY TRONG FORM (cảnh báo, mức liều...) trước khi bấm Lưu — những dòng đó chưa từng
-// được lưu nên mất đi không tốn công gì để làm lại.
-const CONFIRM_ICON_RESET_MS = 2500
-// "Xoá bệnh nhân" là chạm-hai KHỞI ĐỘNG cho cùng kịch bản bị cắt ngang (cuộc gọi, báo động) mà
-// undoWindow 20 giây bên dưới (resetPatient) đã dùng để biện minh cho việc kéo dài — nếu chạm 1
-// (vũ trang) rồi bị cắt ngang hơn 2.5 giây, khoá tự huỷ và người dùng quay lại thấy nút đã về nhãn
-// gốc dù họ tưởng mình đang ở giữa việc xác nhận. Không dùng chung CONFIRM_ICON_RESET_MS: hằng số
-// đó giờ còn canh khoá ghim/chép liều cực đoan (App.tsx, InfusionCalculator) — nơi cửa sổ NGẮN là
-// chủ đích (buộc hai chạm sát nhau, tránh chạm nhầm sau khi đãng trí), khác hẳn lý do ở đây.
+// ─── Quy ước chung: các khung giờ "chạm lần nữa để xác nhận" ──────────────────
+// Trước đây rải rác 3 con số (2.5s / 5s / 20s) không có một chỗ nào giải thích CẢ BA cạnh nhau, nên
+// mỗi lần sửa một chỗ lại lệch khỏi hai chỗ còn lại (critique /impeccable, phản hồi người dùng
+// 2026-08-18: "lỗi lặp đi lặp lại nhiều lần nhưng không học rút kinh nghiệm"). Nay CHỈ có hai loại,
+// khai báo cạnh nhau để không ai sửa một bên mà quên bên kia:
+//
+// 1) CONFIRM_DELETE_RESET_MS — xoá dữ liệu ĐÃ LƯU (bài viết/ECG/kháng sinh/thuốc truyền tự nhập/
+//    công thức pha, VÀ bỏ ghim một thuốc khỏi "Đang truyền" ở RunningPanel) — hành động làm lại
+//    được (dữ liệu vẫn còn trong danh mục gốc hoặc gõ lại vài giây), không có rủi ro bị cắt ngang
+//    nghiêm trọng như xoá cả bệnh nhân. 5 giây — không ngắn (đủ để nhận ra vừa chạm nhầm) không dài
+//    (không giữ khoá xoá mở quá lâu ngoài ý muốn).
+// 2) CONFIRM_EXTREME_RESET_MS — xác nhận GHIM/CHÉP một liều đã tính vượt ngưỡng cực đoan (App.tsx,
+//    InfusionCalculator). CỐ Ý NGẮN HƠN CONFIRM_DELETE_RESET_MS: mục đích ở đây là buộc hai chạm
+//    sát nhau trong thời gian thực để chứng minh người dùng đang thật sự nhìn con số đó, không phải
+//    "vô tình chạm lại" một khoá đã treo từ trước — khác hẳn mục đích của (1). KHÔNG gộp hai hằng số
+//    này làm một: gộp sẽ hoặc làm khoá xoá dữ liệu quá ngắn, hoặc làm khoá xác nhận liều cực đoan
+//    quá dài (dễ xác nhận nhầm liều nguy hiểm hơn) — xem thêm lib/confirmGate.ts.
+const CONFIRM_DELETE_RESET_MS = 5000
+const CONFIRM_EXTREME_RESET_MS = 2500
+// "Xoá bệnh nhân" KHÔNG dùng chung hai hằng số trên — đây là chạm-hai KHỞI ĐỘNG cho cùng kịch bản bị
+// cắt ngang (cuộc gọi, báo động) mà undoWindow 20 giây bên dưới (resetPatient) đã dùng để biện minh
+// cho việc kéo dài: từng thử 10 giây, thấy quá ngắn cho tình huống đó (xem PatientPanel), NÊN GIỮ
+// NGUYÊN 20 giây — không rút xuống theo quy ước (1)/(2) ở trên, vì đây là hành động phá huỷ nhất màn
+// hình (xoá cả bệnh nhân lẫn bảng "Đang truyền"), không cùng mức rủi ro với xoá một mục dữ liệu.
 const CONFIRM_PATIENT_RESET_MS = 20_000
 
 function ConfirmIconButton({
@@ -5228,7 +5245,7 @@ function ConfirmIconButton({
           setConfirm(true)
           tickHaptic()
           if (timer.current) clearTimeout(timer.current)
-          timer.current = setTimeout(() => setConfirm(false), CONFIRM_ICON_RESET_MS)
+          timer.current = setTimeout(() => setConfirm(false), CONFIRM_DELETE_RESET_MS)
           return
         }
         if (timer.current) clearTimeout(timer.current)
@@ -5242,7 +5259,7 @@ function ConfirmIconButton({
       // hình dạng nút khác nhau (icon vuông vs. pill có chữ), nhưng phải nói cùng một điều bằng lời
       // để người dùng (và trình đọc màn hình) không phải học lại ngữ pháp mỗi lần gặp nút khác
       // (critique /impeccable 2026-08-18, P2).
-      aria-label={confirm ? `${ariaLabel} — chạm lần nữa để xác nhận, tự huỷ sau ${(CONFIRM_ICON_RESET_MS / 1000).toFixed(1)} giây` : ariaLabel}
+      aria-label={confirm ? `${ariaLabel} — chạm lần nữa để xác nhận, tự huỷ sau ${(CONFIRM_DELETE_RESET_MS / 1000).toFixed(1)} giây` : ariaLabel}
     >
       {/* Chạm lần 1 trước đây chỉ đổi icon (thùng rác → cảnh báo) cùng kích thước, cùng vị trí,
           không chữ — rất dễ tưởng "máy không nhận" rồi chạm lại, mà lần chạm đó xoá thật. Vòng
@@ -5253,7 +5270,7 @@ function ConfirmIconButton({
           <circle
             cx="18" cy="18" r="15.5" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.55"
             strokeDasharray={2 * Math.PI * 15.5}
-            style={{ animation: `confirmRing ${CONFIRM_ICON_RESET_MS}ms linear forwards` }}
+            style={{ animation: `confirmRing ${CONFIRM_DELETE_RESET_MS}ms linear forwards` }}
           />
         </svg>
       )}
@@ -5494,6 +5511,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           </p>
           <p className="text-[12px] text-slate-600 truncate mt-0.5">{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</p>
         </button>
+        {/* "Xoá bệnh nhân" CỐ Ý nằm ở đây — đầu khung, gần nút mở/thu gọn — chứ không đẩy xuống gần
+            vùng ngón cái hơn (vd cuối danh sách thuốc). Đây là hành động phá huỷ nhất màn hình
+            (xoá cả bệnh nhân lẫn bảng "Đang truyền", xem resetPatient), nên khó với hơn một chút là
+            CHỦ ĐÍCH, không phải sơ suất bố cục — xác nhận trực tiếp với chủ dự án (/impeccable
+            critique 2026-08-18). Hai lớp chạm-hai-lần + Hoàn tác 20 giây (CONFIRM_PATIENT_RESET_MS)
+            đã đủ chống bấm nhầm; đừng "sửa" chỗ này bằng cách kéo nút xuống vùng dễ với. */}
         {hasData && (
           <button
             onClick={() => {
@@ -5520,10 +5543,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 : "Xoá bệnh nhân"
             }
           >
-            {/* Cửa sổ 20 giây (CONFIRM_PATIENT_RESET_MS) dài hơn hẳn CONFIRM_ICON_RESET_MS của
-                ConfirmIconButton, đúng để sống sót qua gián đoạn — nhưng thiếu dải đếm ngược thì
-                người quay lại sau 5-10s không biết khoá còn hiệu lực hay đã tự huỷ, dễ chạm hụt vào
-                đúng chạm-hai-lần thật sự xoá (critique /impeccable 2026-08-17T17-38, P1). */}
+            {/* Cửa sổ 20 giây (CONFIRM_PATIENT_RESET_MS) dài hơn hẳn CONFIRM_DELETE_RESET_MS của
+                ConfirmIconButton/RunningPanel, đúng để sống sót qua gián đoạn — nhưng thiếu dải đếm
+                ngược thì người quay lại sau 5-10s không biết khoá còn hiệu lực hay đã tự huỷ, dễ
+                chạm hụt vào đúng chạm-hai-lần thật sự xoá (critique /impeccable 2026-08-17T17-38,
+                P1). Thanh cạn ngang (không phải vòng tròn quanh icon) vì đây là nút pill có chữ,
+                không phải nút icon vuông — xem quy ước hình dạng ở ConfirmIconButton. */}
             {confirmReset && (
               <span
                 aria-hidden="true"
@@ -5881,7 +5906,9 @@ function RunningPanel() {
   }, [])
   // Bỏ ghim một thuốc làm mất luôn kết quả rà tương hợp Khóa chữ Y/tương tác cho cặp đó, mà người dùng
   // không hề được báo. Bấm "×" chỉ ĐÁNH DẤU chờ xoá (hàng mờ đi + nút đổi thành "Hoàn tác") — xoá
-  // thật sự chỉ xảy ra sau 5 giây, đủ để bấm nhầm còn kịp sửa.
+  // thật sự chỉ xảy ra sau CONFIRM_DELETE_RESET_MS, đủ để bấm nhầm còn kịp sửa. Dùng CHUNG hằng số
+  // với ConfirmIconButton (không phải một con số 5000 riêng trùng hợp giống) — cùng loại hành động
+  // (xoá dữ liệu, làm lại được), nên cùng một khoá thời gian, sửa một chỗ là sửa cả hai.
   const [pendingRemove, setPendingRemove] = useState<Record<string, true>>({})
   // Đổi Đường truyền là thao tác HIẾM (hầu hết thuốc không bao giờ đổi Đường truyền suốt ca), nhưng trước đây 4 chip
   // Đường truyền luôn mở sẵn trên MỌI dòng — 4×44px + nút xoá 44px = 236/375px, tên thuốc phải truncate.
@@ -5899,7 +5926,7 @@ function RunningPanel() {
         return rest
       })
       unpinRunning(id)
-    }, 5000)
+    }, CONFIRM_DELETE_RESET_MS)
   }
   function cancelUnpin(id: string) {
     if (pendingTimers.current[id]) {
@@ -5916,11 +5943,25 @@ function RunningPanel() {
   const lines = Array.from({ length: MAX_LINES }, (_, i) => i).filter((l) => running.some((r) => r.line === l))
   // Một mục cần xem lại khi: ghim đã lâu, HOẶC cân nặng bệnh nhân đã đổi kể từ lúc ghim (mọi tốc độ
   // mL/giờ đều tính từ cân nặng đó nên con số đang hiện không còn đúng).
+  //
+  // "kind" quyết định CÂU CHỮ, không chỉ badge: thuốc ngắt quãng (kháng sinh mỗi 8-12h) không chạy
+  // trên bơm liên tục — 5 giờ sau khi Vancomycin q8h đã truyền xong thì KHÔNG CÓ bơm nào để "đối
+  // chiếu lại", và cũng không có "tốc độ" nào để tính lại theo cân nặng mới, chỉ có LIỀU. Trước đây
+  // cả hai dòng nhắc dùng chung một câu viết cho thuốc truyền liên tục — đúng lỗi mà chính field
+  // `kind` này được thêm vào để tránh (xem lib/runningDrugs.ts), chỉ là chưa lan hết tới đây
+  // (/impeccable critique 2026-08-18, P1).
   function staleReason(r: RunningDrug): string | null {
+    const intermittent = r.kind === "intermittent"
     if (r.weightKgAtPin != null && abwKg != null && Math.abs(r.weightKgAtPin - abwKg) > 0.05) {
-      return `Cân nặng đã đổi ${r.weightKgAtPin} → ${abwKg} kg từ lúc ghim — tính lại tốc độ`
+      return intermittent
+        ? `Cân nặng đã đổi ${r.weightKgAtPin} → ${abwKg} kg từ lúc ghim — tính lại liều`
+        : `Cân nặng đã đổi ${r.weightKgAtPin} → ${abwKg} kg từ lúc ghim — tính lại tốc độ`
     }
-    if (now - r.at > STALE_AFTER_MS) return "Ghim đã lâu — đối chiếu lại với bơm thật"
+    if (now - r.at > STALE_AFTER_MS) {
+      return intermittent
+        ? "Liều gần nhất đã lâu — còn đúng lịch dùng không?"
+        : "Ghim đã lâu — đối chiếu lại với bơm thật"
+    }
     return null
   }
 
@@ -6040,12 +6081,22 @@ function RunningPanel() {
                   )}
                   <div className="w-4 flex-none" aria-hidden="true" />
                   {pendingRemove[r.id] ? (
+                    // Dải cạn ngang giống hệt "Xoá bệnh nhân" (PatientPanel) — cùng quy ước hình dạng
+                    // (nút pill có chữ → thanh cạn, không phải vòng tròn quanh icon), cùng hằng số
+                    // CONFIRM_DELETE_RESET_MS. Trước đây nút này không có dải đếm ngược nào: mờ dòng
+                    // đi là tín hiệu DUY NHẤT, không nói được còn bao lâu thì xoá thật.
                     <button
                       onClick={() => cancelUnpin(r.id)}
-                      className="h-11 px-3 rounded-full flex items-center justify-center flex-none text-[12px] font-bold"
+                      className="h-11 px-3 rounded-full flex items-center justify-center flex-none text-[12px] font-bold relative overflow-hidden"
                       style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+                      aria-label={`Hoàn tác bỏ khỏi bảng — tự xoá hẳn sau ${(CONFIRM_DELETE_RESET_MS / 1000).toFixed(0)} giây nếu không chạm`}
                     >
-                      Hoàn tác
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-0"
+                        style={{ background: "rgba(255,255,255,0.28)", transformOrigin: "left", animation: `confirmDrain ${CONFIRM_DELETE_RESET_MS}ms linear forwards` }}
+                      />
+                      <span className="relative">Hoàn tác</span>
                     </button>
                   ) : (
                     <button onClick={() => requestUnpin(r.id)} className="w-11 h-11 rounded-full flex items-center justify-center flex-none" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }} aria-label="Bỏ khỏi bảng">
@@ -8352,6 +8403,10 @@ function AntibioticDoseCard({
 }
 
 const DISEASE_SKIP = "__skip__"
+// Số chip hiện mặc định trước khi bấm "Xem tất cả" — đủ để lấp một màn hình phổ biến mà không phải
+// cuộn, thấp hơn hẳn 22 mục gốc để không phơi cả danh mục cùng lúc trước khi người dùng kịp thu hẹp
+// bằng tìm/chữ cái (/impeccable critique 2026-08-18, P2).
+const ABX_GROUP_COLLAPSE_COUNT = 8
 
 function AntibioticsScreen({
   customDrugs,
@@ -8370,6 +8425,12 @@ function AntibioticsScreen({
   // Cả bốn bước chọn đều giữ lại khi rời màn hình rồi quay lại: đi tra một thứ khác rồi về mà phải
   // bấm lại từ hoạt chất → bệnh lý → đường dùng là mất đúng công đoạn dài nhất của màn này.
   const [query, setQuery] = useStickyState("abx.query", "")
+  // Chưa lọc/chưa chọn gì thì mặc định RÚT GỌN xuống ABX_GROUP_COLLAPSE_COUNT chip hay tra nhất
+  // (sortGroupsByUsage) thay vì phơi hết 22 chip cùng lúc — vượt hẳn ngưỡng cognitive-load ≤4 lựa
+  // chọn tại một điểm quyết định (/impeccable critique 2026-08-18, P2). KHÔNG lưu sticky: mỗi lần
+  // ghé tab này lại bắt đầu từ tập rút gọn, đúng tinh thần "truy cập nhanh thứ hay dùng" — không
+  // phải nhớ lại đúng chỗ đã cuộn tới như bốn bước chọn thuốc ở trên.
+  const [showAllGroups, setShowAllGroups] = useState(false)
   const [selectedGroupName, setSelectedGroupName] = useStickyState<string | null>("abx.group", null)
   const [diseaseChoice, setDiseaseChoice] = useStickyState<string | null>("abx.disease", null) // disease id, DISEASE_SKIP, hoặc null (chưa chọn)
   const [selectedEntryId, setSelectedEntryId] = useStickyState<string | null>("abx.entry", null)
@@ -8418,6 +8479,16 @@ function AntibioticsScreen({
   const effectiveGroupName = selectedGroupName ?? (query.trim() && filteredGroups.length === 1 ? filteredGroups[0].name : null)
   const selectedGroup = effectiveGroupName ? groups.find((g) => g.name === effectiveGroupName) ?? null : null
 
+  // Tập chip hiển thị khi ĐANG DUYỆT (chưa chọn nhóm, chưa gõ tìm) và CHƯA bấm "Xem tất cả": rút
+  // xuống ABX_GROUP_COLLAPSE_COUNT chip hay tra nhất (sortGroupsByUsage, đếm 0 lần đầu mở app thì
+  // giữ nguyên alphabet). Có query hoặc đã bấm "Xem tất cả" thì luôn hiện đủ filteredGroups — tìm
+  // kiếm không bao giờ được phép giấu bớt kết quả.
+  const browseGroups = useMemo(() => {
+    if (query.trim() || showAllGroups) return filteredGroups
+    return sortGroupsByUsage(filteredGroups).slice(0, ABX_GROUP_COLLAPSE_COUNT)
+  }, [filteredGroups, query, showAllGroups])
+  const isCollapsedBrowse = !query.trim() && !showAllGroups && filteredGroups.length > ABX_GROUP_COLLAPSE_COUNT
+
   // Kháng sinh bệnh nhân đang dùng (đã thêm vào bảng Đang truyền) — thứ cần xem lại trước tiên,
   // thay vì phải tìm lại trong danh mục mỗi lần đổi ca.
   const onPatient = useMemo(() => {
@@ -8460,6 +8531,8 @@ function AntibioticsScreen({
   const showRouteStep = readyForEntry && qualifyingEntries.length > 1
 
   function selectGroup(name: string | null) {
+    // Chỉ đếm lúc CHỌN (name khác null) — bấm lại để BỎ chọn không phải là "tra thêm một lần".
+    if (name) recordAbxGroupUse(name)
     setSelectedGroupName(name)
     setDiseaseChoice(null)
     setSelectedEntryId(null)
@@ -8496,6 +8569,7 @@ function AntibioticsScreen({
                   key={d.id}
                   onClick={() => {
                     setQuery("")
+                    recordAbxGroupUse(d.name)
                     setSelectedGroupName(d.name)
                     setDiseaseChoice(DISEASE_SKIP)
                     setSelectedEntryId(d.id)
@@ -8528,11 +8602,11 @@ function AntibioticsScreen({
         placeholder="Tìm kháng sinh..."
       />
       {/* Thanh nhảy nhanh theo chữ cái — tận dụng đúng dữ liệu nhóm/chữ cái đã tính cho nhãn bên
-          dưới, không tính lại. Chỉ hiện khi đang DUYỆT toàn bộ danh sách (giống điều kiện của
-          chính nhãn chữ cái): ẩn khi đã chọn một hoạt chất hoặc đang gõ tìm, vì lúc đó danh sách
-          không còn hiển thị để nhảy tới (critique /impeccable 2026-08-18, P2 — 29 kháng sinh không
-          có cách định vị nhanh dù dữ liệu nhóm đã có sẵn). */}
-      {!selectedGroup && !query.trim() && alphabetLetters.length > 1 && (
+          dưới, không tính lại. Chỉ hiện khi đang DUYỆT TRỌN danh sách đã "Xem tất cả": ẩn khi đã
+          chọn một hoạt chất, đang gõ tìm, hoặc còn đang ở tập rút gọn (isCollapsedBrowse) — chữ cái
+          nhảy tới trong tập rút gọn (sắp theo tần suất, không còn liên tục A→V) sẽ không tìm thấy
+          gì (critique /impeccable 2026-08-18, P2 gốc — 29 kháng sinh không có cách định vị nhanh). */}
+      {!selectedGroup && !query.trim() && showAllGroups && alphabetLetters.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto scroll-ios mb-2" style={{ scrollbarWidth: "none" }} role="group" aria-label="Nhảy nhanh theo chữ cái">
           {alphabetLetters.map((letter) => (
             <button
@@ -8557,6 +8631,27 @@ function AntibioticsScreen({
             {selectedGroup.name}
             {selectedGroup.entries.length > 1 && <span className="opacity-60"> · {selectedGroup.entries.length}</span>}
           </Chip>
+        ) : isCollapsedBrowse ? (
+          /* Tập rút gọn (browseGroups, sắp theo sortGroupsByUsage) — KHÔNG chia nhãn chữ cái: thứ
+             tự đây là tần suất, không phải alphabet, nên chia theo chữ cái sẽ đọc sai (đúng lý do
+             nhãn chữ cái bị ẩn ở nhánh còn lại). Chip "Xem tất cả" luôn đứng CUỐI hàng, cùng cỡ với
+             các chip khác để không phải học một hình dạng riêng cho "mở rộng". */
+          <>
+            {browseGroups.map((g, i) => (
+              <Chip key={g.name} index={i} active={effectiveGroupName === g.name} onClick={() => selectGroup(effectiveGroupName === g.name ? null : g.name)}>
+                {g.name}
+                {g.entries.length > 1 && <span className="opacity-60"> · {g.entries.length}</span>}
+              </Chip>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowAllGroups(true)}
+              className={CHIP}
+              style={{ background: C.surface, borderColor: C.line, color: C.textSoft }}
+            >
+              Xem tất cả · {filteredGroups.length}
+            </button>
+          </>
         ) : (
           /* index chỉ truyền khi CHƯA lọc (mới vào tab) — nếu không, mỗi lần gõ vào ô tìm là một lần
              các chip khớp mới chạy lại stagger, làm cả hàng nhấp nháy trong lúc gõ.
@@ -9385,7 +9480,8 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
   // `confirmed` ở trên chỉ mở khoá NHÌN THẤY kết quả — nó không chặn được việc ghim liều đó vào
   // "Đang truyền" hay chép câu Cách dùng vào bệnh án, hai hành động có hậu quả cao hơn hẳn việc
   // nhìn. Với liều severity high/extreme, hai nút đó cần một chạm xác nhận RIÊNG (double-tap, hết
-  // hạn sau CONFIRM_ICON_RESET_MS) — giống cách "Xoá công thức này" đã làm, không dùng chung khoá
+  // hạn sau CONFIRM_EXTREME_RESET_MS — cố ý ngắn hơn CONFIRM_DELETE_RESET_MS, xem khai báo ở trên)
+  // — không dùng chung khoá
   // với `confirmed` vì xem xong không có nghĩa là đã chắc chắn muốn ghim/chép.
   const [confirmPin, setConfirmPin] = useState(false)
   const [confirmCopyExtreme, setConfirmCopyExtreme] = useState(false)
@@ -9826,7 +9922,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                     setConfirmCopyExtreme(true)
                     tickHaptic()
                     if (confirmCopyTimer.current) clearTimeout(confirmCopyTimer.current)
-                    confirmCopyTimer.current = setTimeout(() => setConfirmCopyExtreme(false), CONFIRM_ICON_RESET_MS)
+                    confirmCopyTimer.current = setTimeout(() => setConfirmCopyExtreme(false), CONFIRM_EXTREME_RESET_MS)
                     return
                   }
                   try {
@@ -9921,7 +10017,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
                 setConfirmPin(true)
                 tickHaptic()
                 if (confirmPinTimer.current) clearTimeout(confirmPinTimer.current)
-                confirmPinTimer.current = setTimeout(() => setConfirmPin(false), CONFIRM_ICON_RESET_MS)
+                confirmPinTimer.current = setTimeout(() => setConfirmPin(false), CONFIRM_EXTREME_RESET_MS)
                 return
               }
               pinRunning({
