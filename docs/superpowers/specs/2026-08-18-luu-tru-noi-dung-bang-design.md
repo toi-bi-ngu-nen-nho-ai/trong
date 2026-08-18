@@ -81,27 +81,56 @@ nghĩa lần đầu) → `createDoc('board')` rồi mới seed như hiện tại
 ### 4.1 `taoHoacMoBang()` — chữ ký mới
 
 ```ts
-export async function taoHoacMoBang(): Promise<{
+export async function taoHoacMoBang(tuyChon?: {
+  docSources?: { main: DocSource }
+  blobSources?: { main: BlobSource }
+  hanGioMs?: number
+}): Promise<{
   workspace: TestWorkspace
   store: ReturnType<Doc['getStore']>
 }>
 ```
 
+Tham số `tuyChon` CHỈ để ca kiểm tiêm `docSources`/`blobSources`/`hanGioMs` giả — component
+`EdgelessBoard()` luôn gọi `taoHoacMoBang()` không đối số, dùng nguyên bộ mặc định thật
+(`IndexedDBDocSource`/`IndexedDBBlobSource`, hạn giờ 4000 ms).
+
 Các bước:
 
-1. Thử dựng `docSources`/`blobSources` từ `IndexedDBDocSource`/`IndexedDBBlobSource` (tên CSDL
+1. Dựng `docSources`/`blobSources` từ `IndexedDBDocSource`/`IndexedDBBlobSource` (tên CSDL
    `'drtrong-board'` — hằng số riêng, KHÔNG dùng mặc định `'blocksuite-local'` mơ hồ, và tách hẳn
-   khỏi `'drtrong-ecg'` của `src/lib/idb.ts`). Bọc trong `try/catch`: mở IndexedDB thất bại (chế độ
-   ẩn danh chặn, hết quota…) → `console.warn`, rơi về `NoopDocSource`/`MemoryBlobSource` (đúng hành
-   vi hôm nay — không lưu, nhưng KHÔNG làm vỡ app). §6 nói rõ vì sao không cần ca kiểm riêng cho
-   nhánh này.
+   khỏi `'drtrong-ecg'` của `src/lib/idb.ts`).
 2. `new TestWorkspace({ id: 'bs-trong-board', idGenerator: createAutoIncrementIdGenerator(),
    docSources, blobSources })`, `workspace.meta.initialize()`, `workspace.start()`.
-3. `await workspace.waitForSynced()`.
+3. **`await` `waitForSynced()` với TIMEOUT, không `await` trần.** — xem "ĐÍNH CHÍNH" ngay dưới, đây
+   là chỗ bản nháp đầu của thiết kế này sai.
 4. `const daCo = workspace.getDoc('board')`; nếu có → `doc = daCo`; nếu không →
    `doc = workspace.createDoc('board')` rồi seed `affine:page`+`affine:surface` như mã hiện tại
    (giữ nguyên `doc.getStore(...)`/`doc.load()` như cũ, chỉ seed block trong nhánh "chưa có").
 5. Trả `{ workspace, store }`.
+
+> **ĐÍNH CHÍNH (phát hiện lúc chuyển sang lập kế hoạch, 2026-08-18) — bản nháp §4.1 bước 1 ban đầu
+> sai.** Bản đó định "bọc `try/catch` quanh việc dựng `IndexedDBDocSource`" để bắt lỗi mở IndexedDB.
+> Đọc lại mã thật (`framework/sync/src/doc/impl/indexeddb.ts:39,45-54`): constructor CHỈ gán
+> `dbName` và tạo `BroadcastChannel` — không hề chạm `indexedDB.open()`. Việc mở CSDL thật xảy ra
+> TRỄ, bên trong `getDb()`, chỉ được gọi lúc `pull`/`push` thật sự chạy — sâu bên trong
+> `workspace.start()`, không đồng bộ, không nằm trong tầm với của một `try/catch` quanh
+> constructor.
+>
+> Nặng hơn: đọc `framework/sync/src/doc/peer.ts:329-345`, khi `pull`/`push` ném lỗi,
+> `syncRetryLoop` **tự thử lại mỗi 5 giây, vô thời hạn** ("auto retry after 5 seconds if sync
+> failed"), không bao giờ tự bỏ cuộc. `waitForSynced()` chỉ resolve khi trạng thái tới `Synced` —
+> nếu IndexedDB hỏng vĩnh viễn (chế độ ẩn danh chặn hẳn, hay lỗi quyền), `await` trần trên hàm đó
+> **treo mãi mãi**, màn "Đang mở bảng…" hiện vĩnh viễn — một hồi quy NẶNG HƠN hành vi hôm nay (board
+> luôn hiện ra, chỉ là không lưu).
+>
+> **Sửa đúng: đua `waitForSynced()` với một hạn giờ.** Thêm tham số
+> `taoHoacMoBang(hanGioMs = 4000)`. Nếu hạn giờ thắng trước khi đồng bộ xong: gọi
+> `workspace.forceStop()` trên bản đã hỏng, dựng LẠI một `TestWorkspace` khác — lần này KHÔNG truyền
+> `docSources`/`blobSources` (mặc định `NoopDocSource`/`MemoryBlobSource`, đúng hành vi hôm nay),
+> `console.warn` nêu rõ lý do rơi về chế độ không lưu. Board vẫn seed như bình thường (bản mới không
+> có doc `'board'` nào, luôn đi nhánh "lần đầu"). 4 giây là ước lượng hào phóng cho IndexedDB cục bộ
+> (bình thường xong trong vài chục ms) mà vẫn đủ ngắn để không cảm thấy app treo.
 
 ### 4.2 `EdgelessBoard()` — component
 
@@ -152,15 +181,19 @@ comment hiện tại đã giải thích), chỉ nội dung bên trong đổi gi�
 
 ### 6.1 Ca kiểm hàm thuần (mở rộng `edgeless-board.spec.ts`)
 
-Không cần IndexedDB thật — dựng `docSources`/`blobSources` GIẢ (một `DocSource`/`BlobSource` tối
-giản, giữ state trong biến JS thường, implement đúng 3 hàm `pull`/`push`/`subscribe`) để kiểm logic
-rẽ nhánh mà không phụ thuộc trình duyệt thật:
+Không cần IndexedDB thật — dựng `docSources`/`blobSources` GIẢ qua tham số `tuyChon` (một
+`DocSource`/`BlobSource` tối giản, giữ state trong biến JS thường ngoài closure của ca kiểm — CÙNG
+một cặp biến số dùng lại giữa hai lượt gọi thì mới mô phỏng đúng "đóng rồi mở lại app", implement
+đúng 3 hàm `pull`/`push`/`subscribe` của `DocSource` — `pull` trả `mergeUpdates` của mọi lượt `push`
+trước đó, giống hệt cách `IndexedDBDocSource` thật làm) để kiểm logic rẽ nhánh mà không phụ thuộc
+trình duyệt thật:
 
 | # | Ca | Canh cái gì |
 |---|---|---|
-| 1 | Gọi `taoHoacMoBang()` lần đầu trên cặp source rỗng → có đúng 1 `affine:page`, 1 `affine:surface`, `affine:surface` 0 phần tử | đường cơ bản, giữ hành vi cũ |
+| 1 | Gọi `taoHoacMoBang({ docSources, blobSources })` lần đầu trên cặp source rỗng → có đúng 1 `affine:page`, 1 `affine:surface`, `affine:surface` 0 phần tử | đường cơ bản, giữ hành vi cũ |
 | 2 | Gọi hai lần LIÊN TIẾP trên CÙNG cặp source (mô phỏng đóng-mở app) → lần hai KHÔNG ném lỗi "doc already exists", tổng số `affine:page` trong doc vẫn là 1 (không nhân đôi) | đây là ca ghim đúng lỗi mấu chốt ở §3 |
 | 3 | `workspace.forceStop()` gọi được ngay sau `taoHoacMoBang()` mà không ném lỗi | dọn dẹp an toàn |
+| 4 | `docSources`/`blobSources` giả có `pull`/`push` không bao giờ resolve (mô phỏng IndexedDB hỏng vĩnh viễn) + `hanGioMs: 20` → `taoHoacMoBang` vẫn TRẢ VỀ (không treo), kết quả là một workspace hoạt động bình thường trong bộ nhớ (seed đủ `affine:page`+`affine:surface`) | ca ghim đúng lỗ hổng "await trần treo mãi mãi" đã sửa ở ĐÍNH CHÍNH §4.1 — đây là ca quan trọng thứ hai của cả chặng, ngang ca #2 |
 
 ### 6.2 Ca kiểm mount thật (mở rộng `edgeless-board-mount.spec.ts`)
 
@@ -170,9 +203,9 @@ thêm `fake-indexeddb` làm devDependency và import polyfill ở đầu file te
 
 | # | Ca | Canh cái gì |
 |---|---|---|
-| 4 | Mount → trạng thái "Đang mở bảng…" hiện trước, biến mất sau khi `editor-host` xuất hiện | đúng thứ tự UI đã chọn ("đợi đồng bộ xong rồi mới hiện") |
-| 5 | Mount → sửa nội dung (thêm một block) → unmount → mount LẠI với cùng tên CSDL `'drtrong-board'` → nội dung cũ còn nguyên, không tạo `affine:page` thứ hai | bằng chứng end-to-end cho toàn bộ chặng |
-| 6 | Unmount NGAY khi đang giữa chừng đợi `waitForSynced()` (chưa resolve) → không ném lỗi console (React "set state after unmount"), `workspace.forceStop()` được gọi đúng một lần | canh nhánh `huyBo` ở §4.2 |
+| 5 | Mount → trạng thái "Đang mở bảng…" hiện trước, biến mất sau khi `editor-host` xuất hiện | đúng thứ tự UI đã chọn ("đợi đồng bộ xong rồi mới hiện") |
+| 6 | Mount → sửa nội dung (thêm một block) → unmount → mount LẠI với cùng tên CSDL `'drtrong-board'` → nội dung cũ còn nguyên, không tạo `affine:page` thứ hai | bằng chứng end-to-end cho toàn bộ chặng |
+| 7 | Unmount NGAY khi đang giữa chừng đợi `waitForSynced()` (chưa resolve) → không ném lỗi console (React "set state after unmount"), `workspace.forceStop()` được gọi đúng một lần | canh nhánh `huyBo` ở §4.2 |
 
 ## 7. Rủi ro đã biết
 
@@ -203,8 +236,9 @@ thêm `fake-indexeddb` làm devDependency và import polyfill ở đầu file te
 2. `EdgelessBoard()` đợi đồng bộ xong mới `litRender` nội dung thật, có trạng thái "đang mở" nhìn
    thấy được trong lúc chờ, dọn `workspace.forceStop()` đúng ở cả hai đường: unmount sau khi đã
    render, và unmount trong lúc còn đang chờ.
-3. Cả 6 ca kiểm ở §6 xanh, ca #2 và #5 phải có bằng chứng đỏ đã thật sự chạy trước khi có mã (đây là
-   hai ca ghim đúng lỗi mấu chốt của chặng).
+3. Cả 7 ca kiểm ở §6 xanh, ca #2, #4 và #6 phải có bằng chứng đỏ đã thật sự chạy trước khi có mã —
+   ba ca ghim đúng ba lỗi mấu chốt của chặng: nhân đôi doc, treo vĩnh viễn khi IndexedDB hỏng, và
+   toàn bộ vòng lưu-rồi-mở-lại.
 4. `src/lib/idb.ts` không đổi gì — `DB_VERSION` vẫn 4.
 5. Bảy cổng dự án xanh: `tsc --noEmit` · `npm test` · `kiem:vendor` · `kiem:vendor-paths` ·
    `kiem:vendor-build` · `build` · `kiem:dist`.
