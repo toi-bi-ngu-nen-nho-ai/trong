@@ -179,7 +179,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
   })
 
   it('unmount ngay khi đang chờ đồng bộ không ném lỗi "set state sau unmount"', async () => {
-    const loiConsole: unknown[] = []
+    const loiConsole: unknown[][] = []
     const consoleErrorGoc = console.error
     console.error = (...doiSo: unknown[]) => {
       loiConsole.push(doiSo)
