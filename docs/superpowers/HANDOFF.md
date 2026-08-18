@@ -1129,3 +1129,103 @@ hoặc mới hơn", không phải `62a4420`.
 
 **Chặng kế tiếp** (không đổi so với mục 14 cũ, trừ mục vừa xong): đợt dịch thứ hai cho nhóm gói
 chưa bật (chủ yếu `affine/data-view`, cần bật tính năng trước); hoặc Lưu trữ (D4)/BoardGallery.
+
+## 17. LƯU TRỮ BỀN VỮNG CHO NỘI DUNG BẢNG (D4 — PHẦN NỘI DUNG) — ĐÃ XONG, CHỜ GỘP
+
+Track MindmapScreen, phần "ruột bảng" — xem
+docs/superpowers/specs/2026-08-18-luu-tru-noi-dung-bang-design.md.
+
+### Chặng này làm gì
+
+`taoBangTrong()` trước đây luôn dựng workspace trắng trong bộ nhớ, mất nội dung khi tải lại trang.
+Đổi thành `taoHoacMoBang()` — bất đồng bộ, nối `IndexedDBDocSource`/`IndexedDBBlobSource` (đã có
+sẵn trong `@blocksuite/sync`, CSDL riêng `'drtrong-board'`), đợi đồng bộ xong CÓ HẠN GIỜ (4 giây —
+`waitForSynced()` tự thử lại mỗi 5 giây vô thời hạn khi lỗi, `await` trần sẽ treo mãi mãi nếu
+IndexedDB hỏng vĩnh viễn). Rẽ nhánh `getDoc`/`createDoc` để không nhân đôi nội dung khi mở app lần
+hai trở đi (`createDoc` ném lỗi nếu doc đã tồn tại). `EdgelessBoard()` hiện "Đang mở bảng…" trong
+lúc chờ, dọn `workspace.forceStop()` lúc unmount.
+
+Phạm vi CHỈ nội dung một bảng hiện có (id cứng, giữ nguyên) — danh sách bảng/metadata và
+BoardGallery dời sang chặng riêng, cùng hack "mount vĩnh viễn" ở `App.tsx` (spec §8).
+
+### Đã xong
+
+Lịch sử thật có **7 commit** ngoài kế hoạch gốc (kế hoạch chỉ tính 2 task) — giữa chừng phát hiện
+một race điều kiện thật và lượt review toàn nhánh (2 vòng) bắt thêm 1 Critical + nhiều Important,
+đúng tinh thần "ghi lại lỗi thật tìm được, không chỉ đường thuận buồm" mà HANDOFF này đã theo ở các
+mục trước (ví dụ mục 16, dòng `fcfec0b`):
+
+| Task | Nội dung | Commit |
+|---|---|---|
+| 1 | `taoHoacMoBang()` — bất đồng bộ, IndexedDB qua `IndexedDBDocSource`/`IndexedDBBlobSource`, canh tồn-tại-doc trước `createDoc`, `waitForSynced()` có hạn giờ 4s; nối vào `EdgelessBoard()`; 4 ca kiểm hàm thuần. Review: 2 Minor không chặn — thiếu `.catch()` trên chuỗi promise trong `EdgelessBoard()`, và devDependency `fake-indexeddb` mới thêm | `81c99c5` |
+| — | Đính chính kế hoạch giữa chừng: 3 lỗi thật tự phát hiện lúc thi hành Task 1 (ca kiểm đếm sai loại block con — root CHÍNH LÀ `affine:page` nên không thể có `affine:page` con, phải đếm `affine:surface`; import `Doc` thừa chặn `noUnusedLocals`; bốn lượt `await vi.waitFor(...)` thiếu bọc `act()` quanh cập nhật state React bất đồng bộ). Cả ba do implementer Task 1 tự phát hiện, báo NEEDS_CONTEXT thay vì tự vá | `0320888` |
+| 2 | 3 ca kiểm vòng đời mount mới (thứ tự trạng thái chờ, vòng lưu-mở-lại, unmount giữa chừng) — chỉ thêm kiểm, không đụng `EdgelessBoard.tsx`. Lúc viết ca kiểm vòng lưu-mở-lại, phát hiện race điều kiện THẬT trong mã Task 1 (xem dòng dưới) — báo cáo đúng phạm vi thay vì tự vá ngoài task | `9540be9` |
+| 2b (bổ sung ngoài kế hoạch, controller điều phối trực tiếp giữa phiên) | Vá race Task 2 phát hiện: `forceStop()` lúc unmount có thể cắt ngang việc ghi block seed xuống IndexedDB trước khi flush xong → `npm test` chớp nhoáng đỏ dưới tải song song (quan sát 2/3 lượt chạy toàn bộ suite đỏ). Thêm `waitForSynced()` có hạn giờ THỨ HAI (cùng cơ chế Task 1) sau khi ghi seed — nhưng KHÔNG đối xứng với lần đợi đầu: hết giờ chỉ cảnh báo và tiếp tục, KHÔNG huỷ nội dung đã seed (lần đợi đầu hết giờ thì dựng lại workspace bộ nhớ mới, vì lúc đó chưa có gì để mất). Xác minh: chạy `npm test` toàn suite 3 lần liên tiếp, cả 3 xanh (so với 2/3 đỏ trước vá, cùng điều kiện tải) | `ece47f4` |
+| Sửa kiểu (phát hiện lúc kiểm 2b) | `tsc --noEmit` thật ra đã đỏ từ ngay sau commit Task 2 (`9540be9`) — lỗi kiểu thật `unknown[]` khác `unknown[][]` trong file ca kiểm, lọt qua review Task 2 vì lượt đó không được yêu cầu chạy `tsc`. Sửa 1 dòng chú thích kiểu, không đổi hành vi; xác nhận `tsc --noEmit` exit 0 và các ca kiểm liên quan vẫn xanh. Review chung với diff của 2b | `cdca4bc` |
+| Review toàn nhánh, vòng 1 | 1 Critical + nhiều Important/Minor: seed điều kiện tự hồi phục doc đăng ký trong IndexedDB nhưng chưa từng ghi xong block gốc (đóng tab giữa hai lượt ghi, hai tab đua, StrictMode double-mount) — trước đây ném `BlockSuiteError` và brick bảng vĩnh viễn; thêm `.catch()` cho chuỗi promise (lỗi thật hiện "Không mở được bảng." thay vì treo mãi); băng cảnh báo `khongLuuDuoc` khi rơi về chế độ chỉ-trong-bộ-nhớ (quyết định chủ dự án, đã hỏi qua AskUserQuestion); gom `doiCoHanGio()` dùng chung cho hai lần đua hạn giờ; thêm ca kiểm nội dung thật sống sót qua lưu/mở lại; `afterEach` unmount cây React trước khi gỡ container. Xác minh: `npm test` toàn suite chạy 3 lần liên tiếp đều 196/196 xanh | `decf919` |
+| Review toàn nhánh, vòng 2 (tái kiểm sau vòng 1) | Bắt được 2 lỗ hổng trong CHÍNH các fix của vòng 1: (a) ca kiểm unmount-giữa-chừng "đã sửa" ở vòng 1 vẫn không thể đỏ thật — `querySelector` trên `document`/`container` sau khi React gỡ cả cây luôn trả `null` bất kể guard đúng hay sai, cùng lớp lỗi bản gốc; (b) fix Critical (tự hồi phục doc thiếu block) hoàn toàn chưa có ca kiểm hồi quy. Sửa cả hai bằng kỹ thuật ca kiểm #1 trong file đã chứng minh đúng: giữ tham chiếu DOM TRƯỚC unmount, kiểm trên tham chiếu đó sau khi tháo — không phải `document`. Ca kiểm hồi quy mới mô phỏng ghi dở dang bằng xoá đúng entry subdoc `'board'` khỏi kho giả lập DocSource. Cả hai xác nhận ĐỎ THẬT khi tắt guard, XANH sau khi hoàn tác (bằng chứng trong `.superpowers/sdd/`). Kèm: bỏ `laLanDau` khỏi điều kiện seed (chỉ `!store.root` — an toàn hơn, tránh seed đè nội dung thật nếu mất metadata mà subdoc còn sống); nhánh tự hồi phục "có root nhưng thiếu surface"; `try/catch` quanh `taoHoacMoBang()` chống rò rỉ `DocEngine`; băng cảnh báo thêm `pointer-events-none`+`role=status`/`aria-live`; sửa comment lỗi thời ở `scripts/tao-paths-vendor.mjs`. Xác minh cuối: `npx tsc --noEmit` sạch, `npm test` toàn suite **197/197** (21 file, 71.4s) | `498cab1` |
+
+`npm test` **197/197** (21 file), trước chặng (tại điểm nhánh này rẽ khỏi `main`, commit `9ea9928`)
+**188/188** (21 file) — tăng 9 ca kiểm ròng trong 2 file ĐÃ CÓ SẴN (không thêm file mới):
+`edgeless-board.spec.ts` (hàm thuần: seed, hồi phục doc dở dang, nội dung sống sót qua lưu/mở lại),
+`edgeless-board-mount.spec.ts` (vòng đời mount: trạng thái chờ, vòng lưu-mở-lại, unmount giữa
+chừng, băng cảnh báo).
+
+Bảy cổng đo lại trực tiếp ở điểm gộp cuối cùng (2026-08-18, sau commit `498cab1`), không chép số
+cũ: `npx tsc --noEmit` exit 0 · `npm test` **197/197** (21 file, 71.4s) · `kiem:vendor` — so 2782
+file với `bang-bam-vendor.json`, 0 sai lệch; so 2782 file với thượng nguồn, lệch 0, không đối chiếu
+được 0 · `kiem:vendor-paths` — khớp 438 mục paths · `npm run build` xanh (16.19s, cảnh báo chunk
+>500kB chỉ mang tính thông tin, không phải lỗi cổng) · `kiem:dist` — đọc 12 file trong `dist/`,
+biến `--drt-*` dùng 73/định nghĩa 639, biến CSS dùng 315/định nghĩa 924, **bản dịch vi.json —
+132/132 có mặt**, không còn `"affine-"`, mọi biến `--drt-*` dùng đều có định nghĩa. Chặng này không
+đụng cây vendored hay `vi.json` nên ba cổng vendor/dist giữ nguyên số so với mục 16 — đúng như dự
+đoán, đã CHẠY THẬT để xác nhận chứ không chỉ suy luận.
+
+### Kiểm tay trên trình duyệt thật
+
+**Không xác nhận được vòng gõ chữ → tải lại → còn nội dung** — cùng giới hạn môi trường đã ghi ở
+mục 16 (phiên này không có người đang xem trực tiếp Browser pane). Diễn biến thật của lượt thử:
+
+1. `preview_start` (`drtrong-dev`) khởi động sạch, không lỗi.
+2. Lượt `screenshot` đầu tiên báo đúng lỗi đã biết: `"the Browser pane is not displayed, so the
+   page is not compositing frames"`.
+3. Các công cụ không cần compositing (`get_page_text`, `javascript_tool`, `read_page`) VẪN chạy —
+   sau khi đợi vite transform xong (~15s cho lượt tải đầu, 3950 module), trang chủ dựng đúng: tiêu
+   đề "Bác sĩ Trọng — Sổ tay lâm sàng", nội dung "BS TRỌNG", điều hướng "Điều hướng chính" với 5 tab
+   kể cả "Mindmap" (`ref_10`), console không có lỗi, network toàn bộ 200 OK.
+4. Bấm `ref_10` (tab Mindmap) qua `computer` "left_click" hai lượt riêng biệt (đọc lại `read_page`
+   giữa hai lượt để tránh ref cũ) — lệnh trả về "thành công" nhưng DOM/`document.body.textContent`
+   sau đó vẫn y nguyên màn Trang chủ, bảng vẽ không xuất hiện (`document.querySelector('canvas')` →
+   `null`). Thử `left_click` bằng toạ độ thô thay vì `ref` bị chặn thẳng: lỗi đòi phải có
+   `screenshot` trước để cache kích thước — chính là bước đã báo lỗi compositing ở bước 2.
+
+Kết luận: khác mục 16 (dò được qua mã nguồn/console/DOM bundle đã dựng vì không cần tương tác thật),
+lượt này CÓ dựng được trang và đọc được DOM ban đầu, nhưng **không đưa được thao tác bấm tới ứng
+dụng thật** — nhất quán với cùng nguyên nhân gốc (pane không hiển thị/compositing cho người xem
+thật), không phải lỗi mới hay lỗi mã. **Còn nợ:** kiểm tay ~2 phút khi chủ dự án ở trước màn hình
+thật — mở tab Mindmap, gõ vài chữ vào bảng, tải lại trang (F5), xác nhận nội dung còn nguyên.
+
+### Ngoài phạm vi, còn nợ
+
+- Danh sách bảng/metadata, `idb.ts` `DB_VERSION` → 5, màn BoardGallery — chặng riêng (spec §8).
+- Gỡ hack "mount vĩnh viễn" ở `App.tsx` (giữ `<EdgelessBoard />` mount sau lần mở đầu, ẩn bằng CSS
+  thay vì unmount) — cố ý chưa gỡ, chờ persistence chạy ổn định thật trước (spec §8).
+- Tên CSDL `'drtrong-board'` cố định, chưa theo id bảng — nợ kỹ thuật thật cho chặng multi-board,
+  xem spec §7.
+- Hai khoản nợ nhỏ từng ghi ở đây (thiếu `.catch()` trên chuỗi promise; thiếu ca kiểm cho nhánh
+  "tự hồi phục doc dở dang") đã vá ở `decf919`/`498cab1` — xem bảng "Đã xong" ở trên. Nợ còn lại
+  thật sự: nhánh "`waitForSynced()` thứ hai hết giờ chỉ cảnh báo, không huỷ nội dung" (Task 2b) vẫn
+  chỉ được xác minh gián tiếp qua nhiều lượt chạy suite đầy đủ, chưa có ca kiểm đơn lẻ ép buộc
+  timeout ở đúng thời điểm đó để ghim hành vi — cố ý để lại vì cần giả lập timing chính xác giữa
+  seed-write và race thứ hai, rủi ro thấp hơn giá trị ca kiểm mang lại ở quy mô chặng này.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này hoặc mới hơn
+git status --short                      # kỳ vọng chỉ hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp:** BoardGallery (màn danh sách bảng, cần bảng metadata trước — xem "Ngoài phạm vi"
+ở trên); hoặc đợt dịch thứ hai cho nhóm gói chưa bật (`affine/data-view`).

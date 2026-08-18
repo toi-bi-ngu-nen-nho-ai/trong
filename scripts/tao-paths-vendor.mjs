@@ -11,7 +11,8 @@
 // (lib ES2024) — đo được 83 lỗi, không lỗi nào thuộc mã của dự án. Không được nới cấu hình của
 // dự án chỉ để chiều mã bên thứ ba, và cũng cấm sửa mã đó (D11). `skipLibCheck: true` bỏ qua
 // việc kiểm kiểu BÊN TRONG `.d.ts`, nên đi qua khai báo là giữ nguyên kiểu thật cho mã của ta
-// (đã kiểm: `taoBangTrong()` ra `Store`, không phải `any`) mà không rước 83 lỗi kia.
+// (đã kiểm: `taoHoacMoBang()` trả `Store` thật qua trường `.store`, không phải `any`) mà không
+// rước 83 lỗi kia.
 //
 // Vì sao sinh tự động chứ không chép tay: 437 mục, thay đổi mỗi lần nâng cấp cây vendored. Chép
 // tay là bảo đảm sẽ lệch.

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Ca kiểm CẦU NỐI React↔Lit — thứ mà `edgeless-board.spec.ts` không chạm tới (file đó chỉ gọi
-// `taoBangTrong()`, nên xoá sạch component `EdgelessBoard` nó vẫn xanh).
+// `taoHoacMoBang()`, nên xoá sạch component `EdgelessBoard` nó vẫn xanh).
 //
 // Vì sao có dòng `@vitest-environment happy-dom` ở đầu file: environment mặc định của dự án là
 // 'node' (xem vite.config.ts) và mọi thứ chạm DOM sẽ đâm `DOMRect is not defined`. Chỉ thị trên
@@ -10,10 +10,12 @@
 // đúng ở những chỗ ta không lường trước). Chọn 'happy-dom' chứ không phải 'jsdom' vì chính
 // BlockSuite chạy bộ test của họ trên happy-dom (xem affine/all/vitest.config.ts trong cây
 // vendored) — cùng một môi trường thượng nguồn đã kiểm chứng cho chính đống mã Lit này.
+import 'fake-indexeddb/auto'
+
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EdgelessBoard } from '../EdgelessBoard'
 
@@ -55,13 +57,35 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     root = createRoot(container)
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Tháo cây React TRƯỚC khi xoá container khỏi tài liệu. Chỉ gọi `container.remove()` (bản cũ)
+    // để lại `TestWorkspace`/`DocEngine` của bất kỳ ca kiểm nào kết thúc mà không tự unmount (2 ca
+    // kiểm mới hơn trong file này làm vậy) vẫn chạy nền, tiếp tục đồng bộ với CÙNG CSDL giả lập
+    // 'drtrong-board' trong lúc các ca kiểm sau chạy — một nguồn nhiễu chéo thật giữa các ca kiểm,
+    // từng bị nhầm là "chập chờn" thuần tuý ở các lượt trước trong lịch sử nhánh này.
+    await act(async () => {
+      root.unmount()
+    })
     container.remove()
   })
 
   it('dựng cây Lit trong thẻ div của React, có tổ tiên viewport, và dọn sạch khi tháo', async () => {
     await act(async () => {
       root.render(createElement(EdgelessBoard))
+    })
+
+    // taoHoacMoBang() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
+    // được gắn SAU khi promise đó xong, không còn ngay trong lượt act() đầu tiên. Đợi tường minh
+    // thay vì giả định act() một lượt là đủ.
+    // Bọc trong act(): taoHoacMoBang() resolve xong còn kéo theo setDangMo(false) — một cập nhật
+    // state React thật, cần một lượt render nữa để gỡ div "Đang mở bảng…" khỏi DOM. vi.waitFor
+    // trần (không bọc act) chỉ đợi được điều kiện của nó, không flush lượt render đó: React cảnh
+    // báo "not wrapped in act(...)" và div loading vẫn còn nằm trước div gắn Lit, khiến phép kiểm
+    // `:scope > div` bên dưới chọn nhầm div loading (không có editor-host) thay vì div hostRef.
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('drt-edgeless-root')).not.toBeNull()
+      })
     })
 
     // 1) Cây Lit thật sự được dựng: thẻ gốc edgeless (đã đổi tên affine-→drt- ở bước build vendor)
@@ -88,7 +112,13 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     //    `litRender(null, el)` mà hai expect cuối vẫn xanh. Thẻ div này thì khác: nó bị React gỡ
     //    khỏi tài liệu nhưng KHÔNG bị React dọn ruột (ruột là do Lit đặt vào, React không biết),
     //    nên `editor-host` bên trong chỉ biến mất khi `litRender(null, el)` thật sự chạy.
-    const noiLitRender = boc!.querySelector(':scope > div')
+    //
+    //    `:last-child` chứ không phải con ĐẦU: thẻ hostRef div luôn đứng SAU băng cảnh báo "không
+    //    lưu" nếu nó render (xem EdgelessBoard.tsx) — nếu lượt đồng bộ giả lập này tình cờ chạm hạn
+    //    giờ dưới tải CPU cao, `khongLuuDuoc` thành true và con ĐẦU của thẻ bọc sẽ là băng cảnh báo
+    //    chứ không phải hostRef div, làm phép kiểm dưới đây chọn nhầm và đỏ giả không liên quan gì
+    //    tới việc dọn dẹp đang canh.
+    const noiLitRender = boc!.querySelector(':scope > div:last-child')
     expect(noiLitRender).not.toBeNull()
     expect(noiLitRender!.querySelector('editor-host')).not.toBeNull()
 
@@ -100,5 +130,115 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     // giữ lại vì chúng canh phần việc của React: thẻ bọc phải được gỡ khỏi container.
     expect(container.innerHTML).toBe('')
     expect(document.querySelector('drt-edgeless-root')).toBeNull()
+  })
+
+  it('hiện "Đang mở bảng…" trước, biến mất sau khi đồng bộ xong và cây Lit đã gắn', async () => {
+    await act(async () => {
+      root.render(createElement(EdgelessBoard))
+    })
+
+    // Ngay sau lượt render đầu — trước khi taoHoacMoBang() kịp resolve — trạng thái chờ phải đã
+    // hiện. Đây là khẳng định "hiện TRƯỚC", không chỉ "cuối cùng có hiện qua" — nếu bỏ qua bước
+    // này, một cài đặt render đồng thời cả hai trạng thái vẫn qua được ca kiểm dưới.
+    expect(container.textContent).toContain('Đang mở bảng…')
+
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Sau khi cây Lit đã gắn, trạng thái chờ phải biến mất — không đè lên nội dung thật.
+    expect(container.textContent).not.toContain('Đang mở bảng…')
+  })
+
+  it('nội dung sống sót qua unmount rồi mount lại (cùng tên CSDL)', async () => {
+    await act(async () => {
+      root.render(createElement(EdgelessBoard))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Đếm số block affine:page hiện có trong DOM trước khi tháo — dùng làm mốc so sánh sau khi
+    // mount lại. Không sửa nội dung qua UI thật ở đây (không có input giả lập bàn phím trong ca
+    // kiểm này) — chỉ cần xác nhận KHÔNG NHÂN ĐÔI khi mount lại, đúng phạm vi §3 của spec. Việc
+    // gõ nội dung thật rồi kiểm tra nó còn nguyên là việc của bước kiểm tay trên trình duyệt thật
+    // (spec §9 mục 6) — DOM giả lập ở đây không có input bàn phím đáng tin để mô phỏng việc đó.
+    const soTrangTruoc = document.querySelectorAll('affine-page-root, affine-edgeless-root').length
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    // Mount lại — TestWorkspace mới, nhưng cùng docSources/blobSources thật (IndexedDB thật hoặc
+    // polyfill của Step 1 Task 1, cùng tên CSDL 'drtrong-board' vì EdgelessBoard() luôn gọi
+    // taoHoacMoBang() không đối số) nên phải đọc lại được đúng doc 'board' đã lưu.
+    root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(EdgelessBoard))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    const soTrangSau = document.querySelectorAll('affine-page-root, affine-edgeless-root').length
+    expect(soTrangSau).toBe(soTrangTruoc)
+    // Không ném lỗi "doc already exists" trong lúc mount lại — nếu có, act() ở trên đã ném rồi,
+    // ca kiểm này sẽ tự đỏ trước khi chạm tới expect cuối.
+  })
+
+  it('unmount ngay khi đang chờ đồng bộ không ném lỗi "set state sau unmount"', async () => {
+    // Giữ khung bắt console.error làm lưới an toàn phụ (không phải khẳng định chính — xem lý do
+    // bên dưới), lỡ có lỗi console khác nổi lên trong lúc ca kiểm này chạy.
+    const loiConsole: unknown[][] = []
+    const consoleErrorGoc = console.error
+    console.error = (...doiSo: unknown[]) => {
+      loiConsole.push(doiSo)
+      consoleErrorGoc(...doiSo)
+    }
+
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard))
+      })
+      // Giữ tham chiếu tới ĐÚNG thẻ div hostRef TRƯỚC khi tháo — cùng kỹ thuật ca kiểm đầu file
+      // này đã dùng (xem chú thích ở đó). Sau khi React tháo, thẻ bọc `.drt-edgeless-viewport` bị
+      // gỡ khỏi `container`/`document` nên MỌI truy vấn xuất phát từ `container`/`document` trả về
+      // null bất kể guard `huyBo` có hoạt động hay không — một khẳng định như vậy KHÔNG THỂ ĐỎ dù
+      // guard có hỏng (đây đúng là lỗ hổng của bản trước, bắt được ở lượt review toàn nhánh). Thẻ
+      // hostRef div (con CUỐI CÙNG của thẻ bọc — luôn đứng sau băng cảnh báo/lỗi/"Đang mở bảng…"
+      // nếu chúng có mặt) thì khác: nó không bị React dọn ruột (ruột do Lit đặt vào), nên chỉ trống
+      // nếu `litRender()` THẬT SỰ chưa từng chạy vào đó.
+      const boc = container.querySelector('.drt-edgeless-viewport')!
+      const hostDiv = boc.querySelector(':scope > div:last-child')!
+      // KHÔNG đợi taoHoacMoBang() xong — tháo component NGAY trong lúc còn "Đang mở bảng…".
+      await act(async () => {
+        root.unmount()
+      })
+      // Cho vòng lặp sự kiện thêm một nhịp để promise taoHoacMoBang() (nếu vẫn đang chạy) có cơ
+      // hội resolve VÀ chạm nhánh `huyBo` — đây chính là nhánh ca kiểm này canh.
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      // Nếu guard `huyBo` KHÔNG chặn được `litRender()`, Lit sẽ gắn `editor-host` vào đúng thẻ
+      // hostDiv này dù đã bị gỡ khỏi tài liệu — bằng chứng ca kiểm này thật sự canh được lỗi, không
+      // phải vô hại dù guard có hỏng hay không.
+      expect(hostDiv.querySelector('editor-host')).toBeNull()
+    } finally {
+      console.error = consoleErrorGoc
+    }
+
+    // Lưới an toàn phụ — React 19 đã bỏ chuỗi cảnh báo "unmounted component" nên khẳng định này
+    // luôn đúng bất kể guard có hoạt động hay không (không còn tín hiệu thật); khẳng định CHÍNH là
+    // `hostDiv.querySelector('editor-host')` ở trên. Giữ lại khối bắt console.error vì nó vẫn có
+    // giá trị canh những lỗi console KHÁC nổi lên trong lúc ca kiểm chạy.
+    const coLoiSetStateSauUnmount = loiConsole.some((doiSo) =>
+      doiSo.some((phan) => typeof phan === 'string' && phan.includes('unmounted component')),
+    )
+    expect(coLoiSetStateSauUnmount).toBe(false)
   })
 })

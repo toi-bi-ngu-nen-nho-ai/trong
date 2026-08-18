@@ -180,16 +180,22 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     expect(surface.elementModels).toHaveLength(0)
   })
 
-  it('gọi hai lần liên tiếp trên CÙNG cặp source → lần hai không tạo lại doc, không nhân đôi page', async () => {
+  it('gọi hai lần liên tiếp trên CÙNG cặp source → lần hai không tạo lại doc, không nhân đôi surface', async () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
     const lanMot = await taoHoacMoBang({ docSources, blobSources })
     lanMot.workspace.forceStop()
 
+    // store.root CHÍNH LÀ block affine:page (nó là root của store, không phải con của root) — nên
+    // không thể có "affine:page trong children của root" để đếm; đó là kiểm tra bất khả thi, không
+    // phải bug thật. Nếu taoHoacMoBang gọi createDoc('board') không điều kiện (bỏ nhánh rẽ đã
+    // có/chưa có), dòng await ngay dưới đây sẽ NÉM LỖI "doc already exists" — đó chính là ca đỏ
+    // ghim đúng lỗi mấu chốt §3 của spec. Sau khi qua được dòng đó, kiểm số affine:surface (con
+    // thật của root) vẫn đúng 1 là bằng chứng seed không chạy lần hai.
     const lanHai = await taoHoacMoBang({ docSources, blobSources })
-    const pages = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:page')
-    expect(pages).toHaveLength(1)
+    const surfaces = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
+    expect(surfaces).toHaveLength(1)
     lanHai.workspace.forceStop()
   })
 
@@ -260,7 +266,6 @@ Thay TOÀN BỘ nội dung file bằng:
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
-import type { Doc } from '@blocksuite/affine/store'
 import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
@@ -510,8 +515,12 @@ Thay bằng:
     // taoHoacMoBang() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
     // được gắn SAU khi promise đó xong, không còn ngay trong lượt act() đầu tiên. Đợi tường minh
     // thay vì giả định act() một lượt là đủ.
-    await vi.waitFor(() => {
-      expect(document.querySelector('drt-edgeless-root')).not.toBeNull()
+    // Bọc trong act(): setDangMo(false) bên trong taoHoacMoBang().then(...) là một cập nhật state
+    // React thật, xảy ra bất đồng bộ — không bọc sẽ ăn cảnh báo "not wrapped in act(...)".
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('drt-edgeless-root')).not.toBeNull()
+      })
     })
 
     // 1) Cây Lit thật sự được dựng: thẻ gốc edgeless (đã đổi tên affine-→drt- ở bước build vendor)
@@ -586,8 +595,10 @@ Thêm vào cuối khối `describe('EdgelessBoard — cầu nối React↔Lit', 
     // này, một cài đặt render đồng thời cả hai trạng thái vẫn qua được ca kiểm dưới.
     expect(container.textContent).toContain('Đang mở bảng…')
 
-    await vi.waitFor(() => {
-      expect(document.querySelector('editor-host')).not.toBeNull()
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
     })
 
     // Sau khi cây Lit đã gắn, trạng thái chờ phải biến mất — không đè lên nội dung thật.
@@ -613,8 +624,10 @@ Thêm:
     await act(async () => {
       root.render(createElement(EdgelessBoard))
     })
-    await vi.waitFor(() => {
-      expect(document.querySelector('editor-host')).not.toBeNull()
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
     })
 
     // Đếm số block affine:page hiện có trong DOM trước khi tháo — dùng làm mốc so sánh sau khi
@@ -635,8 +648,10 @@ Thêm:
     await act(async () => {
       root.render(createElement(EdgelessBoard))
     })
-    await vi.waitFor(() => {
-      expect(document.querySelector('editor-host')).not.toBeNull()
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
     })
 
     const soTrangSau = document.querySelectorAll('affine-page-root, affine-edgeless-root').length
