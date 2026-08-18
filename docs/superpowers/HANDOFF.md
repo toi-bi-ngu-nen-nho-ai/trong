@@ -338,6 +338,36 @@ hiện chưa có iPad.
    `@container viewport` trên iPadOS; và chi phí bộ nhớ/parse của chunk ~994 kB gzip (~4 MB thô)
    trong WKWebView — đúng loại áp lực mà `SKIP_REFRESH_DURING_GESTURE` sinh ra để chịu, mà **chưa
    dòng mã nào trong chặng này cấu hình nó** (xem mục 8).
+
+   > **NGUYÊN NHÂN GỐC ĐÃ XÁC NHẬN (2026-08-18) — chạm để gõ chữ không hiện bàn phím trên điện
+   > thoại thật.** Chủ dự án tự kiểm trên máy: chạm vào bảng để soạn text, không có bàn phím ảo
+   > nào hiện lên. Điều tra bằng `superpowers:systematic-debugging` (Phase 1-3, không sửa được vì
+   > lý do dưới) tìm thấy gốc rễ trong chính cây vendored:
+   >
+   > - `addNote()` ở
+   >   `src/vendor/blocksuite/affine/gfx/note/src/note-tool.ts:253-268` gọi
+   >   `focusTextModel(gfx.std, blockId)` **bên trong `requestAnimationFrame`** — cả đường tạo note
+   >   bằng tap (`click()`, dòng 119-130) lẫn bằng kéo-thả (`dragEnd()`, dòng 136-164) đều đi qua
+   >   hàm này nên đều dính.
+   > - `focusTextModel()` ở `src/vendor/blocksuite/affine/rich-text/src/dom.ts:66-73` tự nó
+   >   **không gọi `.focus()`** — nó chỉ set một `TextSelection` trong store; DOM `.focus()` thật
+   >   sự xảy ra sau đó qua một tầng reactive khác, tức càng xa hơn nữa khỏi cử chỉ chạm gốc.
+   > - Safari trên iOS chỉ bật bàn phím ảo khi `.focus()` lên phần tử `contenteditable` được gọi
+   >   **đồng bộ, ngay trong handler xử lý touchend/pointerup** của người dùng. Bất kỳ
+   >   `requestAnimationFrame`/`.then()`/cơ chế reactive nào chen vào giữa đều cắt chuỗi "user
+   >   gesture" đó — Safari lặng lẽ từ chối hiện bàn phím, không lỗi, không cảnh báo.
+   > - **Không phải lỗi cục bộ.** Grep toàn bộ `.vendor-build`/`src/vendor`: MỌI lệnh gọi
+   >   `focusTextModel()` trong cả cây (paragraph, list, callout, note, doc-title, edgeless-text…)
+   >   đều bị hoãn qua `requestAnimationFrame`/`.then()`/`host.updateComplete.then()` — không một
+   >   chỗ nào gọi đồng bộ trong handler gốc. Đây là cách toàn bộ luồng "tạo khối rồi focus vào nó"
+   >   của thượng nguồn AFFiNE/BlockSuite được thiết kế, không phải một dòng lệch riêng lẻ vá được.
+   >
+   > **Vì sao chưa vá:** `note-tool.ts` và `dom.ts` nằm trong `src/vendor/blocksuite/` — luật D11
+   > (`src/vendor/blocksuite/README.md`) cấm sửa, phải khớp thượng nguồn nguyên văn. Gốc rễ nằm ở
+   > kiến trúc focus-qua-selection-reactive xuyên suốt cả cây, không phải một điểm vá cục bộ, nên
+   > sửa đúng nghĩa đòi hỏi hoặc (a) vá thượng nguồn và chấp nhận lệch D11 có kiểm soát, hoặc
+   > (b) đợi bản vá từ chính dự án AFFiNE/BlockSuite. Chủ dự án đã chọn: **ghi lại làm giới hạn đã
+   > biết, không vá** ở lượt này — quyết định ở đây nếu quay lại vấn đề này.
 2. **Vẽ hình bằng công cụ shape.** Chạy được bằng sự kiện tổng hợp bắn vào đúng phần tử canvas,
    **chưa phải input thật của hệ điều hành**. `ShapeViewExtension`, `BrushViewExtension`,
    `ConnectorViewExtension`, `MindmapViewExtension` đều đã đăng ký nhưng chưa từng vẽ ra gì trên
