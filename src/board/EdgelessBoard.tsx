@@ -119,6 +119,24 @@ export async function taoHoacMoBang(tuyChon?: {
   if (laLanDau) {
     const rootId = store.addBlock('affine:page', {})
     store.addBlock('affine:surface', {}, rootId)
+
+    // Đợi lượt ghi seed ban đầu ĐẨY XONG lên IndexedDB trước khi trả về — nếu không, component gọi
+    // hàm này unmount ngay (forceStop() không điều kiện) có thể cắt ngang lượt ghi này, làm mất nội
+    // dung seed (đo được thật lúc viết ca kiểm Task 2 — chập chờn ~2/3 lượt npm test đầy đủ dưới
+    // tải CPU cao). waitForSynced() lần hai đúng nghĩa vì DocEngineStep chỉ về Synced khi hàng đợi
+    // đẩy rỗng (xem framework/sync/src/doc/engine.ts, updateSyncingState). Đua với CÙNG hạn giờ như
+    // lượt đầu — nhưng KHÔNG rơi về workspace bộ nhớ nếu hết giờ: nội dung seed đã có trong `store`
+    // sắp trả về, huỷ nó mới là mất dữ liệu thật; ghi trễ vào IndexedDB không phải mất, chỉ cảnh báo.
+    const ketQuaSeed = await Promise.race([
+      workspace.waitForSynced().then(() => 'xong' as const),
+      cho(hanGioMs),
+    ])
+    if (ketQuaSeed === 'het-gio') {
+      console.warn(
+        'taoHoacMoBang: lượt ghi nội dung ban đầu chưa xác nhận đẩy xong lên IndexedDB trong ' +
+          `${hanGioMs}ms — tiếp tục, nội dung vẫn còn trong bộ nhớ.`,
+      )
+    }
   }
 
   return { workspace, store }
