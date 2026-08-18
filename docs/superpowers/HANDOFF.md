@@ -1208,7 +1208,7 @@ thật — mở tab Mindmap, gõ vài chữ vào bảng, tải lại trang (F5),
   thay vì unmount) — cố ý chưa gỡ, chờ persistence chạy ổn định thật trước (spec §8).
 - Tên CSDL `'drtrong-board'` cố định, chưa theo id bảng — nợ kỹ thuật thật cho chặng multi-board,
   xem spec §7.
-- Hai Minor từ review Task 1, chưa vá (cố ý, không phải thiếu sót — nợ nhỏ hợp lệ):
+- Hai khoản nợ nhỏ chưa vá (cố ý, không phải thiếu sót — nợ nhỏ hợp lệ, một từ review Task 1 và một từ Task 2b):
   - Thiếu `.catch()` trên chuỗi promise của `taoHoacMoBang()` trong `EdgelessBoard()` — lỗi bất đồng
     bộ ngoài các nhánh dự phòng đã có sẽ thành unhandled rejection thay vì rơi vào trạng thái lỗi
     nhìn thấy được.
