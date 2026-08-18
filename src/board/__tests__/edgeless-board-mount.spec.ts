@@ -117,4 +117,93 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     expect(container.innerHTML).toBe('')
     expect(document.querySelector('drt-edgeless-root')).toBeNull()
   })
+
+  it('hiện "Đang mở bảng…" trước, biến mất sau khi đồng bộ xong và cây Lit đã gắn', async () => {
+    await act(async () => {
+      root.render(createElement(EdgelessBoard))
+    })
+
+    // Ngay sau lượt render đầu — trước khi taoHoacMoBang() kịp resolve — trạng thái chờ phải đã
+    // hiện. Đây là khẳng định "hiện TRƯỚC", không chỉ "cuối cùng có hiện qua" — nếu bỏ qua bước
+    // này, một cài đặt render đồng thời cả hai trạng thái vẫn qua được ca kiểm dưới.
+    expect(container.textContent).toContain('Đang mở bảng…')
+
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Sau khi cây Lit đã gắn, trạng thái chờ phải biến mất — không đè lên nội dung thật.
+    expect(container.textContent).not.toContain('Đang mở bảng…')
+  })
+
+  it('nội dung sống sót qua unmount rồi mount lại (cùng tên CSDL)', async () => {
+    await act(async () => {
+      root.render(createElement(EdgelessBoard))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Đếm số block affine:page hiện có trong DOM trước khi tháo — dùng làm mốc so sánh sau khi
+    // mount lại. Không sửa nội dung qua UI thật ở đây (không có input giả lập bàn phím trong ca
+    // kiểm này) — chỉ cần xác nhận KHÔNG NHÂN ĐÔI khi mount lại, đúng phạm vi §3 của spec. Việc
+    // gõ nội dung thật rồi kiểm tra nó còn nguyên là việc của bước kiểm tay trên trình duyệt thật
+    // (spec §9 mục 6) — DOM giả lập ở đây không có input bàn phím đáng tin để mô phỏng việc đó.
+    const soTrangTruoc = document.querySelectorAll('affine-page-root, affine-edgeless-root').length
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    // Mount lại — TestWorkspace mới, nhưng cùng docSources/blobSources thật (IndexedDB thật hoặc
+    // polyfill của Step 1 Task 1, cùng tên CSDL 'drtrong-board' vì EdgelessBoard() luôn gọi
+    // taoHoacMoBang() không đối số) nên phải đọc lại được đúng doc 'board' đã lưu.
+    root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(EdgelessBoard))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    const soTrangSau = document.querySelectorAll('affine-page-root, affine-edgeless-root').length
+    expect(soTrangSau).toBe(soTrangTruoc)
+    // Không ném lỗi "doc already exists" trong lúc mount lại — nếu có, act() ở trên đã ném rồi,
+    // ca kiểm này sẽ tự đỏ trước khi chạm tới expect cuối.
+  })
+
+  it('unmount ngay khi đang chờ đồng bộ không ném lỗi "set state sau unmount"', async () => {
+    const loiConsole: unknown[] = []
+    const consoleErrorGoc = console.error
+    console.error = (...doiSo: unknown[]) => {
+      loiConsole.push(doiSo)
+      consoleErrorGoc(...doiSo)
+    }
+
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard))
+      })
+      // KHÔNG đợi taoHoacMoBang() xong — tháo component NGAY trong lúc còn "Đang mở bảng…".
+      await act(async () => {
+        root.unmount()
+      })
+      // Cho vòng lặp sự kiện thêm một nhịp để promise taoHoacMoBang() (nếu vẫn đang chạy) có cơ
+      // hội resolve VÀ chạm nhánh `huyBo` — đây chính là nhánh ca kiểm này canh.
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    } finally {
+      console.error = consoleErrorGoc
+    }
+
+    const coLoiSetStateSauUnmount = loiConsole.some((doiSo) =>
+      doiSo.some((phan) => typeof phan === 'string' && phan.includes('unmounted component')),
+    )
+    expect(coLoiSetStateSauUnmount).toBe(false)
+  })
 })
