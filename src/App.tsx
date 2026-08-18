@@ -5237,7 +5237,12 @@ function ConfirmIconButton({
       }}
       className={className}
       style={{ ...(confirm ? { background: "var(--c-danger-icon)", color: "var(--c-on-bright)" } : style), position: "relative" }}
-      aria-label={confirm ? `${ariaLabel} — chạm lần nữa để xác nhận` : ariaLabel}
+      // Nêu rõ thời hạn tự huỷ trong nhãn, giống hệt "Xoá bệnh nhân" bên PatientPanel — hai nút dùng
+      // hai hình dạng đếm ngược khác nhau (vòng tròn quanh icon vs. thanh cạn ngang trên chữ) vì hai
+      // hình dạng nút khác nhau (icon vuông vs. pill có chữ), nhưng phải nói cùng một điều bằng lời
+      // để người dùng (và trình đọc màn hình) không phải học lại ngữ pháp mỗi lần gặp nút khác
+      // (critique /impeccable 2026-08-18, P2).
+      aria-label={confirm ? `${ariaLabel} — chạm lần nữa để xác nhận, tự huỷ sau ${(CONFIRM_ICON_RESET_MS / 1000).toFixed(1)} giây` : ariaLabel}
     >
       {/* Chạm lần 1 trước đây chỉ đổi icon (thùng rác → cảnh báo) cùng kích thước, cùng vị trí,
           không chữ — rất dễ tưởng "máy không nhận" rồi chạm lại, mà lần chạm đó xoá thật. Vòng
@@ -7917,8 +7922,13 @@ function AntibioticDoseCard({
   return (
     <div className="p-4 rounded-[20px] border" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
       <div className="flex items-center justify-between mb-0.5 gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <p className="font-bold text-slate-900 text-[13px] truncate">{drug.name}</p>
+        {/* line-clamp-2, không truncate — cùng lý do với InfusionDrugCard: đây là thẻ chi tiết đang
+            mở, chỗ duy nhất người dùng cần đọc trọn tên kháng sinh tự đặt dài (critique /impeccable
+            2026-08-18, P2). items-start chỉ trên HÀNG TRONG (tên + badge) để hai dòng tên căn theo
+            đỉnh; hàng NGOÀI giữ items-center để cụm nút/nhãn bên phải vẫn thẳng hàng với trường hợp
+            phổ biến hơn — tên một dòng. */}
+        <div className="flex items-start gap-1.5 min-w-0">
+          <p className="font-bold text-slate-900 text-[13px] line-clamp-2">{drug.name}</p>
           {drug.isCustom && (
             <span
               className="text-[12px] font-bold px-1.5 py-0.5 rounded-full flex-none"
@@ -8385,6 +8395,21 @@ function AntibioticsScreen({
       .sort((a, b) => a.name.localeCompare(b.name, "vi", { sensitivity: "base" }))
   }, [allAntibiotics])
 
+  // Chữ cái duy nhất theo đúng thứ tự `groups` (đã sắp alphabet ở trên) — cấp dữ liệu cho thanh
+  // nhảy nhanh bên dưới, tận dụng lại đúng phép nhóm đã dùng để vẽ nhãn chữ cái, không tính lại.
+  const alphabetLetters = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    groups.forEach((g) => {
+      const letter = g.name.charAt(0).toUpperCase()
+      if (!seen.has(letter)) {
+        seen.add(letter)
+        out.push(letter)
+      }
+    })
+    return out
+  }, [groups])
+
   const filteredGroups = useMemo(() => {
     const q = normalizeSearch(query)
     return q ? groups.filter((g) => normalizeSearch(g.name).includes(q)) : groups
@@ -8502,6 +8527,27 @@ function AntibioticsScreen({
         }}
         placeholder="Tìm kháng sinh..."
       />
+      {/* Thanh nhảy nhanh theo chữ cái — tận dụng đúng dữ liệu nhóm/chữ cái đã tính cho nhãn bên
+          dưới, không tính lại. Chỉ hiện khi đang DUYỆT toàn bộ danh sách (giống điều kiện của
+          chính nhãn chữ cái): ẩn khi đã chọn một hoạt chất hoặc đang gõ tìm, vì lúc đó danh sách
+          không còn hiển thị để nhảy tới (critique /impeccable 2026-08-18, P2 — 29 kháng sinh không
+          có cách định vị nhanh dù dữ liệu nhóm đã có sẵn). */}
+      {!selectedGroup && !query.trim() && alphabetLetters.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto scroll-ios mb-2" style={{ scrollbarWidth: "none" }} role="group" aria-label="Nhảy nhanh theo chữ cái">
+          {alphabetLetters.map((letter) => (
+            <button
+              key={letter}
+              type="button"
+              onClick={() => document.getElementById(`abx-letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="flex-none w-7 h-7 rounded-full text-[11px] font-bold flex items-center justify-center"
+              style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
+              aria-label={`Nhảy tới chữ ${letter}`}
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Đã chọn một hoạt chất: gấp cả danh sách lại, chỉ còn ĐÚNG chip đang chọn — bước Chỉ định/
           Đường dùng/thẻ liều kéo lên ngay sát ô tìm thay vì phải cuộn qua hết ~28 chip mới tới. Bấm
           lại đúng chip đó (cùng onClick selectGroup toggle như cũ) để bỏ chọn, danh sách hiện lại. */}
@@ -8525,7 +8571,12 @@ function AntibioticsScreen({
             const nodes: React.ReactNode[] = []
             if (!query.trim() && letter !== prevLetter) {
               nodes.push(
-                <span key={`letter-${letter}`} className="basis-full text-[12px] font-bold uppercase tracking-wide mt-1 first:mt-0" style={{ color: "var(--c-text-muted)" }}>
+                <span
+                  key={`letter-${letter}`}
+                  id={`abx-letter-${letter}`}
+                  className="basis-full text-[12px] font-bold uppercase tracking-wide mt-1 first:mt-0"
+                  style={{ color: "var(--c-text-muted)", scrollMarginTop: 8 }}
+                >
                   {letter}
                 </span>,
               )
@@ -10132,8 +10183,12 @@ function InfusionDrugCard({
       {/* Đầu thẻ: tên thuốc và hai nút cùng nằm trên một đường, cao bằng nhau */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p className={`${T.title} truncate`} style={{ color: C.text }}>{drug.name}</p>
+          {/* line-clamp-2, không truncate: đây là THẺ CHI TIẾT đang mở, chỗ duy nhất người dùng cần
+              đọc trọn tên — một thuốc/công thức pha tự đặt tên dài không có nơi nào khác để xem hết
+              (critique /impeccable 2026-08-18, P2). items-start vì tên có thể xuống 2 dòng, badge
+              "Tự nhập"/"Đã sửa" cần neo theo đỉnh dòng đầu, không theo tâm cả khối. */}
+          <div className="flex items-start gap-1.5 min-w-0">
+            <p className={`${T.title} line-clamp-2`} style={{ color: C.text }}>{drug.name}</p>
             {drug.isCustom && (
               <span
                 className={`${T.label} px-1.5 py-0.5 ${R.pill} flex-none`}
@@ -10478,6 +10533,15 @@ const MIXING_TITLES: Record<MixingTab, string> = {
 // một hàng thường trực" đã đặt ra cho nút Tìm (xem comment tại nút "Tìm" trong DungThuocScreen).
 const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
 
+// Đóng băng thứ tự tab theo phiên (xem comment ở khai báo tabOrderIds trong DungThuocScreen) tránh
+// được nạn xáo trộn mỗi lần dựng lại màn, nhưng đóng băng VĨNH VIỄN cho tới khi đóng hẳn tab trình
+// duyệt lại quá cứng: nếu cách dùng thật sự đổi giữa ca (thuốc cấp cứu → thuốc an thần) hoặc điện
+// thoại đổi sang tay một bác sĩ khác, hàng tab vẫn giữ nguyên thứ tự cũ suốt phần còn lại của phiên
+// (critique /impeccable 2026-08-18, P3). 15 phút đủ dài để không xáo trộn qua một lượt rẽ ngang
+// Mindmap vài giây (đúng lý do đóng băng ra đời), đủ ngắn để phản ánh lại cách dùng nếu quay lại màn
+// này sau một khoảng nghỉ thật sự.
+const TAB_ORDER_REFRESH_MS = 15 * 60 * 1000
+
 function DungThuocScreen({
   customAntibiotics,
   diseases,
@@ -10510,18 +10574,25 @@ function DungThuocScreen({
   // Trước đây tính lại bằng sortByUsage() mỗi lần MÀN NÀY DỰNG — tưởng là "một lần", nhưng
   // DungThuocScreen bị gỡ khỏi cây mỗi khi rời màn hình (xem lib/uiState.ts), nên chỉ cần rẽ qua
   // Mindmap năm giây rồi quay lại là hàng tab có thể đã xáo trộn — phá trí nhớ vị trí thường xuyên
-  // hơn dự tính (critique /impeccable 2026-08-17T17-38, P2). Nay ĐÓNG BĂNG theo cả PHIÊN: thứ tự
-  // tính một lần rồi lưu id vào sessionStorage (`dungthuoc.tabOrder`), đọc lại y nguyên ở mọi lần
-  // dựng màn sau trong cùng phiên; chỉ một phiên MỚI (tab/cửa sổ mới) mới tính lại theo số đếm
-  // localStorage mới nhất. reconcileOrder() không bao giờ làm mất một tab nếu MIXING_TABS đổi giữa
-  // chừng (bản cập nhật ứng dụng).
+  // hơn dự tính (critique /impeccable 2026-08-17T17-38, P2). Nay ĐÓNG BĂNG theo mốc thời gian (xem
+  // TAB_ORDER_REFRESH_MS), không phải cả phiên: thứ tự tính một lần rồi lưu id + mốc giờ vào
+  // sessionStorage (`dungthuoc.tabOrder`/`dungthuoc.tabOrderAt`), đọc lại y nguyên ở mọi lần dựng
+  // màn trong vòng TAB_ORDER_REFRESH_MS kể từ lần tính gần nhất; quá mốc đó thì tính lại theo số đếm
+  // localStorage mới nhất — vừa chống xáo trộn qua một lượt rẽ ngang vài giây, vừa không khoá cứng
+  // cả ca trực nếu cách dùng đổi thật hoặc điện thoại đổi sang tay người khác (critique /impeccable
+  // 2026-08-18, P3). reconcileOrder() không bao giờ làm mất một tab nếu MIXING_TABS đổi giữa chừng
+  // (bản cập nhật ứng dụng).
   const [tabOrderIds, setTabOrderIds] = useStickyState<string[]>("dungthuoc.tabOrder", [])
+  const [tabOrderAt, setTabOrderAt] = useStickyState<number>("dungthuoc.tabOrderAt", 0)
   const orderedTabs = useMemo(
     () => (tabOrderIds.length > 0 ? reconcileOrder(MIXING_TABS, tabOrderIds) : MIXING_TABS),
     [tabOrderIds],
   )
   useEffect(() => {
-    if (tabOrderIds.length === 0) setTabOrderIds(sortByUsage(MIXING_TABS).map((t) => t.id))
+    if (tabOrderIds.length === 0 || Date.now() - tabOrderAt > TAB_ORDER_REFRESH_MS) {
+      setTabOrderIds(sortByUsage(MIXING_TABS).map((t) => t.id))
+      setTabOrderAt(Date.now())
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const { patient, setField, reset, restore } = usePatientVitals()
