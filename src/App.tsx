@@ -5379,8 +5379,11 @@ function DisclaimerGate({ ack, onAcknowledge }: { ack: boolean; onAcknowledge: (
           {icons.alert()}
           <p id="disclaimer-gate-title" className="text-[13px] font-bold">Trước khi dùng</p>
         </div>
-        <p className="text-[13px] text-slate-700 leading-[1.45] mb-3">{DISCLAIMER_TEXT}</p>
-        <p className="text-[12px] text-slate-500 leading-[1.45] mb-4">
+        {/* max-w: sheet nền vẫn full-bleed (w-full ở div cha) đúng hình dạng bottom sheet, nhưng chữ
+            đọc thì giới hạn measure — không giới hạn thì trên màn rộng (tablet/desktop) mỗi dòng kéo
+            dài ~200 ký tự, quá ngưỡng đọc thoải mái (/impeccable critique 2026-08-18). */}
+        <p className="text-[13px] text-slate-700 leading-[1.45] mb-3 max-w-[65ch]">{DISCLAIMER_TEXT}</p>
+        <p className="text-[12px] text-slate-500 leading-[1.45] mb-4 max-w-[65ch]">
           Mỗi mục đều ghi nguồn và ngày rà soát ngay trên thẻ thuốc; mục nào chưa có thì được đánh dấu rõ.
         </p>
         <button
@@ -5990,7 +5993,11 @@ function RunningPanel() {
         {/* Trước đây tên là "Đang truyền", nhưng kháng sinh mỗi 8 giờ cũng nằm trong bảng này —
             gọi một liều ngắt quãng là "đang truyền" là mô tả sai thứ đang xảy ra trên người bệnh.
             Số đếm nảy một nhịp mỗi khi đổi — ghim/bỏ ghim là hành động "thành công" chính của
-            màn hình này, trước đây không có phản hồi thị giác nào khi con số đổi. */}
+            màn hình này, trước đây không có phản hồi thị giác nào khi con số đổi.
+            Rà lại (/impeccable critique 2026-08-18): số đếm N-thuốc KHÔNG phải số liều/tốc độ hay
+            tín hiệu an toàn (không phạm luật Untouchable Signal), và nằm trong một card — bounce ở
+            đây xác nhận "hành động ghim/bỏ ghim vừa xảy ra", đúng mục đích motion mà DESIGN.md cho
+            phép ("did this action finish"). Giữ nguyên, không phải chrome thừa cần bỏ. */}
         Bệnh nhân đang dùng · <span key={running.length} className="pop-value inline-block">{running.length}</span> thuốc
       </p>
 
@@ -7645,7 +7652,10 @@ function AntibioticMixPanel({
         )
       )}
       {conc == null && (
-        <p className="text-[12px] leading-[1.45] text-slate-400">
+        // text-slate-500 (→ --c-text-muted, ~5.8:1), không phải -400 (→ --c-muted, ~3.1:1) — đây là
+        // hướng dẫn thao tác thật phải đọc được, không phải icon/placeholder (cùng quy tắc đã áp ở
+        // RunningPanel, xem 6002-6004; /impeccable critique 2026-08-18).
+        <p className="text-[12px] leading-[1.45] text-slate-500">
           {isFixed ? `Nhập hàm lượng và thể tích cả chai để tính.` : `Nhập hàm lượng ${vialLabel}, số ${vialLabel} và thể tích pha loãng để tính nồng độ.`}
         </p>
       )}
@@ -8607,17 +8617,23 @@ function AntibioticsScreen({
           nhảy tới trong tập rút gọn (sắp theo tần suất, không còn liên tục A→V) sẽ không tìm thấy
           gì (critique /impeccable 2026-08-18, P2 gốc — 29 kháng sinh không có cách định vị nhanh). */}
       {!selectedGroup && !query.trim() && showAllGroups && alphabetLetters.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto scroll-ios mb-2" style={{ scrollbarWidth: "none" }} role="group" aria-label="Nhảy nhanh theo chữ cái">
+        <div className="flex gap-0.5 overflow-x-auto scroll-ios mb-2" style={{ scrollbarWidth: "none" }} role="group" aria-label="Nhảy nhanh theo chữ cái">
           {alphabetLetters.map((letter) => (
+            // Cùng kỹ thuật đệm vô hình với nút "Tìm"/"Nhật ký" ở ScreenHeader (10948-10982): pill
+            // nhìn thấy vẫn 28px (đủ nhỏ để nhét ~20 chữ cái vào một hàng cuộn ngang), nhưng vùng
+            // CHẠM của chính button là 44px — trước đây w-7 h-7 (28px) là cả vùng chạm, dưới ngưỡng
+            // 44px chung của màn này (/impeccable critique 2026-08-18, phát hiện tái phạm 2026-08-18).
+            // Chữ 11px cũng bị nâng lên 12px — lib/ui.ts:14-19 đã bỏ hẳn 11px khỏi nội dung lâm sàng.
             <button
               key={letter}
               type="button"
               onClick={() => document.getElementById(`abx-letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              className="flex-none w-7 h-7 rounded-full text-[11px] font-bold flex items-center justify-center"
-              style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}
+              className="flex-none flex items-center justify-center p-2"
               aria-label={`Nhảy tới chữ ${letter}`}
             >
-              {letter}
+              <span className="w-7 h-7 rounded-full text-[12px] font-bold flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }}>
+                {letter}
+              </span>
             </button>
           ))}
         </div>
@@ -9737,8 +9753,11 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             className="dose-press flex-1 h-9 rounded-[14px] text-[12px] font-bold"
             aria-pressed={mode === m.id}
             style={
+              // Không boxShadow: đây là control thường trực (không phải dropdown/toast/modal/sheet),
+              // luật Floating-Layer-Only trong DESIGN.md chỉ cho shadow ở lớp nổi thật sự — màu nền
+              // trắng + chữ primary đã đủ phân biệt trạng thái chọn (/impeccable critique 2026-08-18).
               mode === m.id
-                ? { background: "var(--c-surface)", color: "var(--c-primary)", boxShadow: "0 1px 3px var(--c-shadow)" }
+                ? { background: "var(--c-surface)", color: "var(--c-primary)" }
                 : { background: "transparent", color: "var(--c-text-soft)" }
             }
           >
@@ -10405,6 +10424,13 @@ function InfusionDrugCard({
 //   1. Thuốc bệnh nhân ĐANG dùng (chạm là mở thẳng máy tính)
 //   2. Ô tìm + chip chọn thuốc cần thêm
 //   3. Chỉ thuốc đang chọn mới bung thẻ đầy đủ
+// Ngưỡng gấp gọn khi CHƯA lọc/CHƯA mở rộng — cùng số với ABX_GROUP_COLLAPSE_COUNT (AntibioticsScreen)
+// để hai màn dùng chung một quy tắc thay vì mỗi nơi một con số. Đa số nhóm (Co bóp 4, Vận mạch 4,
+// Giãn mạch 3, Loạn nhịp 4, Nội môi 5, Thần kinh 4, Giải độc 5) chưa bao giờ chạm ngưỡng này; chỉ
+// An thần (8) và Khác (9) từng phơi hết chip cùng lúc — đúng lỗ hổng /impeccable critique 2026-08-18
+// vốn đã sửa cho AntibioticsScreen nhưng chưa lan sang màn anh em này.
+const INFUSION_DRUG_COLLAPSE_COUNT = 8
+
 function InfusionCategoryScreen({
   staticDrugs,
   customDrugs,
@@ -10423,6 +10449,10 @@ function InfusionCategoryScreen({
   onDelete: (id: string) => void
 }) {
   const { running, collapsePatientPanel } = useDosing()
+  // KHÔNG sticky, giống showAllGroups ở AntibioticsScreen: mỗi lần ghé lại một nhóm thuốc truyền thì
+  // bắt đầu từ tập rút gọn — component này bị unmount/remount mỗi lần đổi tab (key={`${tab}-${jumpKey}`}
+  // ở nơi gọi) nên state tự về false, không cần reset thủ công theo categoryLabel.
+  const [showAll, setShowAll] = useState(false)
   const allDrugs = useMemo(() => mergeWithOverrides(staticDrugs, customDrugs), [staticDrugs, customDrugs])
   const staticIds = useMemo(() => new Set(staticDrugs.map((d) => d.id)), [staticDrugs])
   // Khoá theo từng nhóm thuốc để tab "Vận mạch" và tab "Co bóp" nhớ riêng thuốc đang mở.
@@ -10439,6 +10469,15 @@ function InfusionCategoryScreen({
     const q = normalizeSearch(query)
     return q ? allDrugs.filter((d) => normalizeSearch(d.name).includes(q)) : allDrugs
   }, [allDrugs, query])
+
+  // Tập chip hiển thị khi ĐANG DUYỆT (chưa gõ tìm) và CHƯA bấm "Xem tất cả": rút xuống
+  // INFUSION_DRUG_COLLAPSE_COUNT chip đầu tiên. Có query hoặc đã bấm "Xem tất cả" thì luôn hiện đủ
+  // filtered — tìm kiếm không bao giờ được phép giấu bớt kết quả (giống hệt AntibioticsScreen).
+  const browseDrugs = useMemo(() => {
+    if (query.trim() || showAll) return filtered
+    return filtered.slice(0, INFUSION_DRUG_COLLAPSE_COUNT)
+  }, [filtered, query, showAll])
+  const isCollapsedBrowse = !query.trim() && !showAll && filtered.length > INFUSION_DRUG_COLLAPSE_COUNT
 
   // Gõ tới khi chỉ còn một kết quả thì mở luôn — bớt được một lần chạm.
   const effectiveId = selectedId ?? (query.trim() && filtered.length === 1 ? filtered[0].id : null)
@@ -10515,11 +10554,21 @@ function InfusionCategoryScreen({
       />
       <div className="flex flex-wrap gap-2 mb-3">
         {/* index chỉ truyền khi CHƯA lọc — xem ghi chú tương tự ở AntibioticsScreen. */}
-        {filtered.map((d, i) => (
+        {browseDrugs.map((d, i) => (
           <Chip key={d.id} index={query.trim() ? undefined : i} tone="accent" active={effectiveId === d.id} onClick={() => selectDrug(effectiveId === d.id ? null : d.id)}>
             {shortDrugName(d.name)}
           </Chip>
         ))}
+        {isCollapsedBrowse && (
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className={CHIP}
+            style={{ background: C.surface, borderColor: C.line, color: C.textSoft }}
+          >
+            Xem tất cả · {filtered.length}
+          </button>
+        )}
       </div>
 
       {/* Chỉ định — chỉ hiện khi thuốc đang chọn có khai báo liều riêng theo bệnh lý, giống hệt bước

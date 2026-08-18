@@ -99,7 +99,12 @@ export const C = {
 } as const
 
 // ─── Ô nhập: cao 44px cho đủ vùng chạm khi đeo găng ─────────────────────────
-export const FIELD = `w-full h-11 px-3 ${R.input} ${T.body} border outline-none ${NUM}`
+// text-[16px] viết thẳng, KHÔNG dùng T.body (14px): rule toàn cục input/select/textarea{font-size:
+// 16px!important} đã ghi đè 14px trên mọi <input> dùng FIELD — viết 14px ở đây là sai với thực tế
+// render, gây hiểu lầm khi đọc code. Một chỗ dùng FIELD trên <p> không phải input (tốc độ bơm tính
+// sẵn, App.tsx:7515) KHÔNG bị rule đó ghi đè, nên 16px cũng đúng luôn cho ca đó — số liều/tốc độ
+// càng không nên nhỏ hơn input thật (/impeccable critique 2026-08-18).
+export const FIELD = `w-full h-11 px-3 ${R.input} text-[16px] leading-[1.5] border outline-none ${NUM}`
 export const FIELD_STYLE = { borderColor: C.line, background: C.surface }
 
 // `dose-press` (index.css) cho mọi nút một phản hồi chạm giống nhau: thu nhẹ 0,96 trong 0,16s.
