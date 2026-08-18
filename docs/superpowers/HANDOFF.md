@@ -1129,3 +1129,100 @@ hoặc mới hơn", không phải `62a4420`.
 
 **Chặng kế tiếp** (không đổi so với mục 14 cũ, trừ mục vừa xong): đợt dịch thứ hai cho nhóm gói
 chưa bật (chủ yếu `affine/data-view`, cần bật tính năng trước); hoặc Lưu trữ (D4)/BoardGallery.
+
+## 17. LƯU TRỮ BỀN VỮNG CHO NỘI DUNG BẢNG (D4 — PHẦN NỘI DUNG) — ĐÃ XONG, CHỜ GỘP
+
+Track MindmapScreen, phần "ruột bảng" — xem
+docs/superpowers/specs/2026-08-18-luu-tru-noi-dung-bang-design.md.
+
+### Chặng này làm gì
+
+`taoBangTrong()` trước đây luôn dựng workspace trắng trong bộ nhớ, mất nội dung khi tải lại trang.
+Đổi thành `taoHoacMoBang()` — bất đồng bộ, nối `IndexedDBDocSource`/`IndexedDBBlobSource` (đã có
+sẵn trong `@blocksuite/sync`, CSDL riêng `'drtrong-board'`), đợi đồng bộ xong CÓ HẠN GIỜ (4 giây —
+`waitForSynced()` tự thử lại mỗi 5 giây vô thời hạn khi lỗi, `await` trần sẽ treo mãi mãi nếu
+IndexedDB hỏng vĩnh viễn). Rẽ nhánh `getDoc`/`createDoc` để không nhân đôi nội dung khi mở app lần
+hai trở đi (`createDoc` ném lỗi nếu doc đã tồn tại). `EdgelessBoard()` hiện "Đang mở bảng…" trong
+lúc chờ, dọn `workspace.forceStop()` lúc unmount.
+
+Phạm vi CHỈ nội dung một bảng hiện có (id cứng, giữ nguyên) — danh sách bảng/metadata và
+BoardGallery dời sang chặng riêng, cùng hack "mount vĩnh viễn" ở `App.tsx` (spec §8).
+
+### Đã xong
+
+Lịch sử thật có **5 commit** ngoài kế hoạch gốc (kế hoạch chỉ tính 2 task) — giữa chừng phát hiện
+một race điều kiện thật, đúng tinh thần "ghi lại lỗi thật tìm được, không chỉ đường thuận buồm" mà
+HANDOFF này đã theo ở các mục trước (ví dụ mục 16, dòng `fcfec0b`):
+
+| Task | Nội dung | Commit |
+|---|---|---|
+| 1 | `taoHoacMoBang()` — bất đồng bộ, IndexedDB qua `IndexedDBDocSource`/`IndexedDBBlobSource`, canh tồn-tại-doc trước `createDoc`, `waitForSynced()` có hạn giờ 4s; nối vào `EdgelessBoard()`; 4 ca kiểm hàm thuần. Review: 2 Minor không chặn — thiếu `.catch()` trên chuỗi promise trong `EdgelessBoard()`, và devDependency `fake-indexeddb` mới thêm | `81c99c5` |
+| — | Đính chính kế hoạch giữa chừng: 3 lỗi thật tự phát hiện lúc thi hành Task 1 (ca kiểm đếm sai loại block con — root CHÍNH LÀ `affine:page` nên không thể có `affine:page` con, phải đếm `affine:surface`; import `Doc` thừa chặn `noUnusedLocals`; bốn lượt `await vi.waitFor(...)` thiếu bọc `act()` quanh cập nhật state React bất đồng bộ). Cả ba do implementer Task 1 tự phát hiện, báo NEEDS_CONTEXT thay vì tự vá | `0320888` |
+| 2 | 3 ca kiểm vòng đời mount mới (thứ tự trạng thái chờ, vòng lưu-mở-lại, unmount giữa chừng) — chỉ thêm kiểm, không đụng `EdgelessBoard.tsx`. Lúc viết ca kiểm vòng lưu-mở-lại, phát hiện race điều kiện THẬT trong mã Task 1 (xem dòng dưới) — báo cáo đúng phạm vi thay vì tự vá ngoài task | `9540be9` |
+| 2b (bổ sung ngoài kế hoạch, controller điều phối trực tiếp giữa phiên) | Vá race Task 2 phát hiện: `forceStop()` lúc unmount có thể cắt ngang việc ghi block seed xuống IndexedDB trước khi flush xong → `npm test` chớp nhoáng đỏ dưới tải song song (quan sát 2/3 lượt chạy toàn bộ suite đỏ). Thêm `waitForSynced()` có hạn giờ THỨ HAI (cùng cơ chế Task 1) sau khi ghi seed — nhưng KHÔNG đối xứng với lần đợi đầu: hết giờ chỉ cảnh báo và tiếp tục, KHÔNG huỷ nội dung đã seed (lần đợi đầu hết giờ thì dựng lại workspace bộ nhớ mới, vì lúc đó chưa có gì để mất). Xác minh: chạy `npm test` toàn suite 3 lần liên tiếp, cả 3 xanh (so với 2/3 đỏ trước vá, cùng điều kiện tải) | `ece47f4` |
+| Sửa kiểu (phát hiện lúc kiểm 2b) | `tsc --noEmit` thật ra đã đỏ từ ngay sau commit Task 2 (`9540be9`) — lỗi kiểu thật `unknown[]` khác `unknown[][]` trong file ca kiểm, lọt qua review Task 2 vì lượt đó không được yêu cầu chạy `tsc`. Sửa 1 dòng chú thích kiểu, không đổi hành vi; xác nhận `tsc --noEmit` exit 0 và các ca kiểm liên quan vẫn xanh. Review chung với diff của 2b | `cdca4bc` |
+
+`npm test` **195/195** (21 file), trước chặng (tại điểm nhánh này rẽ khỏi `main`, commit `9ea9928`)
+**188/188** (21 file) — tăng đúng 7 ca kiểm trong 2 file ĐÃ CÓ SẴN (không thêm file mới):
+`edgeless-board.spec.ts` +4 (Task 1, hàm thuần), `edgeless-board-mount.spec.ts` +3 (Task 2, vòng
+đời mount).
+
+Bảy cổng đo lại trực tiếp trong phiên đóng chặng (2026-08-18), không chép số cũ: `npx tsc --noEmit`
+exit 0 · `npm test` 195/195 (21 file, 81.95s) · `kiem:vendor` — so 2782 file với
+`bang-bam-vendor.json`, 0 sai lệch; so 2782 file với thượng nguồn, lệch 0, không đối chiếu được 0 ·
+`kiem:vendor-paths` — khớp 438 mục paths · `npm run build` xanh (16.41s, cảnh báo chunk >500kB chỉ
+mang tính thông tin, không phải lỗi cổng) · `kiem:dist` — đọc 12 file trong `dist/`, biến `--drt-*`
+dùng 73/định nghĩa 639, biến CSS dùng 315/định nghĩa 924, **bản dịch vi.json — 132/132 có mặt**,
+không còn `"affine-"`, mọi biến `--drt-*` dùng đều có định nghĩa. Chặng này không đụng cây vendored
+hay `vi.json` nên ba cổng vendor/dist giữ nguyên số so với mục 16 — đúng như dự đoán, đã CHẠY THẬT
+để xác nhận chứ không chỉ suy luận.
+
+### Kiểm tay trên trình duyệt thật
+
+**Không xác nhận được vòng gõ chữ → tải lại → còn nội dung** — cùng giới hạn môi trường đã ghi ở
+mục 16 (phiên này không có người đang xem trực tiếp Browser pane). Diễn biến thật của lượt thử:
+
+1. `preview_start` (`drtrong-dev`) khởi động sạch, không lỗi.
+2. Lượt `screenshot` đầu tiên báo đúng lỗi đã biết: `"the Browser pane is not displayed, so the
+   page is not compositing frames"`.
+3. Các công cụ không cần compositing (`get_page_text`, `javascript_tool`, `read_page`) VẪN chạy —
+   sau khi đợi vite transform xong (~15s cho lượt tải đầu, 3950 module), trang chủ dựng đúng: tiêu
+   đề "Bác sĩ Trọng — Sổ tay lâm sàng", nội dung "BS TRỌNG", điều hướng "Điều hướng chính" với 5 tab
+   kể cả "Mindmap" (`ref_10`), console không có lỗi, network toàn bộ 200 OK.
+4. Bấm `ref_10` (tab Mindmap) qua `computer` "left_click" hai lượt riêng biệt (đọc lại `read_page`
+   giữa hai lượt để tránh ref cũ) — lệnh trả về "thành công" nhưng DOM/`document.body.textContent`
+   sau đó vẫn y nguyên màn Trang chủ, bảng vẽ không xuất hiện (`document.querySelector('canvas')` →
+   `null`). Thử `left_click` bằng toạ độ thô thay vì `ref` bị chặn thẳng: lỗi đòi phải có
+   `screenshot` trước để cache kích thước — chính là bước đã báo lỗi compositing ở bước 2.
+
+Kết luận: khác mục 16 (dò được qua mã nguồn/console/DOM bundle đã dựng vì không cần tương tác thật),
+lượt này CÓ dựng được trang và đọc được DOM ban đầu, nhưng **không đưa được thao tác bấm tới ứng
+dụng thật** — nhất quán với cùng nguyên nhân gốc (pane không hiển thị/compositing cho người xem
+thật), không phải lỗi mới hay lỗi mã. **Còn nợ:** kiểm tay ~2 phút khi chủ dự án ở trước màn hình
+thật — mở tab Mindmap, gõ vài chữ vào bảng, tải lại trang (F5), xác nhận nội dung còn nguyên.
+
+### Ngoài phạm vi, còn nợ
+
+- Danh sách bảng/metadata, `idb.ts` `DB_VERSION` → 5, màn BoardGallery — chặng riêng (spec §8).
+- Gỡ hack "mount vĩnh viễn" ở `App.tsx` (giữ `<EdgelessBoard />` mount sau lần mở đầu, ẩn bằng CSS
+  thay vì unmount) — cố ý chưa gỡ, chờ persistence chạy ổn định thật trước (spec §8).
+- Tên CSDL `'drtrong-board'` cố định, chưa theo id bảng — nợ kỹ thuật thật cho chặng multi-board,
+  xem spec §7.
+- Hai Minor từ review Task 1, chưa vá (cố ý, không phải thiếu sót — nợ nhỏ hợp lệ):
+  - Thiếu `.catch()` trên chuỗi promise của `taoHoacMoBang()` trong `EdgelessBoard()` — lỗi bất đồng
+    bộ ngoài các nhánh dự phòng đã có sẽ thành unhandled rejection thay vì rơi vào trạng thái lỗi
+    nhìn thấy được.
+  - Chưa có ca kiểm riêng ghim đúng nhánh "hết giờ chỉ cảnh báo, không huỷ nội dung" của Task 2b
+    (`waitForSynced()` thứ hai) — nhánh này mới được xác minh gián tiếp qua 3 lượt chạy suite đầy
+    đủ, chưa có ca kiểm đơn lẻ ép buộc timeout để ghim hành vi.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này hoặc mới hơn
+git status --short                      # kỳ vọng chỉ hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp:** BoardGallery (màn danh sách bảng, cần bảng metadata trước — xem "Ngoài phạm vi"
+ở trên); hoặc đợt dịch thứ hai cho nhóm gói chưa bật (`affine/data-view`).
