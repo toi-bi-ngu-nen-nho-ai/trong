@@ -15,6 +15,8 @@ import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affine/store/test'
+import type { BlobSource, DocSource } from '@blocksuite/sync'
+import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
@@ -39,29 +41,92 @@ import { viewExtensions } from './extensions'
 const viewManager = new ViewExtensionManager(viewExtensions)
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 
+// Tên CSDL IndexedDB riêng cho NỘI DUNG bảng (CRDT nhị phân + blob ảnh) — tách hẳn khỏi
+// "drtrong-ecg" của src/lib/idb.ts (bản ghi JSON cho danh sách bảng/ECG/bài viết, hai bản chất dữ
+// liệu khác nhau, xem docs/superpowers/specs/2026-08-18-luu-tru-noi-dung-bang-design.md §4.1).
+// KHÔNG dùng tên mặc định 'blocksuite-local' của IndexedDBDocSource/IndexedDBBlobSource — tên đó
+// mơ hồ, không nói lên đây là CSDL của dự án nào.
+const TEN_CSDL_BANG = 'drtrong-board'
+
+// waitForSynced() KHÔNG tự bỏ cuộc khi IndexedDB hỏng vĩnh viễn — DocEngine thử lại mỗi 5 giây vô
+// thời hạn (framework/sync/src/doc/peer.ts, syncRetryLoop). await trần trên waitForSynced() sẽ treo
+// màn "Đang mở bảng…" MÃI MÃI nếu IndexedDB hỏng (chế độ ẩn danh chặn, hết quota...) — một hồi quy
+// nặng hơn hành vi trước khi có lưu trữ (board luôn hiện ra, chỉ là không lưu). 4 giây là hào phóng
+// cho IndexedDB cục bộ (bình thường xong trong vài chục ms).
+const HAN_GIO_MAC_DINH_MS = 4000
+
+function cho(ms: number) {
+  return new Promise<'het-gio'>((resolve) => setTimeout(() => resolve('het-gio'), ms))
+}
+
 /**
- * Dựng một bảng trống trong bộ nhớ. Chưa bền vững — lưu trữ (D4) thuộc chặng sau, nên đóng bảng
- * là mất nội dung. `TestWorkspace` là workspace không cần server, đúng thứ cần ở chặng này.
+ * Dựng hoặc mở lại bảng đã lưu. Bền vững qua IndexedDB (mặc định) — nếu không đồng bộ xong trong
+ * `hanGioMs`, rơi về workspace chỉ trong bộ nhớ thay vì treo vô thời hạn (xem HAN_GIO_MAC_DINH_MS).
+ *
+ * `tuyChon` CHỈ dùng để ca kiểm tiêm docSources/blobSources/hanGioMs giả — gọi không đối số trong
+ * app thật.
+ *
+ * QUAN TRỌNG: `createDoc('board')` ném lỗi nếu doc đã tồn tại. Với người dùng cũ, sau khi đồng bộ
+ * xong thì `getDoc('board')` đã trả về non-null — PHẢI kiểm trước khi gọi `createDoc`, nếu không
+ * mọi lần mở app sau lần đầu đều vỡ ngay lúc mount.
  */
-export function taoBangTrong() {
-  const workspace = new TestWorkspace({
+export async function taoHoacMoBang(tuyChon?: {
+  docSources?: { main: DocSource }
+  blobSources?: { main: BlobSource }
+  hanGioMs?: number
+}) {
+  const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
+  const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
+  const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
+
+  let workspace = new TestWorkspace({
     id: 'bs-trong-board',
     idGenerator: createAutoIncrementIdGenerator(),
+    docSources,
+    blobSources,
   })
   workspace.meta.initialize()
+  workspace.start()
 
-  const doc = workspace.createDoc('board')
+  const ketQua = await Promise.race([
+    workspace.waitForSynced().then(() => 'xong' as const),
+    cho(hanGioMs),
+  ])
+
+  if (ketQua === 'het-gio') {
+    console.warn(
+      `taoHoacMoBang: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — dùng bảng chỉ trong ` +
+        'bộ nhớ, nội dung sẽ không được lưu.',
+    )
+    workspace.forceStop()
+    workspace = new TestWorkspace({
+      id: 'bs-trong-board',
+      idGenerator: createAutoIncrementIdGenerator(),
+    })
+    workspace.meta.initialize()
+    workspace.start()
+  }
+
+  let doc = workspace.getDoc('board')
+  let laLanDau = false
+  if (!doc) {
+    doc = workspace.createDoc('board')
+    laLanDau = true
+  }
   const store = doc.getStore({ extensions: storeManager.get('store') })
   doc.load()
 
-  const rootId = store.addBlock('affine:page', {})
-  store.addBlock('affine:surface', {}, rootId)
+  if (laLanDau) {
+    const rootId = store.addBlock('affine:page', {})
+    store.addBlock('affine:surface', {}, rootId)
+  }
 
-  return store
+  return { workspace, store }
 }
 
 export function EdgelessBoard() {
   const hostRef = useRef<HTMLDivElement>(null)
+  const [dangMo, setDangMo] = useState(true)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -80,17 +145,29 @@ export function EdgelessBoard() {
   useEffect(() => {
     const el = hostRef.current
     if (!el) return
+    let huyBo = false
+    let workspaceHienTai: TestWorkspace | null = null
 
-    const std = new BlockStdScope({
-      store: taoBangTrong(),
-      extensions: viewManager.get('edgeless'),
+    taoHoacMoBang().then(({ workspace, store }) => {
+      if (huyBo) {
+        // Component đã unmount trong lúc đang đợi đồng bộ — đóng ngay, không render, không giữ
+        // engine chạy nền cho một cây Lit sẽ không bao giờ được gắn.
+        workspace.forceStop()
+        return
+      }
+      workspaceHienTai = workspace
+      const std = new BlockStdScope({ store, extensions: viewManager.get('edgeless') })
+      litRender(std.render(), el)
+      setDangMo(false)
     })
-    litRender(std.render(), el)
 
     // Dọn khi React tháo component. Thiếu bước này thì mỗi lần vào ra một bảng là một cây Lit
-    // nữa còn sống, giữ nguyên listener và rAF của nó.
+    // nữa còn sống, giữ nguyên listener và rAF của nó — cộng thêm giờ là một engine đồng bộ
+    // IndexedDB còn chạy nền.
     return () => {
+      huyBo = true
       litRender(null, el)
+      workspaceHienTai?.forceStop()
     }
   }, [])
 
@@ -110,8 +187,20 @@ export function EdgelessBoard() {
   // truy vấn đó chỉ khớp container mang đúng tên này.
   // Class chữ `drt-edgeless-viewport` PHẢI ở lại — nó là thứ `closest()` bên trên tìm, không phải
   // thứ tạo ra kiểu dáng.
+  //
+  // "Đang mở bảng…" hiện TRONG lớp bọc này (không phải thay thế nó) — lớp bọc phải render ngay từ
+  // đầu để giữ cấu trúc DOM ổn định cho `closest()` ở trên, kể cả trước khi Lit gắn vào. Khớp thị
+  // giác với dòng "Đang tải bảng vẽ…" của Suspense fallback ở src/board/index.tsx.
   return (
-    <div className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip" data-theme={chuDe}>
+    <div
+      className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip"
+      data-theme={chuDe}
+    >
+      {dangMo && (
+        <div className="h-full flex items-center justify-center text-[13px] text-slate-400">
+          Đang mở bảng…
+        </div>
+      )}
       <div ref={hostRef} className="absolute inset-0" />
     </div>
   )

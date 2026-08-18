@@ -10,10 +10,12 @@
 // đúng ở những chỗ ta không lường trước). Chọn 'happy-dom' chứ không phải 'jsdom' vì chính
 // BlockSuite chạy bộ test của họ trên happy-dom (xem affine/all/vitest.config.ts trong cây
 // vendored) — cùng một môi trường thượng nguồn đã kiểm chứng cho chính đống mã Lit này.
+import 'fake-indexeddb/auto'
+
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EdgelessBoard } from '../EdgelessBoard'
 
@@ -62,6 +64,20 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
   it('dựng cây Lit trong thẻ div của React, có tổ tiên viewport, và dọn sạch khi tháo', async () => {
     await act(async () => {
       root.render(createElement(EdgelessBoard))
+    })
+
+    // taoHoacMoBang() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
+    // được gắn SAU khi promise đó xong, không còn ngay trong lượt act() đầu tiên. Đợi tường minh
+    // thay vì giả định act() một lượt là đủ.
+    // Bọc trong act(): taoHoacMoBang() resolve xong còn kéo theo setDangMo(false) — một cập nhật
+    // state React thật, cần một lượt render nữa để gỡ div "Đang mở bảng…" khỏi DOM. vi.waitFor
+    // trần (không bọc act) chỉ đợi được điều kiện của nó, không flush lượt render đó: React cảnh
+    // báo "not wrapped in act(...)" và div loading vẫn còn nằm trước div gắn Lit, khiến phép kiểm
+    // `:scope > div` bên dưới chọn nhầm div loading (không có editor-host) thay vì div hostRef.
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('drt-edgeless-root')).not.toBeNull()
+      })
     })
 
     // 1) Cây Lit thật sự được dựng: thẻ gốc edgeless (đã đổi tên affine-→drt- ở bước build vendor)
