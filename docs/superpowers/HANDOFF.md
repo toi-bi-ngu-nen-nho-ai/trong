@@ -336,8 +336,9 @@ hiện chưa có iPad.
 1. **iPad — toàn bộ.** Một nửa mốc nghiệm thu của kế hoạch, không có thiết bị để chạy.
    Rủi ro chưa gỡ: xử lý pointer/touch và pinch-zoom dưới mô hình cử chỉ của Safari; hành vi
    `@container viewport` trên iPadOS; và chi phí bộ nhớ/parse của chunk ~994 kB gzip (~4 MB thô)
-   trong WKWebView — đúng loại áp lực mà `SKIP_REFRESH_DURING_GESTURE` sinh ra để chịu, mà **chưa
-   dòng mã nào trong chặng này cấu hình nó** (xem mục 8).
+   trong WKWebView — đúng loại áp lực mà `SKIP_REFRESH_DURING_GESTURE` sinh ra để chịu. **Đã cấu
+   hình ở mục 8** (2026-08-18) — nhưng giá trị CHƯA đo trên thiết bị thật, nên rủi ro này CHƯA
+   được coi là đóng, chỉ mới có một lớp giảm nhẹ chưa kiểm chứng.
 
    > **NGUYÊN NHÂN GỐC ĐÃ XÁC NHẬN (2026-08-18) — chạm để gõ chữ không hiện bàn phím trên điện
    > thoại thật.** Chủ dự án tự kiểm trên máy: chạm vào bảng để soạn text, không có bàn phím ảo
