@@ -21,6 +21,7 @@ import { render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
+import { apDungViewportChoIOS } from './viewport-ios'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -37,6 +38,11 @@ import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import '../../.vendor-build/theme/style.css'
 
 import { viewExtensions } from './extensions'
+
+// Phải chạy Ở ĐÂY — top-level module, trước khi bất kỳ Viewport nào được dựng (bên trong
+// BlockStdScope, mount trong useEffect bên dưới). Xem viewport-ios.ts để biết vì sao thứ tự này
+// bắt buộc (SKIP_REFRESH_DURING_GESTURE là field initializer, chốt cứng lúc constructor chạy).
+apDungViewportChoIOS()
 
 const viewManager = new ViewExtensionManager(viewExtensions)
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
