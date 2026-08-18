@@ -112,7 +112,13 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     //    `litRender(null, el)` mà hai expect cuối vẫn xanh. Thẻ div này thì khác: nó bị React gỡ
     //    khỏi tài liệu nhưng KHÔNG bị React dọn ruột (ruột là do Lit đặt vào, React không biết),
     //    nên `editor-host` bên trong chỉ biến mất khi `litRender(null, el)` thật sự chạy.
-    const noiLitRender = boc!.querySelector(':scope > div')
+    //
+    //    `:last-child` chứ không phải con ĐẦU: thẻ hostRef div luôn đứng SAU băng cảnh báo "không
+    //    lưu" nếu nó render (xem EdgelessBoard.tsx) — nếu lượt đồng bộ giả lập này tình cờ chạm hạn
+    //    giờ dưới tải CPU cao, `khongLuuDuoc` thành true và con ĐẦU của thẻ bọc sẽ là băng cảnh báo
+    //    chứ không phải hostRef div, làm phép kiểm dưới đây chọn nhầm và đỏ giả không liên quan gì
+    //    tới việc dọn dẹp đang canh.
+    const noiLitRender = boc!.querySelector(':scope > div:last-child')
     expect(noiLitRender).not.toBeNull()
     expect(noiLitRender!.querySelector('editor-host')).not.toBeNull()
 
@@ -200,6 +206,16 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       await act(async () => {
         root.render(createElement(EdgelessBoard))
       })
+      // Giữ tham chiếu tới ĐÚNG thẻ div hostRef TRƯỚC khi tháo — cùng kỹ thuật ca kiểm đầu file
+      // này đã dùng (xem chú thích ở đó). Sau khi React tháo, thẻ bọc `.drt-edgeless-viewport` bị
+      // gỡ khỏi `container`/`document` nên MỌI truy vấn xuất phát từ `container`/`document` trả về
+      // null bất kể guard `huyBo` có hoạt động hay không — một khẳng định như vậy KHÔNG THỂ ĐỎ dù
+      // guard có hỏng (đây đúng là lỗ hổng của bản trước, bắt được ở lượt review toàn nhánh). Thẻ
+      // hostRef div (con CUỐI CÙNG của thẻ bọc — luôn đứng sau băng cảnh báo/lỗi/"Đang mở bảng…"
+      // nếu chúng có mặt) thì khác: nó không bị React dọn ruột (ruột do Lit đặt vào), nên chỉ trống
+      // nếu `litRender()` THẬT SỰ chưa từng chạy vào đó.
+      const boc = container.querySelector('.drt-edgeless-viewport')!
+      const hostDiv = boc.querySelector(':scope > div:last-child')!
       // KHÔNG đợi taoHoacMoBang() xong — tháo component NGAY trong lúc còn "Đang mở bảng…".
       await act(async () => {
         root.unmount()
@@ -207,18 +223,22 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       // Cho vòng lặp sự kiện thêm một nhịp để promise taoHoacMoBang() (nếu vẫn đang chạy) có cơ
       // hội resolve VÀ chạm nhánh `huyBo` — đây chính là nhánh ca kiểm này canh.
       await new Promise((resolve) => setTimeout(resolve, 50))
+
+      // Nếu guard `huyBo` KHÔNG chặn được `litRender()`, Lit sẽ gắn `editor-host` vào đúng thẻ
+      // hostDiv này dù đã bị gỡ khỏi tài liệu — bằng chứng ca kiểm này thật sự canh được lỗi, không
+      // phải vô hại dù guard có hỏng hay không.
+      expect(hostDiv.querySelector('editor-host')).toBeNull()
     } finally {
       console.error = consoleErrorGoc
     }
 
-    // React 19 đã BỎ chuỗi cảnh báo "set state sau unmount"/"unmounted component" — khẳng định cũ
-    // dựa trên chuỗi đó luôn đúng bất kể guard `huyBo` có hoạt động hay không (kiểm bằng
-    // `package.json`: dự án đã ở React 19), nên nó không còn tín hiệu thật. Khẳng định thay thế:
-    // sau nhịp chờ ở trên, `drt-edgeless-root` PHẢI vẫn chưa từng được gắn vào tài liệu — đây là
-    // bằng chứng trực tiếp guard `huyBo` trong EdgelessBoard.tsx đã chặn `litRender` đúng lúc. Nếu
-    // guard bị hỏng (vd điều kiện `if (huyBo)` bị xoá hoặc đảo ngược), `taoHoacMoBang()` resolve
-    // sau khi unmount vẫn sẽ gắn cây Lit vào một thẻ div đã bị gỡ khỏi tài liệu, và phép kiểm dưới
-    // đây sẽ bắt được điều đó.
-    expect(document.querySelector('drt-edgeless-root')).toBeNull()
+    // Lưới an toàn phụ — React 19 đã bỏ chuỗi cảnh báo "unmounted component" nên khẳng định này
+    // luôn đúng bất kể guard có hoạt động hay không (không còn tín hiệu thật); khẳng định CHÍNH là
+    // `hostDiv.querySelector('editor-host')` ở trên. Giữ lại khối bắt console.error vì nó vẫn có
+    // giá trị canh những lỗi console KHÁC nổi lên trong lúc ca kiểm chạy.
+    const coLoiSetStateSauUnmount = loiConsole.some((doiSo) =>
+      doiSo.some((phan) => typeof phan === 'string' && phan.includes('unmounted component')),
+    )
+    expect(coLoiSetStateSauUnmount).toBe(false)
   })
 })

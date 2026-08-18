@@ -101,76 +101,97 @@ export async function taoHoacMoBang(tuyChon?: {
     docSources,
     blobSources,
   })
-  workspace.meta.initialize()
-  workspace.start()
-
-  const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
-
-  // `khongLuuDuoc` đúng nghĩa CHỈ khi lượt race NÀY (lượt đầu) hết giờ và workspace bị huỷ/dựng lại
-  // không docSources/blobSources — đó là lúc phiên làm việc thật sự chuyển sang "không lưu gì cho
-  // tới khi tải lại trang". Lượt race thứ hai (sau khi seed, bên dưới) hết giờ KHÔNG bật cờ này: cửa
-  // sổ đó hẹp hơn nhiều (chỉ một lượt ghi seed chưa xác nhận đẩy xong) và không có nghĩa "mất lưu trữ
-  // cho cả phiên" — quyết định phạm vi này là của chủ dự án sau khi xem lượt review toàn nhánh.
-  let khongLuuDuoc = false
-
-  if (ketQua === 'het-gio') {
-    console.warn(
-      `taoHoacMoBang: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — dùng bảng chỉ trong ` +
-        'bộ nhớ, nội dung sẽ không được lưu.',
-    )
-    khongLuuDuoc = true
-    workspace.forceStop()
-    workspace = new TestWorkspace({
-      id: 'bs-trong-board',
-      idGenerator: createAutoIncrementIdGenerator(),
-    })
+  try {
     workspace.meta.initialize()
     workspace.start()
-  }
 
-  let doc = workspace.getDoc('board')
-  let laLanDau = false
-  if (!doc) {
-    doc = workspace.createDoc('board')
-    laLanDau = true
-  }
-  const store = doc.getStore({ extensions: storeManager.get('store') })
-  doc.load()
+    const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
 
-  // Tự hồi phục khi doc đã ĐĂNG KÝ trong metadata IndexedDB (nên `getDoc('board')` khác null) nhưng
-  // khối gốc (`affine:page`/`affine:surface`) chưa bao giờ được ghi xong — vd tab bị đóng đúng vào
-  // khe vài mili-giây giữa lượt ghi metadata và lượt ghi khối lúc mở app lần đầu, hai tab cùng mở
-  // app lần đầu và đua nhau, hoặc (ở dev) React StrictMode mount-rồi-remount hai lần tạo ra hai
-  // `TestWorkspace` cùng chạm một IndexedDB. Khi đó `store.root` là `null` dù `laLanDau` là false —
-  // seed như bình thường vẫn AN TOÀN vì không có gì để mất: doc rỗng thật sự thì ghi đè cũng chỉ là
-  // lấp vào chỗ trống, không bao giờ đè lên nội dung thật (nội dung thật luôn có `store.root`).
-  // Không kiểm điều kiện này thì lần mở kế tiếp gặp đúng doc hỏng này sẽ ném
-  // `BlockSuiteError: This doc is missing surface/root block` sâu trong `EditorHost.connectedCallback`
-  // — một unhandled rejection không ai bắt — và bảng vẽ hỏng vĩnh viễn từ đó về sau, âm thầm.
-  const canSeed = laLanDau || !store.root
+    // `khongLuuDuoc` đúng nghĩa CHỈ khi lượt race NÀY (lượt đầu) hết giờ và workspace bị huỷ/dựng lại
+    // không docSources/blobSources — đó là lúc phiên làm việc thật sự chuyển sang "không lưu gì cho
+    // tới khi tải lại trang". Lượt race thứ hai (sau khi seed, bên dưới) hết giờ KHÔNG bật cờ này: cửa
+    // sổ đó hẹp hơn nhiều (chỉ một lượt ghi seed chưa xác nhận đẩy xong) và không có nghĩa "mất lưu trữ
+    // cho cả phiên" — quyết định phạm vi này là của chủ dự án sau khi xem lượt review toàn nhánh.
+    let khongLuuDuoc = false
 
-  if (canSeed) {
-    const rootId = store.addBlock('affine:page', {})
-    store.addBlock('affine:surface', {}, rootId)
-
-    // Đợi lượt ghi seed ban đầu ĐẨY XONG lên IndexedDB trước khi trả về — nếu không, component gọi
-    // hàm này unmount ngay (forceStop() không điều kiện) có thể cắt ngang lượt ghi này, làm mất nội
-    // dung seed (đo được thật lúc viết ca kiểm Task 2 — chập chờn ~2/3 lượt npm test đầy đủ dưới
-    // tải CPU cao). waitForSynced() lần hai đúng nghĩa vì DocEngineStep chỉ về Synced khi hàng đợi
-    // đẩy rỗng (xem framework/sync/src/doc/engine.ts, updateSyncingState). Đua với CÙNG hạn giờ như
-    // lượt đầu — nhưng KHÔNG rơi về workspace bộ nhớ nếu hết giờ: nội dung seed đã có trong `store`
-    // sắp trả về, huỷ nó mới là mất dữ liệu thật; ghi trễ vào IndexedDB không phải mất, chỉ cảnh báo.
-    // (Và KHÔNG bật `khongLuuDuoc` — phạm vi cờ này chỉ là lượt race đầu, xem chú thích ở trên.)
-    const ketQuaSeed = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
-    if (ketQuaSeed === 'het-gio') {
+    if (ketQua === 'het-gio') {
       console.warn(
-        'taoHoacMoBang: lượt ghi nội dung ban đầu chưa xác nhận đẩy xong lên IndexedDB trong ' +
-          `${hanGioMs}ms — tiếp tục, nội dung vẫn còn trong bộ nhớ.`,
+        `taoHoacMoBang: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — dùng bảng chỉ trong ` +
+          'bộ nhớ, nội dung sẽ không được lưu.',
       )
+      khongLuuDuoc = true
+      workspace.forceStop()
+      workspace = new TestWorkspace({
+        id: 'bs-trong-board',
+        idGenerator: createAutoIncrementIdGenerator(),
+      })
+      workspace.meta.initialize()
+      workspace.start()
     }
-  }
 
-  return { workspace, store, khongLuuDuoc }
+    let doc = workspace.getDoc('board')
+    if (!doc) {
+      doc = workspace.createDoc('board')
+    }
+    const store = doc.getStore({ extensions: storeManager.get('store') })
+    doc.load()
+
+    // Tự hồi phục khi doc đã ĐĂNG KÝ trong metadata IndexedDB (nên `getDoc('board')` khác null) nhưng
+    // khối gốc (`affine:page`/`affine:surface`) chưa bao giờ được ghi xong — vd tab bị đóng đúng vào
+    // khe vài mili-giây giữa lượt ghi metadata và lượt ghi khối lúc mở app lần đầu, hai tab cùng mở
+    // app lần đầu và đua nhau, hoặc (ở dev) React StrictMode mount-rồi-remount hai lần tạo ra hai
+    // `TestWorkspace` cùng chạm một IndexedDB. Điều kiện seed dưới đây kiểm THẲNG `!store.root` (và,
+    // cho nhánh hẹp hơn, thiếu `affine:surface`) thay vì "đây có phải lần đầu mở doc" — trước lượt
+    // sửa này điều kiện là `laLanDau || !store.root`, tưởng an toàn hơn nhưng thực ra NGƯỢC lại:
+    // `createDoc()` luôn khởi tạo một store RỖNG (`!store.root` đã tự đúng ở mọi lần đầu thật), nên
+    // `laLanDau` không thêm được ca nào `!store.root` chưa phủ — nó chỉ THÊM một đường seed giả nếu
+    // metadata workspace từng bị mất trong khi nội dung subdoc vẫn còn nguyên: khi đó `laLanDau` có
+    // thể là `true` dù `store.root` đã có nội dung thật, và vế `||` sẽ seed CHỒNG LÊN nội dung có
+    // sẵn — đúng thứ guard này phải ngăn. Bỏ hẳn `laLanDau` khỏi điều kiện vừa đơn giản hơn vừa an
+    // toàn hơn. Không kiểm điều kiện này thì lần mở kế tiếp gặp đúng doc hỏng này sẽ ném
+    // `BlockSuiteError: This doc is missing surface/root block` sâu trong `EditorHost.connectedCallback`
+    // — một unhandled rejection không ai bắt — và bảng vẽ hỏng vĩnh viễn từ đó về sau, âm thầm.
+    let daGhiKhoiMoi = false
+    if (!store.root) {
+      const rootId = store.addBlock('affine:page', {})
+      store.addBlock('affine:surface', {}, rootId)
+      daGhiKhoiMoi = true
+    } else if (!store.root.children.some((khoi) => khoi.flavour === 'affine:surface')) {
+      // Nhánh hẹp hơn: đã có `store.root` nhưng thiếu hẳn con `affine:surface` — trong thực tế khó
+      // xảy ra ĐỘC LẬP với nhánh trên vì hai addBlock ở đó luôn nằm cùng một giao dịch/lượt đẩy Yjs,
+      // nhưng đây chính là điều kiện literal mà lỗi runtime thật kiểm tra trực tiếp
+      // (`EdgelessRootService`, "missing surface block"), nên rẻ để bọc thêm cho chắc.
+      store.addBlock('affine:surface', {}, store.root.id)
+      daGhiKhoiMoi = true
+    }
+
+    if (daGhiKhoiMoi) {
+      // Đợi lượt ghi seed ban đầu ĐẨY XONG lên IndexedDB trước khi trả về — nếu không, component gọi
+      // hàm này unmount ngay (forceStop() không điều kiện) có thể cắt ngang lượt ghi này, làm mất nội
+      // dung seed (đo được thật lúc viết ca kiểm Task 2 — chập chờn ~2/3 lượt npm test đầy đủ dưới
+      // tải CPU cao). waitForSynced() lần hai đúng nghĩa vì DocEngineStep chỉ về Synced khi hàng đợi
+      // đẩy rỗng (xem framework/sync/src/doc/engine.ts, updateSyncingState). Đua với CÙNG hạn giờ như
+      // lượt đầu — nhưng KHÔNG rơi về workspace bộ nhớ nếu hết giờ: nội dung seed đã có trong `store`
+      // sắp trả về, huỷ nó mới là mất dữ liệu thật; ghi trễ vào IndexedDB không phải mất, chỉ cảnh báo.
+      // (Và KHÔNG bật `khongLuuDuoc` — phạm vi cờ này chỉ là lượt race đầu, xem chú thích ở trên.)
+      const ketQuaSeed = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
+      if (ketQuaSeed === 'het-gio') {
+        console.warn(
+          'taoHoacMoBang: lượt ghi nội dung ban đầu chưa xác nhận đẩy xong lên IndexedDB trong ' +
+            `${hanGioMs}ms — tiếp tục, nội dung vẫn còn trong bộ nhớ.`,
+        )
+      }
+    }
+
+    return { workspace, store, khongLuuDuoc }
+  } catch (loi) {
+    // Bất kỳ lỗi nào từ đây trở đi (kể cả bên trong nhánh dựng lại workspace bộ nhớ khi hết giờ)
+    // đều phải đóng engine trước khi ném tiếp — nếu không, promise reject nhưng DocEngine của
+    // `workspace` (dù là bản gốc hay bản dựng lại) vẫn chạy nền vô thời hạn, không còn ai giữ tham
+    // chiếu để gọi forceStop() sau đó.
+    workspace.forceStop()
+    throw loi
+  }
 }
 
 export function EdgelessBoard() {
@@ -269,7 +290,9 @@ export function EdgelessBoard() {
         // một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx cho các
         // băng cảnh báo lâm sàng khác trong app, để không tạo thêm một ngôn ngữ màu mới.
         <div
-          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center"
+          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
+          role="status"
+          aria-live="polite"
           style={{
             background: 'var(--c-warn-soft)',
             borderBottom: '1px solid var(--c-warn-line)',

@@ -16,10 +16,11 @@ import { Text } from '@blocksuite/store'
 
 import { taoHoacMoBang } from '../EdgelessBoard'
 
-function dungDocSourceGia(): DocSource {
+function dungDocSourceGia(): DocSource & { kho: Map<string, Uint8Array[]> } {
   const kho = new Map<string, Uint8Array[]>()
   return {
     name: 'gia-lap',
+    kho,
     pull(docId) {
       const cacLuot = kho.get(docId)
       if (!cacLuot || cacLuot.length === 0) return null
@@ -86,6 +87,29 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const lanHai = await taoHoacMoBang({ docSources, blobSources })
     const surfaces = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
     expect(surfaces).toHaveLength(1)
+    lanHai.workspace.forceStop()
+  })
+
+  it('doc đăng ký trong meta nhưng chưa có block (ghi dở dang) → tự hồi phục, không ném lỗi', async () => {
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const lanMot = await taoHoacMoBang({ docSources, blobSources })
+    lanMot.workspace.forceStop()
+
+    // Mô phỏng ghi dở dang: xoá đúng lượt ghi của SUBDOC 'board' (nội dung khối: page + surface)
+    // khỏi kho giả lập, NHƯNG giữ nguyên lượt ghi của ROOT doc (guid 'bs-trong-board' — id truyền
+    // vào TestWorkspace trong EdgelessBoard.tsx, chứa metadata đăng ký doc 'board'). Kết quả giống
+    // hệt một tab bị đóng đúng vào khe giữa hai lượt ghi lúc mở app lần đầu: getDoc('board') vẫn
+    // thấy doc (meta đã lưu), nhưng store.root sẽ là null (khối chưa từng được lưu) — đúng ca mà
+    // guard `!store.root` trong taoHoacMoBang() (EdgelessBoard.tsx) phải bắt được, thay vì chỉ dựa
+    // vào "doc có tồn tại trong meta hay không".
+    docSources.main.kho.delete('board')
+
+    const lanHai = await taoHoacMoBang({ docSources, blobSources })
+    expect(lanHai.store.root).not.toBeNull()
+    const surfacesHoiPhuc = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
+    expect(surfacesHoiPhuc).toHaveLength(1)
     lanHai.workspace.forceStop()
   })
 
