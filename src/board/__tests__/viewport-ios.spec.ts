@@ -4,6 +4,28 @@ import { Viewport, viewportRuntimeConfig } from '@blocksuite/affine/std/gfx'
 
 import { apDungViewportChoIOS, laThietBiIOS, type ThongTinThietBi } from '../viewport-ios'
 
+const CAU_HINH_GOC = { ...viewportRuntimeConfig }
+
+afterEach(() => {
+  Object.assign(viewportRuntimeConfig, CAU_HINH_GOC)
+  // Mảng — spread nông ở trên chỉ copy tham chiếu tới CÙNG một mảng gốc, nên phải gán lại một
+  // mảng MỚI (bản sao) để ca sau không kế thừa mutation trên mảng cũ. Xem cùng bài học đã ghi ở
+  // viewport-runtime-config.spec.ts.
+  viewportRuntimeConfig.CANVAS_DPR_CAP_BY_ZOOM = [...CAU_HINH_GOC.CANVAS_DPR_CAP_BY_ZOOM]
+})
+
+const NAV_IPAD: ThongTinThietBi = {
+  userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15',
+  platform: 'iPad',
+  maxTouchPoints: 5,
+}
+
+const NAV_WINDOWS: ThongTinThietBi = {
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  platform: 'Win32',
+  maxTouchPoints: 0,
+}
+
 describe('laThietBiIOS', () => {
   it('UA iPhone thật → true', () => {
     expect(
@@ -81,28 +103,6 @@ describe('laThietBiIOS', () => {
   })
 })
 
-const CAU_HINH_GOC = { ...viewportRuntimeConfig }
-
-afterEach(() => {
-  Object.assign(viewportRuntimeConfig, CAU_HINH_GOC)
-  // Mảng — spread nông ở trên chỉ copy tham chiếu tới CÙNG một mảng gốc, nên phải gán lại một
-  // mảng MỚI (bản sao) để ca sau không kế thừa mutation trên mảng cũ. Xem cùng bài học đã ghi ở
-  // viewport-runtime-config.spec.ts.
-  viewportRuntimeConfig.CANVAS_DPR_CAP_BY_ZOOM = [...CAU_HINH_GOC.CANVAS_DPR_CAP_BY_ZOOM]
-})
-
-const NAV_IPAD: ThongTinThietBi = {
-  userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15',
-  platform: 'iPad',
-  maxTouchPoints: 5,
-}
-
-const NAV_WINDOWS: ThongTinThietBi = {
-  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  platform: 'Win32',
-  maxTouchPoints: 0,
-}
-
 describe('apDungViewportChoIOS', () => {
   it('nav iOS → ghi đè cả 4 field vào viewportRuntimeConfig', () => {
     apDungViewportChoIOS(NAV_IPAD)
@@ -139,6 +139,16 @@ describe('apDungViewportChoIOS', () => {
 
   it('gọi không đối số trong môi trường test (Node thuần) → không ném lỗi, không đổi config', () => {
     expect(() => apDungViewportChoIOS()).not.toThrow()
+
+    expect(viewportRuntimeConfig.SKIP_REFRESH_DURING_GESTURE).toBe(false)
+    expect(viewportRuntimeConfig.ZOOM_MIN).toBe(0.1)
+  })
+
+  it('gọi với nav=undefined tường minh (không có navigator toàn cục) → không ném lỗi, không đổi config', () => {
+    // Phủ nhánh `!nav` trực tiếp — không thể an toàn xoá global navigator thật trong tiến trình
+    // test này vì sẽ ảnh hưởng các ca kiểm khác, nên truyền thẳng undefined để mô phỏng runtime
+    // không có navigator toàn cục (vd một số môi trường SSR/edge).
+    expect(() => apDungViewportChoIOS(undefined)).not.toThrow()
 
     expect(viewportRuntimeConfig.SKIP_REFRESH_DURING_GESTURE).toBe(false)
     expect(viewportRuntimeConfig.ZOOM_MIN).toBe(0.1)

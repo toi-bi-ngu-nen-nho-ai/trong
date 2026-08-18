@@ -383,11 +383,33 @@ hiện chưa có iPad.
 - **Bổ sung `vi.json`** — cơ chế ĐÃ XONG 5/5 task (mục 10); quy tắc cho chuỗi không tới `dist/`
   ĐÃ XONG ở P1-C (mục 12). Nội dung dịch là chặng riêng sau đó — **số chuỗi và số từ phải đo
   lại**, xem cảnh báo mục 12.
-- **Cấu hình `viewportRuntimeConfig` cho iOS** — chưa dòng nào làm. Nhớ: `ZOOM_MIN`/`ZOOM_MAX` đọc
-  qua getter động nên override lúc nào cũng ăn, còn `SKIP_REFRESH_DURING_GESTURE` là field
-  initializer **chốt cứng lúc dựng `Viewport`**. Cấu hình sau khi mount là ăn sàn zoom nhưng
-  **không** ăn thứ giữ WKWebView khỏi bị kill. Bộ 5 ca cưỡng chế điều này ở
-  `src/board/__tests__/viewport-runtime-config.spec.ts`.
+- **Cấu hình `viewportRuntimeConfig` cho iOS** — ĐÃ ÁP DỤNG (`src/board/viewport-ios.ts`,
+  `apDungViewportChoIOS()`, gọi ở top-level module của `EdgelessBoard.tsx`, trước
+  `const viewManager = ...`). Bốn giá trị ghi đè hiện tại:
+  - `SKIP_REFRESH_DURING_GESTURE: true`
+  - `ZOOM_MIN: 0.3`
+  - `CANVAS_DPR_CAP_BY_ZOOM: [[0.5, 1], [1, 2]]`
+  - `LOW_ZOOM_GESTURE_ACTIVE_BLOCK_LIMIT: 24`
+
+  Cả bốn giá trị này **CHƯA đo trên thiết bị iPad thật** — là điểm khởi đầu thận trọng, cần tinh
+  chỉnh khi có dữ liệu thật.
+
+  **Hiệu ứng phụ cần biết trước khi cầm iPad thật lên đo:** bật `SKIP_REFRESH_DURING_GESTURE` kéo
+  theo ba hằng số khác — trước lượt này là dead code với app này vì nhánh dùng chúng chưa từng
+  chạy — nay LÀ CODE SỐNG trên iOS: `POST_GESTURE_REFRESH_DELAY` (800ms, giữ nguyên mặc định
+  thượng nguồn, KHÔNG bị lượt này đổi) và `OVERSCAN_RATIO`/`OVERSCAN_RATIO_BLOCK` (cả hai vẫn để
+  `0`, mặc định thượng nguồn, KHÔNG phải giá trị dương để làm mượt khoảng trắng đó). Kết quả nhìn
+  thấy trên iOS: buông cử chỉ pan/zoom → canvas trắng tối đa 800ms → nội dung mới vẽ lại. Đây là
+  hành vi ĐÚNG DỰ KIẾN của đúng tổ hợp override này, không phải hồi quy — ai kiểm trên iPad thật
+  cần biết trước để không báo nhầm thành lỗi.
+
+  **Chưa đóng mục 7:** lượt này chỉ là MỘT biện pháp giảm thiểu, KHÔNG đóng rủi ro WKWebView bị hệ
+  điều hành kill vì bộ nhớ nêu ở mục 7 — rủi ro đó vẫn mở, chưa có gì xác nhận trên thiết bị thật.
+
+  Bộ ca kiểm liên quan: `src/board/__tests__/viewport-runtime-config.spec.ts` (cưỡng chế
+  field-initializer vs getter động), `src/board/__tests__/viewport-ios.spec.ts` (logic phát hiện
+  iOS + override), `src/board/__tests__/viewport-ios-order.spec.ts` (ghim thứ tự gọi trước
+  `const viewManager`, vì tsc/test suite vẫn xanh dù thứ tự này bị đổi sai).
 
 ---
 

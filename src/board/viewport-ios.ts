@@ -26,9 +26,19 @@ export function laThietBiIOS(nav: ThongTinThietBi): boolean {
  *
  * Giá trị dưới đây là điểm khởi đầu thận trọng, CHƯA đo trên thiết bị iPad thật — cần tinh chỉnh
  * khi có dữ liệu thật (xem docs/superpowers/HANDOFF.md mục 8).
+ *
+ * Bật `SKIP_REFRESH_DURING_GESTURE` cũng kích hoạt ba hằng số anh em vốn là dead code với app này
+ * (nhánh dùng chúng chưa từng chạy khi cờ này false): `POST_GESTURE_REFRESH_DELAY` (800ms, giữ
+ * nguyên mặc định thượng nguồn) và `OVERSCAN_RATIO`/`OVERSCAN_RATIO_BLOCK` (vẫn để `0`, cũng mặc
+ * định thượng nguồn) — nên người dùng iOS sẽ thấy canvas trắng tối đa ~800ms sau khi buông cử chỉ
+ * pan/zoom trước khi nội dung vẽ lại. Cơ chế của ba hằng số này được ghi chú tại
+ * `src/vendor/blocksuite/framework/std/src/gfx/viewport.ts` (thượng nguồn) — chỗ này chỉ ghi lại
+ * TRIỆU CHỨNG, không phải cơ chế.
  */
-export function apDungViewportChoIOS(nav: ThongTinThietBi = navigator): void {
-  if (!laThietBiIOS(nav)) return
+export function apDungViewportChoIOS(
+  nav: ThongTinThietBi | undefined = typeof navigator === 'undefined' ? undefined : navigator,
+): void {
+  if (!nav || !laThietBiIOS(nav)) return
 
   Object.assign(viewportRuntimeConfig, {
     SKIP_REFRESH_DURING_GESTURE: true,
