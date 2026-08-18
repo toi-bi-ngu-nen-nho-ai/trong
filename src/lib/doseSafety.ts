@@ -9,6 +9,7 @@
 // về "unknown" — nói rõ là CHƯA kiểm tra được, chứ không im lặng coi như đạt.
 
 import { convertDoseValue, formatDoseNumber, type DoseUnit } from "./infusion"
+import { scrToMgDl } from "./patient"
 
 export type DoseSeverity =
   | "unknown" // chưa đủ dữ liệu để kiểm tra (thiếu cân nặng, đơn vị không quy đổi được)
@@ -206,5 +207,23 @@ export function checkAge(years: number | null | undefined): WeightCheck | null {
   if (years == null || !(years > 0)) return null
   if (years > 120) return { severity: "implausible", message: `Tuổi ${fmtMeasure(years)} bất thường — kiểm tra lại.` }
   if (years < 18) return { severity: "check", message: `Tuổi ${fmtMeasure(years)} — dữ liệu liều trong app dành cho người lớn.` }
+  return { severity: "ok", message: "" }
+}
+
+// Creatinine là hệ số chia thẳng trong Cockcroft-Gault (CrCl = ... / (72 × Scr)) — gõ nhầm dấu thập
+// phân ở đây (vd "0.1" thay vì "1.0" mg/dL) thổi phồng CrCl mà không có cảnh báo nào, rồi con số sai
+// đó đi thẳng vào chọn mức liều kháng sinh. weightWarn/heightWarn/ageWarn đều có kiểm tra độ hợp lý
+// ba mức; trước đây creatinine chỉ có hasInvalidNumericInput (kiểm tra KÝ TỰ, không kiểm tra ĐỘ LỚN)
+// — lệch khỏi mẫu chung của ba trường còn lại (/impeccable critique 2026-08-18).
+export function checkScr(value: number | null | undefined, unit: "mgdl" | "umol"): WeightCheck | null {
+  if (value == null || !(value > 0)) return null
+  const mgdl = scrToMgDl(value, unit)
+  const unitLabel = unit === "umol" ? "µmol/L" : "mg/dL"
+  if (mgdl < 0.1 || mgdl > 20) {
+    return {
+      severity: "implausible",
+      message: `Creatinin ${fmtMeasure(value)} ${unitLabel} bất thường — kiểm tra lại trước khi dùng CrCl để chọn liều.`,
+    }
+  }
   return { severity: "ok", message: "" }
 }

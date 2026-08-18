@@ -28,7 +28,7 @@ import {
   type PatientVitals,
   type RrtMode,
 } from "./lib/patient"
-import { SEVERITY_STYLE, checkAge, checkHeight, checkInfusionDose, checkWeight, type DoseCheck } from "./lib/doseSafety"
+import { SEVERITY_STYLE, checkAge, checkHeight, checkInfusionDose, checkScr, checkWeight, type DoseCheck } from "./lib/doseSafety"
 import {
   CONC_OK,
   DEFAULT_DROP_FACTOR,
@@ -5023,7 +5023,22 @@ function SectionLabel({ children, tone = "muted" }: { children: React.ReactNode;
   )
 }
 
-function SearchField({ value, onChange, placeholder, autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean }) {
+function SearchField({
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+  onClose,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+  autoFocus?: boolean
+  // Tuỳ chọn: nút đóng HẲN panel tìm kiếm, khác với nút xoá chữ bên dưới (chỉ xoá nội dung ô, panel
+  // vẫn mở). Trước đây panel tìm xuyên nhóm chỉ đóng được bằng cách bấm lại đúng pill "Tìm" đã mở nó
+  // — không có lối tắt nào NGAY TRONG panel (/impeccable critique 2026-08-18, ghi chú nhỏ).
+  onClose?: () => void
+}) {
   return (
     <div className={`mind-search-pill flex items-center gap-2.5 px-3.5 h-11 ${R.pill} mb-2.5`} style={{ background: C.lineSoft }}>
       <span style={{ color: C.muted }}>{icons.search(false)}</span>
@@ -5045,10 +5060,19 @@ function SearchField({ value, onChange, placeholder, autoFocus }: { value: strin
         autoCorrect="off"
         className={`flex-1 h-full bg-transparent  outline-none`}
       />
-      {value && (
+      {/* Ô còn chữ: X xoá chữ, panel vẫn mở (hành vi cũ, không đổi). Ô trống + có onClose: đổi
+          sang X đóng hẳn panel — không hiện CẢ HAI nút cùng lúc, tránh hai icon X sát nhau gây
+          nhầm "cái nào làm gì". */}
+      {value ? (
         <button onClick={() => onChange("")} className="w-11 h-11 flex items-center justify-center flex-none" style={{ color: C.muted }} aria-label="Xoá tìm kiếm">
           {icons.x()}
         </button>
+      ) : (
+        onClose && (
+          <button onClick={onClose} className="w-11 h-11 flex items-center justify-center flex-none" style={{ color: C.muted }} aria-label="Đóng ô tìm kiếm">
+            {icons.x()}
+          </button>
+        )
       )}
     </div>
   )
@@ -5452,6 +5476,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   const weightWarn = checkWeight(abwKg)
   const heightWarn = checkHeight(heightCm)
   const ageWarn = checkAge(ageYears)
+  const scrWarn = checkScr(parseStrictNumber(patient.scr), patient.scrUnit)
 
   // "70abc" hay "1.2.9" vẫn còn NGUYÊN trong ô nhập (không tự sửa), nhưng abwKg/heightCm/ageYears
   // ở trên giờ trả về null cho các chuỗi này (parseStrictNumber) — nói rõ ra đây, kẻo trông như ô
@@ -5473,7 +5498,9 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   const showAgeWarn = useDelayedWarning(
     ageInvalid ? `ainv:${patient.age}` : ageWarn && ageWarn.severity !== "ok" ? `a:${ageWarn.severity}:${patient.age}` : null,
   )
-  const showScrWarn = useDelayedWarning(scrInvalid ? `sinv:${patient.scr}` : null)
+  const showScrWarn = useDelayedWarning(
+    scrInvalid ? `sinv:${patient.scr}` : scrWarn && scrWarn.severity !== "ok" ? `s:${scrWarn.severity}:${patient.scr}:${patient.scrUnit}` : null,
+  )
 
   // Cân nặng dùng để ước tính CrCl: ABW nếu bình thường/thiếu cân, AdjBW nếu béo phì (ABW > 130% IBW).
   const crclWeight = useMemo(
@@ -5718,11 +5745,17 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
                 </div>
               </div>
             </PatientField>
-            {showScrWarn && scrInvalid && (
+            {showScrWarn && (scrInvalid ? (
               <div className="mt-2">
                 <InputWarning text={`Creatinin "${patient.scr.trim()}" có ký tự không phải số — app coi như CHƯA NHẬP, không tính CrCl từ đây.`} level="implausible" />
               </div>
-            )}
+            ) : (
+              scrWarn && scrWarn.severity !== "ok" && (
+                <div className="mt-2">
+                  <InputWarning text={scrWarn.message} level={scrWarn.severity} />
+                </div>
+              )
+            ))}
 
           {/* Kết quả CrCl gói trong MỘT dải thay vì con số lớn + hai đoạn chú thích rời như trước.
               mt-3 để tách hẳn khỏi ô Creatinin phía trên — trước đây dính sát nhau vì cả hai chỉ có
@@ -8701,6 +8734,15 @@ function AntibioticsScreen({
             return nodes
           })
         )}
+        {/* "Xem tất cả" trước đây không có chiều ngược — bấm rồi thì danh sách ~29 chip cứ mở mãi,
+            không cách nào thu gọn lại trong cùng phiên (/impeccable critique 2026-08-18, ghi chú
+            nhỏ). Chỉ hiện khi đang duyệt trọn danh sách thật sự (không phải kết quả gõ tìm/đã chọn
+            hoạt chất) và tập rút gọn còn có nghĩa (đủ dài hơn ngưỡng collapse). */}
+        {showAllGroups && !selectedGroup && !query.trim() && filteredGroups.length > ABX_GROUP_COLLAPSE_COUNT && (
+          <button type="button" onClick={() => setShowAllGroups(false)} className={CHIP} style={{ background: C.surface, borderColor: C.line, color: C.textSoft }}>
+            Thu gọn
+          </button>
+        )}
       </div>
 
       {/* Chỉ định — chỉ hiện khi hoạt chất có liều riêng theo bệnh lý, và luôn TRƯỚC bước đường dùng.
@@ -10569,6 +10611,14 @@ function InfusionCategoryScreen({
             Xem tất cả · {filtered.length}
           </button>
         )}
+        {/* Chiều ngược của "Xem tất cả" — cùng lý do đã thêm ở AntibioticsScreen (/impeccable
+            critique 2026-08-18, ghi chú nhỏ): trước đây bấm "Xem tất cả" rồi thì không có đường
+            quay lại tập rút gọn trong cùng phiên. */}
+        {showAll && !query.trim() && filtered.length > INFUSION_DRUG_COLLAPSE_COUNT && (
+          <button type="button" onClick={() => setShowAll(false)} className={CHIP} style={{ background: C.surface, borderColor: C.line, color: C.textSoft }}>
+            Thu gọn
+          </button>
+        )}
       </div>
 
       {/* Chỉ định — chỉ hiện khi thuốc đang chọn có khai báo liều riêng theo bệnh lý, giống hệt bước
@@ -11005,7 +11055,16 @@ function DungThuocScreen({
 
       {searchOpen && (
         <div className="fade-in flex-none px-5 pb-3">
-          <SearchField value={globalQuery} onChange={setGlobalQuery} placeholder="Tìm thuốc trong mọi nhóm..." autoFocus />
+          <SearchField
+            value={globalQuery}
+            onChange={setGlobalQuery}
+            placeholder="Tìm thuốc trong mọi nhóm..."
+            autoFocus
+            onClose={() => {
+              setSearchOpen(false)
+              setGlobalQuery("")
+            }}
+          />
           {globalQuery.trim() !== "" && (
             <div className={`${R.box} border overflow-hidden`} style={{ borderColor: C.line, background: C.surface }}>
               {searchResults.length === 0 ? (
@@ -11036,6 +11095,13 @@ function DungThuocScreen({
                       onClick={() => openSearchResult(r)}
                       className={`rise-in w-full text-left px-3 py-2.5 border-b ${TAP}`}
                       style={{ borderColor: C.lineSoft, "--i": i } as React.CSSProperties}
+                      // aria-posinset/aria-setsize: trình đọc màn hình đọc "mục 2 trên 5" thay vì chỉ
+                      // đọc từng nút rời rạc không rõ đang ở đâu trong danh sách kết quả (/impeccable
+                      // critique 2026-08-18, P3). Giữ nguyên <button> gốc (không đổi role) — chuyển
+                      // hẳn sang role="option"/listbox sẽ mất luôn ngữ nghĩa "bấm để kích hoạt" mặc
+                      // định của button trên một số trình đọc, đổi lấy lợi ích không chắc lớn hơn.
+                      aria-posinset={i + 1}
+                      aria-setsize={searchResults.length}
                     >
                       <div className="flex items-center gap-2">
                         <p className={`${T.bodyStrong} truncate flex-1`} style={{ color: C.text }}>
@@ -11076,6 +11142,11 @@ function DungThuocScreen({
               onClick={() => {
                 recordTabUse(t.id)
                 setTab(t.id)
+                // Đổi tab đổi luôn nội dung bên dưới (danh sách thuốc khác hẳn) nhưng vùng cuộn
+                // dùng CHUNG cho mọi tab (xem scrollRef bên dưới) — không reset thì tab mới thừa
+                // hưởng vị trí cuộn của tab cũ, có thể rơi thẳng vào giữa danh sách, qua luôn cả
+                // khung bệnh nhân (/impeccable critique 2026-08-18).
+                scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
               }}
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
               // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
