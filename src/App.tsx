@@ -1080,12 +1080,12 @@ function HomeScreen({
   const cardCaption = (c: (typeof resourceCards)[number]) => (c.target.screen === "comingSoon" ? "Sắp ra mắt" : c.count != null ? `(${c.count})` : "")
 
   return (
-    <div className="scroll-ios h-full pb-6">
+    <div className="scroll-ios h-full pt-2 pb-4">
       {/* Header. Logo "Bs Trọng" vẽ bằng SVG theo currentColor (var(--c-text)), không nền riêng —
           hoà vào cả bản sáng lẫn tối. Logo có tỉ lệ rất ngang (1106×225 ≈ 4.9:1) nên `paddingRight`
           chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo ở góc trên phải là RÀNG BUỘC kích
           thước thật — xem cụm nút nổi trong App shell. Không có nó thì logo chồng lên cụm nút đó. */}
-      <div className="px-8 pt-2 pb-6 flex items-center" style={{ paddingRight: 180 }}>
+      <div className="px-8 pt-2 pb-4 flex items-center" style={{ paddingRight: 180 }}>
         <span className="flex-none h-7 w-auto translate-y-2" style={{ color: "var(--c-primary)" }}>
           {icons.logo("h-7 w-auto")}
         </span>
