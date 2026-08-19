@@ -23,7 +23,9 @@
 //     che thanh trạng thái từ khi bỏ black-translucent).
 // v8: sửa lệch hàng nút chủ đề/chuyên khoa với tiêu đề (do bỏ đệm 6px ở v7); mở vòng focus "ôm sát"
 //     của ô tìm kiếm (trước chỉ có ở màn Dùng thuốc) ra mọi ô tìm trong app.
-const CACHE = "drtrong-v8"
+// v9: icon-192/icon-512/apple-touch-icon đổi ảnh (commit "Sửa icon") nhưng quên bump số này — máy
+//     đã cài PWA/mở app trước đó kẹt icon cũ vĩnh viễn vì fetch ưu tiên cache. Bump để ép nạp lại.
+const CACHE = "drtrong-v9"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
