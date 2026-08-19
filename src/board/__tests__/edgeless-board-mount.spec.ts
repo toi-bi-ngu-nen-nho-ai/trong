@@ -255,24 +255,21 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       })
     })
 
+    // Trong happy-dom, canvas luôn có kích thước 0×0 vì không có layout thật. Để kích hoạt nhánh
+    // "có dữ liệu để chụp" trong code thực, phải gán trực tiếp kích thước khác 0 lên canvas
+    // TRƯỚC khi unmount. canvas.width/height là property ghi được bình thường, không cần layout.
+    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
+    if (canvasThat) {
+      canvasThat.width = 800
+      canvasThat.height = 600
+    }
+
     await act(async () => {
       root.unmount()
     })
 
-    // canvas thật không tồn tại trong happy-dom (getContext('2d') đã bị giả ở đầu file) — hàm
-    // chụp phải KHÔNG NÉM LỖI trong trường hợp này (canvas rỗng/không vẽ được), nhưng cũng không
-    // bắt buộc gọi capNhatAnhXemTruoc nếu không có gì để chụp. Ca kiểm này canh việc unmount không
-    // đổ vỡ — ca kiểm tích hợp thật (chụp ra ảnh đúng) thuộc phạm vi kiểm tay trên trình duyệt
-    // thật (xem HANDOFF, cùng giới hạn đã ghi cho D4).
-    // Trong happy-dom, canvas có thể không có kích thước thật hoặc không được render đầy đủ, nên
-    // capNhatAnhXemTruoc có thể không được gọi — điều kiện guard `canvasGoc.width > 0 &&
-    // canvasGoc.height > 0` sẽ dừng nó. Chấp nhận cả hai trường hợp: được gọi với đúng boardId +
-    // string, HOẶC không được gọi lần nào (canvas không có kích thước).
-    const callCount = spy.mock.calls.length
-    if (callCount > 0) {
-      expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String))
-    }
-    // Ngược lại (callCount === 0) là bình thường, không assert gì thêm.
+    // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi.
+    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String))
     spy.mockRestore()
   })
 })
