@@ -13,15 +13,35 @@ import type { BangMeta } from './boardMeta'
 const TEN_CSDL_BANG = 'drtrong-board'
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 
+// Giống HAN_GIO_MAC_DINH_MS của EdgelessBoard.tsx — 4 giây là hào phóng cho IndexedDB cục bộ (bình
+// thường xong trong vài chục ms), nhưng vẫn chặn treo vô thời hạn nếu IndexedDB hỏng vĩnh viễn.
+const HAN_GIO_MAC_DINH_MS = 4000
+
+// Bản sao cục bộ của doiCoHanGio() (EdgelessBoard.tsx, không export) — cùng lý do đã ghi ở đầu file
+// cho việc lặp lại cụm TestWorkspace/IndexedDBDocSource/IndexedDBBlobSource: không tách helper dùng
+// chung giữa hai file trong phạm vi lượt sửa này. `waitForSynced()` KHÔNG tự bỏ cuộc khi IndexedDB
+// hỏng vĩnh viễn — DocEngine thử lại mỗi 5 giây vô thời hạn (framework/sync/src/doc/peer.ts,
+// syncRetryLoop) — await trần trên nó sẽ treo diTruBangCuNeuCo() MÃI MÃI trong đúng tình huống mà
+// hàm này chạy (lúc BoardGallery mount lần đầu, ngay khi app khởi động).
+function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio'> {
+  let idTimer: ReturnType<typeof setTimeout>
+  const homHanGio = new Promise<'het-gio'>((giai) => {
+    idTimer = setTimeout(() => giai('het-gio'), hanGioMs)
+  })
+  return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
+}
+
 export async function diTruBangCuNeuCo(tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
+  hanGioMs?: number
 }): Promise<void> {
   const dsHienCo = await idbGetAll<BangMeta>(IDB_STORES.boards)
   if (dsHienCo.some((b) => b.id === 'board')) return
 
   const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
+  const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
 
   const workspace = new TestWorkspace({
     id: 'bs-trong-board',
@@ -44,7 +64,17 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     // `waitForSynced()` xong nghĩa là ta đã BIẾT chắc bản ghi từ xa (nếu có) đã được áp dụng, nên
     // guard `if (!_proxy.pages)` của `initialize()` chỉ còn đúng nghĩa "máy mới, chưa từng có gì".
     workspace.start()
-    await workspace.waitForSynced()
+    const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
+    if (ketQua === 'het-gio') {
+      // Hàm này CHỈ ĐỌC — không như taoHoacMoBang(), không có nội dung người dùng nào đang chờ ghi
+      // để phải rơi về workspace bộ nhớ. Hết giờ ở đây nghĩa là "chưa di trú được lần này" — bỏ
+      // cuộc êm, lượt mount BoardGallery kế tiếp (lần sau mở app) sẽ tự thử lại từ đầu.
+      console.warn(
+        `diTruBangCuNeuCo: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — bỏ qua lượt di ` +
+          'trú này, thử lại ở lần mở app sau.',
+      )
+      return
+    }
     workspace.meta.initialize()
 
     const doc = workspace.getDoc('board')
