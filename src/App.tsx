@@ -1086,7 +1086,7 @@ function HomeScreen({
           chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo ở góc trên phải là RÀNG BUỘC kích
           thước thật — xem cụm nút nổi trong App shell. Không có nó thì logo chồng lên cụm nút đó. */}
       <div className="px-8 pt-2 pb-6 flex items-center" style={{ paddingRight: 180 }}>
-        <span className="flex-none h-7 w-auto translate-y-4" style={{ color: "var(--c-primary)" }}>
+        <span className="flex-none h-7 w-auto translate-y-2" style={{ color: "var(--c-primary)" }}>
           {icons.logo("h-7 w-auto")}
         </span>
       </div>
