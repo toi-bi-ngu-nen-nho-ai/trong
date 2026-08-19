@@ -7792,6 +7792,9 @@ function AntibioticDoseCard({
         deliveryDevice: ward.deliveryDevice ?? "drip",
         // Mặc định KHÔNG cho rút (số nguyên) khi công thức cũ chưa từng khai — xem WardRecipe.allowWithdraw.
         allowWithdraw: ward.allowWithdraw ?? false,
+        // Công thức ĐÃ LƯU luôn có volumeMl thật rồi (dùng thẳng, xem autoUsage) — trường này chỉ có
+        // ý nghĩa ở nhánh "chưa lưu" bên dưới, giữ null cho khớp kiểu.
+        defaultVolumeMl: null as number | null,
       }
     const mix = activeMix
     if (mix != null && mix.vialAmount != null)
@@ -7807,6 +7810,13 @@ function AntibioticDoseCard({
         dropFactor: undefined as number | undefined,
         deliveryDevice: "drip" as "drip" | "pump",
         allowWithdraw: false,
+        // Thể tích pha loãng mặc định thuốc tự khai (vd Amikacin 1 g/4 ml → 200 mL, xem
+        // data/antibiotics.ts) — trước đây KHÔNG được chép vào mixCfg nên autoUsage (nhánh chưa có
+        // công thức lưu) phải hardcode 100 mL/lọ bất kể defaultVolumeMl thật của thuốc là bao nhiêu,
+        // trong khi bảng pha thủ công (applySolutionSuggestion) vẫn đọc đúng mix.defaultVolumeMl —
+        // hai chỗ tính cùng một con số ra hai kết quả khác nhau (bug báo cáo 2026-08-19: Amikacin
+        // 1 g/4 ml hiện "đủ 100 ml" ở dòng tự tính, nhưng ô nhập tương tác lại đúng 200 ml).
+        defaultVolumeMl: mix.defaultVolumeMl ?? null,
       }
     return null
   }, [ward, activeMix])
@@ -7929,7 +7939,11 @@ function AntibioticDoseCard({
       vials = roundUp
         ? Math.max(1, Math.ceil(neededHigh / mixCfg.vialAmount - 1e-9))
         : Math.max(1, Math.floor(neededHigh / mixCfg.vialAmount + 1e-9))
-      volumeMl = vials * 100
+      // mixCfg.defaultVolumeMl ?? 100 — KHÔNG hardcode 100: thuốc có tự khai thể tích pha mặc định
+      // riêng (vd Amikacin 1 g/4 ml → 200 mL) thì phải dùng đúng số đó, giống hệt cách
+      // applySolutionSuggestion() (bảng pha thủ công) đã làm — hai nơi tính "Cách dùng" cho cùng một
+      // thuốc phải ra cùng một con số.
+      volumeMl = vials * (mixCfg.defaultVolumeMl ?? 100)
     }
     const conc = (vials * mixCfg.vialAmount) / volumeMl
     if (!(conc > 0)) return null
