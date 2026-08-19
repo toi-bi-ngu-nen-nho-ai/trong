@@ -4867,6 +4867,11 @@ interface DosingContextValue {
   // false khi bệnh nhân có tổn thương thận cấp hoặc đang lọc máu — lúc đó con số CrCl KHÔNG được
   // dùng để chọn bậc liều.
   crclUsable: boolean
+  // true khi tuổi/cân nặng/chiều cao/creatinin nuôi CrCl đã bị chính app gắn cờ "implausible" (vd
+  // tuổi 200) — tính MỘT LẦN ở đây, dùng chung cho PatientPanel (tô số CrCl) và AntibioticDoseCard
+  // (tô bậc liều kháng sinh chọn từ nó) thay vì mỗi nơi tự gọi lại 4 hàm check giống hệt nhau trên
+  // cùng input (/impeccable critique 2026-08-19T10-03, P3).
+  crclInputImplausible: boolean
   openPatientPanel: () => void
   // Gấp khung bệnh nhân lại khi người dùng đã chuyển sang chọn thuốc. Khung này mở sẵn chiếm gần
   // 700px — trên điện thoại nghĩa là thẻ thuốc vừa chọn nằm dưới hơn hai màn hình cuộn.
@@ -5418,7 +5423,7 @@ function PatientField({ label, children }: { label: string; children: React.Reac
 }
 
 function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const { patient, setPatientField, resetPatient, running, abwKg, heightCm, ageYears, crcl, crclUsable } = useDosing()
+  const { patient, setPatientField, resetPatient, running, abwKg, heightCm, ageYears, crcl, crclUsable, crclInputImplausible } = useDosing()
   const hasData = patientHasData(patient)
   // "Bệnh nhân mới" xoá SẠCH thông số lẫn bảng đang dùng — hành động phá huỷ nhất màn hình, nên
   // bắt xác nhận hai bước như mọi nút xoá khác thay vì thực thi ngay từ một chạm.
@@ -5430,11 +5435,8 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   const heightWarn = checkHeight(heightCm)
   const ageWarn = checkAge(ageYears)
   const scrWarn = checkScr(parseStrictNumber(patient.scr), patient.scrUnit)
-  // CrCl vẫn được dùng để chọn bậc liều kháng sinh ngay cả khi một trong bốn input nuôi nó
-  // (tuổi/cân nặng/chiều cao/creatinin) đã bị chính app gắn cờ "implausible" ở trên — không chặn
-  // (chủ dự án chọn hướng tô cảnh báo, không ẩn bậc liều), nhưng con số PHẢI trông khác một CrCl
-  // đáng tin, cùng cách SEVERITY_STYLE đã làm cho liều truyền (/impeccable critique 2026-08-19, P0).
-  const crclInputImplausible = [weightWarn, heightWarn, ageWarn, scrWarn].some((w) => w?.severity === "implausible")
+  // crclInputImplausible (dùng bên dưới để tô số CrCl) đến từ DosingContext — tính chung một lần
+  // với AntibioticDoseCard, xem comment tại DosingContextValue.crclInputImplausible.
 
   // "70abc" hay "1.2.9" vẫn còn NGUYÊN trong ô nhập (không tự sửa), nhưng abwKg/heightCm/ageYears
   // ở trên giờ trả về null cho các chuỗi này (parseStrictNumber) — nói rõ ra đây, kẻo trông như ô
@@ -7683,7 +7685,7 @@ function AntibioticDoseCard({
   onEdit?: (drug: Antibiotic) => void
   onDelete?: (id: string) => void
 }) {
-  const { patient, abwKg, heightCm, ageYears, crcl, crclUsable, openPatientPanel, pinRunning, wardRecipes, clearWard, pinWard } = useDosing()
+  const { patient, abwKg, heightCm, crcl, crclUsable, crclInputImplausible: patientCrclInputImplausible, openPatientPanel, pinRunning, wardRecipes, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
   const [showMix, setShowMix] = useState(false)
@@ -7711,13 +7713,11 @@ function AntibioticDoseCard({
   // CrCl ĐÃ được dùng để chọn bậc liều ở trên (effectiveCrcl != null), nhưng dựa trên tuổi/cân
   // nặng/chiều cao/creatinin mà chính app đã gắn cờ "implausible" (vd tuổi 200) — khác missingCrcl
   // (chưa có số), đây là "có số nhưng số có thể sai". Cùng cách weightImplausible đã cảnh báo cho
-  // liều mg/kg ở dưới (/impeccable critique 2026-08-19, P0).
-  const crclInputImplausible =
-    effectiveCrcl != null &&
-    tiers.length > 1 &&
-    [checkWeight(abwKg), checkHeight(heightCm), checkAge(ageYears), checkScr(parseStrictNumber(patient.scr), patient.scrUnit)].some(
-      (w) => w?.severity === "implausible",
-    )
+  // liều mg/kg ở dưới (/impeccable critique 2026-08-19, P0). `patientCrclInputImplausible` đến từ
+  // DosingContext (tính chung một lần với PatientPanel, xem DosingContextValue.crclInputImplausible)
+  // — ở đây chỉ còn hai điều kiện riêng của thẻ thuốc này: CrCl có thật sự được dùng để chọn bậc
+  // (effectiveCrcl != null) và thuốc có thật nhiều hơn một bậc hay không.
+  const crclInputImplausible = effectiveCrcl != null && tiers.length > 1 && patientCrclInputImplausible
   // Chỉ hiện "Liều chuẩn" khi nó KHÁC dòng liều ở trên — trước đây meropenem in ra "1 g mỗi 8h" rồi
   // ngay dưới lại "Liều chuẩn: 1 g mỗi 8h (IV)", đọc như hai thông tin khác nhau.
   const showStandardDose = !!standardDose && effectiveCrcl == null && !standardDose.startsWith(tier.dose)
@@ -9815,7 +9815,10 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               setMode(m.id)
               tickHaptic()
             }}
-            className="dose-press flex-1 h-9 rounded-[14px] text-[12px] font-bold"
+            // h-11 (44px), không phải h-9 (36px) như trước — control chạm nhiều lần mỗi phiên
+            // (đổi chiều tính liều↔tốc độ) trên app "chủ yếu một tay tại giường bệnh", dưới sàn
+            // công thái 44×44pt (/impeccable critique 2026-08-19T10-03, P2).
+            className="dose-press flex-1 h-11 rounded-[14px] text-[12px] font-bold"
             aria-pressed={mode === m.id}
             style={
               // Không boxShadow: đây là control thường trực (không phải dropdown/toast/modal/sheet),
@@ -10946,6 +10949,15 @@ function DungThuocScreen({
     return estimateCrCl(ageYears, w, scrToMgDl(s, patient.scrUnit), patient.sex)
   }, [abwKg, heightCm, ageYears, patient.scr, patient.scrUnit, patient.sex])
   const crclUsable = crclReliability(patient) === "ok"
+  // Xem comment tại DosingContextValue.crclInputImplausible — tính một lần ở đây, tiêu thụ ở cả
+  // PatientPanel lẫn AntibioticDoseCard.
+  const crclInputImplausible = useMemo(
+    () =>
+      [checkWeight(abwKg), checkHeight(heightCm), checkAge(ageYears), checkScr(parseStrictNumber(patient.scr), patient.scrUnit)].some(
+        (w) => w?.severity === "implausible",
+      ),
+    [abwKg, heightCm, ageYears, patient.scr, patient.scrUnit],
+  )
 
   const dosingCtx = useMemo<DosingContextValue>(
     () => ({
@@ -10999,6 +11011,7 @@ function DungThuocScreen({
       ageYears,
       crcl,
       crclUsable,
+      crclInputImplausible,
       openPatientPanel: () => {
         setPatientOpen(true)
         scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
@@ -11040,7 +11053,7 @@ function DungThuocScreen({
       clearWard: (drugId, recipeId) => setWardRecipes(removeWardRecipe(drugId, recipeId)),
       pinWard: (drugId, recipeId) => setWardRecipes(setPinnedWardRecipe(drugId, recipeId)),
     }),
-    [patient, setField, reset, restore, abwKg, heightCm, ageYears, crcl, crclUsable, running, wardRecipes, resetUndo],
+    [patient, setField, reset, restore, abwKg, heightCm, ageYears, crcl, crclUsable, crclInputImplausible, running, wardRecipes, resetUndo],
   )
 
   return (

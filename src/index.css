@@ -671,6 +671,16 @@ html.theme-shift * {
   visibility: visible;
   transition: max-height .28s cubic-bezier(.25,.9,.35,1), margin-top .22s cubic-bezier(.25,.9,.35,1);
 }
+/* Disclosure lồng trong Disclosure (vd khối Creatinin·CrCl·RRT mở sẵn bên trong PatientPanel đã thu
+   gọn): `visibility` vốn thừa kế được, nhưng `.disc-body[data-open="true"]` ở trên đặt `visibility:
+   visible` TƯỜNG MINH trên chính khối con — ghi đè giá trị thừa kế từ khối cha đang đóng. Kết quả là
+   ô nhập/nút bên trong khối con vẫn nhận Tab dù bị khối cha cắt bằng max-height:0 nên không ai NHÌN
+   thấy (vi phạm đúng lý do `visibility:hidden` được thêm ở trên — xem comment /impeccable critique
+   2026-08-19T10-03, P1). Selector con-của-cha-đóng có độ đặc thù cao hơn (3 so với 2) nên luôn thắng
+   không cần !important, và áp dụng cho MỌI Disclosure lồng nhau trong tương lai, không riêng một chỗ. */
+.disc-body[data-open="false"] .disc-body {
+  visibility: hidden;
+}
 
 /* Biến thể không cộng thêm margin-top khi mở — dùng ở chỗ nội dung đã có đủ khoảng cách từ padding
    của chính nó (PatientPanel), khác Disclosure vốn cần margin để tách khỏi dòng tiêu đề gấp/mở. */
