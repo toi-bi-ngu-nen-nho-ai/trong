@@ -8,10 +8,12 @@ import { useIdbCollection } from "./lib/useIdbCollection"
 import { IDB_STORES } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
 import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
-// Import từ vỏ nạp chậm (./board/index.tsx), KHÔNG import thẳng EdgelessBoard.tsx — import thẳng
-// kéo cả khối AFFiNE vào chung bundle vỏ app, phá mất phần tách chunk mà vỏ nạp chậm tồn tại để
-// giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem comment trong board/index.tsx).
-import { EdgelessBoard } from "./board"
+// BoardGallery (không phải EdgelessBoard) là điểm vào duy nhất cho tab Mindmap — nó tự import
+// EdgelessBoard qua vỏ nạp chậm ./board/index.tsx bên trong, nên App.tsx KHÔNG được import thẳng
+// EdgelessBoard.tsx ở đây: import thẳng kéo cả khối AFFiNE vào chung bundle vỏ app, phá mất phần
+// tách chunk mà vỏ nạp chậm tồn tại để giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem
+// comment trong board/index.tsx và board/BoardGallery.tsx).
+import { BoardGallery } from "./board/BoardGallery"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -11336,15 +11338,6 @@ export default function App() {
   }
   const [screen, setScreen] = useState<Screen>(initialScreen)
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
-  // Đã từng mở tab Mindmap trong phiên này chưa. Bảng vẽ giữ nội dung TRONG BỘ NHỚ (lưu trữ là
-  // chặng sau), nên tháo nó ra là mất trắng thứ người dùng vừa vẽ — xem chỗ render bên dưới.
-  // Cờ này chỉ đi một chiều false → true: chưa vào lần nào thì không mount (giữ nguyên ranh giới
-  // nạp chậm 994 kB), vào rồi thì ở lại mãi.
-  const [daMoBangVe, setDaMoBangVe] = useState(() => initialScreen() === "mindmap")
-  // Bật cờ NGAY TRONG LÚC RENDER (mẫu "điều chỉnh state khi prop/state đổi" của React), không qua
-  // useEffect: qua effect thì lượt render đầu tiên sau khi bấm tab Mindmap chưa có bảng vẽ nào để
-  // vẽ ra — người dùng thấy một khung trống nháy lên rồi mới tới dòng "Đang tải bảng vẽ…".
-  if (screen === "mindmap" && !daMoBangVe) setDaMoBangVe(true)
   const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
   const [viewCustomId, setViewCustomId] = useState<string | null>(null)
@@ -11779,45 +11772,14 @@ export default function App() {
           {/* FlashcardScreen vẫn hoãn lại — đưa "sắp ra mắt" thay vì để người dùng thấy một tab lỗi
               tùm lum. Vẫn giữ nguyên tab dưới thanh nav (không phải NON_TAB_SCREENS) để không phá
               cấu trúc điều hướng — chỉ đổi nội dung bên trong. */}
-          {/* Mindmap render thẳng bảng vẽ nhúng. `absolute inset-0` (mốc neo là `relative` vừa
-              thêm trên <main>) vừa khớp quy ước "chiếm hết main" của các màn hình khác, vừa làm
-              điểm neo định vị cho div `absolute inset-0` bên trong EdgelessBoard — thiếu điểm neo
-              này thì nó sẽ neo lên tận #app-shell và tràn ra khỏi vùng nội dung, đè lên thanh nav.
-              Suspense KHÔNG còn ở đây: nó đã vào trong `./board` cùng với error boundary riêng của
-              bảng vẽ (xem src/board/index.tsx). Hai thứ đó phải đi liền nhau — một Suspense đứng
-              ngoài boundary thì lượt tải chunk thất bại vẫn nổi lên tới boundary gốc và tháo sạch
-              cả app, đúng lỗi mà boundary kia sinh ra để chặn. */}
-          {/* ─── Vì sao ẩn chứ không tháo ────────────────────────────────────────────────────
-              Nội dung bảng vẽ nằm HOÀN TOÀN trong bộ nhớ (lưu trữ là chặng sau). Điều kiện cũ
-              `screen === "mindmap" && ...` tháo cả cây Lit mỗi lần rời tab, và lượt quay lại dựng
-              một workspace TRỐNG mới: bác sĩ vẽ xong sơ đồ, bấm sang tab khác tra một liều thuốc,
-              quay lại thì mất sạch, không một lời cảnh báo.
-              `daMoBangVe` giữ ranh giới nạp chậm nguyên vẹn: chưa vào Mindmap lần nào thì không có
-              gì được render, tức `import()` của chunk 994 kB chưa chạy.
-              Ẩn bằng `invisible` (visibility: hidden) chứ KHÔNG phải `hidden` (display: none).
-              Đo thật trên trình duyệt, lấy `getBoundingClientRect()` của chính phần tử mà
-              `Viewport.setShellElement()` quan sát (ở đây là <editor-host>):
-                hiện bình thường  → 1280×751
-                visibility:hidden → 1280×751  (KHÔNG đổi)
-                display:none      → 0×0
-              Khung về 0×0 là đầu vào của ResizeObserver trong framework/std/src/gfx/viewport.ts,
-              và đọc mã nhánh đó: onResize() chốt `_initialTopLeft` NGAY LƯỢT ĐẦU rồi mới
-              debounce 200 ms; lật tab nhanh hơn 200 ms thì lượt ẩn (0×0) và lượt hiện lại
-              (1280×751) gộp thành MỘT lần _completeResize, tính tâm mới bằng
-              `_initialTopLeft + width / (2 * zoom)` với `_initialTopLeft` đã chốt lúc khung bằng 0
-              — tâm bị đẩy đi nửa bề rộng khung nhìn. visibility:hidden giữ nguyên kích thước hộp
-              nên không có lượt resize nào để mà hỏng.
-              `pointer-events-none` để lúc ẩn nó không nuốt thao tác của màn hình đang hiện bên
-              dưới (đã đo: elementFromPoint giữa màn hình vẫn trả về phần tử của Trang chủ);
-              `inert` cắt luôn khỏi bàn phím và trình đọc màn hình. */}
-          {daMoBangVe && (
-            <div
-              className={`absolute inset-0${screen === "mindmap" ? "" : " invisible pointer-events-none"}`}
-              inert={screen !== "mindmap"}
-            >
-              <EdgelessBoard />
-            </div>
-          )}
+          {/* Tab Mindmap: BoardGallery tự quản lý lưới danh sách + bảng đang mở (nếu có), gồm cả
+              kỹ thuật ẩn-không-tháo khi rời tab (kế thừa từ hack cũ, lý do ResizeObserver — xem
+              docs/superpowers/specs/2026-08-19-board-gallery-design.md §1) — khác hack cũ ở chỗ
+              giờ unmount THẬT khi người dùng bấm quay lại danh sách bên trong BoardGallery, vì D4
+              đã đảm bảo nội dung không mất. Component này rẻ để luôn mount (không tải chunk
+              BlockSuite cho tới khi một bảng thật sự được mở), nên không cần cờ "đã từng vào tab"
+              riêng như trước. */}
+          <BoardGallery dangHienTab={screen === "mindmap"} />
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
           {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
