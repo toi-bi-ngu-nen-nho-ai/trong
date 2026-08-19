@@ -1073,8 +1073,8 @@ function HomeScreen({
           ở góc trên phải — xem cụm nút nổi trong App shell. Không có nó thì logo chui xuống dưới
           cụm nút đó. */}
       <div className="px-5 pt-2 pb-4 flex items-center" style={{ paddingRight: 180 }}>
-        <span className="flex-none h-14 w-auto" style={{ color: "var(--c-text)" }}>
-          {icons.logo("h-14 w-auto")}
+        <span className="flex-none h-28 w-auto" style={{ color: "var(--c-text)" }}>
+          {icons.logo("h-28 w-auto")}
         </span>
       </div>
 
