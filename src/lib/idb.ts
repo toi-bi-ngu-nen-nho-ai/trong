@@ -9,14 +9,13 @@
 // không bị mất; version 2 thêm object store "articles" cho bài viết.
 
 const DB_NAME = "drtrong-ecg"
-// Giữ nguyên version 4 dù không còn tạo mới store "mindmap"/"boards" (tính năng Sơ đồ tư duy đã gỡ):
-// đây chỉ là số hiệu nâng cấp schema, tăng lại không có ý nghĩa gì khi không có store mới cần tạo.
-const DB_VERSION = 4
+const DB_VERSION = 5
 
 // Tên các object store — dùng làm tham số `store` cho các hàm bên dưới.
 export const IDB_STORES = {
   ecgLessons: "lessons",
   articles: "articles",
+  boards: "boards",
 } as const
 
 const ALL_STORES: string[] = Object.values(IDB_STORES)
