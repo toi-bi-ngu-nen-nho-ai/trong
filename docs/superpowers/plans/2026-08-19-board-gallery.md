@@ -46,6 +46,16 @@ thuần).
 
 ### Task 1: Data model — store `boards` trong `idb.ts` + `boardMeta.ts`
 
+**QUAN TRỌNG — đọc trước khi làm:** `src/lib/useIdbCollection.ts` đã có sẵn một hook React generic
+quản lý TRỌN VẸN một collection lưu trong IndexedDB (`items`, `loading`, `add`, `update`, `remove`,
+`upsertMany`, `replaceAll`) — dùng chung `idb.ts` (`idbGetAll`/`idbPut`/`idbDelete`/...), đã là mẫu
+đang dùng cho ECG lessons/bài viết. **`DanhSachBang.tsx` (Task 5) PHẢI dùng hook này trực tiếp**
+(`useIdbCollection<BangMeta>(IDB_STORES.boards)`) thay vì tự viết `useState` + tự fetch lại sau mỗi
+thao tác — đúng "theo khuôn mẫu đã có" của dự án, không phát minh lại. Task này (Task 1) vì vậy CHỈ
+còn cần: kiểu `BangMeta`, hàm sinh id, và MỘT hàm CRUD độc lập (`capNhatAnhXemTruoc`) cho nơi DUY
+NHẤT không có sẵn instance hook để gọi — `EdgelessBoard.tsx` lúc unmount (Task 3), nằm ngoài cây
+component của `DanhSachBang`.
+
 **Files:**
 - Modify: `src/lib/idb.ts`
 - Create: `src/board/boardMeta.ts`
@@ -53,9 +63,10 @@ thuần).
 - Test: `src/board/__tests__/boardMeta.spec.ts`
 
 **Interfaces:**
-- Produces: `BangMeta` type, `taoIdBang()`, `layDanhSachBang()`, `taoBang(ten?)`,
-  `doiTenBang(id, tenMoi)`, `xoaBangMeta(id)`, `capNhatAnhXemTruoc(id, anhXemTruoc)` — Task 4/5/6
-  import từ `../board/boardMeta` (test) hoặc `./boardMeta` (trong `src/board/`).
+- Produces: `BangMeta` type, `taoIdBang()`, `capNhatAnhXemTruoc(id, anhXemTruoc)` — Task 3 import
+  `capNhatAnhXemTruoc` từ `./boardMeta`; Task 5 import CẢ `BangMeta` (kiểu) VÀ `taoIdBang` từ
+  `./boardMeta`, dùng CHUNG với `useIdbCollection<BangMeta>(IDB_STORES.boards)` từ
+  `../lib/useIdbCollection` (đã có sẵn, không phải tạo mới).
 
 - [ ] **Step 1: Đọc `src/lib/idb.ts` hiện tại**
 
@@ -172,8 +183,8 @@ import 'fake-indexeddb/auto'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { IDB_STORES, idbDelete, idbGetAll } from '../../lib/idb'
-import { capNhatAnhXemTruoc, doiTenBang, layDanhSachBang, taoBang, taoIdBang, xoaBangMeta } from '../boardMeta'
+import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
+import { capNhatAnhXemTruoc, taoIdBang } from '../boardMeta'
 
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
@@ -181,7 +192,7 @@ afterEach(async () => {
 })
 
 describe('taoIdBang', () => {
-  it('sinh id khác nhau ở hai lượt gọi liên tiếp', () => {
+  it('sinh id khác nhau ở hai lượt gọi liên tiếp, đúng tiền tố', () => {
     const a = taoIdBang()
     const b = taoIdBang()
     expect(a).not.toBe(b)
@@ -189,58 +200,24 @@ describe('taoIdBang', () => {
   })
 })
 
-describe('taoBang / layDanhSachBang', () => {
-  it('tạo bảng mới → xuất hiện ngay trong danh sách, đúng tên mặc định', async () => {
-    const meta = await taoBang()
-    expect(meta.ten).toBe('Bảng chưa đặt tên')
-    const ds = await layDanhSachBang()
-    expect(ds.map((b) => b.id)).toContain(meta.id)
-  })
-
-  it('tạo bảng với tên tuỳ chỉnh', async () => {
-    const meta = await taoBang('Phác đồ sốc nhiễm khuẩn')
-    expect(meta.ten).toBe('Phác đồ sốc nhiễm khuẩn')
-  })
-})
-
-describe('doiTenBang', () => {
-  it('đổi tên bảng đã tồn tại → danh sách phản ánh tên mới, capNhatLuc tăng', async () => {
-    const meta = await taoBang('Tên cũ')
-    const capNhatLucCu = meta.capNhatLuc
-    await new Promise((r) => setTimeout(r, 2))
-    await doiTenBang(meta.id, 'Tên mới')
-    const ds = await layDanhSachBang()
-    const sau = ds.find((b) => b.id === meta.id)
-    expect(sau?.ten).toBe('Tên mới')
-    expect(sau!.capNhatLuc).toBeGreaterThan(capNhatLucCu)
-  })
-
-  it('đổi tên bảng KHÔNG tồn tại → không ném lỗi, không tạo mục mới', async () => {
-    await expect(doiTenBang('khong-ton-tai', 'Gì đó')).resolves.toBeUndefined()
-    const ds = await layDanhSachBang()
-    expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
-  })
-})
-
-describe('xoaBangMeta', () => {
-  it('xoá bảng → biến mất khỏi danh sách', async () => {
-    const meta = await taoBang()
-    await xoaBangMeta(meta.id)
-    const ds = await layDanhSachBang()
-    expect(ds.find((b) => b.id === meta.id)).toBeUndefined()
-  })
-})
-
 describe('capNhatAnhXemTruoc', () => {
-  it('ghi ảnh xem trước cho bảng đã tồn tại', async () => {
-    const meta = await taoBang()
-    await capNhatAnhXemTruoc(meta.id, 'data:image/jpeg;base64,xyz')
-    const ds = await layDanhSachBang()
-    expect(ds.find((b) => b.id === meta.id)?.anhXemTruoc).toBe('data:image/jpeg;base64,xyz')
+  it('ghi ảnh xem trước cho bảng đã tồn tại, cập nhật capNhatLuc', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
+    await new Promise((r) => setTimeout(r, 2))
+
+    await capNhatAnhXemTruoc('x', 'data:image/jpeg;base64,xyz')
+
+    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const sau = ds.find((b) => b.id === 'x')
+    expect(sau?.anhXemTruoc).toBe('data:image/jpeg;base64,xyz')
+    expect(sau!.capNhatLuc).toBeGreaterThan(bayGio)
   })
 
-  it('bảng KHÔNG tồn tại → không ném lỗi', async () => {
+  it('bảng KHÔNG tồn tại → không ném lỗi, không tạo mục mới', async () => {
     await expect(capNhatAnhXemTruoc('khong-ton-tai', 'x')).resolves.toBeUndefined()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
   })
 })
 ```
@@ -255,9 +232,12 @@ Expected: FAIL — `Cannot find module '../boardMeta'`.
 Tạo `src/board/boardMeta.ts`:
 
 ```typescript
-// CRUD thuần cho metadata danh sách bảng — object store "boards" của src/lib/idb.ts. Tách khỏi
-// idb.ts (generic, dùng chung cho ECG/bài viết) vì đây là logic RIÊNG của subsystem bảng vẽ.
-import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../lib/idb'
+// Kiểu dữ liệu + tiện ích RIÊNG của subsystem bảng vẽ cho object store "boards" của
+// src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — DanhSachBang.tsx dùng thẳng
+// useIdbCollection<BangMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
+// ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
+// DanhSachBang (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
+import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 
 export type BangMeta = {
   id: string
@@ -271,38 +251,14 @@ export function taoIdBang(): string {
   return `bang-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function layDanhSachBang(): Promise<BangMeta[]> {
-  return idbGetAll<BangMeta>(IDB_STORES.boards)
-}
-
-// id sinh phía client TRƯỚC khi ghi IndexedDB — theo đúng triết lý "không chặn luồng dùng app"
-// của idb.ts (xem catch → false/[] ở đó): dù ghi metadata thất bại (chế độ ẩn danh, hết quota),
-// người dùng vẫn mở được bảng mới ngay (nội dung Yjs của nó là nguồn sự thật riêng, không phụ
-// thuộc bản ghi này).
-export async function taoBang(ten = 'Bảng chưa đặt tên'): Promise<BangMeta> {
-  const bayGio = Date.now()
-  const meta: BangMeta = { id: taoIdBang(), ten, taoLuc: bayGio, capNhatLuc: bayGio }
-  await idbPut(IDB_STORES.boards, meta)
-  return meta
-}
-
-export async function doiTenBang(id: string, tenMoi: string): Promise<void> {
-  const ds = await layDanhSachBang()
-  const hienCo = ds.find((b) => b.id === id)
-  if (!hienCo) return
-  await idbPut(IDB_STORES.boards, { ...hienCo, ten: tenMoi, capNhatLuc: Date.now() })
-}
-
-// CHỈ xoá metadata, KHÔNG đụng Yjs doc/blob thật trong CSDL 'drtrong-board' — quyết định có chủ ý,
-// xem ghi chú "nợ kỹ thuật đã xác nhận" ở cuối kế hoạch (docs/superpowers/plans/2026-08-19-board-gallery.md).
-export function xoaBangMeta(id: string): Promise<boolean> {
-  return idbDelete(IDB_STORES.boards, id)
-}
-
 // Gọi lúc rời một bảng (xem EdgelessBoard.tsx) — đồng thời đóng vai trò cập nhật "sửa lúc" vì
 // chặng này chưa dựng cơ chế phát hiện thay đổi thật; thời điểm rời bảng là xấp xỉ hợp lý.
+// Đọc-sửa-ghi trực tiếp qua idb.ts (không qua hook, vì gọi từ ngoài React) — DanhSachBang.tsx đọc
+// lại giá trị mới nhất mỗi lần MOUNT (useIdbCollection tự fetch khi mount), và nó luôn mount lại
+// mỗi khi người dùng quay về danh sách (xem BoardGallery.tsx, Task 6), nên không cần cơ chế báo
+// cho instance hook đang sống cập nhật theo thời gian thực.
 export async function capNhatAnhXemTruoc(id: string, anhXemTruoc: string): Promise<void> {
-  const ds = await layDanhSachBang()
+  const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
   const hienCo = ds.find((b) => b.id === id)
   if (!hienCo) return
   await idbPut(IDB_STORES.boards, { ...hienCo, anhXemTruoc, capNhatLuc: Date.now() })
@@ -312,13 +268,13 @@ export async function capNhatAnhXemTruoc(id: string, anhXemTruoc: string): Promi
 - [ ] **Step 10: Chạy ca kiểm, xác nhận qua**
 
 Run: `npx vitest run src/board/__tests__/boardMeta.spec.ts`
-Expected: PASS — 8/8 ca.
+Expected: PASS — 3/3 ca.
 
 - [ ] **Step 11: Commit**
 
 ```bash
 git add src/board/boardMeta.ts src/board/__tests__/boardMeta.spec.ts
-git commit -m "feat(board): boardMeta.ts — CRUD metadata danh sách bảng"
+git commit -m "feat(board): boardMeta.ts — BangMeta, taoIdBang, capNhatAnhXemTruoc"
 ```
 
 ---
@@ -630,8 +586,10 @@ git commit -m "feat(board): chụp ảnh xem trước lúc rời bảng, ghi và
 - Test: `src/board/__tests__/diTruBangCu.spec.ts`
 
 **Interfaces:**
-- Consumes: `layDanhSachBang`, `taoIdBang` KHÔNG dùng (docId di trú là `'board'` cố định, không
-  sinh mới) — dùng `IDB_STORES`, `idbGetAll`, `idbPut` gián tiếp qua `boardMeta.ts` cho phần ghi;
+- Consumes: `BangMeta` (kiểu, từ `./boardMeta`) — `taoIdBang` KHÔNG dùng (docId di trú là `'board'`
+  cố định, không sinh mới); `IDB_STORES`, `idbGetAll`, `idbPut` trực tiếp từ `../lib/idb` (đọc/ghi
+  metadata ở đây KHÔNG qua `useIdbCollection` — hàm này chạy trong `useEffect` của
+  `BoardGallery.tsx`, không có instance hook nào để gọi, cùng lý do `capNhatAnhXemTruoc` ở Task 1);
   `TestWorkspace`/`IndexedDBDocSource`/`IndexedDBBlobSource` từ `@blocksuite/affine/store/test` và
   `@blocksuite/sync` (cùng cặp import `EdgelessBoard.tsx` đã dùng) cho phần đọc CSDL Yjs thật.
 - Produces: `diTruBangCuNeuCo(tuyChon?: { docSources?; blobSources? }): Promise<void>` — Task 6
@@ -841,8 +799,9 @@ git commit -m "feat(board): di trú tự động bảng cũ (docId 'board') sang
 - Test: `src/board/__tests__/DanhSachBang.spec.tsx`
 
 **Interfaces:**
-- Consumes: `BangMeta`, `layDanhSachBang`, `taoBang`, `doiTenBang`, `xoaBangMeta` từ Task 1
-  (`./boardMeta`); `formatReadTime` từ `../lib/recentReads` (đã có sẵn, không phải tạo mới).
+- Consumes: `BangMeta`, `taoIdBang` từ Task 1 (`./boardMeta`); `useIdbCollection` từ
+  `../lib/useIdbCollection` (ĐÃ CÓ SẴN — KHÔNG tự viết state/fetch, xem cảnh báo ở Task 1);
+  `IDB_STORES` từ `../lib/idb`; `formatReadTime` từ `../lib/recentReads` (đã có sẵn).
 - Produces: `DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void }): JSX.Element` —
   Task 6 render component này khi chưa có bảng nào đang mở.
 
@@ -858,8 +817,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { IDB_STORES, idbDelete, idbGetAll } from '../../lib/idb'
-import { taoBang } from '../boardMeta'
+import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { DanhSachBang } from '../DanhSachBang'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -895,8 +853,9 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
   })
 
-  it('có sẵn bảng trong metadata → hiện đúng tên trên thẻ', async () => {
-    await taoBang('Phác đồ sốc nhiễm khuẩn')
+  it('có sẵn bảng trong metadata (ghi thẳng qua idb.ts, mô phỏng phiên trước) → hiện đúng tên trên thẻ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Phác đồ sốc nhiễm khuẩn', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
@@ -908,7 +867,7 @@ describe('DanhSachBang', () => {
     expect(container.textContent).toContain('Phác đồ sốc nhiễm khuẩn')
   })
 
-  it('bấm thẻ "+" → gọi onMoBang với id mới, thẻ mới xuất hiện trong danh sách sau đó', async () => {
+  it('bấm thẻ "+" → gọi onMoBang với id mới NGAY, thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang }))
@@ -926,13 +885,19 @@ describe('DanhSachBang', () => {
     expect(onMoBang).toHaveBeenCalledTimes(1)
     const idMoi = onMoBang.mock.calls[0][0] as string
     expect(idMoi).toMatch(/^bang-/)
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
 
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    expect(ds.map((b) => b.id)).toContain(idMoi)
+    // Bền vững thật xuống IndexedDB xảy ra NỀN (useIdbCollection.add không await idbPut) — chờ
+    // bằng vi.waitFor thay vì đọc ngay, tránh ca kiểm chập chờn theo tốc độ máy.
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      expect(ds.map((b) => b.id)).toContain(idMoi)
+    })
   })
 
-  it('bấm "⋯" rồi "Đổi tên", sửa ô nhập, Enter → tên cập nhật trên thẻ và trong metadata', async () => {
-    const meta = await taoBang('Tên cũ')
+  it('bấm "⋯" rồi "Đổi tên", sửa ô nhập, Enter → tên cập nhật trên thẻ NGAY, rồi trong metadata', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Tên cũ', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
@@ -943,13 +908,13 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      ;(container.querySelector(`[data-testid="menu-bang-${meta.id}"]`) as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
     })
     await act(async () => {
-      ;(container.querySelector(`[data-testid="doi-ten-${meta.id}"]`) as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="doi-ten-bang-1"]') as HTMLButtonElement).click()
     })
 
-    const input = container.querySelector(`[data-testid="input-ten-${meta.id}"]`) as HTMLInputElement
+    const input = container.querySelector('[data-testid="input-ten-bang-1"]') as HTMLInputElement
     expect(input).not.toBeNull()
 
     await act(async () => {
@@ -958,18 +923,17 @@ describe('DanhSachBang', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     })
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(container.textContent).toContain('Tên mới')
-      })
-    })
+    expect(container.textContent).toContain('Tên mới')
 
-    const ds = await idbGetAll<{ id: string; ten: string }>(IDB_STORES.boards)
-    expect(ds.find((b) => b.id === meta.id)?.ten).toBe('Tên mới')
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string; ten: string }>(IDB_STORES.boards)
+      expect(ds.find((b) => b.id === 'bang-1')?.ten).toBe('Tên mới')
+    })
   })
 
-  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → bảng biến mất khỏi lưới và metadata', async () => {
-    const meta = await taoBang('Sẽ bị xoá')
+  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → bảng biến mất khỏi lưới NGAY, rồi khỏi metadata', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
@@ -980,29 +944,27 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      ;(container.querySelector(`[data-testid="menu-bang-${meta.id}"]`) as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
     })
-    const nutXoa = () => container.querySelector(`[data-testid="xoa-${meta.id}"]`) as HTMLButtonElement
+    const nutXoa = () => container.querySelector('[data-testid="xoa-bang-1"]') as HTMLButtonElement
 
     // Chạm lần 1: chỉ đổi nhãn, CHƯA xoá.
     await act(async () => {
       nutXoa().click()
     })
-    let ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    expect(ds.map((b) => b.id)).toContain(meta.id)
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     expect(nutXoa().textContent).toContain('Chắc chắn')
 
     // Chạm lần 2: xoá thật.
     await act(async () => {
       nutXoa().click()
     })
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
-      })
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      expect(ds.map((b) => b.id)).not.toContain('bang-1')
     })
-    ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    expect(ds.map((b) => b.id)).not.toContain(meta.id)
   })
 })
 ```
@@ -1022,8 +984,10 @@ Tạo `src/board/DanhSachBang.tsx`:
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
 import { useEffect, useState } from 'react'
 
+import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
-import { type BangMeta, doiTenBang, layDanhSachBang, taoBang, xoaBangMeta } from './boardMeta'
+import { useIdbCollection } from '../lib/useIdbCollection'
+import { type BangMeta, taoIdBang } from './boardMeta'
 
 // Cùng giá trị CONFIRM_DELETE_RESET_MS của App.tsx (5000) — viết hằng số riêng thay vì import vì
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
@@ -1142,18 +1106,14 @@ function TheBang({
 }
 
 export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void }) {
-  const [danhSach, setDanhSach] = useState<BangMeta[]>([])
+  // useIdbCollection tự nạp danh sách lúc mount (fetch một lần, xem src/lib/useIdbCollection.ts)
+  // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
+  // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
+  // viết — không tự viết state/fetch riêng cho danh sách bảng (xem cảnh báo ở Task 1).
+  const { items: danhSach, loading, add, update, remove } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
-
-  const naplai = () => {
-    layDanhSachBang().then((ds) => setDanhSach([...ds].sort((a, b) => b.capNhatLuc - a.capNhatLuc)))
-  }
-
-  useEffect(() => {
-    naplai()
-  }, [])
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -1161,9 +1121,15 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
     return () => clearTimeout(id)
   }, [dangXacNhanXoaId])
 
+  // Chưa nạp xong lần đầu — không hiện gì (kể cả thẻ "+"), tránh nháy "rỗng" giả trước khi
+  // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
+  if (loading) return null
+
+  const danhSachSapXep = [...danhSach].sort((a, b) => b.capNhatLuc - a.capNhatLuc)
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 10 }}>
-      {danhSach.map((bang) => (
+      {danhSachSapXep.map((bang) => (
         <TheBang
           key={bang.id}
           bang={bang}
@@ -1179,7 +1145,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
           onLuuTen={(tenMoi) => {
             setDangSuaTenId(null)
             const tenSach = tenMoi.trim() || bang.ten
-            doiTenBang(bang.id, tenSach).then(naplai)
+            update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
           }}
           onXoa={() => {
             if (dangXacNhanXoaId !== bang.id) {
@@ -1188,7 +1154,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
             }
             setDangXacNhanXoaId(null)
             setDangMoMenuId(null)
-            xoaBangMeta(bang.id).then(naplai)
+            remove(bang.id)
           }}
         />
       ))}
@@ -1196,10 +1162,10 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
         type="button"
         data-testid="tao-bang"
         onClick={() => {
-          taoBang().then((meta) => {
-            naplai()
-            onMoBang(meta.id)
-          })
+          const bayGio = Date.now()
+          const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: bayGio, capNhatLuc: bayGio }
+          add(meta)
+          onMoBang(meta.id)
         }}
         style={{
           aspectRatio: '4 / 3',
@@ -1262,9 +1228,17 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { IDB_STORES, idbDelete, idbGetAll } from '../../lib/idb'
-import { taoBang } from '../boardMeta'
+import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
+import type { BangMeta } from '../boardMeta'
 import { BoardGallery } from '../BoardGallery'
+
+// Ghi thẳng qua idb.ts thay vì đi qua UI/hook — file này canh hành vi ĐIỀU HƯỚNG của BoardGallery
+// (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở DanhSachBang.spec.tsx).
+function taoBangGia(ten: string): BangMeta {
+  const bayGio = Date.now()
+  const meta: BangMeta = { id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`, ten, taoLuc: bayGio, capNhatLuc: bayGio }
+  return meta
+}
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -1308,7 +1282,8 @@ describe('BoardGallery', () => {
   })
 
   it('bấm một thẻ bảng → mount EdgelessBoard với đúng boardId, lưới ẩn đi', async () => {
-    const meta = await taoBang('Bảng test')
+    const meta = taoBangGia('Bảng test')
+    await idbPut(IDB_STORES.boards, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -1332,7 +1307,8 @@ describe('BoardGallery', () => {
   })
 
   it('dangHienTab=false trong khi có bảng mở → EdgelessBoard VẪN mount (không unmount), chỉ ẩn', async () => {
-    const meta = await taoBang('Bảng test')
+    const meta = taoBangGia('Bảng test')
+    await idbPut(IDB_STORES.boards, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -1358,7 +1334,7 @@ describe('BoardGallery', () => {
   })
 
   it('bấm nút quay lại → EdgelessBoard unmount thật, lưới hiện lại', async () => {
-    await taoBang('Bảng test')
+    await idbPut(IDB_STORES.boards, taoBangGia('Bảng test'))
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -1573,8 +1549,10 @@ phải giấu sau `React.lazy` (D13, ~994 kB gzip). `BoardGallery.tsx` được 
 lazy (đúng thiết kế §2.5 của spec — rẻ, luôn mount), nên import tĩnh đó sẽ kéo chunk nặng vào VỎ
 APP, phá đúng ranh giới nạp chậm mà cả D13 dựng lên.
 
-**Quyết định của kế hoạch này:** Task 5 chỉ xoá metadata (`xoaBangMeta` = `idbDelete` thuần).
-Bảng bị xoá biến mất khỏi danh sách và không còn cách nào mở lại qua UI, nhưng dữ liệu Yjs/blob
+**Quyết định của kế hoạch này:** Task 5 chỉ xoá metadata — nút "Xoá" gọi `remove(id)` của
+`useIdbCollection` (tự `idbDelete` bên trong, xem `src/lib/useIdbCollection.ts`), không tự viết
+hàm CRUD riêng. Bảng bị xoá biến mất khỏi danh sách và không còn cách nào mở lại qua UI, nhưng dữ
+liệu Yjs/blob
 thật của nó vẫn còn trong CSDL `'drtrong-board'` — rác không dọn, không phải mất dữ liệu người
 dùng thấy được. Cách dọn đúng (gọi `removeDoc()` qua `import()` động, KHÔNG tĩnh, giữ nguyên ranh
 giới lazy) là việc CHO CHẶNG SAU — không chặn chặng này (đúng phạm vi spec §7/§8 đã định).

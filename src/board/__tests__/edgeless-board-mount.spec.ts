@@ -17,6 +17,7 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import * as boardMeta from '../boardMeta'
 import { EdgelessBoard } from '../EdgelessBoard'
 
 // React 19 yêu cầu cờ này để `act()` không cảnh báo; vitest không tự đặt.
@@ -71,7 +72,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('dựng cây Lit trong thẻ div của React, có tổ tiên viewport, và dọn sạch khi tháo', async () => {
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
 
     // taoHoacMoBang() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
@@ -134,7 +135,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('hiện "Đang mở bảng…" trước, biến mất sau khi đồng bộ xong và cây Lit đã gắn', async () => {
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
 
     // Ngay sau lượt render đầu — trước khi taoHoacMoBang() kịp resolve — trạng thái chờ phải đã
@@ -154,7 +155,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('nội dung sống sót qua unmount rồi mount lại (cùng tên CSDL)', async () => {
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
     await act(async () => {
       await vi.waitFor(() => {
@@ -174,11 +175,11 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     })
 
     // Mount lại — TestWorkspace mới, nhưng cùng docSources/blobSources thật (IndexedDB thật hoặc
-    // polyfill của Step 1 Task 1, cùng tên CSDL 'drtrong-board' vì EdgelessBoard() luôn gọi
-    // taoHoacMoBang() không đối số) nên phải đọc lại được đúng doc 'board' đã lưu.
+    // polyfill của Step 1 Task 1, cùng tên CSDL 'drtrong-board') và CÙNG boardId 'board' truyền
+    // vào createElement ở trên nên phải đọc lại được đúng doc 'board' đã lưu.
     root = createRoot(container)
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
     await act(async () => {
       await vi.waitFor(() => {
@@ -204,7 +205,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
     try {
       await act(async () => {
-        root.render(createElement(EdgelessBoard))
+        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
       })
       // Giữ tham chiếu tới ĐÚNG thẻ div hostRef TRƯỚC khi tháo — cùng kỹ thuật ca kiểm đầu file
       // này đã dùng (xem chú thích ở đó). Sau khi React tháo, thẻ bọc `.drt-edgeless-viewport` bị
@@ -240,5 +241,35 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       doiSo.some((phan) => typeof phan === 'string' && phan.includes('unmounted component')),
     )
     expect(coLoiSetStateSauUnmount).toBe(false)
+  })
+
+  it('unmount → gọi capNhatAnhXemTruoc với đúng boardId và một chuỗi data URL', async () => {
+    const spy = vi.spyOn(boardMeta, 'capNhatAnhXemTruoc').mockResolvedValue(undefined)
+
+    await act(async () => {
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-chup-anh' }))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Trong happy-dom, canvas luôn có kích thước 0×0 vì không có layout thật. Để kích hoạt nhánh
+    // "có dữ liệu để chụp" trong code thực, phải gán trực tiếp kích thước khác 0 lên canvas
+    // TRƯỚC khi unmount. canvas.width/height là property ghi được bình thường, không cần layout.
+    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
+    if (canvasThat) {
+      canvasThat.width = 800
+      canvasThat.height = 600
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi.
+    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String))
+    spy.mockRestore()
   })
 })
