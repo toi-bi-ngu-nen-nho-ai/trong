@@ -145,6 +145,47 @@ describe('DanhSachBang', () => {
     })
   })
 
+  it('mở sửa tên, gõ nháp, Escape (huỷ), rồi mở sửa tên LẦN NỮA → ô nhập hiện đúng tên thật hiện tại, không phải bản nháp đã huỷ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Tên thật', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    const moMenuRoiSuaTen = async () => {
+      await act(async () => {
+        ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
+      })
+      await act(async () => {
+        ;(container.querySelector('[data-testid="doi-ten-bang-1"]') as HTMLButtonElement).click()
+      })
+    }
+
+    // Lần 1: mở sửa tên, gõ nháp, rồi Escape — HUỶ, không lưu.
+    await moMenuRoiSuaTen()
+    const input1 = container.querySelector('[data-testid="input-ten-bang-1"]') as HTMLInputElement
+    const datGiaTriGoc1 = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc1) datGiaTriGoc1.call(input1, 'Nháp')
+      else input1.value = 'Nháp'
+      input1.dispatchEvent(new Event('input', { bubbles: true }))
+      input1.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    // Huỷ đúng nghĩa: tên trên thẻ vẫn là tên thật, KHÔNG phải bản nháp.
+    expect(container.textContent).toContain('Tên thật')
+    expect(container.textContent).not.toContain('Nháp')
+
+    // Lần 2: mở sửa tên LẠI — ô nhập phải hiện tên THẬT hiện tại, không phải "Nháp" còn sót từ
+    // state cục bộ của lần trước (đây chính là lỗi mất-dữ-liệu-im-lặng: nếu ô nhập còn hiện
+    // "Nháp" và người dùng lỡ blur ra ngoài, onLuuTen sẽ ghi đè tên thật bằng bản nháp đã huỷ).
+    await moMenuRoiSuaTen()
+    const input2 = container.querySelector('[data-testid="input-ten-bang-1"]') as HTMLInputElement
+    expect(input2.value).toBe('Tên thật')
+  })
+
   it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → bảng biến mất khỏi lưới NGAY, rồi khỏi metadata', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })

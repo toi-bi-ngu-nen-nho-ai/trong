@@ -46,6 +46,15 @@ function TheBang({
 }) {
   const [tenNhap, setTenNhap] = useState(bang.ten)
 
+  // `tenNhap` chỉ khởi tạo MỘT LẦN từ `useState(bang.ten)` — không tự đồng bộ lại khi mở sửa tên
+  // LẦN THỨ HAI. Không có effect này: gõ nháp → Escape (huỷ, không lưu nhưng cũng không reset ô
+  // nhập) → mở sửa tên lại → ô nhập vẫn hiện bản nháp đã huỷ chứ không phải tên thật hiện tại →
+  // lỡ tay blur ra ngoài thì `onLuuTen(tenNhap)` ÂM THẦM ghi đè tên bảng bằng bản nháp cũ — mất
+  // dữ liệu thật, không chỉ hiển thị sai. Đồng bộ lại mỗi khi `dangSuaTen` chuyển sang true.
+  useEffect(() => {
+    if (dangSuaTen) setTenNhap(bang.ten)
+  }, [dangSuaTen, bang.ten])
+
   return (
     <div data-testid="the-bang" style={{ position: 'relative' }}>
       <button
