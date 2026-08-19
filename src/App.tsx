@@ -1072,9 +1072,9 @@ function HomeScreen({
           bản sáng lẫn tối. `paddingRight` chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo
           ở góc trên phải — xem cụm nút nổi trong App shell. Không có nó thì logo chui xuống dưới
           cụm nút đó. */}
-      <div className="px-5 pt-2 pb-4 flex items-center" style={{ paddingRight: 180 }}>
-        <span className="flex-none h-20 w-auto" style={{ color: "var(--c-text)" }}>
-          {icons.logo("h-20 w-auto")}
+      <div className="pl-10 pb-1 flex items-center" style={{ paddingRight: 180 }}>
+        <span className="flex-none h-18 w-auto" style={{ color: "var(--c-text)" }}>
+          {icons.logo("h-18 w-auto")}
         </span>
       </div>
 
