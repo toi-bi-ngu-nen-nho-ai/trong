@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../idb'
 
