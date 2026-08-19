@@ -1085,9 +1085,9 @@ function HomeScreen({
           hoà vào cả bản sáng lẫn tối. Logo có tỉ lệ rất ngang (1106×225 ≈ 4.9:1) nên `paddingRight`
           chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo ở góc trên phải là RÀNG BUỘC kích
           thước thật — xem cụm nút nổi trong App shell. Không có nó thì logo chồng lên cụm nút đó. */}
-      <div className="px-5 pt-2 pb-4 flex items-center" style={{ paddingRight: 180 }}>
-        <span className="flex-none h-8 w-auto" style={{ color: "var(--c-text)" }}>
-          {icons.logo("h-8 w-auto")}
+      <div className="px-8 pt-2 pb-6 flex items-center" style={{ paddingRight: 180 }}>
+        <span className="flex-none h-6 w-auto translate-y-2" style={{ color: "var(--c-primary)" }}>
+          {icons.logo("h-6 w-auto")}
         </span>
       </div>
 
