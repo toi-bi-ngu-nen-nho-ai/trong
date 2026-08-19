@@ -9,17 +9,25 @@ import { doiGhiAnhXongNeuCo } from './boardMeta'
 import { DanhSachBang } from './DanhSachBang'
 import { EdgelessBoard } from './index'
 
-// Đánh dấu "đã từng thử di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay không.
-// Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board' vắng
-// mặt (kể cả do người dùng CHỦ Ý xoá bảng đó), nên nó hồi sinh bảng đã xoá ở lần mở app kế tiếp —
-// VÀ trên máy chưa từng có bảng cũ, phần kiểm tra đó lặp lại (dựng TestWorkspace, mở IndexedDB,
-// đợi đồng bộ tới 4s) ở MỌI lần mount, mãi mãi, cho một việc đáng lẽ chỉ chạy một lần.
+// Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
+// không. Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board'
+// vắng mặt (kể cả do người dùng CHỦ Ý xoá bảng đó), nên nó hồi sinh bảng đã xoá ở lần mở app kế
+// tiếp — VÀ trên máy chưa từng có bảng cũ, phần kiểm tra đó lặp lại (dựng TestWorkspace, mở
+// IndexedDB, đợi đồng bộ tới 4s) ở MỌI lần mount, mãi mãi, cho một việc đáng lẽ chỉ chạy một lần.
 // `drtrong:` — cùng quy ước tiền tố namespace localStorage của App.tsx (DISCLAIMER_KEY,
 // TAB_SEARCH_HINT_KEY: "drtrong:tenKhoa"), KHÔNG dùng dấu gạch ngang để tránh trùng con chuỗi
 // "drtrong-board" (tên CSDL IndexedDB của di trú/bảng vẽ — xem TEN_CSDL_BANG ở diTruBangCu.ts) —
 // một khoá trùng chuỗi con đó, dù vô hại, sẽ khiến việc grep sau này kiểm ranh giới nạp chậm D13
 // (chuỗi "drtrong-board" không được lọt vào chunk vỏ app) báo dương tính giả.
 const DA_CHAY_DI_TRU_KEY = 'drtrong:board-di-tru-da-chay'
+
+// Chặn double-invoke TRONG CÙNG PHIÊN (React StrictMode ở dev, hoặc dangHienTab dội nhanh
+// true/false/true) khởi động hai lượt di trú song song — KHÁC với DA_CHAY_DI_TRU_KEY: cờ này chỉ
+// sống trong bộ nhớ (không cần bền vững qua localStorage), nghĩa là "đang làm", không phải "đã
+// xong". Ở module-scope (không phải state) vì nhiều instance BoardGallery không nên xảy ra, nhưng
+// nếu có thì vẫn phải chặn chung — đây là khoá tài nguyên toàn cục (một CSDL IndexedDB), không
+// phải trạng thái riêng của một component.
+let dangDiTru = false
 
 export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
@@ -32,14 +40,44 @@ export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
     // Chỉ thử di trú lần đầu người dùng THẬT SỰ mở tab Mindmap — không phải ngay lúc BoardGallery
     // mount (nó luôn mount cùng app shell, kể cả khi người dùng chưa từng chạm tab này).
     if (!dangHienTab) return
-    if (localStorage.getItem(DA_CHAY_DI_TRU_KEY)) return
-    // Đặt cờ TRƯỚC khi kích hoạt import động: một lượt double-invoke trong cùng phiên (StrictMode,
-    // hoặc dangHienTab dội lại true/false/true nhanh) không được kích hoạt di trú lần hai.
-    localStorage.setItem(DA_CHAY_DI_TRU_KEY, '1')
+    if (dangDiTru) return
+    try {
+      // Trình duyệt chặn storage (Safari iOS "Chặn mọi cookie", hết quota ở chế độ ẩn danh) ném
+      // SecurityError ở ĐÂY — nằm ngoài error boundary riêng của Mindmap (xem src/board/index.tsx,
+      // boundary đó chỉ bọc EdgelessBoard đã nạp chậm, không bọc BoardGallery), nên một lỗi không
+      // bắt sẽ nổi lên tới boundary GỐC và sập TOÀN BỘ app ngay lúc bấm tab Mindmap. Cùng khuôn
+      // try/catch quanh localStorage mà App.tsx đã dùng cho DISCLAIMER_KEY (useDisclaimerAck).
+      if (localStorage.getItem(DA_CHAY_DI_TRU_KEY)) return
+    } catch {
+      // Không đọc được cờ — cứ thử di trú (thà lặp lại ở phiên sau cho nhóm bị chặn storage, còn
+      // hơn bỏ hẳn tính năng cho họ). dangDiTru vẫn chặn double-invoke trong CÙNG phiên này.
+    }
+    dangDiTru = true
     // Import ĐỘNG: diTruBangCu.ts kéo theo cùng chồng BlockSuite nặng mà EdgelessBoard giữ sau
     // React.lazy (xem ./index.tsx) — import tĩnh ở đây từng kéo cả chồng đó vào chunk vỏ app, tải
     // eager cho MỌI người dùng kể cả người chưa từng mở tab Mindmap (D13 lazy-loading boundary).
-    void import('./diTruBangCu').then((m) => m.diTruBangCuNeuCo())
+    import('./diTruBangCu')
+      .then((m) => m.diTruBangCuNeuCo())
+      .then(() => {
+        // CHỈ đánh dấu "đã xong" SAU KHI thật sự thành công — đánh dấu trước (như bản cũ) khiến
+        // một lượt thất bại tạm thời (mất mạng lúc tải chunk lần đầu — kịch bản có thật, xem
+        // src/board/index.tsx và __tests__/ranh-gioi-nap-bang.spec.ts; hoặc di trú tự hết giờ 4s)
+        // làm bảng cũ của người dùng biến mất khỏi danh sách VĨNH VIỄN, không bao giờ thử lại.
+        try {
+          localStorage.setItem(DA_CHAY_DI_TRU_KEY, '1')
+        } catch {
+          // Không lưu được cờ thì lần mount tab Mindmap sau thử lại — chấp nhận được, không chặn
+          // việc dùng app (cùng tinh thần catch của useDisclaimerAck ở App.tsx).
+        }
+      })
+      .catch((loi: unknown) => {
+        // KHÔNG đánh dấu đã chạy ở đây — để lần mở tab Mindmap kế tiếp tự thử lại, thay vì mất
+        // bảng cũ khỏi danh sách vì một lần thất bại tạm thời (mất mạng, IndexedDB hỏng...).
+        console.error('BoardGallery: di trú bảng cũ thất bại, sẽ thử lại ở lần mở tab kế tiếp:', loi)
+      })
+      .finally(() => {
+        dangDiTru = false
+      })
   }, [dangHienTab])
 
   return (
