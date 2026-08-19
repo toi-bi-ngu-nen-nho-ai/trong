@@ -6067,8 +6067,16 @@ function RunningPanel() {
                   </div>
                   <p className={`${T.meta} flex items-center gap-1`} style={{ color: dangerous && runningStyle ? runningStyle.text : C.textSoft }}>
                     {dangerous && <span className="flex-none scale-75">{icons.alert()}</span>}
-                    {r.doseText}
-                    {r.rateText ? ` · ${r.rateText}` : ""}
+                    {/* Bảng bàn giao ca — đúng chỗ DESIGN.md nói Mono quan trọng nhất ("đọc đúng
+                        từng chữ số"), nhưng trước đây con số ở đây lại là text thường, khác thẻ liều
+                        gốc (App.tsx:8169) vốn đã bọc NUM_DOSE qua highlightDoseNumbers. Cùng nguồn
+                        app tự định dạng số (doseText/rateText, xem App.tsx:9719-9720, 8297, 10414),
+                        không phải chữ người dùng gõ — an toàn dùng dangerouslySetInnerHTML. */}
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: highlightDoseNumbers(r.doseText + (r.rateText ? ` · ${r.rateText}` : "")),
+                      }}
+                    />
                   </p>
                   {r.concText && <p className={T.meta} style={{ color: C.textSoft }}>{r.concText}</p>}
                   {/* Con số này CŨ tới mức nào — thiếu dòng này thì bảng trông như đang phản ánh
@@ -8550,9 +8558,15 @@ function AntibioticsScreen({
     return diseases.filter((d) => d.antibiotics.some((id) => ids.has(id)) || indicationDiseaseIds.has(d.id))
   }, [selectedGroup, diseases])
   const hasDiseaseStep = diseasesForGroup.length > 0
+  // Chỉ 1 bệnh lý khớp = không có quyết định thật nào để bắt chọn (khác trường hợp nhiều bệnh lý,
+  // nơi ép chọn đúng chỉ định là an toàn cố ý — xem comment "KHÔNG còn chip Liều chung" ở JSX bên
+  // dưới) — cùng lý do `autoEntry` đã tự chọn đường dùng khi chỉ còn một lựa chọn. Xác nhận với
+  // chủ dự án (/impeccable critique 2026-08-19).
+  const autoDisease = hasDiseaseStep && diseasesForGroup.length === 1 ? diseasesForGroup[0] : null
+  const effectiveDiseaseChoice = autoDisease ? autoDisease.id : diseaseChoice
 
   const selectedDisease =
-    diseaseChoice && diseaseChoice !== DISEASE_SKIP ? diseases.find((d) => d.id === diseaseChoice) ?? null : null
+    effectiveDiseaseChoice && effectiveDiseaseChoice !== DISEASE_SKIP ? diseases.find((d) => d.id === effectiveDiseaseChoice) ?? null : null
 
   // Đường dùng còn phù hợp: nếu đã chọn bệnh lý cụ thể, chỉ giữ đường dùng được bệnh lý đó tham chiếu
   // (kể cả tham chiếu ngược qua `indications` của chính thuốc); nếu không tìm thấy đường dùng nào khớp
@@ -8568,7 +8582,7 @@ function AntibioticsScreen({
     return selectedGroup.entries
   }, [selectedGroup, selectedDisease])
 
-  const readyForEntry = !hasDiseaseStep || diseaseChoice !== null
+  const readyForEntry = !hasDiseaseStep || effectiveDiseaseChoice !== null
   const autoEntry = readyForEntry && qualifyingEntries.length === 1 ? qualifyingEntries[0] : null
   const selectedEntry = autoEntry ?? (selectedEntryId ? qualifyingEntries.find((e) => e.id === selectedEntryId) ?? null : null)
   const showRouteStep = readyForEntry && qualifyingEntries.length > 1
@@ -8749,7 +8763,7 @@ function AntibioticsScreen({
           KHÔNG còn chip "Liều chung": liều mặc định của thuốc không đại diện cho một bệnh lý cụ thể
           nào, để chọn được coi như liều đúng cho MỌI bệnh lý là nguồn sai liều nguy hiểm nhất — bắt
           buộc chọn đúng bệnh lý trong danh sách bên dưới. */}
-      {selectedGroup && hasDiseaseStep && (
+      {selectedGroup && hasDiseaseStep && !autoDisease && (
         <div key={selectedGroup.name} className="fade-in mb-3">
           <SectionLabel>Chỉ định</SectionLabel>
           <div className="flex flex-wrap gap-2">
@@ -8764,7 +8778,7 @@ function AntibioticsScreen({
 
       {/* Đường dùng — chỉ hiện khi còn nhiều hơn một lựa chọn phù hợp */}
       {selectedGroup && showRouteStep && (
-        <div key={`${selectedGroup.name}-${diseaseChoice ?? "none"}`} className="fade-in mb-3">
+        <div key={`${selectedGroup.name}-${effectiveDiseaseChoice ?? "none"}`} className="fade-in mb-3">
           <SectionLabel>Đường dùng</SectionLabel>
           <div className="flex flex-wrap gap-2">
             {qualifyingEntries.map((entry) => (
@@ -8798,7 +8812,7 @@ function AntibioticsScreen({
             ? "Không tìm thấy kháng sinh phù hợp."
             : !selectedGroup
               ? "Chọn một kháng sinh ở trên để xem liều theo CrCl."
-              : hasDiseaseStep && diseaseChoice === null
+              : hasDiseaseStep && effectiveDiseaseChoice === null
                 ? "Chọn chỉ định ở trên để tiếp tục."
                 : "Chọn đường dùng ở trên để xem liều."}
         </p>
@@ -10531,8 +10545,12 @@ function InfusionCategoryScreen({
     return diseases.filter((d) => ids.has(d.id))
   }, [selected, diseases])
   const hasDiseaseStep = diseasesForDrug.length > 0
+  // Chỉ 1 chỉ định khớp = không có quyết định thật nào để bắt chọn, cùng lý do đã áp dụng cho
+  // bước "Chỉ định" ở AntibioticsScreen — xác nhận với chủ dự án (/impeccable critique 2026-08-19).
+  const autoDisease = hasDiseaseStep && diseasesForDrug.length === 1 ? diseasesForDrug[0] : null
+  const effectiveDiseaseChoice = autoDisease ? autoDisease.id : diseaseChoice
   const selectedDisease =
-    hasDiseaseStep && diseaseChoice && diseaseChoice !== DISEASE_SKIP ? diseases.find((d) => d.id === diseaseChoice) ?? null : null
+    hasDiseaseStep && effectiveDiseaseChoice && effectiveDiseaseChoice !== DISEASE_SKIP ? diseases.find((d) => d.id === effectiveDiseaseChoice) ?? null : null
 
   function selectDrug(id: string | null) {
     setSelectedId(id)
@@ -10542,7 +10560,7 @@ function InfusionCategoryScreen({
   // Chọn xong thuốc mà thẻ kết quả nằm dưới hai màn hình cuộn thì thao tác chưa xong. Gấp khung
   // bệnh nhân rồi cuộn thẳng tới thẻ — đây là lý do duy nhất người dùng bấm vào chip thuốc.
   const cardRef = useRef<HTMLDivElement | null>(null)
-  const readyForCard = !hasDiseaseStep || diseaseChoice !== null
+  const readyForCard = !hasDiseaseStep || effectiveDiseaseChoice !== null
   useEffect(() => {
     if (!effectiveId || !readyForCard) return
     collapsePatientPanel()
@@ -10624,7 +10642,7 @@ function InfusionCategoryScreen({
       {/* Chỉ định — chỉ hiện khi thuốc đang chọn có khai báo liều riêng theo bệnh lý, giống hệt bước
           "Chỉ định" ở AntibioticsScreen. KHÔNG còn chip "Liều chung" — cùng lý do: liều mặc định
           không đại diện cho một bệnh lý cụ thể, bắt buộc chọn đúng bệnh lý. */}
-      {selected && hasDiseaseStep && (
+      {selected && hasDiseaseStep && !autoDisease && (
         <div key={selected.id} className="fade-in mb-3">
           <SectionLabel>Chỉ định</SectionLabel>
           <div className="flex flex-wrap gap-2">
