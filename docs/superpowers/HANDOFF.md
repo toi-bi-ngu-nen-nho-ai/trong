@@ -1,6 +1,9 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-18**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-20**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **ĐÍNH CHÍNH bản 2026-08-18 (mục 17 trở lên).** Các bản viết trước ghi "chặng kế tiếp: BoardGallery"
+> như việc CHƯA LÀM. Nay **đã xong và đã gộp** — xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 18**.
 
 > **ĐÍNH CHÍNH bản 2026-08-16 (viết đêm 16, trước khi gộp xong).** Bản đó ghi P1-E "8/8 task xong,
 > CHƯA GỘP". Sáng 17/08 phát sinh tình huống hai lượt gộp tách rời — xem "CẢNH BÁO VẬN HÀNH — gộp
@@ -13,23 +16,27 @@ Cập nhật: **2026-08-18**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — P1-E đã gộp, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — BoardGallery đã gộp, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`4babe67`** — merge commit cục bộ, gộp nốt phần P1-E mà PR GitHub #1 thiếu (xem cảnh báo dưới) |
+| `main` | **`fe1dbf2`** — merge commit, gộp `worktree-board-gallery` (13 commit, xem mục 18) |
+| `worktree-board-gallery` | `b9d1a30` — giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
-| Cây làm việc | sạch (trừ `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`, xem mục 6) |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **159/159** (17 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `kiem:vendor-build` OK · `build` + `kiem:dist` xanh với `bản dịch vi.json — 132/132 có mặt` |
+| Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11) và `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6) |
+| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **243/243** (29 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 132/132 có mặt` |
 
-> **Về con số 159/159 (trước đó 148/148).** Đây là "lượt chạy gần nhất xanh", không phải "bộ test ổn
-> định" — xem bài học ca đỏ chập chờn ở mục 6 (vẫn còn giá trị, dù chưa tái phát từ lượt vá
-> `40f90e9`). Số 159/159 (17 file) là kết quả đo lại trực tiếp trong phiên đóng chặng "Gỡ nút thắt
-> Images/MindMap" (mục 16, 2026-08-18) — tăng đúng 1 file/11 ca so với 148/148 (16 file) trước đó,
-> không phải hồi quy về số lượng file.
+> **Về con số 243/243 (trước đó 159/159).** Đo lại trực tiếp ngay sau merge BoardGallery
+> (2026-08-20, mục 18) — tăng 8 file/84 ca so với 159/159 (17 file) của mục 16, đúng bằng số file/ca
+> mà nhánh `worktree-board-gallery` mang theo (`BoardGallery.spec.ts`, `DanhSachBang.spec.ts`,
+> `boardMeta.spec.ts`, `diTruBangCu.spec.ts`, + ca bổ sung trong `idb.spec.ts`/
+> `edgeless-board.spec.ts`/`edgeless-board-mount.spec.ts`). Không phải hồi quy.
+
+**Chặng BoardGallery — dọn hack mount-vĩnh-viễn — ĐÃ XONG VÀ ĐÃ GỘP** (`fe1dbf2`). 13 commit, hai
+vòng review toàn nhánh đã đóng. Chi tiết ở **mục 18**.
 
 **Chặng P1-E — nội dung dịch, đợt đầu — ĐÃ XONG VÀ ĐÃ GỘP** (`4babe67`, sau khi PR GitHub #1 gộp
 thiếu — xem cảnh báo vận hành ngay dưới). 9/9 task, **tự soát trực tiếp, KHÔNG có lượt review toàn
@@ -1280,5 +1287,143 @@ git status --short                      # kỳ vọng chỉ hai file sinh ra ở
 npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
 ```
 
-**Chặng kế tiếp:** BoardGallery (màn danh sách bảng, cần bảng metadata trước — xem "Ngoài phạm vi"
-ở trên); hoặc đợt dịch thứ hai cho nhóm gói chưa bật (`affine/data-view`).
+**Chặng kế tiếp — ĐÃ LÀM, xem mục 18:** BoardGallery (màn danh sách bảng).
+
+---
+
+## 18. CHẶNG BOARDGALLERY — ĐÃ XONG VÀ ĐÃ GỘP — dọn hack mount-vĩnh-viễn + bảng cứng
+
+Track **MindmapScreen**, phần "danh sách" — theo `[[project_mindmap-charter]]`. Nhánh
+`worktree-board-gallery` (worktree, không phải nhánh thường), gộp vào `main` tại **`fe1dbf2`**
+(2026-08-20, merge thường qua `git merge --no-ff`, không qua PR GitHub — xem "Vận hành" dưới).
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-19-board-gallery-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-19-board-gallery.md` |
+
+### Chặng này làm gì
+
+Trước chặng này, tab "Mindmap" mở thẳng **một bảng cứng** (`docId: 'board'` khoá cứng trong CSDL
+IndexedDB `'drtrong-board'`) và dùng **hack "mount vĩnh viễn"**: một khi mở tab Mindmap lần đầu,
+`<EdgelessBoard />` không bao giờ unmount nữa, chuyển tab khác chỉ ẩn bằng `visibility:hidden` +
+`pointer-events-none` + `inert` (lý do ban đầu: `Viewport`'s `ResizeObserver` tính sai tâm màn hình
+nếu khung về `0×0` giữa lúc `_initialTopLeft` chưa chốt — xem spec §1). Hack đó tồn tại vì trước D4
+(mục 17), unmount thật = mất trắng nội dung do bảng chỉ sống trong bộ nhớ.
+
+D4 đã xoá tiền đề đó (nội dung giờ bền vững qua IndexedDB), nên chặng này:
+
+- Thêm **`boardId`** xuyên suốt `EdgelessBoard.tsx` → `src/board/index.tsx`, bỏ `docId` khoá cứng
+  `'board'` (`taoHoacMoBang(boardId, tuyChon?)`).
+- Thêm store `boards` vào `idb.ts`, nâng `DB_VERSION` 4 → 5. Bản ghi `BangMeta { id, ten, taoLuc,
+  capNhatLuc, anhXemTruoc? }` — `id` đồng thời là `docId` Yjs của bảng đó.
+- **`DanhSachBang.tsx`** — lưới thẻ, tạo/đổi tên/xoá bảng.
+- **`BoardGallery.tsx`** — quản lý mở/đóng MỘT bảng tại một thời điểm, ẩn-theo-tab (giữ đúng cơ chế
+  `visibility:hidden`/`inert` cũ cho bảng ĐANG MỞ, vì lý do ResizeObserver ở trên vẫn còn giá trị —
+  chỉ bảng KHÔNG mở mới thật sự unmount).
+- **`diTruBangCu.ts`** — di trú tự động bảng cứng cũ (`docId: 'board'`) sang một mục `BangMeta`
+  thật trong danh sách, chạy một lần, tự phát hiện đã di trú hay chưa.
+- Ảnh xem trước (`anhXemTruoc`, JPEG data URL) chụp lúc rời bảng, ghi vào `BangMeta` qua
+  `capNhatAnhXemTruoc`.
+- Nối vào `App.tsx`: tab Mindmap giờ render `<BoardGallery />` thay vì thẳng `<EdgelessBoard />`;
+  **gỡ hẳn** state `daMoBangVe`/hack mount-vĩnh-viễn ở cấp `App.tsx` — trách nhiệm ẩn/hiện dời hết
+  vào `BoardGallery`.
+
+### Đã xong
+
+Lịch sử thật có 13 commit (kế hoạch gốc + một lượt sửa đồng bộ `tenNhap` + hai lượt vá review toàn
+nhánh):
+
+| Commit | Nội dung |
+|---|---|
+| `25192de` | Sửa kế hoạch: Task 1+5 dùng `useIdbCollection` có sẵn thay vì viết lại |
+| `5953af3` | `idb.ts` — thêm store `boards`, nâng `DB_VERSION` lên 5 |
+| `cfa1591` | `boardMeta.ts` — `BangMeta`, `taoIdBang`, `capNhatAnhXemTruoc` |
+| `7e4f397` | Vá test: gỡ import `beforeEach` thừa trong `idb.spec.ts` |
+| `281735e` | `boardId` xuyên suốt `EdgelessBoard.tsx`, bỏ `docId` khoá cứng `'board'` |
+| `9c5fcf9` | Chụp ảnh xem trước lúc rời bảng, ghi vào `boardMeta` |
+| `8f82755`, `c1832bb` | Vá ca kiểm ảnh xem trước — spy assertion vô nghĩa + set kích thước canvas |
+| `4f94885` | Di trú tự động bảng cũ (`docId: 'board'`) sang metadata danh sách |
+| `eaa961b` | Thêm hạn giờ chống treo cho di trú + ca kiểm nhánh thiếu nội dung |
+| `7031887` | `DanhSachBang.tsx` — lưới thẻ, tạo/đổi tên/xoá bảng |
+| `887ac9d` | Vá: đồng bộ lại `tenNhap` khi mở sửa tên lần nữa |
+| `d4acfd5` | `BoardGallery.tsx` — quản lý mở/đóng một bảng, ẩn-theo-tab thay hack cũ |
+| `934635b` | Nối `BoardGallery` vào tab Mindmap trong `App.tsx`, **gỡ hack mount-vĩnh-viễn** |
+| `47935bb` | Vá review toàn nhánh vòng 1 (xem dưới) |
+| `b9d1a30` | Vá review toàn nhánh vòng 2 — 2 lỗi do chính lượt vá vòng 1 sinh ra |
+
+`npm test` tại đầu nhánh (`9ea9928`, cùng gốc rẽ với D4) là **197/197** (21 file); cuối nhánh
+**243/243** (29 file trong repo sau merge) — tăng 8 file/46 ca mới của chính nhánh này
+(`BoardGallery.spec.ts`, `DanhSachBang.spec.ts`, `boardMeta.spec.ts`, `diTruBangCu.spec.ts`, cộng ca
+bổ sung trong `idb.spec.ts`/`edgeless-board.spec.ts`/`edgeless-board-mount.spec.ts`).
+
+### Hai vòng review toàn nhánh — commit `47935bb` và `b9d1a30`
+
+**Vòng 1** (`47935bb`, "áp findings review toàn nhánh") vá ba việc:
+- **Giữ ranh giới nạp chậm D13** — một điểm sửa lúc thi hành có nguy cơ import `EdgelessBoard`
+  thẳng vào `App.tsx`/`BoardGallery.tsx` thay vì qua vỏ lazy `src/board/index.tsx`, phá vỡ ranh giới
+  994 kB đã ghi ở mục 4.
+- **Sửa đua tranh di trú** (`diTruBangCu.ts`) — hai lượt gọi di trú gần như đồng thời (StrictMode
+  double-invoke, hoặc hai tab trình duyệt) có thể cùng thấy "chưa di trú" và tạo trùng mục.
+- **Sửa đua tranh ảnh xem trước** — chụp ảnh lúc rời bảng có thể chạy song song với thao tác mở
+  bảng khác, ghi nhầm ảnh vào sai `BangMeta`.
+- Thêm cuộn danh sách (`DanhSachBang` tràn quá khung khi nhiều bảng).
+
+**Vòng 2** (`b9d1a30`, "sửa 2 lỗi do lượt fix review toàn nhánh sinh ra") — đúng bài học lặp lại
+nhiều lần trong file này (mục 12, mục 13): **lượt vá review tự nó sinh lỗi mới**, phải review lại
+chính lượt vá chứ không coi nó là điểm dừng. Hai lỗi cụ thể chưa có báo cáo task chi tiết trong
+`.superpowers/sdd/` — xem `git show b9d1a30` nếu cần soi lại đúng thay đổi.
+
+### Vận hành — merge thường, không qua PR GitHub
+
+Chặng này gộp bằng `git merge --no-ff origin/worktree-board-gallery` chạy trực tiếp trên `main` cục
+bộ (không mở PR trên GitHub rồi bấm gộp qua UI) — khác thói quen P1-B/C/D. Trước khi merge đã xác
+nhận `origin/worktree-board-gallery` (`b9d1a30`) khớp `HEAD` của worktree cục bộ, đúng bài học đã
+trả giá ở mục 14 ("gộp PR trên GitHub bị thiếu nội dung" — luôn xác nhận SHA khớp trước khi gộp,
+không tin riêng tiêu đề PR/nhánh). Một PR GitHub (`pull/new/worktree-board-gallery`) đã được mở
+trước đó trong cùng phiên nhưng **không dùng để gộp** — gộp cục bộ rồi push `main` thẳng, PR đó giờ
+thừa (có thể đóng tay trên GitHub, không ảnh hưởng gì nếu bỏ ngỏ).
+
+Bảy cổng đo lại trực tiếp SAU merge (2026-08-20, không chép số cũ): `npx tsc --noEmit` exit 0 ·
+`npx vitest run --reporter=verbose` **243/243** (29 file) · `kiem:vendor` — so 2782 file với
+`bang-bam-vendor.json`, 0 sai lệch; so thượng nguồn, lệch 0 · `kiem:vendor-paths` — khớp 438 mục ·
+`npm run build` xanh (32.38s) · `kiem:dist` — đọc 14 file trong `dist/`, **bản dịch vi.json —
+132/132 có mặt** (không đổi so với mục 16 — chặng này không đụng `vi.json`/cây vendored), không còn
+`"affine-"`, mọi biến `--drt-*` dùng đều có định nghĩa.
+
+`src/data/antibiotics.ts` — edit dở dang của chủ dự án lúc bắt đầu phiên **không bị merge đụng vào**
+(nhánh BoardGallery không chạm file này); vẫn `modified`, chưa commit, đúng như HANDOFF mục 10-11
+dặn ("đừng đụng").
+
+### Chưa kiểm tay trên trình duyệt thật
+
+Cùng giới hạn môi trường đã ghi ở mục 16/17 (phiên không người theo dõi, Browser pane không
+compositing được cho thao tác bấm thật). Chặng này đổi cấu trúc component khá sâu (tab Mindmap giờ
+render `BoardGallery` thay vì thẳng `EdgelessBoard`) nên rủi ro hồi quy về TRẢI NGHIỆM (không phải
+đúng/sai logic — 7 cổng đã canh phần đó) cao hơn các chặng trước. **Còn nợ:** kiểm tay khi chủ dự án
+ở trước màn hình thật — mở tab Mindmap lần đầu (kỳ vọng thấy bảng cũ đã di trú tự động, không mất
+nội dung), tạo bảng mới, đổi tên, xoá, chuyển qua lại giữa hai bảng và giữa tab Mindmap với tab khác
+(kỳ vọng không nháy trắng, không mất zoom/pan — đúng lý do hack cũ tồn tại).
+
+### Ngoài phạm vi, còn nợ
+
+- Tên CSDL `'drtrong-board'` vẫn dùng chung một workspace cho mọi bảng, chỉ khác `docId` — đúng thiết
+  kế đã chốt ở spec D4 §7, không phải nợ.
+- **"Đẩy hết hiệu ứng" cho màn danh sách bảng** (`project_mindmap-charter`, cập nhật 2026-08-12: màn
+  danh sách vẫn là "app của chủ dự án", đáng ~70% công sức thiết kế) — `DanhSachBang.tsx` hiện là
+  lưới thẻ chức năng (tạo/đổi tên/xoá/cuộn), **chưa qua lượt "đẩy hết hiệu ứng rồi để chủ dự án cắt"**
+  mà charter yêu cầu. Đây là ứng viên hàng đầu cho chặng thiết kế riêng tiếp theo.
+- Đợt dịch thứ hai cho nhóm gói chưa bật (`affine/data-view`, ~162 chuỗi) — vẫn treo từ mục 16/17,
+  không đổi bởi chặng này.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng fe1dbf2 hoặc mới hơn
+git status --short                      # kỳ vọng chỉ src/data/antibiotics.ts (chủ dự án tự sửa) +
+                                         # hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp:** kiểm tay BoardGallery trên trình duyệt thật (xem trên); hoặc "đẩy hết hiệu ứng"
+cho `DanhSachBang.tsx` theo charter; hoặc đợt dịch thứ hai cho `affine/data-view`.
