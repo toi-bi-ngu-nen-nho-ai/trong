@@ -2352,7 +2352,7 @@ function AddAntibioticScreen({
           <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Rà soát lần cuối (YYYY-MM)</label>
           <input value={reviewedOn} onChange={(e) => setReviewedOn(e.target.value)} placeholder="VD: 2026-07" className={fieldClass} style={fieldStyle} />
           <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
-            Bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát".
+            Bỏ trống thì thẻ thuốc sẽ hiện rõ "kinh nghiệm lâm sàng tự biên soạn, chưa dẫn nguồn".
           </p>
         </div>
 
@@ -2965,7 +2965,7 @@ function EditAntibioticScreen({
           <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Rà soát lần cuối (YYYY-MM)</label>
           <input value={reviewedOn} onChange={(e) => setReviewedOn(e.target.value)} placeholder="VD: 2026-07" className={fieldClass} style={fieldStyle} />
           <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
-            Bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát".
+            Bỏ trống thì thẻ thuốc sẽ hiện rõ "kinh nghiệm lâm sàng tự biên soạn, chưa dẫn nguồn".
           </p>
         </div>
 
@@ -3568,7 +3568,7 @@ function AddInfusionScreen({
   const [mixVialVolume, setMixVialVolume] = useState(initial?.calc?.mix?.vialVolumeMl != null ? String(initial.calc.mix.vialVolumeMl) : "")
   const [mixReconstitute, setMixReconstitute] = useState(initial?.calc?.mix?.reconstituteMl != null ? String(initial.calc.mix.reconstituteMl) : "")
   const [mixDisplacement, setMixDisplacement] = useState(initial?.calc?.mix?.displacementMl != null ? String(initial.calc.mix.displacementMl) : "")
-  // Nguồn và ngày rà soát: bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát".
+  // Nguồn và ngày rà soát: bỏ trống thì thẻ thuốc sẽ hiện rõ "kinh nghiệm lâm sàng tự biên soạn, chưa dẫn nguồn".
   const [source, setSource] = useState(initial?.source ?? "")
   const [reviewedOn, setReviewedOn] = useState(initial?.reviewedOn ?? "")
 
@@ -3983,7 +3983,7 @@ function AddInfusionScreen({
           <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Rà soát lần cuối (YYYY-MM)</label>
           <input value={reviewedOn} onChange={(e) => setReviewedOn(e.target.value)} placeholder="VD: 2026-07" className={fieldClass} style={fieldStyle} />
           <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
-            Bỏ trống thì thẻ thuốc sẽ hiện rõ "chưa ghi nguồn · chưa rà soát" — để sau này biết mục nào còn phải kiểm chứng lại.
+            Bỏ trống thì thẻ thuốc sẽ hiện rõ "kinh nghiệm lâm sàng tự biên soạn, chưa dẫn nguồn" — để sau này biết mục nào còn phải kiểm chứng lại.
           </p>
         </div>
 
@@ -5296,7 +5296,13 @@ function SourceLine({ item, bare }: { item: SourceInfo; bare?: boolean }) {
     </p>
   ) : (
     <p className={`${T.meta} px-2.5 py-2 ${R.box}`} style={{ background: C.warnSoft, color: "var(--c-warn-icon)" }}>
-      Chưa ghi nguồn · chưa có ngày rà soát — bổ sung qua nút Sửa.
+      {/* Trước đây "Chưa ghi nguồn · chưa có ngày rà soát" đọc như một lỗi/thiếu sót của app — phần
+          lớn nội dung thuốc trong app này vốn tự biên soạn từ kinh nghiệm lâm sàng của tác giả
+          (xem PRODUCT.md § Evidence on Hand), không phải mọi mục đều có tài liệu bên ngoài để dẫn.
+          Câu mới nói đúng bản chất đó thay vì đọc như một ô trống quên điền (/impeccable critique
+          2026-08-19T10-03, P2 "Noradrenaline chưa ghi nguồn"). Vẫn giữ khung màu cảnh báo: một bác
+          sĩ trực thay ca vẫn nên biết đây KHÔNG phải trích dẫn từ tài liệu ngoài. */}
+      Dựa trên kinh nghiệm lâm sàng tự biên soạn, chưa dẫn nguồn/tài liệu bên ngoài — bổ sung qua nút Sửa nếu muốn.
     </p>
   )
   if (bare) return inner
@@ -8456,7 +8462,7 @@ function AntibioticDoseCard({
           CHƯA tự khai nguồn riêng thì rơi về nguồn của thuốc, không bắt buộc điền lại toàn bộ dữ
           liệu cũ. `alert` khi mục đang hiện chưa ghi nguồn: trước đây phải MỞ khối này ra mới biết,
           nên trên thực tế không ai biết. Nay tình trạng nằm ngay trên tiêu đề. */}
-      <Disclosure label={sourceItem.source || sourceItem.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — chưa ghi nguồn"} alert={!sourceItem.source && !sourceItem.reviewedOn}>
+      <Disclosure label={sourceItem.source || sourceItem.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — kinh nghiệm lâm sàng tự biên soạn"} alert={!sourceItem.source && !sourceItem.reviewedOn}>
         {indication && (indication.source || indication.reviewedOn) && (
           <p className={`${T.meta} mb-1.5`} style={{ color: C.textSoft }}>Nguồn riêng cho chỉ định {disease?.name}:</p>
         )}
@@ -10492,7 +10498,7 @@ function InfusionDrugCard({
       {/* Nguồn dữ liệu: ưu tiên nguồn riêng của bệnh lý đang chọn, rơi về nguồn chung của thuốc nếu
           bệnh lý chưa tự khai — xem chú thích ở AntibioticDoseCard. `alert` khi mục đang hiện chưa
           ghi nguồn: trước đây phải MỞ khối này ra mới biết, nên trên thực tế không ai biết. */}
-      <Disclosure label={sourceItem.source || sourceItem.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — chưa ghi nguồn"} alert={!sourceItem.source && !sourceItem.reviewedOn}>
+      <Disclosure label={sourceItem.source || sourceItem.reviewedOn ? "Nguồn dữ liệu" : "Nguồn dữ liệu — kinh nghiệm lâm sàng tự biên soạn"} alert={!sourceItem.source && !sourceItem.reviewedOn}>
         {indication && (indication.source || indication.reviewedOn) && (
           <p className={`${T.meta} mb-1.5`} style={{ color: C.textSoft }}>Nguồn riêng cho chỉ định {disease?.name}:</p>
         )}
