@@ -5693,8 +5693,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               <div className="flex flex-wrap gap-1.5">
                 <input value={patient.scr} onChange={(e) => setPatientField("scr", normalizeDecimalInput(e.target.value))} inputMode="decimal" placeholder="VD: 1.2" className={`${FIELD} flex-1 min-w-[96px]`} style={FIELD_STYLE} />
                 {/* h-11 trên chính khung viền, không phải trên các nút bên trong — nếu không, viền
-                    1px cộng thêm làm khối này cao 46px và lệch 2px so với ô nhập bên cạnh. */}
-                <div className={`flex h-11 ${R.input} overflow-hidden border flex-none`} style={{ borderColor: C.primaryLine }}>
+                    1px cộng thêm làm khối này cao 46px và lệch 2px so với ô nhập bên cạnh. Viền vẽ
+                    bằng boxShadow inset thay vì `border` thật — border thật ăn vào content-box (44px
+                    tổng trừ 2×1px viền = 42px cho hai nút `h-full` bên trong, dưới sàn chạm 44px);
+                    boxShadow không chiếm không gian box nên nút vẫn đúng 44px mà viền nhìn y hệt
+                    (/impeccable critique 2026-08-19T14-41, P3). */}
+                <div className={`flex h-11 ${R.input} overflow-hidden flex-none`} style={{ boxShadow: `inset 0 0 0 1px ${C.primaryLine}` }}>
                   {(["mgdl", "umol"] as const).map((u) => (
                     <button
                       key={u}
@@ -7715,7 +7719,14 @@ function AntibioticDoseCard({
   // lặng hiển thị bậc đó như một câu trả lời chắc chắn — đúng kiểu sai nguy hiểm nhất, vì người
   // dùng không có dấu hiệu nào để biết con số đang giả định thận bình thường. Chỉ nhắc khi thuốc
   // THẬT SỰ có nhiều bậc liều; thuốc một bậc (metronidazole, azithromycin) thì CrCl không đổi gì.
-  const missingCrcl = crcl == null && patient.rrt === "none" && !patient.akiUnstable && tiers.length > 1
+  // `crcl == null` giờ có HAI nguyên nhân khác hẳn nhau kể từ bản vá P0 (2026-08-19): "chưa nhập gì"
+  // (missingCrcl thật) HOẶC "đã nhập nhưng tuổi/cân nặng/chiều cao/creatinin khiến estimateCrCl từ
+  // chối thẳng, vd tuổi 200 làm tử số Cockcroft-Gault ≤0" (crclDataRejected) — trước đây gộp chung
+  // một `missingCrcl`, nên ca thứ hai hiện banner "Nhập tuổi, cân nặng và creatinin..." dù bác sĩ đã
+  // nhập đủ, dễ khiến họ gõ lại đúng số sai đó hoặc tưởng app lỗi hiển thị (/impeccable critique
+  // 2026-08-19T14-41, P2). Phải tách trước khi dùng patientCrclInputImplausible bên dưới.
+  const crclDataRejected = crcl == null && patient.rrt === "none" && !patient.akiUnstable && tiers.length > 1 && patientCrclInputImplausible
+  const missingCrcl = crcl == null && !crclDataRejected && patient.rrt === "none" && !patient.akiUnstable && tiers.length > 1
   // CrCl ĐÃ được dùng để chọn bậc liều ở trên (effectiveCrcl != null), nhưng dựa trên tuổi/cân
   // nặng/chiều cao/creatinin mà chính app đã gắn cờ "implausible" (vd tuổi 200) — khác missingCrcl
   // (chưa có số), đây là "có số nhưng số có thể sai". Cùng cách weightImplausible đã cảnh báo cho
@@ -8165,6 +8176,28 @@ function AntibioticDoseCard({
             </span>
             <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
               Thuốc này có {tiers.length} bậc liều theo Độ thanh thải thận. Nhập tuổi, cân nặng và creatinin ở khung "Bệnh nhân hiện tại" để app chọn đúng bậc.
+            </span>
+          </span>
+        </button>
+      )}
+
+      {/* Khác missingCrcl (chưa nhập gì): ĐÃ nhập đủ, nhưng số liệu bất thường tới mức estimateCrCl
+          từ chối thẳng (vd tuổi 200 → tử số Cockcroft-Gault ≤0), không ra được CrCl để hiện. Nói rõ
+          ĐÃ nhập rồi và vì sao vẫn không ra số — không lặp lại lời mời "nhập tuổi, cân nặng..." mà
+          bác sĩ vừa làm xong, dễ khiến họ gõ lại đúng số sai đó hoặc tưởng app lỗi hiển thị. */}
+      {crclDataRejected && (
+        <button
+          onClick={openPatientPanel}
+          className={`w-full text-left mb-1.5 px-2.5 py-2 ${R.box} flex items-start gap-2`}
+          style={{ background: C.warnSoft, border: `1px solid ${C.warnLine}` }}
+        >
+          <span className="mt-0.5 flex-none" style={{ color: C.warnIcon }}>{icons.alert()}</span>
+          <span>
+            <span className={`${T.meta} font-bold block`} style={{ color: C.warn }}>
+              Không tính được CrCl — số liệu bất thường, đang hiện liều bậc THẬN BÌNH THƯỜNG
+            </span>
+            <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
+              Kiểm tra lại tuổi, cân nặng, chiều cao hoặc creatinin ở khung "Bệnh nhân hiện tại" — số liệu hiện tại làm công thức Cockcroft-Gault không tính ra được.
             </span>
           </span>
         </button>
