@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto'
 
-import { act, createElement } from 'react'
+import { act, createElement, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import type { BangMeta } from '../boardMeta'
+import { capNhatAnhXemTruoc, type BangMeta } from '../boardMeta'
 import { BoardGallery } from '../BoardGallery'
 
 // Ghi thẳng qua idb.ts thay vì đi qua UI/hook — file này canh hành vi ĐIỀU HƯỚNG của BoardGallery
@@ -21,10 +21,24 @@ function taoBangGia(ten: string): BangMeta {
 
 // Giả EdgelessBoard thật (chunk nặng, cần DOM canvas) bằng một component tối giản có thể quan sát
 // được prop boardId — đủ để canh ĐÚNG hành vi điều hướng/ẩn-hiện mà file này chịu trách nhiệm,
-// không lặp lại phạm vi của edgeless-board-mount.spec.ts.
+// không lặp lại phạm vi của edgeless-board-mount.spec.ts. Cleanup effect gọi thẳng
+// capNhatAnhXemTruoc() thật (cùng module boardMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
+// mô phỏng ĐÚNG thời điểm lượt ghi ảnh xem trước bắt đầu (lúc unmount, xem EdgelessBoard.tsx thật),
+// để các ca kiểm dưới đây canh được đúng cuộc đua giữa lượt ghi đó và lượt đọc-lúc-mount của
+// DanhSachBang — không cần dựng canvas/BlockSuite thật.
+// `../diTruBangCu` KHÔNG mock ở đây (vẫn đúng như trước) — giờ nó chỉ tự `import()` khi
+// `dangHienTab` true VÀ cờ localStorage "đã chạy" chưa được đặt (xem BoardGallery.tsx), nên chunk
+// nặng đó chỉ thật sự tải NHIỀU NHẤT một lần cho cả file này, không phải mỗi lượt mount như trước
+// lượt sửa D13. Không thêm mock riêng vì các ca kiểm dưới đây vẫn xanh và đủ nhanh mà không cần.
 vi.mock('../index', () => ({
-  EdgelessBoard: ({ boardId }: { boardId: string }) =>
-    createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ'),
+  EdgelessBoard: ({ boardId }: { boardId: string }) => {
+    useEffect(() => {
+      return () => {
+        void capNhatAnhXemTruoc(boardId, 'data:image/jpeg;base64,gia')
+      }
+    }, [boardId])
+    return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')
+  },
 }))
 
 // `act(async () => { await vi.waitFor(() => { expect(...) } ) })` — một act() DUY NHẤT bọc ngoài
@@ -145,5 +159,32 @@ describe('BoardGallery', () => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     expect(container.querySelector('[data-testid="bang-gia"]')).toBeNull()
+  })
+
+  it('bấm quay lại → ảnh xem trước đã hiện NGAY trên thẻ (không phải chờ lượt mount sau)', async () => {
+    const meta = taoBangGia('Bảng test')
+    await idbPut(IDB_STORES.boards, meta)
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true }))
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
+    await act(async () => {
+      ;(container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="bang-gia"]')).not.toBeNull())
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="quay-lai"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull())
+
+    // useIdbCollection chỉ đọc MỘT LẦN lúc mount (không tự đọc lại) — nên nếu lượt mount này đọc
+    // phải bản ghi CŨ (chưa có ảnh, đúng lỗi đua đã sửa), việc `choDenKhi` chờ thêm KHÔNG giúp ích
+    // gì: state cục bộ của DanhSachBang đã "đông cứng" ở bản ghi cũ, ca kiểm này sẽ FAIL đúng nghĩa
+    // thay vì tự chập chờn qua nhờ đợi lâu hơn.
+    const anh = container.querySelector('[data-testid="the-bang"] img')
+    expect(anh).not.toBeNull()
+    expect(anh?.getAttribute('src')).toBe('data:image/jpeg;base64,gia')
   })
 })

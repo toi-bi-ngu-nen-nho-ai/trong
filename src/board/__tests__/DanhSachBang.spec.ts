@@ -186,6 +186,58 @@ describe('DanhSachBang', () => {
     expect(input2.value).toBe('Tên thật')
   })
 
+  it('bảng ĐÃ có ảnh xem trước → đổi tên → ảnh xem trước không bị mất (không bị update() đè bằng bản ghi thiếu anhXemTruoc)', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-1',
+      ten: 'Tên cũ',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      anhXemTruoc: 'data:image/jpeg;base64,anh-that',
+    })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+    // Trước khi đổi tên: ảnh xem trước đã hiện đúng trên thẻ (không phải ô trống TheTrong).
+    expect(container.querySelector('[data-testid="the-bang"] img')?.getAttribute('src')).toBe(
+      'data:image/jpeg;base64,anh-that',
+    )
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="doi-ten-bang-1"]') as HTMLButtonElement).click()
+    })
+
+    const input = container.querySelector('[data-testid="input-ten-bang-1"]') as HTMLInputElement
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(input, 'Tên mới')
+      else input.value = 'Tên mới'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+
+    expect(container.textContent).toContain('Tên mới')
+    // update() ghi ĐÈ TOÀN BỘ bản ghi bằng { ...bang, ten, capNhatLuc } — `bang` ở đây là snapshot
+    // cục bộ CỦA HOOK lúc render này, nếu nó đã có anhXemTruoc thì trường đó phải sống sót nguyên
+    // vẹn qua lượt ghi đè, cả trên thẻ NGAY lẫn trong IndexedDB sau đó.
+    expect(container.querySelector('[data-testid="the-bang"] img')?.getAttribute('src')).toBe(
+      'data:image/jpeg;base64,anh-that',
+    )
+
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string; ten: string; anhXemTruoc?: string }>(IDB_STORES.boards)
+      const sau = ds.find((b) => b.id === 'bang-1')
+      expect(sau?.ten).toBe('Tên mới')
+      expect(sau?.anhXemTruoc).toBe('data:image/jpeg;base64,anh-that')
+    })
+  })
+
   it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → bảng biến mất khỏi lưới NGAY, rồi khỏi metadata', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })

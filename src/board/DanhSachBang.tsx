@@ -156,57 +156,63 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
   const danhSachSapXep = [...danhSach].sort((a, b) => b.capNhatLuc - a.capNhatLuc)
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 10 }}>
-      {danhSachSapXep.map((bang) => (
-        <TheBang
-          key={bang.id}
-          bang={bang}
-          dangSuaTen={dangSuaTenId === bang.id}
-          dangMoMenu={dangMoMenuId === bang.id}
-          dangXacNhanXoa={dangXacNhanXoaId === bang.id}
-          onMo={() => onMoBang(bang.id)}
-          onBatMenu={() => setDangMoMenuId(dangMoMenuId === bang.id ? null : bang.id)}
-          onBatSuaTen={() => {
-            setDangMoMenuId(null)
-            setDangSuaTenId(bang.id)
+    // `scroll-ios` (xem src/index.css) — cùng quy ước cuộn dọc + đệm dưới thanh nav mà mọi màn hình
+    // khác trong app dùng (vd HomeScreen, LibraryScreen ở App.tsx). Thiếu nó, lưới bảng dài quá một
+    // màn hình không có cách nào cuộn tới — trước lượt sửa này chỉ có `padding: 10` ad-hoc, không
+    // phải vùng cuộn thật.
+    <div className="scroll-ios h-full">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
+        {danhSachSapXep.map((bang) => (
+          <TheBang
+            key={bang.id}
+            bang={bang}
+            dangSuaTen={dangSuaTenId === bang.id}
+            dangMoMenu={dangMoMenuId === bang.id}
+            dangXacNhanXoa={dangXacNhanXoaId === bang.id}
+            onMo={() => onMoBang(bang.id)}
+            onBatMenu={() => setDangMoMenuId(dangMoMenuId === bang.id ? null : bang.id)}
+            onBatSuaTen={() => {
+              setDangMoMenuId(null)
+              setDangSuaTenId(bang.id)
+            }}
+            onLuuTen={(tenMoi) => {
+              setDangSuaTenId(null)
+              const tenSach = tenMoi.trim() || bang.ten
+              update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
+            }}
+            onXoa={() => {
+              if (dangXacNhanXoaId !== bang.id) {
+                setDangXacNhanXoaId(bang.id)
+                return
+              }
+              setDangXacNhanXoaId(null)
+              setDangMoMenuId(null)
+              remove(bang.id)
+            }}
+          />
+        ))}
+        <button
+          type="button"
+          data-testid="tao-bang"
+          onClick={() => {
+            const bayGio = Date.now()
+            const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: bayGio, capNhatLuc: bayGio }
+            add(meta)
+            onMoBang(meta.id)
           }}
-          onLuuTen={(tenMoi) => {
-            setDangSuaTenId(null)
-            const tenSach = tenMoi.trim() || bang.ten
-            update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
+          style={{
+            aspectRatio: '4 / 3',
+            border: '2px dashed var(--c-line, #d5cdb8)',
+            borderRadius: 8,
+            background: 'none',
+            fontSize: 24,
+            color: 'var(--c-text-muted, #b5aa8f)',
           }}
-          onXoa={() => {
-            if (dangXacNhanXoaId !== bang.id) {
-              setDangXacNhanXoaId(bang.id)
-              return
-            }
-            setDangXacNhanXoaId(null)
-            setDangMoMenuId(null)
-            remove(bang.id)
-          }}
-        />
-      ))}
-      <button
-        type="button"
-        data-testid="tao-bang"
-        onClick={() => {
-          const bayGio = Date.now()
-          const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: bayGio, capNhatLuc: bayGio }
-          add(meta)
-          onMoBang(meta.id)
-        }}
-        style={{
-          aspectRatio: '4 / 3',
-          border: '2px dashed var(--c-line, #d5cdb8)',
-          borderRadius: 8,
-          background: 'none',
-          fontSize: 24,
-          color: 'var(--c-text-muted, #b5aa8f)',
-        }}
-        aria-label="Tạo bảng mới"
-      >
-        +
-      </button>
+          aria-label="Tạo bảng mới"
+        >
+          +
+        </button>
+      </div>
     </div>
   )
 }
