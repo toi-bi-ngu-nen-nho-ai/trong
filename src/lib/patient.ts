@@ -168,8 +168,15 @@ export function scrToMgDl(value: number, unit: "mgdl" | "umol"): number {
 
 // Cockcroft-Gault. `weightKg` là cân nặng đã chọn đúng loại (ABW hoặc AdjBW nếu béo phì) —
 // xem resolveDosingWeight trong lib/bodyWeight.ts.
+//
+// `140 - ageYears` phải dương — tuổi gõ nhầm (vd "200" thay vì "20") làm tử số ÂM, ra một CrCl âm
+// mà hàm này trước đây trả về y nguyên như một kết quả hợp lệ (chỉ Math.round, không kiểm dấu).
+// App hiện con số đó với đúng màu chữ trung tính của một CrCl đúng rồi chọn thẳng bậc liều kháng
+// sinh theo đó — sai âm thầm, không một tín hiệu nào (/impeccable critique 2026-08-19, P0). Trả về
+// null ở đây, không phải một số âm, để mọi nơi đọc estimateCrCl() đều tự động rơi về nhánh "chưa
+// tính được" sẵn có thay vì phải tự kiểm dấu ở từng chỗ gọi.
 export function estimateCrCl(ageYears: number, weightKg: number, scrMgDl: number, sex: Sex): number | null {
-  if (!(ageYears > 0) || !(weightKg > 0) || !(scrMgDl > 0)) return null
+  if (!(ageYears > 0) || !(weightKg > 0) || !(scrMgDl > 0) || !(140 - ageYears > 0)) return null
   let val = ((140 - ageYears) * weightKg) / (72 * scrMgDl)
   if (sex === "female") val *= 0.85
   return Math.round(val)
