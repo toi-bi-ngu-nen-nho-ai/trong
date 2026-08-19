@@ -60,7 +60,7 @@ function dungBlobSourceGia(): BlobSource {
 
 describe('taoHoacMoBang — đường cơ bản', () => {
   it('lần đầu trên cặp source rỗng → đúng 1 page, 1 surface, surface rỗng', async () => {
-    const { store } = await taoHoacMoBang({
+    const { store } = await taoHoacMoBang('board', {
       docSources: { main: dungDocSourceGia() },
       blobSources: { main: dungBlobSourceGia() },
     })
@@ -75,7 +75,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang({ docSources, blobSources })
+    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
     lanMot.workspace.forceStop()
 
     // store.root CHÍNH LÀ block affine:page (nó là root của store, không phải con của root) — nên
@@ -84,7 +84,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     // có/chưa có), dòng await ngay dưới đây sẽ NÉM LỖI "doc already exists" — đó chính là ca đỏ
     // ghim đúng lỗi mấu chốt §3 của spec. Sau khi qua được dòng đó, kiểm số affine:surface (con
     // thật của root) vẫn đúng 1 là bằng chứng seed không chạy lần hai.
-    const lanHai = await taoHoacMoBang({ docSources, blobSources })
+    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
     const surfaces = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
     expect(surfaces).toHaveLength(1)
     lanHai.workspace.forceStop()
@@ -94,7 +94,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang({ docSources, blobSources })
+    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
     lanMot.workspace.forceStop()
 
     // Mô phỏng ghi dở dang: xoá đúng lượt ghi của SUBDOC 'board' (nội dung khối: page + surface)
@@ -106,7 +106,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     // vào "doc có tồn tại trong meta hay không".
     docSources.main.kho.delete('board')
 
-    const lanHai = await taoHoacMoBang({ docSources, blobSources })
+    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
     expect(lanHai.store.root).not.toBeNull()
     const surfacesHoiPhuc = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
     expect(surfacesHoiPhuc).toHaveLength(1)
@@ -122,7 +122,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang({ docSources, blobSources })
+    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
     // 'affine:note' có `parent: ['@root']` (xem note-model.ts) nên gắn thẳng vào store.root — cùng
     // hình dạng cây mà một bảng vẽ thật có khi người dùng gõ nội dung. 'affine:paragraph' là con
     // hợp lệ của 'affine:note' (xem paragraph-model.ts) và mang một `Text` — kiểu dữ liệu văn bản
@@ -137,7 +137,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     await lanMot.workspace.waitForSynced()
     lanMot.workspace.forceStop()
 
-    const lanHai = await taoHoacMoBang({ docSources, blobSources })
+    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
     const note = lanHai.store.root!.children.find((c) => c.flavour === 'affine:note')
     expect(note).toBeDefined()
     const doanVan = note!.children.find((c) => c.flavour === 'affine:paragraph')
@@ -149,11 +149,29 @@ describe('taoHoacMoBang — đường cơ bản', () => {
   })
 
   it('workspace.forceStop() gọi được ngay sau taoHoacMoBang() mà không ném lỗi', async () => {
-    const { workspace } = await taoHoacMoBang({
+    const { workspace } = await taoHoacMoBang('board', {
       docSources: { main: dungDocSourceGia() },
       blobSources: { main: dungBlobSourceGia() },
     })
     expect(() => workspace.forceStop()).not.toThrow()
+  })
+
+  it('hai boardId khác nhau trên CÙNG cặp source → hai doc độc lập, không đụng nhau', async () => {
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const bangA = await taoHoacMoBang('bang-a', { docSources, blobSources })
+    const noteId = bangA.store.addBlock('affine:note', {}, bangA.store.root!.id)
+    bangA.store.addBlock('affine:paragraph', { text: new Text('nội dung riêng của bảng A') }, noteId)
+    await bangA.workspace.waitForSynced()
+    bangA.workspace.forceStop()
+
+    const bangB = await taoHoacMoBang('bang-b', { docSources, blobSources })
+    // Bảng B không có note nào — nếu taoHoacMoBang bỏ sót boardId và luôn đọc/ghi docId 'board' cố
+    // định, ca này sẽ thấy note của bảng A lọt sang bảng B, đỏ ngay ở expect dưới.
+    const noteBangB = bangB.store.root!.children.find((c) => c.flavour === 'affine:note')
+    expect(noteBangB).toBeUndefined()
+    bangB.workspace.forceStop()
   })
 })
 
@@ -174,7 +192,7 @@ describe('taoHoacMoBang — hạn giờ khi IndexedDB không đồng bộ đư�
       list: () => new Promise(() => {}),
     }
 
-    const { store, workspace } = await taoHoacMoBang({
+    const { store, workspace } = await taoHoacMoBang('board', {
       docSources: { main: docSourceTreo },
       blobSources: { main: blobSourceTreo },
       hanGioMs: 20,

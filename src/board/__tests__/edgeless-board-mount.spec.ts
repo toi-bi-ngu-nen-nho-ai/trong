@@ -71,7 +71,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('dựng cây Lit trong thẻ div của React, có tổ tiên viewport, và dọn sạch khi tháo', async () => {
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
 
     // taoHoacMoBang() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
@@ -134,7 +134,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('hiện "Đang mở bảng…" trước, biến mất sau khi đồng bộ xong và cây Lit đã gắn', async () => {
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
 
     // Ngay sau lượt render đầu — trước khi taoHoacMoBang() kịp resolve — trạng thái chờ phải đã
@@ -154,7 +154,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('nội dung sống sót qua unmount rồi mount lại (cùng tên CSDL)', async () => {
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
     await act(async () => {
       await vi.waitFor(() => {
@@ -174,11 +174,11 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     })
 
     // Mount lại — TestWorkspace mới, nhưng cùng docSources/blobSources thật (IndexedDB thật hoặc
-    // polyfill của Step 1 Task 1, cùng tên CSDL 'drtrong-board' vì EdgelessBoard() luôn gọi
-    // taoHoacMoBang() không đối số) nên phải đọc lại được đúng doc 'board' đã lưu.
+    // polyfill của Step 1 Task 1, cùng tên CSDL 'drtrong-board') và CÙNG boardId 'board' truyền
+    // vào createElement ở trên nên phải đọc lại được đúng doc 'board' đã lưu.
     root = createRoot(container)
     await act(async () => {
-      root.render(createElement(EdgelessBoard))
+      root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
     await act(async () => {
       await vi.waitFor(() => {
@@ -204,7 +204,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
     try {
       await act(async () => {
-        root.render(createElement(EdgelessBoard))
+        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
       })
       // Giữ tham chiếu tới ĐÚNG thẻ div hostRef TRƯỚC khi tháo — cùng kỹ thuật ca kiểm đầu file
       // này đã dùng (xem chú thích ở đó). Sau khi React tháo, thẻ bọc `.drt-edgeless-viewport` bị

@@ -26,8 +26,8 @@ import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type Rea
 // mạng, dù sóng đã có trở lại. Cách duy nhất để thử lại thật là dựng một đối tượng lazy MỚI.
 // Kho dưới đây giữ đúng một đối tượng cho mỗi lần thử, để các lượt re-render bình thường của React
 // không dựng lại (và không tháo/lắp lại) bảng vẽ đang chạy.
-const kho = new Map<number, ComponentType>()
-function layBang(lan: number): ComponentType {
+const kho = new Map<number, ComponentType<{ boardId: string }>>()
+function layBang(lan: number): ComponentType<{ boardId: string }> {
   const co = kho.get(lan)
   if (co) return co
   const moi = lazy(() => import('./EdgelessBoard').then((m) => ({ default: m.EdgelessBoard })))
@@ -40,7 +40,7 @@ interface State {
   lan: number
 }
 
-export class EdgelessBoard extends Component<Record<string, never>, State> {
+export class EdgelessBoard extends Component<{ boardId: string }, State> {
   state: State = { loi: null, lan: 0 }
 
   static getDerivedStateFromError(loi: Error): Partial<State> {
@@ -93,7 +93,7 @@ export class EdgelessBoard extends Component<Record<string, never>, State> {
           </div>
         }
       >
-        <Bang />
+        <Bang boardId={this.props.boardId} />
       </Suspense>
     )
   }

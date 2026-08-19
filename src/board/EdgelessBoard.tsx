@@ -84,15 +84,15 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
  * `tuyChon` CHỈ dùng để ca kiểm tiêm docSources/blobSources/hanGioMs giả — gọi không đối số trong
  * app thật.
  *
- * QUAN TRỌNG: `createDoc('board')` ném lỗi nếu doc đã tồn tại. Với người dùng cũ, sau khi đồng bộ
- * xong thì `getDoc('board')` đã trả về non-null — PHẢI kiểm trước khi gọi `createDoc`, nếu không
+ * QUAN TRỌNG: `createDoc(boardId)` ném lỗi nếu doc đã tồn tại. Với người dùng cũ, sau khi đồng bộ
+ * xong thì `getDoc(boardId)` đã trả về non-null — PHẢI kiểm trước khi gọi `createDoc`, nếu không
  * mọi lần mở app sau lần đầu đều vỡ ngay lúc mount.
  *
  * Trả về `khongLuuDuoc: true` khi (và chỉ khi) lượt race đồng bộ ĐẦU TIÊN hết giờ và workspace phải
  * dựng lại ở chế độ chỉ-trong-bộ-nhớ — bên gọi (EdgelessBoard()) dùng cờ này để hiện một băng cảnh
  * báo thay vì im lặng để người dùng mất nội dung mà không biết.
  */
-export async function taoHoacMoBang(tuyChon?: {
+export async function taoHoacMoBang(boardId: string, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
@@ -135,14 +135,14 @@ export async function taoHoacMoBang(tuyChon?: {
       workspace.start()
     }
 
-    let doc = workspace.getDoc('board')
+    let doc = workspace.getDoc(boardId)
     if (!doc) {
-      doc = workspace.createDoc('board')
+      doc = workspace.createDoc(boardId)
     }
     const store = doc.getStore({ extensions: storeManager.get('store') })
     doc.load()
 
-    // Tự hồi phục khi doc đã ĐĂNG KÝ trong metadata IndexedDB (nên `getDoc('board')` khác null) nhưng
+    // Tự hồi phục khi doc đã ĐĂNG KÝ trong metadata IndexedDB (nên `getDoc(boardId)` khác null) nhưng
     // khối gốc (`affine:page`/`affine:surface`) chưa bao giờ được ghi xong — vd tab bị đóng đúng vào
     // khe vài mili-giây giữa lượt ghi metadata và lượt ghi khối lúc mở app lần đầu, hai tab cùng mở
     // app lần đầu và đua nhau, hoặc (ở dev) React StrictMode mount-rồi-remount hai lần tạo ra hai
@@ -200,7 +200,7 @@ export async function taoHoacMoBang(tuyChon?: {
   }
 }
 
-export function EdgelessBoard() {
+export function EdgelessBoard({ boardId }: { boardId: string }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
@@ -233,7 +233,7 @@ export function EdgelessBoard() {
     let huyBo = false
     let workspaceHienTai: TestWorkspace | null = null
 
-    taoHoacMoBang()
+    taoHoacMoBang(boardId)
       .then(({ workspace, store, khongLuuDuoc: khongLuuDuocKetQua }) => {
         if (huyBo) {
           // Component đã unmount trong lúc đang đợi đồng bộ — đóng ngay, không render, không giữ
@@ -262,7 +262,7 @@ export function EdgelessBoard() {
       litRender(null, el)
       workspaceHienTai?.forceStop()
     }
-  }, [])
+  }, [boardId])
 
   // `ViewportElementExtension('.drt-edgeless-viewport')` (đăng ký trong extensions/view.ts của cây
   // vendor) tìm phần tử viewport bằng `std.host.closest(...)` — đi NGƯỢC LÊN từ editor host, nên
