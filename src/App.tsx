@@ -8764,7 +8764,10 @@ function AntibioticsScreen({
           nào, để chọn được coi như liều đúng cho MỌI bệnh lý là nguồn sai liều nguy hiểm nhất — bắt
           buộc chọn đúng bệnh lý trong danh sách bên dưới. */}
       {selectedGroup && hasDiseaseStep && !autoDisease && (
-        <div key={selectedGroup.name} className="fade-in mb-3">
+        // aria-live: bước này chỉ xuất hiện SAU khi chọn hoạt chất — không có nó, người dùng trình
+        // đọc màn hình chọn xong thuốc không được báo có một bước bắt buộc mới hiện ra bên dưới
+        // (khác ô CrCl, vốn đã tự báo khi đổi giá trị — /impeccable critique 2026-08-19, cờ đỏ Sam).
+        <div key={selectedGroup.name} className="fade-in mb-3" aria-live="polite">
           <SectionLabel>Chỉ định</SectionLabel>
           <div className="flex flex-wrap gap-2">
             {diseasesForGroup.map((ds) => (
@@ -10643,7 +10646,9 @@ function InfusionCategoryScreen({
           "Chỉ định" ở AntibioticsScreen. KHÔNG còn chip "Liều chung" — cùng lý do: liều mặc định
           không đại diện cho một bệnh lý cụ thể, bắt buộc chọn đúng bệnh lý. */}
       {selected && hasDiseaseStep && !autoDisease && (
-        <div key={selected.id} className="fade-in mb-3">
+        // aria-live: cùng lý do đã sửa ở AntibioticsScreen — bước này chỉ hiện SAU khi chọn thuốc,
+        // trình đọc màn hình cần được báo (/impeccable critique 2026-08-19, cờ đỏ Sam).
+        <div key={selected.id} className="fade-in mb-3" aria-live="polite">
           <SectionLabel>Chỉ định</SectionLabel>
           <div className="flex flex-wrap gap-2">
             {diseasesForDrug.map((ds) => (
@@ -10968,6 +10973,11 @@ function DungThuocScreen({
         setRunning(resetUndo.running)
         saveRunning(resetUndo.running)
         setResetUndo(null)
+        // resetPatient() tự mở khung bệnh nhân (chưa có gì để nhập thì phải thấy chỗ nhập) — hoàn
+        // tác khôi phục lại đúng thông số cũ nên áp dụng lại quy tắc "chỉ tự gấp khi đã có thông số"
+        // (xem collapsePatientPanel) thay vì để khung đứng mở dù dữ liệu đã đầy đủ trở lại
+        // (/impeccable critique 2026-08-19, quan sát nhỏ).
+        if (patientHasData(resetUndo.patient)) setPatientOpen(false)
       },
       abwKg,
       heightCm,
