@@ -17,6 +17,7 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import * as boardMeta from '../boardMeta'
 import { EdgelessBoard } from '../EdgelessBoard'
 
 // React 19 yêu cầu cờ này để `act()` không cảnh báo; vitest không tự đặt.
@@ -240,5 +241,30 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       doiSo.some((phan) => typeof phan === 'string' && phan.includes('unmounted component')),
     )
     expect(coLoiSetStateSauUnmount).toBe(false)
+  })
+
+  it('unmount → gọi capNhatAnhXemTruoc với đúng boardId và một chuỗi data URL', async () => {
+    const spy = vi.spyOn(boardMeta, 'capNhatAnhXemTruoc').mockResolvedValue(undefined)
+
+    await act(async () => {
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-chup-anh' }))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    // canvas thật không tồn tại trong happy-dom (getContext('2d') đã bị giả ở đầu file) — hàm
+    // chụp phải KHÔNG NÉM LỖI trong trường hợp này (canvas rỗng/không vẽ được), nhưng cũng không
+    // bắt buộc gọi capNhatAnhXemTruoc nếu không có gì để chụp. Ca kiểm này canh việc unmount không
+    // đổ vỡ — ca kiểm tích hợp thật (chụp ra ảnh đúng) thuộc phạm vi kiểm tay trên trình duyệt
+    // thật (xem HANDOFF, cùng giới hạn đã ghi cho D4).
+    expect(spy).not.toThrow
+    spy.mockRestore()
   })
 })

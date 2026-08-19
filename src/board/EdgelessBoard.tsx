@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { apDungViewportChoIOS } from './viewport-ios'
+import { capNhatAnhXemTruoc } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -259,6 +260,23 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
     // IndexedDB còn chạy nền.
     return () => {
       huyBo = true
+      // Chụp ảnh xem trước TRƯỚC khi tháo cây Lit — sau litRender(null, el) canvas không còn.
+      // Best-effort tuyệt đối: lỗi ở đây KHÔNG được chặn dọn dẹp thật (forceStop() vẫn phải chạy).
+      try {
+        const canvasGoc = el.querySelector('canvas')
+        if (canvasGoc && canvasGoc.width > 0 && canvasGoc.height > 0) {
+          const nho = document.createElement('canvas')
+          nho.width = 480
+          nho.height = 360
+          const ctx = nho.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(canvasGoc, 0, 0, 480, 360)
+            void capNhatAnhXemTruoc(boardId, nho.toDataURL('image/jpeg', 0.6))
+          }
+        }
+      } catch {
+        // Chụp ảnh là tiện ích phụ — không được làm hỏng thao tác quay lại danh sách của người dùng.
+      }
       litRender(null, el)
       workspaceHienTai?.forceStop()
     }
