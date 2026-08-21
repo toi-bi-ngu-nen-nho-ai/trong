@@ -294,7 +294,7 @@ describe('DanhSachBang', () => {
     })
   })
 
-  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → bảng biến mất khỏi lưới NGAY, rồi khỏi metadata', async () => {
+  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → thẻ trượt ra (card-slide-out) rồi mới biến mất khỏi lưới, rồi khỏi metadata', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
@@ -316,15 +316,59 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     expect(nutXoa().textContent).toContain('Chắc chắn')
 
-    // Chạm lần 2: xoá thật.
+    // Chạm lần 2: bắt đầu xoá — thẻ CHƯA biến mất ngay, đang chạy .card-slide-out.
     await act(async () => {
       nutXoa().click()
     })
-    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    const theDangXoa = container.querySelector('[data-testid="the-bang"]') as HTMLElement
+    expect(theDangXoa).not.toBeNull()
+    expect(theDangXoa.className).toContain('card-slide-out')
+    expect(theDangXoa.style.pointerEvents).toBe('none')
+
+    // Sau khoảng chờ animation (200ms), thẻ mới thật sự biến mất khỏi state + IndexedDB.
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    }, 3000)
 
     await vi.waitFor(async () => {
       const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
       expect(ds.map((b) => b.id)).not.toContain('bang-1')
     })
+  })
+
+  it('xoá thẻ A (đang chạy card-slide-out) không đóng menu "⋯" đang mở của thẻ B', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-a', ten: 'Bảng A', taoLuc: bayGio - 20_000, capNhatLuc: bayGio - 20_000 })
+    await idbPut(IDB_STORES.boards, { id: 'bang-b', ten: 'Bảng B', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    // Mở menu của B trước.
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-b"]') as HTMLButtonElement).click()
+    })
+    expect(container.querySelector('[data-testid="doi-ten-bang-b"]')).not.toBeNull()
+
+    // Xoá A (hai chạm) — KHÔNG mở menu của A trước, chỉ thao tác trực tiếp qua state nội bộ bằng
+    // đúng luồng UI: mở menu A, chạm Xoá hai lần.
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-a"]') as HTMLButtonElement).click()
+    })
+    const nutXoaA = () => container.querySelector('[data-testid="xoa-bang-a"]') as HTMLButtonElement
+    await act(async () => { nutXoaA().click() })
+    await act(async () => { nutXoaA().click() })
+
+    // Menu của B mở lúc đầu đã bị đóng bởi bước mở-menu-A (đúng hành vi sẵn có: mở menu khác thì
+    // đóng menu cũ, dangMoMenuId chỉ giữ MỘT id) — kiểm đúng điều đó, không phải lỗi mới.
+    expect(container.querySelector('[data-testid="doi-ten-bang-b"]')).toBeNull()
+    // Thẻ B vẫn còn nguyên, không bị ảnh hưởng bởi việc A đang trượt ra.
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Bảng B')
   })
 })

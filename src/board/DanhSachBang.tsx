@@ -16,6 +16,10 @@ const XAC_NHAN_XOA_MS = 5000
 // Ngưỡng coi một thẻ là "vừa tạo" (dùng .card-plop thay vì .card-settle êm) — xem §3.2/§3.3 spec.
 const VUA_TAO_NGUONG_MS = 3000
 
+// Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi remove()
+// thật chạy, để animation kịp chạy hết trước khi gỡ khỏi DOM.
+const XOA_TRE_MS = 200
+
 // Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
 // Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
 // không tự xoay mỗi khi có gì đó khiến component render lại).
@@ -39,6 +43,7 @@ function TheBang({
   bang,
   index,
   vuaTao,
+  dangXoa,
   dangSuaTen,
   dangMoMenu,
   dangXacNhanXoa,
@@ -51,6 +56,7 @@ function TheBang({
   bang: BangMeta
   index: number
   vuaTao: boolean
+  dangXoa: boolean
   dangSuaTen: boolean
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
@@ -71,13 +77,18 @@ function TheBang({
     if (dangSuaTen) setTenNhap(bang.ten)
   }, [dangSuaTen, bang.ten])
 
-  const lopVaoMan = vuaTao ? 'card-plop' : 'card-settle'
+  const lopVaoMan = dangXoa ? 'card-slide-out' : vuaTao ? 'card-plop' : 'card-settle'
 
   return (
     <div
       data-testid="the-bang"
       className={lopVaoMan}
-      style={{ position: 'relative', '--tilt': `${nghiengOnDinh(bang.id)}deg`, '--i': index } as React.CSSProperties}
+      style={{
+        position: 'relative',
+        '--tilt': `${nghiengOnDinh(bang.id)}deg`,
+        '--i': index,
+        pointerEvents: dangXoa ? 'none' : undefined,
+      } as React.CSSProperties}
     >
       <button
         type="button"
@@ -165,6 +176,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
+  const [dangXoaId, setDangXoaId] = useState<string | null>(null)
   const luoBoMount = useRef(Date.now())
 
   useEffect(() => {
@@ -172,6 +184,16 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
     const id = setTimeout(() => setDangXacNhanXoaId(null), XAC_NHAN_XOA_MS)
     return () => clearTimeout(id)
   }, [dangXacNhanXoaId])
+
+  useEffect(() => {
+    if (!dangXoaId) return
+    const idBiXoa = dangXoaId
+    const id = setTimeout(() => {
+      remove(idBiXoa)
+      setDangXoaId(null)
+    }, XOA_TRE_MS)
+    return () => clearTimeout(id)
+  }, [dangXoaId, remove])
 
   // Chưa nạp xong lần đầu — không hiện gì (kể cả thẻ "+"), tránh nháy "rỗng" giả trước khi
   // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
@@ -192,6 +214,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
             bang={bang}
             index={index}
             vuaTao={luoBoMount.current - bang.taoLuc < VUA_TAO_NGUONG_MS}
+            dangXoa={dangXoaId === bang.id}
             dangSuaTen={dangSuaTenId === bang.id}
             dangMoMenu={dangMoMenuId === bang.id}
             dangXacNhanXoa={dangXacNhanXoaId === bang.id}
@@ -213,7 +236,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
               }
               setDangXacNhanXoaId(null)
               setDangMoMenuId(null)
-              remove(bang.id)
+              setDangXoaId(bang.id)
             }}
           />
         ))}
