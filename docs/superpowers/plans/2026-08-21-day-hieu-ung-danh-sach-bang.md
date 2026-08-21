@@ -672,10 +672,16 @@ Trong `src/index.css`, ngay sau khối `.card-plop { ... }` vừa thêm ở Task
 ```css
 /* Thẻ bị xoá trượt/rút khỏi chồng thay vì biến mất tức thì. forwards giữ trạng thái cuối (opacity
    0) trong khoảng chờ ngắn trước khi component thật sự gỡ nó khỏi DOM (XOA_TRE_MS trong
-   DanhSachBang.tsx). */
+   DanhSachBang.tsx).
+   KHÔNG dùng var(--tilt) ở đây — SỬA THEO RULING review Task 2 (ledger): .the-bang-vat (nút con)
+   đã có rotate(var(--tilt)) CỐ ĐỊNH suốt vòng đời; nếu outer div này CŨNG animate rotate(var(--tilt)
+   ...) thì hai rotate lồng nhau cộng dồn (nghiêng gấp đôi rồi giật khi animation hết fill-mode —
+   đúng lỗi đã vá ở .card-settle/.card-plop). Outer div ở đây chỉ đóng góp một góc CỐ ĐỊNH nhỏ
+   (-8deg, không tham chiếu --tilt) — cộng với --tilt cố định của nút con cho đúng hiệu ứng "nghiêng
+   thêm khi trượt ra" mà không tính --tilt hai lần. */
 @keyframes cardSlideOut {
-  from { opacity: 1; transform: translateX(0) rotate(var(--tilt, 0deg)) scale(1); }
-  to   { opacity: 0; transform: translateX(-24px) rotate(calc(var(--tilt, 0deg) - 8deg)) scale(0.92); }
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(-24px) rotate(-8deg) scale(0.92); }
 }
 .card-slide-out {
   animation: cardSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
