@@ -16,6 +16,7 @@ import {
   thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
   THUOC_TINH_HTML_HIEN_THI,
+  THUOC_TINH_LIT_HIEN_THI,
   viTriHienThi,
 } from '../../scripts/luat-vi-tri-dich.mjs'
 
@@ -47,6 +48,10 @@ describe('D12 — danh sách vị trí cho phép đúng kích thước và nội
   it('THUOC_TINH_HTML_HIEN_THI có đúng 1 tên: data-tip', () => {
     expect(THUOC_TINH_HTML_HIEN_THI).toEqual(['data-tip'])
   })
+
+  it('THUOC_TINH_LIT_HIEN_THI có đúng 1 tên: tooltip', () => {
+    expect(THUOC_TINH_LIT_HIEN_THI).toEqual(['tooltip'])
+  })
 })
 
 describe('D12 — vị trí ĐƯỢC dịch', () => {
@@ -64,6 +69,27 @@ describe('D12 — vị trí ĐƯỢC dịch', () => {
 
   it('literal đứng một mình sau data-tip= trong template', () => {
     const ra = dich('html`<x data-tip="${\'Style\'}"></x>`')
+    expect(ra).toContain('Phong cách')
+  })
+
+  // Cú pháp binding THUỘC TÍNH của Lit (`.tooltip=${…}`) khác cú pháp thuộc tính HTML thường
+  // (`data-tip="${…}"`) ở một điểm quan trọng: KHÔNG có nháy bao quanh nhịp. Đo 2026-08-21 trên
+  // trình duyệt thật: bốn nút toolbar (Fit to screen/Zoom out/Zoom in/Toggle Zoom Tool Bar) hiện
+  // tiếng Anh vì cơ chế cũ chỉ nhận dạng có nháy — luật THUOC_TINH_LIT_HIEN_THI này đóng đúng lỗ đó.
+  it('literal đứng một mình sau binding .tooltip= (không nháy) trong template', () => {
+    const ra = dich('html`<x .tooltip=${\'Style\'}></x>`')
+    expect(ra).toContain('Phong cách')
+  })
+
+  // Đo được ở affine/gfx/mindmap/src/toolbar/mindmap-tool-button.ts:354 — chuỗi hiển thị là MỘT
+  // NHÁNH của biểu thức điều kiện, không đứng trơ trọi một mình trong nhịp.
+  it('literal là một nhánh của biểu thức điều kiện ngay sau .tooltip=', () => {
+    const ra = dich('html`<x .tooltip=${popper ? \'\' : \'Style\'}></x>`')
+    expect(ra).toContain('Phong cách')
+  })
+
+  it('literal là nhánh whenTrue của biểu thức điều kiện ngay sau .tooltip=', () => {
+    const ra = dich('html`<x .tooltip=${popper ? \'Style\' : \'\'}></x>`')
     expect(ra).toContain('Phong cách')
   })
 })
@@ -150,6 +176,39 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
       expect(ra).toContain(`'Style'`)
     },
   )
+
+  it('literal là VẾ GHÉP sau binding .tooltip=, không đứng một mình', () => {
+    const ra = dich('html`<x .tooltip=${\'Style\' + hau}></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+
+  it('binding .tooltip= có NHÁY bao quanh (sai cú pháp Lit thật, không phải mục đo được)', () => {
+    const ra = dich('html`<x .tooltip="${\'Style\'}"></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+
+  it('binding thuộc tính khác .tooltip= (vd .class=) không được nhận', () => {
+    const ra = dich('html`<x .class=${\'Style\'}></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+
+  it.each(['?tooltip', '@tooltip', 'tooltip'])(
+    'tiền tố khác dấu chấm (hoặc không có tiền tố) trước tooltip= không được nhận: %s',
+    (ten) => {
+      const ra = dich('html`<x ' + ten + '=${\'Style\'}></x>`')
+      expect(ra).toContain(`'Style'`)
+    },
+  )
+
+  it('nhánh của biểu thức điều kiện sau một thuộc tính KHÔNG hiển thị (.class=) không được nhận', () => {
+    const ra = dich('html`<x .class=${popper ? \'\' : \'Style\'}></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
+
+  it('nhánh của biểu thức điều kiện LỒNG một cấp nữa (ternary trong ternary) không được nhận', () => {
+    const ra = dich('html`<x .tooltip=${a ? (b ? \'\' : \'Style\') : \'\'}></x>`')
+    expect(ra).toContain(`'Style'`)
+  })
 })
 
 describe('D12 — nhiều lượt thay trong cùng một file', () => {

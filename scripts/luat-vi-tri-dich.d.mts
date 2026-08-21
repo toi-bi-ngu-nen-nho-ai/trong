@@ -5,6 +5,7 @@ import type ts from 'typescript'
 export declare const THUOC_TINH_HIEN_THI: Set<string>
 export declare const DOI_SO_HIEN_THI: Set<string>
 export declare const THUOC_TINH_HTML_HIEN_THI: string[]
+export declare const THUOC_TINH_LIT_HIEN_THI: string[]
 
 export interface Luot {
   chuoiGoc: string

@@ -52,6 +52,16 @@ export const DOI_SO_HIEN_THI = new Set(['toast'])
 // không được dịch — hỏng theo hướng nhìn thấy được. Mở rộng khi đo được chỗ mới, không thêm trước.
 export const THUOC_TINH_HTML_HIEN_THI = ['data-tip']
 
+// Luật hẹp cho BINDING THUỘC TÍNH của Lit (`.tên=${…}`) — khác cú pháp thuộc tính HTML thường ở
+// trên tại một điểm quan trọng: KHÔNG có nháy bao quanh nhịp (Lit không đòi nháy cho property
+// binding). Đo 2026-08-21: 63 lượt `.tooltip=${…}` trong toàn cây vendor; kiểm tay trên trình
+// duyệt thật (dev server, tab Mindmap) xác nhận đúng 5 chuỗi tới người dùng qua `.tooltip=` —
+// "Fit to screen"/"Zoom out"/"Zoom in"/"Toggle Zoom Tool Bar" (widgets/edgeless-zoom-toolbar,
+// literal đứng một mình) và "Others" (gfx/mindmap/toolbar/mindmap-tool-button.ts:354, literal là
+// một nhánh của biểu thức điều kiện `popper ? '' : 'Others'`). Danh sách có đúng một mục vì đó là
+// mục duy nhất đo được — mở rộng khi đo chỗ mới, cùng nguyên tắc THUOC_TINH_HTML_HIEN_THI ở trên.
+export const THUOC_TINH_LIT_HIEN_THI = ['tooltip']
+
 function tenThuocTinh(name) {
   if (!name) return null
   if (name.kind === ts.SyntaxKind.Identifier) return name.text
@@ -76,6 +86,43 @@ function vanBanTruocNhip(span) {
   return i === 0 ? te.head.text : te.templateSpans[i - 1].literal.text
 }
 
+// Rút TÊN thuộc tính đứng ngay trước nhịp template rồi so khớp CHÍNH XÁC với hai danh sách cho
+// phép — dùng chung cho literal đứng một mình LẪN literal là một nhánh của biểu thức điều kiện
+// (cả hai đều cần hỏi "nhịp này đứng ngay sau thuộc tính gì").
+//
+// KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
+// `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố.
+//
+// Biên trái phải là `(?:^|\s)`, KHÔNG chỉ là "bắt đầu bằng chữ cái". Lý do đã trả giá một lượt vá:
+// nếu lớp ký tự mở đầu (`[A-Za-z]`) hẹp hơn lớp nối (`[\w:-]`), bộ quét chỉ việc bỏ qua tiền tố rồi
+// khớp ngay tại chữ `d` — nên `_data-tip=`, `-data-tip=` đều lọt oan.
+//
+// Hai luật KHÔNG gộp vào một regex chung dù trông giống nhau, vì cú pháp thật khác nhau ở đúng
+// chỗ dễ lẫn nhất: thuộc tính HTML đòi nháy quanh nhịp (`data-tip="${…}"`), binding Lit thì KHÔNG
+// (`.tooltip=${…}`) — Lit không đòi nháy cho property binding. Gộp chung bằng nháy-tuỳ-chọn sẽ mở
+// rộng CẢ HAI luật quá tay: `data-tip=${…}` (không nháy, chưa đo được) sẽ lọt qua luật HTML, và
+// `.data-tip=${…}` (có nháy, cũng chưa đo được) sẽ lọt qua luật Lit. Giữ tách biệt để mỗi luật chỉ
+// khớp đúng hình dạng đã đo, không hơn.
+function khopThuocTinhHtml(span) {
+  const truoc = vanBanTruocNhip(span)
+  if (truoc == null) return null
+
+  const khopHtml = truoc.match(/(?:^|\s)([A-Za-z][\w:-]*)\s*=\s*["']$/)
+  if (khopHtml && THUOC_TINH_HTML_HIEN_THI.includes(khopHtml[1])) {
+    return `thuộc-tính-html:${khopHtml[1]}`
+  }
+
+  // Dấu `.` phải đứng NGAY sau biên trái `(?:^|\s)` — cùng lý do neo biên đã ghi ở trên, để
+  // `?tooltip=`/`@tooltip=` (binding boolean/event của Lit, khác nghĩa, chưa đo được cho tên nào)
+  // và `tooltip=` trơn (chưa đo được — HTML thật không có thuộc tính `tooltip`) không lọt qua.
+  const khopLit = truoc.match(/(?:^|\s)\.([A-Za-z][\w:-]*)=$/)
+  if (khopLit && THUOC_TINH_LIT_HIEN_THI.includes(khopLit[1])) {
+    return `thuộc-tính-lit:${khopLit[1]}`
+  }
+
+  return null
+}
+
 export function viTriHienThi(node) {
   const p = node.parent
   if (!p) return null
@@ -91,25 +138,22 @@ export function viTriHienThi(node) {
   }
 
   if (p.kind === ts.SyntaxKind.TemplateSpan && p.expression === node) {
-    const truoc = vanBanTruocNhip(p)
-    if (truoc == null) return null
-    // Rút TÊN thuộc tính đứng ngay trước nhịp rồi so khớp CHÍNH XÁC với danh sách cho phép.
-    //
-    // KHÔNG nội suy tên vào một regex dạng `${a}\s*=\s*["']$`: nó không neo biên trái nên
-    // `my-data-tip="` cũng khớp, tức luật rộng hơn danh sách "đúng một tên" mà kế hoạch tuyên bố.
-    //
-    // Và biên trái phải là `(?:^|\s)`, KHÔNG chỉ là "bắt đầu bằng chữ cái". Lý do đã trả giá một
-    // lượt vá: nếu lớp ký tự mở đầu (`[A-Za-z]`) hẹp hơn lớp nối (`[\w:-]`), bộ quét chỉ việc bỏ
-    // qua tiền tố rồi khớp ngay tại chữ `d` — nên `_data-tip=`, `-data-tip=`, `.data-tip=`,
-    // `?data-tip=`, `@data-tip=` đều lọt. Ba cái sau là cú pháp binding CÓ THẬT của Lit
-    // (property / boolean / event), nên đây không phải lo xa.
-    //
-    // Chuỗi khớp còn giữ được tính miễn nhiễm metachar: một tên có `.` hay `[` trong danh sách sẽ
-    // không bao giờ khớp (chúng nằm ngoài `[\w:-]`), tức im lặng không dịch — vẫn fail-closed.
-    const khop = truoc.match(/(?:^|\s)([A-Za-z][\w:-]*)\s*=\s*["']$/)
-    if (khop && THUOC_TINH_HTML_HIEN_THI.includes(khop[1])) {
-      return `thuộc-tính-html:${khop[1]}`
+    return khopThuocTinhHtml(p)
+  }
+
+  // Literal là một NHÁNH của biểu thức điều kiện (`cond ? '' : 'X'`), và bản thân biểu thức điều
+  // kiện đó đứng MỘT MÌNH trong nhịp — đo được ở gfx/mindmap/toolbar/mindmap-tool-button.ts:354
+  // (`.tooltip=${popper ? '' : 'Others'}`). KHÔNG đệ quy sâu hơn một cấp: nhánh CỦA nhánh (ternary
+  // lồng ternary) không đo được, không mở rộng trước — giữ fail-closed đúng nguyên tắc đầu file.
+  if (
+    p.kind === ts.SyntaxKind.ConditionalExpression &&
+    (p.whenTrue === node || p.whenFalse === node)
+  ) {
+    const gp = p.parent
+    if (gp && gp.kind === ts.SyntaxKind.TemplateSpan && gp.expression === p) {
+      return khopThuocTinhHtml(gp)
     }
+    return null
   }
 
   return null
