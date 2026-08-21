@@ -35,6 +35,10 @@ export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
   // xem chú thích dài ở nút "quay lại" bên dưới để hiểu vì sao cần một cờ riêng thay vì mount
   // DanhSachBang NGAY khi openBoardId về null.
   const [dangDong, setDangDong] = useState(false)
+  // "vừa đóng một bảng" — cho DanhSachBang biết để chạy .board-out đúng MỘT lần khi nó tái xuất
+  // hiện. KHÔNG dùng chung với dangDong (dangDong canh cuộc đua ảnh xem trước, không liên quan
+  // animation) — hai mối quan tâm tách biệt dù cùng bật/tắt gần nhau trong thời gian.
+  const [vuaDongBang, setVuaDongBang] = useState(false)
 
   useEffect(() => {
     // Chỉ thử di trú lần đầu người dùng THẬT SỰ mở tab Mindmap — không phải ngay lúc BoardGallery
@@ -82,11 +86,18 @@ export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
 
   return (
     <>
-      {!openBoardId && !dangDong && dangHienTab && <DanhSachBang onMoBang={setOpenBoardId} />}
+      {!openBoardId && !dangDong && dangHienTab && (
+        <DanhSachBang
+          onMoBang={setOpenBoardId}
+          dungTuBang={vuaDongBang}
+          onHieuUngXong={() => setVuaDongBang(false)}
+        />
+      )}
       {openBoardId && (
         <div
+          key={openBoardId}
           data-testid="boc-bang"
-          className={`absolute inset-0${dangHienTab ? '' : ' invisible pointer-events-none'}`}
+          className={`absolute inset-0 board-in${dangHienTab ? '' : ' invisible pointer-events-none'}`}
           inert={!dangHienTab}
         >
           <EdgelessBoard boardId={openBoardId} />
@@ -101,6 +112,7 @@ export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
               // EdgelessBoard unmount, lượt đọc-lúc-mount của nó hầu như luôn xong TRƯỚC lượt ghi
               // (đọc đơn so với đọc-rồi-ghi), nên thẻ hiện bản ghi CŨ mãi tới lần mount SAU.
               setDangDong(true)
+              setVuaDongBang(true)
               setOpenBoardId(null)
 
               // Nhường một nhịp macrotask cho React thật sự CHẠY cleanup effect vừa lên lịch ở trên

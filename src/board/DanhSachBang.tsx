@@ -167,7 +167,15 @@ function TheBang({
   )
 }
 
-export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void }) {
+export function DanhSachBang({
+  onMoBang,
+  dungTuBang,
+  onHieuUngXong,
+}: {
+  onMoBang: (boardId: string) => void
+  dungTuBang?: boolean
+  onHieuUngXong?: () => void
+}) {
   // useIdbCollection tự nạp danh sách lúc mount (fetch một lần, xem src/lib/useIdbCollection.ts)
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
   // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
@@ -195,6 +203,16 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
     return () => clearTimeout(id)
   }, [dangXoaId, remove])
 
+  // Hiệu ứng .board-out chỉ chạy MỘT LẦN khi vừa đóng một bảng (dungTuBang=true) — tự báo xong
+  // sau khi animation (0,2s, xem index.css) kết thúc, cộng biên an toàn nhỏ. KHÔNG chạy khi
+  // DanhSachBang mount vì lý do khác (vd lần đầu vào tab Mindmap) — dungTuBang khi đó là
+  // undefined/false, effect này không làm gì.
+  useEffect(() => {
+    if (!dungTuBang) return
+    const id = setTimeout(() => onHieuUngXong?.(), 220)
+    return () => clearTimeout(id)
+  }, [dungTuBang, onHieuUngXong])
+
   // Chưa nạp xong lần đầu — không hiện gì (kể cả thẻ "+"), tránh nháy "rỗng" giả trước khi
   // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
   if (loading) return null
@@ -210,7 +228,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
   }
 
   return (
-    <div className="scroll-ios h-full">
+    <div className={`scroll-ios h-full${dungTuBang ? ' board-out' : ''}`}>
       {danhSachSapXep.length === 0 ? (
         <div
           style={{
