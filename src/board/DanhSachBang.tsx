@@ -1,7 +1,7 @@
 // Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. KHÔNG phụ thuộc BlockSuite (không import ./index hay
 // ./EdgelessBoard) — giữ file này nhẹ, tách hẳn khỏi ranh giới nạp chậm 994 kB. BoardGallery.tsx
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
@@ -12,6 +12,9 @@ import { type BangMeta, taoIdBang } from './boardMeta'
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
 // dòng đó. Xem Global Constraints của kế hoạch này.
 const XAC_NHAN_XOA_MS = 5000
+
+// Ngưỡng coi một thẻ là "vừa tạo" (dùng .card-plop thay vì .card-settle êm) — xem §3.2/§3.3 spec.
+const VUA_TAO_NGUONG_MS = 3000
 
 // Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
 // Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
@@ -34,6 +37,8 @@ function TheTrong() {
 
 function TheBang({
   bang,
+  index,
+  vuaTao,
   dangSuaTen,
   dangMoMenu,
   dangXacNhanXoa,
@@ -44,6 +49,8 @@ function TheBang({
   onXoa,
 }: {
   bang: BangMeta
+  index: number
+  vuaTao: boolean
   dangSuaTen: boolean
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
@@ -64,10 +71,13 @@ function TheBang({
     if (dangSuaTen) setTenNhap(bang.ten)
   }, [dangSuaTen, bang.ten])
 
+  const lopVaoMan = vuaTao ? 'card-plop' : 'card-settle'
+
   return (
     <div
       data-testid="the-bang"
-      style={{ position: 'relative', '--tilt': `${nghiengOnDinh(bang.id)}deg` } as React.CSSProperties}
+      className={lopVaoMan}
+      style={{ position: 'relative', '--tilt': `${nghiengOnDinh(bang.id)}deg`, '--i': index } as React.CSSProperties}
     >
       <button
         type="button"
@@ -155,6 +165,7 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
+  const luoBoMount = useRef(Date.now())
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -175,10 +186,12 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
     // phải vùng cuộn thật.
     <div className="scroll-ios h-full">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
-        {danhSachSapXep.map((bang) => (
+        {danhSachSapXep.map((bang, index) => (
           <TheBang
             key={bang.id}
             bang={bang}
+            index={index}
+            vuaTao={luoBoMount.current - bang.taoLuc < VUA_TAO_NGUONG_MS}
             dangSuaTen={dangSuaTenId === bang.id}
             dangMoMenu={dangMoMenuId === bang.id}
             dangXacNhanXoa={dangXacNhanXoaId === bang.id}

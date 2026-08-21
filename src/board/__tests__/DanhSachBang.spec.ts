@@ -115,6 +115,24 @@ describe('DanhSachBang', () => {
     expect(tilt).toBe(`${nghiengOnDinh('bang-1')}deg`)
   })
 
+  it('thẻ vừa tạo (taoLuc gần đây) có class "card-plop"; thẻ cũ có class "card-settle"', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-cu', ten: 'Thẻ cũ', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
+    await idbPut(IDB_STORES.boards, { id: 'bang-moi', ten: 'Thẻ mới', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const cac = Array.from(container.querySelectorAll('[data-testid="the-bang"]')) as HTMLElement[]
+    const theCu = cac.find((el) => el.textContent?.includes('Thẻ cũ'))
+    const theMoi = cac.find((el) => el.textContent?.includes('Thẻ mới'))
+    expect(theCu?.className).toContain('card-settle')
+    expect(theMoi?.className).toContain('card-plop')
+  })
+
   it('bấm thẻ "+" → gọi onMoBang với id mới NGAY, thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {

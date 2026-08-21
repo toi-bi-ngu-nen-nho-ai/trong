@@ -537,6 +537,29 @@ html.theme-shift * {
   transform: rotate(0deg) scale(0.97);
 }
 
+/* Thẻ "rơi vào chỗ" lúc lưới vào màn — biến thể của .rise-in nhưng dừng ở góc nghiêng NGHỈ của
+   từng thẻ (--tilt, xem nghiengOnDinh trong DanhSachBang.tsx) thay vì luôn thẳng đứng. Dùng lại
+   NGUYÊN VẸN cơ chế --i/28ms/cap-8 mà .rise-in đã có — không phát minh cách stagger khác. */
+@keyframes cardSettle {
+  from { opacity: 0; transform: translateY(10px) rotate(0deg) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)) scale(1); }
+}
+.card-settle {
+  animation: cardSettle 0.26s cubic-bezier(0.25, 0.9, 0.35, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 28ms);
+}
+
+/* Thẻ VỪA TẠO (taoLuc gần đây, xem VUA_TAO_NGUONG_MS) nảy quá đà nhẹ rồi settle, khác hẳn cảm
+   giác êm của .card-settle — "vừa đặt thêm một tấm ảnh mới vào chồng". */
+@keyframes cardPlop {
+  0%   { opacity: 0; transform: translateY(14px) rotate(0deg) scale(0.85); }
+  55%  { opacity: 1; transform: translateY(-3px) rotate(var(--tilt, 0deg)) scale(1.06); }
+  100% { opacity: 1; transform: translateY(0) rotate(var(--tilt, 0deg)) scale(1); }
+}
+.card-plop {
+  animation: cardPlop 0.34s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
 .screen-transition {
   animation: fadeSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -628,7 +651,9 @@ html.theme-shift * {
   .toast-in,
   .toast-in-full,
   .pulse-glow,
-  .pulse-scale {
+  .pulse-scale,
+  .card-settle,
+  .card-plop {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
