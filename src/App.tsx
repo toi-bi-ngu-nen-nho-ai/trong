@@ -8144,7 +8144,19 @@ function AntibioticDoseCard({
       {/* Dòng tiêu đề nhóm — chỉ hiện khi ≥2 trong 3 khối cảnh báo độc lập bên dưới (cơ sở cân nặng,
           RRT/AKI, CrCl) cùng bật, để phân biệt "N lời nhắc ĐỘC LẬP" khỏi một khối văn bản liên tục
           (/impeccable critique 2026-08-21 lượt 2, P2). Không gộp/gấp các khối lại: RRT có nút/link
-          thao tác riêng bên trong, gộp chung dễ làm mất focus/thao tác của nó. */}
+          thao tác riêng bên trong, gộp chung dễ làm mất focus/thao tác của nó.
+          LƯU Ý: trên thực tế N không bao giờ vượt quá 2 — crclWarnActive và rrtWarnActive loại trừ
+          lẫn nhau về mặt logic (crclReliability() trả "rrt"/"aki" bất cứ khi nào patient.rrt !== "none"
+          hoặc akiUnstable, khiến crclApplies luôn sai khi RRT/AKI đang bật, xem lib/patient.ts:189-193
+          + crclApplies dòng ~7748). Không phải bug — chỉ ghi lại để người đọc sau không tưởng nhầm ca
+          "cả 3 khối cùng bật" là khả thi (/impeccable critique 2026-08-21 lượt 3, P3). */}
+      {/* aria-live bọc CẢ khối cảnh báo trước-liều bên dưới (cơ sở cân nặng/RRT-AKI/CrCl): các khối
+          này bật/tắt độc lập theo trạng thái bệnh nhân (đổi RRT, sửa tuổi, nhập chiều cao...) — không
+          có aria-live thì người dùng trình đọc màn hình đổi RRT/tuổi xong không được báo có cảnh báo
+          mới xuất hiện hoặc vừa biến mất, phải tự dò lại cả thẻ (/impeccable critique 2026-08-21 lượt
+          3, P2, cờ đỏ Sam). polite (không assertive): đây là lời nhắc kèm bối cảnh, không phải kết quả
+          liều bị chặn — mức "assertive" đã dành riêng cho khối kiểm tra liều cực đoan ở InfusionCalculator. */}
+      <div aria-live="polite">
       {preDoseWarningCount >= 2 && (
         <p className={`${T.meta} font-bold mb-1`} style={{ color: C.textSoft }}>
           {preDoseWarningCount} điều cần biết trước khi dùng liều này — đọc hết trước khi ghim:
@@ -8157,7 +8169,7 @@ function AntibioticDoseCard({
           lời nhắc "còn thiếu dữ liệu" đi thì người dùng không biết vì sao liều mg/kg không ra số. */}
       {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used == null && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+          <p className={`text-[12px] font-bold ${PROSE}`} style={{ color: "var(--c-warn)" }}>
             Thuốc này cần cân nặng lý tưởng/hiệu chỉnh — nhập cân nặng và chiều cao ở trên để tính chính xác.
           </p>
         </div>
@@ -8168,7 +8180,7 @@ function AntibioticDoseCard({
           nào (/impeccable critique 2026-08-21, P0). */}
       {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used != null && dosingWeight.heightMissingForBasis && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+          <p className={`text-[12px] font-bold ${PROSE}`} style={{ color: "var(--c-warn)" }}>
             Thiếu chiều cao — đang tạm dùng cân nặng thực ({dosingWeight.used.toFixed(1)} kg) để tính liều này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
           </p>
         </div>
@@ -8177,27 +8189,27 @@ function AntibioticDoseCard({
           nhất. Bậc liều theo CrCl bị vô hiệu hoá, và nếu app không có dữ liệu thì phải nói thẳng. */}
       {patient.rrt !== "none" && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-danger-deep)" }}>
+          <p className={`text-[12px] font-bold leading-[1.45] ${PROSE}`} style={{ color: "var(--c-danger-deep)" }}>
             {RRT_LABELS[patient.rrt]} — bậc liều theo CrCl KHÔNG áp dụng.
           </p>
           {rrtDoseText ? (
             <>
-              <p className="text-[13px] font-bold leading-[1.45] mt-1" style={{ color: "var(--c-danger-deep)" }}>{rrtDoseText}</p>
+              <p className={`text-[13px] font-bold leading-[1.45] mt-1 ${PROSE}`} style={{ color: "var(--c-danger-deep)" }}>{rrtDoseText}</p>
               {/* Liều CRRT là con số CÓ ĐIỀU KIỆN — thiếu Qeff thì chưa đọc được nó thuộc cột nào */}
               {needsCrrtFlow(patient.rrt) && !((parseStrictNumber(patient.crrtFlowLPerH) ?? 0) > 0) && (
-                <button onClick={openPatientPanel} className="text-[12px] font-bold underline text-left leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
+                <button onClick={openPatientPanel} className={`text-[12px] font-bold underline text-left leading-[1.45] mt-1 ${PROSE}`} style={{ color: "var(--c-danger)" }}>
                   Chưa nhập tốc độ dịch thải (Qeff) — nhập ở khung "Bệnh nhân hiện tại" để biết khuyến cáo trên ứng với mức lọc nào.
                 </button>
               )}
             </>
           ) : (
-            <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-danger-deep)" }}>
+            <p className={`text-[12px] leading-[1.45] mt-0.5 ${PROSE}`} style={{ color: "var(--c-danger-deep)" }}>
               App CHƯA có dữ liệu liều cho phương thức lọc này với {drug.name}. Tra phác đồ lọc máu của cơ sở hoặc hỏi dược lâm sàng — liều và thời điểm dùng phụ thuộc phương thức lọc, liều lọc và lịch buổi lọc. Nhập được vào app qua nút Sửa để lần sau khỏi tra lại.
             </p>
           )}
-          {drug.rrt?.note && <p className="text-[12px] leading-[1.45] mt-1" style={{ color: "var(--c-danger-deep)" }}>{drug.rrt.note}</p>}
+          {drug.rrt?.note && <p className={`text-[12px] leading-[1.45] mt-1 ${PROSE}`} style={{ color: "var(--c-danger-deep)" }}>{drug.rrt.note}</p>}
           {(drug.rrt?.source || drug.rrt?.reviewedOn) && (
-            <p className="text-[12px] leading-[1.45] mt-1" style={{ color: "var(--c-danger)" }}>
+            <p className={`text-[12px] leading-[1.45] mt-1 ${PROSE}`} style={{ color: "var(--c-danger)" }}>
               {drug.rrt.source && <>Nguồn liều lọc máu: {drug.rrt.source}</>}
               {drug.rrt.source && drug.rrt.reviewedOn && " · "}
               {drug.rrt.reviewedOn && <>Rà soát: {formatReviewedOn(drug.rrt.reviewedOn)}</>}
@@ -8207,7 +8219,7 @@ function AntibioticDoseCard({
       )}
       {patient.rrt === "none" && patient.akiUnstable && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: "var(--c-warn)" }}>
+          <p className={`text-[12px] font-bold leading-[1.45] ${PROSE}`} style={{ color: "var(--c-warn)" }}>
             Tổn thương thận cấp (creatinin chưa ổn định) — Cockcroft-Gault không dùng được, app đang hiển thị liều bậc thận bình thường. Chỉnh liều theo lâm sàng, nồng độ thuốc đo được và ý kiến dược lâm sàng.
           </p>
         </div>
@@ -8222,10 +8234,10 @@ function AntibioticDoseCard({
         >
           <span className="mt-0.5 flex-none" style={{ color: C.warnIcon }}>{icons.alert()}</span>
           <span>
-            <span className={`${T.meta} font-bold block`} style={{ color: C.warn }}>
+            <span className={`${T.meta} font-bold block ${PROSE}`} style={{ color: C.warn }}>
               Chưa có CrCl — đang hiện liều bậc THẬN BÌNH THƯỜNG
             </span>
-            <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
+            <span className={`${T.meta} block mt-0.5 ${PROSE}`} style={{ color: "var(--c-warn-icon)" }}>
               Thuốc này có {tiers.length} bậc liều theo Độ thanh thải thận. Nhập tuổi, cân nặng và creatinin ở khung "Bệnh nhân hiện tại" để app chọn đúng bậc.
             </span>
           </span>
@@ -8244,10 +8256,10 @@ function AntibioticDoseCard({
         >
           <span className="mt-0.5 flex-none" style={{ color: C.warnIcon }}>{icons.alert()}</span>
           <span>
-            <span className={`${T.meta} font-bold block`} style={{ color: C.warn }}>
+            <span className={`${T.meta} font-bold block ${PROSE}`} style={{ color: C.warn }}>
               Không tính được CrCl — số liệu bất thường, đang hiện liều bậc THẬN BÌNH THƯỜNG
             </span>
-            <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
+            <span className={`${T.meta} block mt-0.5 ${PROSE}`} style={{ color: "var(--c-warn-icon)" }}>
               Kiểm tra lại tuổi, cân nặng, chiều cao hoặc creatinin ở khung "Bệnh nhân hiện tại" — số liệu hiện tại làm công thức Cockcroft-Gault không tính ra được.
             </span>
           </span>
@@ -8265,15 +8277,16 @@ function AntibioticDoseCard({
         >
           <span className="mt-0.5 flex-none" style={{ color: C.warnIcon }}>{icons.alert()}</span>
           <span>
-            <span className={`${T.meta} font-bold block`} style={{ color: C.warn }}>
+            <span className={`${T.meta} font-bold block ${PROSE}`} style={{ color: C.warn }}>
               Bậc liều dưới đây tính theo CrCl {crcl} — dựa trên số liệu bất thường
             </span>
-            <span className={`${T.meta} block mt-0.5`} style={{ color: "var(--c-warn-icon)" }}>
+            <span className={`${T.meta} block mt-0.5 ${PROSE}`} style={{ color: "var(--c-warn-icon)" }}>
               Kiểm tra lại tuổi, cân nặng, chiều cao hoặc creatinin ở khung "Bệnh nhân hiện tại" trước khi dùng bậc liều này.
             </span>
           </span>
         </button>
       )}
+      </div>
 
       <p className={T.body} style={{ color: "var(--c-text-2)" }} dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(tier.dose) }} />
 
@@ -9008,14 +9021,17 @@ function BolusList({
       {/* Đã có cân nặng nhưng THIẾU chiều cao cho thuốc cần cân nặng lý tưởng/hiệu chỉnh (vd nhũ
           dịch lipid LAST): weightKg vẫn ra số (âm thầm là ABW) nên liều nạp bên dưới vẫn hiện bình
           thường — phải nói rõ cơ sở đang dùng không phải cái thuốc yêu cầu (/impeccable critique
-          2026-08-21, P0). */}
+          2026-08-21, P0). aria-live: khối này bật/tắt theo chiều cao vừa nhập, đọc trợ năng phải biết
+          (/impeccable critique 2026-08-21 lượt 3, P2). */}
+      <div aria-live="polite">
       {doseWeightBasis && doseWeightBasis !== "actual" && weightKg != null && dosingWeight.heightMissingForBasis && hasPerKgBolus && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
-          <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+          <p className={`text-[12px] font-bold ${PROSE}`} style={{ color: "var(--c-warn)" }}>
             Thiếu chiều cao — đang tạm dùng cân nặng thực ({weightKg.toFixed(1)} kg) để tính liều nạp này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
           </p>
         </div>
       )}
+      </div>
       {list.map((b, i) => {
         const info = describe(b)
         return (
@@ -9985,8 +10001,12 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           ĐÃ có cân nặng (xác nhận đang dùng số nào); lúc thiếu thì không nhắc ở đây nữa — lý do và
           đường sửa đã nằm ngay trong ô kết quả bên dưới (xem missingReason), đúng chỗ người dùng
           đang nhìn khi thấy "—" mà không hiểu vì sao. */}
+      {/* aria-live: cân nặng dùng để tính và cờ "thiếu chiều cao" đổi theo trạng thái bệnh nhân — không
+          có nó, người dùng trình đọc màn hình sửa cân nặng/chiều cao xong không được báo khối này vừa
+          đổi (/impeccable critique 2026-08-21 lượt 3, P2, cùng lỗ hổng với AntibioticDoseCard). */}
+      <div aria-live="polite">
       {needWeight && weightKg != null && (
-        <p className="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45]" style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}>
+        <p className={`text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45] ${PROSE}`} style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}>
           Cân nặng dùng để tính: <b>{weightKg.toFixed(1)} kg</b>
           {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} — lấy từ khung "Bệnh nhân hiện tại".
         </p>
@@ -9996,10 +10016,11 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           phải cơ sở thuốc yêu cầu, cùng lỗ hổng đã vá ở AntibioticDoseCard/BolusList
           (/impeccable critique 2026-08-21, P0). */}
       {needWeight && weightKg != null && dosingWeight.heightMissingForBasis && (
-        <p className="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45] font-bold" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
+        <p className={`text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45] font-bold ${PROSE}`} style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
           Thiếu chiều cao — số trên là cân nặng thực, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
         </p>
       )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2 mb-1.5">
         <div>
@@ -10476,7 +10497,7 @@ function InfusionDrugCard({
   onEdit?: (drug: InfusionDrug) => void
   onDelete?: (id: string) => void
 }) {
-  const { pinRunning } = useDosing()
+  const { pinRunning, abwKg, heightCm, patient } = useDosing()
   // Bệnh lý áp dụng đè (override) doseRange/calc/boluses/note lên dữ liệu gốc — giống hệt cách
   // IndicationDose đè lên Antibiotic.tiers ở AntibioticDoseCard. Phần nào chỉ định không khai báo
   // thì giữ nguyên dữ liệu gốc của thuốc.
@@ -10498,6 +10519,23 @@ function InfusionDrugCard({
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
   const otherWarnings = (drug.warnings ?? []).filter((w) => w.severity !== "cao")
   const boluses = drug.boluses ?? []
+  // Cảnh báo "thiếu chiều cao" trong BolusList (vd Nhũ dịch lipid 20%/LAST) trước đây luôn bị giấu
+  // sau Disclosure "Liều nạp/bolus" đóng mặc định — khác hẳn AntibioticDoseCard, nơi cùng loại cảnh
+  // báo cơ sở cân nặng LUÔN hiện thẳng, không gấp lại (xem comment ở AntibioticDoseCard giải thích lý
+  // do). Với thuốc cấp cứu tối khẩn như LAST, bác sĩ không có thời gian dò accordion để thấy con số
+  // đang âm thầm dùng cân nặng thực thay vì cân nặng lý tưởng (/impeccable critique 2026-08-21 lượt
+  // 3, P2). Tính trước ở đây để mở sẵn đúng lúc cảnh báo đó thật sự áp dụng.
+  const dosingWeight = useMemo(
+    () => resolveDosingWeight(abwKg, heightCm, patient.sex, drug.doseWeightBasis ?? "actual"),
+    [abwKg, heightCm, patient.sex, drug.doseWeightBasis],
+  )
+  const bolusHeightMissingWarn = Boolean(
+    drug.doseWeightBasis &&
+      drug.doseWeightBasis !== "actual" &&
+      dosingWeight.used != null &&
+      dosingWeight.heightMissingForBasis &&
+      boluses.some((b) => b.perKgLow != null),
+  )
 
   return (
     <div className={`p-4 ${R.card} border mb-3`} style={{ borderColor: C.line, background: C.surface }}>
@@ -10588,7 +10626,7 @@ function InfusionDrugCard({
       )}
 
       {boluses.length > 0 && (
-        <Disclosure label="Liều nạp / bolus" count={boluses.length}>
+        <Disclosure label="Liều nạp / bolus" count={boluses.length} defaultOpen={bolusHeightMissingWarn}>
           <BolusList boluses={drug.boluses} drugName={drug.name} doseWeightBasis={drug.doseWeightBasis} />
         </Disclosure>
       )}
