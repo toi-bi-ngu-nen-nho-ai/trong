@@ -49,6 +49,41 @@
         ],
         "createdAt": "2026-08-08T03:27:27.125Z",
         "reason": "Disclosure/.disc-body max-height transition is a documented intentional tradeoff (index.css:652-664) — grid-template-rows was tried and reproducibly broke on this auto-height DOM structure; user confirmed intentional"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#f4f1ea",
+        "createdAt": "2026-08-21T09:03:13.000Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#b5aa8f",
+        "createdAt": "2026-08-21T09:03:14.496Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#8a8378",
+        "createdAt": "2026-08-21T09:03:15.978Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,0.15)",
+        "createdAt": "2026-08-21T09:03:16.949Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fff",
+        "createdAt": "2026-08-21T09:03:17.639Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#c0392b",
+        "createdAt": "2026-08-21T09:03:18.481Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d5cdb8",
+        "createdAt": "2026-08-21T09:03:19.176Z"
       }
     ]
   }
