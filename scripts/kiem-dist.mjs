@@ -27,7 +27,12 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 
-import { coNhuLiteral, giaiThichKhopTho, timTrungBanDich } from './so-khop-ban-dich.mjs'
+import {
+  coNhuLiteral,
+  coTrongTagTooltip,
+  giaiThichKhopTho,
+  timTrungBanDich,
+} from './so-khop-ban-dich.mjs'
 import { soanThongBaoThieu, timTrongCayVendor } from './tim-ban-dich-vendor.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
@@ -197,7 +202,12 @@ for (const f of dietFile(DIST)) {
       // Phép CHẶT: chuỗi phải nằm trọn trong một literal. `includes` chuỗi con tính nhầm một bản
       // dịch là "có mặt" khi nó chỉ là chuỗi con của một bản dịch KHÁC — đo được trên dist/ thật:
       // "Phong" khớp thô vào "Phong cách" đang ship, dù chỗ thật của nó đã bị tree-shake.
-      if (coNhuLiteral(noiDung, v)) thieuBanDich.delete(v)
+      //
+      // `coTrongTagTooltip` xử lớp KHÁC hẳn: chữ trần giữa <drt-tooltip>…</drt-tooltip> (vd
+      // "More Tools" → "Công cụ khác") không hề đứng một mình trong MỘT literal — nó là một khúc
+      // văn bản nằm GIỮA hai literal khác của cùng một template lớn hơn, nên `coNhuLiteral` không
+      // bao giờ thấy nó (đo được thật: luật C báo "Công cụ khác" thiếu dù bản dịch đã tới dist/).
+      if (coNhuLiteral(noiDung, v) || coTrongTagTooltip(noiDung, v)) thieuBanDich.delete(v)
       // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa
       // được ghi vào đây rồi sau đó khớp chặt ở file khác thì vẫn bị xoá khỏi `thieuBanDich`, nên
       // nó không bao giờ được in ra — thông báo chỉ lặp trên `thieuBanDich`.

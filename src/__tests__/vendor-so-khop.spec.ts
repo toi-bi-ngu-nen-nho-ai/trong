@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import {
   coDungNhuDaChen,
   coNhuLiteral,
+  coTrongTagTooltip,
   dangTrongNhay,
   giaiThichKhopTho,
   timTrungBanDich,
@@ -81,6 +82,31 @@ describe('coDungNhuDaChen — dùng cho .vendor-build/ chưa minify', () => {
 
   it('vẫn loại được ca tiền tố', () => {
     expect(coDungNhuDaChen('x = {label: "Tô màu"}', 'Tô')).toBe(false)
+  })
+})
+
+// CA GHIM ĐÚNG CON BUG ĐANG SỬA (2026-08-21). Chữ trần giữa <drt-tooltip>…</drt-tooltip> không
+// đứng một mình trong MỘT literal — nó là văn bản nằm GIỮA hai literal khác của cùng một template
+// lớn hơn — nên `coNhuLiteral` không bao giờ thấy nó dù bản dịch đã tới dist/ thật.
+describe('coTrongTagTooltip — chữ trần giữa <drt-tooltip>, coNhuLiteral không thấy được', () => {
+  it('thấy chữ đứng một mình giữa thẻ mở/đóng', () => {
+    const noiDung = '<drt-tooltip tip-position="top">Công cụ khác</drt-tooltip>'
+    expect(coNhuLiteral(noiDung, 'Công cụ khác')).toBe(false) // đúng lỗ hổng cần vá
+    expect(coTrongTagTooltip(noiDung, 'Công cụ khác')).toBe(true)
+  })
+
+  it('bỏ qua khoảng trắng/xuống dòng bao quanh', () => {
+    const noiDung = '<drt-tooltip>\n  Công cụ khác\n</drt-tooltip>'
+    expect(coTrongTagTooltip(noiDung, 'Công cụ khác')).toBe(true)
+  })
+
+  it('không khớp chuỗi khác', () => {
+    const noiDung = '<drt-tooltip>Công cụ khác</drt-tooltip>'
+    expect(coTrongTagTooltip(noiDung, 'Khác')).toBe(false)
+  })
+
+  it('không có thẻ drt-tooltip nào thì không khớp', () => {
+    expect(coTrongTagTooltip('const a = "Công cụ khác"', 'Công cụ khác')).toBe(false)
   })
 })
 

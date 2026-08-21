@@ -71,6 +71,20 @@ export function coDungNhuDaChen(noiDung, s) {
   return noiDung.includes(JSON.stringify(s))
 }
 
+// Dùng cho `dist/`, dành riêng cho chữ TRẦN giữa <drt-tooltip>…</drt-tooltip> (xem
+// thayChuTrongTagTooltip trong luat-vi-tri-dich.mjs). `coNhuLiteral` không thấy được dạng này: nó
+// đi tìm `s` được BAO TRỌN bởi một cặp nháy/backtick khớp nhau, nhưng chữ trần trong tag không hề
+// đứng một mình trong một literal riêng — nó chỉ là một khúc văn bản NẰM GIỮA hai literal khác của
+// cùng một template lớn hơn (phần trước dấu `>` và phần sau `</`). Không minify nào động vào NỘI
+// DUNG bên trong một template literal (làm vậy sẽ đổi thứ hiển thị ra màn hình), nên chữ vẫn còn
+// nguyên vẹn, chỉ khoảng trắng bao quanh có thể khác — so khớp sau khi trim().
+export function coTrongTagTooltip(noiDung, s) {
+  for (const m of noiDung.matchAll(/<drt-tooltip[^>]*>([^<]*)<\/drt-tooltip>/g)) {
+    if (m[1].trim() === s) return true
+  }
+  return false
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.

@@ -13,6 +13,7 @@ import { dietJs } from '../../scripts/duyet-cay-js.mjs'
 import {
   DOI_SO_HIEN_THI,
   dichMotFile,
+  thayChuTrongTagTooltip,
   thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
   THUOC_TINH_HTML_HIEN_THI,
@@ -23,6 +24,7 @@ import {
 const BAN_DO = { Style: 'Phong cách', LinkedPage: 'Trang liên kết', Escape: 'Thoát', None: 'Không' }
 
 const dich = (js: string) => dichMotFile(js, BAN_DO, 'thu.js').js
+const dichTagTooltip = (js: string) => thayChuTrongTagTooltip(js, BAN_DO, 'thu.js').js
 
 // Ràng buộc toàn cục DUY NHẤT của chặng D12: đúng 5 tên thuộc tính, đúng 1 tên đối số, đúng 1 tên
 // thuộc tính HTML được phép làm vị trí hiển thị. Không ca nào ở trên khẳng định KÍCH THƯỚC hay NỘI
@@ -211,6 +213,89 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
   })
 })
 
+// Chữ TRẦN nằm trực tiếp giữa <drt-tooltip>…</drt-tooltip>, KHÔNG qua nhịp ${…} nào cả —
+// không có node AST nào đại diện cho nó (dichMotFile/thayTrenToanCay chỉ thấy StringLiteral/
+// NoSubstitutionTemplateLiteral). Đo 2026-08-21: ĐÚNG MỘT chỗ trong toàn cây vendor khớp hình
+// dạng này — widgets/edgeless-toolbar/src/edgeless-toolbar.ts:532 ("More Tools"). Quét văn bản
+// thô trực tiếp thay vì AST vì compiled JS vẫn giữ nguyên cú pháp html`` (tsc không biến đổi
+// tagged template literal). Neo bằng chính tên thẻ `drt-tooltip` — một web component cụ thể,
+// không phải tên chung chung — nên an toàn hơn hẳn so khớp chuỗi con trần.
+describe('thayChuTrongTagTooltip — chữ trần giữa cặp thẻ <drt-tooltip>', () => {
+  it('chữ đứng một mình giữa thẻ mở/đóng, có khoá trong bản đồ', () => {
+    const ra = dichTagTooltip('html`<drt-tooltip tip-position="top">Style</drt-tooltip>`')
+    expect(ra).toContain('Phong cách')
+  })
+
+  it('giữ nguyên khoảng trắng/thụt lề quanh chữ', () => {
+    const ra = dichTagTooltip(
+      'html`<drt-tooltip tip-position="top">\n  Style\n</drt-tooltip>`',
+    )
+    expect(ra).toBe('html`<drt-tooltip tip-position="top">\n  Phong cách\n</drt-tooltip>`')
+  })
+
+  it('ghi đúng số dòng của chữ, không phải số dòng của thẻ mở', () => {
+    const { cacLuot } = thayChuTrongTagTooltip(
+      'const a = 1\nhtml`<drt-tooltip>\n  Style\n</drt-tooltip>`',
+      BAN_DO,
+      'thu.js',
+    )
+    expect(cacLuot).toEqual([{ chuoiGoc: 'Style', chuoiDich: 'Phong cách', dong: 3 }])
+  })
+
+  it('chữ không có trong bản đồ thì giữ nguyên', () => {
+    const ra = dichTagTooltip('html`<drt-tooltip>Chưa từng dịch</drt-tooltip>`')
+    expect(ra).toContain('Chưa từng dịch')
+  })
+
+  it('nội dung có xen ${…} (không phải chữ trần thuần) không được nhận', () => {
+    const ra = dichTagTooltip('html`<drt-tooltip>${x} Style</drt-tooltip>`')
+    expect(ra).toContain(`Style`)
+    expect(ra).not.toContain('Phong cách')
+  })
+
+  it('thẻ có tiền tố tên giống nhưng KHÁC hẳn (vd drt-tooltip-content-with-shortcut) không được nhận', () => {
+    const ra = dichTagTooltip(
+      'html`<drt-tooltip-content-with-shortcut>Style</drt-tooltip-content-with-shortcut>`',
+    )
+    expect(ra).toContain('Style')
+    expect(ra).not.toContain('Phong cách')
+  })
+
+  it('hai lượt thay trong cùng file không lệch vị trí nhau', () => {
+    const ra = dichTagTooltip(
+      'html`<drt-tooltip>Style</drt-tooltip> và <drt-tooltip>None</drt-tooltip>`',
+    )
+    expect(ra).toBe('html`<drt-tooltip>Phong cách</drt-tooltip> và <drt-tooltip>Không</drt-tooltip>`')
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayChuTrongTagTooltip(
+        'html`<drt-tooltip>Style</drt-tooltip>`',
+        { Style: 42 } as unknown as Record<string, string>,
+        'thu.js',
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+
+  // Chèn thẳng vào phần TEXT của một template literal đang mở, KHÔNG qua JSON.stringify (khác
+  // dichMotFile) — nên backtick/`$`/`\` trong bản dịch phải tự thoát, không thì phá cú pháp
+  // template literal (kết thúc sớm, mở nhịp `${…}` ngoài ý muốn, hay biến ký tự sau `\` thành
+  // escape lạ).
+  it('bản dịch chứa backtick/`$`/`\\` được thoát đúng, không phá cú pháp template literal', () => {
+    const banDoLa = { Style: 'Giá `100$`\\đô' }
+    const { js: ra } = thayChuTrongTagTooltip(
+      'html`<drt-tooltip>Style</drt-tooltip>`',
+      banDoLa,
+      'thu.js',
+    )
+    expect(ra).toBe('html`<drt-tooltip>Giá \\`100\\$\\`\\\\đô</drt-tooltip>`')
+    // Chạy lại qua chính TypeScript để xác nhận kết quả là cú pháp HỢP LỆ, không chỉ "trông đúng".
+    const sf = ts.createSourceFile('thu.js', ra, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+    expect((sf as any).parseDiagnostics).toEqual([])
+  })
+})
+
 describe('D12 — nhiều lượt thay trong cùng một file', () => {
   // Phép thay chạy TỪ CUỐI VỀ ĐẦU để các vị trí chưa xử lý không bị lệch. Không có ca nào nhiều
   // hơn một lượt thì bất biến đó KHÔNG được canh: đảo `sort` thành tăng dần vẫn xanh hết, trong
@@ -342,6 +427,18 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         ts.forEachChild(n, di)
       }
       di(sf)
+
+      // Độc lập với thayChuTrongTagTooltip — KHÔNG gọi lại hàm đó, tự viết lại phép quét bằng
+      // regex khác để không kế thừa chung một lỗ hổng nếu regex gốc sai. Vẫn đúng nguyên tắc của
+      // cổng này: chữ trong <drt-tooltip>…</drt-tooltip> không phải StringLiteral/
+      // NoSubstitutionTemplateLiteral nên vòng lặp AST ở trên KHÔNG BAO GIỜ thấy nó — thiếu đoạn
+      // này thì mọi bản dịch đi qua đường đó sẽ bị báo "chưa từng thấy" oan, không phải vì nó sai
+      // vị trí mà vì cổng KHÔNG BIẾT NHÌN vị trí đó.
+      for (const mm of src.matchAll(/<drt-tooltip[^>]*>([^<]*)<\/drt-tooltip>/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 

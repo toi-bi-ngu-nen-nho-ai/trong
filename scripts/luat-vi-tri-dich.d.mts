@@ -32,3 +32,15 @@ export declare function thayTrenToanCay(
   banDoTienTo: Record<string, string>,
   tenFile?: string,
 ): { js: string; cacLuot: LuotTrenToanCay[] }
+
+export interface LuotTagTooltip {
+  chuoiGoc: string
+  chuoiDich: string
+  dong: number
+}
+
+export declare function thayChuTrongTagTooltip(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotTagTooltip[] }

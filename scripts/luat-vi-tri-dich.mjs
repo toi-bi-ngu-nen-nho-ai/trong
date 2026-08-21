@@ -320,3 +320,91 @@ export function thayTrenToanCay(js, banDoTienTo, tenFile = 'khong-ten.js') {
       .map(({ chuoiGoc, chuoiDich }) => ({ chuoiGoc, chuoiDich })),
   }
 }
+
+// Khớp <drt-tooltip ...>...</drt-tooltip> mà giữa hai thẻ KHÔNG có thẻ con nào khác — `[^<]*`
+// loại hẳn ký tự `<` nên một `${…}`/thẻ lồng bên trong sẽ lọt vào phần bắt được rồi trim() không
+// khớp khoá nào (fail-closed tự nhiên, không cần lọc thêm). `(?=[\s>])` sau tên thẻ mở, KHÔNG dùng
+// `\b`: `\b` cũng khớp ở biên giữa "tooltip" và "-" của `drt-tooltip-content-with-shortcut`
+// (thẻ CÙNG tiền tố nhưng khác hẳn ý nghĩa) — đúng lớp lỗi "biên trái không neo đủ chặt" mà
+// THUOC_TINH_HTML_HIEN_THI/THUOC_TINH_LIT_HIEN_THI ở trên đã trả giá.
+//
+// Tên thẻ là `drt-tooltip`, KHÔNG PHẢI `affine-tooltip`: hàm này chạy SAU doi-ten-vendor.mjs
+// (Bước 3 của dung-vendor.mjs), nên tới lúc `dich-chuoi-vendor.mjs` gọi hàm này, mọi thẻ tuỳ biến
+// `affine-*` trong `.vendor-build/` đã đổi thành `drt-*` — kể cả trong nguồn TS gốc (chưa đổi tên)
+// là `affine-tooltip`. Bằng chứng đỏ thật (2026-08-21): soạn theo `affine-tooltip` khiến khoá
+// "More Tools" thành khoá chết ở Cổng 3 — cổng đó phát hiện đúng ngay, không lọt.
+const RE_TAG_TOOLTIP = /<drt-tooltip(?=[\s>])[^>]*>([^<]*)<\/drt-tooltip>/g
+
+// Chữ TRẦN đứng làm con trực tiếp của <drt-tooltip>…</drt-tooltip> (thẻ `affine-tooltip` gốc, đã
+// qua đổi tên D11 lúc hàm này chạy), KHÔNG qua nhịp `${…}` nào cả — nên KHÔNG có node AST nào đại
+// diện cho nó (dichMotFile/thayTrenToanCay chỉ thấy StringLiteral/NoSubstitutionTemplateLiteral,
+// và văn bản trần giữa hai thẻ trong một template literal chỉ là một phần của
+// TemplateHead/Middle/Tail, không phải một node biểu thức riêng). Đo 2026-08-21: ĐÚNG MỘT chỗ
+// trong toàn cây vendor khớp hình dạng này — nguồn TS
+// affine/widgets/edgeless-toolbar/src/edgeless-toolbar.ts:532 ("More Tools"), sau đổi tên là
+// `.vendor-build/affine/widgets/edgeless-toolbar/src/edgeless-toolbar.js`. Quét văn bản THÔ trực
+// tiếp trên chuỗi JS đã biên dịch (không qua AST) vì `tsc` không biến đổi tagged template literal
+// — cú pháp `html\`…\`` giữ nguyên y hệt TS gốc, chỉ tên thẻ đổi theo D11. Neo bằng chính tên thẻ
+// `drt-tooltip` (một web component cụ thể của cây vendored, không phải tên chung chung) nên an
+// toàn hơn hẳn so khớp một chuỗi con trần ở bất cứ đâu trong file.
+export function thayChuTrongTagTooltip(js, banDo, tenFile = 'khong-ten.js') {
+  const sf = ts.createSourceFile(tenFile, js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+
+  if (!Array.isArray(sf.parseDiagnostics)) {
+    throw new Error(
+      'luat-vi-tri-dich: sf.parseDiagnostics không còn là mảng (thayChuTrongTagTooltip) — xem ghi ' +
+        'chú tương tự trong dichMotFile.',
+    )
+  }
+  if (sf.parseDiagnostics.length > 0) {
+    throw new Error(
+      `luat-vi-tri-dich: không phân tích được ${tenFile} (thayChuTrongTagTooltip) — ` +
+        `${sf.parseDiagnostics.length} lỗi cú pháp.`,
+    )
+  }
+
+  const thay = []
+  for (const m of js.matchAll(RE_TAG_TOOLTIP)) {
+    const raw = m[1]
+    const chu = raw.trim()
+    if (!chu || !Object.hasOwn(banDo, chu)) continue
+    const vi = banDo[chu]
+    if (typeof vi !== 'string') {
+      throw new Error(
+        `luat-vi-tri-dich: khoá "${chu}" (chữ trần trong <affine-tooltip>) có giá trị KHÔNG PHẢI ` +
+          `CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+      )
+    }
+    // Định vị CHỮ (không phải cả cụm bắt được, gồm cả khoảng trắng bao quanh) trong toàn khớp, để
+    // splice đúng và giữ nguyên thụt lề gốc.
+    const dauCum = m.index + m[0].indexOf(raw)
+    const dau = dauCum + raw.indexOf(chu)
+    thay.push({
+      dau,
+      cuoi: dau + chu.length,
+      chuoiGoc: chu,
+      chuoiDich: vi,
+      dong: sf.getLineAndCharacterOfPosition(dau).line + 1,
+    })
+  }
+
+  // Chèn thẳng vào phần TEXT của một template literal đang mở — khác dichMotFile/thayTrenToanCay
+  // (chúng thay TRỌN một token chuỗi bằng `JSON.stringify`, tự thoát đúng dấu nháy). Ở đây không có
+  // token chuỗi nào để thay trọn, nên phải TỰ thoát ba ký tự có thể phá cú pháp template literal:
+  // backtick (kết thúc template sớm), `\` (biến ký tự sau nó thành escape ngoài ý muốn), và `$`
+  // (mở nhịp `${…}` mới nếu đứng ngay trước `{`) — thoát cả `$` trần cho chắc, không chỉ khi đứng
+  // trước `{`, vì `\$` vẫn hiển thị đúng dấu `$` mà không cần biết ký tự theo sau.
+  const thoatTemplate = (s) => s.replace(/[`$\\]/g, (c) => `\\${c}`)
+
+  let ra = js
+  for (const t of [...thay].sort((a, b) => b.dau - a.dau)) {
+    ra = ra.slice(0, t.dau) + thoatTemplate(t.chuoiDich) + ra.slice(t.cuoi)
+  }
+
+  return {
+    js: ra,
+    cacLuot: thay
+      .sort((a, b) => a.dau - b.dau)
+      .map(({ chuoiGoc, chuoiDich, dong }) => ({ chuoiGoc, chuoiDich, dong })),
+  }
+}
