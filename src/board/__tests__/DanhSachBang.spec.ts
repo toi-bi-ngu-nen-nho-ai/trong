@@ -84,6 +84,19 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
   })
 
+  it('rỗng lúc đầu → có lời mời và minh hoạ, KHÔNG chỉ mỗi nút "+" trần', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    expect(container.textContent).toContain('Bắt đầu một sơ đồ tư duy mới')
+    // Nút tạo vẫn đúng testid/aria-label — hai ca kiểm cũ dựa vào đúng hai giá trị này.
+    const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
+    expect(nut.getAttribute('aria-label')).toBe('Tạo bảng mới')
+  })
+
   it('có sẵn bảng trong metadata (ghi thẳng qua idb.ts, mô phỏng phiên trước) → hiện đúng tên trên thẻ', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Phác đồ sốc nhiễm khuẩn', taoLuc: bayGio, capNhatLuc: bayGio })

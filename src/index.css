@@ -577,6 +577,16 @@ html.theme-shift * {
   animation: cardSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* Nhịp thở nhẹ mời gọi ở trạng thái rỗng — LẶP VÔ HẠN nên PHẢI gate reduced-motion (khác các
+   animation chạy-một-lần khác trong file này). */
+@keyframes emptyBreathe {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 0.65; transform: scale(1.04); }
+}
+.empty-breathe {
+  animation: emptyBreathe 2.4s ease-in-out infinite;
+}
+
 .screen-transition {
   animation: fadeSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -671,7 +681,8 @@ html.theme-shift * {
   .pulse-scale,
   .card-settle,
   .card-plop,
-  .card-slide-out {
+  .card-slide-out,
+  .empty-breathe {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
