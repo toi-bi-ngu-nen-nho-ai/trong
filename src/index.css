@@ -63,9 +63,17 @@
    khiến chữ ở thanh tìm kiếm của bảng mẫu không màu (kế thừa mặc định trình duyệt) thay vì màu
    phụ đúng theo chủ đề. KHÔNG sửa được ở nguồn — src/vendor/blocksuite/ cấm sửa (D11) — nên bí
    danh tại đây, trỏ THẲNG vào biến vendor thật (đã tự đổi theo sáng/tối), không phải hệ token
-   --c-* riêng của app, để giữ đúng bảng màu bảng vẽ thay vì trộn hai hệ màu khác nhau. */
+   --c-* riêng của app, để giữ đúng bảng màu bảng vẽ thay vì trộn hai hệ màu khác nhau.
+
+   Thêm 2026-08-22 (chặng Database + 7 inline, kiem:dist Luật B): `--drt-font-size-base` dùng
+   nhưng 0 định nghĩa — nguồn gây ra là affine/inlines/mention/src/affine-mention.ts:26 đọc
+   `var(--affine-font-size-base)` (đổi tên thành `--drt-font-size-base` qua D11), trong khi theme
+   (`.vendor-build/theme/style.css`) chỉ định nghĩa `--drt-font-base: 15px` (KHÔNG có "-size-",
+   tên khác hẳn — cùng lớp lỗi lệch tên như case secondary, không phải case thiếu import). Bí
+   danh dưới đây trỏ vào biến vendor thật --drt-font-base. */
 :root {
   --drt-secondary: var(--drt-secondary-color);
+  --drt-font-size-base: var(--drt-font-base);
 }
 
 /* ─── Bảng màu theo chủ đề sáng/tối ───────────────────────────────────────────
