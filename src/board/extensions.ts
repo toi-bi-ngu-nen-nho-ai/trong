@@ -1,17 +1,19 @@
 // Danh sách extension cắt gọn (D13).
 //
-// GIỮ 23 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// GIỮ 33 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
 // src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
-// LÀ ĐÃ BỎ — 35 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
+// LÀ ĐÃ BỎ — 25 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
-// Phần bỏ đi trải trên cả năm nhóm của thượng nguồn, không chỉ nhóm block: 1 gfx (link),
-// 14 block, TOÀN BỘ 7 inline, 9 widget và TOÀN BỘ 4 fragment (0+1+14+7+9+4 = 35).
+// Phần bỏ đi trải trên bốn nhóm của thượng nguồn: 1 gfx (link), 13 block (Database đã bật, KHÔNG
+// gồm DataViewViewExtension — khối riêng, cố tình không bật, xem spec), 9 widget và TOÀN BỘ
+// 4 fragment (0+13+9+4 = 26 — trừ đi 1 vì nhóm inline giờ ĐỦ 7/7, không còn góp vào phần loại).
 //
-// Hệ quả cần biết trước khi tưởng Note là "note đầy đủ": Note ở đây chỉ có đoạn văn và danh sách.
-// Cả bảy inline extension đều vắng — InlinePreset, Link, Reference, Mention, Footnote,
-// InlineLatex, InlineComment — nên trong Note không có định dạng inline, không @nhắc, không liên
-// kết. Cùng lẽ đó, các widget soạn thảo quen tay như SlashMenu, DragHandle, LinkedDoc cũng không
-// có. Đây là bảng VẼ, không phải trình soạn thảo tài liệu.
+// Chặng 2026-08-21 "Database + Note đầy đủ" (xem
+// docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
+// DatabaseViewExtension, SlashMenuViewExtension, DragHandleViewExtension, và toàn bộ 7 extension
+// Inline (trước đó nhóm Inline bị loại 100%). Hệ quả: Note trên canvas giờ có đầy đủ định dạng
+// inline (đậm/nghiêng/@nhắc/liên kết/chú thích/công thức/bình luận) — không chỉ riêng ô Database.
+// SlashMenu (gõ "/") là đường DUY NHẤT để chèn khối Database vào một Note — không có nút riêng.
 //
 // Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong EdgelessBoard.tsx vẫn nạp nguyên
 // bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
@@ -30,6 +32,7 @@
 //
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.
+import { DatabaseViewExtension } from '@blocksuite/affine-block-database/view'
 import { FrameViewExtension } from '@blocksuite/affine-block-frame/view'
 import { ListViewExtension } from '@blocksuite/affine-block-list/view'
 import { NoteViewExtension } from '@blocksuite/affine-block-note/view'
@@ -46,11 +49,20 @@ import { PointerViewExtension } from '@blocksuite/affine-gfx-pointer/view'
 import { ShapeViewExtension } from '@blocksuite/affine-gfx-shape/view'
 import { TemplateViewExtension } from '@blocksuite/affine-gfx-template/view'
 import { TextViewExtension } from '@blocksuite/affine-gfx-text/view'
+import { InlineCommentViewExtension } from '@blocksuite/affine-inline-comment/view'
+import { FootnoteViewExtension } from '@blocksuite/affine-inline-footnote/view'
+import { LatexViewExtension as InlineLatexViewExtension } from '@blocksuite/affine-inline-latex/view'
+import { LinkViewExtension } from '@blocksuite/affine-inline-link/view'
+import { MentionViewExtension } from '@blocksuite/affine-inline-mention/view'
+import { InlinePresetViewExtension } from '@blocksuite/affine-inline-preset/view'
+import { ReferenceViewExtension } from '@blocksuite/affine-inline-reference/view'
+import { DragHandleViewExtension } from '@blocksuite/affine-widget-drag-handle/view'
 import { EdgelessDraggingAreaViewExtension } from '@blocksuite/affine-widget-edgeless-dragging-area/view'
 import { EdgelessSelectedRectViewExtension } from '@blocksuite/affine-widget-edgeless-selected-rect/view'
 import { EdgelessToolbarViewExtension } from '@blocksuite/affine-widget-edgeless-toolbar/view'
 import { EdgelessZoomToolbarViewExtension } from '@blocksuite/affine-widget-edgeless-zoom-toolbar/view'
 import { FrameTitleViewExtension } from '@blocksuite/affine-widget-frame-title/view'
+import { SlashMenuViewExtension } from '@blocksuite/affine-widget-slash-menu/view'
 import { ToolbarViewExtension } from '@blocksuite/affine-widget-toolbar/view'
 import { ViewportOverlayViewExtension } from '@blocksuite/affine-widget-viewport-overlay/view'
 
@@ -67,6 +79,7 @@ export const viewExtensions = [
   TextViewExtension,
   TemplateViewExtension,
 
+  DatabaseViewExtension,
   FrameViewExtension,
   ListViewExtension,
   NoteViewExtension,
@@ -74,7 +87,17 @@ export const viewExtensions = [
   SurfaceViewExtension,
   RootViewExtension,
 
+  InlineCommentViewExtension,
+  FootnoteViewExtension,
+  LinkViewExtension,
+  ReferenceViewExtension,
+  InlineLatexViewExtension,
+  MentionViewExtension,
+  InlinePresetViewExtension,
+
+  DragHandleViewExtension,
   FrameTitleViewExtension,
+  SlashMenuViewExtension,
   ToolbarViewExtension,
   ViewportOverlayViewExtension,
   EdgelessZoomToolbarViewExtension,
