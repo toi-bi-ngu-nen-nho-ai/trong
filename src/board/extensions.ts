@@ -1,11 +1,11 @@
 // Danh sách extension cắt gọn (D13).
 //
-// GIỮ 22 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// GIỮ 23 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
 // src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
-// LÀ ĐÃ BỎ — 36 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
+// LÀ ĐÃ BỎ — 35 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
-// Phần bỏ đi trải trên cả năm nhóm của thượng nguồn, không chỉ nhóm block: 2 gfx (template, link),
-// 14 block, TOÀN BỘ 7 inline, 9 widget và TOÀN BỘ 4 fragment (0+2+14+7+9+4 = 36).
+// Phần bỏ đi trải trên cả năm nhóm của thượng nguồn, không chỉ nhóm block: 1 gfx (link),
+// 14 block, TOÀN BỘ 7 inline, 9 widget và TOÀN BỘ 4 fragment (0+1+14+7+9+4 = 35).
 //
 // Hệ quả cần biết trước khi tưởng Note là "note đầy đủ": Note ở đây chỉ có đoạn văn và danh sách.
 // Cả bảy inline extension đều vắng — InlinePreset, Link, Reference, Mention, Footnote,
@@ -24,6 +24,10 @@
 //   - cắt gọn 22 extension: chunk bảng 4.031,25 kB → 993,69 kB gzip, tổng 6 file .js.
 // Tức còn ~58% dung lượng gzip và 6/309 số file. Vỏ app không đổi ở cả hai: 332,01 kB gzip.
 //
+// TemplateViewExtension thêm 2026-08-21 (23 extension) — số đo lại ở commit thêm nó, xem
+// `git log -p -- src/board/extensions.ts` nếu cần con số chính xác thời điểm đó; ĐỪNG tin hai
+// con số "22"/"cắt gọn" ở trên nữa cho mục đích đo dung lượng, chúng chỉ còn giá trị lịch sử.
+//
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.
 import { FrameViewExtension } from '@blocksuite/affine-block-frame/view'
@@ -40,6 +44,7 @@ import { MindmapViewExtension } from '@blocksuite/affine-gfx-mindmap/view'
 import { NoteViewExtension as GfxNoteViewExtension } from '@blocksuite/affine-gfx-note/view'
 import { PointerViewExtension } from '@blocksuite/affine-gfx-pointer/view'
 import { ShapeViewExtension } from '@blocksuite/affine-gfx-shape/view'
+import { TemplateViewExtension } from '@blocksuite/affine-gfx-template/view'
 import { TextViewExtension } from '@blocksuite/affine-gfx-text/view'
 import { EdgelessDraggingAreaViewExtension } from '@blocksuite/affine-widget-edgeless-dragging-area/view'
 import { EdgelessSelectedRectViewExtension } from '@blocksuite/affine-widget-edgeless-selected-rect/view'
@@ -60,6 +65,7 @@ export const viewExtensions = [
   ConnectorViewExtension,
   GroupViewExtension,
   TextViewExtension,
+  TemplateViewExtension,
 
   FrameViewExtension,
   ListViewExtension,

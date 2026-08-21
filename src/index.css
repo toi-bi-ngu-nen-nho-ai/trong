@@ -55,6 +55,19 @@
   --ring: var(--c-primary);
 }
 
+/* Vá lỗ hổng của CHÍNH thượng nguồn BlockSuite, không phải của D11: bảng mẫu (Template) đọc
+   `var(--affine-secondary)` (đã đổi tên thành `--drt-secondary` qua D11) ở
+   affine/gfx/template/src/toolbar/template-panel.ts:59, nhưng theme (`@toeverything/theme`) chỉ
+   định nghĩa `--drt-secondary-color` (CÓ hậu tố `-color`) — một cái tên khác hẳn, không phải lỗi
+   đổi tên. Đo được (2026-08-21, kiem:dist Luật B): `--drt-secondary` dùng nhưng 0 định nghĩa,
+   khiến chữ ở thanh tìm kiếm của bảng mẫu không màu (kế thừa mặc định trình duyệt) thay vì màu
+   phụ đúng theo chủ đề. KHÔNG sửa được ở nguồn — src/vendor/blocksuite/ cấm sửa (D11) — nên bí
+   danh tại đây, trỏ THẲNG vào biến vendor thật (đã tự đổi theo sáng/tối), không phải hệ token
+   --c-* riêng của app, để giữ đúng bảng màu bảng vẽ thay vì trộn hai hệ màu khác nhau. */
+:root {
+  --drt-secondary: var(--drt-secondary-color);
+}
+
 /* ─── Bảng màu theo chủ đề sáng/tối ───────────────────────────────────────────
    Vì sao cần chế độ tối: đây là app trực đêm. Buồng bệnh tắt đèn lúc 2 giờ sáng mà mở ra một màn
    hình trắng toàn phần thì vừa chói mắt người dùng, vừa đánh thức bệnh nhân — và sau đó mắt mất
