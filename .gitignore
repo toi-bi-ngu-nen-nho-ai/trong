@@ -6,3 +6,4 @@ dist/
 dist-probe/
 .vendor-build/
 .tmp-test-*/
+.impeccable/live/
