@@ -5,8 +5,8 @@
 // LÀ ĐÃ BỎ — 25 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
 // Phần bỏ đi trải trên bốn nhóm của thượng nguồn: 1 gfx (link), 13 block (Database đã bật, KHÔNG
-// gồm DataViewViewExtension — khối riêng, cố tình không bật, xem spec), 9 widget và TOÀN BỘ
-// 4 fragment (0+13+9+4 = 26 — trừ đi 1 vì nhóm inline giờ ĐỦ 7/7, không còn góp vào phần loại).
+// gồm DataViewViewExtension — khối riêng, cố tình không bật, xem spec), 7 widget và TOÀN BỘ
+// 4 fragment (0+13+7+4 = 25 — nhóm inline giờ ĐỦ 7/7, không còn góp vào phần loại).
 //
 // Chặng 2026-08-21 "Database + Note đầy đủ" (xem
 // docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
