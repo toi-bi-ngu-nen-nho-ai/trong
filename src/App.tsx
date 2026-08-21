@@ -19,6 +19,7 @@ import {
   RRT_LABELS,
   RRT_SHORT,
   SCR_UMOL_PER_MGDL,
+  crclNullReason,
   crclReliability,
   estimateCrCl,
   isPatientStale,
@@ -5445,6 +5446,12 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
   const scrWarn = checkScr(parseStrictNumber(patient.scr), patient.scrUnit)
   // crclInputImplausible (dùng bên dưới để tô số CrCl) đến từ DosingContext — tính chung một lần
   // với AntibioticDoseCard, xem comment tại DosingContextValue.crclInputImplausible.
+  // crclReason phân biệt "chưa nhập đủ" (missing) với "đã nhập đủ nhưng bị Cockcroft-Gault từ chối"
+  // (rejected) khi crcl == null — dùng chung crclNullReason với AntibioticDoseCard (lib/patient.ts)
+  // để hai nơi không còn thể trôi lệch nhau như đã xảy ra hai lần (/impeccable critique 2026-08-21,
+  // P1: dòng "dựa trên số liệu bất thường, kiểm tra lại trước khi dùng bậc liều này" trước đây hiện
+  // sai ngay cả khi crcl == null — không hề có "bậc liều" nào đang dùng con số đó cả).
+  const crclReason = crclUsable && crcl == null ? crclNullReason(ageYears, abwKg, parseStrictNumber(patient.scr)) : null
 
   // "70abc" hay "1.2.9" vẫn còn NGUYÊN trong ô nhập (không tự sửa), nhưng abwKg/heightCm/ageYears
   // ở trên giờ trả về null cho các chuỗi này (parseStrictNumber) — nói rõ ra đây, kẻo trông như ô
@@ -5762,23 +5769,30 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               <p className={T.meta} style={{ color: crclUsable && crclInputImplausible ? C.warnIcon : C.textSoft }}>
                 mL/phút · CrCl (Cockcroft-Gault)
                 {!crclUsable && crcl != null && ` — tính được ${crcl} nhưng không dùng được`}
-                {crclUsable && crclInputImplausible && " — dựa trên số liệu bất thường, kiểm tra lại trước khi dùng bậc liều này"}
+                {/* crcl != null bắt buộc: nếu không, câu này ngụ ý "một bậc liều đang dùng số này"
+                    ngay cả khi crcl == null (— hiện trên màn) và không hề có bậc liều nào cả — đúng
+                    ca crclReason === "rejected" bên dưới (/impeccable critique 2026-08-21, P1). */}
+                {crclUsable && crclInputImplausible && crcl != null && " — dựa trên số liệu bất thường, kiểm tra lại trước khi dùng bậc liều này"}
               </p>
               {/* Dấu "—" không bao giờ được đứng một mình — missingReason ở InfusionCalculator đã
                   làm đúng điều này (lý do + đường sửa), ô CrCl trước đây thì chưa: thiếu dữ liệu
-                  chỉ hiện "—" trơn, không nói thiếu gì. */}
+                  chỉ hiện "—" trơn, không nói thiếu gì. Nay còn phân biệt "chưa nhập đủ" (missing)
+                  khỏi "đã nhập đủ nhưng bị từ chối" (rejected) qua crclReason dùng chung với
+                  AntibioticDoseCard — trước đây nhánh rejected rơi vào ternary dưới, không khớp
+                  điều kiện nào, render một <p> rỗng ngay dưới câu "kiểm tra lại trước khi dùng bậc
+                  liều này" dù không có bậc liều nào đang dùng số vừa "bị từ chối" đó cả. */}
               {crclUsable && crcl == null && (
                 // C.textSoft, không phải C.muted: đây là chữ hướng dẫn thật phải đọc được ("Cần nhập
                 // X để tính"), không phải icon/placeholder — cùng lỗi và cùng cách sửa RunningPanel
                 // đã tự áp dụng cho nhãn "Đường truyền" của chính nó (xem comment ở dưới).
                 <p className={T.meta} style={{ color: C.textSoft }}>
-                  {ageYears == null
-                    ? "Cần nhập tuổi để tính"
-                    : abwKg == null
-                      ? "Cần nhập cân nặng để tính"
-                      : parseStrictNumber(patient.scr) == null
-                        ? "Cần nhập creatinin để tính"
-                        : null}
+                  {crclReason === "rejected"
+                    ? "Không tính được — số liệu bất thường, kiểm tra lại tuổi/cân nặng/chiều cao/creatinin"
+                    : ageYears == null
+                      ? "Cần nhập tuổi để tính"
+                      : abwKg == null
+                        ? "Cần nhập cân nặng để tính"
+                        : "Cần nhập creatinin để tính"}
                 </p>
               )}
               {crclWeight.ibw != null && crclWeight.used != null && (
@@ -7697,7 +7711,7 @@ function AntibioticDoseCard({
   onEdit?: (drug: Antibiotic) => void
   onDelete?: (id: string) => void
 }) {
-  const { patient, abwKg, heightCm, crcl, crclUsable, crclInputImplausible: patientCrclInputImplausible, openPatientPanel, pinRunning, wardRecipes, clearWard, pinWard } = useDosing()
+  const { patient, abwKg, heightCm, ageYears, crcl, crclUsable, crclInputImplausible: patientCrclInputImplausible, openPatientPanel, pinRunning, wardRecipes, clearWard, pinWard } = useDosing()
   const wardList = wardRecipes[drug.id] ?? []
   const { activeId: activeRecipeId, setActiveId: setActiveRecipeId, active: ward } = useActiveWardRecipe(wardList)
   const [showMix, setShowMix] = useState(false)
@@ -7726,9 +7740,15 @@ function AntibioticDoseCard({
   // chối thẳng, vd tuổi 200 làm tử số Cockcroft-Gault ≤0" (crclDataRejected) — trước đây gộp chung
   // một `missingCrcl`, nên ca thứ hai hiện banner "Nhập tuổi, cân nặng và creatinin..." dù bác sĩ đã
   // nhập đủ, dễ khiến họ gõ lại đúng số sai đó hoặc tưởng app lỗi hiển thị (/impeccable critique
-  // 2026-08-19T14-41, P2). Phải tách trước khi dùng patientCrclInputImplausible bên dưới.
-  const crclDataRejected = crcl == null && patient.rrt === "none" && !patient.akiUnstable && tiers.length > 1 && patientCrclInputImplausible
-  const missingCrcl = crcl == null && !crclDataRejected && patient.rrt === "none" && !patient.akiUnstable && tiers.length > 1
+  // 2026-08-19T14-41, P2). `crclNullReason` (lib/patient.ts) là nguồn chân lý DUY NHẤT cho phân biệt
+  // này, dùng chung với PatientPanel — trước đây mỗi nơi tự suy luận lại bằng
+  // patientCrclInputImplausible (chỉ true khi một trường CÓ giá trị và bị gắn cờ, không phân biệt
+  // được ca "tuổi thiếu + cân nặng bị gắn cờ" khỏi ca "đã nhập đủ nhưng bị từ chối") và đã trôi lệch
+  // nhau (/impeccable critique 2026-08-21, P1).
+  const crclApplies = crcl == null && crclUsable && tiers.length > 1
+  const crclReason = crclApplies ? crclNullReason(ageYears, abwKg, parseStrictNumber(patient.scr)) : null
+  const crclDataRejected = crclReason === "rejected"
+  const missingCrcl = crclReason === "missing"
   // CrCl ĐÃ được dùng để chọn bậc liều ở trên (effectiveCrcl != null), nhưng dựa trên tuổi/cân
   // nặng/chiều cao/creatinin mà chính app đã gắn cờ "implausible" (vd tuổi 200) — khác missingCrcl
   // (chưa có số), đây là "có số nhưng số có thể sai". Cùng cách weightImplausible đã cảnh báo cho
@@ -8121,6 +8141,17 @@ function AntibioticDoseCard({
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
           <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
             Thuốc này cần cân nặng lý tưởng/hiệu chỉnh — nhập cân nặng và chiều cao ở trên để tính chính xác.
+          </p>
+        </div>
+      )}
+      {/* Đã có cân nặng nhưng THIẾU chiều cao: dosingWeight đã âm thầm dùng cân nặng thực (ABW) thay
+          cho cân nặng lý tưởng/hiệu chỉnh mà thuốc này yêu cầu — khác ca thiếu cân nặng ở trên (block
+          đó chặn hẳn), ca này vẫn ra một con số trông chắc chắn nên càng cần nói rõ nó dựa trên cơ sở
+          nào (/impeccable critique 2026-08-21, P0). */}
+      {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used != null && dosingWeight.heightMissingForBasis && (
+        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+            Thiếu chiều cao — đang tạm dùng cân nặng thực ({dosingWeight.used.toFixed(1)} kg) để tính liều này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
           </p>
         </div>
       )}
@@ -8931,6 +8962,9 @@ function BolusList({
   const weightImplausible = weightWarn?.severity === "implausible"
   const list = boluses ?? []
   if (list.length === 0) return null
+  // Chỉ liều tính theo mg/kg mới phụ thuộc cơ sở cân nặng — liều nạp cố định (fixedLow) không cần
+  // cảnh báo này dù thuốc có gắn doseWeightBasis khác "actual" cho các liều perKg khác của nó.
+  const hasPerKgBolus = list.some((b) => b.perKgLow != null)
 
   function describe(b: BolusDose): { text: string; needWeight: boolean; blocked: boolean; perKgText: string | null } {
     if (b.perKgLow != null) {
@@ -8953,6 +8987,17 @@ function BolusList({
   // Tiêu đề mục do khối gấp/mở ở ngoài lo, ở đây chỉ vẽ danh sách.
   return (
     <div>
+      {/* Đã có cân nặng nhưng THIẾU chiều cao cho thuốc cần cân nặng lý tưởng/hiệu chỉnh (vd nhũ
+          dịch lipid LAST): weightKg vẫn ra số (âm thầm là ABW) nên liều nạp bên dưới vẫn hiện bình
+          thường — phải nói rõ cơ sở đang dùng không phải cái thuốc yêu cầu (/impeccable critique
+          2026-08-21, P0). */}
+      {doseWeightBasis && doseWeightBasis !== "actual" && weightKg != null && dosingWeight.heightMissingForBasis && hasPerKgBolus && (
+        <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+          <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
+            Thiếu chiều cao — đang tạm dùng cân nặng thực ({weightKg.toFixed(1)} kg) để tính liều nạp này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
+          </p>
+        </div>
+      )}
       {list.map((b, i) => {
         const info = describe(b)
         return (
@@ -9918,6 +9963,15 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         <p className="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45]" style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}>
           Cân nặng dùng để tính: <b>{weightKg.toFixed(1)} kg</b>
           {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} — lấy từ khung "Bệnh nhân hiện tại".
+        </p>
+      )}
+      {/* Đã có cân nặng nhưng THIẾU chiều cao cho thuốc cần cân nặng lý tưởng/hiệu chỉnh: dòng trên
+          vẫn hiện một con số "chắc chắn" (nhãn usedLabel âm thầm là "ABW") — phải nói rõ nó không
+          phải cơ sở thuốc yêu cầu, cùng lỗ hổng đã vá ở AntibioticDoseCard/BolusList
+          (/impeccable critique 2026-08-21, P0). */}
+      {needWeight && weightKg != null && dosingWeight.heightMissingForBasis && (
+        <p className="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45] font-bold" style={{ background: "var(--c-warn-soft)", color: "var(--c-warn)" }}>
+          Thiếu chiều cao — số trên là cân nặng thực, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
         </p>
       )}
 

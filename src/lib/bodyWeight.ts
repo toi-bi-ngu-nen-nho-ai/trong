@@ -21,6 +21,14 @@ export interface DosingWeightResult {
   adjBw: number | null
   used: number | null
   usedLabel: WeightLabel | null
+  // true khi `basis` yêu cầu IBW/AdjBW (khác "actual") nhưng thiếu chiều cao nên IBW không tính
+  // được — hàm đã âm thầm rơi về ABW ở nhánh `ibw == null` bên dưới. `usedLabel` khi đó vẫn là
+  // "ABW", không phân biệt được với một thuốc THẬT SỰ dùng basis "actual" — ba nơi gọi hàm này
+  // (AntibioticDoseCard, BolusList, InfusionCalculator) chỉ hiện chú thích usedLabel khi nó KHÁC
+  // "ABW", nên trước đây một liều nhũ dịch lipid (LAST) tính theo cân nặng thực thay vì cân nặng
+  // lý tưởng mà không một dấu hiệu nào báo — cờ này để UI ở cả ba nơi cảnh báo đúng ca đó
+  // (/impeccable critique 2026-08-21, P0).
+  heightMissingForBasis: boolean
 }
 
 export function computeIBW(heightCm: number | null | undefined, sex: "male" | "female"): number | null {
@@ -36,7 +44,8 @@ export function computeAdjBW(abw: number, ibw: number): number {
 
 // Trả về ABW/IBW/AdjBW và cân nặng thực sự nên dùng (`used`) theo `basis` chỉ định.
 // Nếu chưa có chiều cao (không tính được IBW) thì tạm dùng ABW cho mọi basis, để không chặn
-// việc tính liều khi thiếu dữ liệu — UI nên nhắc bổ sung chiều cao để chính xác hơn.
+// việc tính liều khi thiếu dữ liệu — heightMissingForBasis báo cho UI biết để nhắc bổ sung
+// chiều cao, thay vì âm thầm coi như thuốc dùng "actual".
 export function resolveDosingWeight(
   abwInput: number | null | undefined,
   heightCm: number | null | undefined,
@@ -46,19 +55,20 @@ export function resolveDosingWeight(
   const abw = abwInput && abwInput > 0 ? abwInput : null
   const ibw = computeIBW(heightCm, sex)
   const adjBw = abw != null && ibw != null ? computeAdjBW(abw, ibw) : null
+  const heightMissingForBasis = basis !== "actual" && ibw == null
 
   if (abw == null) {
-    return { abw, ibw, adjBw, used: null, usedLabel: null }
+    return { abw, ibw, adjBw, used: null, usedLabel: null, heightMissingForBasis }
   }
   if (ibw == null || basis === "actual") {
-    return { abw, ibw, adjBw, used: abw, usedLabel: "ABW" }
+    return { abw, ibw, adjBw, used: abw, usedLabel: "ABW", heightMissingForBasis }
   }
   if (basis === "ideal") {
-    return { abw, ibw, adjBw, used: ibw, usedLabel: "IBW" }
+    return { abw, ibw, adjBw, used: ibw, usedLabel: "IBW", heightMissingForBasis }
   }
   // basis === "adjusted"
   if (abw <= 1.3 * ibw) {
-    return { abw, ibw, adjBw, used: abw, usedLabel: "ABW" }
+    return { abw, ibw, adjBw, used: abw, usedLabel: "ABW", heightMissingForBasis }
   }
-  return { abw, ibw, adjBw, used: adjBw as number, usedLabel: "AdjBW" }
+  return { abw, ibw, adjBw, used: adjBw as number, usedLabel: "AdjBW", heightMissingForBasis }
 }

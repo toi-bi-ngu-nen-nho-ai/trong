@@ -192,6 +192,19 @@ export function crclReliability(p: PatientVitals): CrClReliability {
   return "ok"
 }
 
+// Khi crclReliability(p) === "ok" nhưng estimateCrCl() vẫn trả về null, có hai nguyên nhân khác
+// hẳn nhau cần hai thông điệp khác nhau: "missing" (chưa nhập đủ tuổi/cân nặng/creatinin) hoặc
+// "rejected" (đã nhập đủ nhưng số liệu bất thường khiến Cockcroft-Gault từ chối thẳng, vd tuổi 200
+// làm tử số ≤0). Hàm dùng chung ở cả PatientPanel lẫn AntibioticDoseCard — trước đây mỗi nơi tự
+// suy luận lại và đã trôi lệch nhau hai lần (/impeccable critique 2026-08-19T14-41 vá ở
+// AntibioticDoseCard, nhưng PatientPanel bị bỏ sót; vá lại ở đây lần thứ hai, 2026-08-21, để hai nơi
+// không còn thể trôi lệch nữa vì chỉ còn MỘT chỗ viết điều kiện này).
+export type CrclNullReason = "missing" | "rejected"
+
+export function crclNullReason(ageYears: number | null, abwKg: number | null, scrValue: number | null): CrclNullReason {
+  return ageYears == null || abwKg == null || scrValue == null ? "missing" : "rejected"
+}
+
 // Phương thức lọc mà liều thuốc phụ thuộc tốc độ dịch thải — chỉ khi đó mới hỏi ô Qeff.
 export function needsCrrtFlow(rrt: RrtMode): boolean {
   return rrt === "crrt" || rrt === "sled"
