@@ -621,6 +621,17 @@ html.theme-shift * {
   }
 }
 
+/* LỚP C — vá specificity: rule hover-nghiêng ở trên có 2 class + 1 pseudo-class (0,3,0), cao hơn
+   .the-bang-vat:active gốc của Task 1 (0,2,0), nên khi giữ chuột (:hover VÀ :active cùng đúng lúc)
+   rule hover-nghiêng sẽ thắng và nuốt mất phản hồi "nhấn xuống". Rule dưới đây cùng specificity
+   (0,3,0) với rule hover-nghiêng nhưng đứng SAU nó trong stylesheet nên thắng tie-break theo thứ tự
+   nguồn — khôi phục đúng phản hồi rotate(0deg) scale(0.97) của Task 1 khi có cả hai class (luôn
+   đúng vì Task 6 luôn gắn the-bang-nghieng-con-tro cùng the-bang-vat). KHÔNG sửa/xoá rule
+   .the-bang-vat:active gốc — nó vẫn đúng ngữ nghĩa, chỉ bị rule này ghi đè khi có đủ hai class. */
+.the-bang-vat.the-bang-nghieng-con-tro:active {
+  transform: rotate(0deg) scale(0.97);
+}
+
 .screen-transition {
   animation: fadeSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
