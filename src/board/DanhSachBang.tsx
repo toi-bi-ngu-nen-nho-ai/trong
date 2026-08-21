@@ -65,10 +65,14 @@ function TheBang({
   }, [dangSuaTen, bang.ten])
 
   return (
-    <div data-testid="the-bang" style={{ position: 'relative' }}>
+    <div
+      data-testid="the-bang"
+      style={{ position: 'relative', '--tilt': `${nghiengOnDinh(bang.id)}deg` } as React.CSSProperties}
+    >
       <button
         type="button"
         onClick={onMo}
+        className="the-bang-vat"
         style={{ display: 'block', width: '100%', border: 0, background: 'none', padding: 0, textAlign: 'left' }}
         aria-label={`Mở bảng ${bang.ten}`}
       >

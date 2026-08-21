@@ -96,6 +96,25 @@ describe('DanhSachBang', () => {
     expect(container.textContent).toContain('Phác đồ sốc nhiễm khuẩn')
   })
 
+  it('mặt thẻ có class "the-bang-vat", thẻ ngoài có biến CSS --tilt hợp lệ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Test nghiêng', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    const nut = container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement
+    expect(nut.className).toContain('the-bang-vat')
+
+    const the = container.querySelector('[data-testid="the-bang"]') as HTMLElement
+    const tilt = the.style.getPropertyValue('--tilt')
+    expect(tilt).toMatch(/^-?\d+(\.\d+)?deg$/)
+    expect(tilt).toBe(`${nghiengOnDinh('bang-1')}deg`)
+  })
+
   it('bấm thẻ "+" → gọi onMoBang với id mới NGAY, thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
