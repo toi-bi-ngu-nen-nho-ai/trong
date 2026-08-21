@@ -95,7 +95,7 @@ import { BlockEditor, type LinkTarget } from "./components/BlockEditor"
 import { BlockContent } from "./components/BlockContent"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
-import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
+import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, PROSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -6439,12 +6439,12 @@ function DrugWarnings({ warnings, bare }: { warnings?: AntibioticWarning[]; bare
             <span className="mt-0.5 flex-none" style={{ color: "var(--c-danger-icon)" }}>{icons.alert()}</span>
             {/* Cảnh báo mức CAO dùng cỡ chữ chính (13px), không phải cỡ chú thích 11px như phần còn
                 lại: đây là dòng chữ mà việc bỏ sót gây hại nhất, nó không được nhỏ hơn chữ mô tả. */}
-            <p className={`${T.bodyStrong}`} style={{ color: "var(--c-danger-deep)" }}>{w.text}</p>
+            <p className={`${T.bodyStrong} ${PROSE}`} style={{ color: "var(--c-danger-deep)" }}>{w.text}</p>
           </div>
         ) : (
           <div key={i} className="flex items-start gap-1.5">
             <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-none" style={{ background: "var(--c-warn-icon)" }} />
-            <p className="text-[12px] text-slate-600 leading-[1.45]">{w.text}</p>
+            <p className={`text-[12px] text-slate-600 leading-[1.45] ${PROSE}`}>{w.text}</p>
           </div>
         ),
       )}
@@ -7769,6 +7769,15 @@ function AntibioticDoseCard({
   // trông chắc chắn (100–125 g). Chặn NGAY TẠI NGUỒN (doseTargetMg) để mọi chỗ đọc từ nó (perKgDoses,
   // autoUsage/bảng pha) đều không tính ra số khi cân nặng vô lý, thay vì phải nhớ chặn từng chỗ hiển thị.
   const weightImplausible = checkWeight(dosingWeight.used)?.severity === "implausible"
+  // Ba khối cảnh báo độc lập ngay dưới (cơ sở cân nặng, RRT/AKI, CrCl) có thể cùng hiện một lúc trên
+  // ca bệnh nhân xấu nhất (vd tuổi bất thường + thiếu chiều cao + đang lọc máu) mà không có gì phân
+  // biệt "đây là N lời nhắc ĐỘC LẬP cần đọc hết" với một khối văn bản liên tục — một bác sĩ vội có
+  // thể lướt qua một trong số đó (/impeccable critique 2026-08-21 lượt 2, P2). Đếm trước để chỉ chêm
+  // dòng tiêu đề nhóm khi thật sự có từ 2 lời nhắc trở lên; một cảnh báo đơn lẻ không cần dòng này.
+  const weightBasisWarnActive = Boolean(drug.doseWeightBasis) && drug.doseWeightBasis !== "actual" && (dosingWeight.used == null || dosingWeight.heightMissingForBasis)
+  const rrtWarnActive = patient.rrt !== "none" || patient.akiUnstable
+  const crclWarnActive = missingCrcl || crclDataRejected || crclInputImplausible
+  const preDoseWarningCount = [weightBasisWarnActive, rrtWarnActive, crclWarnActive].filter(Boolean).length
   // Nhân sẵn liều mg/kg: app đã có cân nặng và đã có chuỗi "15–20 mg/kg mỗi 8–12h" thì không có lý
   // do gì bắt người dùng tự nhẩm — đó đúng là chỗ dễ sai nhất lúc 2 giờ sáng.
   const perKgDoses = useMemo(() => findPerKgDoses(tier.dose), [tier.dose])
@@ -8132,6 +8141,15 @@ function AntibioticDoseCard({
           Chỉ định: {disease.name}
         </p>
       )}
+      {/* Dòng tiêu đề nhóm — chỉ hiện khi ≥2 trong 3 khối cảnh báo độc lập bên dưới (cơ sở cân nặng,
+          RRT/AKI, CrCl) cùng bật, để phân biệt "N lời nhắc ĐỘC LẬP" khỏi một khối văn bản liên tục
+          (/impeccable critique 2026-08-21 lượt 2, P2). Không gộp/gấp các khối lại: RRT có nút/link
+          thao tác riêng bên trong, gộp chung dễ làm mất focus/thao tác của nó. */}
+      {preDoseWarningCount >= 2 && (
+        <p className={`${T.meta} font-bold mb-1`} style={{ color: C.textSoft }}>
+          {preDoseWarningCount} điều cần biết trước khi dùng liều này — đọc hết trước khi ghim:
+        </p>
+      )}
       {/* Chỉ khối GIẢI THÍCH (đã có cân nặng, đang nói ABW/IBW/AdjBW dùng để nhân) mới gấp lại —
           con số cân nặng dùng để tính vẫn hiện ngay trong khối liều mg/kg bên dưới, nên gấp phần
           này không giấu số liệu, chỉ giấu phần diễn giải thêm. Nhánh CHƯA CÓ cân nặng vẫn phải hiện
@@ -8370,7 +8388,7 @@ function AntibioticDoseCard({
           {highWarnings.map((w, i) => (
             <div key={i} className={`flex items-start gap-2 px-2.5 py-2 ${R.box}`} style={{ background: C.dangerSoft, border: `1px solid ${C.dangerLine}` }}>
               <span className="mt-0.5 flex-none" style={{ color: C.dangerIcon }}>{icons.alert()}</span>
-              <p className={T.bodyStrong} style={{ color: C.danger }}>{w.text}</p>
+              <p className={`${T.bodyStrong} ${PROSE}`} style={{ color: C.danger }}>{w.text}</p>
             </div>
           ))}
         </div>
@@ -8486,10 +8504,10 @@ function AntibioticDoseCard({
               </div>
             </div>
           ) : (
-            drug.preparation && <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
+            drug.preparation && <p className={`${T.body} ${PROSE}`} style={{ color: C.textSoft }}>{drug.preparation}</p>
           )}
-          {indication?.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{indication.note}</p>}
-          {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
+          {indication?.note && <p className={`${T.meta} ${PROSE} mt-2`} style={{ color: C.textSoft }}>{indication.note}</p>}
+          {drug.note && <p className={`${T.meta} ${PROSE} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
           {/* Hiện bảng pha cho CẢ BỐN đường tiêm/truyền (TTM/TMC/IM/SC, xem mixableRoutes) — trước đây
               chỉ hiện cho TTM/TMC, khiến tiêm bắp/tiêm dưới da không có gì để pha dù cũng cần hoàn
@@ -9120,10 +9138,16 @@ function describeComposition(o: MixOutcome, vialLabel: string): string {
 function MixRunTime({ drug, calc, concValue, volumeMl }: { drug: InfusionDrug; calc: InfusionCalcConfig; concValue: number; volumeMl: number }) {
   const { abwKg, heightCm, patient } = useDosing()
   const unit = useMemo(() => parseDoseUnit(calc.doseUnit), [calc.doseUnit])
-  const weightKg = useMemo(
-    () => resolveDosingWeight(abwKg, heightCm, patient.sex, drug.doseWeightBasis ?? "actual").used,
+  // Lấy cả object (không chỉ .used) để đọc được heightMissingForBasis bên dưới — trước đây hàm này
+  // chỉ lấy .used nên bỏ sót đúng cờ mà AntibioticDoseCard/BolusList/InfusionCalculator đã dùng để
+  // cảnh báo, khiến ước tính thời lượng bơm âm thầm dùng cân nặng thực (ABW) không nhãn cho thuốc
+  // cần cân nặng lý tưởng/hiệu chỉnh khi thiếu chiều cao (/impeccable critique 2026-08-21, P0 tái
+  // diễn ở đường gọi thứ tư này).
+  const dosingWeight = useMemo(
+    () => resolveDosingWeight(abwKg, heightCm, patient.sex, drug.doseWeightBasis ?? "actual"),
     [abwKg, heightCm, patient.sex, drug.doseWeightBasis],
   )
+  const weightKg = dosingWeight.used
   if (!unit || !(concValue > 0) || !(volumeMl > 0)) return null
 
   const lo = doseToRate(calc.doseMin, unit, weightKg, concValue, calc.concUnit)
@@ -9141,8 +9165,10 @@ function MixRunTime({ drug, calc, concValue, volumeMl }: { drug: InfusionDrug; c
 
   const slowest = infusionDurationHours(volumeMl, lo)
   const fastest = infusionDurationHours(volumeMl, hi)
+  const heightMissingWarn = unit.perWeight && dosingWeight.heightMissingForBasis
   return (
-    <p className={`${T.meta} ${NUM} mt-1`} style={{ color: C.textSoft }}>
+    <p className={`${T.meta} ${NUM} mt-1`} style={{ color: heightMissingWarn ? "var(--c-warn)" : C.textSoft }}>
+      {heightMissingWarn && <b>Thiếu chiều cao, đang dùng cân nặng thực: </b>}
       Liều thường dùng {calc.doseMin}–{calc.doseMax} {calc.doseUnit} → <b>{formatDoseNumber(lo)}–{formatDoseNumber(hi)} mL/giờ</b>
       {slowest != null && fastest != null && <> · {trim(volumeMl)} mL chạy được {formatDuration(fastest)} – {formatDuration(slowest)}</>}
     </p>
@@ -10049,7 +10075,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             </span>
           </button>
           {showPeripheralDetail && (
-            <p className={`${T.meta} px-3 pb-2.5`} style={{ color: "var(--c-warn)" }}>
+            <p className={`${T.meta} ${PROSE} px-3 pb-2.5`} style={{ color: "var(--c-warn)" }}>
               Đang pha {formatDoseNumber(peripheralWarn.conc)} {calc.concUnit}, gấp {formatDoseNumber(peripheralWarn.factor)} lần ngưỡng{" "}
               {formatDoseNumber(peripheralWarn.max)} {calc.concUnit} — nồng độ này thuộc nhóm ưu tiên tĩnh mạch trung tâm.
               {peripheralWarn.note ? ` ${peripheralWarn.note}` : ""}
@@ -10072,8 +10098,8 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         >
           <span className="mt-0.5 flex-none" style={{ color: severityStyle.text }}>{icons.alert()}</span>
           <div>
-            <p className="text-[13px] font-extrabold leading-[1.3]" style={{ color: severityStyle.text }}>{check.headline}</p>
-            {check.detail && <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: severityStyle.text }}>{check.detail}</p>}
+            <p className={`text-[13px] font-extrabold leading-[1.3] ${PROSE}`} style={{ color: severityStyle.text }}>{check.headline}</p>
+            {check.detail && <p className={`text-[12px] leading-[1.45] mt-0.5 ${PROSE}`} style={{ color: severityStyle.text }}>{check.detail}</p>}
           </div>
         </div>
       )}
@@ -10270,7 +10296,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
           buộc để tính tốc độ bơm (nồng độ đã có ô riêng ở trên); chúng chỉ hỗ trợ TRA CỨU/PHA
           thuốc và tính thêm "hết sau bao lâu" — hợp lý đứng sau khi đã thấy câu trả lời chính. */}
       {calc.mix?.stability && (
-        <p className={`${T.meta} mb-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.lineSoft, color: C.textSoft }}>
+        <p className={`${T.meta} ${PROSE} mb-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.lineSoft, color: C.textSoft }}>
           Sau khi pha: {calc.mix.stability}
         </p>
       )}
@@ -10378,9 +10404,9 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             </div>
           </div>
         ) : (
-          <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
+          <p className={`${T.body} ${PROSE}`} style={{ color: C.textSoft }}>{drug.preparation}</p>
         )}
-        {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
+        {drug.note && <p className={`${T.meta} ${PROSE} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
 
         <button
           onClick={() => setShowMix((v) => !v)}
@@ -10526,7 +10552,7 @@ function InfusionDrugCard({
         </div>
       </div>
 
-      <p className={`${T.body} mt-2`} style={{ color: "var(--c-text-2)" }}>{drug.doseRange}</p>
+      <p className={`${T.body} ${PROSE} mt-2`} style={{ color: "var(--c-text-2)" }}>{drug.doseRange}</p>
 
       {/* Cảnh báo mức cao — luôn hiện, ngay dưới khoảng liều */}
       {highWarnings.length > 0 && (
@@ -10534,7 +10560,7 @@ function InfusionDrugCard({
           {highWarnings.map((w, i) => (
             <div key={i} className={`flex items-start gap-2 px-2.5 py-2 ${R.box}`} style={{ background: C.dangerSoft, border: `1px solid ${C.dangerLine}` }}>
               <span className="mt-0.5 flex-none" style={{ color: C.dangerIcon }}>{icons.alert()}</span>
-              <p className={T.bodyStrong} style={{ color: C.danger }}>{w.text}</p>
+              <p className={`${T.bodyStrong} ${PROSE}`} style={{ color: C.danger }}>{w.text}</p>
             </div>
           ))}
         </div>
@@ -10573,8 +10599,8 @@ function InfusionDrugCard({
           gluconat...) mới cần khối tĩnh này. */}
       {!drug.calc && (
         <Disclosure label="Cách dùng · Pha thuốc">
-          <p className={T.body} style={{ color: C.textSoft }}>{drug.preparation}</p>
-          {drug.note && <p className={`${T.meta} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
+          <p className={`${T.body} ${PROSE}`} style={{ color: C.textSoft }}>{drug.preparation}</p>
+          {drug.note && <p className={`${T.meta} ${PROSE} mt-2`} style={{ color: C.textSoft }}>{drug.note}</p>}
         </Disclosure>
       )}
 
@@ -11388,12 +11414,12 @@ function DungThuocScreen({
       {resetUndo && (
         <div
           className="toast-in-full absolute left-4 right-4 z-50 rounded-[20px] px-4 py-3 flex items-center gap-3"
-          // --c-pill-dark: cố ý LUÔN tối bất kể theme. Chữ dùng #fff cố định thay vì --c-on-bright —
-          // token đó đổi gần-đen ở bản tối (dành cho chữ trên nền sáng lên), trở nên vô hình trên
-          // nền pill luôn-tối này.
+          // --c-pill-dark: cố ý LUÔN tối bất kể theme. Chữ dùng --c-pill-dark-text (luôn trắng, khai
+          // riêng ở index.css) thay vì --c-on-bright — token đó đổi gần-đen ở bản tối (dành cho chữ
+          // trên nền sáng lên), trở nên vô hình trên nền pill luôn-tối này.
           style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow), var(--c-shadow-glow)" }}
         >
-          <p className="flex-1 text-[13px] font-semibold" style={{ color: "#fff" }}>
+          <p className="flex-1 text-[13px] font-semibold" style={{ color: "var(--c-pill-dark-text)" }}>
             Đã xoá bệnh nhân{resetUndo.running.length > 0 ? ` và ${resetUndo.running.length} thuốc đang dùng` : ""}
           </p>
           <button
@@ -12139,10 +12165,10 @@ export default function App() {
               whiteSpace: "nowrap",
             }}
           >
-            {/* Dải này LUÔN có nền tối (rgba(15,23,42,.92)) bất kể theme — #4ade80 là đúng giá trị
-                --c-green của bản tối, chọn cố định vì đổi theo --c-green sẽ tối sẫm lại ở bản sáng
-                và mất tương phản trên nền navy cố định này. */}
-            <span style={{ color: "#4ade80" }}>✓</span>
+            {/* Dải này LUÔN có nền tối (rgba(15,23,42,.92)) bất kể theme — --c-toast-green (index.css)
+                khai cố định đúng giá trị --c-green của bản tối, vì đổi theo --c-green thường sẽ tối
+                sẫm lại ở bản sáng và mất tương phản trên nền navy cố định này. */}
+            <span style={{ color: "var(--c-toast-green)" }}>✓</span>
             {toast}
           </div>
         )}

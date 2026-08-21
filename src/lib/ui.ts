@@ -42,6 +42,14 @@ export const T = {
 // các dòng lệch nhau từng chút một.
 export const NUM = "tabular-nums"
 
+// Đoạn văn xuôi dài (Cách dùng, ghi chú thuốc, cảnh báo thoát mạch, hạn dùng sau pha...) trước đây
+// không giới hạn max-width, nên trên desktop rộng (viewport 1280px) một số đoạn kéo dài tới 1206px ở
+// cỡ 12-14px — tương đương 170-200 ký tự/dòng, vượt xa ngưỡng đọc thoải mái (60-90 ký tự), làm chậm
+// đọc đúng lúc đây là văn bản AN TOÀN cần đọc nhanh nhất (/impeccable critique 2026-08-21 lượt 2,
+// P2). 70ch giữ dòng trong khoảng đọc tốt mà không ảnh hưởng gì trên di động (viewport hẹp đã tự nhỏ
+// hơn 70ch từ trước).
+export const PROSE = "max-w-[70ch]"
+
 // Font đơn cách dành RIÊNG cho số liều/nồng độ/tốc độ bơm — DESIGN.md quy định JetBrains Mono cho
 // đúng nhóm này để đọc rõ từng ký tự (buồng tối, qua kính bảo hộ, 1/l và 0/O dễ đọc nhầm ở font
 // thường). Cố ý KHÔNG gộp vào `NUM`: rất nhiều chỗ dùng `NUM` chỉ để canh cột tabular-nums cho một

@@ -173,6 +173,19 @@
   /* Dải/pill NỔI TRÊN MẶT BẢNG vẽ (gợi ý cử chỉ, toast) — đậm hơn --c-scrim (dải chữ trắng cần nền
      đủ tối để đọc được ở mọi vị trí trên canvas, không phải một lớp phủ mờ phía sau modal). */
   --c-pill-dark: rgba(18, 20, 43, 0.9);
+  /* Chữ đặt trên --c-pill-dark ở trên — CHỈ dùng cặp với nó. --c-on-bright không hợp: token đó đổi
+     gần-đen ở bản tối (dành cho chữ trên nền sáng LÊN ở bản tối), trong khi nền --c-pill-dark luôn
+     tối bất kể theme nên chữ luôn phải trắng. Khai MỘT LẦN duy nhất (không override ở khối bản tối
+     bên dưới), giống hệt cách --c-pill-dark chỉ khai báo một lần (/impeccable critique 2026-08-21
+     lượt 2, P3 — trước đây App.tsx viết thẳng "#fff", lint token tự động sẽ không đọc được bình
+     luận giải thích và gắn cờ nhầm). */
+  --c-pill-dark-text: #ffffff;
+  /* Dấu "✓" trên dải xác nhận (toast) — nền dải LUÔN tối (rgba(15,23,42,.92)) bất kể theme, nên dùng
+     đúng giá trị --c-green của BẢN TỐI cố định (#4ade80): đổi theo --c-green thường sẽ tối sẫm lại ở
+     bản sáng và mất tương phản trên nền navy cố định này. Khai MỘT LẦN duy nhất, cùng lý do với
+     --c-pill-dark ở trên (/impeccable critique 2026-08-21 lượt 2, P3 — trước đây App.tsx viết thẳng
+     "#4ade80"). */
+  --c-toast-green: #4ade80;
 
   /* ─── Thanh điều hướng dưới & các phần tử NỔI ───────────────────────────────
      Tách riêng khỏi bảng màu chung vì đây là những chỗ trước đây viết mã màu cứng
