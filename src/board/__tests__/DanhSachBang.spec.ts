@@ -6,9 +6,28 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { DanhSachBang } from '../DanhSachBang'
+import { DanhSachBang, nghiengOnDinh } from '../DanhSachBang'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+describe('nghiengOnDinh', () => {
+  it('cùng id → luôn cùng một góc (ổn định qua nhiều lần gọi)', () => {
+    expect(nghiengOnDinh('bang-abc')).toBe(nghiengOnDinh('bang-abc'))
+  })
+
+  it('góc luôn nằm trong khoảng [-3, 3]', () => {
+    const ids = ['bang-1', 'bang-2', 'bang-xyz', 'a', 'bang-' + 'x'.repeat(50)]
+    for (const id of ids) {
+      const goc = nghiengOnDinh(id)
+      expect(goc).toBeGreaterThanOrEqual(-3)
+      expect(goc).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('id rỗng vẫn trả về một số hữu hạn hợp lệ, không NaN', () => {
+    expect(Number.isFinite(nghiengOnDinh(''))).toBe(true)
+  })
+})
 
 // `act(async () => { await vi.waitFor(() => { expect(...) }) })` — một act() DUY NHẤT bọc ngoài
 // toàn bộ vòng lặp poll — TREO VÔ THỜI HẠN khi điều kiện chờ phụ thuộc một cập nhật state React

@@ -13,6 +13,15 @@ import { type BangMeta, taoIdBang } from './boardMeta'
 // dòng đó. Xem Global Constraints của kế hoạch này.
 const XAC_NHAN_XOA_MS = 5000
 
+// Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
+// Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
+// không tự xoay mỗi khi có gì đó khiến component render lại).
+export function nghiengOnDinh(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
+  return ((Math.abs(h) % 61) - 30) / 10
+}
+
 function TheTrong() {
   return (
     <svg viewBox="0 0 200 150" className="w-full h-full opacity-40" aria-hidden="true">
