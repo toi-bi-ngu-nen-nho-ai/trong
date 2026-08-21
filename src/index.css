@@ -612,7 +612,7 @@ html.theme-shift * {
    ứng). JS (DanhSachBang.tsx) cập nhật --con-tro-x/--con-tro-y qua pointermove; nếu JS không chạy
    (hoặc trên cảm ứng, nơi media query dưới đây không khớp), thẻ vẫn dùng đúng .the-bang-vat:hover
    tĩnh của Task 1 — không có gì hỏng nếu bỏ qua lớp này. */
-@media (hover: hover) and (pointer: fine) {
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .the-bang-vat.the-bang-nghieng-con-tro:hover {
     transform: perspective(400px)
       rotateX(calc((var(--con-tro-y, 0.5) - 0.5) * -6deg))
