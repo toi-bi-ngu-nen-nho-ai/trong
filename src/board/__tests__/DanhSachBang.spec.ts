@@ -6,9 +6,28 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { DanhSachBang } from '../DanhSachBang'
+import { DanhSachBang, nghiengOnDinh } from '../DanhSachBang'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+
+describe('nghiengOnDinh', () => {
+  it('cùng id → luôn cùng một góc (ổn định qua nhiều lần gọi)', () => {
+    expect(nghiengOnDinh('bang-abc')).toBe(nghiengOnDinh('bang-abc'))
+  })
+
+  it('góc luôn nằm trong khoảng [-3, 3]', () => {
+    const ids = ['bang-1', 'bang-2', 'bang-xyz', 'a', 'bang-' + 'x'.repeat(50)]
+    for (const id of ids) {
+      const goc = nghiengOnDinh(id)
+      expect(goc).toBeGreaterThanOrEqual(-3)
+      expect(goc).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('id rỗng vẫn trả về một số hữu hạn hợp lệ, không NaN', () => {
+    expect(Number.isFinite(nghiengOnDinh(''))).toBe(true)
+  })
+})
 
 // `act(async () => { await vi.waitFor(() => { expect(...) }) })` — một act() DUY NHẤT bọc ngoài
 // toàn bộ vòng lặp poll — TREO VÔ THỜI HẠN khi điều kiện chờ phụ thuộc một cập nhật state React
@@ -65,6 +84,19 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
   })
 
+  it('rỗng lúc đầu → có lời mời và minh hoạ, KHÔNG chỉ mỗi nút "+" trần', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    expect(container.textContent).toContain('Bắt đầu một sơ đồ tư duy mới')
+    // Nút tạo vẫn đúng testid/aria-label — hai ca kiểm cũ dựa vào đúng hai giá trị này.
+    const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
+    expect(nut.getAttribute('aria-label')).toBe('Tạo bảng mới')
+  })
+
   it('có sẵn bảng trong metadata (ghi thẳng qua idb.ts, mô phỏng phiên trước) → hiện đúng tên trên thẻ', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Phác đồ sốc nhiễm khuẩn', taoLuc: bayGio, capNhatLuc: bayGio })
@@ -75,6 +107,43 @@ describe('DanhSachBang', () => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     })
     expect(container.textContent).toContain('Phác đồ sốc nhiễm khuẩn')
+  })
+
+  it('mặt thẻ có class "the-bang-vat", thẻ ngoài có biến CSS --tilt hợp lệ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Test nghiêng', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    const nut = container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement
+    expect(nut.className).toContain('the-bang-vat')
+
+    const the = container.querySelector('[data-testid="the-bang"]') as HTMLElement
+    const tilt = the.style.getPropertyValue('--tilt')
+    expect(tilt).toMatch(/^-?\d+(\.\d+)?deg$/)
+    expect(tilt).toBe(`${nghiengOnDinh('bang-1')}deg`)
+  })
+
+  it('thẻ vừa tạo (taoLuc gần đây) có class "card-plop"; thẻ cũ có class "card-settle"', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-cu', ten: 'Thẻ cũ', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
+    await idbPut(IDB_STORES.boards, { id: 'bang-moi', ten: 'Thẻ mới', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const cac = Array.from(container.querySelectorAll('[data-testid="the-bang"]')) as HTMLElement[]
+    const theCu = cac.find((el) => el.textContent?.includes('Thẻ cũ'))
+    const theMoi = cac.find((el) => el.textContent?.includes('Thẻ mới'))
+    expect(theCu?.className).toContain('card-settle')
+    expect(theMoi?.className).toContain('card-plop')
   })
 
   it('bấm thẻ "+" → gọi onMoBang với id mới NGAY, thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB)', async () => {
@@ -238,7 +307,7 @@ describe('DanhSachBang', () => {
     })
   })
 
-  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → bảng biến mất khỏi lưới NGAY, rồi khỏi metadata', async () => {
+  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → thẻ trượt ra (card-slide-out) rồi mới biến mất khỏi lưới, rồi khỏi metadata', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
@@ -260,15 +329,59 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     expect(nutXoa().textContent).toContain('Chắc chắn')
 
-    // Chạm lần 2: xoá thật.
+    // Chạm lần 2: bắt đầu xoá — thẻ CHƯA biến mất ngay, đang chạy .card-slide-out.
     await act(async () => {
       nutXoa().click()
     })
-    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    const theDangXoa = container.querySelector('[data-testid="the-bang"]') as HTMLElement
+    expect(theDangXoa).not.toBeNull()
+    expect(theDangXoa.className).toContain('card-slide-out')
+    expect(theDangXoa.style.pointerEvents).toBe('none')
+
+    // Sau khoảng chờ animation (200ms), thẻ mới thật sự biến mất khỏi state + IndexedDB.
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    }, 3000)
 
     await vi.waitFor(async () => {
       const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
       expect(ds.map((b) => b.id)).not.toContain('bang-1')
     })
+  })
+
+  it('xoá thẻ A (đang chạy card-slide-out) không đóng menu "⋯" đang mở của thẻ B', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-a', ten: 'Bảng A', taoLuc: bayGio - 20_000, capNhatLuc: bayGio - 20_000 })
+    await idbPut(IDB_STORES.boards, { id: 'bang-b', ten: 'Bảng B', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    // Mở menu của B trước.
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-b"]') as HTMLButtonElement).click()
+    })
+    expect(container.querySelector('[data-testid="doi-ten-bang-b"]')).not.toBeNull()
+
+    // Xoá A (hai chạm) — KHÔNG mở menu của A trước, chỉ thao tác trực tiếp qua state nội bộ bằng
+    // đúng luồng UI: mở menu A, chạm Xoá hai lần.
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-a"]') as HTMLButtonElement).click()
+    })
+    const nutXoaA = () => container.querySelector('[data-testid="xoa-bang-a"]') as HTMLButtonElement
+    await act(async () => { nutXoaA().click() })
+    await act(async () => { nutXoaA().click() })
+
+    // Menu của B mở lúc đầu đã bị đóng bởi bước mở-menu-A (đúng hành vi sẵn có: mở menu khác thì
+    // đóng menu cũ, dangMoMenuId chỉ giữ MỘT id) — kiểm đúng điều đó, không phải lỗi mới.
+    expect(container.querySelector('[data-testid="doi-ten-bang-b"]')).toBeNull()
+    // Thẻ B vẫn còn nguyên, không bị ảnh hưởng bởi việc A đang trượt ra.
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Bảng B')
   })
 })

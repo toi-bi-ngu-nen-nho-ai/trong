@@ -1,7 +1,7 @@
 // Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. KHÔNG phụ thuộc BlockSuite (không import ./index hay
 // ./EdgelessBoard) — giữ file này nhẹ, tách hẳn khỏi ranh giới nạp chậm 994 kB. BoardGallery.tsx
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
@@ -12,6 +12,22 @@ import { type BangMeta, taoIdBang } from './boardMeta'
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
 // dòng đó. Xem Global Constraints của kế hoạch này.
 const XAC_NHAN_XOA_MS = 5000
+
+// Ngưỡng coi một thẻ là "vừa tạo" (dùng .card-plop thay vì .card-settle êm) — xem §3.2/§3.3 spec.
+const VUA_TAO_NGUONG_MS = 3000
+
+// Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi remove()
+// thật chạy, để animation kịp chạy hết trước khi gỡ khỏi DOM.
+const XOA_TRE_MS = 200
+
+// Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
+// Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
+// không tự xoay mỗi khi có gì đó khiến component render lại).
+export function nghiengOnDinh(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
+  return ((Math.abs(h) % 61) - 30) / 10
+}
 
 function TheTrong() {
   return (
@@ -25,6 +41,9 @@ function TheTrong() {
 
 function TheBang({
   bang,
+  index,
+  vuaTao,
+  dangXoa,
   dangSuaTen,
   dangMoMenu,
   dangXacNhanXoa,
@@ -35,6 +54,9 @@ function TheBang({
   onXoa,
 }: {
   bang: BangMeta
+  index: number
+  vuaTao: boolean
+  dangXoa: boolean
   dangSuaTen: boolean
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
@@ -45,6 +67,7 @@ function TheBang({
   onXoa: () => void
 }) {
   const [tenNhap, setTenNhap] = useState(bang.ten)
+  const nutRef = useRef<HTMLButtonElement>(null)
 
   // `tenNhap` chỉ khởi tạo MỘT LẦN từ `useState(bang.ten)` — không tự đồng bộ lại khi mở sửa tên
   // LẦN THỨ HAI. Không có effect này: gõ nháp → Escape (huỷ, không lưu nhưng cũng không reset ô
@@ -55,11 +78,36 @@ function TheBang({
     if (dangSuaTen) setTenNhap(bang.ten)
   }, [dangSuaTen, bang.ten])
 
+  const lopVaoMan = dangXoa ? 'card-slide-out' : vuaTao ? 'card-plop' : 'card-settle'
+
   return (
-    <div data-testid="the-bang" style={{ position: 'relative' }}>
+    <div
+      data-testid="the-bang"
+      className={lopVaoMan}
+      style={{
+        position: 'relative',
+        '--tilt': `${nghiengOnDinh(bang.id)}deg`,
+        '--i': index,
+        pointerEvents: dangXoa ? 'none' : undefined,
+      } as React.CSSProperties}
+    >
       <button
+        ref={nutRef}
         type="button"
         onClick={onMo}
+        className="the-bang-vat the-bang-nghieng-con-tro"
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'mouse') return
+          const el = nutRef.current
+          if (!el) return
+          const r = el.getBoundingClientRect()
+          el.style.setProperty('--con-tro-x', String((e.clientX - r.left) / r.width))
+          el.style.setProperty('--con-tro-y', String((e.clientY - r.top) / r.height))
+        }}
+        onPointerLeave={() => {
+          nutRef.current?.style.removeProperty('--con-tro-x')
+          nutRef.current?.style.removeProperty('--con-tro-y')
+        }}
         style={{ display: 'block', width: '100%', border: 0, background: 'none', padding: 0, textAlign: 'left' }}
         aria-label={`Mở bảng ${bang.ten}`}
       >
@@ -133,7 +181,15 @@ function TheBang({
   )
 }
 
-export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void }) {
+export function DanhSachBang({
+  onMoBang,
+  dungTuBang,
+  onHieuUngXong,
+}: {
+  onMoBang: (boardId: string) => void
+  dungTuBang?: boolean
+  onHieuUngXong?: () => void
+}) {
   // useIdbCollection tự nạp danh sách lúc mount (fetch một lần, xem src/lib/useIdbCollection.ts)
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
   // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
@@ -142,6 +198,8 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
+  const [dangXoaId, setDangXoaId] = useState<string | null>(null)
+  const luoBoMount = useRef(Date.now())
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -149,70 +207,131 @@ export function DanhSachBang({ onMoBang }: { onMoBang: (boardId: string) => void
     return () => clearTimeout(id)
   }, [dangXacNhanXoaId])
 
+  useEffect(() => {
+    if (!dangXoaId) return
+    const idBiXoa = dangXoaId
+    const id = setTimeout(() => {
+      remove(idBiXoa)
+      setDangXoaId(null)
+    }, XOA_TRE_MS)
+    return () => clearTimeout(id)
+  }, [dangXoaId, remove])
+
+  // Hiệu ứng .board-out chỉ chạy MỘT LẦN khi vừa đóng một bảng (dungTuBang=true) — tự báo xong
+  // sau khi animation (0,2s, xem index.css) kết thúc, cộng biên an toàn nhỏ. KHÔNG chạy khi
+  // DanhSachBang mount vì lý do khác (vd lần đầu vào tab Mindmap) — dungTuBang khi đó là
+  // undefined/false, effect này không làm gì.
+  useEffect(() => {
+    if (!dungTuBang) return
+    const id = setTimeout(() => onHieuUngXong?.(), 220)
+    return () => clearTimeout(id)
+  }, [dungTuBang, onHieuUngXong])
+
   // Chưa nạp xong lần đầu — không hiện gì (kể cả thẻ "+"), tránh nháy "rỗng" giả trước khi
   // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
   if (loading) return null
 
   const danhSachSapXep = [...danhSach].sort((a, b) => b.capNhatLuc - a.capNhatLuc)
+  const bayGio = luoBoMount.current
+
+  const taoBangMoi = () => {
+    const luc = Date.now()
+    const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: luc, capNhatLuc: luc }
+    add(meta)
+    onMoBang(meta.id)
+  }
 
   return (
-    // `scroll-ios` (xem src/index.css) — cùng quy ước cuộn dọc + đệm dưới thanh nav mà mọi màn hình
-    // khác trong app dùng (vd HomeScreen, LibraryScreen ở App.tsx). Thiếu nó, lưới bảng dài quá một
-    // màn hình không có cách nào cuộn tới — trước lượt sửa này chỉ có `padding: 10` ad-hoc, không
-    // phải vùng cuộn thật.
-    <div className="scroll-ios h-full">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
-        {danhSachSapXep.map((bang) => (
-          <TheBang
-            key={bang.id}
-            bang={bang}
-            dangSuaTen={dangSuaTenId === bang.id}
-            dangMoMenu={dangMoMenuId === bang.id}
-            dangXacNhanXoa={dangXacNhanXoaId === bang.id}
-            onMo={() => onMoBang(bang.id)}
-            onBatMenu={() => setDangMoMenuId(dangMoMenuId === bang.id ? null : bang.id)}
-            onBatSuaTen={() => {
-              setDangMoMenuId(null)
-              setDangSuaTenId(bang.id)
-            }}
-            onLuuTen={(tenMoi) => {
-              setDangSuaTenId(null)
-              const tenSach = tenMoi.trim() || bang.ten
-              update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
-            }}
-            onXoa={() => {
-              if (dangXacNhanXoaId !== bang.id) {
-                setDangXacNhanXoaId(bang.id)
-                return
-              }
-              setDangXacNhanXoaId(null)
-              setDangMoMenuId(null)
-              remove(bang.id)
-            }}
-          />
-        ))}
-        <button
-          type="button"
-          data-testid="tao-bang"
-          onClick={() => {
-            const bayGio = Date.now()
-            const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: bayGio, capNhatLuc: bayGio }
-            add(meta)
-            onMoBang(meta.id)
-          }}
+    <div className={`scroll-ios h-full${dungTuBang ? ' board-out' : ''}`}>
+      {danhSachSapXep.length === 0 ? (
+        <div
           style={{
-            aspectRatio: '4 / 3',
-            border: '2px dashed var(--c-line, #d5cdb8)',
-            borderRadius: 8,
-            background: 'none',
-            fontSize: 24,
-            color: 'var(--c-text-muted, #b5aa8f)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '70%',
+            gap: 12,
+            padding: 16,
+            textAlign: 'center',
           }}
-          aria-label="Tạo bảng mới"
         >
-          +
-        </button>
-      </div>
+          <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #b5aa8f)' }}>
+            <TheTrong />
+          </div>
+          <p style={{ fontSize: 14, color: 'var(--c-text-muted, #8a8378)', margin: 0 }}>
+            Bắt đầu một sơ đồ tư duy mới
+          </p>
+          <button
+            type="button"
+            data-testid="tao-bang"
+            onClick={taoBangMoi}
+            style={{
+              width: 96,
+              height: 72,
+              border: '2px dashed var(--c-line, #d5cdb8)',
+              borderRadius: 8,
+              background: 'none',
+              fontSize: 28,
+              color: 'var(--c-text-muted, #b5aa8f)',
+            }}
+            aria-label="Tạo bảng mới"
+          >
+            +
+          </button>
+        </div>
+      ) : (
+        <div className="danh-sach-bang-nen" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
+          {danhSachSapXep.map((bang, index) => (
+            <TheBang
+              key={bang.id}
+              bang={bang}
+              index={index}
+              vuaTao={bayGio - bang.taoLuc < VUA_TAO_NGUONG_MS}
+              dangXoa={dangXoaId === bang.id}
+              dangSuaTen={dangSuaTenId === bang.id}
+              dangMoMenu={dangMoMenuId === bang.id}
+              dangXacNhanXoa={dangXacNhanXoaId === bang.id}
+              onMo={() => onMoBang(bang.id)}
+              onBatMenu={() => setDangMoMenuId(dangMoMenuId === bang.id ? null : bang.id)}
+              onBatSuaTen={() => {
+                setDangMoMenuId(null)
+                setDangSuaTenId(bang.id)
+              }}
+              onLuuTen={(tenMoi) => {
+                setDangSuaTenId(null)
+                const tenSach = tenMoi.trim() || bang.ten
+                update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
+              }}
+              onXoa={() => {
+                if (dangXacNhanXoaId !== bang.id) {
+                  setDangXacNhanXoaId(bang.id)
+                  return
+                }
+                setDangXacNhanXoaId(null)
+                setDangMoMenuId(null)
+                setDangXoaId(bang.id)
+              }}
+            />
+          ))}
+          <button
+            type="button"
+            data-testid="tao-bang"
+            onClick={taoBangMoi}
+            style={{
+              aspectRatio: '4 / 3',
+              border: '2px dashed var(--c-line, #d5cdb8)',
+              borderRadius: 8,
+              background: 'none',
+              fontSize: 24,
+              color: 'var(--c-text-muted, #b5aa8f)',
+            }}
+            aria-label="Tạo bảng mới"
+          >
+            +
+          </button>
+        </div>
+      )}
     </div>
   )
 }

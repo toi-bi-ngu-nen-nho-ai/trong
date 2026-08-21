@@ -111,6 +111,22 @@ describe('BoardGallery', () => {
     expect(container.querySelector('[data-testid="tao-bang"]')).toBeNull()
   })
 
+  it('bấm một thẻ bảng → boc-bang có class "board-in"', async () => {
+    const meta = taoBangGia('Bảng test')
+    await idbPut(IDB_STORES.boards, meta)
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true }))
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
+    await act(async () => {
+      ;(container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="bang-gia"]')).not.toBeNull())
+
+    const boc = container.querySelector('[data-testid="boc-bang"]')
+    expect(boc?.className).toContain('board-in')
+  })
+
   it('dangHienTab=false trong khi có bảng mở → EdgelessBoard VẪN mount (không unmount), chỉ ẩn', async () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.boards, meta)
@@ -186,5 +202,33 @@ describe('BoardGallery', () => {
     const anh = container.querySelector('[data-testid="the-bang"] img')
     expect(anh).not.toBeNull()
     expect(anh?.getAttribute('src')).toBe('data:image/jpeg;base64,gia')
+  })
+
+  it('bấm quay lại → DanhSachBang tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {
+    await idbPut(IDB_STORES.boards, taoBangGia('Bảng test'))
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true }))
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
+    await act(async () => {
+      ;(container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="bang-gia"]')).not.toBeNull())
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="quay-lai"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    const luoi = container.querySelector('.scroll-ios')
+    expect(luoi?.className).toContain('board-out')
+
+    // Sau ~220ms, cờ tự tắt — class board-out biến mất khỏi lượt render kế tiếp.
+    await choDenKhi(() => {
+      expect(container.querySelector('.scroll-ios')?.className).not.toContain('board-out')
+    }, 3000)
   })
 })
