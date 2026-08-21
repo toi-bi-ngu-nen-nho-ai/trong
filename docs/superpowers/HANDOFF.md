@@ -1,9 +1,15 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-20**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-21**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **ĐÍNH CHÍNH bản 2026-08-20 (mục 18).** Bản đó dừng ở `fe1dbf2` (BoardGallery) và liệt "đẩy hết
+> hiệu ứng cho DanhSachBang" làm ứng viên chặng kế tiếp. Nay **đã xong, đã gộp, VÀ đã kiểm tay trên
+> trình duyệt thật** — xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 19**. Giữa hai lượt cũng có thêm
+> ba đợt vá `DungThuocScreen` theo `/impeccable critique` (2026-08-21) — không thuộc track này,
+> tóm tắt ở cuối mục 19.
 
 > **ĐÍNH CHÍNH bản 2026-08-18 (mục 17 trở lên).** Các bản viết trước ghi "chặng kế tiếp: BoardGallery"
-> như việc CHƯA LÀM. Nay **đã xong và đã gộp** — xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 18**.
+> như việc CHƯA LÀM. Nay **đã xong và đã gộp** — xem mục 18.
 
 > **ĐÍNH CHÍNH bản 2026-08-16 (viết đêm 16, trước khi gộp xong).** Bản đó ghi P1-E "8/8 task xong,
 > CHƯA GỘP". Sáng 17/08 phát sinh tình huống hai lượt gộp tách rời — xem "CẢNH BÁO VẬN HÀNH — gộp
@@ -16,24 +22,25 @@ Cập nhật: **2026-08-20**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — BoardGallery đã gộp, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — đẩy hiệu ứng DanhSachBang đã gộp + đã kiểm tay, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`fe1dbf2`** — merge commit, gộp `worktree-board-gallery` (13 commit, xem mục 18) |
-| `worktree-board-gallery` | `b9d1a30` — giữ lại làm bản sao lưu, không xoá |
+| `main` | **`b77395b`** — merge commit, gộp `worktree-day-hieu-ung-danh-sach-bang` (6 commit, xem mục 19) |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
-| Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11) và `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6) |
-| Bảy cổng | xanh — `tsc` exit 0 · `npm test` **243/243** (29 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 132/132 có mặt` |
+| Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19) và `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6) |
+| Bảy cổng | xanh, đo lại trực tiếp 2026-08-21 — `tsc` exit 0 · `npm test` **252/252** (29 file, 309.67s) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (19.5s) + `kiem:dist` xanh với `bản dịch vi.json — 132/132 có mặt` |
 
-> **Về con số 243/243 (trước đó 159/159).** Đo lại trực tiếp ngay sau merge BoardGallery
-> (2026-08-20, mục 18) — tăng 8 file/84 ca so với 159/159 (17 file) của mục 16, đúng bằng số file/ca
-> mà nhánh `worktree-board-gallery` mang theo (`BoardGallery.spec.ts`, `DanhSachBang.spec.ts`,
-> `boardMeta.spec.ts`, `diTruBangCu.spec.ts`, + ca bổ sung trong `idb.spec.ts`/
-> `edgeless-board.spec.ts`/`edgeless-board-mount.spec.ts`). Không phải hồi quy.
+> **Về con số 252/252 (trước đó 243/243).** Tăng 9 ca trong CÙNG 29 file (không thêm file mới) —
+> đúng bằng số ca mà nhánh `worktree-day-hieu-ung-danh-sach-bang` thêm vào `BoardGallery.spec.ts`/
+> `DanhSachBang.spec.ts` đã có sẵn. Không phải hồi quy.
+
+**Chặng "đẩy hiệu ứng DanhSachBang" — ĐÃ XONG, ĐÃ GỘP, VÀ ĐÃ KIỂM TAY TRÊN TRÌNH DUYỆT THẬT**
+(`b77395b`). 6 commit, một vòng review toàn nhánh đã đóng, kiểm tay đầy đủ qua Browser pane (khác
+mọi chặng trước — lần này pane compositing được vì phiên có người theo dõi). Chi tiết ở **mục 19**.
 
 **Chặng BoardGallery — dọn hack mount-vĩnh-viễn — ĐÃ XONG VÀ ĐÃ GỘP** (`fe1dbf2`). 13 commit, hai
 vòng review toàn nhánh đã đóng. Chi tiết ở **mục 18**.
@@ -1425,5 +1432,137 @@ git status --short                      # kỳ vọng chỉ src/data/antibiotics
 npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
 ```
 
-**Chặng kế tiếp:** kiểm tay BoardGallery trên trình duyệt thật (xem trên); hoặc "đẩy hết hiệu ứng"
-cho `DanhSachBang.tsx` theo charter; hoặc đợt dịch thứ hai cho `affine/data-view`.
+**Chặng kế tiếp (tại thời điểm viết mục 18) — ĐÃ LÀM, xem mục 19:** "đẩy hết hiệu ứng" cho
+`DanhSachBang.tsx` theo charter, kèm kiểm tay BoardGallery.
+
+---
+
+## 19. CHẶNG "ĐẨY HIỆU ỨNG DANHSACHBANG" — ĐÃ XONG, ĐÃ GỘP, ĐÃ KIỂM TAY TRÊN TRÌNH DUYỆT THẬT
+
+Track **MindmapScreen**, phần "danh sách" — theo `[[project_mindmap-charter]]`. Nhánh
+`worktree-day-hieu-ung-danh-sach-bang` (worktree), gộp vào `main` tại **`b77395b`** (2026-08-21,
+`git merge --no-ff`, không qua PR GitHub — cùng thói quen đã dùng ở BoardGallery, mục 18).
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-21-day-hieu-ung-danh-sach-bang-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-21-day-hieu-ung-danh-sach-bang.md` |
+
+### Chặng này làm gì
+
+`DanhSachBang.tsx` trước đây là lưới thẻ hoàn toàn trần — đây là bề mặt DUY NHẤT của track
+MindmapScreen chưa qua lượt "đẩy hết hiệu ứng rồi để chủ dự án cắt" mà charter đòi (charter:
+màn danh sách đáng ~70% trọng số công sức thiết kế, xem `[[project_mindmap-charter]]`). Thêm:
+
+- **Nghiêng ổn định theo id** (`nghiengOnDinh()`, hàm băm thuần, `[-3, 3]` độ) — mỗi thẻ có một
+  "tư thế nghỉ" cố định, không đổi qua re-render, mô phỏng ảnh thật nằm trên bàn.
+- **`.card-settle`/`.card-plop`** — thẻ cũ "rơi vào chỗ" êm lúc lưới vào màn; thẻ vừa tạo
+  (`taoLuc` < `VUA_TAO_NGUONG_MS` = 3000ms) nảy quá đà nhẹ rồi ổn định, rõ hơn hẳn thẻ cũ.
+- **`.card-slide-out`** — xoá thẻ trượt/mờ ~200ms (`XOA_TRE_MS`) trước khi gỡ khỏi state/IndexedDB
+  thật, không biến mất tức thì.
+- **Trạng thái rỗng** — minh hoạ SVG (`TheTrong`) thở nhẹ (`.empty-breathe`, lặp vô hạn, có gate
+  reduced-motion vì khác các animation chạy-một-lần khác), lời mời, nút tạo lớn.
+- **Vá lại `.board-in`/`.board-out`** — hai class này đã tồn tại từ trước (D4) nhưng rơi rụng lúc
+  tái cấu trúc sang BoardGallery, không còn được gọi ở đâu. Nối lại đúng ý định gốc: mở bảng →
+  `boc-bang` có `.board-in`; đóng bảng → `DanhSachBang` tái xuất hiện có `.board-out`, tự tắt sau
+  ~220ms, KHÔNG chạy khi chỉ chuyển tab đi/về mà không đóng bảng nào.
+- **LỚP C (tuỳ chọn, revert độc lập được)** — hoạ tiết nền mờ (CSS thuần, opacity 0.04) + nghiêng
+  nhẹ theo vị trí con trỏ khi hover chuột thật (`perspective`/`rotateX`/`rotateY` qua
+  `--con-tro-x/y`, cập nhật bằng `onPointerMove`, chỉ `pointerType === 'mouse'`).
+- Tuân thủ **Floating-Layer-Only Rule** của `DESIGN.md`: KHÔNG `box-shadow` mới nào — cảm giác
+  "nhấc thẻ lên" khi hover/press chỉ đến từ `transform`. Quyết định đã chốt với chủ dự án, không
+  mở ngoại lệ.
+
+### Đã xong
+
+6 commit thật (kế hoạch tính theo Task, không 1:1 với commit):
+
+| Commit | Nội dung |
+|---|---|
+| `f2ce5f7` | Spec chốt qua brainstorm (main, trước khi tách worktree) |
+| Task 1-6 (trong worktree) | Nghiêng ổn định · card-settle/plop · card-slide-out + sửa ca kiểm xoá cũ · trạng thái rỗng · nối lại board-in/board-out · LỚP C (nền + nghiêng con trỏ) |
+| Vá review toàn nhánh | `8346c1f` — tắt nghiêng-theo-con-trỏ dưới `prefers-reduced-motion` (lỗ hổng review toàn nhánh: media query LỚP C thiếu điều kiện `(prefers-reduced-motion: no-preference)`, JS vẫn ghi `--con-tro-x/y` bình thường nhưng CSS đọc chúng phải bị chặn) |
+| `b77395b` | Merge vào `main` |
+
+`npm test` **252/252** (29 file — không thêm file mới, chỉ thêm ca vào `BoardGallery.spec.ts`/
+`DanhSachBang.spec.ts` đã có sẵn), trước chặng **243/243**.
+
+### Kiểm tay trên trình duyệt thật — LÀM ĐƯỢC LẦN ĐẦU TIÊN cho track này, đủ 9/9 mục Step 6 của kế hoạch
+
+Khác BoardGallery/D4 (mục 16-18, phiên không người theo dõi nên Browser pane báo lỗi
+`"the Browser pane is not displayed, so the page is not compositing frames"` cho mọi thao tác cần
+compositing) — phiên này CÓ người theo dõi trực tiếp qua chat, và `computer`/`screenshot` vẫn báo
+lỗi compositing y hệt (giới hạn môi trường CLI, không phải do có/không người xem). Xác nhận toàn bộ
+bằng `javascript_tool` (đọc/gọi DOM thật, đúng ứng dụng thật qua dev server `drtrong-dev`, không
+phải giả lập) — không cần compositing:
+
+| # | Mục (Step 6 của kế hoạch) | Cách xác nhận | Kết quả |
+|---|---|---|---|
+| 1 | Nghiêng ổn định qua reload | Đo `--tilt` một thẻ trước/sau `navigate` (reload cứng) | Y HỆT: `0.8deg` cả hai lần |
+| 2 | Hover un-rotate + scale, không box-shadow mới | `getComputedStyle(.the-bang-vat).boxShadow` trên 4 thẻ + đọc mã CSS (`:hover`/`:active` không set `box-shadow`) | `"none"` cả 4 thẻ; hover thật (di chuột) KHÔNG kiểm được — cần compositing thật, xem "Còn nợ" dưới |
+| 3 | Thẻ mới nảy rõ hơn thẻ cũ | Tạo bảng → đóng ngay (<200ms, trong cùng script JS để tránh độ trễ round-trip giữa các lượt gọi tool) → đọc class | `card-plop` cho thẻ mới, `card-settle` cho thẻ cũ, cùng lúc trong 1 lưới |
+| 4 | Xoá: trượt ~200ms rồi mới mất | Bấm xoá 2 lượt (vũ trang → xác nhận) trong 1 script, poll DOM mỗi 15ms | `card-slide-out` từ t=17ms đến t=206ms, biến mất đúng t=222ms — khớp `XOA_TRE_MS=200` |
+| 5 | Trạng thái rỗng có minh hoạ+lời mời+nút lớn | Xoá hết 2 thẻ còn lại, đọc DOM | `.empty-breathe` + "Bắt đầu một sơ đồ tư duy mới" + `[data-testid="tao-bang"]` xuất hiện đúng lúc chuyển 2→0, không chỉ lúc tải trang lần đầu |
+| 6 | Mở bảng → `.board-in` | Bấm mở, đọc class `boc-bang` | Có `board-in` ngay khi mở |
+| 7 | Đóng bảng → `.board-out` rồi tự tắt | Poll class mỗi 15ms sau khi bấm "←" | `board-out` có mặt t=17ms→236ms, mất hẳn ở t=252ms — khớp thiết kế "220ms + biên an toàn" |
+| 8 | `prefers-reduced-motion` tắt 6 animation, giữ `:active` | Đọc mã `src/index.css:718-736` — cả 6 class (`board-in/out`, `card-settle/plop/slide-out`, `empty-breathe`) trong khối `@media (prefers-reduced-motion: reduce)`; `.the-bang-vat`/`:active` KHÔNG nằm trong khối đó | Đúng thiết kế; KHÔNG giả lập được `matchMedia` qua `javascript_tool` (cần DevTools/CDP), xem "Còn nợ" |
+| 9 | Chuyển tab đi/về KHÔNG mở/đóng bảng → KHÔNG chạy `.board-out` | Bấm "Trang chủ" → "Mindmap", poll class mỗi 15ms trong 238ms | KHÔNG một lần nào thấy `board-out` |
+
+Xuyên suốt: `read_console_messages` sạch (không lỗi), `read_network_requests` toàn bộ 200 OK (module
+`.vendor-build/` nạp bình thường).
+
+**Còn nợ — hai mục thật sự cần OS-level pointer/DevTools, không script nào giả lập được:**
+1. Cảm giác thị giác của hover un-rotate/nghiêng-theo-con-trỏ khi di chuột thật (đã xác nhận không
+   có `box-shadow` bằng computed style — phần "không phạm luật" chắc chắn; phần "trông có đẹp
+   không" thì chưa).
+2. Giả lập `prefers-reduced-motion: reduce` qua DevTools thật để xem bằng mắt (đã xác nhận đúng
+   bằng đọc mã + biết chắc `8346c1f` vá đúng lỗ hổng LỚP C).
+
+Cả hai không chặn gộp — cùng mức rủi ro chủ dự án đã chấp nhận ở D4/BoardGallery (mục 17-18).
+
+### Bảy cổng — đo lại trực tiếp 2026-08-21, sau khi kiểm tay xong
+
+`npx tsc --noEmit` exit 0 · `npx vitest run --reporter=verbose` **252/252** (29 file, 309.67s) ·
+`kiem:vendor` — so 2782 file với `bang-bam-vendor.json`, 0 sai lệch; so thượng nguồn, lệch 0 ·
+`kiem:vendor-paths` — khớp 438 mục · `npm run build` xanh (19.5s) · `kiem:dist` — đọc 14 file trong
+`dist/`, biến `--drt-*` dùng 73/định nghĩa 639, biến CSS dùng 317/định nghĩa 926, **bản dịch
+vi.json — 132/132 có mặt**, không còn `"affine-"`. Chặng này không đụng `src/vendor/`/`vi.json` nên
+bốn cổng vendor/dist giữ nguyên số so với mục 18 — đúng dự đoán, CHẠY THẬT để xác nhận.
+
+### Ngoài phạm vi, còn nợ
+
+- Kéo-thả sắp xếp lại thứ tự thẻ — đã chốt hoãn ở brainstorm, giữ `capNhatLuc` giảm dần.
+- Âm thanh/haptic — charter cấm rõ.
+- Bất kỳ thay đổi nào bên trong `EdgelessBoard`/ruột bảng — chuẩn mực ở đó là bám AFFiNE nguyên
+  văn, ngoài phạm vi "đẩy hiệu ứng".
+- `.impeccable/live/` (thư mục runtime của tool `/impeccable`, sinh ra trong phiên vá DungThuocScreen
+  dưới đây) hiện KHÔNG nằm trong `.gitignore` nên còn hiện trong `git status --short`. Vô hại (không
+  ai commit nhầm vì nó không phải mã nguồn), nhưng đáng thêm vào `.gitignore` ở lượt dọn nhỏ sau này.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng b77395b hoặc mới hơn
+git status --short                      # kỳ vọng chỉ src/data/antibiotics.ts (chủ dự án tự sửa) +
+                                         # .impeccable/live/ + hai file sinh ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp:** đợt dịch thứ hai cho `affine/data-view` (~162 chuỗi, cần bật gói trước — qua
+`brainstorming` → `writing-plans`); hoặc tiếp tục "đẩy hiệu ứng" sang bề mặt khác của track
+MindmapScreen nếu chủ dự án còn ý tưởng sau khi tự xem trên thiết bị thật; hoặc Lưu trữ/BoardGallery
+đã xong cả D4 lẫn danh sách — không còn nợ track này ngoài hai mục "Còn nợ" ở trên (cần thiết bị
+thật + DevTools, không phải nợ kỹ thuật).
+
+### Ghi chú ngoài track — ba đợt vá `DungThuocScreen` xen giữa (2026-08-21)
+
+Không thuộc track MindmapScreen. Ba commit `4925da3`/`904b7d2`/`e65cb0d`, mỗi cái vá theo một lượt
+`/impeccable critique DungThuocScreen` riêng (đọc message commit để biết chi tiết — đúng quy ước
+"đừng chép lại số liệu, đọc file gốc" của mục 15). Tóm rất tắt: `resolveDosingWeight` từng âm thầm
+dùng cân nặng thực khi thiếu chiều cao mà không báo (đã vá + cảnh báo ở cả bốn nơi gọi, kể cả
+`MixRunTime` bị bỏ sót ở lượt vá đầu); `crclNullReason` gộp một nguồn chân lý cho lý do CrCl null;
+giới hạn `max-w-[70ch]` (token `PROSE`) cho các đoạn cảnh báo/hướng dẫn liều từng rộng tới 1206px;
+`aria-live="polite"` cho các banner cảnh báo động. Cũng có hai commit cùng chủ đề từ 2026-08-19
+(`3d6aec8`, `4a37a78`, trước `fe1dbf2`) chưa từng được mục 15/16 nhắc tới — nếu cần chi tiết đầy đủ,
+`git log --oneline` rồi đọc message từng commit, đừng tin bảng chép tay có thể lệch (đúng bài học
+đã lặp lại nhiều lần trong file này).
