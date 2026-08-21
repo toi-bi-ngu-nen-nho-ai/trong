@@ -67,6 +67,7 @@ function TheBang({
   onXoa: () => void
 }) {
   const [tenNhap, setTenNhap] = useState(bang.ten)
+  const nutRef = useRef<HTMLButtonElement>(null)
 
   // `tenNhap` chỉ khởi tạo MỘT LẦN từ `useState(bang.ten)` — không tự đồng bộ lại khi mở sửa tên
   // LẦN THỨ HAI. Không có effect này: gõ nháp → Escape (huỷ, không lưu nhưng cũng không reset ô
@@ -91,9 +92,22 @@ function TheBang({
       } as React.CSSProperties}
     >
       <button
+        ref={nutRef}
         type="button"
         onClick={onMo}
-        className="the-bang-vat"
+        className="the-bang-vat the-bang-nghieng-con-tro"
+        onPointerMove={(e) => {
+          if (e.pointerType !== 'mouse') return
+          const el = nutRef.current
+          if (!el) return
+          const r = el.getBoundingClientRect()
+          el.style.setProperty('--con-tro-x', String((e.clientX - r.left) / r.width))
+          el.style.setProperty('--con-tro-y', String((e.clientY - r.top) / r.height))
+        }}
+        onPointerLeave={() => {
+          nutRef.current?.style.removeProperty('--con-tro-x')
+          nutRef.current?.style.removeProperty('--con-tro-y')
+        }}
         style={{ display: 'block', width: '100%', border: 0, background: 'none', padding: 0, textAlign: 'left' }}
         aria-label={`Mở bảng ${bang.ten}`}
       >
@@ -267,7 +281,7 @@ export function DanhSachBang({
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
+        <div className="danh-sach-bang-nen" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}
