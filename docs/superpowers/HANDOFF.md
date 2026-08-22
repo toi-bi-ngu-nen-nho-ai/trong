@@ -1,6 +1,11 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-21**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **ĐÍNH CHÍNH bản 2026-08-21 (mục 19 trở lên).** Chặng tiếp theo sau "đẩy hiệu ứng DanhSachBang" là
+> **"Database + Note đầy đủ"** (bật 10 extension BlockSuite còn thiếu: Database, SlashMenu,
+> DragHandle, 7 inline) — **đã xong, đã review toàn nhánh, VÀ đã gộp** — xem "TRẠNG THÁI HÔM NAY"
+> ngay dưới và **mục 20**.
 
 > **ĐÍNH CHÍNH bản 2026-08-20 (mục 18).** Bản đó dừng ở `fe1dbf2` (BoardGallery) và liệt "đẩy hết
 > hiệu ứng cho DanhSachBang" làm ứng viên chặng kế tiếp. Nay **đã xong, đã gộp, VÀ đã kiểm tay trên
@@ -22,21 +27,22 @@ Cập nhật: **2026-08-21**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — đẩy hiệu ứng DanhSachBang đã gộp + đã kiểm tay, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — Database + Note đầy đủ đã gộp, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`b77395b`** — merge commit, gộp `worktree-day-hieu-ung-danh-sach-bang` (6 commit, xem mục 19) |
+| `main` | **`a04d29c`** — merge commit, gộp `worktree-database-note-day-du` (11 commit, xem mục 20) |
+| `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
-| Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19) và `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6) |
-| Bảy cổng | xanh, đo lại trực tiếp 2026-08-21 — `tsc` exit 0 · `npm test` **252/252** (29 file, 309.67s) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (19.5s) + `kiem:dist` xanh với `bản dịch vi.json — 132/132 có mặt` |
+| Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main` SAU gộp, 2026-08-22 — `tsc` exit 0 · `npx vitest run` **285/285** (34 file, 310.84s) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (18.04s) + `kiem:dist` xanh với `bản dịch vi.json — 151/151 có mặt` |
 
-> **Về con số 252/252 (trước đó 243/243).** Tăng 9 ca trong CÙNG 29 file (không thêm file mới) —
-> đúng bằng số ca mà nhánh `worktree-day-hieu-ung-danh-sach-bang` thêm vào `BoardGallery.spec.ts`/
-> `DanhSachBang.spec.ts` đã có sẵn. Không phải hồi quy.
+**Chặng "Database + Note đầy đủ" — ĐÃ XONG, ĐÃ REVIEW TOÀN NHÁNH, VÀ ĐÃ GỘP** (`a04d29c`). Bật 10
+view extension BlockSuite còn thiếu (Database, SlashMenu, DragHandle, 7 inline) — D13: 23→33/58.
+11 commit, review toàn nhánh không có Critical, Important/Minor đã đóng. Chi tiết ở **mục 20**.
 
 **Chặng "đẩy hiệu ứng DanhSachBang" — ĐÃ XONG, ĐÃ GỘP, VÀ ĐÃ KIỂM TAY TRÊN TRÌNH DUYỆT THẬT**
 (`b77395b`). 6 commit, một vòng review toàn nhánh đã đóng, kiểm tay đầy đủ qua Browser pane (khác
@@ -1566,3 +1572,106 @@ giới hạn `max-w-[70ch]` (token `PROSE`) cho các đoạn cảnh báo/hướn
 (`3d6aec8`, `4a37a78`, trước `fe1dbf2`) chưa từng được mục 15/16 nhắc tới — nếu cần chi tiết đầy đủ,
 `git log --oneline` rồi đọc message từng commit, đừng tin bảng chép tay có thể lệch (đúng bài học
 đã lặp lại nhiều lần trong file này).
+
+---
+
+## 20. CHẶNG "DATABASE + NOTE ĐẦY ĐỦ" — ĐÃ XONG VÀ ĐÃ GỘP — bật 10 extension BlockSuite còn thiếu
+
+Track P1 vendor (KHÔNG thuộc MindmapScreen — không đụng `DanhSachBang.tsx`/`BoardGallery.tsx`).
+Worktree `.claude/worktrees/database-note-day-du` (nhánh `worktree-database-note-day-du`), gộp vào
+`main` tại **`a04d29c`** (2026-08-22, `git merge --no-ff` trực tiếp, không qua PR GitHub — cùng thói
+quen BoardGallery/"đẩy hiệu ứng DanhSachBang", mục 18).
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-21-database-note-day-du-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-21-database-note-day-du.md` |
+| Sổ tiến độ chi tiết (worktree, KHÔNG theo repo) | `.superpowers/sdd/2026-08-21-database-note-day-du/progress.md` |
+
+### Chặng này làm gì
+
+`src/board/extensions.ts` trước đây giữ 23/58 view extension thượng nguồn — Note trên bảng vẽ chỉ có
+đoạn văn + danh sách, không Database, không định dạng inline, không cách nào chèn khối mới (không
+SlashMenu, không DragHandle). Chặng này bật thêm 10 extension: `DatabaseViewExtension`,
+`SlashMenuViewExtension`, `DragHandleViewExtension`, và trọn bộ 7 extension Inline (comment,
+footnote, link, reference, latex, mention, preset) — D13: 23→33/58. SlashMenu (gõ "/") là đường DUY
+NHẤT để chèn khối Database vào Note, đúng cách AFFiNE thật làm — không cần xây UI riêng.
+
+### Đã xong
+
+11 commit thật (3 Task gốc theo kế hoạch + 8 commit tự động hoá kiểm tay/review, ngoài kế hoạch gốc
+nhưng đúng chỉ dẫn "Sau ba task" của chính kế hoạch đó):
+
+| Commit | Nội dung |
+|---|---|
+| `0987e56`, `a5c7d62` | Task 1 — bật 10 extension đúng thứ tự thượng nguồn (đã đối chiếu tay với `view.ts`, review toàn nhánh đối chiếu lại lần nữa, khớp 100%) |
+| `8594b9a` | Task 2 — vá biến CSS thượng nguồn thiếu định nghĩa (`--drt-font-size-base`) lộ ra khi bật Database/inline. Bundle `EdgelessBoard-*.js` đo được **862,53 kB gzip, +164,28 kB** so với baseline chặng Template — VƯỢT ngưỡng D11 "+150 kB gzip đáng dừng lại" — **đã hỏi và được chủ dự án duyệt tiếp tục**, không thu hẹp phạm vi |
+| `f4c634b` | **Bug thật có sẵn từ trước, tìm thấy khi kiểm tay Task 3**: `createAutoIncrementIdGenerator()` trong `EdgelessBoard.tsx` đếm lại từ 0 mỗi lần mount, đụng độ id khi mở lại một bảng đã có nội dung — Yjs âm thầm từ chối khối mới thêm (chỉ `console.error`, không lỗi UI), đúng triệu chứng "thêm Note không hiện ra". Root-cause bằng `superpowers:systematic-debugging` đầy đủ 4 Phase. Sửa: bỏ `idGenerator`, rơi về `nanoid` mặc định. Ca kiểm đỏ→xanh ghim lại trong `edgeless-board.spec.ts` |
+| `df2cfef`, `6dc8ac7`, `9842521`, `e232a1b`, `aa6edd3` | Tự động hoá bằng TDD toàn bộ 5 mục kiểm tay bắt buộc của spec §7 (Step 2-6: SlashMenu mở đúng, chèn Database + thao tác dữ liệu, định dạng inline + mention, kéo-thả đổi thứ tự khối, dark mode với nội dung thật) — trước đây các mục này chỉ kiểm được bằng tay và bị chặn một phần bởi giới hạn môi trường Browser pane không compositing. Hạ tầng dùng chung: `src/board/__tests__/helpers/note-interaction.ts` |
+| `4f314a3`, `4ddae63` | Điều tra + đóng một phát hiện chập chờn ở ca kiểm dark-mode (xem "Bài học" dưới) và áp findings từ review toàn nhánh |
+
+`npm test` tại đầu nhánh (`cb87dd4`) là **277/277** (29 file); cuối nhánh trên `main` sau gộp
+**285/285** (34 file) — tăng 5 file/8 ca ròng của chính nhánh này.
+
+### Review toàn nhánh — KHÔNG CÓ CRITICAL
+
+Reviewer (sonnet) tự chạy độc lập cả bảy cổng (không tin báo cáo cũ), đối chiếu `extensions.ts` với
+`view.ts` thượng nguồn từng dòng, tự tái hiện lỗi vendor `v-element.ts` bằng cách chạy thật. Một
+Important: kết luận "chập chờn do tải máy" ở ca kiểm dark-mode thiếu cơ chế nhân quả (chuỗi cập nhật
+theme hoàn toàn đồng bộ, không có đường cho "tải máy" tác động) — đã sửa lại đúng mức bằng chứng
+("nguyên nhân cơ chế chưa xác định, không tái hiện sau 10 lượt chạy"), thêm canary DOM. Hai Minor:
+lỗi phép cộng trong comment `extensions.ts` (nợ ghi từ Task 1, cố ý hoãn tới đúng lượt review); bỏ
+`createAutoIncrementIdGenerator()` không dùng ở `diTruBangCu.ts` (cùng anti-pattern vừa fix, hiện bất
+hoạt nhưng là bẫy). Cả ba đã đóng ở `4ddae63`. Đánh giá cuối: **Sẵn sàng gộp — Có.**
+
+### Bảy cổng — đo lại trực tiếp trên `main` SAU gộp, 2026-08-22
+
+`npx tsc --noEmit` exit 0 · `npx vitest run --reporter=verbose` **285/285** (34 file, 310,84s) ·
+`kiem:vendor` — so 2782 file với `bang-bam-vendor.json`, 0 sai lệch; so thượng nguồn, lệch 0 ·
+`kiem:vendor-paths` — khớp 438 mục · `npm run build` xanh (18,04s) · `kiem:dist` — đọc 315 file trong
+`dist/`, biến `--drt-*` dùng 76/định nghĩa 641, biến CSS dùng 320/định nghĩa 929, **bản dịch vi.json
+— 151/151 có mặt**, không còn `"affine-"`.
+
+### Bài học mới — "tải máy" không phải lời giải thích miễn phí
+
+Một ca kiểm (`edgeless-board-dark-mode.spec.ts`) chập chờn ĐÚNG MỘT LẦN khi điều tra ban đầu; điều
+tra viên (chính phiên này) kết luận vội "do tải máy" mà KHÔNG kiểm tra đường dữ liệu có cơ chế nào
+cho tải máy tác động hay không. Review toàn nhánh bắt được: đường dữ liệu đó hoàn toàn ĐỒNG BỘ
+(không rAF/setTimeout/I-O), nên "tải máy" — dù là lời giải thích ĐÚNG cho ba lớp giới hạn môi trường
+KHÁC của chính chặng này (rAF/tab-ẩn, Range text-extraction, layout/`getBoundingClientRect`) — không
+có đường tác động lên MỘT chuỗi gọi hàm đồng bộ. Bài học: khi một hiện tượng chập chờn không tái
+hiện được, kết luận đúng mức bằng chứng thật là "nguyên nhân chưa xác định", không phải gán bừa cho
+nguyên nhân quen thuộc gần đó nhất — kể cả khi nguyên nhân đó có tiền lệ thật trong dự án.
+
+### Ngoài phạm vi, còn nợ
+
+- **Console noise từ bug vendor thật, KHÔNG vá (D11 cấm sửa `src/vendor/`)**: mọi lượt chọn một mục
+  trong SlashMenu kích hoạt một unhandled promise rejection vô hại trong
+  `framework/std/src/inline/components/v-element.ts:41-48` (`getUpdateComplete()` không guard null
+  khi phần tử bị huỷ giữa chừng do `cleanSpecifiedTail()` xoá "/" đồng bộ, đua với một
+  `waitForUpdate()` khác đang treo trên v-element cũ). KHÔNG mất dữ liệu, KHÔNG riêng Database — mọi
+  lượt chọn SlashMenu đều gặp. Cơ chế không đặc thù môi trường test, nhiều khả năng cũng hiện trong
+  devtools của người dùng cuối trên trình duyệt thật — nếu ai đó thấy dòng lỗi này sau này, đây LÀ
+  nguyên nhân đã biết, không phải lỗi mới.
+- **Nội dung dịch cho ~10 extension mới bật** (SlashMenu, Database, 7 inline) — ngoài phạm vi chặng
+  này (spec §8), chặng riêng sau khi đo lại số chuỗi thật tới `dist/`.
+- **Kiểm tay thật trên thiết bị** — 5 mục kiểm tay bắt buộc của spec §7 đã tự động hoá bằng TDD qua
+  API sản xuất thật (không phải test giả), nhưng KHÔNG thay thế hoàn toàn trải nghiệm chạm/kéo thật
+  trên iPad — Step 3 (thêm cột/hàng qua UI thật, không qua `dataSource` trực tiếp), Step 4 (thanh
+  định dạng nổi lên khi bôi đen bằng ngón tay thật), Step 5 (tay cầm kéo-thả hiện khi chạm) đều cần
+  `getBoundingClientRect()`/hit-testing thật mà happy-dom không có — cùng lớp nợ iPad đã ghi ở mục 7.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng a04d29c hoặc mới hơn
+git status --short                      # kỳ vọng chỉ src/data/antibiotics.ts (chủ dự án tự sửa) +
+                                         # ba file browser-use không thuộc track nào + hai file sinh
+                                         # ra ở mục 6
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp:** nội dung dịch cho các extension mới bật (chặng riêng, qua `brainstorming` →
+`writing-plans`); hoặc kiểm tay thật trên iPad/thiết bị thật cho cả track MindmapScreen (D4,
+BoardGallery, "đẩy hiệu ứng DanhSachBang", và Steps 3-5 của chặng này) — tất cả đang chờ cùng một
+buổi kiểm tay thật, không phải bốn khoản nợ riêng biệt.
