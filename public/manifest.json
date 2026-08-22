@@ -33,8 +33,8 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Mindmap",
-      "short_name": "Mindmap",
+      "name": "Sơ đồ tư duy",
+      "short_name": "Sơ đồ tư duy",
       "description": "Vào thẳng bảng sơ đồ tư duy",
       "url": "/?screen=mindmap",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
