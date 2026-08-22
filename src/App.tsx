@@ -5803,11 +5803,14 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             </div>
           </div>
 
-          {/* Độ thanh thải thận: cờ tổn thương thận cấp và phương thức lọc gộp về MỘT hàng chip.
-              "Không lọc" đứng đầu (trạng thái mặc định/phổ biến nhất) rồi mới tới AKI và các
-              phương thức lọc máu — trước đây AKI đứng đầu khiến hàng chip đọc lộn thứ tự ưu tiên. */}
+          {/* Độ thanh thải thận: tách 2 cụm thị giác thay vì gộp về một hàng phẳng — cụm "trạng thái
+              lọc" (Không lọc/AKI, 2 lựa chọn thường gặp nhất) rồi tới cụm "phương thức lọc máu"
+              (IHD/CRRT/SLED/PD, 4 lựa chọn hiếm hơn nhưng không được ẩn vì đều có thể quan trọng
+              lâm sàng). Vẫn cùng một SectionLabel — đây là chia nhóm để giảm chi phí quét mắt, không
+              phải ẩn bớt lựa chọn nào. "Không lọc" đứng đầu (trạng thái mặc định/phổ biến nhất) rồi
+              mới tới AKI — trước đây AKI đứng đầu khiến hàng chip đọc lộn thứ tự ưu tiên. */}
           <SectionLabel>Độ thanh thải thận</SectionLabel>
-          <div className="flex flex-wrap gap-1.5 mb-2">
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
             <button
               onClick={() => {
                 setPatientField("rrt", "none")
@@ -5836,6 +5839,8 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
             >
               AKI
             </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-2">
             {(Object.keys(RRT_LABELS) as RrtMode[])
               .filter((m) => m !== "none")
               .map((m) => (
@@ -8364,19 +8369,19 @@ function AntibioticDoseCard({
       ) : (
         autoUsage &&
         !vialGuard.blocked && (
-          <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary)" }}>
-            {/* Số lọ/ống/chai nảy một nhịp NGAY TRONG dòng "Cách dùng" khi đổi (công tắc làm tròn,
-                cân nặng...) — dùng `pop-value` trên chính dòng này, không tách thành dòng số riêng
-                (từng thử, nhưng dòng riêng bị coi là thừa/dư diện tích). `key={autoUsage.vialCount}`
-                để React dựng lại đúng dòng này mỗi khi SỐ LỌ đổi — không dựng lại vì số khác trong
-                câu đổi (vd nồng độ, thể tích), chỉ khi vialCount thật sự đổi. KHÔNG dùng đếm-chạy-liên-
-                tục (useCountUp): số này hầu hết chỉ đổi ±1, nội suy liên tục rồi làm tròn về nguyên
-                giữ nguyên số cũ gần hết animation rồi mới bật thẳng sang số mới — không tạo được cảm
-                giác "đang đếm" như CrCl (đổi trong khoảng rộng, nhiều số nguyên để chạy qua). */}
+          <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary-line)" }}>
+            {/* Đây là hướng dẫn rút thuốc thật — điểm kiểm tra cuối trước khi kim chạm vào lọ —
+                nên đọc CHỮ bằng --c-text (như SEVERITY_STYLE.ok trong doseSafety.ts) chứ không phải
+                --c-primary, và KHÔNG bounce (bỏ pop-value): con số đổi ở đây là do tính toán lại
+                (đổi công tắc làm tròn, cân nặng...), không phải một hành động vừa "thành công" —
+                màu/motion "xác nhận" đó dành cho chip/tab, không dành cho số liều (Decoration/
+                Diagnosis Split Rule, DESIGN.md). `key={autoUsage.vialCount}` vẫn giữ để React dựng
+                lại đúng dòng này chỉ khi SỐ LỌ thật sự đổi, không phải mỗi khi câu đổi vì số khác
+                (nồng độ, thể tích). */}
             <p
               key={autoUsage.vialCount}
-              className="text-[12px] font-bold leading-[1.45] pop-value"
-              style={{ color: "var(--c-primary)" }}
+              className="text-[12px] font-bold leading-[1.45]"
+              style={{ color: "var(--c-text)" }}
               dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(autoUsage.text) }}
             />
             <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: "var(--c-text-soft)" }}>
@@ -8573,10 +8578,12 @@ function AntibioticDoseCard({
 }
 
 const DISEASE_SKIP = "__skip__"
-// Số chip hiện mặc định trước khi bấm "Xem tất cả" — đủ để lấp một màn hình phổ biến mà không phải
-// cuộn, thấp hơn hẳn 22 mục gốc để không phơi cả danh mục cùng lúc trước khi người dùng kịp thu hẹp
-// bằng tìm/chữ cái (/impeccable critique 2026-08-18, P2).
-const ABX_GROUP_COLLAPSE_COUNT = 8
+// Số chip hiện mặc định trước khi bấm "Xem tất cả" — thấp hơn hẳn 22 mục gốc để không phơi cả danh
+// mục cùng lúc trước khi người dùng kịp thu hẹp bằng tìm/chữ cái (/impeccable critique 2026-08-18,
+// P2). Giảm từ 8 xuống 6: 8 vẫn gấp đôi ngưỡng ≤4 lựa chọn tại một điểm quyết định
+// (cognitive-load.md, Working Memory Rule) — 6 vẫn đủ lấp một màn hình phổ biến mà không cuộn, chỉ
+// bớt được phần dư ra thực sự (/impeccable critique 2026-08-22, P2).
+const ABX_GROUP_COLLAPSE_COUNT = 6
 
 function AntibioticsScreen({
   customDrugs,
@@ -8782,11 +8789,13 @@ function AntibioticsScreen({
         placeholder="Tìm kháng sinh..."
       />
       {/* Thanh nhảy nhanh theo chữ cái — tận dụng đúng dữ liệu nhóm/chữ cái đã tính cho nhãn bên
-          dưới, không tính lại. Chỉ hiện khi đang DUYỆT TRỌN danh sách đã "Xem tất cả": ẩn khi đã
-          chọn một hoạt chất, đang gõ tìm, hoặc còn đang ở tập rút gọn (isCollapsedBrowse) — chữ cái
-          nhảy tới trong tập rút gọn (sắp theo tần suất, không còn liên tục A→V) sẽ không tìm thấy
-          gì (critique /impeccable 2026-08-18, P2 gốc — 29 kháng sinh không có cách định vị nhanh). */}
-      {!selectedGroup && !query.trim() && showAllGroups && alphabetLetters.length > 1 && (
+          dưới, không tính lại. Hiện ngay cả khi còn ở tập rút gọn (isCollapsedBrowse, sắp theo tần
+          suất): người biết sẵn tên hoạt chất (Alex) không còn phải bấm "Xem tất cả" trước mới có
+          đường tắt — bấm chữ cái sẽ TỰ mở "Xem tất cả" rồi mới cuộn tới, vì nhãn chữ cái (và scroll
+          target abx-letter-*) chỉ thật sự tồn tại trong DOM ở view alphabet đầy đủ, không phải tập
+          rút gọn theo tần suất (/impeccable critique 2026-08-22, P3). Vẫn ẩn khi đã chọn một hoạt
+          chất hoặc đang gõ tìm — hai trường hợp đó tự thu hẹp danh sách theo cách khác rồi. */}
+      {!selectedGroup && !query.trim() && alphabetLetters.length > 1 && (
         <div className="flex gap-0.5 overflow-x-auto scroll-ios mb-2" style={{ scrollbarWidth: "none" }} role="group" aria-label="Nhảy nhanh theo chữ cái">
           {alphabetLetters.map((letter) => (
             // Cùng kỹ thuật đệm vô hình với nút "Tìm"/"Nhật ký" ở ScreenHeader (10948-10982): pill
@@ -8797,7 +8806,17 @@ function AntibioticsScreen({
             <button
               key={letter}
               type="button"
-              onClick={() => document.getElementById(`abx-letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              onClick={() => {
+                const jump = () => document.getElementById(`abx-letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+                if (showAllGroups) {
+                  jump()
+                } else {
+                  // "Xem tất cả" phải render xong (đổi từ tập rút gọn sang danh sách alphabet đầy
+                  // đủ) rồi target abx-letter-* mới tồn tại trong DOM để scrollIntoView tới được.
+                  setShowAllGroups(true)
+                  setTimeout(jump, 60)
+                }
+              }}
               className="flex-none flex items-center justify-center p-2"
               aria-label={`Nhảy tới chữ ${letter}`}
             >
@@ -10671,11 +10690,12 @@ function InfusionDrugCard({
 //   2. Ô tìm + chip chọn thuốc cần thêm
 //   3. Chỉ thuốc đang chọn mới bung thẻ đầy đủ
 // Ngưỡng gấp gọn khi CHƯA lọc/CHƯA mở rộng — cùng số với ABX_GROUP_COLLAPSE_COUNT (AntibioticsScreen)
-// để hai màn dùng chung một quy tắc thay vì mỗi nơi một con số. Đa số nhóm (Co bóp 4, Vận mạch 4,
-// Giãn mạch 3, Loạn nhịp 4, Nội môi 5, Thần kinh 4, Giải độc 5) chưa bao giờ chạm ngưỡng này; chỉ
-// An thần (8) và Khác (9) từng phơi hết chip cùng lúc — đúng lỗ hổng /impeccable critique 2026-08-18
-// vốn đã sửa cho AntibioticsScreen nhưng chưa lan sang màn anh em này.
-const INFUSION_DRUG_COLLAPSE_COUNT = 8
+// để hai màn dùng chung một quy tắc thay vì mỗi nơi một con số, kể cả khi con số đó đổi (8 → 6,
+// /impeccable critique 2026-08-22, P2 — 8 vẫn gấp đôi ngưỡng ≤4 lựa chọn tại một điểm quyết định).
+// Đa số nhóm (Co bóp 4, Vận mạch 4, Giãn mạch 3, Loạn nhịp 4, Nội môi 5, Thần kinh 4, Giải độc 5)
+// chưa bao giờ chạm ngưỡng này; chỉ An thần và Khác từng phơi hết chip cùng lúc — đúng lỗ hổng
+// /impeccable critique 2026-08-18 vốn đã sửa cho AntibioticsScreen nhưng chưa lan sang màn anh em này.
+const INFUSION_DRUG_COLLAPSE_COUNT = 6
 
 function InfusionCategoryScreen({
   staticDrugs,
@@ -11451,10 +11471,15 @@ function DungThuocScreen({
       )}
       {resetUndo && (
         <div
+          role="status"
+          aria-live="assertive"
           className="toast-in-full absolute left-4 right-4 z-50 rounded-[20px] px-4 py-3 flex items-center gap-3"
           // --c-pill-dark: cố ý LUÔN tối bất kể theme. Chữ dùng --c-pill-dark-text (luôn trắng, khai
           // riêng ở index.css) thay vì --c-on-bright — token đó đổi gần-đen ở bản tối (dành cho chữ
           // trên nền sáng lên), trở nên vô hình trên nền pill luôn-tối này.
+          // aria-live="assertive": đây là toast duy nhất của app đi kèm hành động PHÁ HỦY (reset
+          // bệnh nhân) — người dùng đọc màn hình cần biết ngay cửa sổ hoàn tác 20s vừa mở, không thể
+          // chờ ngắt quãng lượt đọc như các aria-live="polite" khác trong file.
           style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow), var(--c-shadow-glow)" }}
         >
           <p className="flex-1 text-[13px] font-semibold" style={{ color: "var(--c-pill-dark-text)" }}>
