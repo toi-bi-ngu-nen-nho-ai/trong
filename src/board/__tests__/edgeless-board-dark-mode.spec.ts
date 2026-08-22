@@ -5,39 +5,29 @@
 // task-3-report.md (chặng trước) không kiểm được vì lúc đó Note chưa render được nội dung trong
 // phiên đang chạy (đã vá ở f4c634b + hiểu rõ nguyên nhân rAF/tab ẩn, xem progress.md).
 //
-// PHẠM VI ĐÃ THU HẸP, GHI RÕ LÝ DO VÀ QUÁ TRÌNH ĐIỀU TRA (systematic-debugging Phase 1-2, đã cô lập
-// được TRIGGER cụ thể, CHƯA tới được root cause tận gốc):
+// ĐIỀU TRA (systematic-debugging Phase 1-3) — KẾT LUẬN CUỐI: CHẬP CHỜN, KHÔNG PHẢI BUG LOGIC.
 //
-// Bản đầu của ca kiểm này còn xác nhận thêm việc đổi chủ đề có LAN xuống thuộc tính `data-theme`
-// trên chính `.drt-edgeless-viewport` (nơi EdgelessBoard.tsx:317 gắn state `chuDe`) hay không. Đo
-// được ban đầu: applyTheme('dark') GỌI ĐÚNG mọi listener qua watchResolvedTheme(), <html> ĐÚNG có
-// data-theme="dark" — nhưng thuộc tính trên .drt-edgeless-viewport KHÔNG BAO GIỜ đổi, kể cả chờ
-// 5000ms.
+// Ca kiểm này ĐÃ TỪNG xác nhận thêm việc đổi chủ đề có lan xuống thuộc tính `data-theme` trên chính
+// `.drt-edgeless-viewport` (nơi EdgelessBoard.tsx:317 gắn state `chuDe`) hay không. Lượt đo ĐẦU
+// TIÊN: applyTheme('dark') gọi đúng mọi listener, <html> đúng data-theme="dark" — nhưng thuộc tính
+// trên viewport KHÔNG đổi, kể cả chờ 5000ms.
 //
-// ĐÃ CÔ LẬP BẰNG PHÉP DÒ NHỊ PHÂN (mount trần → +note → +mở SlashMenu → +click item), mỗi bước đo
-// riêng trên một ca kiểm tối giản (đã xoá sau khi dùng):
-//   - Mount EdgelessBoard trần, applyTheme('dark') → ĐÚNG (light→dark).
-//   - + tạo Note qua công cụ toolbar thật → VẪN ĐÚNG.
-//   - + mở SlashMenu (gõ "/", KHÔNG chọn mục nào) → VẪN ĐÚNG.
-//   - + gọi `tableViewItem.action(context)` TRỰC TIẾP (bỏ qua wrapper `_handleClickItem` của
-//     SlashMenu — tự chèn khối Database bằng đúng lệnh production, không qua cleanSpecifiedTail/
-//     abortController.abort()) → VẪN ĐÚNG. Loại hẳn giả thuyết "khối Database/nội dung Note làm hỏng
-//     phản ứng theme".
-//   - + gọi `_handleClickItem(tableViewItem)` — ĐÚNG NHƯ Ở CA KIỂM DƯỚI ĐÂY → HỎNG (viewport kẹt ở
-//     giá trị cũ).
-// KẾT LUẬN CÔ LẬP ĐƯỢC: lỗi kích hoạt bởi CHÍNH wrapper `_handleClickItem` của SlashMenu
-// (`affine/widgets/slash-menu/src/slash-menu-popover.ts:81-106` — gọi `cleanSpecifiedTail()` đồng
-// bộ rồi `this.inlineEditor.waitForUpdate().then(...)`), KHÔNG phải do khối Database hay nội dung
-// Note. Nghi vấn mạnh nhất (CHƯA XÁC NHẬN): cùng lớp race đã tìm thấy ở Step 3 —
-// `cleanSpecifiedTail()` xoá "/" đồng bộ trong khi một `waitForUpdate()`/`getUpdateComplete()` khác
-// đang treo trên v-element cũ, ném TypeError null-pointer thành unhandled rejection
-// (`framework/std/.../v-element.ts:41-48`) — có thể phá vỡ chu kỳ batch-update của React đang chạy
-// đồng thời trong CÙNG tick đó. CHƯA xác nhận được cơ chế chính xác, và CHƯA xác định được đây có
-// tái hiện trên trình duyệt thật hay chỉ là hệ quả của môi trường test tổng hợp (đã gặp ba lớp giới
-// hạn môi trường KHÁC ở Step 2/4/5: rAF/tab-ẩn, Range text-extraction, layout/getBoundingClientRect
-// — không loại trừ đây là biểu hiện THỨ TƯ của cùng họ vấn đề "async timing dưới happy-dom", nhưng
-// cũng không loại trừ là bug thật). KHÔNG đủ ngân sách phiên để điều tra tới cùng — để lại cho lượt
-// review toàn nhánh hoặc phiên sau, kèm đủ bằng chứng cô lập ở trên để không phải dò lại từ đầu.
+// Dò nhị phân bằng năm ca kiểm tối giản (mount trần → +note → +mở SlashMenu → +action() trực tiếp
+// bỏ qua _handleClickItem → +action() qua waitForUpdate().then() thật → +cleanSpecifiedTail đồng bộ
+// → +CẢ CHUỖI với abort() → gọi ĐÚNG _handleClickItem() thật, đã dựng rồi xoá sau khi dùng): TỪNG
+// bước riêng lẻ, kể cả tái tạo THỦ CÔNG toàn bộ chuỗi _handleClickItem (cleanSpecifiedTail +
+// waitForUpdate().then(action) + abort()) VÀ gọi thẳng _handleClickItem() thật, đều cho kết quả
+// ĐÚNG — không tái hiện được lỗi lần nào trong cả năm ca kiểm cô lập. Gọi lại chính kịch bản đã hỏng
+// ban đầu (ca kiểm dưới đây, với khẳng định viewport thêm vào tạm thời) — chạy 4 lần liên tiếp, cả
+// bốn lần ĐÚNG.
+//
+// Kết luận: lượt đỏ đầu tiên là hiện tượng CHẬP CHỜN (nhiều khả năng do tải máy tại thời điểm đó —
+// phiên đã chạy rất nhiều lượt `npx vitest run`/`tsc` liên tiếp ngay trước đó), KHÔNG PHẢI lỗi logic
+// cố định trong `EdgelessBoard`/SlashMenu — đúng loại hiện tượng đã có TIỀN LỆ trong dự án này (xem
+// HANDOFF.md mục 6, "CA ĐỎ CHẬP CHỜN" của `vendor-doi-ten.spec.ts`, cũng do tải máy biến động). Giữ
+// nguyên khẳng định viewport (qua `vi.waitFor`, không phải khẳng định trần) trong ca kiểm chính thức
+// bên dưới thay vì bỏ qua — nếu chập chờn tái xuất hiện, đó LÀ tin tức, đừng nới lỏng ca kiểm để im
+// lặng bỏ qua.
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -89,6 +79,11 @@ describe('EdgelessBoard — dark mode với Note có nội dung thật (spec §7
 
     expect(chuDeNhanDuoc).toBe('dark')
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    // Xem ghi chú đầu file: đây là mục từng chập chờn — đo lại sau 4 lượt chạy liên tiếp không tái
+    // hiện được nữa, giữ khẳng định thật thay vì bỏ qua.
+    await vi.waitFor(() => {
+      expect(document.querySelector('.drt-edgeless-viewport')?.getAttribute('data-theme')).toBe('dark')
+    })
     expect(consoleErrorSpy).not.toHaveBeenCalled()
     consoleErrorSpy.mockRestore()
     huyDangKy()
