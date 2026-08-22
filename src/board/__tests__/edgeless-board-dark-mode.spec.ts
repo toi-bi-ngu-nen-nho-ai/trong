@@ -5,18 +5,39 @@
 // task-3-report.md (chặng trước) không kiểm được vì lúc đó Note chưa render được nội dung trong
 // phiên đang chạy (đã vá ở f4c634b + hiểu rõ nguyên nhân rAF/tab ẩn, xem progress.md).
 //
-// PHẠM VI ĐÃ THU HẸP, GHI RÕ LÝ DO: bản đầu của ca kiểm này còn xác nhận thêm việc đổi chủ đề có LAN
-// xuống thuộc tính `data-theme` trên chính `.drt-edgeless-viewport` (nơi EdgelessBoard.tsx:317 gắn
-// state `chuDe`) hay không. Đo được: applyTheme('dark') GỌI ĐÚNG mọi listener đã đăng ký qua
-// watchResolvedTheme() (xác nhận bằng một subscriber ngay trong ca kiểm — nhận đúng 'dark' ngay lập
-// tức) và <html> ĐÚNG có data-theme="dark" — nhưng thuộc tính trên .drt-edgeless-viewport KHÔNG BAO
-// GIỜ đổi, kể cả chờ tới 5000ms bằng vi.waitFor. Chưa xác định được đây là lỗi thật của
-// EdgelessBoard (setChuDe không kích hoạt lại JSX vì lý do nào đó riêng trong tổ hợp React+Lit của
-// component này) hay một giới hạn khác của môi trường test (đã gặp nhiều lớp giới hạn khác nhau ở
-// Step 2-5 — rAF/tab ẩn, text-extraction của Range, layout/getBoundingClientRect — nên KHÔNG loại
-// trừ khả năng đây là lớp thứ tư, chưa có bằng chứng đủ để kết luận theo hướng nào). KHÔNG đủ thời
-// gian điều tra sâu hơn trong phiên này — để lại nguyên trạng, báo cáo rõ cho review toàn nhánh,
-// không đoán bừa nguyên nhân.
+// PHẠM VI ĐÃ THU HẸP, GHI RÕ LÝ DO VÀ QUÁ TRÌNH ĐIỀU TRA (systematic-debugging Phase 1-2, đã cô lập
+// được TRIGGER cụ thể, CHƯA tới được root cause tận gốc):
+//
+// Bản đầu của ca kiểm này còn xác nhận thêm việc đổi chủ đề có LAN xuống thuộc tính `data-theme`
+// trên chính `.drt-edgeless-viewport` (nơi EdgelessBoard.tsx:317 gắn state `chuDe`) hay không. Đo
+// được ban đầu: applyTheme('dark') GỌI ĐÚNG mọi listener qua watchResolvedTheme(), <html> ĐÚNG có
+// data-theme="dark" — nhưng thuộc tính trên .drt-edgeless-viewport KHÔNG BAO GIỜ đổi, kể cả chờ
+// 5000ms.
+//
+// ĐÃ CÔ LẬP BẰNG PHÉP DÒ NHỊ PHÂN (mount trần → +note → +mở SlashMenu → +click item), mỗi bước đo
+// riêng trên một ca kiểm tối giản (đã xoá sau khi dùng):
+//   - Mount EdgelessBoard trần, applyTheme('dark') → ĐÚNG (light→dark).
+//   - + tạo Note qua công cụ toolbar thật → VẪN ĐÚNG.
+//   - + mở SlashMenu (gõ "/", KHÔNG chọn mục nào) → VẪN ĐÚNG.
+//   - + gọi `tableViewItem.action(context)` TRỰC TIẾP (bỏ qua wrapper `_handleClickItem` của
+//     SlashMenu — tự chèn khối Database bằng đúng lệnh production, không qua cleanSpecifiedTail/
+//     abortController.abort()) → VẪN ĐÚNG. Loại hẳn giả thuyết "khối Database/nội dung Note làm hỏng
+//     phản ứng theme".
+//   - + gọi `_handleClickItem(tableViewItem)` — ĐÚNG NHƯ Ở CA KIỂM DƯỚI ĐÂY → HỎNG (viewport kẹt ở
+//     giá trị cũ).
+// KẾT LUẬN CÔ LẬP ĐƯỢC: lỗi kích hoạt bởi CHÍNH wrapper `_handleClickItem` của SlashMenu
+// (`affine/widgets/slash-menu/src/slash-menu-popover.ts:81-106` — gọi `cleanSpecifiedTail()` đồng
+// bộ rồi `this.inlineEditor.waitForUpdate().then(...)`), KHÔNG phải do khối Database hay nội dung
+// Note. Nghi vấn mạnh nhất (CHƯA XÁC NHẬN): cùng lớp race đã tìm thấy ở Step 3 —
+// `cleanSpecifiedTail()` xoá "/" đồng bộ trong khi một `waitForUpdate()`/`getUpdateComplete()` khác
+// đang treo trên v-element cũ, ném TypeError null-pointer thành unhandled rejection
+// (`framework/std/.../v-element.ts:41-48`) — có thể phá vỡ chu kỳ batch-update của React đang chạy
+// đồng thời trong CÙNG tick đó. CHƯA xác nhận được cơ chế chính xác, và CHƯA xác định được đây có
+// tái hiện trên trình duyệt thật hay chỉ là hệ quả của môi trường test tổng hợp (đã gặp ba lớp giới
+// hạn môi trường KHÁC ở Step 2/4/5: rAF/tab-ẩn, Range text-extraction, layout/getBoundingClientRect
+// — không loại trừ đây là biểu hiện THỨ TƯ của cùng họ vấn đề "async timing dưới happy-dom", nhưng
+// cũng không loại trừ là bug thật). KHÔNG đủ ngân sách phiên để điều tra tới cùng — để lại cho lượt
+// review toàn nhánh hoặc phiên sau, kèm đủ bằng chứng cô lập ở trên để không phải dò lại từ đầu.
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
