@@ -6,7 +6,7 @@
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
 // Phần bỏ đi trải trên bốn nhóm của thượng nguồn: 1 gfx (link), 13 block (Database đã bật, KHÔNG
 // gồm DataViewViewExtension — khối riêng, cố tình không bật, xem spec), 7 widget và TOÀN BỘ
-// 4 fragment (0+13+7+4 = 25 — nhóm inline giờ ĐỦ 7/7, không còn góp vào phần loại).
+// 4 fragment (1+13+7+4 = 25 — nhóm inline giờ ĐỦ 7/7, không còn góp vào phần loại).
 //
 // Chặng 2026-08-21 "Database + Note đầy đủ" (xem
 // docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
