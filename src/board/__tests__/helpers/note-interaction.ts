@@ -17,6 +17,8 @@ import { createElement } from 'react'
 import type { Root } from 'react-dom/client'
 import { expect, vi } from 'vitest'
 
+import { TextSelection } from '@blocksuite/std'
+
 import { EdgelessBoard } from '../../EdgelessBoard'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -98,6 +100,43 @@ export function datConTroCuoiDoanVan(inlineEl: HTMLElement) {
   sel.removeAllRanges()
   sel.addRange(range)
   document.dispatchEvent(new Event('selectionchange', { bubbles: true }))
+}
+
+export type StdSelectionLike = {
+  selection: {
+    value: Array<{ type: string; from?: { blockId: string; index: number; length: number } }>
+    create(ctor: unknown, props: unknown): unknown
+    setGroup(group: string, selections: unknown[]): void
+  }
+}
+
+/**
+ * Bôi đen [index, index+length) trong đoạn văn hiện có TextSelection collapsed (đặt trước bằng
+ * `moBangVaTaoNoteCoNoiDung`, đọc lấy đúng `blockId` từ đó) — dựng thẳng một `TextSelection` qua API
+ * công khai của framework (`std.selection.create` + `setGroup('note', ...)`), THAY vì đi qua bước
+ * chuyển đổi Range tự nhiên của trình duyệt → TextSelection
+ * (`RangeManager.rangeToTextSelection()` → `InlineEditor.toInlineRange()`,
+ * framework/std/src/inline/range/range-manager.ts:152-189).
+ *
+ * Lý do: đã đo bằng tay — dựng một `Range` thật với `setStart(textNode,0)`/`setEnd(textNode,5)` trên
+ * "hello world" cho `window.getSelection()` đúng `anchorOffset:0, focusOffset:5, isCollapsed:false`
+ * (native Selection ĐÚNG), nhưng `sel.toString()` trả `''` thay vì `"hello"`, và TextSelection mà
+ * BlockSuite tự tính ra sau đó là `{index:0, length:11}` (SAI, phải là `length:5`) — tức bước
+ * `toInlineRange()` tự nội bộ đọc SAI một Range không-collapsed dưới happy-dom, cùng lớp giới hạn
+ * "cần text-extraction/hit-testing thật của trình duyệt" mà HANDOFF/progress.md đã ghi nhiều lần
+ * (không phải bug sản phẩm — chỉ ảnh hưởng ca kiểm tự động, không ảnh hưởng người dùng thật trên
+ * trình duyệt thật). `TextSelection`/`setGroup` vẫn là ĐÚNG API công khai — chính là object mà
+ * `rangeToTextSelection()` tự tạo ra ở dòng 173-188 của file trên — chỉ bỏ qua bước phân tích Range
+ * đang có giới hạn môi trường.
+ */
+export function chonDoanVanTrucTiep(std: StdSelectionLike, index: number, length: number) {
+  const hienTai = std.selection.value.find((s) => s.type === 'text')
+  const blockId = hienTai?.from?.blockId
+  if (!blockId) {
+    throw new Error('chonDoanVanTrucTiep: chưa có TextSelection nào để lấy blockId — gọi sau moBangVaTaoNoteCoNoiDung')
+  }
+  const moiSel = std.selection.create(TextSelection, { from: { blockId, index, length }, to: null })
+  std.selection.setGroup('note', [moiSel])
 }
 
 /**
