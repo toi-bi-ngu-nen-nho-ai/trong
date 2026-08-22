@@ -14,7 +14,7 @@
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
-import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affine/store/test'
+import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { render as litRender } from 'lit'
@@ -102,9 +102,17 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
   const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
 
+  // KHÔNG truyền `idGenerator` — để TestWorkspace tự rơi về mặc định của nó (`nanoid`, ngẫu nhiên).
+  // Từng có `createAutoIncrementIdGenerator()` ở đây: bộ đếm bắt đầu lại từ 0 ở MỖI lần hàm này
+  // chạy (mỗi lần mount/mở lại bảng), không biết gì về id đã dùng trong nội dung ĐÃ LƯU. Lần mở đầu
+  // tiên seed root="0" không va chạm, nhưng lần MỞ LẠI một bảng đã có nội dung thì không seed lại
+  // (đúng), mà bộ đếm mới vẫn bắt đầu từ 0 — nên khối TIẾP THEO người dùng thêm (vd một note) bị
+  // cấp lại id "0", trùng id root đã tồn tại. Giao dịch Yjs bị từ chối ÂM THẦM (chỉ console.error,
+  // không ném ra ngoài), `addBlock()` vẫn trả về một id như thể thành công, nhưng khối chưa từng vào
+  // store thật — đây là nguyên nhân gốc của lỗi "thêm Note không hiện ra". Ghim ở
+  // src/board/__tests__/edgeless-board.spec.ts.
   let workspace = new TestWorkspace({
     id: 'bs-trong-board',
-    idGenerator: createAutoIncrementIdGenerator(),
     docSources,
     blobSources,
   })
@@ -130,7 +138,6 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
       workspace.forceStop()
       workspace = new TestWorkspace({
         id: 'bs-trong-board',
-        idGenerator: createAutoIncrementIdGenerator(),
       })
       workspace.meta.initialize()
       workspace.start()

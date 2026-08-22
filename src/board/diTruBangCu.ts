@@ -3,7 +3,7 @@
 // nhật, không cần thao tác gì từ người dùng. Xem spec 2026-08-19-board-gallery-design.md §2.6.
 import { StoreExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
-import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affine/store/test'
+import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 
@@ -43,9 +43,12 @@ export async function diTruBangCuNeuCo(tuyChon?: {
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
   const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
 
+  // KHÔNG truyền `idGenerator` — cùng lý do đã ghi ở EdgelessBoard.tsx (fix bug id trùng lúc remount):
+  // hàm này CHỈ ĐỌC (`store.root?.children`, không bao giờ `addBlock`/`createDoc`) nên thuật toán
+  // sinh id không ảnh hưởng hành vi hiện tại, nhưng để lại `createAutoIncrementIdGenerator()` ở đây
+  // là một bẫy — nếu hàm di trú này sau này được mở rộng để ghi khối, đúng lớp bug đó sẽ tái xuất.
   const workspace = new TestWorkspace({
     id: 'bs-trong-board',
-    idGenerator: createAutoIncrementIdGenerator(),
     docSources,
     blobSources,
   })
