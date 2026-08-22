@@ -156,6 +156,32 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     expect(() => workspace.forceStop()).not.toThrow()
   })
 
+  it('mở lại bảng đã có nội dung (remount) rồi thêm note → note thật sự có trong store (không bị Yjs từ chối âm thầm)', async () => {
+    // Ca này ghim đúng lỗi đã điều tra ở .superpowers/sdd/2026-08-21-database-note-day-du/progress.md
+    // (mục "Điều tra thêm"): mỗi lần taoHoacMoBang() chạy, nó dựng một TestWorkspace MỚI với
+    // createAutoIncrementIdGenerator() MỚI — bộ đếm luôn bắt đầu lại từ 0, không biết gì về các id
+    // đã dùng trong nội dung ĐÃ LƯU. Lần mở đầu tiên seed root="0", surface="1" bằng generator của
+    // chính lượt đó nên không va chạm. Nhưng lần MỞ LẠI (remount — người dùng rời rồi quay lại bảng,
+    // hoặc tải lại trang) không seed lại (đúng, vì store.root đã có), NHƯNG generator mới của lượt
+    // này cũng bắt đầu lại từ 0 — nên block TIẾP THEO người dùng thêm (ví dụ một note) bị cấp lại id
+    // "0", trùng với root đã tồn tại. Giao dịch Yjs bị từ chối, addBlock() vẫn trả về một id (như
+    // thể thành công), nhưng khối chưa từng vào store thật — khớp đúng triệu chứng "thêm Note không
+    // hiện ra" mà chủ dự án báo.
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    await lanMot.workspace.waitForSynced()
+    lanMot.workspace.forceStop()
+
+    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
+    const noteId = lanHai.store.addBlock('affine:note', {}, lanHai.store.root!.id)
+    const note = lanHai.store.root!.children.find((c) => c.id === noteId)
+    expect(note).toBeDefined()
+    expect(note?.flavour).toBe('affine:note')
+    lanHai.workspace.forceStop()
+  })
+
   it('hai boardId khác nhau trên CÙNG cặp source → hai doc độc lập, không đụng nhau', async () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
