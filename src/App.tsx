@@ -5806,11 +5806,15 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           {/* Độ thanh thải thận: tách 2 cụm thị giác thay vì gộp về một hàng phẳng — cụm "trạng thái
               lọc" (Không lọc/AKI, 2 lựa chọn thường gặp nhất) rồi tới cụm "phương thức lọc máu"
               (IHD/CRRT/SLED/PD, 4 lựa chọn hiếm hơn nhưng không được ẩn vì đều có thể quan trọng
-              lâm sàng). Vẫn cùng một SectionLabel — đây là chia nhóm để giảm chi phí quét mắt, không
-              phải ẩn bớt lựa chọn nào. "Không lọc" đứng đầu (trạng thái mặc định/phổ biến nhất) rồi
-              mới tới AKI — trước đây AKI đứng đầu khiến hàng chip đọc lộn thứ tự ưu tiên. */}
+              lâm sàng). "Không lọc" đứng đầu (trạng thái mặc định/phổ biến nhất) rồi mới tới AKI —
+              trước đây AKI đứng đầu khiến hàng chip đọc lộn thứ tự ưu tiên.
+              mb-3 (gấp đôi gap-1.5 giữa các chip cùng cụm) + nhãn phụ "Phương thức lọc máu" ngay
+              trên cụm 2: lần vá đầu chỉ tách bằng mb-1.5 — đo trực tiếp bằng getBoundingClientRect
+              cho thấy khoảng cách dọc giữa 2 cụm khi đó BẰNG HỆT khoảng cách ngang trong một cụm
+              (6px cả hai), nên ở trạng thái nghỉ (chưa chọn gì) mắt đọc thành một hàng 6 chip bị wrap,
+              không phải 2 nhóm khái niệm khác nhau (/impeccable critique 2026-08-22 lần 2, P2). */}
           <SectionLabel>Độ thanh thải thận</SectionLabel>
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
+          <div className="flex flex-wrap gap-1.5 mb-3">
             <button
               onClick={() => {
                 setPatientField("rrt", "none")
@@ -5840,6 +5844,7 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               AKI
             </button>
           </div>
+          <p className={`${T.meta} mb-1`} style={{ color: C.textSoft }}>Phương thức lọc máu</p>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {(Object.keys(RRT_LABELS) as RrtMode[])
               .filter((m) => m !== "none")
@@ -8591,12 +8596,16 @@ function AntibioticsScreen({
   onAddNew,
   onEdit,
   onDelete,
+  scrollContainerRef,
 }: {
   customDrugs: Antibiotic[]
   diseases: DiseaseEntry[]
   onAddNew: () => void
   onEdit: (drug: Antibiotic) => void
   onDelete: (id: string) => void
+  // Vùng cuộn CHUNG của cả màn Dùng thuốc (khai ở DungThuocScreen) — thanh nhảy chữ cái tự tính
+  // toạ độ và gọi scrollTo trên chính container này thay vì scrollIntoView (xem lý do ở chỗ dùng).
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>
 }) {
   const { running, collapsePatientPanel } = useDosing()
   // Cả bốn bước chọn đều giữ lại khi rời màn hình rồi quay lại: đi tra một thứ khác rồi về mà phải
@@ -8721,6 +8730,40 @@ function AntibioticsScreen({
     setSelectedEntryId(null)
   }
 
+  // Bấm một chữ cái ở thanh nhảy nhanh: nếu chữ đó ĐÃ có đúng một hoạt chất trong tập rút gọn đang
+  // hiện (browseGroups), chọn thẳng luôn — không ép mở "Xem tất cả" (một thay đổi trạng thái người
+  // dùng không yêu cầu, /impeccable critique 2026-08-22 lần 2, P3: bấm "A" cho Amikacin dù đã hiện
+  // sẵn ở chip đầu vẫn bị mở + cuộn cả 23 mục). Nhiều hơn một hoạt chất trùng chữ cái trong tập rút
+  // gọn thì không biết chọn cái nào — vẫn phải mở rộng để người dùng tự nhìn thấy cả nhóm.
+  function handleLetterJump(letter: string) {
+    if (!showAllGroups) {
+      const visibleMatches = browseGroups.filter((g) => g.name.charAt(0).toUpperCase() === letter)
+      if (visibleMatches.length === 1) {
+        selectGroup(visibleMatches[0].name)
+        return
+      }
+    }
+    const scrollToLetter = () => {
+      const el = document.getElementById(`abx-letter-${letter}`)
+      const container = scrollContainerRef.current
+      if (!el || !container) return
+      // scrollTo trên chính container đã biết, thay vì scrollIntoView để trình duyệt tự dò tổ tiên
+      // cuộn — cùng kỹ thuật đã ổn định cho chuyển tab (App.tsx:11403). scrollIntoView đo được cuộn
+      // 0px trong Chrome headless ở lần kiểm trước (/impeccable critique 2026-08-22 lần 2, P3) —
+      // không rõ là lỗi thật hay chỉ do headless, nhưng tự tính toạ độ loại bỏ hẳn bước dò mập mờ đó.
+      const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 8
+      container.scrollTo({ top, behavior: "smooth" })
+    }
+    if (showAllGroups) {
+      scrollToLetter()
+    } else {
+      // "Xem tất cả" phải render xong (đổi từ tập rút gọn sang danh sách alphabet đầy đủ) rồi
+      // target abx-letter-* mới tồn tại trong DOM để scrollToLetter tìm thấy.
+      setShowAllGroups(true)
+      setTimeout(scrollToLetter, 60)
+    }
+  }
+
   function chooseDisease(id: string) {
     setDiseaseChoice(id)
     setSelectedEntryId(null)
@@ -8791,10 +8834,9 @@ function AntibioticsScreen({
       {/* Thanh nhảy nhanh theo chữ cái — tận dụng đúng dữ liệu nhóm/chữ cái đã tính cho nhãn bên
           dưới, không tính lại. Hiện ngay cả khi còn ở tập rút gọn (isCollapsedBrowse, sắp theo tần
           suất): người biết sẵn tên hoạt chất (Alex) không còn phải bấm "Xem tất cả" trước mới có
-          đường tắt — bấm chữ cái sẽ TỰ mở "Xem tất cả" rồi mới cuộn tới, vì nhãn chữ cái (và scroll
-          target abx-letter-*) chỉ thật sự tồn tại trong DOM ở view alphabet đầy đủ, không phải tập
-          rút gọn theo tần suất (/impeccable critique 2026-08-22, P3). Vẫn ẩn khi đã chọn một hoạt
-          chất hoặc đang gõ tìm — hai trường hợp đó tự thu hẹp danh sách theo cách khác rồi. */}
+          đường tắt. handleLetterJump (khai bên trên) tự quyết định chọn thẳng hay phải mở rộng +
+          cuộn — xem comment tại đó. Vẫn ẩn khi đã chọn một hoạt chất hoặc đang gõ tìm — hai trường
+          hợp đó tự thu hẹp danh sách theo cách khác rồi. */}
       {!selectedGroup && !query.trim() && alphabetLetters.length > 1 && (
         <div className="flex gap-0.5 overflow-x-auto scroll-ios mb-2" style={{ scrollbarWidth: "none" }} role="group" aria-label="Nhảy nhanh theo chữ cái">
           {alphabetLetters.map((letter) => (
@@ -8806,17 +8848,7 @@ function AntibioticsScreen({
             <button
               key={letter}
               type="button"
-              onClick={() => {
-                const jump = () => document.getElementById(`abx-letter-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
-                if (showAllGroups) {
-                  jump()
-                } else {
-                  // "Xem tất cả" phải render xong (đổi từ tập rút gọn sang danh sách alphabet đầy
-                  // đủ) rồi target abx-letter-* mới tồn tại trong DOM để scrollIntoView tới được.
-                  setShowAllGroups(true)
-                  setTimeout(jump, 60)
-                }
-              }}
+              onClick={() => handleLetterJump(letter)}
               className="flex-none flex items-center justify-center p-2"
               aria-label={`Nhảy tới chữ ${letter}`}
             >
@@ -11441,7 +11473,7 @@ function DungThuocScreen({
           aria-labelledby={`mixing-tab-${tab}`}
         >
           {tab === "antibiotics" ? (
-            <AntibioticsScreen customDrugs={customAntibiotics} diseases={diseases} onAddNew={onAddAntibiotic} onEdit={onEditAntibiotic} onDelete={onDeleteAntibiotic} />
+            <AntibioticsScreen customDrugs={customAntibiotics} diseases={diseases} onAddNew={onAddAntibiotic} onEdit={onEditAntibiotic} onDelete={onDeleteAntibiotic} scrollContainerRef={scrollRef} />
           ) : (
             (() => {
               const cat = infusionCategory(tab)
