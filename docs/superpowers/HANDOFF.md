@@ -2,6 +2,12 @@
 
 Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
+> **ĐÍNH CHÍNH bản 2026-08-22 (mục 21).** Chặng tiếp theo sau "Database + Note đầy đủ" là **"Dịch
+> bề mặt hiển thị, đợt 2"** — **đã xong** (2 commit trực tiếp trên `main`, không worktree), bảy cổng
+> xanh, kiểm tay MỘT PHẦN trên trình duyệt thật (xác nhận trực tiếp 1/16 khoá mới, 15/16 còn lại dựa
+> bằng chứng gián tiếp — xem "còn nợ"). Phát hiện sai lệch với spec: 8/38 chuỗi spec tưởng "tới dist
+> ngay" thực ra thuộc 5 gói chưa bật `ViewExtension` — xem **mục 21**.
+
 > **ĐÍNH CHÍNH bản 2026-08-21 (mục 19 trở lên).** Chặng tiếp theo sau "đẩy hiệu ứng DanhSachBang" là
 > **"Database + Note đầy đủ"** (bật 10 extension BlockSuite còn thiếu: Database, SlashMenu,
 > DragHandle, 7 inline) — **đã xong, đã review toàn nhánh, VÀ đã gộp** — xem "TRẠNG THÁI HÔM NAY"
@@ -27,18 +33,23 @@ Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — Database + Note đầy đủ đã gộp, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — Dịch bề mặt hiển thị đợt 2 đã xong, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`a04d29c`** — merge commit, gộp `worktree-database-note-day-du` (11 commit, xem mục 20) |
+| `main` | **`1ae21c0`** — 2 commit trực tiếp (không worktree), xem mục 21 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main` SAU gộp, 2026-08-22 — `tsc` exit 0 · `npx vitest run` **285/285** (34 file, 310.84s) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (18.04s) + `kiem:dist` xanh với `bản dịch vi.json — 151/151 có mặt` |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-22 — `tsc` exit 0 · `npm test` **285/285** (34 file, 326.27s) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (10.90s) + `kiem:dist` xanh với `bản dịch vi.json — 167/167 có mặt` (166 `vi.json` + 1 `vi-tien-to.json`) |
+
+**Chặng "Dịch bề mặt hiển thị, đợt 2" — ĐÃ XONG, KIỂM TAY MỘT PHẦN** (`1ae21c0`). 150→166 khoá
+`vi.json` (+16 khoá dịch thật, không phải +34 như spec dự kiến — 4 chuỗi là nhiễu test-fixture, 10
+brand/định dạng file giữ nguyên không cần khoá, 8 chuỗi hoá ra thuộc 5 gói chưa bật `ViewExtension`,
+sai lệch với spec §4 đã ghi lại). Chi tiết ở **mục 21**.
 
 **Chặng "Database + Note đầy đủ" — ĐÃ XONG, ĐÃ REVIEW TOÀN NHÁNH, VÀ ĐÃ GỘP** (`a04d29c`). Bật 10
 view extension BlockSuite còn thiếu (Database, SlashMenu, DragHandle, 7 inline) — D13: 23→33/58.
@@ -1675,3 +1686,150 @@ npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải 
 `writing-plans`); hoặc kiểm tay thật trên iPad/thiết bị thật cho cả track MindmapScreen (D4,
 BoardGallery, "đẩy hiệu ứng DanhSachBang", và Steps 3-5 của chặng này) — tất cả đang chờ cùng một
 buổi kiểm tay thật, không phải bốn khoản nợ riêng biệt.
+
+## 21. DỊCH BỀ MẶT HIỂN THỊ, ĐỢT 2 — ĐÃ XONG, KIỂM TAY MỘT PHẦN
+
+Track P1 vendor/dịch (không thuộc MindmapScreen). Làm trực tiếp trên `main`, không qua worktree —
+cùng thói quen các chặng dịch nhỏ trước (P1-C/D/E, mục 16).
+
+| Tài liệu | Đường dẫn |
+|---|---|
+| Spec | `docs/superpowers/specs/2026-08-22-dich-be-mat-hien-thi-dot-2-design.md` |
+| Kế hoạch | `docs/superpowers/plans/2026-08-22-dich-be-mat-hien-thi-dot-2.md` |
+
+### Chặng này làm gì
+
+Đo lại tập chuỗi vendor chưa dịch (đúng yêu cầu "test lại có sót" — mục 10/12 cảnh báo số đo cũ đã
+lỗi thời từ khi mục 20 bật 10 extension mới), loại 12 gói thuộc 10 extension đó (Database, SlashMenu,
+DragHandle, 7 inline, cộng `affine/data-view` — engine đứng sau Database) khỏi phạm vi. Spec đo được
+162 ứng viên → 60 thuộc riêng 12 gói loại trừ → 102 còn phạm vi chặng này → 38 chuỗi spec kết luận
+"tới được `dist/` NGAY BÂY GIỜ" (phần còn lại — 64 — hoãn vì gói khác chưa bật, không đụng).
+
+### Đã xong — 2 commit trực tiếp trên `main`
+
+| Commit | Nội dung |
+|---|---|
+| `5bfd500` | Task 1+2: điều tra 4 chuỗi nghi nhiễu + thêm 34 khoá dịch (kết quả BAN ĐẦU — một phần bị Task 3 gỡ lại, xem dưới) |
+| `1ae21c0` | Task 3: chạy bảy cổng, phát hiện và sửa hai lớp sai lệch trong commit trước — gỡ 18/34 khoá |
+
+**Task 1 — 4 chuỗi nghi nhiễu `"1"`/`"2"`/`"3"`/`"aaa"` (gói `affine/all` = `@blocksuite/affine`):**
+đọc đúng dòng nguồn xác nhận cả 4 CHỈ xuất hiện trong file test
+(`src/__tests__/adapters/{markdown,html}.unit.spec.ts`) — `"1"`/`"2"`/`"3"` là `label` của đối
+tượng `footnote` giả lập (số thứ tự chú thích 1/2/3) trong bài kiểm round-trip markdown/html
+(`markdown.unit.spec.ts:3331,3346,3358`, lặp lại ở `5331,5346,5358,5488`); `"aaa"` là `caption` ảnh
+giả lập (`markdown.unit.spec.ts:2355`, `html.unit.spec.ts:1043`). Cả 4 khớp vị trí cho phép của
+`luat-vi-tri-dich.mjs` (`label`/`caption`) chỉ vì TRÙNG TÊN thuộc tính, không phải vì đó là chữ hiển
+thị thật — file `*.unit.spec.ts` chỉ chạy dưới `vitest`, không được `src/board/extensions.ts` import,
+không thể tới `dist/`. **Quyết định: BỎ QUA cả 4, không thêm khoá**, đúng tinh thần "không danh sách
+miễn ngầm" của mục 11 — quyết định có lý do ghi lại, không phải bỏ sót.
+
+**Task 2 — soạn 34 bản dịch, phát hiện thêm 2 lớp sai lệch khi chạy Task 3 (không phải lỗi lúc soạn,
+mà tại chỗ đối chiếu với cơ chế D12/bản build thật):**
+
+1. **10 khoá brand/định dạng file** (Figma, loom, YouTube Video, OneNote, Docx, Html, HTML,
+   Markdown, Zip, PlainText) — spec §6 nói "giữ nguyên không dịch nghĩa", lúc soạn hiểu nhầm thành
+   "thêm khoá value = key". Cổng 1 của `dich-chuoi-vendor.mjs` cấm THẲNG bản dịch trùng y hệt bản
+   gốc ("Đó là dòng thừa, hoặc dấu hiệu chép nhầm cột") — cách đọc spec ĐÚNG là KHÔNG thêm khoá cho
+   10 brand này, để chúng tự nhiên hiện tiếng Anh (không khoá = không thay). Gỡ cả 10.
+2. **8 chuỗi thuộc 5 gói chưa bật `ViewExtension`** — build lại xong, `kiem:dist` báo đỏ 8 khoá
+   không tới `dist/`: `Align center/left/right`, `Attachment`, `Download`, `Edgeless`, `Equation`,
+   `More`. Theo đúng hướng dẫn kế hoạch ("chẩn đoán nói gói chưa bật → quay lại spec §3, tái kiểm
+   chuỗi đó thật sự không thuộc 12 gói loại trừ"), đối chiếu `src/board/extensions.ts`:
+   **`affine-block-image`, `affine-block-attachment`, `affine-block-latex`, `affine-block-code`,
+   `affine-block-surface-ref` không có `ViewExtension` nào được import** — không thuộc 12 gói loại
+   trừ của spec §3, nhưng cũng không thực sự "tới dist NGAY BÂY GIỜ" như spec §4 khẳng định.
+   **SAI LỆCH VỚI SPEC — ghi lại, không tự sửa spec:** spec §4 đo bằng build-based check
+   (`coNhuLiteral` trên một bản `npm run build` chạy trong phiên viết spec) và kết luận cả 38 chuỗi
+   "tới dist NGAY BÂY GIỜ"; đo lại trực tiếp ở chặng này (build thật trên `main`) cho kết quả KHÁC
+   đúng 8 chuỗi này. Không rõ nguyên nhân cụ thể của sai lệch (dist đo lúc đó đã cũ, hay bug ở phép
+   so khớp `coNhuLiteral`/`tim-ban-dich-vendor.mjs`) — không đoán, để phiên sau/chủ dự án truy thêm
+   nếu cần. Bật 5 `ViewExtension` đó là quyết định phạm vi lớn (ảnh hưởng kích thước bundle — có
+   tiền lệ đo ở mục 20: +164 kB gzip khi bật 10 extension), KHÔNG làm ở chặng dịch nhỏ này — gỡ 8
+   khoá, gộp vào diện "hoãn tới khi gói bật".
+
+**Kết quả:** `vi.json` 150 → **166 khoá** (+16 khoá dịch thật, không phải +34 như spec dự kiến ban
+đầu). 16 khoá mới: `Card view`, `Copied image to clipboard`, `Create Linked Doc`, `Download in
+progress...`, `Downloading image...`, `Drag/Click to insert Text block`, `Embed view`, `Enter Full
+Screen`, `Exit Full Screen`, `Failed to download image!`, `Failed to read image size, please try
+another image`, `Headings in the 4th/5th/6th font size.` (×3 — biến thể SỐ NHIỀU mới ở
+`affine/rich-text/conversion.ts`, khác khoá số ít `Heading in the...` đã có sẵn từ trước ở
+`affine/gfx/note`), `Inline view`, `Thickness`. `timTrungBanDich` xác nhận không trùng giá trị dịch.
+
+### Bảy cổng — đo lại trực tiếp trên `main`, 2026-08-22 (sau khi sửa ở `1ae21c0`)
+
+`npm run dung:vendor` — 166 khoá đều còn sống (0 khoá chết) · `npx tsc --noEmit` exit 0 ·
+`npm test` — **285/285** (34 file, 326.27s) · `kiem:vendor` — so 2782 file với
+`bang-bam-vendor.json` và thượng nguồn, lệch 0 · `kiem:vendor-paths` — khớp 438 mục paths ·
+`npm run build` xanh (10.90s) · `kiem:dist` — đọc 315 file trong `dist/`, biến `--drt-*` dùng
+76/định nghĩa 641, biến CSS dùng 320/định nghĩa 929, **bản dịch vi.json — 167/167 có mặt** (166
+`vi.json` + 1 `vi-tien-to.json`), không còn `"affine-"`.
+
+### Kiểm tay trên trình duyệt thật
+
+Phiên chạy nền, không người theo dõi trực tiếp — cùng giới hạn môi trường đã ghi ở mục 16/17
+(`screenshot`/`left_click` theo toạ độ báo lỗi "the Browser pane is not displayed, so the page is
+not compositing frames"). Khác hai lần trước, lần này đi thêm được MỘT bước nhờ API sản xuất thật
+của editor (`editor-host.store`, tìm bằng `window.__host`) và click thật (không phải toạ độ mù)
+trên nút toolbar — vốn là phần tử DOM thường, không phải canvas:
+
+1. `PORT=8446 npm run dev` khởi động sạch, mở Browser pane, bấm tab "Mindmap", tạo bảng mới — bảng
+   vẽ tải và render đúng: toolbar edgeless cố định hiện ĐẦY ĐỦ tiếng Việt sẵn có (`Vừa khung hình`,
+   `Thu nhỏ`, `Phóng to`, `Bật/tắt thanh thu phóng`, `Khung`, `Ghi chú`, `Tẩy`, `Hình`, `Khác`,
+   `Công cụ khác`) — xác nhận cơ chế D12 phục vụ đúng tiếng Việt cho app THẬT đang chạy, không chỉ
+   cho `dist/` tĩnh.
+2. Bấm nút "Pen" (phần tử `edgeless-toolbar-button` thật, tìm bằng nội dung chữ rồi gọi `.click()`
+   qua `javascript_tool`) → mở submenu Pen/Highlighter, panel độ dày hiện tooltip **"Độ dày"** —
+   **XÁC NHẬN TRỰC TIẾP một trong 16 khoá mới của chặng này (`Thickness` → `Độ dày`) hiển thị đúng
+   trên app thật, không chỉ trong `dist/`.**
+3. Thử tạo Note+paragraph bằng `store.addBlock('affine:note', ...)`/`addBlock('affine:paragraph',
+   ...)` gọi thẳng qua API để kiểm các khoá còn lại (Card/Embed/Inline view, Create Linked Doc,
+   Enter/Exit Full Screen, Headings 4-6, các toast Download/Copied/Failed) — phần tử note tạo ra
+   ĐÚNG vào DOM (`drt-edgeless-note`, `data-block-id` khớp, `connected: true`) nhưng RỖNG (0 con,
+   0×0), không render nội dung: gọi API thẳng (bỏ qua chuỗi cử chỉ con trỏ mà app thật dùng để tạo
+   note) không đủ để engine gfx dựng view đầy đủ. **KHÔNG xác nhận được** 15/16 khoá còn lại bằng
+   thao tác trên trình duyệt thật trong phiên này.
+
+**Bù lại bằng bằng chứng gián tiếp mạnh:** (a) `kiem:dist` 167/167 — bản dịch có mặt ĐÚNG trong
+`dist/` thật đã build (không phải suy luận); (b) đã lần từng khoá trong 16 khoá về đúng dòng nguồn
++ xác nhận gói chứa nó có `ViewExtension` đăng ký trong `src/board/extensions.ts` (Task 1/2/3 ở
+trên) — `ReferenceViewExtension` cho Card/Embed/Inline view, `GfxNoteViewExtension` cho tooltip
+kéo-chèn + mô tả Headings 4-6, `RootViewExtension`/`ToolbarViewExtension` cho Create Linked
+Doc/Enter-Exit Full Screen, các toast Download/Copied/Failed gọi từ `image|attachment/src/utils.ts`
+(đường gọi các hàm toast này độc lập với `ViewExtension` của khối nên không bị 5 gói vừa loại ở
+Task 3 chặn — `kiem:dist` xác nhận chúng KHÔNG nằm trong 8 khoá bị gỡ). **Còn nợ:** kiểm tay ~3 phút
+khi có người thật theo dõi Browser pane — chèn ảnh/attachment, chọn văn bản để thấy Card/Embed/Inline
+view, gõ `#### ` để kiểm hint Headings 4-6, xác nhận cả 15 khoá còn lại hiện đúng tiếng Việt (dự
+đoán: đúng, dựa trên (a)+(b), nhưng "dự đoán đúng" không thay được "thấy đúng").
+
+### Ngoài phạm vi, còn nợ
+
+- **64 chuỗi chưa tới `dist/` theo spec §4** (gói khác chưa bật) **+ 8 chuỗi vừa gỡ ở Task 3**
+  (`Align center/left/right`, `Attachment`, `Download`, `Edgeless`, `Equation`, `More` — 5 gói
+  `affine-block-{image,attachment,latex,code,surface-ref}` chưa có `ViewExtension`) = **72 chuỗi
+  thực tế đang hoãn**, không phải 64 như spec §4 tổng kết — sai lệch đã ghi ở Task 2 phía trên.
+  Không chép lại danh sách 64 chuỗi cũ ở đây — tham chiếu spec
+  `docs/superpowers/specs/2026-08-22-dich-be-mat-hien-thi-dot-2-design.md` §4 khi cần, cộng thêm 8
+  chuỗi mới ghi ở trên.
+- **10 khoá brand/định dạng file** (Figma, loom, YouTube Video, OneNote, Docx, Html, HTML,
+  Markdown, Zip, PlainText) — quyết định "giữ nguyên tiếng Anh" đúng theo spec §6, KHÔNG cần khoá
+  `vi.json` (Cổng 1 cấm value=key) — không phải nợ, chỉ ghi lại để phiên sau không tưởng nhầm đây
+  là 10 khoá "quên dịch".
+- **Bật 5 `ViewExtension` còn thiếu** (`affine-block-image`, `affine-block-attachment`,
+  `affine-block-latex`, `affine-block-code`, `affine-block-surface-ref`) — quyết định phạm vi lớn
+  (ảnh hưởng bundle size, tiền lệ ở mục 20), KHÔNG làm ở chặng dịch nhỏ này. Đây LÀ lý do 8 chuỗi ở
+  trên không tới được `dist/`, không phải lỗi dịch.
+- **Nội dung dịch cho 10 extension mới mục 20** — vẫn ngoài phạm vi, chưa đụng (không đổi so với
+  mục 20).
+- Kiểm tay đầy đủ 15/16 khoá còn lại trên trình duyệt thật (xem mục trên).
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này (sau 1ae21c0) hoặc mới hơn
+git status --short                      # kỳ vọng sạch trừ antibiotics.ts + ba file browser-use
+npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải dựng lại
+```
+
+**Chặng kế tiếp:** kiểm tay ~3 phút khi có người thật theo dõi Browser pane (xem "còn nợ" ở trên);
+hoặc quyết định có bật 5 `ViewExtension` còn thiếu hay không (ảnh hưởng 8+ chuỗi hoãn, có thể gộp
+64→72 chuỗi hoãn thành phạm vi dịch mới nếu bật); hoặc nội dung dịch cho 10 extension mới mục 20.
