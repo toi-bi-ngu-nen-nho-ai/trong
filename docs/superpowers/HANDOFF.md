@@ -101,23 +101,29 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì. Đây là bàn giao dự án Bs Trọng từ một
-phiên Claude Code khác đã hết ngân sách. Đừng đoán trạng thái repo — file đó ghi mọi lệnh git cần
-chạy để xác nhận.
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 23 (mới nhất). Đây là bàn
+giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
+mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở. P1-D đã gộp (mục 13). Chặng kế tiếp là NỘI DUNG DỊCH cho vi.json.
+Không còn chặng nào đang dở. `main` tại 6d499cd (hoặc mới hơn — chạy `git log --oneline -1` để xác
+nhận). Bảy cổng xanh: npm test 291/291 (37 file), kiem:dist 174/174 khoá vi.json có mặt.
 
-Nợ `includes` ĐÃ TRẢ ở chặng P1-D (mục 13) — cả hai chỗ đã dùng phép literal trọn vẹn, và có
-thêm cổng cấm hai khoá dịch ra cùng một chuỗi.
-
-Việc còn phải làm trước khi thêm khoá đầu tiên: ĐO LẠI số chuỗi VÀ số từ lặp. Con số "323 chuỗi"
-đã bị bác bỏ (đúng là 899), và "61 từ lặp" được suy ra TỪ tập 323 đó nên cũng hết giá trị.
-Đừng đổi 323 thành 899 rồi giữ nguyên 61 — đó là hai phép đo khác nhau.
+Track dịch (vi.json/vendor D12) đã dịch hết mọi chuỗi "tới dist ngay" đo được (166→173 khoá, mục
+20-22). Chặng vừa xong (mục 23) là TDD tự động hoá bước "kiểm tay trên trình duyệt thật" — vì
+Browser pane không compositing khi phiên không có người theo dõi trực tiếp — bằng 4 kỹ thuật khác
+nhau (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import config
+trực tiếp). Kết quả: 10/22 khoá của mục 21+22 đã có test tự động, còn 12 khoá + "Equation"(Latex)
+vẫn hoãn — TỪNG khoá cần hạ tầng kiểm RIÊNG, không phải một công thức chung. Đọc "Còn nợ" ở cuối
+mục 23 để biết chính xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
 
 Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
-vài phút), rồi superpowers:brainstorming → writing-plans → subagent-driven-development.
+vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 23 để chọn việc — không cần brainstorming/writing-plans
+nếu chỉ tiếp tục thêm test TDD theo đúng 4 kỹ thuật đã có (việc nhỏ, làm trực tiếp); dùng
+superpowers:brainstorming → writing-plans nếu muốn mở chặng lớn khác (bật thêm ViewExtension, nội
+dung dịch cho 10 extension mục 20, v.v).
 
-Đừng đụng src/data/antibiotics.ts — tôi tự sửa.
+Đừng đụng src/data/antibiotics.ts — chủ dự án tự sửa. Ba file browser-use
+(.env.browser-use/BROWSER_USE_SETUP.md/browser_use_test.py) không thuộc track nào, kệ chúng.
 ```
 
 ## 1. VIỆC LÀM NGAY — chạy trước khi làm bất cứ gì khác
@@ -127,8 +133,8 @@ vài phút), rồi superpowers:brainstorming → writing-plans → subagent-driv
 ```bash
 git fetch origin
 git branch --show-current               # kỳ vọng: main
-git log --oneline -1                    # kỳ vọng: 9ce6955 hoặc mới hơn
-git status --short                      # kỳ vọng: chỉ hai file sinh ra ở mục 6
+git log --oneline -1                    # kỳ vọng: 6d499cd hoặc mới hơn
+git status --short                      # kỳ vọng: chỉ antibiotics.ts + ba file browser-use + hai file sinh ra ở mục 6
 ```
 
 Nếu `git log` cho một commit mà bảng đồ phục hồi (mục 3) không có, đọc commit đó bằng
@@ -165,10 +171,11 @@ bảng vẽ ~994 kB gzip, nạp chậm).
 npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build && npm run kiem:dist
 ```
 
-Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-15**, trên `main` sau khi gộp P1-D):
-`tsc` exit 0 · **122/122 ca** xanh (14 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
-438 mục khớp · vỏ app **~333,0 kB** gzip · chunk bảng **~993,7 kB** gzip · `kiem:dist` xanh với
-`bản dịch vi.json — 5/5 có mặt`.
+Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-23**, trên `main` sau mục 23 — ĐỪNG tin số cũ hơn,
+mỗi chặng dịch/bật extension đều đổi số này, xem "TRẠNG THÁI HÔM NAY" đầu file để có bản mới nhất):
+`tsc` exit 0 · **291/291 ca** xanh (37 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
+438 mục khớp · chunk bảng **~911,2 kB** gzip · `kiem:dist` xanh với `bản dịch vi.json — 174/174 có
+mặt` (173 `vi.json` + 1 `vi-tien-to.json`).
 
 **5. Đảm bảo mọi việc (gồm cả agent) đều là model Sonnet 5 effect High**
 ---
@@ -197,6 +204,10 @@ mới thì nó đứng im. Chặng sau cần `brainstorming` → `writing-plans`
 | Trả nợ nhỏ ở mục 6 | Sửa thẳng, không cần kỹ năng nào |
 | iPad lộ ra lỗi | `superpowers:systematic-debugging` |
 | Lỗi build/deploy khác | `superpowers:systematic-debugging` — xem cách đã sửa lỗi Vercel ở mục 3 làm ví dụ |
+
+> **ĐÍNH CHÍNH 2026-08-23.** Bảng trên đông cứng từ trước mục 16 — "dịch bề mặt hiển thị" KHÔNG còn
+> là chặng kế tiếp (đã làm xong nhiều đợt, mục 20-23), D4/BoardGallery ĐÃ XONG từ lâu (mục 17-18).
+> Đừng theo bảng này để chọn việc — đọc thẳng "Chặng kế tiếp" ở cuối **mục 23** (mới nhất).
 
 ---
 
