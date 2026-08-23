@@ -1,6 +1,6 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-23**. Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
 > **ĐÍNH CHÍNH bản 2026-08-22 (mục 21).** Chặng tiếp theo sau "Database + Note đầy đủ" là **"Dịch
 > bề mặt hiển thị, đợt 2"** — **đã xong** (2 commit trực tiếp trên `main`, không worktree), bảy cổng
@@ -33,18 +33,24 @@ Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (10/22 khoá mục 21+22), Latex điều tra xong, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (15/22 khoá mục 21+22), Task B ngõ cụt đã xác nhận
 
 | | |
 |---|---|
-| `main` | **`2b7bc70`** — 6 commit trực tiếp (không worktree), xem mục 23 |
+| `main` | **`95cb700`** — 2 commit trực tiếp (không worktree) tiếp sau `a39ebb9`, xem mục 24 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **291/291** (37 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **293/294** (39 file — 1 ca đỏ là chập chờn ĐÃ BIẾT trước từ mục 22, xanh khi chạy riêng lẻ, xem mục 24) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (909,13 kB gzip `EdgelessBoard-*.js`) + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+
+**Chặng "TDD Task A/B/C — Card/Embed/Inline view, Create Linked Doc, Full Screen" — ĐÃ XONG.**
+Task A (Card/Embed/Inline view của tham chiếu inline) và Task C (Enter/Exit Full Screen trình
+chiếu) landed bằng hai kỹ thuật mới; Task B (Create Linked Doc) là ngõ cụt đã xác nhận (thiếu
+`EmbedDoc` ViewExtension, ngoài phạm vi). 10→15/22 khoá mục 21+22 đã có test tự động. Chi tiết ở
+**mục 24**.
 
 **Chặng "TDD tự động hoá kiểm tay + điều tra Latex" — ĐÃ XONG** (`2b7bc70`). Thử bật thêm
 `LatexViewExtension` lần hai, vá được lỗi DOMPurify nhưng KaTeX gây chập chờn timeout ở bộ test đầy
@@ -101,24 +107,28 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 23 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 24 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở. `main` tại 6d499cd (hoặc mới hơn — chạy `git log --oneline -1` để xác
-nhận). Bảy cổng xanh: npm test 291/291 (37 file), kiem:dist 174/174 khoá vi.json có mặt.
+Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 24 (hoặc mới hơn — chạy
+`git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 293/294 (39 file — 1 ca đỏ là chập
+chờn ĐÃ BIẾT trước, xem mục 22 và mục 24, xanh khi chạy riêng lẻ), kiem:dist 174/174 khoá vi.json
+có mặt.
 
 Track dịch (vi.json/vendor D12) đã dịch hết mọi chuỗi "tới dist ngay" đo được (166→173 khoá, mục
-20-22). Chặng vừa xong (mục 23) là TDD tự động hoá bước "kiểm tay trên trình duyệt thật" — vì
-Browser pane không compositing khi phiên không có người theo dõi trực tiếp — bằng 4 kỹ thuật khác
-nhau (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import config
-trực tiếp). Kết quả: 10/22 khoá của mục 21+22 đã có test tự động, còn 12 khoá + "Equation"(Latex)
-vẫn hoãn — TỪNG khoá cần hạ tầng kiểm RIÊNG, không phải một công thức chung. Đọc "Còn nợ" ở cuối
-mục 23 để biết chính xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
+20-22). Track "TDD tự động hoá kiểm tay" (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
+Browser pane không compositing khi phiên không có người theo dõi trực tiếp) nay ở **15/22 khoá** của
+mục 21+22 — năm kỹ thuật đã có (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export
+công khai, import config trực tiếp, và MỚI ở mục 24: bơm thẳng signal `message$` của
+ToolbarRegistry). Còn 7 khoá + "Equation"(Latex) vẫn hoãn — TỪNG khoá cần hạ tầng kiểm RIÊNG, một
+khoá ("Create Linked Doc") là ngõ cụt đã xác nhận (thiếu `EmbedDoc` ViewExtension, ngoài phạm vi).
+Đọc "Còn nợ"/"Chặng kế tiếp" ở cuối mục 24 để biết chính xác vị trí nguồn + lý do chưa làm của từng
+khoá, đừng điều tra lại từ đầu.
 
 Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
-vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 23 để chọn việc — không cần brainstorming/writing-plans
-nếu chỉ tiếp tục thêm test TDD theo đúng 4 kỹ thuật đã có (việc nhỏ, làm trực tiếp); dùng
+vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 24 để chọn việc — không cần brainstorming/writing-plans
+nếu chỉ tiếp tục thêm test TDD theo đúng các kỹ thuật đã có (việc nhỏ, làm trực tiếp); dùng
 superpowers:brainstorming → writing-plans nếu muốn mở chặng lớn khác (bật thêm ViewExtension, nội
 dung dịch cho 10 extension mục 20, v.v).
 
@@ -171,11 +181,12 @@ bảng vẽ ~994 kB gzip, nạp chậm).
 npx tsc --noEmit && npm test && npm run kiem:vendor && npm run kiem:vendor-paths && npm run build && npm run kiem:dist
 ```
 
-Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-23**, trên `main` sau mục 23 — ĐỪNG tin số cũ hơn,
+Số liệu kỳ vọng ở lần chạy gần nhất (**2026-08-23**, trên `main` sau mục 24 — ĐỪNG tin số cũ hơn,
 mỗi chặng dịch/bật extension đều đổi số này, xem "TRẠNG THÁI HÔM NAY" đầu file để có bản mới nhất):
-`tsc` exit 0 · **291/291 ca** xanh (37 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
-438 mục khớp · chunk bảng **~911,2 kB** gzip · `kiem:dist` xanh với `bản dịch vi.json — 174/174 có
-mặt` (173 `vi.json` + 1 `vi-tien-to.json`).
+`tsc` exit 0 · **293/294 ca** xanh (39 file — 1 ca đỏ là chập chờn ĐÃ BIẾT trước từ mục 22, xanh khi
+chạy riêng lẻ, xem mục 24) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục khớp ·
+chunk bảng **~909,1 kB** gzip · `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173
+`vi.json` + 1 `vi-tien-to.json`).
 
 **5. Đảm bảo mọi việc (gồm cả agent) đều là model Sonnet 5 effect High**
 ---
@@ -2108,3 +2119,186 @@ npm ci && npm run dung:vendor
 khả năng cả "More" cùng lúc nếu cùng họ với `HoverController`); hoặc Create Linked Doc (root
 toolbar); hoặc Enter/Exit Full Screen (frame presentation state); hoặc kiểm tay thật khi có người
 theo dõi Browser pane cho phần chưa tự động hoá được.
+
+---
+
+## 24. TDD TASK A/B/C — Card/Embed/Inline view, Create Linked Doc (ngõ cụt), Enter/Exit Full Screen
+
+Tiếp nối mục 23, theo đúng thứ tự ưu tiên đã giao. Làm trực tiếp trên `main`, không worktree —
+đúng quy ước các chặng TDD nhỏ trước. 2 commit code (`134a0c0` Task A, `95cb700` Task C) + bản cập
+nhật HANDOFF này.
+
+### Task A — Card/Embed/Inline view (toolbar tham chiếu inline) — LANDED, KHÔNG PHẢI NGÕ CỤT
+
+Manh mối mục 23 Phần 4 dừng ở "cần tìm `message$` được set ở đâu". Tìm thấy: `message$` là một
+signal THƯỜNG (`@preact/signals-core`), định nghĩa ở
+`affine/shared/src/services/toolbar-service/registry.ts:31-35`
+(`ToolbarRegistryExtension.message$`). `affine/shared/src/services/toolbar-service/context.ts:130-132`
+xác nhận `ctx.message$` (mà mọi action trong `reference-node/configs/toolbar.ts` đọc) chính là CÙNG
+object — không tầng bọc nào khác. `reference-node.ts:162-182` set nó khi hover chuột THẬT
+(`message$.value = {flavour:'affine:reference', element:this, setFloating:...}`), nhưng
+`affine/widgets/toolbar/src/toolbar.ts:693-723` chỉ `.subscribe()` trên chính signal đó — không
+phân biệt được ai ghi `.value`. Set thẳng `.value` bằng code test kích hoạt ĐÚNG code path đó,
+không cần pointer hover thật — cùng tinh thần kỹ thuật #2 (BlockSelection), chỉ khác signal đích.
+Gọi đây là **kỹ thuật #5 — signal ngữ cảnh toolbar riêng (`message$`)**.
+
+`element` trong message phải là một `AffineReference` (`<drt-reference>`) THẬT — mọi action nhóm
+"c.conversions" gate bằng `target instanceof AffineReference`. Dựng bằng cách chèn đúng API
+production: `ie.insertText({index,length:0}, ' ', {reference:{type:'LinkedPage', pageId}})` —
+`REFERENCE_NODE` (`affine/shared/src/consts/text.ts:1`) là ký tự `' '` sản xuất dùng để chèn tham
+chiếu; schema (`inline-spec.ts`) chỉ đòi `pageId: string`, tài liệu đích không cần tồn tại thật
+(`AffineReference` tự xử lý "refMeta undefined" cho tài liệu đã xoá — `reference-node.ts:75-93`).
+
+Nhãn "Card view"/"Embed view"/"Inline view" hiện qua
+`<editor-menu-action aria-label="...">${label}</editor-menu-action>`
+(`affine/components/src/view-dropdown-menu/dropdown-menu.ts:62-74`) — LUÔN có mặt trong cây bất kể
+dropdown đang mở hay đóng (chỉ ẩn bằng CSS `display`, không tháo khỏi DOM — cùng lý do `.tooltip`
+đọc được mà không cần hover-popup thật composite đã ghi ở mục 23 Phần 2), đọc qua `aria-label`
+KHÔNG phải `.tooltip` (khác nút đơn).
+
+**RED thật gặp phải:** lượt viết đầu (đúng tên thẻ `drt-reference` ngay từ đầu, sau khi đã tra kỹ
+`.vendor-build/` để biết tên thật) GREEN NGAY — không có RED tự nhiên. Để không phá kỷ luật TDD
+("RED bắt lỗi thao tác thật là giá trị cốt lõi"), tự tạo lại đúng lớp lỗi đã ghi ở mục 23 Phần 2:
+đổi `drt-reference` → `affine-reference` (tên GỐC thượng nguồn trước đổi tên D11 — đúng kiểu nhầm
+"agent đọc mã thượng nguồn báo tên thẻ theo tên GỐC" đã từng xảy ra thật). Chạy thật:
+`AssertionError: expected null not to be null` tại `document.querySelector('affine-reference')`
+(dòng 102) — đúng lý do kỳ vọng (phần tử không tồn tại vì sai tên thẻ), không phải lỗi gõ nhầm/setup
+sai. Trả lại `drt-reference` → GREEN (tin lượt GREEN gốc, không chạy lần ba vì nội dung revert y
+hệt bản đã xác nhận chạy đúng).
+
+File mới: `src/board/__tests__/edgeless-board-reference-toolbar.spec.ts`, 1 ca kiểm.
+
+**Tìm thêm về "More" (code block toolbar)** — câu hỏi mở của task ("cùng họ cơ chế?"): KHÔNG.
+`AffineCodeToolbarWidget` (`affine/blocks/code/src/code-toolbar/index.ts`) dùng `HoverController`
+(`affine/components/src/hover/controller.ts`) — class RIÊNG, hoàn toàn không đọc/ghi
+`ToolbarRegistryIdentifier`/`message$`. `HoverController` bọc CÙNG hàm nguyên thuỷ `whenHover()`
+(`affine/components/src/hover/when-hover.ts`) mà `reference-node.ts` dùng trực tiếp, nhưng lồng
+thêm: chuỗi middleware ASYNC (`dedupe`/`safeBridge`/`delayShow`/`delayHide`) và tự tạo portal
+riêng (`createLitPortal`) thay vì đẩy dữ liệu qua toolbar widget dùng chung. Về lý thuyết có thể
+bắn `MouseEvent('mouseenter')` tổng hợp vào đúng phần tử block code (`whenHover` chỉ
+`addEventListener('mouseenter'/'mouseleave', ...)` thật, không cần compositing — cùng lớp kỹ thuật
+"sự kiện tổng hợp bắn đúng phần tử" đã dùng ở `taoNoteQuaCongCuThat`), nhưng `safeBridge` đòi hình
+học con trỏ thật (toạ độ) và toàn chuỗi middleware là `async` — effort/rủi ro cao hơn hẳn so với
+lợi ích (đúng 1 chuỗi "More"). KHÔNG làm trong task này, giữ nguyên trong diện hoãn — bổ sung phát
+hiện "không cùng họ `message$`" vào ghi chú đã có.
+
+### Task B — Create Linked Doc (root toolbar) — NGÕ CỤT ĐÃ XÁC NHẬN
+
+Grep `"Create Linked Doc"` trong toàn bộ `src/vendor/blocksuite/`: đúng HAI vị trí, cả hai đều
+cùng một lớp gate:
+
+- `affine/blocks/root/src/configs/toolbar.ts:311-334` (`turnIntoLinkedDoc`,
+  `id: 'f.convert-to-linked-doc'`, action nhóm "Create Linked Doc" của toolbar Note/block thường)
+- `affine/blocks/embed/src/embed-iframe-block/configs/toolbar.ts:213`
+
+Cả hai `when()` đều gate bằng:
+```ts
+const supportFlavours = [EmbedLinkedDocBlockSchema, EmbedSyncedDocBlockSchema].map(s => s.model.flavour);
+if (supportFlavours.some(flavour => !std.getOptional(BlockViewIdentifier(flavour)))) return false;
+```
+`BlockViewIdentifier(flavour)` CHỈ được set qua `BlockViewExtension(flavour, view)`
+(`framework/std/src/extension/block-view.ts:30`) — với hai flavour này, đăng ký nằm trong package
+`affine/blocks/embed-doc` (`embed-linked-doc-spec.ts`/`embed-synced-doc-spec.ts`). `src/board/
+extensions.ts` KHÔNG import bất cứ gì từ `affine-block-embed-doc`/`affine-block-embed` — chính
+header comment của file đó (dòng 7-10) liệt "Embed, EmbedDoc" vào 9 khối bị loại khỏi 37/58
+ViewExtension đang bật.
+
+**Kết luận:** hành động "Create Linked Doc" không tồn tại trong ứng dụng đang chạy ở BẤT KỲ kỹ
+thuật kiểm nào — `when()` luôn trả `false` vì thiếu `BlockView`, không phải vấn đề hạ tầng kiểm
+tra. Bật thêm `EmbedDoc`/`Embed` ViewExtension là quyết định NGOÀI PHẠM VI chặng "TDD tự động hoá
+kiểm tay" (ảnh hưởng kích thước bundle, cần chủ dự án duyệt như tiền lệ mục 20 "+150kB gzip đáng
+dừng lại" và mục 22 "THỬ bật rồi PHẢI GỠ") — không tự ý bật. Giống văn phong hai ngõ cụt đã có ở
+mục 23 Phần 4: xác nhận qua ĐỌC MÃ, không chạy test — thiếu hẳn một `BlockView` không phải thứ RED
+có thể "bắt sai lý do", vì hành vi ĐÚNG của `when()` chính là trả `false`, không phải một lỗi cần
+sửa.
+
+### Task C — Enter/Exit Full Screen (toolbar trình chiếu khung) — LANDED
+
+Nguồn: `affine/blocks/frame/src/edgeless-toolbar/presentation-toolbar.ts:439-451`. Tooltip của
+`<edgeless-tool-icon-button>` đọc THẲNG `document.fullscreenElement` (không qua state nội bộ
+`_fullScreenMode`).
+
+Trigger: `EdgelessToolbarWidget.isPresentMode` = `edgelessTool === 'frameNavigator'`
+(`edgeless-toolbar.ts:443-445`, đúng `PresentTool.toolName` — `present-tool.ts:11`). Kích hoạt qua
+API công khai `gfx.tool.setTool(PresentTool, {mode:'fit'})`
+(`framework/std/src/gfx/tool/tool-controller.ts:575-615`) — bản PUBLIC, gọn hơn cách
+`taoNoteQuaCongCuThat` tự poke `currentToolName$`/`activate()` thủ công, làm đúng mọi bước đó cho
+mình. Đã xác nhận trước khi viết test: `PresentTool` ĐƯỢC đăng ký qua `context.register(PresentTool)`
+trong `FrameViewExtension` (`frame/src/view.ts:31`), và `FrameViewExtension` CÓ trong
+`src/board/extensions.ts`. `EdgelessToolbarWidget` là `SignalWatcher`
+(`WidgetComponent` → `SignalWatcher(WithDisposable(LitElement))`) nên tự re-render khi
+`currentToolName$` đổi, không cần gọi `requestUpdate()` tay.
+
+**happy-dom không có Fullscreen API** — đã kiểm bằng grep `node_modules/happy-dom/lib`:
+`document.fullscreenElement` không tồn tại trên `Document` (chỉ có trên `ShadowRoot`, luôn trả
+`null`), `Element.prototype.requestFullscreen`/`document.exitFullscreen` cũng không có. Hệ quả:
+`launchIntoFullscreen()` tự lặng lẽ bỏ qua (`if (element.requestFullscreen)` false), không throw —
+nhưng `document.fullscreenElement` cũng không bao giờ tự trở thành truthy qua hành động thật. Ca
+kiểm "Exit Full Screen" tự stub `Object.defineProperty(document, 'fullscreenElement', {value:
+fakeEl, configurable:true})` TRƯỚC khi kích hoạt tool — an toàn vì thuộc tính này chưa từng tồn tại
+trên `Document`, không ghi đè accessor có sẵn nào.
+
+**RED thật gặp phải:** cả hai ca đều GREEN NGAY lượt đầu (đã tra kỹ happy-dom/tag name trước khi
+viết, xem trên). Thử tự tạo thêm RED bằng cách tạm tắt khối `Object.defineProperty(...)` ở ca 2
+(chứng minh assertion "Thoát toàn màn hình" phụ thuộc thật vào stub, không phải trùng hợp/assertion
+lỏng) — lượt chạy đó rơi vào nghẽn tài nguyên nặng (nhiều tiến trình `vitest` chạy song song cùng
+lúc vì tự tách bảy cổng ra chạy riêng lẻ để tận dụng thời gian chờ các test board nặng) và không ra
+kết quả trong thời gian hợp lý; đã chủ động dừng tiến trình đó và trả lại đúng bản gốc thay vì đợi
+thêm. Đây là hạn chế thao tác (quản lý song song trong phiên này), không phải hạn chế của bản thân
+ca kiểm — Task A cùng phiên đã chứng minh phương pháp luận "tự tạo RED để kiểm chứng test có răng"
+hoạt động đúng khi không bị nghẽn tài nguyên.
+
+File mới: `src/board/__tests__/edgeless-board-present-fullscreen-toolbar.spec.ts`, 2 ca kiểm (chưa
+toàn màn hình / đã toàn màn hình).
+
+### Kết quả tổng — 15/22 khoá mục 21+22 đã có test tự động
+
+10 (trước session này) + 3 (Task A: Card view/Embed view/Inline view) + 2 (Task C: Enter/Exit Full
+Screen) = **15/22**. Task B không cộng thêm (ngõ cụt đã xác nhận — "Create Linked Doc" chuyển từ
+diện "chưa thử" sang diện "đã xác nhận không làm được ở kỹ thuật/phạm vi hiện có", vẫn tính là
+chưa tự động hoá). Còn lại 7/22: Create Linked Doc (ngõ cụt), "Copied image to clipboard", "Failed
+to read image size, please try another image", placeholder Note trống (3 khoá, `NOTE_MENU_ITEMS` —
+ngõ cụt subpath export `affine/gfx/note` đã ghi ở mục 23 Phần 4), "More" (code block toolbar —
+`HoverController`, xem Task A ở trên).
+
+### Bảy cổng — đo lại trực tiếp trên `main`, 2026-08-23
+
+`npx tsc --noEmit` exit 0 · `npx vitest run --reporter=verbose` (ghi ra file, không qua `| tail`,
+đúng bài học mục 6) — **293/294** (39 file, 38 file xanh/1 file đỏ) — tăng đúng 2 file/3 ca so với
+mục 23's 291/291 (37 file: +1 ca Task A, +2 ca Task C). Ca đỏ DUY NHẤT:
+`BoardGallery.spec.ts > ... "bấm quay lại → DanhSachBang tái xuất hiện có class board-out"`
+(`expected 'scroll-ios h-full' to contain 'board-out'`) — ĐÚNG ca chập chờn đã ghi nhận ở mục 22
+("chạy lại riêng file đó LUÔN xanh"), không đụng gì tới `DanhSachBang.tsx`/CSS trong chặng này nên
+không thể là hồi quy do Task A/B/C. Chạy lại riêng `BoardGallery.spec.ts` xác nhận: **7/7 xanh**
+(kể cả đúng ca "board-out" vừa đỏ), 259,97s — đúng tiền lệ mục 22. `kiem:vendor` — so 2.782 file,
+lệch 0 · `kiem:vendor-paths` — khớp 438 mục · `npm run build` xanh (36,00s) · `kiem:dist` — đọc
+317 file trong `dist/`, biến `--drt-*` dùng 77/định nghĩa 642, biến CSS dùng 321/định nghĩa 930,
+**bản dịch vi.json — 174/174 có mặt**, không còn `"affine-"`. Chặng này không đụng
+`vi.json`/`extensions.ts` nên bốn cổng vendor/dist giữ gần như nguyên số so với mục 23 (chunk bảng
+911,2→909,1 kB gzip — chênh trong biên độ đo tự nhiên).
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này hoặc mới hơn
+git status --short                      # kỳ vọng sạch trừ antibiotics.ts + ba file browser-use
+npm ci && npm run dung:vendor
+```
+
+**Chặng kế tiếp:** 7 khoá còn lại đều cần hạ tầng kiểm RIÊNG, không phải một công thức chung:
+- Hai toast ảnh còn lại ("Copied image to clipboard", "Failed to read image size...") — CÙNG file
+  `affine/blocks/image/src/utils.ts` với `downloadImageBlob` đã kiểm ở mục 23 Phần 3, khả năng cao
+  áp được kỹ thuật #3 (gọi thẳng hàm export công khai — `copyImageBlob`/hàm nội bộ gọi qua
+  `buildPropsWith`). `copyImageBlob` cần `navigator.clipboard`/`ClipboardItem` — happy-dom CÓ cài
+  (`node_modules/happy-dom/lib/clipboard/`, chưa kiểm có hoạt động đủ hay không, chưa thử).
+- Placeholder Note trống (`NOTE_MENU_ITEMS`, 3 khoá) — ngõ cụt subpath export thật (mục 23 Phần 4),
+  chỉ mở lại được nếu đổi cách `vite.vendor-plugin.ts` đọc `exports` của `package.json`, hoặc quay
+  về UI-driven (mở dropdown công cụ "Ghi chú" trên toolbar).
+- "More" (code block toolbar) — khả thi về lý thuyết qua `MouseEvent('mouseenter')` tổng hợp +
+  `HoverController`, nhưng `safeBridge`/chuỗi middleware `async` khiến effort/lợi ích thấp cho đúng
+  1 chuỗi, xem Task A ở trên.
+- Create Linked Doc — ngõ cụt cấu hình, chỉ mở lại được nếu chủ dự án duyệt bật `EmbedDoc`
+  ViewExtension (ảnh hưởng bundle size, cần hỏi trước như tiền lệ mục 20/22).
+
+Hoặc kiểm tay thật khi có người theo dõi Browser pane cho phần chưa tự động hoá được; hoặc chặng
+lớn khác (nội dung dịch cho 10 extension mục 20, v.v — qua `brainstorming` → `writing-plans`).
