@@ -1,6 +1,14 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-23** (lượt tối ưu tiếp theo sau mục 26). Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-24** (lượt debug tiếp theo sau mục 27). Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **ĐÍNH CHÍNH bản 2026-08-24 (mục 28).** Người dùng báo "còn sót nhiều tiếng Anh trên màn hình" —
+> **KHÔNG phải cảm nhận mơ hồ**: đo được bằng script quét tĩnh (AST, không cần Browser pane) **70
+> chuỗi tiếng Anh thật sự tới `dist/`** ở vị trí hiển thị chưa từng được dịch — phần lớn thuộc
+> Database/data-view (bộ lọc, định dạng số/tiền tệ) và SlashMenu, hai mảng nội dung dịch còn nợ từ
+> mục 20-22 ("Nội dung dịch cho 10 extension mới mục 20 — vẫn ngoài phạm vi"), nay lần đầu được đo cụ
+> thể. **Đã dịch 69/70, đã kiểm chứng qua cổng `kiem:dist` thật (không suy luận) — ĐÃ XONG.** Xem
+> "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 28**.
 
 > **ĐÍNH CHÍNH bản 2026-08-23 (mục 27).** Chặng tiếp theo sau critique lượt 1 (mục 26) là **critique
 > lượt 2 + sửa 4/5 vấn đề tìm được** — **đã xong, đã kiểm tay thật trên trình duyệt thật (chính
@@ -38,18 +46,27 @@ Cập nhật: **2026-08-23** (lượt tối ưu tiếp theo sau mục 26). Dự 
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — critique lượt 2 MindMapScreen + sửa 4/5 vấn đề ĐÃ XONG, ĐÃ KIỂM TAY THẬT
+## TRẠNG THÁI HÔM NAY — 69 chuỗi tiếng Anh sót (Database/data-view + SlashMenu) ĐÃ DỊCH, ĐÃ KIỂM CHỨNG
 
 | | |
 |---|---|
-| `main` | Xem `git log --oneline -1` (commit ngay sau bản HANDOFF này) — 1 commit trực tiếp (không worktree) tiếp sau `9d32426`, xem mục 27 |
+| `main` | Xem `git log --oneline -1` (commit ngay sau bản HANDOFF này) — 1 commit trực tiếp (không worktree) tiếp sau `51ff80e`, xem mục 28 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch trừ đúng các ngoại lệ đã biết (`src/data/antibiotics.ts` — chủ dự án tự sửa, xem mục 10-11; `.impeccable/live/`, xem mục 19; `bang-bam-vendor.json`/`tsconfig.vendor-paths.json`, xem mục 6; ba file browser-use, xem mục 0) **cộng thêm hai file `src/data/categories.ts`/`src/lib/ui.ts` vẫn đang bị một phiên/chủ dự án KHÁC sửa song song (chưa commit từ bản trước, còn nguyên ở bản này) — không thuộc track nào ở đây, đừng đụng, `git status`/`git diff` lại ở phiên sau để biết tình trạng mới nhất** |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **300/300** (40 file, +3 test mới so với mục 26; 3 ca Database/dark-mode/reorder từng đỏ khi chạy TRỌN BỘ do timeout 5000ms mặc định dưới tải máy, xanh khi chạy riêng lẻ VÀ xanh ở lượt chạy trọn bộ thứ 2 — chập chờn do tải, không phải hồi quy, cùng bản chất đã ghi ở mục 6) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (909,13 kB gzip `EdgelessBoard-*.js`, không đổi) + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-24 — `tsc` exit 0 · `npm test` **300/300** (40 file; 3 ca Database/dark-mode/reorder đỏ ở MỘT lượt chạy trọn bộ do timeout 5000ms mặc định dưới tải máy, xanh ở lượt chạy trọn bộ NGAY SAU đó — chập chờn do tải, không phải hồi quy, cùng bản chất đã ghi ở mục 6) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 437 mục · `build` xanh + `kiem:dist` xanh với `bản dịch vi.json — 243/243 có mặt` (242 `vi.json` + 1 `vi-tien-to.json`, tăng từ 173+1) |
+
+**Chặng "sửa 70 chuỗi tiếng Anh còn sót (Database/data-view + SlashMenu) — ĐÃ XONG, ĐÃ KIỂM CHỨNG
+qua `kiem:dist` thật"** — xem **mục 28**. Người dùng báo lỗi trực tiếp ("còn sót nhiều tiếng Anh"),
+dùng `systematic-debugging`: đo bằng script AST quét toàn bộ `.vendor-build/` tìm literal ở vị trí
+hiển thị còn tiếng Anh, đối chiếu `dist/` thật để tách "thật sự hiện" khỏi "đã hoãn/gói chưa bật" —
+74 ứng viên tới `dist/`, trừ 2 false positive (giá trị dịch sẵn không dấu bị nhận nhầm là tiếng Anh:
+"Khung"/"Cong") và 1 định dạng giữ nguyên có tiền lệ ("PDF") = 71 khoá thêm vào `vi.json`, trừ tiếp 2
+khoá chết phát hiện qua gate thật ("Video" trùng giá trị khoá "Videos" có sẵn, "Equation" thuộc gói
+Latex đã gỡ mục 22) = **69 khoá dịch mới, xác nhận đủ 243/243 tới `dist/`**.
 
 **Chặng "`/impeccable critique` MindMapScreen lượt 2 — sửa 4/5 vấn đề" — ĐÃ XONG, ĐÃ KIỂM TAY THẬT
 (chính phiên thực hiện, dùng Browser pane trực tiếp)**. Critique dual-agent lần 2 (2 subagent Sonnet
@@ -141,18 +158,25 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 27 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 28 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 27 (hoặc mới hơn — chạy
+Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 28 (hoặc mới hơn — chạy
 `git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 300/300 (40 file, xem ghi chú chập chờn
-tải máy ở mục 27), kiem:dist 174/174 khoá vi.json có mặt. **Cây làm việc có thể KHÔNG sạch tuyệt
+tải máy ở mục 28), kiem:dist 243/243 khoá vi.json có mặt. **Cây làm việc có thể KHÔNG sạch tuyệt
 đối** — kiểm `git status` trước: ngoài các ngoại lệ đã biết lâu (antibiotics.ts, ba file
 browser-use), một phiên/chủ dự án khác từng sửa song song `src/data/categories.ts`/`src/lib/ui.ts`
 — nếu vẫn còn `M` chưa commit ở phiên sau, đó không thuộc track nào ở đây, đừng đụng.
 
-Hai track độc lập, cả hai đều KHÔNG còn việc dở:
+Ba track độc lập, cả ba đều KHÔNG còn việc dở:
+
+0. **Dịch 70 chuỗi tiếng Anh còn sót ở Database/data-view + SlashMenu — VỪA XONG** (mục 28). Người
+   dùng báo trực tiếp "còn sót tiếng Anh"; đo bằng script AST một lần (không có sẵn trong `scripts/`,
+   xem mục 28 để tái tạo nếu cần đo lại) tìm CHÍNH XÁC 74 chuỗi tới `dist/` chưa dịch, dịch 69 (3
+   phát hiện là false-positive/dead-key khi kiểm bằng gate thật, xem mục 28), còn "PDF" giữ nguyên có
+   chủ đích. Muốn đo lại từ đầu (thượng nguồn đổi/gói mới bật): viết lại script quét
+   `viTriHienThi`+`coNhuLiteral` như mục 28 mô tả — KHÔNG có sẵn thành lệnh `npm run`.
 
 1. **`/impeccable critique` MindMapScreen (BoardGallery) — 2 lượt, lượt 2 vừa xong** (mục 26+27).
    Lượt 1: 4 vấn đề ưu tiên (xoá vĩnh viễn không hoàn tác, token màu sai, lưới lệch cột, vùng
@@ -2693,3 +2717,120 @@ Không còn chặng nào dở ở track này. Lựa chọn:
   → `writing-plans` vì là chặng lớn.
 - Track dịch + TDD tự động hoá kiểm tay (mục 25) — vẫn ở 17/22 khoá, 5 khoá còn lại đều cần quyết
   định ngoài phạm vi kỹ thuật thuần tuý (xem "Chặng kế tiếp" cuối mục 25).
+
+---
+
+## 28. DỊCH 70 CHUỖI TIẾNG ANH CÒN SÓT (DATABASE/DATA-VIEW + SLASHMENU) — ĐÃ XONG, ĐÃ KIỂM CHỨNG
+
+Người dùng báo trực tiếp (không qua critique): *"hiện tại lỗi hiển thị Tiếng anh trên màn hình còn
+sót nhiều, fix trước đi"*. Dùng skill `systematic-debugging` — đo trước, không đoán, không sửa mù.
+Làm trực tiếp trên `main`, 1 commit (theo sau commit HANDOFF này).
+
+### Phase 1 — Root cause: đo, không đoán
+
+Ba màn PWA gốc (Trang chủ/Thư viện/Hướng dẫn/Thẻ ghi nhớ/Dùng thuốc) kiểm bằng `get_page_text` trên
+Browser pane thật — sạch tiếng Việt tuyệt đối, không phải nguồn gốc báo cáo. Nghi ngờ chuyển sang
+trình soạn thảo Mindmap (BlockSuite vendor) — nhưng Shadow DOM `closed` của nó chặn cả `read_page`
+lẫn `javascript_tool` từ Browser pane (xác nhận lại đúng giới hạn đã ghi ở mục 26: `host.shadowRoot`
+trả `null` từ ngoài), nên không "nhìn" trực tiếp được.
+
+**Đổi hướng sang đo tĩnh** — đúng phương pháp D12 đã có sẵn của dự án (`viTriHienThi` của
+`scripts/luat-vi-tri-dich.mjs`, hàm THUẦN xác định một string literal có nằm ở VỊ TRÍ HIỂN THỊ hay
+không: `label`/`tooltip`/`description`/`caption`/`placeholder`, đối số `toast()`, `data-tip=`,
+`.tooltip=` binding Lit). Viết một script chẩn đoán MỘT LẦN (không phải cổng thường trực, không thêm
+vào `scripts/`): quét toàn bộ `.vendor-build/` (cây ĐÃ qua `dich-chuoi-vendor` — xác nhận bằng
+`bao-cao-dich.json` tồn tại) tìm mọi literal ở vị trí hiển thị còn "trông như tiếng Anh" (không dấu
+tiếng Việt), rồi đối chiếu `dist/assets/*.js` đã build bằng `coNhuLiteral` (đúng phép so khớp ba-kiểu-
+nháy của luật C `kiem-dist.mjs`) để tách "thật sự tới tay người dùng" khỏi "đã hoãn/gói chưa bật".
+
+**Kết quả đo lần đầu:** 116 ứng viên → **74 chuỗi tới `dist/`** (thật sự hiển thị), 42 chuỗi không
+tới (đã biết hoãn — Callout/Table/Embed-doc/Bookmark styles, phần lớn khớp đúng danh sách "72 chuỗi
+đang hoãn" mục 21 đã ghi). Đây KHÔNG phải một bug logic mới — nó là khoản nợ "Nội dung dịch cho 10
+extension mới mục 20" mà mục 20/21/22/23 đều liệt ở "còn nợ" nhưng CHƯA TỪNG ĐO CỤ THỂ (mục 21 chủ
+động loại 12 gói của 10 extension đó — Database, SlashMenu, DragHandle, 7 inline — khỏi phạm vi đo).
+Nay có hình dạng cụ thể: chủ yếu là **Database/data-view** (bộ lọc "Contains"/"Is empty"/"Starts
+with"..., định dạng số/tiền tệ "US Dollar"/"Euro"...) và **SlashMenu** (mô tả lệnh, caption
+"Today"/"Kanban View"..., toolbar "Copy link"/"Caption"...).
+
+### Phase 2-3 — Hai vòng kiểm chứng bằng gate thật, không tự tin vào phép đo tĩnh
+
+**2 false positive** phát hiện bằng tay trước khi soạn bản dịch: `"Khung"` và `"Cong"` — heuristic
+"không dấu tiếng Việt" của script chẩn đoán không phân biệt được TỪ TIẾNG VIỆT KHÔNG DẤU (chữ
+"Khung"/"Cong" chính là giá trị đã dịch sẵn của khoá `"Frame"`/`"Curve"` có từ trước) khỏi tiếng Anh
+thật — cả hai bị loại khỏi danh sách trước khi soạn bản dịch. `"PDF"` giữ nguyên có chủ đích, cùng
+nhóm "brand/định dạng file" đã quyết ở mục 21 (Docx/Html/Zip...).
+
+Soạn bản dịch cho 71 chuỗi còn lại (tự viết script kiểm trùng khoá VÀ trùng giá trị trước khi ghi —
+đúng luật `timTrungBanDich` mà `kiem-dist.mjs` áp, "chủ dự án đã chốt: không được để hai khoá dùng
+chung một bản dịch"), thêm vào `src/board/vi.json` (173 → 244 khoá, diff sạch — chỉ thêm dòng, giữ
+nguyên thứ tự cũ, đúng bài học mục 22). Chạy `npm run dung:vendor`:
+
+1. **Lượt 1 — dead key `"Video"`.** `dich-chuoi-vendor` báo khoá chết. Điều tra: vị trí gốc tôi đo
+   được (`filesys.js:33`) thật ra là chữ "Video" (không dấu) — GIÁ TRỊ ĐÃ DỊCH SẴN của khoá
+   `"Videos"` (số nhiều, có từ trước: `"Videos": "Video"`), không phải chuỗi gốc còn sót — script
+   chẩn đoán của tôi đọc nhầm `.vendor-build/` ĐÃ dịch từ một lượt TRƯỚC, y hệt lớp lỗi
+   "Khung"/"Cong" nhưng lọt qua vì tôi chỉ soát tay hai trường hợp đó, không generalize. Gỡ khoá.
+2. **Lượt 2 — dead key `"Equation"`.** Sau khi build LẠI (dist/ mới hoàn toàn từ `.vendor-build/`
+   vừa dựng), `kiem:dist` báo đỏ: `"Phương trình"` không tới `dist/`, gói `affine/blocks/latex`
+   không vào được bản build — ĐÚNG quyết định mục 22 (đã gỡ `LatexViewExtension` vì `DOMPurify`
+   crash ở environment `node`). Chuỗi "Equation" trong lượt đo TĨNH ban đầu của tôi từng thấy "tới
+   dist/" là vì tôi soi nhầm vào một bản `dist/` CŨ (tồn dư từ trước khi dựng lại vendor tree trong
+   phiên này) — không đại diện cho trạng thái thật. Gỡ khoá.
+
+Sau hai lượt sửa: **69 khoá dịch mới**, `dich-chuoi-vendor` báo "242 khoá đều còn sống", build lại
+`kiem:dist` xanh **243/243** (242 `vi.json` + 1 `vi-tien-to.json`).
+
+**Bài học cho phiên sau:** phép đo tĩnh dựa trên `dist/`/`.vendor-build/` ĐANG CÓ SẴN TRÊN ĐĨA chỉ
+đáng tin nếu biết chắc chúng được sinh ra từ ĐÚNG trạng thái nguồn hiện tại — một `dist/` tồn dư từ
+build trước (dù cùng phiên) có thể cho kết luận sai. Gate thật (`dich-chuoi-vendor`'s Cổng 3 khoá
+chết, `kiem-dist`'s luật C) là trọng tài cuối cùng, không phải phép đo tĩnh tự viết — cả hai
+false-negative (Video, Equation) đều được CHÍNH gate bắt, không phải tự phát hiện.
+
+### Bảy cổng — đo lại trực tiếp trên `main`, 2026-08-24
+
+`tsc` exit 0 · `npm test` **300/300** (40 file — 3 ca `edgeless-board-dark-mode/reorder/database.spec.ts`
+đỏ ở MỘT lượt chạy trọn bộ, "Test timed out in 5000ms" dưới tải máy; xanh ở lượt chạy trọn bộ NGAY
+SAU đó — cùng bản chất "chập chờn do tải" đã ghi ở mục 6, không liên quan gì tới `vi.json`) ·
+`kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 437 mục · `build` xanh + `kiem:dist` xanh với
+`bản dịch vi.json — 243/243 có mặt`.
+
+### Kiểm tay trên trình duyệt thật
+
+**KHÔNG làm được** — đúng giới hạn Shadow DOM `closed` đã xác nhận lại ở Phase 1 (không chỉ
+"compositing" như mục 21/22 mà cả `read_page`/`javascript_tool` cũng không xuyên qua được, bất kể
+phiên có người theo dõi hay không). Bằng chứng thay thế: `kiem:dist` đối chiếu TRỰC TIẾP trên
+`dist/` đã build (không suy luận qua báo cáo trung gian) — đúng phương pháp mục 21/22 đã dùng khi
+gặp cùng giới hạn, và ĐÂY LÀ CƠ CHẾ DUY NHẤT canh "bản dịch có tới tay người dùng không" cho toàn bộ
+track dịch D12 của dự án, không phải bằng chứng hạng hai.
+
+### Ngoài phạm vi, còn nợ
+
+- **42 chuỗi không tới `dist/`** (đo được ở Phase 1, đã biết hoãn — gói Callout/Table/Embed-doc/
+  Bookmark chưa bật `ViewExtension`) — không đụng, cùng diện với "72 chuỗi hoãn" mục 21.
+- **`"PDF"`** — giữ nguyên tiếng Anh có chủ đích, không phải quên dịch (xem trên).
+- **Script chẩn đoán không được lưu lại thành công cụ tái dùng** — chỉ chạy một lần trong
+  `scratchpad` phiên này rồi bỏ. Muốn đo lại (sau khi bật thêm `ViewExtension`, hoặc thượng nguồn
+  đổi chuỗi): viết lại theo đúng công thức ở Phase 1 (import `viTriHienThi` từ
+  `scripts/luat-vi-tri-dich.mjs` + `coNhuLiteral` từ `scripts/so-khop-ban-dich.mjs`, quét
+  `.vendor-build/` bằng `ts.createSourceFile`, đối chiếu `dist/assets/*.js`) — KHÔNG có lệnh
+  `npm run` sẵn cho việc này, và cân nhắc việc biến nó thành script thường trực nếu track dịch còn
+  tiếp tục nhiều lượt nữa (giảm rủi ro false-positive như "Khung"/"Cong"/"Video" bằng cách loại trừ
+  MỌI giá trị đã có trong `vi.json` khỏi tập ứng viên, không chỉ lọc theo dấu tiếng Việt).
+- **Track TDD tự động hoá kiểm tay** (mục 21-25, 17/22 khoá) — không đụng ở chặng này, vẫn treo.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này hoặc mới hơn
+git status --short                      # kỳ vọng sạch trừ antibiotics.ts + categories.ts/ui.ts (phiên khác) + ba file browser-use
+npm ci && npm run dung:vendor
+```
+
+### Chặng kế tiếp
+
+Không còn chặng nào dở ở track dịch "70 chuỗi" này. Lựa chọn:
+- **42 chuỗi hoãn** (Callout/Table/Embed-doc/Bookmark) — quyết định có bật thêm `ViewExtension`
+  không (ảnh hưởng bundle size, tiền lệ đo ở mục 20/22).
+- Track critique MindMapScreen lượt 3, hoặc quyết định P3 (màu đặc trưng) — xem mục 27.
+- Track TDD tự động hoá kiểm tay (mục 25) — vẫn 17/22 khoá.
+- Roadmap PRODUCT.md — `brainstorming` → `writing-plans`.
