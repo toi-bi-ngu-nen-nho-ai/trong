@@ -385,8 +385,8 @@ export function DanhSachBang({
           </button>
         </div>
       )}
-      </div>
-      {vuaXoa && (
+    </div>
+    {vuaXoa && (
         <div
           className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40"
           style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h) + 18px)', background: 'rgba(15,23,42,.94)' }}
@@ -398,6 +398,7 @@ export function DanhSachBang({
               update({ ...vuaXoa, daXoaLuc: undefined })
               setVuaXoa(null)
             }}
+            className="mind-focus-ring"
             style={{
               color: 'var(--c-toast-green, #4ade80)',
               fontWeight: 600,
