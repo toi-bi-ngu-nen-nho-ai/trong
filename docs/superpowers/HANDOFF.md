@@ -33,18 +33,23 @@ Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — Dịch bề mặt hiển thị đợt 2 đã xong, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — Bật 4 ViewExtension + dịch nốt 7 chuỗi đã xong, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`1ae21c0`** — 2 commit trực tiếp (không worktree), xem mục 21 |
+| `main` | **`49e7766`** — 1 commit trực tiếp (không worktree), xem mục 22 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-22 — `tsc` exit 0 · `npm test` **285/285** (34 file, 326.27s) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (10.90s) + `kiem:dist` xanh với `bản dịch vi.json — 167/167 có mặt` (166 `vi.json` + 1 `vi-tien-to.json`) |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **285/285** (34 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+
+**Chặng "Bật 4 ViewExtension còn thiếu + dịch nốt 7 chuỗi" — ĐÃ XONG** (`49e7766`). Bật
+Image/Attachment/Code/SurfaceRef (thử cả Latex nhưng phải gỡ — DOMPurify crash ở test environment
+'node', xem mục 22). 166→173 khoá `vi.json`. Bundle +48,7 kB gzip, dưới ngưỡng D11. Chi tiết ở
+**mục 22**.
 
 **Chặng "Dịch bề mặt hiển thị, đợt 2" — ĐÃ XONG, KIỂM TAY MỘT PHẦN** (`1ae21c0`). 150→166 khoá
 `vi.json` (+16 khoá dịch thật, không phải +34 như spec dự kiến — 4 chuỗi là nhiễu test-fixture, 10
@@ -1833,3 +1838,124 @@ npm ci && npm run dung:vendor           # .vendor-build/ bị gitignore, phải 
 **Chặng kế tiếp:** kiểm tay ~3 phút khi có người thật theo dõi Browser pane (xem "còn nợ" ở trên);
 hoặc quyết định có bật 5 `ViewExtension` còn thiếu hay không (ảnh hưởng 8+ chuỗi hoãn, có thể gộp
 64→72 chuỗi hoãn thành phạm vi dịch mới nếu bật); hoặc nội dung dịch cho 10 extension mới mục 20.
+**Cập nhật 2026-08-23: đã bật 4/5, xem mục 22.**
+
+---
+
+## 22. BẬT 4 VIEWEXTENSION CÒN THIẾU + DỊCH NỐT 7 CHUỖI — ĐÃ XONG
+
+Tiếp nối mục 21. Chủ dự án chọn "bật thử 5 ViewExtension còn thiếu" thay vì dừng ở diện hoãn. Làm
+trực tiếp trên `main`, 1 commit (`49e7766`).
+
+### Đã làm
+
+Bật `AttachmentViewExtension`, `CodeBlockViewExtension`, `ImageViewExtension`,
+`SurfaceRefViewExtension` trong `src/board/extensions.ts`, đúng vị trí thượng nguồn
+(`affine/all/src/extensions/view.ts`). Đo bundle: `EdgelessBoard-*.js` 862,53 → 911,23 kB gzip
+(+48,7 kB, dưới ngưỡng "+150kB gzip đáng dừng lại" của D11 — không cần hỏi tiếp, đúng tiền lệ mục
+20).
+
+`kiem:dist` đỏ ngay 1 biến CSS: `--drt-text-secondary` dùng (từ
+`affine/blocks/code/src/styles.ts:71`, đọc `var(--affine-text-secondary)`) nhưng theme chỉ định
+nghĩa `--drt-text-secondary-color` (CÓ hậu tố "-color") — **cùng lớp lỗi lệch tên thượng nguồn đã
+vá 2 lần trước** (`--drt-secondary`/`--drt-font-size-base`, xem `src/index.css`). Vá bằng bí danh
+thứ ba trong cùng khối `:root` đã có.
+
+### Latex: THỬ bật rồi PHẢI GỠ — DOMPurify crash ở environment 'node'
+
+Ban đầu bật cả 5 (kèm `LatexViewExtension`). `npm test` (đo bằng file, không qua `| tail`, đúng bài
+học mục 6) cho kết quả: 2 suite crash khi IMPORT (`diTruBangCu.spec.ts`, `edgeless-board.spec.ts`),
+KHÔNG phải lỗi assertion:
+
+```
+TypeError: default.sanitize is not a function
+ ❯ sanitizeHTML affine/shared/src/utils/safe-html.ts:17
+ ❯ unsafeHTML affine/shared/src/utils/safe-html.ts:21
+ ❯ LatexTooltip affine/blocks/latex/src/configs/tooltips.ts:34
+ ❯ affine/blocks/latex/src/configs/slash-menu.ts:20
+ ❯ affine/blocks/latex/src/view.ts:9
+```
+
+Nguyên nhân: `affine/blocks/latex/src/configs/tooltips.ts` gọi `unsafeHTML()` → `sanitizeHTML()` →
+`DOMPurify.sanitize()` **ngay ở cấp module** (khi `view.ts` được import, không đợi lúc dùng thật) để
+dựng cấu hình tĩnh cho tooltip xem trước công thức. `DOMPurify` cần `window` để khởi tạo đúng hình
+dạng (có `.sanitize`); vitest mặc định chạy `environment: 'node'` cho phần lớn file spec (xem
+comment ở `vite.config.ts:291`, lý do tốc độ — chỉ file thật sự cần DOM mới khai
+`@vitest-environment happy-dom` riêng). Hai file trên import `EdgelessBoard.tsx` → `extensions.ts`
+→ (khi có Latex) → `view.ts` của Latex → crash ngay lúc nạp module.
+
+Chỉ MỘT trong 5 gói dùng `unsafeHTML`/`sanitizeHTML` (đã grep toàn bộ
+`src/vendor/blocksuite/affine/blocks/{image,attachment,code,surface-ref,latex}/src`) — đúng
+`latex`. Không sửa được ở nguồn (D11 cấm sửa `src/vendor/`). Không đổi `environment` của hai file
+test đó sang `happy-dom` (rủi ro kéo theo lớp lỗi DOM khác chưa đo — viewport.ts có nhánh
+`DOMRect`/`boundingClientRect` document đã cảnh báo ở `vite.config.ts`, đổi cả file thay vì chỉ
+phần cần thiết là mở rộng bề mặt rủi ro không cần thiết cho lợi ích rất nhỏ — 1 chuỗi). **Quyết
+định: GỠ LatexViewExtension, giữ 4/5.** `"Equation"` (chuỗi duy nhất chỉ Latex hiển thị) vẫn hoãn.
+
+### Dịch 7/8 chuỗi bị gỡ ở mục 21
+
+Lấy lại bản dịch nháp đã soạn sẵn từ commit `5bfd500` (trước khi mục 21 gỡ do phát hiện gói chưa
+bật) — không soạn lại từ đầu, các bản dịch đó chưa từng sai, chỉ là chưa có nơi hiển thị lúc đó:
+
+| Chuỗi | Bản dịch |
+|---|---|
+| Align center | Căn giữa |
+| Align left | Căn trái |
+| Align right | Căn phải |
+| Attachment | Tệp đính kèm |
+| Download | Tải xuống |
+| Edgeless | Tự do (khớp `Edgeless Text` → `Chữ tự do` đã ship) |
+| More | Thêm |
+
+`vi.json` 166 → **173 khoá**. Không trùng giá trị với khoá nào có sẵn (tự kiểm bằng `Set` giá trị
+trước khi ghi).
+
+**Bài học thao tác nhỏ:** lượt đầu ghi khoá mới bằng script Node gọi `JSON.stringify(obj, null, 2)`
+trên object đã dựng lại — vô tình SẮP LẠI TOÀN BỘ 166 khoá theo alphabet (file gốc không sắp theo
+thứ tự đó), tạo diff 291 dòng cho một việc lẽ ra chỉ 8 dòng. Bắt được bằng `git diff --stat` TRƯỚC
+khi build/test, `git checkout --` file rồi ghi lại đúng cách (đọc file gốc, chỉ set thêm khoá mới,
+giữ nguyên thứ tự khoá cũ). Không có gì bị mất vì bắt được trước khi commit.
+
+### Bảy cổng — đo lại trực tiếp trên `main`, 2026-08-23
+
+`npx tsc --noEmit` exit 0 · `npm run dung:vendor` — 173 khoá đều còn sống · `npx vitest run
+--reporter=verbose` (ghi ra file, không qua `| tail`) — **285/285** (34 file) sau khi xác nhận 1 ca
+đỏ ở lượt đầu (`BoardGallery.spec.ts` — "bấm quay lại → DanhSachBang tái xuất hiện có class
+board-out") là **chập chờn theo thời gian, không liên quan thay đổi này**: chạy lại riêng file đó
+LUÔN xanh (2 lượt độc lập) · `kiem:vendor` — so 2.782 file, lệch 0 · `kiem:vendor-paths` — khớp 438
+mục · `npm run build` xanh · `kiem:dist` — `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1
+`vi-tien-to.json`), không còn `"affine-"`, mọi biến `--drt-*` dùng đều có định nghĩa.
+
+### Kiểm tay trên trình duyệt thật
+
+**KHÔNG kiểm được** — phiên này `document.hidden = true`/`visibilityState = "hidden"` suốt (đã thử
+`tabs_select` để đưa tab lên trước, không đổi được trạng thái), đúng giới hạn môi trường mục 16/17:
+canvas (`gfx-viewport`) tạm dừng render khi tab không thực sự hiển thị phía người dùng, nên mọi thao
+tác cần layout/gesture trên canvas (tạo Note, chèn ảnh/attachment) đều không thực hiện được. Đã xác
+nhận lại được ĐÚNG một điều cũ (không phải điều mới): bấm nút "Pen" (phần tử DOM thường, không phải
+canvas) qua `.click()` vẫn mở đúng submenu, tooltip "Độ dày" hiện đúng — tái lập y hệt kết quả mục
+21. Bằng chứng cho 7 khoá mới của chặng NÀY vẫn chỉ là gián tiếp: `kiem:dist` 174/174 + đối chiếu
+gói/`ViewExtension` như mục 21 đã làm.
+
+### Ngoài phạm vi, còn nợ
+
+- **`"Equation"`** — chuỗi duy nhất cần `LatexViewExtension`, đã quyết định KHÔNG bật (xem lý do
+  DOMPurify ở trên). Muốn dịch phải hoặc (a) sửa cách hai file test đó chạy để không crash (đổi
+  environment, cần đo rủi ro DOM khác trước), hoặc (b) chờ thượng nguồn sửa `tooltips.ts` để
+  `unsafeHTML` không chạy ở cấp module.
+- **64 chuỗi ở diện hoãn của spec §4 (mục 21)** — vẫn hoãn, không đổi bởi chặng này (chặng này chỉ
+  xử 7/8 chuỗi đã bị GỠ vì thiếu ViewExtension, không đụng tới 64 chuỗi thuộc gói khác chưa đo).
+- **Kiểm tay đầy đủ 7 khoá mới trên trình duyệt thật** — chưa làm được, xem lý do ở trên.
+- Nội dung dịch cho 10 extension mới mục 20 — vẫn ngoài phạm vi.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng 49e7766 hoặc mới hơn
+git status --short                      # kỳ vọng sạch trừ antibiotics.ts + ba file browser-use
+npm ci && npm run dung:vendor
+```
+
+**Chặng kế tiếp:** kiểm tay thật khi có người theo dõi Browser pane (7 khoá mới + 15 khoá mục 21,
+gộp thành một buổi ~5 phút); hoặc quyết định về "Equation"/Latex; hoặc nội dung dịch 10 extension
+mục 20.
