@@ -33,18 +33,26 @@ Cập nhật: **2026-08-23**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (17/22 khoá mục 21+22), phát hiện hạ tầng Object.defineProperty
+## TRẠNG THÁI HÔM NAY — critique + sửa MindMapScreen ĐÃ XONG VÀ ĐÃ KIỂM TAY THẬT, TDD ở 17/22 khoá
 
 | | |
 |---|---|
-| `main` | **`342fe69`** — 1 commit trực tiếp (không worktree) tiếp sau `9209cfa`, xem mục 25 |
+| `main` | **`9d32426`** — 3 commit trực tiếp (không worktree) tiếp sau `f55fb67`, xem mục 26 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
-| Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **296/296** (40 file, không ca đỏ nào — kể cả ca chập chờn mục 22/24 lần này cũng xanh trong chạy trọn bộ) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (909,13 kB gzip `EdgelessBoard-*.js`) + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+| Cây làm việc | sạch trừ đúng các ngoại lệ đã biết (`src/data/antibiotics.ts` — chủ dự án tự sửa, xem mục 10-11; `.impeccable/live/`, xem mục 19; `bang-bam-vendor.json`/`tsconfig.vendor-paths.json`, xem mục 6; ba file browser-use, xem mục 0) **cộng thêm hai file `src/data/categories.ts`/`src/lib/ui.ts` đang bị một phiên/chủ dự án KHÁC sửa song song ngay lúc ghi bản này — chưa commit, không thuộc track nào ở đây, đừng đụng, `git status`/`git diff` lại ở phiên sau để biết tình trạng mới nhất** |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **297/297** (40 file, không ca đỏ nào) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (909,13 kB gzip `EdgelessBoard-*.js`) + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+
+**Chặng "`/impeccable critique` MindMapScreen (BoardGallery) — sửa 4 vấn đề ưu tiên" — ĐÃ XONG, ĐÃ
+KIỂM TAY THẬT trên máy chủ dự án** (`39f2817`, `9d32426`). Critique dual-agent (bắt buộc theo skill
+khi có Agent tool) tìm 4 vấn đề: xoá bảng vĩnh viễn không hoàn tác (P1, ngược lời hứa "xoá mềm" của
+PRODUCT.md), token màu `--c-surface-soft` không tồn tại, lưới `1fr 1fr` lệch cột khi số bảng lẻ,
+vùng chạm/focus-visible dưới chuẩn. Cả 4 đã sửa "một mạch" (harden→audit→layout→audit→polish), có
+test mới cho tính năng Hoàn tác. Chủ dự án tự kiểm tay xong trên máy thật, xác nhận đúng. Chi tiết ở
+**mục 26**.
 
 **Chặng "TDD 2 toast ảnh còn lại — Copied image to clipboard/Failed to read image size" — ĐÃ XONG**
 (`342fe69`). Cả hai khoá landed. Phát hiện hạ tầng quan trọng: gán thẳng property mới lên
@@ -117,32 +125,51 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 25 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 26 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 25 (hoặc mới hơn — chạy
-`git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 296/296 (40 file, không ca đỏ nào),
-kiem:dist 174/174 khoá vi.json có mặt.
+Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 26 (hoặc mới hơn — chạy
+`git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 297/297 (40 file, không ca đỏ nào),
+kiem:dist 174/174 khoá vi.json có mặt. **Cây làm việc có thể KHÔNG sạch tuyệt đối** — kiểm
+`git status` trước: ngoài các ngoại lệ đã biết lâu (antibiotics.ts, ba file browser-use), một
+phiên/chủ dự án khác từng sửa song song `src/data/categories.ts`/`src/lib/ui.ts` ngay lúc bản này
+được viết — nếu vẫn còn `M` chưa commit ở phiên sau, đó không thuộc track nào ở đây, đừng đụng.
 
-Track dịch (vi.json/vendor D12) đã dịch hết mọi chuỗi "tới dist ngay" đo được (166→173 khoá, mục
-20-22). Track "TDD tự động hoá kiểm tay" (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
-Browser pane không compositing khi phiên không có người theo dõi trực tiếp) nay ở **17/22 khoá** của
-mục 21+22 — năm kỹ thuật đã có (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export
-công khai, import config trực tiếp, bơm thẳng signal `message$` của ToolbarRegistry) cộng một PHÁT
-HIỆN HẠ TẦNG quan trọng ở mục 25: gán thẳng property mới lên global/DOM object KHÔNG có hiệu lực
-trong pool happy-dom của Vitest ở dự án này — luôn dùng `Object.defineProperty` thay vì `obj.prop =
-value` khi patch property chưa tồn tại (đã xác nhận qua 3 trường hợp độc lập: fullscreenElement mục
-24, isSecureContext + URL.createObjectURL mục 25). Còn 5 khoá vẫn hoãn — TỪNG khoá cần hạ tầng kiểm
-RIÊNG, hai khoá ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ"/"Chặng kế tiếp"
-ở cuối mục 25 để biết chính xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ
-đầu.
+Hai track độc lập, cả hai đều KHÔNG còn việc dở:
 
-Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
-vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 25 để chọn việc — không cần brainstorming/writing-plans
-nếu chỉ tiếp tục thêm test TDD theo đúng các kỹ thuật đã có (việc nhỏ, làm trực tiếp); dùng
-superpowers:brainstorming → writing-plans nếu muốn mở chặng lớn khác (bật thêm ViewExtension, nội
-dung dịch cho 10 extension mục 20, v.v).
+1. **`/impeccable critique` MindMapScreen (BoardGallery) — ĐÃ XONG VÀ ĐÃ KIỂM TAY THẬT** (mục 26).
+   4 vấn đề ưu tiên (xoá vĩnh viễn không hoàn tác, token màu sai, lưới lệch cột, vùng chạm/focus)
+   đều đã sửa, verify bằng 7 cổng + test mới, VÀ chủ dự án đã tự kiểm tay trên máy thật xác nhận
+   đúng — không còn nợ "kiểm tay" nào ở track này. Muốn tiếp tục nâng chất lượng: chạy lại
+   `/impeccable critique MindMapScreen` để xem điểm cải thiện so với 23/40 ban đầu, rồi lặp lại chu
+   trình. Roadmap PRODUCT.md hứa (tìm kiếm/tag/xuất file cho Mindmap) đã được chủ dự án xác nhận là
+   việc THẬT cần làm dần, không phải chỉ sửa tài liệu — mở bằng `brainstorming` → `writing-plans` vì
+   là chặng lớn.
+
+2. **Track dịch + TDD tự động hoá kiểm tay.** Track dịch (vi.json/vendor D12) đã dịch hết mọi chuỗi
+   "tới dist ngay" đo được (166→173 khoá, mục 20-22). Track "TDD tự động hoá kiểm tay" (thay kiểm
+   tay trên trình duyệt thật bằng test tự động, vì Browser pane không compositing khi phiên không có
+   người theo dõi trực tiếp) nay ở **17/22 khoá** của mục 21+22 — năm kỹ thuật đã có
+   (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import config trực
+   tiếp, bơm thẳng signal `message$` của ToolbarRegistry) cộng một PHÁT HIỆN HẠ TẦNG quan trọng ở
+   mục 25: gán thẳng property mới lên global/DOM object KHÔNG có hiệu lực trong pool happy-dom của
+   Vitest ở dự án này — luôn dùng `Object.defineProperty` thay vì `obj.prop = value` khi patch
+   property chưa tồn tại (đã xác nhận qua 3 trường hợp độc lập: fullscreenElement mục 24,
+   isSecureContext + URL.createObjectURL mục 25). Còn 5 khoá vẫn hoãn — TỪNG khoá cần hạ tầng kiểm
+   RIÊNG, hai khoá ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ" ở cuối mục 25
+   để biết chính xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
+
+**Ghi chú vận hành đáng nhớ (mục 25):** một subagent giao việc TDD kẹt vòng lặp "tự background một
+tiến trình vitest dài rồi kết thúc lượt để chờ được đánh thức" — subagent KHÔNG được đánh thức tự
+động (khác top-level session), nó gửi vài thông báo "hoàn tất" liên tiếp mà không hề commit, cuối
+cùng chết vì hết hạn mức phiên. Dặn subagent chạy lệnh dài ĐỒNG BỘ, đừng background-rồi-chờ.
+
+Trình tự nếu tiếp tục track TDD: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường
+(npm ci && npm run dung:vendor, mất vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 25 để chọn việc —
+không cần brainstorming/writing-plans nếu chỉ tiếp tục thêm test TDD theo đúng các kỹ thuật đã có
+(việc nhỏ, làm trực tiếp); dùng superpowers:brainstorming → writing-plans nếu muốn mở chặng lớn khác
+(bật thêm ViewExtension, nội dung dịch cho 10 extension mục 20, roadmap PRODUCT.md ở mục 26, v.v).
 
 Đừng đụng src/data/antibiotics.ts — chủ dự án tự sửa. Ba file browser-use
 (.env.browser-use/BROWSER_USE_SETUP.md/browser_use_test.py) không thuộc track nào, kệ chúng.
@@ -2445,3 +2472,100 @@ thuật thuần tuý — không còn khoá "dễ" nào chưa thử:
 Hoặc kiểm tay thật khi có người theo dõi Browser pane cho phần chưa tự động hoá được (17/22 đã có
 test tự động, còn 5/22 + "Equation"/Latex vẫn cần xác nhận bằng mắt nếu muốn đóng hẳn); hoặc chặng
 lớn khác (nội dung dịch cho 10 extension mục 20, v.v — qua `brainstorming` → `writing-plans`).
+
+---
+
+## 26. `/impeccable critique` MINDMAPSCREEN (BOARDGALLERY) — 4 VẤN ĐỀ ƯU TIÊN — ĐÃ XONG VÀ ĐÃ KIỂM TAY THẬT
+
+Chủ dự án yêu cầu: `/impeccable critique MindMapScreen`, kèm chỉ định rõ "không test tay, gọi hai
+subagent Sonnet 5 High test hộ" — khớp đúng yêu cầu BẮT BUỘC sẵn có của chính skill
+(`reference/critique.md`: "Assessment A and B MUST run as two isolated sub-agents whenever a
+sub-agent/Task tool is exposed"). Sau khi có báo cáo, chủ dự án chọn "làm hết theo thứ tự đã xếp",
+"một mạch" (không dừng hỏi lại giữa các bước), và xác nhận roadmap PRODUCT.md hứa (xoá mềm/tìm
+kiếm/tag) là việc THẬT cần làm dần chứ không phải chỉ viết lại tài liệu. Làm trực tiếp trên `main`,
+không worktree. 2 commit (`39f2817` fix chính, `9d32426` polish nhỏ).
+
+### Setup — phát hiện đáng chú ý
+
+Target resolve qua `context.mjs` ra `src/board/BoardGallery.tsx` (điểm vào tab "Mindmap"). Phát
+hiện ngay từ bước setup: surface brief cũ `.impeccable/surfaces/src-components-mindmapboard-tsx.md`
+trỏ `src/components/MindmapBoard.tsx` — file đã KHÔNG CÒN TỒN TẠI (xoá từ lâu sau khi migrate sang
+BlockSuite). Đây là điềm báo sớm cho phát hiện lớn nhất của Assessment A bên dưới: PRODUCT.md cũng
+mô tả đúng kiến trúc cũ đó.
+
+### Critique dual-agent — Assessment A (design review) + Assessment B (detector + browser)
+
+Cả hai chạy như 2 subagent Sonnet 5 độc lập, không thấy nhau, đúng quy trình bắt buộc của skill.
+
+**Assessment A**: đọc toàn bộ `src/board/BoardGallery.tsx`, `DanhSachBang.tsx`, `EdgelessBoard.tsx`,
+`extensions.ts`, `DESIGN.md`, `PRODUCT.md`; soi live qua `read_page`/`get_page_text`/`javascript_tool`
+(screenshot timeout "not compositing" — dự đoán đúng, xem "ghi chú vận hành"). Chấm 10 heuristic
+Nielsen: **23/40 (Acceptable)**. Phát hiện lớn nhất: DESIGN.md dành RIÊNG màu Mindmap Magenta
+(`--c-accent-2`, "The One Other Place Rule") cho đúng màn hình này, nhưng grep `src/board/` ra 0 kết
+quả — bản sắc của màn này nằm ở CHUYỂN ĐỘNG (vật lý thẻ), không nằm ở MÀU mà chính hệ thống thiết kế
+coi là dấu hiệu bản sắc riêng.
+
+**Assessment B**: `detect.mjs --json` trên 4 file wrapper (loại `__tests__/`/`src/vendor/` khỏi
+phạm vi quét) — sạch tuyệt đối (exit 0, `[]`). Browser overlay qua `live-server.mjs` tìm 6
+anti-pattern trên trang thật, nhưng sau khi đối chiếu ngữ cảnh: 2/6 đã whitelist sẵn trong
+`.impeccable/config.json` (bounce-easing, layout-transition — tradeoff cố ý cũ), 1/6 ngoài phạm vi
+(nav 10px ở `App.tsx`, đã tài liệu hoá cố ý trong DESIGN.md), 1/6 false positive theo ngữ cảnh
+(`ai-color-palette` — chính là Electric Indigo, màu thương hiệu thật đã rebrand có chủ đích), 1/6
+có chủ đích nhưng chưa whitelist (`repeating-stripes-gradient` ở `DanhSachBang.tsx`, có comment tại
+chỗ xác nhận). Xác nhận độc lập bằng JS trực tiếp: `drt-edgeless-root`/`editor-host`/`gfx-viewport`
+đều `shadowRoot === null` (chế độ `closed`) — cả accessibility tree lẫn `detect.js` đều không xuyên
+được vào nội dung board editor thật, chỉ soi được khung ngoài.
+
+### 4 vấn đề ưu tiên đã sửa
+
+| # | Vấn đề | Fix |
+|---|---|---|
+| P1 | Xoá bảng vĩnh viễn, không hoàn tác — ngược lời hứa "xoá mềm" của PRODUCT.md (`DanhSachBang.tsx` → `idbDelete()` thẳng) | Thêm field `daXoaLuc?: number` vào `BangMeta` (`boardMeta.ts`) — xoá giờ là `update({...bang, daXoaLuc: Date.now()})`, lọc khỏi lưới hiển thị nhưng KHÔNG xoá khỏi IndexedDB. Dải "Hoàn tác" 5s tự viết riêng trong `DanhSachBang.tsx` (tái dùng class `.toast-in-full` có sẵn, không dùng chung state toast của `App.tsx` — hai file này cố ý tách biệt). KHÔNG kèm auto-purge/màn "thùng rác" trong lượt này — chủ dự án xác nhận "làm dần", lượt này chỉ dừng ở an toàn hoá |
+| P2 | Token `--c-surface-soft` không tồn tại → placeholder ảnh bảng chạy fallback màu be cũ (`#f4f1ea`) giữa nền indigo tối, tái hiện khi phiên trước không kết thúc bằng nút "←" | Đổi sang `--c-surface-alt` (token thật), quét lại các fallback hex khác trong cùng file cho khớp bảng Electric Indigo hiện tại |
+| P2 | Lưới `1fr 1fr` lệch cột khi số bảng lẻ (đo live: 118px/217px thay vì chia đều, xảy ra ở MỌI số lẻ 1/3/5...) | `'1fr 1fr'` → `'minmax(0, 1fr) minmax(0, 1fr)'`, chặn hành vi Grid tự suy min-width từ nội dung `aspectRatio` |
+| P2 | Vùng chạm "⋯"/"←" dưới 44×44, không có `:focus-visible` riêng cho cả màn gallery | Nới "⋯" lên 44×44 (giữ dấu chấm ở đúng vị trí thị giác cũ, ăn vào trong thẻ); "←" (nút tròn thật, có nền/bóng) phóng to cả hình tròn lên 44×44; thêm rule `.mind-focus-ring:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }` (`index.css`, cùng giá trị `.scr-dose` đã dùng) cho mọi nút tương tác trong lưới + nút "Hoàn tác" mới |
+
+### Kiểm chứng
+
+Test cũ (`DanhSachBang.spec.ts`, ca "xoá 2 lần liên tiếp") cập nhật assertion cho khớp hành vi mới
+(kiểm `daXoaLuc` là số thay vì kiểm bản ghi biến mất hẳn khỏi IndexedDB). Thêm 1 test mới cho luồng
+Hoàn tác đầy đủ (xoá → thấy dải → bấm Hoàn tác → thẻ tái xuất hiện → `daXoaLuc` gỡ khỏi metadata).
+Cả 22 ca của 2 file `DanhSachBang.spec.ts`/`BoardGallery.spec.ts` xanh. Bảy cổng đo lại trên `main`:
+`tsc` exit 0 · `npm test` **297/297** (40 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
+438 mục · `build` xanh (EdgelessBoard 909,13 kB gzip, không đổi vì không đụng `vi.json`/`extensions.ts`)
+· `kiem:dist` 174/174 vi.json có mặt.
+
+**Sau khi push, chủ dự án tự kiểm tay trên máy thật (2026-08-23) và xác nhận hoạt động đúng** — đóng
+hẳn nợ "kiểm tay" cho lượt fix này.
+
+### Ghi chú vận hành — hai rào cản môi trường xác nhận thật, đã lưu memory
+
+Phiên chính tự thử soi trực tiếp trên Browser pane (không qua subagent) TRƯỚC KHI dispatch 2
+subagent cho phần fix, gặp đúng 2 rào cản mà Assessment A/B sau đó xác nhận độc lập lại:
+1. `computer{action:"screenshot"}` timeout "Browser pane is not displayed, so the page is not
+   compositing frames" — xảy ra dù đang trong cuộc trò chuyện, vì không ai THỰC SỰ đang nhìn pane.
+2. Shadow DOM `closed` của BlockSuite chặn cả `read_page` (xuyên CDP) lẫn `detect.js` vào nội dung
+   board editor thật — chỉ soi được khung ngoài.
+
+Quyết định: `/impeccable critique` (và các lệnh impeccable khác cần "kiểm tay"/browser) từ nay LUÔN
+dispatch 2 subagent Sonnet 5 High cho Assessment A/B thay vì tự thao tác Browser pane trong phiên
+chính — đã lưu memory `feedback_impeccable-critique-use-subagents.md`.
+
+### Còn nợ / chưa xử lý
+
+- **Doctor sync `.impeccable`** — đã báo cho chủ dự án, chưa được yêu cầu sửa: (a)
+  `.impeccable/design.json` cũ hơn `DESIGN.md`, chạy `/impeccable document` để làm mới; (b) surface
+  brief mồ côi `src-components-mindmapboard-tsx.md` (trỏ file đã xoá) — cần hỏi chủ dự án đây là do
+  đổi tên/di chuyển (trỏ lại) hay tính năng đã gỡ hẳn (xoá brief).
+- **Roadmap PRODUCT.md** (tìm kiếm xuyên bảng, tag chuyên khoa, xuất PNG/PDF, sao chép outline, xoá
+  mềm — PRODUCT.md hứa nhưng `src/board/` hiện tại không có) — **chủ dự án đã xác nhận: việc THẬT
+  cần làm dần**, không phải chỉ viết lại tài liệu cho khớp code. Mở bằng `brainstorming` →
+  `writing-plans` (chặng lớn).
+- **Màn "thùng rác"** để browse/phục hồi bảng đã xoá mềm sau khi dải "Hoàn tác" 5s tắt — hiện chưa
+  có cách phục hồi nào ngoài dải đó (dữ liệu vẫn an toàn trong IndexedDB, chỉ chưa có UI để lấy lại).
+
+### Chặng kế tiếp
+
+Chạy lại `/impeccable critique MindMapScreen` bất cứ lúc nào để đo điểm cải thiện so với 23/40 ban
+đầu (trend đã lưu ở `.impeccable/critique/`, lần đầu cho target này). Hoặc mở roadmap PRODUCT.md
+(brainstorming trước). Hoặc xử lý 2 mục doctor-sync còn treo ở trên.
