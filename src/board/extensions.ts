@@ -21,16 +21,32 @@
 // ImageViewExtension, SurfaceRefViewExtension — để 7/8 chuỗi dịch bị gỡ ở chặng "Dịch bề mặt hiển
 // thị đợt 2" (mục 21 HANDOFF.md) có nơi hiển thị. ĐÃ ĐO kích thước bundle (xem ghi chú dưới).
 //
-// LatexViewExtension (khối, khác InlineLatexViewExtension ở nhóm Inline) THỬ bật rồi PHẢI GỠ LẠI
-// ngay trong cùng chặng: `affine/blocks/latex/src/configs/tooltips.ts` gọi `unsafeHTML()` →
-// `sanitizeHTML()` → `DOMPurify.sanitize()` NGAY Ở CẤP MODULE (khi `slash-menu.ts`/`view.ts` được
-// import, không đợi tới lúc dùng thật) — DOMPurify cần `window` để khởi tạo đúng, nhưng nhiều file
-// spec của dự án cố tình chạy ở `environment: 'node'` (không có `window`, xem vite.config.ts) để
-// nhanh. Bật Latex làm `extensions.ts` — vốn được `EdgelessBoard.tsx` import — kéo theo crash
-// `TypeError: default.sanitize is not a function` ngay khi hai file test đó IMPORT module, không
-// phải lỗi trong logic dự án. Không sửa được ở nguồn (D11 cấm sửa `src/vendor/`). Không đổi
-// environment của hai file test đó (rủi ro kéo theo lớp lỗi DOM khác chưa đo, xem comment ở
-// vite.config.ts). "Equation" (chuỗi duy nhất chỉ Latex mới hiển thị) VẪN nằm trong diện hoãn.
+// LatexViewExtension (khối, khác InlineLatexViewExtension ở nhóm Inline) THỬ bật HAI LẦN, cả hai
+// đều PHẢI GỠ LẠI:
+//
+// Lần 1 (2026-08-23): `affine/blocks/latex/src/configs/tooltips.ts:34` gọi `unsafeHTML()` →
+// `sanitizeHTML()` → `DOMPurify.sanitize()` NGAY Ở CẤP MODULE (khi `view.ts` được import, không
+// đợi tới lúc dùng thật) — `dompurify` tự phát hiện `window` LÚC IMPORT để quyết định hình dạng
+// export; environment 'node' (đa số file spec, xem vite.config.ts) không có `window` nên default
+// export là hàm factory trần, không `.sanitize` → `TypeError: default.sanitize is not a function`
+// ngay khi `diTruBangCu.spec.ts`/`edgeless-board.spec.ts` IMPORT module, dù bản thân hai ca kiểm đó
+// không đụng gì tới Latex.
+//
+// ĐÃ TÌM ĐÚNG GỐC RỄ VÀ VÁ ĐƯỢC (không đụng vendor): thêm `test.alias` cho `dompurify` trong
+// `vite.config.ts` trỏ sang `src/__test-stubs__/dompurify.ts` — RED→GREEN xác nhận cả hai file
+// trên xanh sau khi vá. Nhưng chạy TRỌN bộ 34 file thì lộ vấn đề khác: KaTeX
+// (`katex.renderToString()`, cũng chạy đồng bộ ở cấp module cùng chỗ) cộng dồn thời gian IMPORT
+// cho MỌI file test board (không riêng Latex) — ba ca dùng SlashMenu chờ khối mới xuất hiện
+// (`edgeless-board-database.spec.ts`, `-dark-mode.spec.ts`, `-reorder.spec.ts`) timeout 5000ms khi
+// chạy TRỌN bộ, nhưng XANH khi chạy RIÊNG LẺ (3355ms, dư nhiều so với 5000ms) — đúng dạng "chập
+// chờn do tải" mục 6 đã ghi, không phải lỗi logic. Nhưng đây là CHI PHÍ THẬT (thêm độ trễ import
+// cho toàn bộ suite, siết hẹp biên độ timeout mặc định 5s ở MỌI file, không riêng Latex) đổi lấy
+// ĐÚNG MỘT chuỗi ("Equation") — không đáng. Quyết định: GỠ Latex; gỡ luôn `test.alias`/stub
+// `dompurify` vì không còn gì dùng tới (YAGNI, cùng tinh thần "không danh sách miễn ngầm" mục 11).
+// Toàn bộ điều tra (bao gồm cách vá đúng nếu cần thử lại) chép ở HANDOFF.md mục 23 — chặng sau
+// muốn thử lại (ví dụ nếu nâng `testTimeout` mặc định vì lý do khác, hoặc thượng nguồn sửa
+// `tooltips.ts` để không render KaTeX đồng bộ lúc import) thì đọc đó, đừng điều tra lại từ đầu.
+// "Equation" VẪN nằm trong diện hoãn.
 //
 // Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong EdgelessBoard.tsx vẫn nạp nguyên
 // bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
