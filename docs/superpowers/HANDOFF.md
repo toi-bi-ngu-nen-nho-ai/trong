@@ -33,23 +33,28 @@ Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — Bật 4 ViewExtension + dịch nốt 7 chuỗi đã xong, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (6/7 khoá mục 22), Latex điều tra xong, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`49e7766`** — 1 commit trực tiếp (không worktree), xem mục 22 |
+| `main` | **`a86dd03`** — 3 commit trực tiếp (không worktree), xem mục 23 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **285/285** (34 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **287/287** (35 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+
+**Chặng "TDD tự động hoá kiểm tay + điều tra Latex" — ĐÃ XONG** (`a86dd03`). Thử bật thêm
+`LatexViewExtension` lần hai, vá được lỗi DOMPurify nhưng KaTeX gây chập chờn timeout ở bộ test đầy
+đủ — gỡ lại, ghi điều tra đầy đủ. Viết 1 file test mới thay kiểm tay bằng browser thật cho 6/7 khoá
+mục 22 (Align×3/Download qua BlockSelection+toolbar, Attachment/Edgeless qua caption SlashMenu).
+Chi tiết ở **mục 23**.
 
 **Chặng "Bật 4 ViewExtension còn thiếu + dịch nốt 7 chuỗi" — ĐÃ XONG** (`49e7766`). Bật
-Image/Attachment/Code/SurfaceRef (thử cả Latex nhưng phải gỡ — DOMPurify crash ở test environment
-'node', xem mục 22). 166→173 khoá `vi.json`. Bundle +48,7 kB gzip, dưới ngưỡng D11. Chi tiết ở
-**mục 22**.
+Image/Attachment/Code/SurfaceRef. 166→173 khoá `vi.json`. Bundle +48,7 kB gzip, dưới ngưỡng D11.
+Chi tiết ở **mục 22**.
 
 **Chặng "Dịch bề mặt hiển thị, đợt 2" — ĐÃ XONG, KIỂM TAY MỘT PHẦN** (`1ae21c0`). 150→166 khoá
 `vi.json` (+16 khoá dịch thật, không phải +34 như spec dự kiến — 4 chuỗi là nhiễu test-fixture, 10
@@ -1959,3 +1964,103 @@ npm ci && npm run dung:vendor
 **Chặng kế tiếp:** kiểm tay thật khi có người theo dõi Browser pane (7 khoá mới + 15 khoá mục 21,
 gộp thành một buổi ~5 phút); hoặc quyết định về "Equation"/Latex; hoặc nội dung dịch 10 extension
 mục 20.
+**Cập nhật 2026-08-23: "kiểm tay" đã một phần được TỰ ĐỘNG HOÁ bằng TDD thay vì browser thật, xem
+mục 23; Latex đã điều tra kỹ, xem mục 23.**
+
+---
+
+## 23. TDD TỰ ĐỘNG HOÁ KIỂM TAY (6/7 KHOÁ MỤC 22) + ĐIỀU TRA LATEX — ĐÃ XONG
+
+Chủ dự án yêu cầu: "sử dụng TDD tự động hóa bước kiểm tay + dịch nốt cho tôi" — thay bước kiểm tay
+trên trình duyệt thật (bị chặn ở mục 21-22 do Browser pane không compositing khi phiên không có
+người theo dõi trực tiếp) bằng test tự động, và thử dịch nốt "Equation" (Latex). Làm trực tiếp trên
+`main`, 3 commit (`29e55fc`, `a86dd03`, và bản cập nhật HANDOFF này).
+
+### Phần 1 — Điều tra Latex (kết quả: KHÔNG bật, nhưng đã hiểu rõ vì sao)
+
+Chi tiết đầy đủ đã chép trong comment của `src/board/extensions.ts` (phần "LatexViewExtension...
+THỬ bật HAI LẦN") — tóm tắt:
+
+1. **Gốc rễ DOMPurify tìm được và VÁ ĐƯỢC** (không đụng vendor): `dompurify` tự phát hiện `window`
+   lúc import để quyết định hình dạng export (có `.sanitize` hay không). Thêm `test.alias` trong
+   `vite.config.ts` trỏ `dompurify` sang stub `{sanitize: (html) => html}` — RED (`diTruBangCu.spec.ts`/
+   `edgeless-board.spec.ts` crash `TypeError: default.sanitize is not a function`) → GREEN (cả hai
+   xanh, đã xác nhận bằng chạy riêng lẻ).
+2. **Nhưng chạy TRỌN 34 file lộ vấn đề khác**: `katex.renderToString()` (Latex tooltip, cũng chạy
+   đồng bộ ở cấp module) cộng dồn thời gian IMPORT cho MỌI file test board — ba ca dùng SlashMenu
+   (`edgeless-board-database.spec.ts`, `-dark-mode.spec.ts`, `-reorder.spec.ts`) timeout 5000ms khi
+   chạy TRỌN bộ, nhưng XANH khi chạy RIÊNG LẺ (3355ms, dư nhiều). Đúng dạng "chập chờn do tải" (mục
+   6), không phải lỗi logic — nhưng là CHI PHÍ THẬT, không đáng đổi lấy đúng 1 chuỗi.
+3. **Quyết định**: gỡ Latex (lần thứ hai), gỡ luôn `test.alias`/stub `dompurify` vì không còn gì
+   dùng tới (YAGNI). Cách vá đúng đã ghi lại đầy đủ ở comment `extensions.ts` — chặng sau muốn thử
+   lại (ví dụ nếu nâng `testTimeout` mặc định, hoặc thượng nguồn sửa `tooltips.ts`) đọc đó, đừng
+   điều tra lại từ đầu. "Equation" VẪN hoãn.
+
+### Phần 2 — TDD tự động hoá kiểm tay
+
+File mới: `src/board/__tests__/edgeless-board-toolbar-translations.spec.ts`, 2 ca kiểm.
+
+**Kỹ thuật mới — `BlockSelection`:** cùng họ với `TextSelection` đã dùng ở `note-interaction.ts`
+(cả hai từ `@blocksuite/std`, set qua `std.selection.create(Ctor, props)` +
+`std.selection.setGroup('note', [...])`, không cần Range/pointer thật). Dùng để mở TOOLBAR khi chọn
+MỘT BLOCK (khác text selection). `store.addBlock('affine:image', {}, noteBlockId)` — không cần
+blob/sourceId thật, schema có default đầy đủ.
+
+**RED bắt đúng lỗi thao tác thật** (giá trị của TDD, không phải hình thức): agent nghiên cứu
+(Explore) đọc mã nguồn thượng nguồn (`src/vendor/blocksuite/`, TRƯỚC đổi tên D11) nên báo tên thẻ
+toolbar là `affine-toolbar-widget` — chạy thật thì `document.querySelector('affine-toolbar-widget')`
+luôn `null` vì tên THẬT sau đổi tên là `drt-toolbar-widget`. Sửa, chạy lại → GREEN cho 4/5 khẳng
+định, còn "More" đỏ.
+
+**"More" bị loại khỏi phạm vi — đo sai gói lúc soạn spec mục 22.** Spec mục 22 quy "More" về gói
+`affine/blocks/image`, nhưng grep lại thấy nó CHỈ ở
+`affine/blocks/code/src/code-toolbar/components/code-toolbar.ts:131` (`.tooltip=${'More'}`) và
+`affine/widgets/toolbar/src/utils.ts:275`. Toolbar khối `code` dùng `HoverController`
+(`code-toolbar/index.ts:32-60`, gate bằng `TextSelection`/`BlockSelection` VÀ pointer hover thật) —
+cơ chế trigger khác hẳn `BlockSelection` đơn thuần đã dùng cho ảnh. Bỏ khẳng định "More" khỏi test,
+ghi lại làm nợ.
+
+**Kết quả cuối:** 6/7 khoá mục 22 có test tự động (Align center/left/right, Download — qua toolbar
+ảnh; Attachment, Edgeless — qua `slashMenu.items[].tooltip.caption`, tái dùng nguyên `moSlashMenuTuNote`
+có sẵn, không cần hạ tầng mới). `npm test` **287/287** (35 file, tăng đúng 1 file/2 ca so với mục
+22). Bảy cổng đo lại: `tsc` exit 0 · `kiem:vendor`/`kiem:vendor-paths`/`build`/`kiem:dist` xanh y hệt
+mục 22 (không đụng `vi.json`/`extensions.ts` ở phần này).
+
+### Còn nợ — TẠI SAO CHƯA LÀM, không phải quên
+
+- **"More"** — cần điều tra riêng cơ chế `HoverController` của khối `code` (dispatch sự kiện hover
+  thật hay có cách trigger qua API công khai khác — chưa tra).
+- **15 khoá mục 21** (Card/Embed/Inline view, Create Linked Doc, Enter/Exit Full Screen, 2 toast ảnh
+  còn lại, Headings 4-6, placeholder Note trống) — MỖI khoá cần hạ tầng kiểm KHÁC NHAU, đã tra sơ bộ
+  vị trí nguồn (không tra cách trigger):
+  - Card/Embed/Inline view: nhiều gói (`attachment`, `bookmark`, `embed`, `embed-doc`,
+    `inlines/link`, `inlines/reference`) — `affine/inlines/reference`/`link` ĐÃ bật, khả năng thi
+    được qua toolbar của một reference-node (chèn `@`-mention rồi chọn khối đó).
+  - Create Linked Doc: `affine/blocks/root/src/configs/toolbar.ts:313` — `RootViewExtension` ĐÃ
+    bật, context trigger chưa tra.
+  - Enter/Exit Full Screen: `affine/blocks/frame/src/edgeless-toolbar/presentation-toolbar.ts:442-443`
+    — `FrameViewExtension` ĐÃ bật, cần dựng Frame + trigger đúng state.
+  - `downloadImageBlob` (export công khai từ `@blocksuite/affine-block-image`,
+    `image/src/utils.ts:63-90`) phủ ĐÚNG 3 chuỗi ("Failed to download image!"/"Download in
+    progress..."/"Downloading image...") qua gọi hàm trực tiếp + spy/đọc DOM `toast()` — ĐÃ tra kỹ
+    (kể cả `createToastContainer`/`element.animate()`), CHƯA viết vì hết thời gian phiên này, không
+    phải bế tắc kỹ thuật. "Copied image to clipboard"/"Failed to read image size" nằm trong
+    `copyImageBlob`/hàm nội bộ KHÔNG export công khai từ package — cần import theo đường dẫn sâu
+    hoặc bỏ qua.
+  - Headings 4-6: `affine/rich-text/src/conversion.ts:70-86`, mảng config — chưa tra cách export
+    /tiêu thụ (khả năng cũng đọc trực tiếp như slash-menu, không cần render).
+  - Placeholder Note trống ("Drag/Click to insert Text block"): `affine/gfx/note/src/toolbar/
+    note-menu-config.ts:62` — chưa tra export.
+- Nội dung dịch cho 10 extension mới mục 20 — vẫn ngoài phạm vi.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này hoặc mới hơn
+git status --short                      # kỳ vọng sạch trừ antibiotics.ts + ba file browser-use
+npm ci && npm run dung:vendor
+```
+
+**Chặng kế tiếp:** viết tiếp test TDD cho `downloadImageBlob` (3 chuỗi, đã tra kỹ, dễ nhất trong số
+còn lại) rồi tới Headings 4-6/placeholder Note; hoặc điều tra `HoverController` cho "More"; hoặc
+kiểm tay thật khi có người theo dõi Browser pane cho phần chưa tự động hoá được.
