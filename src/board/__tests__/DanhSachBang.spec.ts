@@ -146,7 +146,7 @@ describe('DanhSachBang', () => {
     expect(theMoi?.className).toContain('card-plop')
   })
 
-  it('bấm thẻ "+" → gọi onMoBang với id mới NGAY, thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB)', async () => {
+  it('bấm thẻ "+" → thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB) VỚI ô đổi tên đã mở sẵn, KHÔNG mở thẳng vào canvas', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang }))
@@ -159,10 +159,16 @@ describe('DanhSachBang', () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
 
-    expect(onMoBang).toHaveBeenCalledTimes(1)
-    const idMoi = onMoBang.mock.calls[0][0] as string
-    expect(idMoi).toMatch(/^bang-/)
+    // Trước đây bấm "+" gọi onMoBang() ngay, mở thẳng vào canvas — ba bảng tạo liên tiếp đều dừng ở
+    // tên mặc định + ảnh xem trước giống hệt nhau, không phân biệt được trong lưới (critique lượt
+    // 2, 2026-08-23). Giờ giữ người dùng lại ở danh sách, mở luôn ô đổi tên cho thẻ vừa tạo.
+    expect(onMoBang).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    expect(oNhap).not.toBeNull()
+    expect(oNhap.value).toBe('Bảng chưa đặt tên')
+    const idMoi = oNhap.getAttribute('data-testid')!.replace('input-ten-', '')
+    expect(idMoi).toMatch(/^bang-/)
 
     // Bền vững thật xuống IndexedDB xảy ra NỀN (useIdbCollection.add không await idbPut) — chờ
     // bằng vi.waitFor (đọc thẳng bằng idbGetAll, không đụng state React nên không kẹt như trên)
@@ -171,6 +177,37 @@ describe('DanhSachBang', () => {
       const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
       expect(ds.map((b) => b.id)).toContain(idMoi)
     })
+  })
+
+  it('bấm thẻ "+", gõ tên rồi Enter → thoát ô đổi tên, bấm vào thẻ → GỌI onMoBang (mở canvas)', async () => {
+    const onMoBang = vi.fn()
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    // happy-dom: gán thẳng .value không đi qua setter React đã vá (_valueTracker) — dùng setter gốc,
+    // cùng kỹ thuật ca kiểm "Đổi tên" ở trên đã dùng.
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(oNhap, 'Chẩn đoán phân biệt đau ngực')
+      else oNhap.value = 'Chẩn đoán phân biệt đau ngực'
+      oNhap.dispatchEvent(new Event('input', { bubbles: true }))
+      oNhap.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(container.querySelector('[data-testid^="input-ten-"]')).toBeNull()
+    expect(container.textContent).toContain('Chẩn đoán phân biệt đau ngực')
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="the-bang"] button.the-bang-vat') as HTMLButtonElement).click()
+    })
+    expect(onMoBang).toHaveBeenCalledTimes(1)
   })
 
   it('bấm "⋯" rồi "Đổi tên", sửa ô nhập, Enter → tên cập nhật trên thẻ NGAY, rồi trong metadata', async () => {
@@ -395,6 +432,62 @@ describe('DanhSachBang', () => {
     await vi.waitFor(async () => {
       const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
       expect(ds.find((b) => b.id === 'bang-1')?.daXoaLuc).toBeUndefined()
+    })
+  })
+
+  it('KHÔNG có bảng nào bị xoá mềm → không hiện nút "Đã xoá gần đây"', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Bảng còn sống', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+    expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).toBeNull()
+  })
+
+  // Mô phỏng đúng "vách đá im lặng" mà critique lượt 2 (2026-08-23) phát hiện: dải "Hoàn tác" 5s đã
+  // tắt (mô phỏng bằng cách ghi thẳng daXoaLuc vào IndexedDB TRƯỚC khi mount, thay vì đợi 5 giây
+  // thật) — bảng vẫn còn thật trong IndexedDB nhưng KHÔNG có toast nào đang hiện. Panel "Đã xoá gần
+  // đây" là lưới an toàn duy nhất còn lại để lấy nó về.
+  it('bảng đã xoá mềm TỪ TRƯỚC (dải "Hoàn tác" đã tắt) → panel "Đã xoá gần đây" cho phục hồi được', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-mo-coi',
+      ten: 'Bảng lỡ mất dải hoàn tác',
+      taoLuc: bayGio - 60_000,
+      capNhatLuc: bayGio - 60_000,
+      daXoaLuc: bayGio - 30_000,
+    })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).not.toBeNull()
+    })
+    // Bảng xoá mềm không hiện trong lưới thường, không có toast "Hoàn tác" nào (dải đó chỉ sống
+    // trong state cục bộ của phiên vừa xoá, không phục hồi được từ IndexedDB lúc mount).
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')?.textContent).toContain('(1)')
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="mo-da-xoa-gan-day"]') as HTMLButtonElement).click()
+    })
+    expect(container.textContent).toContain('Bảng lỡ mất dải hoàn tác')
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="hoan-tac-gan-day-bang-mo-coi"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).toBeNull()
+
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+      expect(ds.find((b) => b.id === 'bang-mo-coi')?.daXoaLuc).toBeUndefined()
     })
   })
 

@@ -137,7 +137,23 @@ function TheBang({
         </div>
         {!dangSuaTen && (
           <>
-            <p style={{ fontSize: 13, fontWeight: 600, margin: '4px 0 0', lineHeight: 1.2 }}>{bang.ten}</p>
+            <p
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                margin: '4px 0 0',
+                lineHeight: 1.2,
+                // Tên lâm sàng dài (vd danh sách chẩn đoán phân biệt) từng kéo cả HÀNG lưới cao theo
+                // ô cao nhất (Grid stretch mặc định), để lại khoảng trắng chết ở thẻ liền kề tên
+                // ngắn — chặn ở 2 dòng, cùng cỡ mọi thẻ trong cùng hàng luôn khớp nhau.
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {bang.ten}
+            </p>
             <p style={{ fontSize: 11, margin: '1px 0 0', color: 'var(--c-text-muted, #6b6e96)' }}>
               {formatReadTime(bang.capNhatLuc)}
             </p>
@@ -157,7 +173,21 @@ function TheBang({
             if (e.key === 'Escape') onLuuTen(bang.ten)
           }}
           onBlur={() => onLuuTen(tenNhap)}
-          style={{ width: '100%', marginTop: 4, fontSize: 13, fontWeight: 600 }}
+          className="mind-focus-ring"
+          // `input:focus{outline:none}` (index.css, reset toàn app) + Tailwind preflight đưa border
+          // về 0 cộng lại xoá sạch MỌI tín hiệu đây là ô nhập — .mind-focus-ring chỉ bù lại lúc
+          // :focus-visible (bàn phím), nên cần thêm viền nghỉ để ô này trông "có thể sửa" ngay cả
+          // trước khi focus.
+          style={{
+            width: '100%',
+            marginTop: 4,
+            fontSize: 13,
+            fontWeight: 600,
+            border: '1px solid var(--c-line, #d9ddf4)',
+            borderRadius: 4,
+            padding: '2px 4px',
+            background: 'var(--c-surface, #fff)',
+          }}
         />
       )}
 
@@ -231,6 +261,12 @@ export function DanhSachBang({
   const [dangChoXoa, setDangChoXoa] = useState<BangMeta | null>(null)
   // Bang vừa xoá mềm xong — điều khiển dải "Hoàn tác". null nghĩa là không có dải nào đang hiện.
   const [vuaXoa, setVuaXoa] = useState<BangMeta | null>(null)
+  // Dải "Hoàn tác" (vuaXoa) chỉ sống HOAN_TAC_XOA_MS rồi tắt im lặng — nếu người dùng bị gọi đi
+  // giữa ca trực (đúng bối cảnh PRODUCT.md mô tả) và bỏ lỡ, bảng vẫn còn thật trong IndexedDB
+  // (daXoaLuc được set) nhưng trước đây KHÔNG có đường nào lấy lại nữa — vi phạm thẳng lời hứa "xoá
+  // mềm, phục hồi được". Panel này là lưới an toàn tối thiểu: không phải màn "thùng rác" đầy đủ (dọn
+  // vĩnh viễn, sắp xếp theo ngày...), chỉ để mở lại được những gì vuaXoa đã bỏ lỡ.
+  const [hienDaXoaGanDay, setHienDaXoaGanDay] = useState(false)
   const luoBoMount = useRef(Date.now())
 
   useEffect(() => {
@@ -277,18 +313,94 @@ export function DanhSachBang({
 
   // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
   const danhSachSapXep = [...danhSach].filter((b) => !b.daXoaLuc).sort((a, b) => b.capNhatLuc - a.capNhatLuc)
+  // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
+  const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
   const bayGio = luoBoMount.current
 
   const taoBangMoi = () => {
     const luc = Date.now()
     const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: luc, capNhatLuc: luc }
     add(meta)
-    onMoBang(meta.id)
+    // Trước đây mở thẳng vào canvas (onMoBang) — ba bảng tạo liên tiếp đều dừng lại ở tên mặc định
+    // "Bảng chưa đặt tên" và ảnh xem trước GIỐNG HỆT NHAU byte-cho-byte (canvas trống chụp y hệt),
+    // không cách nào phân biệt trong lưới. Giữ người dùng lại ở danh sách, mở luôn ô đổi tên cho thẻ
+    // vừa tạo — họ đặt tên trước rồi mới bấm vào để vẽ, đúng lúc còn nhớ đang tạo bảng cho việc gì.
+    setDangSuaTenId(meta.id)
   }
 
   return (
     <>
     <div className={`scroll-ios h-full${dungTuBang ? ' board-out' : ''}`}>
+      {daXoaGanDay.length > 0 && (
+        <div style={{ padding: '12px 16px 0' }}>
+          <button
+            type="button"
+            data-testid="mo-da-xoa-gan-day"
+            onClick={() => setHienDaXoaGanDay(!hienDaXoaGanDay)}
+            className="mind-focus-ring"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--c-text-muted, #6b6e96)',
+              background: 'none',
+              border: 0,
+              padding: '4px 2px',
+              borderRadius: 4,
+            }}
+            aria-expanded={hienDaXoaGanDay}
+          >
+            {hienDaXoaGanDay ? '▾' : '▸'} Đã xoá gần đây ({daXoaGanDay.length})
+          </button>
+          {hienDaXoaGanDay && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, marginBottom: 8 }}>
+              {daXoaGanDay.map((b) => (
+                <div
+                  key={b.id}
+                  data-testid={`da-xoa-gan-day-${b.id}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 10px',
+                    background: 'var(--c-surface-alt, #f6f7fd)',
+                    borderRadius: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: 12.5,
+                      color: 'var(--c-text-muted, #6b6e96)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {b.ten}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid={`hoan-tac-gan-day-${b.id}`}
+                    onClick={() => update({ ...b, daXoaLuc: undefined })}
+                    className="mind-focus-ring"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--c-primary, #2d3a94)',
+                      background: 'none',
+                      border: 0,
+                      padding: '4px 6px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Hoàn tác
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {danhSachSapXep.length === 0 ? (
         <div
           style={{
