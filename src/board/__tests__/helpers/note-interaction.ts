@@ -46,6 +46,21 @@ if (!('getTargetRanges' in InputEvent.prototype)) {
   ;(InputEvent.prototype as unknown as { getTargetRanges(): unknown[] }).getTargetRanges = () => []
 }
 
+// happy-dom chưa cài `Element.animate()` (Web Animations API). `affine/components/src/toast/
+// toast.ts:57` gọi thẳng nó không kiểm tồn tại trước — mọi lượt gọi `toast(host, message)` (dùng
+// bởi downloadImageBlob và các hàm khác) ném `TypeError: element.animate is not a function` ngay
+// khi hiện, trước cả khi message kịp gắn vào DOM để kiểm. Trả một `Animation` tối thiểu — chỉ cần
+// `.finished` là Promise (toast.ts dùng nó trong callback `setTimeout` lúc fade-out, 2500ms sau,
+// ngoài phạm vi mọi ca kiểm hiện tại) — không cần hoạt ảnh thật chạy dưới happy-dom.
+if (!('animate' in Element.prototype)) {
+  ;(Element.prototype as unknown as { animate(...args: unknown[]): unknown }).animate = () => ({
+    finished: Promise.resolve(),
+    cancel: () => {},
+    play: () => {},
+    pause: () => {},
+  })
+}
+
 // Kiểu tối thiểu cho phần API nội bộ mà các ca kiểm này cần chạm tới trực tiếp (đúng kỹ thuật đã
 // kiểm chứng bằng tay trên trình duyệt thật) — không có kiểu công khai cho các API này.
 export type ToolLike = {
