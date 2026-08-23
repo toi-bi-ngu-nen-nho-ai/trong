@@ -33,23 +33,24 @@ Cập nhật: **2026-08-22**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (6/7 khoá mục 22), Latex điều tra xong, không còn chặng dở
+## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (9/22 khoá mục 21+22), Latex điều tra xong, không còn chặng dở
 
 | | |
 |---|---|
-| `main` | **`a86dd03`** — 3 commit trực tiếp (không worktree), xem mục 23 |
+| `main` | **`21f224a`** — 5 commit trực tiếp (không worktree), xem mục 23 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **287/287** (35 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **290/290** (36 file) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
 
-**Chặng "TDD tự động hoá kiểm tay + điều tra Latex" — ĐÃ XONG** (`a86dd03`). Thử bật thêm
+**Chặng "TDD tự động hoá kiểm tay + điều tra Latex" — ĐÃ XONG** (`21f224a`). Thử bật thêm
 `LatexViewExtension` lần hai, vá được lỗi DOMPurify nhưng KaTeX gây chập chờn timeout ở bộ test đầy
-đủ — gỡ lại, ghi điều tra đầy đủ. Viết 1 file test mới thay kiểm tay bằng browser thật cho 6/7 khoá
-mục 22 (Align×3/Download qua BlockSelection+toolbar, Attachment/Edgeless qua caption SlashMenu).
+đủ — gỡ lại, ghi điều tra đầy đủ. Viết 2 file test mới thay kiểm tay bằng browser thật cho 9/22 khoá
+mục 21+22 (Align×3/Download qua BlockSelection+toolbar, Attachment/Edgeless qua caption SlashMenu,
+3 toast tải ảnh qua gọi thẳng `downloadImageBlob`).
 Chi tiết ở **mục 23**.
 
 **Chặng "Bật 4 ViewExtension còn thiếu + dịch nốt 7 chuỗi" — ĐÃ XONG** (`49e7766`). Bật
@@ -1969,12 +1970,13 @@ mục 23; Latex đã điều tra kỹ, xem mục 23.**
 
 ---
 
-## 23. TDD TỰ ĐỘNG HOÁ KIỂM TAY (6/7 KHOÁ MỤC 22) + ĐIỀU TRA LATEX — ĐÃ XONG
+## 23. TDD TỰ ĐỘNG HOÁ KIỂM TAY (9/22 KHOÁ MỤC 21+22) + ĐIỀU TRA LATEX — ĐÃ XONG
 
-Chủ dự án yêu cầu: "sử dụng TDD tự động hóa bước kiểm tay + dịch nốt cho tôi" — thay bước kiểm tay
-trên trình duyệt thật (bị chặn ở mục 21-22 do Browser pane không compositing khi phiên không có
-người theo dõi trực tiếp) bằng test tự động, và thử dịch nốt "Equation" (Latex). Làm trực tiếp trên
-`main`, 3 commit (`29e55fc`, `a86dd03`, và bản cập nhật HANDOFF này).
+Chủ dự án yêu cầu: "sử dụng TDD tự động hóa bước kiểm tay + dịch nốt cho tôi" (và sau đó "tiếp tục"
+hai lần) — thay bước kiểm tay trên trình duyệt thật (bị chặn ở mục 21-22 do Browser pane không
+compositing khi phiên không có người theo dõi trực tiếp) bằng test tự động, và thử dịch nốt
+"Equation" (Latex). Làm trực tiếp trên `main`, 5 commit (`29e55fc`, `a86dd03`, `7100543`, `21f224a`,
+và bản cập nhật HANDOFF này).
 
 ### Phần 1 — Điều tra Latex (kết quả: KHÔNG bật, nhưng đã hiểu rõ vì sao)
 
@@ -2026,13 +2028,43 @@ có sẵn, không cần hạ tầng mới). `npm test` **287/287** (35 file, tă
 22). Bảy cổng đo lại: `tsc` exit 0 · `kiem:vendor`/`kiem:vendor-paths`/`build`/`kiem:dist` xanh y hệt
 mục 22 (không đụng `vi.json`/`extensions.ts` ở phần này).
 
+### Phần 3 — TDD 3 toast tải ảnh (mục 21)
+
+File mới: `src/board/__tests__/edgeless-board-image-toast.spec.ts`, 3 ca kiểm cho `downloadImageBlob`
+(export công khai từ `@blocksuite/affine-block-image`, `image/src/utils.ts:63-90`) — gọi THẲNG hàm
+với `host` THẬT (từ `moBangVaTaoNoteCoNoiDung`) và `resourceController` GIẢ tối thiểu, đọc DOM
+`.toast-container` sau khi gọi. Không cần dựng component ảnh thật, không cần blob thật, không qua
+UI/selection — kỹ thuật thứ ba khác hẳn hai kỹ thuật trước (UI-driven và selection-driven).
+
+**Ba vòng RED thật trước khi xanh** (đúng giá trị TDD — mỗi vòng bắt một lỗi có thật, không phải
+hình thức):
+
+1. `Element.animate is not a function` — happy-dom chưa cài Web Animations API, `toast.ts:57` gọi
+   không kiểm tồn tại. Vá polyfill vào `note-interaction.ts` (dùng chung 7 file test khác), CÙNG
+   kiểu với `getTargetRanges`/canvas context đã có sẵn ở đó — không phải giải pháp riêng cho file
+   này, mọi test sau này gọi `toast()` cũng được lợi.
+2. `expected 'hellohellohello' to be 'hello'` — lỗi thao tác CỦA CHÍNH TÔI: ba `it()` dùng chung một
+   `boardId`, nội dung "hello" cộng dồn qua các lượt vì board persist theo id. Sửa: boardId riêng
+   mỗi test (biến đếm module-level). Đây là lỗi CHƯA từng lộ ở file nào khác trong repo vì mọi file
+   kiểm board trước giờ chỉ có ĐÚNG MỘT `it()`.
+3. `expected false to be true` (2/3 ca đỏ, sau khi sửa #2) — `toast()` giữ container SINGLETON cấp
+   MODULE (`ToastContainer`, chỉ tạo một lần); `afterEach` gỡ `container` test khỏi DOM làm node đó
+   MỒ CÔI khỏi `document` cho lượt sau (biến module vẫn trỏ đúng, nhưng
+   `document.querySelector('.toast-container')` không còn thấy). Sửa: bỏ `container.remove()`, chỉ
+   unmount React root — chấp nhận vài `<div>` tích luỹ trong `document.body` tới hết file, không rò
+   rỉ sang file khác.
+
+**Kết quả:** `npm test` **290/290** (36 file). Bảy cổng không đổi (không đụng `vi.json`/`extensions.ts`).
+
 ### Còn nợ — TẠI SAO CHƯA LÀM, không phải quên
+
+**Tổng: 13/22 khoá mục 21+22 còn lại chưa có test tự động** (9/22 đã xong: 6 ở Phần 2 + 3 ở Phần 3).
 
 - **"More"** — cần điều tra riêng cơ chế `HoverController` của khối `code` (dispatch sự kiện hover
   thật hay có cách trigger qua API công khai khác — chưa tra).
-- **15 khoá mục 21** (Card/Embed/Inline view, Create Linked Doc, Enter/Exit Full Screen, 2 toast ảnh
-  còn lại, Headings 4-6, placeholder Note trống) — MỖI khoá cần hạ tầng kiểm KHÁC NHAU, đã tra sơ bộ
-  vị trí nguồn (không tra cách trigger):
+- **12 khoá mục 21 còn lại** (Card/Embed/Inline view, Create Linked Doc, Enter/Exit Full Screen,
+  Headings 4-6, placeholder Note trống, "Copied image to clipboard"/"Failed to read image size") —
+  MỖI khoá cần hạ tầng kiểm KHÁC NHAU, đã tra sơ bộ vị trí nguồn (không tra cách trigger):
   - Card/Embed/Inline view: nhiều gói (`attachment`, `bookmark`, `embed`, `embed-doc`,
     `inlines/link`, `inlines/reference`) — `affine/inlines/reference`/`link` ĐÃ bật, khả năng thi
     được qua toolbar của một reference-node (chèn `@`-mention rồi chọn khối đó).
@@ -2040,13 +2072,9 @@ mục 22 (không đụng `vi.json`/`extensions.ts` ở phần này).
     bật, context trigger chưa tra.
   - Enter/Exit Full Screen: `affine/blocks/frame/src/edgeless-toolbar/presentation-toolbar.ts:442-443`
     — `FrameViewExtension` ĐÃ bật, cần dựng Frame + trigger đúng state.
-  - `downloadImageBlob` (export công khai từ `@blocksuite/affine-block-image`,
-    `image/src/utils.ts:63-90`) phủ ĐÚNG 3 chuỗi ("Failed to download image!"/"Download in
-    progress..."/"Downloading image...") qua gọi hàm trực tiếp + spy/đọc DOM `toast()` — ĐÃ tra kỹ
-    (kể cả `createToastContainer`/`element.animate()`), CHƯA viết vì hết thời gian phiên này, không
-    phải bế tắc kỹ thuật. "Copied image to clipboard"/"Failed to read image size" nằm trong
-    `copyImageBlob`/hàm nội bộ KHÔNG export công khai từ package — cần import theo đường dẫn sâu
-    hoặc bỏ qua.
+  - "Copied image to clipboard"/"Failed to read image size" nằm trong `copyImageBlob`/hàm nội bộ
+    KHÔNG export công khai từ package (khác `downloadImageBlob` vừa làm xong) — cần import theo
+    đường dẫn sâu hoặc bỏ qua, chưa phải bế tắc kỹ thuật.
   - Headings 4-6: `affine/rich-text/src/conversion.ts:70-86`, mảng config — chưa tra cách export
     /tiêu thụ (khả năng cũng đọc trực tiếp như slash-menu, không cần render).
   - Placeholder Note trống ("Drag/Click to insert Text block"): `affine/gfx/note/src/toolbar/
@@ -2061,6 +2089,7 @@ git status --short                      # kỳ vọng sạch trừ antibiotics.t
 npm ci && npm run dung:vendor
 ```
 
-**Chặng kế tiếp:** viết tiếp test TDD cho `downloadImageBlob` (3 chuỗi, đã tra kỹ, dễ nhất trong số
-còn lại) rồi tới Headings 4-6/placeholder Note; hoặc điều tra `HoverController` cho "More"; hoặc
-kiểm tay thật khi có người theo dõi Browser pane cho phần chưa tự động hoá được.
+**Chặng kế tiếp:** viết tiếp test TDD cho Headings 4-6 hoặc placeholder Note trống (config đọc trực
+tiếp, chưa tra export — khả năng dễ, cùng kiểu SlashMenu caption ở Phần 2); hoặc điều tra
+`HoverController` cho "More"; hoặc reference-toolbar cho Card/Embed/Inline view; hoặc kiểm tay thật
+khi có người theo dõi Browser pane cho phần chưa tự động hoá được.
