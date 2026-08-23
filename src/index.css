@@ -70,10 +70,18 @@
    `var(--affine-font-size-base)` (đổi tên thành `--drt-font-size-base` qua D11), trong khi theme
    (`.vendor-build/theme/style.css`) chỉ định nghĩa `--drt-font-base: 15px` (KHÔNG có "-size-",
    tên khác hẳn — cùng lớp lỗi lệch tên như case secondary, không phải case thiếu import). Bí
-   danh dưới đây trỏ vào biến vendor thật --drt-font-base. */
+   danh dưới đây trỏ vào biến vendor thật --drt-font-base.
+
+   Thêm 2026-08-23 (chặng bật 5 ViewExtension Image/Attachment/Code/Latex/SurfaceRef, kiem:dist
+   Luật B): `--drt-text-secondary` dùng nhưng 0 định nghĩa — nguồn gây ra là
+   affine/blocks/code/src/styles.ts:71 đọc `var(--affine-text-secondary)` (đổi tên thành
+   `--drt-text-secondary` qua D11), trong khi theme chỉ định nghĩa `--drt-text-secondary-color`
+   (CÓ hậu tố "-color") — CÙNG lớp lỗi lệch tên như hai case trên (chưa lộ tới giờ vì CodeBlock
+   chưa bật). Bí danh trỏ vào biến vendor thật --drt-text-secondary-color. */
 :root {
   --drt-secondary: var(--drt-secondary-color);
   --drt-font-size-base: var(--drt-font-base);
+  --drt-text-secondary: var(--drt-text-secondary-color);
 }
 
 /* ─── Bảng màu theo chủ đề sáng/tối ───────────────────────────────────────────

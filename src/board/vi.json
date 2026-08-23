@@ -164,5 +164,12 @@
   "Headings in the 5th font size.": "Các tiêu đề cỡ chữ lớn thứ năm.",
   "Headings in the 6th font size.": "Các tiêu đề cỡ chữ lớn thứ sáu.",
   "Inline view": "Xem dạng dòng",
-  "Thickness": "Độ dày"
+  "Thickness": "Độ dày",
+  "Align center": "Căn giữa",
+  "Align left": "Căn trái",
+  "Align right": "Căn phải",
+  "Attachment": "Tệp đính kèm",
+  "Download": "Tải xuống",
+  "Edgeless": "Tự do",
+  "More": "Thêm"
 }
