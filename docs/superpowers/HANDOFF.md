@@ -33,18 +33,28 @@ Cập nhật: **2026-08-23**. Dự án: **Bs Trọng** — PWA y khoa tiếng Vi
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (15/22 khoá mục 21+22), Task B ngõ cụt đã xác nhận
+## TRẠNG THÁI HÔM NAY — TDD tự động hoá kiểm tay (17/22 khoá mục 21+22), phát hiện hạ tầng Object.defineProperty
 
 | | |
 |---|---|
-| `main` | **`95cb700`** — 2 commit trực tiếp (không worktree) tiếp sau `a39ebb9`, xem mục 24 |
+| `main` | **`342fe69`** — 1 commit trực tiếp (không worktree) tiếp sau `9209cfa`, xem mục 25 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch, trừ `src/data/antibiotics.ts` (chủ dự án tự sửa, đừng đụng — xem mục 10-11), `.impeccable/live/` (runtime của tool critique, chưa gitignore, vô hại — xem mục 19), `bang-bam-vendor.json`/`tsconfig.vendor-paths.json` (xem mục 6), và ba file browser-use không thuộc track nào (`.env.browser-use`, `BROWSER_USE_SETUP.md`, `browser_use_test.py`) |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **293/294** (39 file — 1 ca đỏ là chập chờn ĐÃ BIẾT trước từ mục 22, xanh khi chạy riêng lẻ, xem mục 24) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (909,13 kB gzip `EdgelessBoard-*.js`) + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-23 — `tsc` exit 0 · `npm test` **296/296** (40 file, không ca đỏ nào — kể cả ca chập chờn mục 22/24 lần này cũng xanh trong chạy trọn bộ) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục · `build` (909,13 kB gzip `EdgelessBoard-*.js`) + `kiem:dist` xanh với `bản dịch vi.json — 174/174 có mặt` (173 `vi.json` + 1 `vi-tien-to.json`) |
+
+**Chặng "TDD 2 toast ảnh còn lại — Copied image to clipboard/Failed to read image size" — ĐÃ XONG**
+(`342fe69`). Cả hai khoá landed. Phát hiện hạ tầng quan trọng: gán thẳng property mới lên
+global/DOM object (`globalThis.isSecureContext = true`, `URL.createObjectURL = fn`) KHÔNG có hiệu
+lực trong pool happy-dom của Vitest ở dự án này — mã vendored vẫn đọc lại giá trị cũ dù dòng gán
+chạy không lỗi; phải dùng `Object.defineProperty(obj, 'prop', {value, configurable:true})`. Cũng
+phát hiện `copyImageBlob` (dù có từ khoá `export` ở utils.ts) KHÔNG nằm trong bề mặt export công
+khai của gói `@blocksuite/affine-block-image` — phải gọi qua `ImageBlockComponent.copy()` (property
+public thật, method sản xuất mà nút "Copy" của toolbar dùng). 15→17/22 khoá mục 21+22. Chi tiết ở
+**mục 25**.
 
 **Chặng "TDD Task A/B/C — Card/Embed/Inline view, Create Linked Doc, Full Screen" — ĐÃ XONG.**
 Task A (Card/Embed/Inline view của tham chiếu inline) và Task C (Enter/Exit Full Screen trình
@@ -107,27 +117,29 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 24 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 25 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 24 (hoặc mới hơn — chạy
-`git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 293/294 (39 file — 1 ca đỏ là chập
-chờn ĐÃ BIẾT trước, xem mục 22 và mục 24, xanh khi chạy riêng lẻ), kiem:dist 174/174 khoá vi.json
-có mặt.
+Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 25 (hoặc mới hơn — chạy
+`git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 296/296 (40 file, không ca đỏ nào),
+kiem:dist 174/174 khoá vi.json có mặt.
 
 Track dịch (vi.json/vendor D12) đã dịch hết mọi chuỗi "tới dist ngay" đo được (166→173 khoá, mục
 20-22). Track "TDD tự động hoá kiểm tay" (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
-Browser pane không compositing khi phiên không có người theo dõi trực tiếp) nay ở **15/22 khoá** của
+Browser pane không compositing khi phiên không có người theo dõi trực tiếp) nay ở **17/22 khoá** của
 mục 21+22 — năm kỹ thuật đã có (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export
-công khai, import config trực tiếp, và MỚI ở mục 24: bơm thẳng signal `message$` của
-ToolbarRegistry). Còn 7 khoá + "Equation"(Latex) vẫn hoãn — TỪNG khoá cần hạ tầng kiểm RIÊNG, một
-khoá ("Create Linked Doc") là ngõ cụt đã xác nhận (thiếu `EmbedDoc` ViewExtension, ngoài phạm vi).
-Đọc "Còn nợ"/"Chặng kế tiếp" ở cuối mục 24 để biết chính xác vị trí nguồn + lý do chưa làm của từng
-khoá, đừng điều tra lại từ đầu.
+công khai, import config trực tiếp, bơm thẳng signal `message$` của ToolbarRegistry) cộng một PHÁT
+HIỆN HẠ TẦNG quan trọng ở mục 25: gán thẳng property mới lên global/DOM object KHÔNG có hiệu lực
+trong pool happy-dom của Vitest ở dự án này — luôn dùng `Object.defineProperty` thay vì `obj.prop =
+value` khi patch property chưa tồn tại (đã xác nhận qua 3 trường hợp độc lập: fullscreenElement mục
+24, isSecureContext + URL.createObjectURL mục 25). Còn 5 khoá vẫn hoãn — TỪNG khoá cần hạ tầng kiểm
+RIÊNG, hai khoá ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ"/"Chặng kế tiếp"
+ở cuối mục 25 để biết chính xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ
+đầu.
 
 Trình tự: chạy "Việc làm ngay" ở mục 1 để dựng lại môi trường (npm ci && npm run dung:vendor, mất
-vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 24 để chọn việc — không cần brainstorming/writing-plans
+vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 25 để chọn việc — không cần brainstorming/writing-plans
 nếu chỉ tiếp tục thêm test TDD theo đúng các kỹ thuật đã có (việc nhỏ, làm trực tiếp); dùng
 superpowers:brainstorming → writing-plans nếu muốn mở chặng lớn khác (bật thêm ViewExtension, nội
 dung dịch cho 10 extension mục 20, v.v).
@@ -2301,4 +2313,135 @@ npm ci && npm run dung:vendor
   ViewExtension (ảnh hưởng bundle size, cần hỏi trước như tiền lệ mục 20/22).
 
 Hoặc kiểm tay thật khi có người theo dõi Browser pane cho phần chưa tự động hoá được; hoặc chặng
+lớn khác (nội dung dịch cho 10 extension mục 20, v.v — qua `brainstorming` → `writing-plans`).
+
+---
+
+## 25. TDD 2 TOAST ẢNH CÒN LẠI — "Copied image to clipboard", "Failed to read image size" — ĐÃ XONG
+
+Tiếp nối mục 24 — hai khoá cuối cùng còn đường tự động hoá rõ ràng trong nhóm toast ảnh (5 khoá còn
+lại sau chặng này đều là ngõ cụt/cần hạ tầng riêng, xem "Chặng kế tiếp"). Làm trực tiếp trên `main`,
+không worktree. 1 commit code (`342fe69`) + bản cập nhật HANDOFF này.
+
+**Ghi chú vận hành:** chặng này ban đầu giao cho một subagent nền, nhưng subagent đó liên tục tự
+dừng để "chờ thông báo nền" cho các lượt chạy `npm test`/vitest dài (đúng lỗi cần tránh: subagent
+không tự được đánh thức khi tự backgroun một tiến trình rồi kết thúc lượt của nó) — sau ba lần
+thông báo "hoàn tất" mà không hề commit gì, nó cuối cùng chết hẳn vì hết hạn mức phiên. Phiên điều
+phối (không phải subagent) đọc lại file test dở dang của nó (đã viết xong, lý luận đúng, chỉ chưa
+chạy xanh), tự chạy/sửa/xác minh nốt trực tiếp. File test giữ nguyên tác giả gốc là subagent đó —
+chỉ 2 chỗ patch bị đổi kỹ thuật (xem RED thật bên dưới).
+
+### Khoá 1 — "Copied image to clipboard" (utils.ts:163, hàm `copyImageBlob`)
+
+**Phát hiện lệch với tiền đề mục 24** (dự đoán "export công khai từ index.ts — cùng kiểu
+`downloadImageBlob`"): đọc trực tiếp `image/src/index.ts` xác nhận CHỈ `addImages`,
+`addSiblingImageBlocks`, `downloadImageBlob` được re-export. `copyImageBlob` có từ khoá `export` ở
+cấp `utils.ts` (dòng 115) nhưng KHÔNG có mặt trong `index.ts`, và `package.json` của gói (`exports`)
+không có subpath nào khác trỏ vào `utils.ts` — import `{ copyImageBlob } from
+'@blocksuite/affine-block-image'` do đó KHÔNG hoạt động. Không phải lỗi gõ: hàm này thật sự nằm
+ngoài bề mặt export công khai của gói, cùng lớp ngõ cụt "subpath export không tồn tại" đã gặp ở mục
+23 Phần 4 cho `NOTE_MENU_ITEMS`. Import tương đối thẳng vào `src/vendor/blocksuite/...` cũng không
+dùng được — `vite.config.ts` ghi rõ mọi specifier `@blocksuite/*` được `blocksuiteVendor()` trỏ
+sang `.vendor-build/`, một import tương đối vào `src/vendor` sẽ tạo bản sao module THỨ HAI (raw
+`.ts`, chưa qua babel/vendor-build), tách biệt khỏi module thật app đang dùng, gây lỗi `instanceof`
+trả về `false`.
+
+**Lối ra:** không cần import `copyImageBlob` đứng một mình. `ImageBlockComponent.copy`
+(`image-block.ts:55-57`, thuộc tính public thật, không phải `#` private) là arrow function gọi
+thẳng `copyImageBlob(this)` — và đây CHÍNH LÀ hàm nút "Copy" thật trong toolbar gọi
+(`configs/toolbar.ts:114-120`, action `a.copy`). Dựng một khối ảnh THẬT trên board
+(`store.addBlock('affine:image', {sourceId}, noteId)` sau khi `store.blobSync.set()` một `Blob`
+giả), lấy phần tử DOM thật `<drt-image>` (tên đã đổi qua D11 — gốc `affine-image`), gọi THẲNG
+`.copy()` trên đó — đúng method sản xuất thật, không cần mở dropdown "More" lồng nhau của toolbar.
+
+**RED thật gặp phải — lượt 1 (thật, không phải tự tạo):** console.error thật
+`"Clipboard API is not available in insecure context"` rồi `expected false to be true`. Nguyên nhân
+ban đầu tưởng là THIẾU patch `globalThis.isSecureContext` (happy-dom không định nghĩa thuộc tính
+này) — nhưng patch bằng GÁN THẲNG (`globalThis.isSecureContext = true`) đã có sẵn trong lượt viết
+đầu mà RED vẫn xảy ra y hệt. Đào sâu xác nhận: gán thẳng property MỚI (chưa từng tồn tại) lên
+`globalThis` không có hiệu lực trong pool happy-dom của Vitest ở dự án này — mã vendored đọc lại
+đúng lúc gọi vẫn thấy giá trị falsy, dù dòng gán chạy không ném lỗi gì. Đổi sang
+`Object.defineProperty(globalThis, 'isSecureContext', {value: true, configurable: true})` — GREEN
+ngay. Cùng lớp vấn đề (và cùng cách vá) đã gặp ở `edgeless-board-present-fullscreen-toolbar.spec.ts`
+(mục 24) cho `document.fullscreenElement` — nay đã xác nhận đây là mẫu hình LẶP LẠI, không phải
+trùng hợp riêng lẻ một lần.
+
+Các bước còn lại của `copyImageBlob` xác nhận AN TOÀN dưới happy-dom bằng đọc mã nguồn (không đoán):
+`NativeClipboardProvider` không được `src/board/extensions.ts` đăng ký nên `copyAsPNG` luôn
+undefined, nhánh Electron bị bỏ qua tự nhiên; Blob giả dựng sẵn `type: 'image/png'` nên né hẳn
+`convertToPng` (cần canvas thật); `navigator.clipboard.write`/`ClipboardItem` CÓ cài đủ trong
+happy-dom, `Permissions.query` mặc định trả `'granted'`.
+
+### Khoá 2 — "Failed to read image size, please try another image" (utils.ts:238, hàm riêng `buildPropsWith`)
+
+Hàm KHÔNG export, gọi qua hàm export công khai đơn giản nhất `addSiblingImageBlocks`. `readImageSize`
+(`affine-shared/src/utils/image.ts`) tạo `new Image()` rồi gán `.src = URL.createObjectURL(file)`
+(`blob:` URL) — đọc thẳng `node_modules/happy-dom/lib/nodes/html-image-element/HTMLImageElement.js`:
+với `blob:` URL, `enableImageFileLoading` mặc định `false` khiến KHÔNG bao giờ bắn `'load'` lẫn
+`'error'`, Promise treo VĨNH VIỄN. Chỉ `data:` URL được xử lý ĐỒNG BỘ (`#loadDataUrl`, khớp regex
+`/^\s*data:([^,]+)?,(.*)/`, decode phần payload bằng `Buffer.from(..., 'base64')` rồi thử
+`BufferImageSize(buffer)`) — payload không phải ảnh thật khiến hàm đó ném lỗi, `HTMLImageElement`
+bắt lỗi, đặt `naturalWidth`/`naturalHeight = 0` nhưng VẪN bắn `'load'` (không phải `'error'`) — đúng
+nhánh 0×0 cần.
+
+**RED thật gặp phải:** `Error: Test timed out in 5000ms` — dù đã ghi đè `URL.createObjectURL` để trả
+`data:` URL thay vì `blob:`. Cùng nguyên nhân hệt khoá 1: ghi đè bằng GÁN THẲNG
+(`URL.createObjectURL = () => ...`) không có hiệu lực, `readImageSize` vẫn nhận `blob:` URL thật từ
+implementation gốc, rơi đúng nhánh treo vĩnh viễn đã dự đoán. Đổi sang
+`Object.defineProperty(URL, 'createObjectURL', {value: fn, configurable: true, writable: true})` —
+GREEN ngay (259ms). Khôi phục sau test CŨNG phải dùng `Object.defineProperty` (không phải gán thẳng
+`URL.createObjectURL = goc`), nếu không override có thể không được gỡ thật, rò rỉ sang ca kiểm sau
+trong cùng file — áp dụng nhất quán, không chỉ vá chỗ set mà bỏ qua chỗ khôi phục.
+
+### PHÁT HIỆN HẠ TẦNG — quy tắc chung cho mọi test TDD sau này trong repo
+
+Đã xác nhận qua BA trường hợp độc lập (fullscreenElement mục 24, isSecureContext + createObjectURL
+mục 25): **gán thẳng (`obj.prop = value`) một property MỚI (chưa từng tồn tại) lên một global hoặc
+DOM object KHÔNG có hiệu lực trong pool happy-dom của Vitest ở dự án này** — dòng gán chạy không ném
+lỗi, nhưng mã khác (kể cả trong CÙNG file/cùng lượt gọi) đọc lại property đó vẫn thấy giá trị cũ.
+Luôn dùng `Object.defineProperty(obj, 'prop', {value, configurable: true[, writable: true]})` khi
+cần patch một property chưa tồn tại sẵn cho mục đích kiểm thử — đừng mất thời gian điều tra lại từ
+đầu, đây không phải lỗi logic của từng ca riêng lẻ mà là đặc điểm CỦA MÔI TRƯỜNG TEST. Chưa rõ cơ
+chế chính xác (nghi Vitest's happy-dom pool proxy hoá `globalThis`/DOM object và trap `set` không
+forward đầy đủ cho property mới, trong khi trap `defineProperty` thì có) — chưa cần điều tra sâu
+hơn vì cách vá đã ổn định qua ba lần độc lập.
+
+### Kết quả tổng — 17/22 khoá mục 21+22 đã có test tự động
+
+15 (trước chặng này) + 2 (hai toast) = **17/22**. Còn lại 5/22: placeholder Note trống (3 khoá,
+`NOTE_MENU_ITEMS` — ngõ cụt subpath export đã ghi ở mục 23 Phần 4), "More" (code block toolbar —
+`HoverController`, ngõ cụt effort/lợi ích thấp, xem mục 24 Task A), Create Linked Doc (ngõ cụt cấu
+hình — thiếu `EmbedDoc` ViewExtension, xem mục 24 Task B).
+
+### Bảy cổng — đo lại trực tiếp trên `main`, 2026-08-23
+
+`npx tsc --noEmit` exit 0 · `npm test` **296/296** (40 file, KHÔNG có ca đỏ nào — kể cả ca chập chờn
+`BoardGallery.spec.ts "board-out"` đã ghi nhận ở mục 22/24 lần này cũng xanh trong chạy trọn bộ,
+đúng bản chất "chập chờn do tải", không phải luôn đỏ) · `kiem:vendor` so 2.782 file, lệch 0 ·
+`kiem:vendor-paths` khớp 438 mục · `npm run build` xanh (26,04s, chunk bảng
+`EdgelessBoard-*.js` 3.819,90 kB / gzip 909,13 kB — không đổi so với mục 24 vì chặng này không đụng
+`vi.json`/`extensions.ts`) · `kiem:dist` đọc 317 file trong `dist/`, biến `--drt-*` dùng 77/định
+nghĩa 642, biến CSS dùng 321/định nghĩa 930, **bản dịch vi.json — 174/174 có mặt**, không còn
+`"affine-"`.
+
+### Việc làm ngay của phiên sau
+
+```bash
+git log --oneline -1                    # kỳ vọng SHA của chính commit HANDOFF này hoặc mới hơn
+git status --short                      # kỳ vọng sạch trừ antibiotics.ts + ba file browser-use
+npm ci && npm run dung:vendor
+```
+
+**Chặng kế tiếp:** 5 khoá còn lại đều đã bị xác nhận ngõ cụt hoặc cần quyết định ngoài phạm vi kỹ
+thuật thuần tuý — không còn khoá "dễ" nào chưa thử:
+- Placeholder Note trống (`NOTE_MENU_ITEMS`, 3 khoá) — chỉ mở lại được nếu đổi cách
+  `vite.vendor-plugin.ts` đọc `exports` của `package.json`, hoặc quay về UI-driven (mở dropdown công
+  cụ "Ghi chú" trên toolbar, đã thấy khả thi ở kiểm tay trực tiếp mục 21/22).
+- "More" (code block toolbar) — khả thi lý thuyết qua `MouseEvent('mouseenter')` tổng hợp +
+  `HoverController`, effort/lợi ích thấp cho đúng 1 chuỗi (xem mục 24 Task A).
+- Create Linked Doc — chỉ mở lại được nếu chủ dự án duyệt bật `EmbedDoc` ViewExtension (ảnh hưởng
+  bundle size, cần hỏi trước như tiền lệ mục 20/22).
+
+Hoặc kiểm tay thật khi có người theo dõi Browser pane cho phần chưa tự động hoá được (17/22 đã có
+test tự động, còn 5/22 + "Equation"/Latex vẫn cần xác nhận bằng mắt nếu muốn đóng hẳn); hoặc chặng
 lớn khác (nội dung dịch cho 10 extension mục 20, v.v — qua `brainstorming` → `writing-plans`).
