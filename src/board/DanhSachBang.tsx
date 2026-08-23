@@ -16,9 +16,14 @@ const XAC_NHAN_XOA_MS = 5000
 // Ngưỡng coi một thẻ là "vừa tạo" (dùng .card-plop thay vì .card-settle êm) — xem §3.2/§3.3 spec.
 const VUA_TAO_NGUONG_MS = 3000
 
-// Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi remove()
-// thật chạy, để animation kịp chạy hết trước khi gỡ khỏi DOM.
+// Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi đánh dấu
+// xoá mềm (daXoaLuc) chạy, để animation kịp chạy hết trước khi thẻ biến mất khỏi lưới.
 const XOA_TRE_MS = 200
+
+// Cửa sổ "Hoàn tác" sau khi xoá mềm một bảng — cùng độ dài với XAC_NHAN_XOA_MS (quy ước sẵn có của
+// đúng màn này cho "khoảng ân hạn"), đủ lâu để đọc tên bảng vừa xoá và quyết định, không quá lâu
+// tới mức dải xác nhận cảm giác bị kẹt trên màn hình.
+const HOAN_TAC_XOA_MS = 5000
 
 // Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
 // Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
@@ -95,7 +100,7 @@ function TheBang({
         ref={nutRef}
         type="button"
         onClick={onMo}
-        className="the-bang-vat the-bang-nghieng-con-tro"
+        className="the-bang-vat the-bang-nghieng-con-tro mind-focus-ring"
         onPointerMove={(e) => {
           if (e.pointerType !== 'mouse') return
           const el = nutRef.current
@@ -116,8 +121,12 @@ function TheBang({
             aspectRatio: '4 / 3',
             borderRadius: 8,
             overflow: 'hidden',
-            background: 'var(--c-surface-soft, #f4f1ea)',
-            color: 'var(--c-text-muted, #b5aa8f)',
+            // --c-surface-soft KHÔNG tồn tại trong index.css (chỉ có --c-surface/--c-surface-alt) —
+            // fallback cũ (#f4f1ea, be ấm) từng ÂM THẦM chạy thật mỗi khi phiên trước không kết thúc
+            // bằng nút "←" (ảnh xem trước chỉ ghi trong cleanup effect của React, xem EdgelessBoard.tsx),
+            // lộ ra giữa nền indigo tối. Đổi sang token thật đang tồn tại.
+            background: 'var(--c-surface-alt, #f6f7fd)',
+            color: 'var(--c-text-muted, #6b6e96)',
           }}
         >
           {bang.anhXemTruoc ? (
@@ -129,7 +138,7 @@ function TheBang({
         {!dangSuaTen && (
           <>
             <p style={{ fontSize: 13, fontWeight: 600, margin: '4px 0 0', lineHeight: 1.2 }}>{bang.ten}</p>
-            <p style={{ fontSize: 11, margin: '1px 0 0', color: 'var(--c-text-muted, #8a8378)' }}>
+            <p style={{ fontSize: 11, margin: '1px 0 0', color: 'var(--c-text-muted, #6b6e96)' }}>
               {formatReadTime(bang.capNhatLuc)}
             </p>
           </>
@@ -157,20 +166,39 @@ function TheBang({
         data-testid={`menu-bang-${bang.id}`}
         onClick={onBatMenu}
         aria-label="Tuỳ chọn bảng"
-        style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', border: 0 }}
+        className="mind-focus-ring"
+        // Vùng chạm 44×44 (chuẩn tối thiểu cho ngón tay, WCAG 2.2 AA + khuyến nghị thực hành) — giữ
+        // cùng gốc top/right:4 như cũ (không đẩy ra ngoài mép thẻ, tránh chồng lên khoảng gap của
+        // lưới) nên box lớn hơn ăn VÀO PHÍA TRONG thẻ; dấu "⋯" tự căn giữa lại bằng flex, dịch nhẹ
+        // vào trong so với vị trí cũ — chấp nhận được, không phóng to một hình tròn nền/viền vốn
+        // không tồn tại (nút này chưa từng có background/border thấy được, chỉ có ba dấu chấm).
+        style={{
+          position: 'absolute',
+          top: 4,
+          right: 4,
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          border: 0,
+          background: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         ⋯
       </button>
 
       {dangMoMenu && (
         <div style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 8, padding: 4, zIndex: 1 }}>
-          <button type="button" data-testid={`doi-ten-${bang.id}`} onClick={onBatSuaTen} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 0, background: 'none' }}>
+          <button type="button" data-testid={`doi-ten-${bang.id}`} onClick={onBatSuaTen} className="mind-focus-ring" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 0, background: 'none' }}>
             Đổi tên
           </button>
           <button
             type="button"
             data-testid={`xoa-${bang.id}`}
             onClick={onXoa}
+            className="mind-focus-ring"
             style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 0, background: 'none', color: dangXacNhanXoa ? 'var(--c-danger, #c0392b)' : undefined }}
           >
             {dangXacNhanXoa ? 'Chắc chắn xoá?' : 'Xoá'}
@@ -194,11 +222,15 @@ export function DanhSachBang({
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
   // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
   // viết — không tự viết state/fetch riêng cho danh sách bảng (xem cảnh báo ở Task 1).
-  const { items: danhSach, loading, add, update, remove } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  const { items: danhSach, loading, add, update } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
-  const [dangXoaId, setDangXoaId] = useState<string | null>(null)
+  // Mang cả OBJECT (không chỉ id) — cần đủ dữ liệu gốc để đánh dấu daXoaLuc rồi đưa thẳng cho dải
+  // "Hoàn tác" mà không phải tra lại danhSach sau khi bang đã bị lọc khỏi danh sách hiển thị.
+  const [dangChoXoa, setDangChoXoa] = useState<BangMeta | null>(null)
+  // Bang vừa xoá mềm xong — điều khiển dải "Hoàn tác". null nghĩa là không có dải nào đang hiện.
+  const [vuaXoa, setVuaXoa] = useState<BangMeta | null>(null)
   const luoBoMount = useRef(Date.now())
 
   useEffect(() => {
@@ -207,15 +239,27 @@ export function DanhSachBang({
     return () => clearTimeout(id)
   }, [dangXacNhanXoaId])
 
+  // Đánh dấu XOÁ MỀM (daXoaLuc) sau khi .card-slide-out chạy xong — KHÔNG gọi idbDelete/remove()
+  // nữa (trước đây xoá vĩnh viễn ngay, không hoàn tác được, ngược với lời hứa "xoá mềm" của
+  // PRODUCT.md). update() vẫn ghi IndexedDB như cũ, chỉ đổi field nào được ghi.
   useEffect(() => {
-    if (!dangXoaId) return
-    const idBiXoa = dangXoaId
+    if (!dangChoXoa) return
+    const bangBiXoa = dangChoXoa
     const id = setTimeout(() => {
-      remove(idBiXoa)
-      setDangXoaId(null)
+      update({ ...bangBiXoa, daXoaLuc: Date.now() })
+      setDangChoXoa(null)
+      setVuaXoa(bangBiXoa)
     }, XOA_TRE_MS)
     return () => clearTimeout(id)
-  }, [dangXoaId, remove])
+  }, [dangChoXoa, update])
+
+  // Tự tắt dải "Hoàn tác" sau HOAN_TAC_XOA_MS — bang vẫn ở lại trạng thái xoá mềm sau khi dải tắt,
+  // chỉ là không còn cách hoàn tác NHANH qua dải này nữa (chưa có màn "thùng rác" để hoàn tác sau).
+  useEffect(() => {
+    if (!vuaXoa) return
+    const id = setTimeout(() => setVuaXoa(null), HOAN_TAC_XOA_MS)
+    return () => clearTimeout(id)
+  }, [vuaXoa])
 
   // Hiệu ứng .board-out chỉ chạy MỘT LẦN khi vừa đóng một bảng (dungTuBang=true) — tự báo xong
   // sau khi animation (0,2s, xem index.css) kết thúc, cộng biên an toàn nhỏ. KHÔNG chạy khi
@@ -231,7 +275,8 @@ export function DanhSachBang({
   // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
   if (loading) return null
 
-  const danhSachSapXep = [...danhSach].sort((a, b) => b.capNhatLuc - a.capNhatLuc)
+  // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
+  const danhSachSapXep = [...danhSach].filter((b) => !b.daXoaLuc).sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   const bayGio = luoBoMount.current
 
   const taoBangMoi = () => {
@@ -242,6 +287,7 @@ export function DanhSachBang({
   }
 
   return (
+    <>
     <div className={`scroll-ios h-full${dungTuBang ? ' board-out' : ''}`}>
       {danhSachSapXep.length === 0 ? (
         <div
@@ -256,24 +302,25 @@ export function DanhSachBang({
             textAlign: 'center',
           }}
         >
-          <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #b5aa8f)' }}>
+          <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #6b6e96)' }}>
             <TheTrong />
           </div>
-          <p style={{ fontSize: 14, color: 'var(--c-text-muted, #8a8378)', margin: 0 }}>
+          <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
             Bắt đầu một sơ đồ tư duy mới
           </p>
           <button
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
+            className="mind-focus-ring"
             style={{
               width: 96,
               height: 72,
-              border: '2px dashed var(--c-line, #d5cdb8)',
+              border: '2px dashed var(--c-line, #d9ddf4)',
               borderRadius: 8,
               background: 'none',
               fontSize: 28,
-              color: 'var(--c-text-muted, #b5aa8f)',
+              color: 'var(--c-text-muted, #6b6e96)',
             }}
             aria-label="Tạo bảng mới"
           >
@@ -281,14 +328,19 @@ export function DanhSachBang({
           </button>
         </div>
       ) : (
-        <div className="danh-sach-bang-nen" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: 16 }}>
+        // minmax(0, 1fr) thay vì '1fr' trần — '1fr' trần để Grid tự suy min-width từ NỘI DUNG khi
+        // thiếu item để lấp đầy hàng (số bảng LẺ: ô "+" rơi cùng hàng với đúng 1 thẻ thật), và cả
+        // thẻ lẫn ô "+" đều dùng aspectRatio (không có width tường minh) nên min-width suy ra bị kéo
+        // lệch giữa hai cột — đo được 118px/217px thay vì chia đều. minmax(0, 1fr) chặn hẳn hành vi
+        // "auto min" đó, luôn chia đều bất kể nội dung.
+        <div className="danh-sach-bang-nen" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, padding: 16 }}>
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}
               bang={bang}
               index={index}
               vuaTao={bayGio - bang.taoLuc < VUA_TAO_NGUONG_MS}
-              dangXoa={dangXoaId === bang.id}
+              dangXoa={dangChoXoa?.id === bang.id}
               dangSuaTen={dangSuaTenId === bang.id}
               dangMoMenu={dangMoMenuId === bang.id}
               dangXacNhanXoa={dangXacNhanXoaId === bang.id}
@@ -310,7 +362,7 @@ export function DanhSachBang({
                 }
                 setDangXacNhanXoaId(null)
                 setDangMoMenuId(null)
-                setDangXoaId(bang.id)
+                setDangChoXoa(bang)
               }}
             />
           ))}
@@ -318,13 +370,14 @@ export function DanhSachBang({
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
+            className="mind-focus-ring"
             style={{
               aspectRatio: '4 / 3',
-              border: '2px dashed var(--c-line, #d5cdb8)',
+              border: '2px dashed var(--c-line, #d9ddf4)',
               borderRadius: 8,
               background: 'none',
               fontSize: 24,
-              color: 'var(--c-text-muted, #b5aa8f)',
+              color: 'var(--c-text-muted, #6b6e96)',
             }}
             aria-label="Tạo bảng mới"
           >
@@ -332,6 +385,33 @@ export function DanhSachBang({
           </button>
         </div>
       )}
-    </div>
+      </div>
+      {vuaXoa && (
+        <div
+          className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40"
+          style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h) + 18px)', background: 'rgba(15,23,42,.94)' }}
+        >
+          <span className="flex-1 text-[12.5px] text-white leading-snug">Đã xoá "{vuaXoa.ten}"</span>
+          <button
+            type="button"
+            onClick={() => {
+              update({ ...vuaXoa, daXoaLuc: undefined })
+              setVuaXoa(null)
+            }}
+            style={{
+              color: 'var(--c-toast-green, #4ade80)',
+              fontWeight: 600,
+              fontSize: 13,
+              background: 'none',
+              border: 0,
+              whiteSpace: 'nowrap',
+              padding: '4px 6px',
+            }}
+          >
+            Hoàn tác
+          </button>
+        </div>
+      )}
+    </>
   )
 }

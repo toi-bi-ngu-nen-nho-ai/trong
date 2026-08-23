@@ -307,7 +307,7 @@ describe('DanhSachBang', () => {
     })
   })
 
-  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → thẻ trượt ra (card-slide-out) rồi mới biến mất khỏi lưới, rồi khỏi metadata', async () => {
+  it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → thẻ trượt ra (card-slide-out) rồi mới biến mất khỏi lưới, rồi được đánh dấu xoá MỀM trong metadata (không bị xoá hẳn)', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
@@ -343,9 +343,58 @@ describe('DanhSachBang', () => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
     }, 3000)
 
+    // Xoá MỀM: bản ghi vẫn còn thật trong IndexedDB (id vẫn có mặt), chỉ được đánh dấu daXoaLuc —
+    // khác hành vi cũ (idbDelete thẳng, xoá vĩnh viễn không hoàn tác được).
     await vi.waitFor(async () => {
-      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-      expect(ds.map((b) => b.id)).not.toContain('bang-1')
+      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+      const bang1 = ds.find((b) => b.id === 'bang-1')
+      expect(bang1).not.toBeUndefined()
+      expect(bang1?.daXoaLuc).toBeTypeOf('number')
+    })
+  })
+
+  it('xoá thẻ rồi bấm "Hoàn tác" trong dải xác nhận → thẻ tái xuất hiện trong lưới, daXoaLuc gỡ bỏ khỏi metadata', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Xoá rồi hoàn tác', taoLuc: bayGio, capNhatLuc: bayGio })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
+    })
+    const nutXoa = () => container.querySelector('[data-testid="xoa-bang-1"]') as HTMLButtonElement
+    await act(async () => { nutXoa().click() })
+    await act(async () => { nutXoa().click() })
+
+    // Thẻ biến mất khỏi lưới (xoá mềm đã chạy) và dải "Hoàn tác" xuất hiện với đúng tên bảng.
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    })
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Đã xoá')
+      expect(container.textContent).toContain('Xoá rồi hoàn tác')
+      expect(container.textContent).toContain('Hoàn tác')
+    })
+
+    const nutHoanTac = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Hoàn tác') as HTMLButtonElement
+    expect(nutHoanTac).not.toBeUndefined()
+    await act(async () => {
+      nutHoanTac.click()
+    })
+
+    // Thẻ tái xuất hiện trong lưới NGAY (state cục bộ, không đợi IndexedDB).
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Xoá rồi hoàn tác')
+
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+      expect(ds.find((b) => b.id === 'bang-1')?.daXoaLuc).toBeUndefined()
     })
   })
 

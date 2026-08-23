@@ -128,13 +128,18 @@ export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
               setDangDong(false)
             }}
             aria-label="Quay lại danh sách bảng"
+            className="mind-focus-ring"
+            // 44×44 (chuẩn tối thiểu cho ngón tay) — cũ 36×36 dưới mức khuyến nghị, xem critique
+            // mục "Vùng chạm dưới chuẩn". Đây là một nút tròn thật (có nền/bóng), khác nút "⋯" của
+            // DanhSachBang.tsx (chỉ ba dấu chấm, không nền) — phóng to cả hình tròn thấy được luôn,
+            // không cần tách vùng chạm khỏi vùng thị giác.
             style={{
               position: 'absolute',
-              top: 8,
-              left: 8,
+              top: 4,
+              left: 4,
               zIndex: 20,
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               borderRadius: '50%',
               border: 0,
               background: 'var(--c-surface, #fff)',

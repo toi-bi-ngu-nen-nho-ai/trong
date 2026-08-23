@@ -798,6 +798,16 @@ html.theme-shift * {
   outline: none;
 }
 
+/* Lưới danh sách bảng (DanhSachBang.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng
+   giá trị đã dùng cho .scr-dose ở trên: input:focus tắt outline mặc định toàn app, không có gì thay
+   thế ở màn này trước đây (không nằm trong 3 nơi DESIGN.md liệt kê có vòng focus riêng). Đặt tên
+   riêng theo chức năng (không neo theo `.scr-dose`, màn khác hẳn) để dùng lại được cho mọi nút rời
+   rạc của cụm Mindmap thay vì gán lại outline-offset âm mỗi nơi. */
+.mind-focus-ring:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
 /* Khối gấp/mở (Disclosure trong Dùng thuốc + PatientPanel): chiều cao co giãn KHÔNG cần đo bằng
    JS — nội dung luôn được render (không unmount khi đóng), chỉ co qua max-height.
    ĐÃ THỬ LẠI grid-template-rows 0fr→1fr (2026-08) sau khi cho rằng lý do cũ (Safari <16.4) đã hết

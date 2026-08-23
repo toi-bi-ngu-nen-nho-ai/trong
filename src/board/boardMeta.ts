@@ -11,6 +11,11 @@ export type BangMeta = {
   taoLuc: number
   capNhatLuc: number
   anhXemTruoc?: string
+  // Xoá MỀM — mốc thời gian đánh dấu "đã xoá", KHÔNG xoá bản ghi khỏi IndexedDB. DanhSachBang.tsx
+  // lọc bỏ mọi bang có trường này khỏi lưới hiển thị; "Hoàn tác" chỉ cần xoá lại trường này (set
+  // undefined) để bang tái xuất hiện, không cần dựng lại object từ đầu. Không có cơ chế dọn vĩnh
+  // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
+  daXoaLuc?: number
 }
 
 export function taoIdBang(): string {
