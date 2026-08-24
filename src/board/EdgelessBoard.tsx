@@ -474,45 +474,58 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
       className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip"
       data-theme={chuDe}
     >
-      {khongLuuDuoc && (
-        // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ cao
-        // một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx cho các
-        // băng cảnh báo lâm sàng khác trong app, để không tạo thêm một ngôn ngữ màu mới.
-        <div
-          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
-          role="status"
-          aria-live="polite"
-          style={{
-            background: 'var(--c-warn-soft)',
-            borderBottom: '1px solid var(--c-warn-line)',
-            color: 'var(--c-warn-icon)',
-          }}
-        >
-          Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
+      {(khongLuuDuoc || loiXuat) && (
+        // MỘT cột dọc chung cho mọi băng cảnh báo ghim đầu bảng, thay vì mỗi băng tự ghim `top-0`
+        // riêng: trước đây cả hai cùng `absolute top-0 inset-x-0 z-10` với kiểu dáng y hệt nhau nên
+        // khi CẢ HAI cùng bật, băng lỗi xuất (render sau) nằm ĐÈ đúng lên băng "không lưu được" —
+        // giấu mất cảnh báo nghiêm trọng hơn hẳn (mất dữ liệu) sau một lỗi phụ có thể thử lại
+        // (review cuối nhánh, mục 3). Xếp chồng bằng flex column nên không phải đoán chiều cao băng
+        // trên bằng một `top` cứng — cỡ chữ/khoảng đệm đổi thì vẫn tự đúng.
+        <div className="absolute top-0 inset-x-0 z-10 flex flex-col">
+          {khongLuuDuoc && (
+            // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ
+            // cao một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx
+            // cho các băng cảnh báo lâm sàng khác trong app, để không tạo thêm ngôn ngữ màu mới.
+            // Đứng TRƯỚC băng lỗi xuất trong cột: cảnh báo mất dữ liệu quan trọng hơn, phải ở vị
+            // trí mắt chạm đầu tiên.
+            <div
+              className="px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
+              role="status"
+              aria-live="polite"
+              style={{
+                background: 'var(--c-warn-soft)',
+                borderBottom: '1px solid var(--c-warn-line)',
+                color: 'var(--c-warn-icon)',
+              }}
+            >
+              Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
+            </div>
+          )}
+          {loiXuat && (
+            // CÙNG mẫu hình ảnh/token với băng cảnh báo `khongLuuDuoc` phía trên (review lượt 1,
+            // phát hiện #3) — không dựng component/toast mới, không thêm thư viện.
+            // `pointer-events-none` bỏ đi ở đây so với băng `khongLuuDuoc`: băng đó chỉ mang chữ,
+            // băng này không có gì bên dưới nó cần bấm xuyên qua (hai nút xuất nằm ở `top: 4` với
+            // `zIndex: 20`, luôn đứng trên cột băng `z-10` này).
+            <div
+              className="px-3 py-1.5 text-[12px] font-semibold text-center"
+              role="status"
+              aria-live="polite"
+              style={{
+                background: 'var(--c-warn-soft)',
+                borderBottom: '1px solid var(--c-warn-line)',
+                color: 'var(--c-warn-icon)',
+              }}
+            >
+              {loiXuat}
+            </div>
+          )}
         </div>
       )}
       {loi && (
         <div className="h-full flex flex-col items-center justify-center gap-1 text-[13px] text-slate-400 text-center px-6">
           <p>Không mở được bảng.</p>
           <p>Hãy tải lại trang để thử lại.</p>
-        </div>
-      )}
-      {loiXuat && (
-        // CÙNG mẫu hình ảnh/token với băng cảnh báo `khongLuuDuoc` phía trên (review lượt 1, phát
-        // hiện #3) — không dựng component/toast mới, không thêm thư viện. `pointer-events-none` bỏ
-        // đi ở đây so với băng `khongLuuDuoc`: băng đó chỉ mang chữ, băng này không có gì bên dưới nó
-        // cần bấm xuyên qua (hai nút xuất nằm dưới `top: 4`, băng lỗi này ghim `top: 0`).
-        <div
-          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center"
-          role="status"
-          aria-live="polite"
-          style={{
-            background: 'var(--c-warn-soft)',
-            borderBottom: '1px solid var(--c-warn-line)',
-            color: 'var(--c-warn-icon)',
-          }}
-        >
-          {loiXuat}
         </div>
       )}
       {boSuong && (
