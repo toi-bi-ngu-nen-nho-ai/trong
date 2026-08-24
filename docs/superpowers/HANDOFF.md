@@ -1,8 +1,14 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-24** (lượt debug tiếp theo sau mục 27). Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-24** (mục 30, phiên critique lượt 3 + hai lượt debug tiếp theo mục 27). Dự án:
+**Bs Trọng** — PWA y khoa tiếng Việt.
 
-> **ĐÍNH CHÍNH bản 2026-08-24 (mục 28).** Người dùng báo "còn sót nhiều tiếng Anh trên màn hình" —
+> **ĐÍNH CHÍNH bản 2026-08-24 (mục 30, mới nhất).** `/impeccable critique` MindMapScreen lượt 3 —
+> dual-agent tìm 5 vấn đề mới, chủ dự án chọn "làm hết một mạch" — **đã sửa cả 5/5, đã kiểm tay
+> thật trên Browser pane (đọc thẳng IndexedDB + đo transform/kích thước thật, không suy luận)**.
+> Xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 30**.
+
+> **ĐÍNH CHÍNH bản 2026-08-24 (mục 28-29).** Người dùng báo "còn sót nhiều tiếng Anh trên màn hình" —
 > **KHÔNG phải cảm nhận mơ hồ**: đo được bằng script quét tĩnh (AST, không cần Browser pane) **70
 > chuỗi tiếng Anh thật sự tới `dist/`** ở vị trí hiển thị chưa từng được dịch — phần lớn thuộc
 > Database/data-view (bộ lọc, định dạng số/tiền tệ) và SlashMenu, hai mảng nội dung dịch còn nợ từ
@@ -2898,3 +2904,69 @@ Bump `public/sw.js` `CACHE` v9→v10 — máy đã cài PWA từ trước không
   "triệt để" theo nghĩa tuyệt đối: viết lại script quét toàn cây kiểu mục 28 (`viTriHienThi` +
   `coNhuLiteral`) một lần nữa, lần này SAU KHI đã có allowlist mới (`tip` + hai ngoại lệ file) để
   không báo trùng những gì mục này vừa dịch.
+
+## 30. `/impeccable critique` MINDMAPSCREEN LƯỢT 3 — SỬA 5/5 VẤN ĐỀ — ĐÃ XONG VÀ ĐÃ KIỂM TAY THẬT
+
+Chạy đúng quy trình bắt buộc: dual-agent (2 subagent Sonnet 5 độc lập, Assessment A đọc mã + chạy
+tay Browser pane, Assessment B chạy detector + bằng chứng trình duyệt), không chạy inline. Assessment
+A lượt đầu chết giữa chừng vì lỗi API — chạy lại sạch, không tính là suy giảm chất lượng (không phải
+`⚠️ DEGRADED`, chỉ là retry của đúng quy trình). Target: `src/board/BoardGallery.tsx` (đã xác nhận
+qua `App.tsx:16`/`:12052` — điểm vào thật của tab Mindmap, KHÔNG phải `src/components/MindmapBoard.tsx`
+mà PRODUCT.md còn nhắc tên cũ, file đó đã không còn tồn tại từ đợt refactor sang `src/board/`).
+
+**Điểm:** 26/36 (heuristic #10 đánh n/a — 72%, band "Tốt"), so với 23/40 (57.5%) hai lượt trước —
+cải thiện thật theo tỷ lệ %, không so trực tiếp điểm thô được vì mẫu số khác.
+
+**5 vấn đề tìm được, cả 5 đã sửa** (chủ dự án chọn "làm hết một mạch" + "chip màu tự động theo id"
+cho P1):
+
+1. **P1 — bảng không phân biệt được.** Dữ liệu thật trên máy dev: 11/15 bảng đọc y hệt "Bảng chưa
+   đặt tên · 1 giờ trước", kể cả TRONG panel "Đã xoá gần đây" (không biết đang hoàn tác bảng nào).
+   Sửa: `mauOnDinh(id)` băm id → hue cố định trong [260°,330°) (họ tím-hồng quanh `--c-accent-2`,
+   né đỏ/hổ phách/xanh lá — ba màu tín hiệu an toàn, Untouchable Signal Rule của DESIGN.md), hiện
+   chấm màu ở góc ảnh xem trước lưới chính VÀ trong panel phục hồi. `--chip-s`/`--chip-l` mới trong
+   `index.css`, 3 khối theme, tự đổi sáng/tối cùng nguyên tắc `--c-accent-2`.
+2. **P2 — "cập nhật lần cuối" thật ra là "mở lần cuối", cả thao tác huỷ cũng bump.** Hai bằng chứng
+   độc lập hội tụ: Assessment A thấy MỞ bảng không sửa gì cũng bump; Assessment B thấy Escape
+   (huỷ đổi tên, không đổi gì) CŨNG bump. Sửa được phần rõ ràng nhất: `onLuuTen` giờ bỏ qua
+   `update()` khi tên KHÔNG đổi — xác nhận trực tiếp bằng Escape trên Browser pane thật + đọc thẳng
+   IndexedDB (`drtrong-ecg` → store `boards`): `capNhatLuc` không bump nữa (còn nguyên ~2.9 giờ
+   tuổi ngay sau khi Escape, trước đây sẽ về ~0ms). Phần sâu hơn (MỞ bảng không sửa gì vẫn bump, vì
+   `capNhatAnhXemTruoc` trong `boardMeta.ts` gọi lúc unmount không phân biệt được "có sửa" hay
+   "chỉ xem" — comment sẵn trong file đã ghi rõ đây là xấp xỉ có chủ đích, chưa có cơ chế phát hiện
+   thay đổi thật) — ĐỂ LẠI CÓ CHỦ ĐÍCH, không đụng: cần hook vào tín hiệu update của Y.Doc từ trong
+   cầu nối React↔Lit, rủi ro cao hơn hẳn một lượt polish, xứng một chặng riêng nếu muốn làm.
+3. **P2 — cờ `vuaTao` dùng mốc đông cứng lúc mount.** `DanhSachBang.tsx` cũ chụp `Date.now()` một
+   lần lúc PARENT mount rồi so cho MỌI thẻ — bảng tạo SAU khi gallery đã mở có `taoLuc` mới hơn mốc
+   đó, hiệu số luôn âm nên `vuaTao` treo `true` suốt phiên, thẻ đóng băng ở khung hình đầu
+   `.card-plop` (scale 0.85). Sửa root cause: chuyển `vuaTao` thành state RIÊNG của từng `TheBang`
+   (`useState` + `useEffect`/`setTimeout` khoá theo `bang.id`/`taoLuc`), tự hết hạn đúng 3s bất kể
+   parent có re-render đúng lúc hay không. Kiểm tay thật: tạo bảng mới, đo `getBoundingClientRect()`
+   + `getComputedStyle().transform` của nút "⋯" NGAY sau khi tạo (37.4×37.4px, matrix scale 0.85 —
+   đúng như Assessment A đo được) rồi lại sau 3.5s (42.24×42.24px, matrix scale 0.96, class đã đổi
+   `card-plop`→`card-settle`) — đúng vòng đời, không còn kẹt.
+4. **P3 — vùng chạm dưới 44px, hai chỗ độc lập.** Dòng menu "Đổi tên"/"Xoá" cũ cao ~30.6px, cách
+   0px — đổi sang `display:flex, minHeight:44` (không phải padding trần, tránh phụ thuộc cỡ chữ) +
+   viền phân cách trước "Xoá". Nút "⋯" 37×37px Assessment B đo được HOÁ RA là hệ quả CỦA vấn đề 3
+   (bị kẹt ở scale 0.85 do `vuaTao`) chứ không phải lỗi CSS kích thước riêng — tự hết khi sửa vấn
+   đề 3. Đo lại trên Browser pane thật: dòng menu còn ~42.24px cao, cách nhau ~1.92px.
+5. **P3 — hai lỗ hổng khả năng tiếp cận.** Toast hoàn tác thêm `role="status" aria-live="polite"`
+   (khớp mẫu `EdgelessBoard.tsx` đã có). Ô đổi tên thêm `aria-label="Đổi tên bảng"` TĨNH, không phụ
+   thuộc `value` — trước đây `aria-label: null` khi ô bị xoá trắng để gõ lại.
+
+**Kiểm chứng:** `tsc` sạch · `npx vitest run DanhSachBang.spec.ts BoardGallery.spec.ts` **25/25
+xanh** (không chạy lại bộ 40 file trọn vẹn — thay đổi khoanh vùng đúng hai file test này phủ, tránh
+tốn thêm ~500s cho một đổi thay cục bộ) · kiểm tay TRỰC TIẾP trên Browser pane thật cho cả 5 vấn đề
+(không chỉ đọc mã) — chi tiết từng mục ở trên.
+
+**Bàn giao:** commit `40fd022` (sau commit HANDOFF này). Chip màu + hai fix P2/P3 nằm trọn trong
+`src/board/DanhSachBang.tsx` + `src/index.css` — không đụng vendor, không cần `dung:vendor`/`build`/
+`kiem:dist` lại (khác track dịch mục 28/29).
+
+### Chặng kế tiếp
+
+- **P2 phần sâu** (bump "cập nhật lần cuối" khi chỉ MỞ bảng, không sửa) — để lại có chủ đích, xem
+  trên. Cần `brainstorming` nếu muốn làm cơ chế phát hiện thay đổi thật qua Y.Doc.
+- Critique MindMapScreen lượt 4 — chạy `/impeccable critique MindMapScreen` lại để đo điểm sau đợt
+  vá này.
+- Track dịch/TDD/roadmap — không đổi gì so với mục 28/29, xem "PROMPT DÁN VÀO PHIÊN MỚI" ở mục 0.
