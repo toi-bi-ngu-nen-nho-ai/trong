@@ -11,18 +11,22 @@
 // view extension, tức là qua `viewExtensions` ngay bên dưới. Vì thế bỏ hẳn dòng import đó thay vì
 // giữ một dòng vô tác dụng kèm chú thích sai. Đường đăng ký thật được canh bằng
 // `__tests__/dang-ky-custom-element.spec.ts`.
-import type { SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
+import { ExportManager, type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
+import type { RootBlockModel } from '@blocksuite/affine/model'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
+import { Text } from '@blocksuite/store'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
+import { IDB_STORES, idbGetAll } from '../lib/idb'
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { apDungViewportChoIOS } from './viewport-ios'
+import type { BangMeta } from './boardMeta'
 import { capNhatAnhXemTruoc } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
@@ -77,6 +81,40 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
     idTimer = setTimeout(() => giai('het-gio'), hanGioMs)
   })
   return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
+}
+
+// Xuất bảng ra PNG/PDF qua ExportManager — lớp đã vendored sẵn, đăng ký qua SurfaceViewExtension
+// (di.add(ExportManager, [StdIdentifier]), xem export-manager.ts trong cây vendor), truy xuất bằng
+// std.get(ExportManager). exportPng()/exportPdf() không nhận đối số — cả hai tự đọc tên file từ
+// store.root.props.title (getter `doc` của ExportManager trả thẳng `std.store`, tức CÙNG store đã
+// truyền cho BlockStdScope ở effect mount bên dưới, nên đặt title lên `store` ở đây là đủ, không
+// cần đi qua std). Đặt lại title thay vì để nguyên: tiêu đề mặc định của workspace (nếu có) không
+// chắc khớp TÊN bảng người dùng thấy trên DanhSachBang.tsx — tên hiển thị chỉ có trong CSDL boards
+// (BangMeta.ten, src/lib/idb.ts), không nằm trong chính nội dung CRDT của bảng.
+// Module-level (không nằm trong EdgelessBoard()) vì không phụ thuộc gì ngoài các tham số truyền
+// vào — không có lý do phải dựng lại hàm này ở mỗi lượt render.
+async function xuatBang(
+  std: BlockStdScope,
+  store: Awaited<ReturnType<typeof taoHoacMoBang>>['store'],
+  boardId: string,
+  dinhDang: 'png' | 'pdf',
+) {
+  try {
+    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const bang = ds.find((b) => b.id === boardId)
+    if (store.root) {
+      // `store.root` chỉ mang kiểu `BlockModel` chung — `props.title` là trường RIÊNG của
+      // `affine:page` (RootBlockModel), TypeScript không suy được nếu không ép kiểu. ExportManager
+      // vendored làm đúng phép ép này ở export-manager.ts (`rootModel as RootBlockModel`) trước khi
+      // đọc `props.title` để đặt tên file — theo cùng khuôn ở đây.
+      ;(store.root as RootBlockModel).props.title = new Text(bang?.ten ?? 'Bảng chưa đặt tên')
+    }
+    const exportManager = std.get(ExportManager)
+    if (dinhDang === 'png') await exportManager.exportPng()
+    else await exportManager.exportPdf()
+  } catch (loi) {
+    console.error('xuatBang: xuất bảng thất bại:', loi)
+  }
 }
 
 /**
@@ -221,6 +259,13 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
   // true khi taoHoacMoBang() phải rơi về workspace chỉ-trong-bộ-nhớ (lượt race đồng bộ đầu tiên hết
   // giờ) — quyết định của chủ dự án sau lượt review toàn nhánh: hiện băng cảnh báo thay vì im lặng.
   const [khongLuuDuoc, setKhongLuuDuoc] = useState(false)
+  // Giữ cả `store`/`std` sống sau khi mount xong — cần cho nút "Xuất" (Task 4) gọi ExportManager,
+  // thứ chỉ component này có tay cầm tới (BoardGallery.tsx chỉ biết boardId). null trong lúc đang mở
+  // bảng hoặc lúc lỗi — nút xuất chỉ hiện khi bảng đã mở xong.
+  const [boSuong, setBoSuong] = useState<{
+    store: Awaited<ReturnType<typeof taoHoacMoBang>>['store']
+    std: BlockStdScope
+  } | null>(null)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -260,6 +305,7 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
         litRender(std.render(), el)
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
+        setBoSuong({ store, std })
 
         // Khối (note, ảnh, đính kèm...) đi qua store.slots.blockUpdated; phần tử canvas thuần
         // (connector, brush, shape, mindmap node...) KHÔNG phải khối — sống trong Y.Map riêng của
@@ -375,6 +421,33 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
         <div className="h-full flex flex-col items-center justify-center gap-1 text-[13px] text-slate-400 text-center px-6">
           <p>Không mở được bảng.</p>
           <p>Hãy tải lại trang để thử lại.</p>
+        </div>
+      )}
+      {boSuong && (
+        // Chỉ hiện khi `boSuong` đã có (bảng mở xong, `store`/`std` đã sống) — bấm xuất lúc còn
+        // "Đang mở bảng…" hay lúc lỗi thì không có gì để xuất. `zIndex: 20` đứng trên băng cảnh báo
+        // "không lưu" (`z-10` ở trên) để hai nút này luôn bấm được kể cả khi băng đó đang hiện.
+        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 20, display: 'flex', gap: 6 }}>
+          <button
+            type="button"
+            data-testid="xuat-png"
+            aria-label="Xuất bảng thành PNG"
+            onClick={() => xuatBang(boSuong.std, boSuong.store, boardId, 'png')}
+            className="mind-focus-ring"
+            style={{ width: 40, height: 40, borderRadius: '50%', border: 0, background: 'var(--c-surface, #fff)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', fontSize: 10, fontWeight: 700 }}
+          >
+            PNG
+          </button>
+          <button
+            type="button"
+            data-testid="xuat-pdf"
+            aria-label="Xuất bảng thành PDF"
+            onClick={() => xuatBang(boSuong.std, boSuong.store, boardId, 'pdf')}
+            className="mind-focus-ring"
+            style={{ width: 40, height: 40, borderRadius: '50%', border: 0, background: 'var(--c-surface, #fff)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', fontSize: 10, fontWeight: 700 }}
+          >
+            PDF
+          </button>
         </div>
       )}
       {dangMo && !loi && (

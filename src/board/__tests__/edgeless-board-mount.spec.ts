@@ -12,6 +12,7 @@
 // vendored) — cùng một môi trường thượng nguồn đã kiểm chứng cho chính đống mã Lit này.
 import 'fake-indexeddb/auto'
 
+import { ExportManager } from '@blocksuite/affine/blocks/surface'
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -310,5 +311,74 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
     expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true)
     spy.mockRestore()
+  })
+
+  it('bấm nút "Xuất PNG" gọi ExportManager.exportPng() đúng một lần', async () => {
+    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPng').mockResolvedValue(undefined)
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
+      })
+      // Đợi `editor-host` TRƯỚC, tách riêng khỏi lượt đợi nút xuất bên dưới — không phải để rộng
+      // thời gian mà để đúng NHỊP FLUSH của act(). `editor-host` là DOM do Lit ghi trực tiếp
+      // (litRender() đồng bộ, xong ngay khi taoHoacMoBang() resolve), còn nút xuất là DOM do CHÍNH
+      // React vẽ ra từ state `boSuong` — cùng đặt trong MỘT act()/vi.waitFor duy nhất, đã đo được
+      // (điều tra bằng ca kiểm nháp lặp lại nhiều lần) là act() không chắc flush hết lượt cập nhật
+      // `boSuong` trước khi vi.waitFor bên trong nó hết hạn, dù đợi tới 15000ms — nút KHÔNG BAO GIỜ
+      // xuất hiện trong nhánh đó bất kể chờ bao lâu, tức đây là lỗi NHỊP FLUSH chứ không phải chậm.
+      // Tách thành hai act()/vi.waitFor liên tiếp: lượt đầu (đợi editor-host, mốc đồng bộ tức thời)
+      // buộc act() flush xong đợt cập nhật state đó trước khi vào lượt hai — nút xuất luôn có mặt
+      // gần như ngay khi lượt hai bắt đầu poll.
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(document.querySelector('editor-host')).not.toBeNull()
+        })
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+        })
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+      })
+
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(1)
+      })
+    } finally {
+      goiExport.mockRestore()
+    }
+  })
+
+  it('bấm nút "Xuất PDF" gọi ExportManager.exportPdf() đúng một lần', async () => {
+    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPdf').mockResolvedValue(undefined)
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
+      })
+      // Cùng lý do tách lượt đợi editor-host riêng như ca "Xuất PNG" ở trên — xem chú thích ở đó.
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(document.querySelector('editor-host')).not.toBeNull()
+        })
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(container.querySelector('[data-testid="xuat-pdf"]')).not.toBeNull()
+        })
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-pdf"]') as HTMLButtonElement).click()
+      })
+
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(1)
+      })
+    } finally {
+      goiExport.mockRestore()
+    }
   })
 })
