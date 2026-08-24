@@ -4,7 +4,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, taoIdBang, trichVanBanTuCanvas, trichVanBanTuKhoi } from '../boardMeta'
+import type { BangMeta } from '../boardMeta'
+import {
+  bangKhopTimKiem,
+  capNhatAnhXemTruoc,
+  ghepNoiDungTimKiem,
+  taoIdBang,
+  trichVanBanTuCanvas,
+  trichVanBanTuKhoi,
+} from '../boardMeta'
 
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
@@ -154,5 +162,36 @@ describe('ghepNoiDungTimKiem', () => {
 
   it('cả hai rỗng → chuỗi rỗng', () => {
     expect(ghepNoiDungTimKiem('', '')).toBe('')
+  })
+})
+
+describe('bangKhopTimKiem', () => {
+  const bangMau: BangMeta = {
+    id: 'x', ten: 'Suy tim EF giảm', taoLuc: 0, capNhatLuc: 0,
+    chuyenKhoa: 'cardiology', tags: ['nội trú', 'cấp cứu'], noiDungTimKiem: 'furosemide 40mg TM',
+  }
+
+  it('khớp theo tên, không phân biệt dấu/hoa-thường', () => {
+    expect(bangKhopTimKiem(bangMau, 'suy tim')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'SUY TIM')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'suy tim khong dau')).toBe(false)
+  })
+
+  it('khớp theo tag', () => {
+    expect(bangKhopTimKiem(bangMau, 'cấp cứu')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'cap cuu')).toBe(true)
+  })
+
+  it('khớp theo noiDungTimKiem', () => {
+    expect(bangKhopTimKiem(bangMau, 'furosemide')).toBe(true)
+  })
+
+  it('truy vấn rỗng → luôn khớp (không lọc)', () => {
+    expect(bangKhopTimKiem(bangMau, '')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, '   ')).toBe(true)
+  })
+
+  it('không khớp bất kỳ trường nào → false', () => {
+    expect(bangKhopTimKiem(bangMau, 'tiêu hoá')).toBe(false)
   })
 })

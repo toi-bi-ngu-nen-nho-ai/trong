@@ -5,6 +5,7 @@
 // DanhSachBang (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
+import { normalizeSearch } from '../lib/ui'
 
 export type BangMeta = {
   id: string
@@ -127,4 +128,18 @@ const DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM = 5000
 // tìm kiếm này).
 export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): string {
   return `${vanBanKhoi} ${vanBanCanvas}`.trim().slice(0, DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM)
+}
+
+// So khớp một bảng với một truy vấn tìm kiếm tự do — không phân biệt dấu/hoa-thường (qua
+// normalizeSearch, src/lib/ui.ts). Gộp CẢ BỐN trường (tên, chuyên khoa, tags, nội dung trích từ
+// khối/canvas) thành một chuỗi rồi tìm truy vấn như chuỗi con — đủ dùng cho ô tìm kiếm một dòng ở
+// Task 8, không cần xếp hạng độ liên quan. Truy vấn rỗng/toàn khoảng trắng → luôn khớp (trạng thái
+// "chưa lọc").
+export function bangKhopTimKiem(bang: BangMeta, truyVan: string): boolean {
+  const q = normalizeSearch(truyVan)
+  if (!q) return true
+  const doanKhop = [bang.ten, bang.chuyenKhoa, ...(bang.tags ?? []), bang.noiDungTimKiem ?? '']
+    .map(normalizeSearch)
+    .join(' ')
+  return doanKhop.includes(q)
 }
