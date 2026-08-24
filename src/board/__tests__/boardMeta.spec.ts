@@ -192,6 +192,25 @@ describe('bangKhopTimKiem', () => {
   })
 
   it('không khớp bất kỳ trường nào → false', () => {
+    // 'tiêu hoá' là TÊN của khoa gastrointestinal, còn bangMau thuộc cardiology ('Tim mạch') — nên
+    // kể cả khi tên chuyên khoa đã được đưa vào chuỗi so khớp, truy vấn này vẫn phải trượt.
     expect(bangKhopTimKiem(bangMau, 'tiêu hoá')).toBe(false)
+  })
+
+  it('khớp theo TÊN chuyên khoa người dùng thấy, không phải id nội bộ', () => {
+    // Chip lọc ở DanhSachBang.tsx hiện `kh.name` ("Tim mạch"), bác sĩ gõ đúng chữ đó — nếu chỉ so
+    // khớp `bang.chuyenKhoa` (id 'cardiology') thì truy vấn này trượt.
+    expect(bangKhopTimKiem(bangMau, 'Tim mạch')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'tim mach')).toBe(true)
+  })
+
+  it('bảng CŨ thiếu hẳn chuyenKhoa → không ném lỗi, vẫn khớp theo tên', () => {
+    // Bản ghi tạo TRƯỚC lượt thêm ba trường mới — ép kiểu vì TS chặn thiếu trường bắt buộc.
+    // normalizeSearch(undefined) sẽ ném TypeError nếu chỗ đọc chuyenKhoa không có giá trị dự phòng.
+    const bangCu = { id: 'cu', ten: 'Bảng cũ', taoLuc: 0, capNhatLuc: 0 } as unknown as BangMeta
+    expect(() => bangKhopTimKiem(bangCu, 'bảng')).not.toThrow()
+    expect(bangKhopTimKiem(bangCu, 'bảng cũ')).toBe(true)
+    expect(bangKhopTimKiem(bangCu, 'suy tim')).toBe(false)
+    expect(bangKhopTimKiem(bangCu, '')).toBe(true)
   })
 })

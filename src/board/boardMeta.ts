@@ -135,10 +135,23 @@ export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): st
 // khối/canvas) thành một chuỗi rồi tìm truy vấn như chuỗi con — đủ dùng cho ô tìm kiếm một dòng ở
 // Task 8, không cần xếp hạng độ liên quan. Truy vấn rỗng/toàn khoảng trắng → luôn khớp (trạng thái
 // "chưa lọc").
+// Chuyên khoa được đưa vào chuỗi so khớp bằng TÊN HIỂN THỊ ("Tim mạch"), không phải id nội bộ
+// ('cardiology'): chip lọc ở DanhSachBang.tsx hiện `kh.name`, nên đó mới là chữ bác sĩ gõ vào ô tìm
+// kiếm. Id vẫn giữ lại trong chuỗi cho ai gõ đúng khoá kỹ thuật — vô hại.
+// `bang.chuyenKhoa` PHẢI có giá trị dự phòng: bảng cũ thiếu hẳn trường này ở runtime (xem chú thích
+// ba trường mới ở đầu file) và normalizeSearch(undefined) sẽ ném lỗi, làm sập cả lượt lọc danh sách.
 export function bangKhopTimKiem(bang: BangMeta, truyVan: string): boolean {
   const q = normalizeSearch(truyVan)
   if (!q) return true
-  const doanKhop = [bang.ten, bang.chuyenKhoa, ...(bang.tags ?? []), bang.noiDungTimKiem ?? '']
+  const idChuyenKhoa = bang.chuyenKhoa ?? SPECIALTIES[0].id
+  const tenChuyenKhoa = SPECIALTIES.find((kh) => kh.id === idChuyenKhoa)?.name ?? ''
+  const doanKhop = [
+    bang.ten,
+    idChuyenKhoa,
+    tenChuyenKhoa,
+    ...(bang.tags ?? []),
+    bang.noiDungTimKiem ?? '',
+  ]
     .map(normalizeSearch)
     .join(' ')
   return doanKhop.includes(q)
