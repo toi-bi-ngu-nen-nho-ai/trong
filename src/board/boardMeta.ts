@@ -3,6 +3,7 @@
 // useIdbCollection<BangMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
 // ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
 // DanhSachBang (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
+import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 
 export type BangMeta = {
@@ -16,6 +17,15 @@ export type BangMeta = {
   // undefined) để bang tái xuất hiện, không cần dựng lại object từ đầu. Không có cơ chế dọn vĩnh
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
+  // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), DanhSachBang.tsx). Bảng cũ
+  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatAnhXemTruoc() bên dưới
+  // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
+  // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
+  // ĐỌC ba trường này trước khi bảng đó từng được mở lại (chip lọc, tìm kiếm) phải tự
+  // `?? SPECIALTIES[0].id`/`?? []`/`?? ''` — xem Task 2/3/7.
+  chuyenKhoa: string
+  tags: string[]
+  noiDungTimKiem: string
 }
 
 export function taoIdBang(): string {
@@ -43,6 +53,7 @@ export function capNhatAnhXemTruoc(
   id: string,
   anhXemTruoc: string,
   coThayDoiNoiDung: boolean,
+  noiDungTimKiemMoi?: string,
 ): Promise<void> {
   const p = (async () => {
     const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
@@ -52,6 +63,9 @@ export function capNhatAnhXemTruoc(
       ...hienCo,
       anhXemTruoc,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
+      chuyenKhoa: hienCo.chuyenKhoa ?? SPECIALTIES[0].id,
+      tags: hienCo.tags ?? [],
+      noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? '',
     })
   })()
   ghiAnhDangCho = p

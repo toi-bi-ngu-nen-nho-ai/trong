@@ -3,6 +3,7 @@
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
 import { useEffect, useRef, useState } from 'react'
 
+import { SPECIALTIES } from '../data'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
@@ -389,7 +390,15 @@ export function DanhSachBang({
 
   const taoBangMoi = () => {
     const luc = Date.now()
-    const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: luc, capNhatLuc: luc }
+    const meta: BangMeta = {
+      id: taoIdBang(),
+      ten: 'Bảng chưa đặt tên',
+      taoLuc: luc,
+      capNhatLuc: luc,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    }
     add(meta)
     // Trước đây mở thẳng vào canvas (onMoBang) — ba bảng tạo liên tiếp đều dừng lại ở tên mặc định
     // "Bảng chưa đặt tên" và ảnh xem trước GIỐNG HỆT NHAU byte-cho-byte (canvas trống chụp y hệt),

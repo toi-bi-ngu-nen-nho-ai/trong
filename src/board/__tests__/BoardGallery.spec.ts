@@ -5,6 +5,7 @@ import { act, createElement, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { capNhatAnhXemTruoc, type BangMeta } from '../boardMeta'
 import { BoardGallery } from '../BoardGallery'
@@ -13,7 +14,15 @@ import { BoardGallery } from '../BoardGallery'
 // (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở DanhSachBang.spec.ts).
 function taoBangGia(ten: string): BangMeta {
   const bayGio = Date.now()
-  const meta: BangMeta = { id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`, ten, taoLuc: bayGio, capNhatLuc: bayGio }
+  const meta: BangMeta = {
+    id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`,
+    ten,
+    taoLuc: bayGio,
+    capNhatLuc: bayGio,
+    chuyenKhoa: SPECIALTIES[0].id,
+    tags: [],
+    noiDungTimKiem: '',
+  }
   return meta
 }
 
