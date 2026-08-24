@@ -436,6 +436,57 @@ describe('DanhSachBang', () => {
     })
   })
 
+  // "Hoàn tác" là đường phục hồi CUỐI CÙNG — nó phải chịu đúng lớp lỗi mà taoBangMoi/onDoiChuyenKhoa/
+  // onLuuTen/onXoaTag đã vá: bảng được khôi phục thật trong IndexedDB nhưng KHÔNG khớp chip lọc đang
+  // bật nên vô hình trong lưới, người dùng thấy "Hoàn tác" như không làm gì cả (review cuối nhánh,
+  // mục 2 — call site dải toast).
+  it('bấm chip lọc khoa KHÁC rồi bấm "Hoàn tác" ở dải toast → bảng khôi phục hiện lại, chip lọc tự về "Tất cả"', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Bảng hô hấp', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-a"]') as HTMLButtonElement).click()
+    })
+    const nutXoa = () => container.querySelector('[data-testid="xoa-a"]') as HTMLButtonElement
+    await act(async () => { nutXoa().click() })
+    await act(async () => { nutXoa().click() })
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Đã xoá')
+    })
+
+    // Bật chip lọc chuyên khoa KHÁC chuyên khoa của bảng vừa xoá — dải toast vẫn còn.
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+    })
+
+    const nutHoanTac = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Hoàn tác') as HTMLButtonElement
+    expect(nutHoanTac).not.toBeUndefined()
+    await act(async () => {
+      nutHoanTac.click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Bảng tim mạch')
+    })
+    expect(
+      (container.querySelector('[data-testid="chip-chuyen-khoa-tat-ca"]') as HTMLButtonElement).getAttribute('aria-pressed'),
+    ).toBe('true')
+  })
+
   it('KHÔNG có bảng nào bị xoá mềm → không hiện nút "Đã xoá gần đây"', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Bảng còn sống', taoLuc: bayGio, capNhatLuc: bayGio })
@@ -673,6 +724,72 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
 
     const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'b1')?.chuyenKhoa).toBe('pulmonology')
+  })
+
+  // Panel sửa (dangSuaTag) và menu "⋯" (dangMoMenu) cùng ghim `top:30 right:4` với cùng zIndex —
+  // panel render SAU trong DOM nên luôn vẽ ĐÈ lên menu. Nếu mở menu không xoá dangSuaTagId thì mục
+  // "Chuyên khoa/tag" (đường DUY NHẤT đóng panel, vì nó là toggle) nằm bên dưới panel, không bấm
+  // tới được nữa: panel mở ra là kẹt vĩnh viễn cho tới khi thẻ unmount (review cuối nhánh, mục 1).
+  it('panel "Chuyên khoa/tag" đang mở → bấm "⋯" đóng panel, menu hiện lại bấm được', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b5', ten: 'Bảng E', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b5"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b5"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b5"]') as HTMLButtonElement).click()
+    })
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-b5"]')).not.toBeNull()
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b5"]') as HTMLButtonElement).click()
+    })
+
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-b5"]')).toBeNull()
+    expect(container.querySelector('[data-testid="sua-tag-b5"]')).not.toBeNull()
+  })
+
+  // <label> trong panel là nhãn TRẦN (không htmlFor, control không có id) — trình đọc màn hình
+  // không nối được nhãn với ô nào cả, cả select lẫn input đọc ra là "không tên". Cùng mức chăm sóc
+  // a11y mà file này đã áp cho ô tìm ("Tìm kiếm bảng"), nút × ("Xoá tag …"), ô đổi tên ("Đổi tên
+  // bảng") — review cuối nhánh, mục 4.
+  it('select chuyên khoa và ô nhập tag trong panel có nhãn truy cập', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b6', ten: 'Bảng F', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b6"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b6"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b6"]') as HTMLButtonElement).click()
+    })
+
+    expect(
+      (container.querySelector('[data-testid="chon-chuyen-khoa-b6"]') as HTMLSelectElement).getAttribute('aria-label'),
+    ).toBe('Chuyên khoa')
+    expect(
+      (container.querySelector('[data-testid="nhap-tag-b6"]') as HTMLInputElement).getAttribute('aria-label'),
+    ).toBe('Thêm tag')
   })
 
   it('nhập tag rồi Enter → thêm vào danh sách tag, ghi IndexedDB; bấm × → xoá tag', async () => {
@@ -1196,5 +1313,100 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
 
     expect(container.textContent).toContain('Viêm phổi cộng đồng')
     expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
+  })
+
+  // Call site thứ hai của "Hoàn tác" (panel "Đã xoá gần đây") — cùng lỗ hổng với dải toast: bảng
+  // khôi phục xong nhưng không khớp truy vấn đang gõ nên vẫn vô hình, nút trông như bấm hụt (review
+  // cuối nhánh, mục 2).
+  it('đang gõ tìm kiếm → bấm "Hoàn tác" trong panel "Đã xoá gần đây": bảng khôi phục hiện lại, ô tìm tự xoá trắng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Hen phế quản', taoLuc: bayGio - 60_000, capNhatLuc: bayGio - 60_000,
+      daXoaLuc: bayGio - 30_000,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'suy tim')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="mo-da-xoa-gan-day"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="hoan-tac-gan-day-b"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+    expect(container.textContent).toContain('Hen phế quản')
+    expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
+  })
+
+  // Lưới rỗng vì bộ lọc KHÔNG phải lưới rỗng vì chưa có bảng nào: mời "Bắt đầu một sơ đồ tư duy
+  // mới" ở đây vừa sai sự thật (bảng vẫn còn đó, chỉ bị lọc) vừa dẫn người dùng đi tạo bảng thừa
+  // thay vì sửa truy vấn (review cuối nhánh, mục 7).
+  it('lưới rỗng vì truy vấn không khớp → hiện thông báo không tìm thấy, KHÔNG phải lời mời tạo bảng đầu tiên', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await goVaoOTim(container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement, 'khong co gi khop')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    })
+
+    expect(container.textContent).toContain('Không tìm thấy bảng nào khớp')
+    expect(container.textContent).not.toContain('Bắt đầu một sơ đồ tư duy mới')
+  })
+
+  // Cùng nhánh copy, nhưng nguyên nhân là chip lọc chứ không phải ô tìm — cả hai đều phải kích hoạt
+  // thông báo "không khớp", nếu không thì lọc theo một khoa chưa có bảng nào cũng ra lời mời sai.
+  it('lưới rỗng vì chip lọc chuyên khoa → hiện thông báo không tìm thấy', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    })
+
+    expect(container.textContent).toContain('Không tìm thấy bảng nào khớp')
+    expect(container.textContent).not.toContain('Bắt đầu một sơ đồ tư duy mới')
   })
 })
