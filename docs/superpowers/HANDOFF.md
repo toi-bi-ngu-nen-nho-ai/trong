@@ -3068,3 +3068,62 @@ tục nâng chất lượng: chạy `/impeccable critique MindMapScreen` lượt
 > BỘ, không suy luận.** Bài học: một cổng xanh không chứng minh CÁC cổng khác cũng xanh nếu lượt
 > chạy đầy đủ cuối cùng chưa từng chạm tới đích — luôn chạy hết TOÀN BỘ `npm test` (không timeout,
 > không suy luận từ lượt chạy riêng lẻ/file cụ thể) trước khi ghi "kiểm chứng" vào HANDOFF.
+
+## 32. MINDMAP — TÌM KIẾM/CHUYÊN KHOA-TAG/XUẤT FILE (roadmap PRODUCT.md mục 26/31) — 10/10 TASK XONG
+
+Nhánh `worktree-mindmap-tim-kiem-tag-xuat-file` (worktree `.claude/worktrees/mindmap-tim-kiem-tag-xuat-file`),
+gốc `3ed8530`. Kế hoạch `docs/superpowers/plans/2026-08-24-mindmap-tim-kiem-tag-xuat-file.md`, spec
+`docs/superpowers/specs/2026-08-24-mindmap-tim-kiem-tag-xuat-file-design.md`. Chạy qua
+`superpowers:subagent-driven-development` — implementer + reviewer đều dispatch subagent Opus riêng
+cho từng task, ledger đầy đủ ở `.superpowers/sdd/2026-08-24-mindmap-tim-kiem-tag-xuat-file/progress.md`
+(gitignore, chỉ có trong worktree này — bản ghi chi tiết nhất nằm ở đó nếu cần đối chiếu).
+
+**Ba khả năng đã có:** chip lọc + panel sửa chuyên khoa/tag trên mỗi bảng (Task 1-3); ô tìm kiếm nội
+bộ trong BoardGallery theo tên/tag/chuyên khoa/nội dung (Task 5,7,8) VÀ gộp kết quả bảng vào màn tìm
+kiếm toàn app với bấm-mở-đúng-bảng (Task 9-10); nút xuất PNG/PDF gọi thẳng `ExportManager` vendored
+sẵn (Task 4). Nền tảng: `BangMeta` mở rộng 3 trường bắt buộc, backfill lười lúc rời bảng (Task 1);
+trích văn bản thuần từ khối + phần tử canvas lúc unmount, KHÔNG import BlockSuite vào `boardMeta.ts`
+(giữ ranh giới nạp chậm D13) (Task 5-6).
+
+**10/10 task complete, mỗi task có ít nhất 1 lượt review Opus** (task 2,3,4,7,8 cần fix round —
+finding thật, không phải noise; task 1,5,6,9,10 xanh ngay lượt đầu). Review toàn nhánh (opus,
+`3ed8530..9ecfd56`, KHÔNG Critical, 6 Important) + MỘT đợt vá cuối (10 finding, 4 commit) + scoped
+re-review (opus) xác nhận cả 10 ADDRESSED, không breakage Critical/Important.
+
+**Quyết định (ruling) đáng chú ý nhất — lỗ hổng ở PLAN, không phải thi hành:** cơ chế backfill lười
+của Task 1 (đọc runtime, `?? SPECIALTIES[0].id`/`?? []`/`?? ''`) chỉ hợp lý cho `chuyenKhoa`/`tags`
+(giá trị mặc định hằng số) — KHÔNG hợp lý cho `noiDungTimKiem`, trường đó cần TRÍCH XUẤT nội dung
+thật từ doc, không thể default. Hệ quả: **"tìm theo nội dung" KHÔNG có tác dụng với bảng tạo TRƯỚC
+nhánh này**, cho tới khi người dùng tự mở-đóng lại từng bảng một lần (khi đó `EdgelessBoard.tsx`
+cleanup effect mới trích và ghi `noiDungTimKiem` thật). **Quyết định: CHẤP NHẬN làm nợ kỹ thuật đã
+ghi chép, KHÔNG dựng script di trú riêng trong nhánh này** (mẫu `TestWorkspace` mở từng doc cũ mà
+spec §2.7 gốc đề xuất) — lý do: khối lượng công việc MỚI vượt quy mô một đợt vá cuối, ứng dụng
+offline một người dùng số bảng vừa phải, dễ bổ sung sau bằng plan riêng nếu cần "tìm nội dung ngay
+cả bảng cũ chưa mở lại" trở nên quan trọng.
+
+**2 Minor mới do CHÍNH đợt vá cuối gây ra — parked, KHÔNG vá (đúng luật "không có đợt vá thứ hai"):**
+- `src/board/EdgelessBoard.tsx:484` — wrapper cột dọc bọc banner lỗi-xuất + banner-không-lưu-được có
+  `pointer-events: auto` mặc định (banner con vẫn `pointer-events-none`) → một dải ~27px đầu bảng vẽ
+  mất tương tác pan/vẽ khi đang ở chế độ không lưu được. Sửa 1 dòng: thêm `pointer-events-none` vào
+  wrapper.
+- `src/board/DanhSachBang.tsx:495` — `rongDoBoLoc` (copy "không tìm thấy" khi lưới rỗng do lọc) chỉ
+  xét `truyVan`/`chuyenKhoaLoc`, không xét còn bảng sống hay không: gõ tìm rồi xoá mềm ĐÚNG bảng
+  khớp cuối cùng → ô tìm/dải chip tự ẩn nhưng copy vẫn nhắc "thử bỏ bộ lọc" dù không còn bộ lọc nào
+  hiện trên màn hình. Sửa 1 dòng: thêm `&& danhSach.filter(b => !b.daXoaLuc).length > 0`.
+
+**Nợ khác đã cân nhắc và CHẤP NHẬN (không phải quên):** hai dải chip chuyên khoa không khớp nhau —
+lưới Mindmap dùng đủ 11 tên `SPECIALTIES`, tìm kiếm toàn app (`SEARCH_FILTERS`) chỉ suy từ 6 tên của
+`ARTICLES` và LỆCH TÊN ("Cấp cứu" vs "Hồi sức - Cấp cứu") — bảng gắn 1 trong 5 khoa còn lại chỉ hiện
+dưới "Tất cả" ở màn tìm kiếm toàn app; hai ô tìm kiếm xử lý dấu tiếng Việt khác nhau (gallery bỏ dấu
+qua `normalizeSearch`, toàn app phân biệt dấu qua `.toLowerCase()`) — cả hai là vấn đề CÓ TỪ TRƯỚC/
+rộng hơn phạm vi plan này, sửa đòi đổi ngữ nghĩa lọc toàn app, để lại làm theo dõi riêng nếu cần.
+
+**Bảy cổng, HEAD cuối `dfbbc77`, TẤT CẢ XANH:** `tsc --noEmit` exit 0 · `npm test` **352/352, 41
+file** (lượt đầu dính `EBUSY` — Vitest fs-watcher Windows khoá file tạm `.tmp-test-dich-chuoi-*` của
+một test spawn script ra thư mục tạm, chạy lại riêng `npx vitest run --reporter=verbose` sạch —
+CHẬP CHỜN hạ tầng đã biết, không phải hồi quy) · `kiem:vendor` 2782 file lệch 0 · `kiem:vendor-paths`
+438 mục khớp · `build` OK (9.65s) · `kiem:dist` 319 file, xanh, không còn "affine-".
+
+**CÒN LẠI — quyết định gộp nhánh, CHƯA gộp vào `main`.** Đây là quyết định của chủ dự án
+(`superpowers:finishing-a-development-branch`), không tự động — nhánh chưa push, chưa mở PR.
+Worktree còn nguyên trên đĩa: `.claude/worktrees/mindmap-tim-kiem-tag-xuat-file`.
