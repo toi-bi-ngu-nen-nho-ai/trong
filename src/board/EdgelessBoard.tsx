@@ -27,7 +27,7 @@ import { IDB_STORES, idbGetAll } from '../lib/idb'
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { apDungViewportChoIOS } from './viewport-ios'
 import type { BangMeta } from './boardMeta'
-import { capNhatAnhXemTruoc } from './boardMeta'
+import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -384,7 +384,44 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
           const ctx = nho.getContext('2d')
           if (ctx) {
             ctx.drawImage(canvasGoc, 0, 0, 480, 360)
-            void capNhatAnhXemTruoc(boardId, nho.toDataURL('image/jpeg', 0.6), coThayDoiNoiDung)
+            // Trích văn bản NGAY TRƯỚC KHI workspaceHienTai.forceStop() chạy (mấy dòng dưới) — store
+            // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Không
+            // dùng `boSuong.store` (state React) — nó có thể null lúc unmount xảy ra sớm hơn lượt
+            // setBoSuong (xem ca kiểm "unmount ngay khi đang chờ đồng bộ"); tự lấy lại store qua
+            // `workspaceHienTai.getDoc(boardId).getStore(...)` là con đường CHẮC CHẮN sống nếu tới
+            // được đây (chỉ chạy khi canvasGoc đã có nội dung, tức taoHoacMoBang đã resolve xong).
+            let noiDungTimKiemMoi: string | undefined
+            try {
+              const rootHienTai = workspaceHienTai
+                ?.getDoc(boardId)
+                ?.getStore({ extensions: storeManager.get('store') }).root
+              if (rootHienTai) {
+                const surfaceHienTai = rootHienTai.children.find(
+                  (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
+                )
+                noiDungTimKiemMoi = ghepNoiDungTimKiem(
+                  trichVanBanTuKhoi(rootHienTai),
+                  // Ép kiểu về hình dạng tối thiểu mà trichVanBanTuCanvas cần (`{ text?: unknown }[]`)
+                  // — elementModels là union các lớp GfxPrimitiveElementModel cụ thể (shape/connector/
+                  // text/mindmap...), không lớp nào khai `text` ở kiểu CHUNG nên TypeScript từ chối
+                  // gán thẳng dù đúng ở runtime cho những lớp có field đó (đã xác nhận qua chính
+                  // element-model/{text,shape,connector}.ts của cây vendored, xem chú thích tại định
+                  // nghĩa trichVanBanTuCanvas trong boardMeta.ts).
+                  surfaceHienTai
+                    ? trichVanBanTuCanvas(surfaceHienTai.elementModels as unknown as Array<{ text?: unknown }>)
+                    : '',
+                )
+              }
+            } catch {
+              // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng
+              // lượt ghi ảnh xem trước hay thao tác quay lại danh sách của người dùng.
+            }
+            void capNhatAnhXemTruoc(
+              boardId,
+              nho.toDataURL('image/jpeg', 0.6),
+              coThayDoiNoiDung,
+              noiDungTimKiemMoi,
+            )
           }
         }
       } catch {

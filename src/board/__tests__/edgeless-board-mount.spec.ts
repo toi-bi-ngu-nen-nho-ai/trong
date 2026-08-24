@@ -13,11 +13,13 @@
 import 'fake-indexeddb/auto'
 
 import { ExportManager } from '@blocksuite/affine/blocks/surface'
+import { Text } from '@blocksuite/store'
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { IDB_STORES, idbGetAll, idbPut } from '../../lib/idb'
 import * as boardMeta from '../boardMeta'
 import { EdgelessBoard } from '../EdgelessBoard'
 
@@ -272,7 +274,8 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi. Không
     // tương tác gì với bảng ở ca này (chỉ mount rồi unmount ngay) nên coThayDoiNoiDung phải là
     // false — xem cơ chế theo dõi blockUpdated/element{Added,Updated,Removed} ở EdgelessBoard.tsx.
-    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String), false)
+    // Tham số thứ 4 (noiDungTimKiemMoi, Task 6) là chuỗi rỗng — bảng không có chữ nào để trích.
+    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String), false, expect.any(String))
     spy.mockRestore()
   })
 
@@ -309,7 +312,9 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.unmount()
     })
 
-    expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true)
+    // Tham số thứ 4 (noiDungTimKiemMoi, Task 6): khối thêm vào là note trống (không paragraph/text),
+    // nên chuỗi trích ra vẫn rỗng — chỉ `coThayDoiNoiDung` mới đổi thành true ở ca này.
+    expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true, expect.any(String))
     spy.mockRestore()
   })
 
@@ -452,5 +457,58 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     } finally {
       goiExport.mockRestore()
     }
+  })
+
+  it('rời bảng có ghi chú thật → noiDungTimKiem trong BangMeta chứa đúng chữ đó', async () => {
+    // Seed một BangMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatAnhXemTruoc()
+    // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem boardMeta.ts, `if (!hienCo) return`).
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-trich-chu', ten: 'Bảng test', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-trich-chu' }))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Thêm một note+paragraph có chữ thật vào store đang mở — CHÍNH API công khai
+    // (store.addBlock) mà mọi thao tác thêm nội dung thật đi qua, cùng mẫu hình các ca kiểm khác
+    // trong file này đã dùng (xem ca "có thêm khối THẬT" phía trên).
+    const eh = document.querySelector('editor-host') as unknown as {
+      std: { store: { root: { id: string } | null; addBlock: (f: string, p?: object, parent?: string) => string } }
+    }
+    await act(async () => {
+      const store = eh.std.store
+      if (store.root) {
+        const noteId = store.addBlock('affine:note', {}, store.root.id)
+        store.addBlock('affine:paragraph', { text: new Text('Ghi chú suy tim EF giảm') }, noteId)
+      }
+    })
+
+    // Canvas cần kích thước khác 0 để nhánh "có dữ liệu để chụp" (bao gồm cả trích văn bản, đặt
+    // NGAY TRƯỚC lượt gọi capNhatAnhXemTruoc) chạy trong happy-dom — cùng kỹ thuật các ca kiểm
+    // capNhatAnhXemTruoc khác trong file này đã dùng.
+    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
+    if (canvasThat) {
+      canvasThat.width = 800
+      canvasThat.height = 600
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+      expect(ds.find((b) => b.id === 'bang-trich-chu')?.noiDungTimKiem).toContain(
+        'Ghi chú suy tim EF giảm',
+      )
+    })
   })
 })
