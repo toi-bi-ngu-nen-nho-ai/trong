@@ -381,4 +381,76 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       goiExport.mockRestore()
     }
   })
+
+  it('bấm "Xuất PNG" hai lần liên tiếp → chỉ gán lại title CRDT đúng MỘT lần, không vô điều kiện', async () => {
+    // Review lượt 1 (task-4-report.md, phát hiện #2): xuatBang() cũ gán lại
+    // `store.root.props.title = new Text(...)` VÔ ĐIỀU KIỆN mỗi lần xuất — một phép GÁN LẠI prop
+    // khối thật, đi qua yBlock.observe() (sync-controller.ts `_observeYBlockChanges`) và bắn
+    // `blockUpdated` với `isLocal: true`, đúng cờ mà effect mount trong EdgelessBoard() lắng nghe để
+    // tính `coThayDoiNoiDung` (quyết định `capNhatLuc` có bump khi rời bảng hay không). Hệ quả: chỉ
+    // MỞ bảng ra xuất file (không sửa gì) cũng khiến bảng nhảy lên đầu danh sách với nhãn "Vừa xong"
+    // — đúng loại lỗi mà commit ddcf250 đã vá cho một trường hợp khác (mở xem không sửa).
+    //
+    // Ca này canh TRỰC TIẾP số lần `store.slots.blockUpdated` bắn cho prop "title" qua HAI lượt bấm
+    // "Xuất PNG" liên tiếp trên CÙNG một phiên mở bảng — không đi vòng qua một workspace/docSource
+    // thứ hai để "seed sẵn" title khớp trước: đã thử cách đó (chỉnh Y.Text tại chỗ bằng `.insert()`)
+    // và phát hiện NGAY CẢ chỉnh tại chỗ cũng bắn `blockUpdated` (browser thật đã xác nhận qua log
+    // debug: `{"type":"update","flavour":"affine:page","props":{"key":"title"}}`) — tiền đề "chỉ gán
+    // lại mới bắn, sửa tại chỗ thì không" trong chú thích gốc của xuatBang() SAI với build cụ thể
+    // này, nên phép thử ép hai workspace đồng bộ qua fake-indexeddb chỉ thêm một biến rủi ro thời
+    // điểm (timing) không cần thiết. Đếm sự kiện qua hai lượt bấm thật đo ĐÚNG hành vi cần kiểm: lượt
+    // 1 (title CRDT rỗng, khác 'Bảng chưa đặt tên') hợp lệ bắn đúng 1 lần; lượt 2 (title đã khớp từ
+    // lượt 1) phải KHÔNG bắn thêm — `soLanDoiTitle` phải dừng ở 1 sau cả hai lượt.
+    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPng').mockResolvedValue(undefined)
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard, { boardId: 'bang-xuat-hai-lan' }))
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(document.querySelector('editor-host')).not.toBeNull()
+        })
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+        })
+      })
+
+      const eh = document.querySelector('editor-host') as unknown as {
+        std: {
+          store: {
+            slots: {
+              blockUpdated: {
+                subscribe: (fn: (p: { props?: { key?: string } }) => void) => { unsubscribe: () => void }
+              }
+            }
+          }
+        }
+      }
+      let soLanDoiTitle = 0
+      const dk = eh.std.store.slots.blockUpdated.subscribe((p) => {
+        if (p.props?.key === 'title') soLanDoiTitle += 1
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(1)
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(2)
+      })
+
+      dk.unsubscribe()
+      expect(soLanDoiTitle).toBe(1)
+    } finally {
+      goiExport.mockRestore()
+    }
+  })
 })
