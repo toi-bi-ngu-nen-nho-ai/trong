@@ -14,6 +14,9 @@ import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // tách chunk mà vỏ nạp chậm tồn tại để giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem
 // comment trong board/index.tsx và board/BoardGallery.tsx).
 import { BoardGallery } from "./board/BoardGallery"
+// CHỈ import KIỂU từ boardMeta.ts — và bản thân boardMeta.ts KHÔNG import gì từ @blocksuite/* (D13),
+// nên dòng này không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ.
+import type { BangMeta } from "./board/boardMeta"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -1348,15 +1351,21 @@ const SEARCH_FILTERS = ["Tất cả", ...Array.from(new Set(ARTICLES.map((a) => 
 // (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô tìm kiếm chính. Gộp vào
 // đây thì tìm một lần là ra hết, không phải đoán.
 interface SearchResult {
-  kind: "article" | "customArticle" | "ecg" | "flashcard"
+  kind: "article" | "customArticle" | "ecg" | "flashcard" | "board"
   id: string
   title: string
   subtitle: string
   specialty?: string
   tags: string[]
+  // CHỈ "board" set trường này — nội dung trích từ bảng (chữ trong khối/canvas, xem
+  // ghepNoiDungTimKiem ở board/boardMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG hiển thị trực tiếp
+  // (subtitle đã đủ cho hiển thị: "Mindmap").
+  noiDung?: string
 }
 
-function SearchScreen({
+// Export để test dựng riêng màn này (src/__tests__/SearchScreen.spec.ts) mà không phải dựng cả App —
+// App() vẫn dùng y hệt như trước, không đổi hành vi.
+export function SearchScreen({
   onNavigate,
   onBack,
   customArticles,
@@ -1371,6 +1380,9 @@ function SearchScreen({
 }) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("Tất cả")
+  // boardMeta.ts KHÔNG import BlockSuite (D13) — đọc ở đây chỉ chạm object store nhẹ của IndexedDB,
+  // không kéo theo chunk 994 kB của bảng vẽ.
+  const { items: boards } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1385,8 +1397,27 @@ function SearchScreen({
       // khoa, chỉ hiện khi đang ở "Tất cả" (xem điều kiện activeFilter bên dưới).
       ...ecgLessons.map((l): SearchResult => ({ kind: "ecg", id: l.id, title: l.title, subtitle: l.summary ?? "", tags: l.tags })),
       ...customFlashcards.map((c): SearchResult => ({ kind: "flashcard", id: c.id, title: c.front, subtitle: c.back, specialty: c.specialty, tags: [] })),
+      // Bảng xoá MỀM (daXoaLuc) đã biến khỏi lưới Mindmap — phải biến khỏi cả ô tìm kiếm chính,
+      // nếu không bấm vào kết quả sẽ mở một bảng người dùng tưởng đã xoá.
+      ...boards
+        .filter((b) => !b.daXoaLuc)
+        .map((b): SearchResult => ({
+          kind: "board",
+          id: b.id,
+          title: b.ten,
+          subtitle: "Mindmap",
+          // KHÔNG dự phòng `?? SPECIALTIES[0].id` như bangKhopTimKiem (boardMeta.ts): ở đó chuỗi
+          // khớp bắt buộc phải là string nên phải có giá trị thay thế, còn ở đây `specialty` là
+          // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Bảng
+          // cũ thiếu `chuyenKhoa` ở runtime → .find() trả undefined → `?.name` cho undefined, an
+          // toàn và trung thực (không gán bừa "Tim mạch" cho bảng chưa từng chọn khoa); nó rơi vào
+          // đúng nhánh sẵn có của bài ECG không có khoa — chỉ hiện khi bộ lọc đang ở "Tất cả".
+          specialty: SPECIALTIES.find((s) => s.id === b.chuyenKhoa)?.name,
+          tags: b.tags ?? [],
+          noiDung: b.noiDungTimKiem,
+        })),
     ]
-  }, [customArticles, customFlashcards, ecgLessons])
+  }, [customArticles, customFlashcards, ecgLessons, boards])
 
   const filtered = useMemo(() => {
     if (query.length === 0) return []
@@ -1399,7 +1430,9 @@ function SearchScreen({
       return (
         r.title.toLowerCase().includes(q) ||
         (r.specialty?.toLowerCase().includes(q) ?? false) ||
-        r.tags.some((t) => t.toLowerCase().includes(q))
+        r.tags.some((t) => t.toLowerCase().includes(q)) ||
+        // Chỉ kết quả loại "board" có trường này — bảng khớp cả theo CHỮ BÊN TRONG nó, không chỉ tên.
+        (r.noiDung?.toLowerCase().includes(q) ?? false)
       )
     })
   }, [allResults, query, activeFilter])
@@ -1409,12 +1442,14 @@ function SearchScreen({
     customArticle: "Tự nhập",
     ecg: "ECG",
     flashcard: "Thẻ ghi nhớ",
+    board: "Mindmap",
   }
 
   function openResult(r: SearchResult) {
     if (r.kind === "article") onNavigate("article", r.id)
     else if (r.kind === "customArticle") onNavigate("customEntry", r.id)
     else if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
+    else if (r.kind === "board") onNavigate("mindmap", r.id)
     else onNavigate("specialty", SPECIALTIES.find((s) => s.name === r.specialty)?.id)
   }
 
