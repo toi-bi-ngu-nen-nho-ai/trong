@@ -622,3 +622,158 @@ describe('DanhSachBang', () => {
     expect(container.querySelector('[data-testid^="input-ten-"]')).not.toBeNull()
   })
 })
+
+describe('DanhSachBang — sửa chuyên khoa/tag', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  it('mở menu "⋯" → bấm "Chuyên khoa/tag" → đổi select → ghi ngay vào IndexedDB', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b1', ten: 'Bảng A', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b1"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b1"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b1"]') as HTMLButtonElement).click()
+    })
+
+    const chon = container.querySelector('[data-testid="chon-chuyen-khoa-b1"]') as HTMLSelectElement
+    expect(chon.value).toBe('cardiology')
+
+    await act(async () => {
+      chon.value = 'pulmonology'
+      chon.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'b1')?.chuyenKhoa).toBe('pulmonology')
+  })
+
+  it('nhập tag rồi Enter → thêm vào danh sách tag, ghi IndexedDB; bấm × → xoá tag', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b2', ten: 'Bảng B', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b2"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b2"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b2"]') as HTMLButtonElement).click()
+    })
+
+    const oNhap = container.querySelector('[data-testid="nhap-tag-b2"]') as HTMLInputElement
+    // happy-dom: gán thẳng .value không đi qua setter React đã vá (_valueTracker) — onChange im
+    // lặng không bắn (cùng vướng mắc đã ghi chú ở các ca kiểm "Đổi tên" phía trên). Dùng setter gốc
+    // của HTMLInputElement.prototype để mô phỏng đúng như người dùng gõ thật.
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(oNhap, 'suy tim')
+      else oNhap.value = 'suy tim'
+      oNhap.dispatchEvent(new Event('input', { bubbles: true }))
+      oNhap.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[aria-label="Xoá tag suy tim"]')).not.toBeNull()
+    })
+    let ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'b2')?.tags).toEqual(['suy tim'])
+
+    const nutXoa = container.querySelector('[aria-label="Xoá tag suy tim"]') as HTMLButtonElement
+    await act(async () => {
+      nutXoa.click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[aria-label="Xoá tag suy tim"]')).toBeNull()
+    })
+    ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'b2')?.tags).toEqual([])
+  })
+
+  // Cùng lớp lỗi review Task 2 đã bắt ở taoBangMoi (tạo bảng mới trong khi chip lọc đang chọn một
+  // chuyên khoa KHÁC khiến thẻ vừa tạo biến mất khỏi lưới ngay lập tức) — ở đây là ĐỔI chuyên khoa
+  // của một bảng đang hiển thị dưới chip lọc. Không reset chip lọc thì cả thẻ lẫn panel đang mở sẽ
+  // unmount NGAY khi update() chạy, không một lời giải thích.
+  it('đang lọc theo chuyên khoa A, đổi chuyên khoa của bảng đang xem sang khoa B → panel không biến mất, chip lọc tự về "Tất cả"', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b3', ten: 'Bảng lọc', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector(`[data-testid="chip-chuyen-khoa-${SPECIALTIES[0].id}"]`)).not.toBeNull()
+    })
+
+    // Bật chip lọc đúng chuyên khoa hiện tại của b3 trước — b3 vẫn hiện.
+    await act(async () => {
+      ;(container.querySelector(`[data-testid="chip-chuyen-khoa-${SPECIALTIES[0].id}"]`) as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b3"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b3"]') as HTMLButtonElement).click()
+    })
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-b3"]')).not.toBeNull()
+
+    const chon = container.querySelector('[data-testid="chon-chuyen-khoa-b3"]') as HTMLSelectElement
+    await act(async () => {
+      chon.value = SPECIALTIES[1].id
+      chon.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    // Thẻ KHÔNG biến mất khỏi lưới, panel sửa vẫn còn mở — chip lọc tự trả về "Tất cả".
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-b3"]')).not.toBeNull()
+    expect(
+      (container.querySelector('[data-testid="chip-chuyen-khoa-tat-ca"]') as HTMLButtonElement).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('true')
+
+    const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'b3')?.chuyenKhoa).toBe(SPECIALTIES[1].id)
+  })
+})

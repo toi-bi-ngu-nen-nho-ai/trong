@@ -65,11 +65,16 @@ function TheBang({
   dangSuaTen,
   dangMoMenu,
   dangXacNhanXoa,
+  dangSuaTag,
   onMo,
   onBatMenu,
   onBatSuaTen,
   onLuuTen,
   onXoa,
+  onBatSuaTag,
+  onDoiChuyenKhoa,
+  onThemTag,
+  onXoaTag,
 }: {
   bang: BangMeta
   index: number
@@ -77,13 +82,19 @@ function TheBang({
   dangSuaTen: boolean
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
+  dangSuaTag: boolean
   onMo: () => void
   onBatMenu: () => void
   onBatSuaTen: () => void
   onLuuTen: (tenMoi: string) => void
   onXoa: () => void
+  onBatSuaTag: () => void
+  onDoiChuyenKhoa: (id: string) => void
+  onThemTag: (tag: string) => void
+  onXoaTag: (tag: string) => void
 }) {
   const [tenNhap, setTenNhap] = useState(bang.ten)
+  const [tagNhap, setTagNhap] = useState('')
   const nutRef = useRef<HTMLButtonElement>(null)
 
   // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc DanhSachBang mount —
@@ -278,6 +289,15 @@ function TheBang({
               động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24). */}
           <button
             type="button"
+            data-testid={`sua-tag-${bang.id}`}
+            onClick={onBatSuaTag}
+            className="mind-focus-ring"
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none' }}
+          >
+            Chuyên khoa/tag
+          </button>
+          <button
+            type="button"
             data-testid={`doi-ten-${bang.id}`}
             onClick={onBatSuaTen}
             className="mind-focus-ring"
@@ -308,6 +328,65 @@ function TheBang({
           </button>
         </div>
       )}
+
+      {dangSuaTag && (
+        <div
+          data-testid={`sua-chuyen-khoa-tag-${bang.id}`}
+          style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 8, padding: 8, zIndex: 1, width: 200 }}
+        >
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', marginBottom: 2 }}>
+            Chuyên khoa
+          </label>
+          <select
+            data-testid={`chon-chuyen-khoa-${bang.id}`}
+            value={bang.chuyenKhoa ?? SPECIALTIES[0].id}
+            onChange={(e) => onDoiChuyenKhoa(e.target.value)}
+            className="mind-focus-ring"
+            style={{ width: '100%', fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)', marginBottom: 8 }}
+          >
+            {SPECIALTIES.map((kh) => (
+              <option key={kh.id} value={kh.id}>{kh.name}</option>
+            ))}
+          </select>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', marginBottom: 2 }}>
+            Tag
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            {(bang.tags ?? []).map((t) => (
+              <span
+                key={t}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, padding: '2px 6px', borderRadius: 999, background: 'var(--c-surface-alt, #f6f7fd)' }}
+              >
+                {t}
+                <button
+                  type="button"
+                  aria-label={`Xoá tag ${t}`}
+                  onClick={() => onXoaTag(t)}
+                  className="mind-focus-ring"
+                  style={{ border: 0, background: 'none', padding: 0, fontSize: 11, lineHeight: 1, color: 'var(--c-text-muted, #6b6e96)' }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <input
+            type="text"
+            data-testid={`nhap-tag-${bang.id}`}
+            value={tagNhap}
+            onChange={(e) => setTagNhap(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              const tagSach = tagNhap.trim()
+              if (tagSach) onThemTag(tagSach)
+              setTagNhap('')
+            }}
+            placeholder="Thêm tag, Enter để lưu"
+            className="mind-focus-ring"
+            style={{ width: '100%', fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)' }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -328,6 +407,7 @@ export function DanhSachBang({
   const { items: danhSach, loading, add, update } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
+  const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
   // Mang cả OBJECT (không chỉ id) — cần đủ dữ liệu gốc để đánh dấu daXoaLuc rồi đưa thẳng cho dải
   // "Hoàn tác" mà không phải tra lại danhSach sau khi bang đã bị lọc khỏi danh sách hiển thị.
@@ -612,11 +692,26 @@ export function DanhSachBang({
               dangSuaTen={dangSuaTenId === bang.id}
               dangMoMenu={dangMoMenuId === bang.id}
               dangXacNhanXoa={dangXacNhanXoaId === bang.id}
+              dangSuaTag={dangSuaTagId === bang.id}
               onMo={() => onMoBang(bang.id)}
               onBatMenu={() => setDangMoMenuId(dangMoMenuId === bang.id ? null : bang.id)}
               onBatSuaTen={() => {
                 setDangMoMenuId(null)
                 setDangSuaTenId(bang.id)
+              }}
+              onBatSuaTag={() => {
+                setDangMoMenuId(null)
+                setDangSuaTagId(dangSuaTagId === bang.id ? null : bang.id)
+              }}
+              onDoiChuyenKhoa={(id) => {
+                update({ ...bang, chuyenKhoa: id })
+                // Chip lọc đang chọn MỘT chuyên khoa khác id vừa gán → bảng sẽ rớt khỏi danhSachSapXep
+                // ngay khi update() cập nhật state cục bộ (cùng lượt render), kéo theo panel đang mở
+                // (dangSuaTag) unmount cùng lúc — người dùng vừa đổi chuyên khoa thì cả thẻ lẫn panel
+                // biến mất không một lời giải thích. Đúng lớp lỗi review Task 2 đã bắt ở taoBangMoi
+                // (tạo bảng dưới chip lọc khác cũng làm thẻ mới biến mất) — cùng cách vá: đưa bộ lọc
+                // về "Tất cả" ngay khi thao tác khiến bảng đang thao tác rớt khỏi bộ lọc hiện tại.
+                if (chuyenKhoaLoc && chuyenKhoaLoc !== id) setChuyenKhoaLoc(null)
               }}
               onLuuTen={(tenMoi) => {
                 setDangSuaTenId(null)
@@ -637,6 +732,12 @@ export function DanhSachBang({
                 setDangMoMenuId(null)
                 setDangChoXoa(bang)
               }}
+              onThemTag={(tag) => {
+                const hienCo = bang.tags ?? []
+                if (hienCo.includes(tag)) return
+                update({ ...bang, tags: [...hienCo, tag] })
+              }}
+              onXoaTag={(tag) => update({ ...bang, tags: (bang.tags ?? []).filter((t) => t !== tag) })}
             />
           ))}
           <button
