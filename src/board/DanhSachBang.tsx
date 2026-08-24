@@ -704,7 +704,7 @@ export function DanhSachBang({
                 setDangSuaTagId(dangSuaTagId === bang.id ? null : bang.id)
               }}
               onDoiChuyenKhoa={(id) => {
-                update({ ...bang, chuyenKhoa: id })
+                update({ ...bang, chuyenKhoa: id, capNhatLuc: Date.now() })
                 // Chip lọc đang chọn MỘT chuyên khoa khác id vừa gán → bảng sẽ rớt khỏi danhSachSapXep
                 // ngay khi update() cập nhật state cục bộ (cùng lượt render), kéo theo panel đang mở
                 // (dangSuaTag) unmount cùng lúc — người dùng vừa đổi chuyên khoa thì cả thẻ lẫn panel
@@ -735,9 +735,11 @@ export function DanhSachBang({
               onThemTag={(tag) => {
                 const hienCo = bang.tags ?? []
                 if (hienCo.includes(tag)) return
-                update({ ...bang, tags: [...hienCo, tag] })
+                update({ ...bang, tags: [...hienCo, tag], capNhatLuc: Date.now() })
               }}
-              onXoaTag={(tag) => update({ ...bang, tags: (bang.tags ?? []).filter((t) => t !== tag) })}
+              onXoaTag={(tag) =>
+                update({ ...bang, tags: (bang.tags ?? []).filter((t) => t !== tag), capNhatLuc: Date.now() })
+              }
             />
           ))}
           <button

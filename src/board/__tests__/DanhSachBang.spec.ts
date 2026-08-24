@@ -776,4 +776,70 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'b3')?.chuyenKhoa).toBe(SPECIALTIES[1].id)
   })
+
+  // Invariant có sẵn từ commit ddcf250: capNhatLuc CHỈ bump khi có sửa NỘI DUNG thật (onLuuTen đã
+  // tuân theo, xem nhánh `if (tenSach === bang.ten) return` phía trên). Đổi chuyên khoa/tag CŨNG là
+  // sửa nội dung thật theo đúng nghĩa đó — review lượt 1 (2026-08-24) bắt đúng chỗ ba callback này
+  // thiếu dòng bump, khác hẳn onLuuTen ngay cạnh chúng trong cùng file.
+  it('đổi chuyên khoa, thêm tag, xoá tag → capNhatLuc bump lên mới hơn sau MỖI thao tác', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b4', ten: 'Bảng D', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b4"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b4"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b4"]') as HTMLButtonElement).click()
+    })
+
+    // 1) Đổi chuyên khoa — capNhatLuc phải bump so với bayGio.
+    await new Promise((r) => setTimeout(r, 2))
+    const chon = container.querySelector('[data-testid="chon-chuyen-khoa-b4"]') as HTMLSelectElement
+    await act(async () => {
+      chon.value = SPECIALTIES[1].id
+      chon.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    let ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const sauDoiKhoa = ds.find((b) => b.id === 'b4')!.capNhatLuc
+    expect(sauDoiKhoa).toBeGreaterThan(bayGio)
+
+    // 2) Thêm tag — capNhatLuc phải bump tiếp so với mốc trên.
+    await new Promise((r) => setTimeout(r, 2))
+    const oNhap = container.querySelector('[data-testid="nhap-tag-b4"]') as HTMLInputElement
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(oNhap, 'khó thở')
+      else oNhap.value = 'khó thở'
+      oNhap.dispatchEvent(new Event('input', { bubbles: true }))
+      oNhap.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[aria-label="Xoá tag khó thở"]')).not.toBeNull()
+    })
+    ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const sauThemTag = ds.find((b) => b.id === 'b4')!.capNhatLuc
+    expect(sauThemTag).toBeGreaterThan(sauDoiKhoa)
+
+    // 3) Xoá tag — capNhatLuc phải bump tiếp so với mốc trên.
+    await new Promise((r) => setTimeout(r, 2))
+    const nutXoa = container.querySelector('[aria-label="Xoá tag khó thở"]') as HTMLButtonElement
+    await act(async () => {
+      nutXoa.click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[aria-label="Xoá tag khó thở"]')).toBeNull()
+    })
+    ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const sauXoaTag = ds.find((b) => b.id === 'b4')!.capNhatLuc
+    expect(sauXoaTag).toBeGreaterThan(sauThemTag)
+  })
 })
