@@ -11,6 +11,7 @@
 // view extension, tức là qua `viewExtensions` ngay bên dưới. Vì thế bỏ hẳn dòng import đó thay vì
 // giữ một dòng vô tác dụng kèm chú thích sai. Đường đăng ký thật được canh bằng
 // `__tests__/dang-ky-custom-element.spec.ts`.
+import type { SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
@@ -240,6 +241,11 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
     if (!el) return
     let huyBo = false
     let workspaceHienTai: TestWorkspace | null = null
+    // Có sửa NỘI DUNG thật trong phiên mở bảng này hay không — xem chú thích ở capNhatAnhXemTruoc
+    // (boardMeta.ts). Đăng ký lúc mount xong (sau seed, xem taoHoacMoBang), nên chỉ đếm thay đổi
+    // PHÁT SINH TỪ đây trở đi, không tính lượt hydrate/seed đã xảy ra trước khi effect này chạy.
+    let coThayDoiNoiDung = false
+    let huyDangKyThayDoi: Array<() => void> = []
 
     taoHoacMoBang(boardId)
       .then(({ workspace, store, khongLuuDuoc: khongLuuDuocKetQua }) => {
@@ -254,6 +260,37 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
         litRender(std.render(), el)
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
+
+        // Khối (note, ảnh, đính kèm...) đi qua store.slots.blockUpdated; phần tử canvas thuần
+        // (connector, brush, shape, mindmap node...) KHÔNG phải khối — sống trong Y.Map riêng của
+        // chính surface, chỉ báo qua surface.element{Added,Updated,Removed}. Cần cả hai mới phủ hết
+        // những gì PRODUCT.md liệt cho Mindmap (thẻ ghi chú + đường nối + nét vẽ tay + ảnh chèn).
+        // `isLocal`/`local`: chỉ đếm sự kiện phát sinh TỪ CHÍNH client này — bỏ qua sự kiện đến từ
+        // hydrate/đồng bộ nền, dù ở app một-người-dùng-cục-bộ này trường hợp đó hiếm.
+        const dkBlock = store.slots.blockUpdated.subscribe((payload) => {
+          if (payload.isLocal) coThayDoiNoiDung = true
+        })
+        huyDangKyThayDoi.push(() => dkBlock.unsubscribe())
+
+        const surfaceModel = store.root?.children.find(
+          (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
+        )
+        if (surfaceModel) {
+          const dkThem = surfaceModel.elementAdded.subscribe(({ local }) => {
+            if (local) coThayDoiNoiDung = true
+          })
+          const dkSua = surfaceModel.elementUpdated.subscribe(({ local }) => {
+            if (local) coThayDoiNoiDung = true
+          })
+          const dkXoa = surfaceModel.elementRemoved.subscribe(({ local }) => {
+            if (local) coThayDoiNoiDung = true
+          })
+          huyDangKyThayDoi.push(
+            () => dkThem.unsubscribe(),
+            () => dkSua.unsubscribe(),
+            () => dkXoa.unsubscribe(),
+          )
+        }
       })
       .catch((err: unknown) => {
         if (huyBo) return
@@ -267,6 +304,7 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
     // IndexedDB còn chạy nền.
     return () => {
       huyBo = true
+      huyDangKyThayDoi.forEach((huy) => huy())
       // Chụp ảnh xem trước TRƯỚC khi tháo cây Lit — sau litRender(null, el) canvas không còn.
       // Best-effort tuyệt đối: lỗi ở đây KHÔNG được chặn dọn dẹp thật (forceStop() vẫn phải chạy).
       try {
@@ -278,7 +316,7 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
           const ctx = nho.getContext('2d')
           if (ctx) {
             ctx.drawImage(canvasGoc, 0, 0, 480, 360)
-            void capNhatAnhXemTruoc(boardId, nho.toDataURL('image/jpeg', 0.6))
+            void capNhatAnhXemTruoc(boardId, nho.toDataURL('image/jpeg', 0.6), coThayDoiNoiDung)
           }
         }
       } catch {

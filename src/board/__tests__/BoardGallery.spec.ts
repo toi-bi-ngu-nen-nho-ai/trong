@@ -34,7 +34,7 @@ vi.mock('../index', () => ({
   EdgelessBoard: ({ boardId }: { boardId: string }) => {
     useEffect(() => {
       return () => {
-        void capNhatAnhXemTruoc(boardId, 'data:image/jpeg;base64,gia')
+        void capNhatAnhXemTruoc(boardId, 'data:image/jpeg;base64,gia', true)
       }
     }, [boardId])
     return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')

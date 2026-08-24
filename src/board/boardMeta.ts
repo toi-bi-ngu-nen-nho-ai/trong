@@ -22,8 +22,15 @@ export function taoIdBang(): string {
   return `bang-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-// Gọi lúc rời một bảng (xem EdgelessBoard.tsx) — đồng thời đóng vai trò cập nhật "sửa lúc" vì
-// chặng này chưa dựng cơ chế phát hiện thay đổi thật; thời điểm rời bảng là xấp xỉ hợp lý.
+// Gọi lúc rời một bảng (xem EdgelessBoard.tsx). Ảnh xem trước LUÔN được ghi lại (phản ánh đúng
+// khung nhìn cuối cùng người dùng thấy, kể cả khi họ chỉ pan/zoom mà không sửa gì) — nhưng
+// `capNhatLuc` CHỈ bump khi `coThayDoiNoiDung` true. Trước đây (tới mục 30 của HANDOFF.md) hai
+// việc này gộp làm một vì "chặng đó chưa dựng cơ chế phát hiện thay đổi thật" — hệ quả là MỞ bảng
+// ra xem rồi quay lại (không sửa gì) vẫn khiến nhãn "cập nhật lần cuối" nhảy thành "Vừa xong", ghi
+// nợ ở mục 30 (P2). Mục 31 vá phần sâu: EdgelessBoard.tsx giờ theo dõi
+// `store.slots.blockUpdated`/`surface.element{Added,Updated,Removed}` (chỉ đếm sự kiện có
+// `isLocal`/`local` true — bỏ qua sự kiện đến từ đồng bộ/hydrate) trong suốt phiên mở bảng, rồi
+// truyền kết quả vào đây lúc unmount.
 // Đọc-sửa-ghi trực tiếp qua idb.ts (không qua hook, vì gọi từ ngoài React) — fire-and-forget, gọi
 // lúc EdgelessBoard UNMOUNT nên không có instance hook nào đang sống để báo lại. DanhSachBang.tsx
 // đọc lại giá trị mới nhất mỗi lần MOUNT (useIdbCollection tự fetch khi mount) — NHƯNG lượt đọc đó
@@ -32,12 +39,20 @@ export function taoIdBang(): string {
 // trước khi cho DanhSachBang mount lại, thay vì tin lượt đọc-lúc-mount luôn thấy dữ liệu mới nhất.
 let ghiAnhDangCho: Promise<void> | null = null
 
-export function capNhatAnhXemTruoc(id: string, anhXemTruoc: string): Promise<void> {
+export function capNhatAnhXemTruoc(
+  id: string,
+  anhXemTruoc: string,
+  coThayDoiNoiDung: boolean,
+): Promise<void> {
   const p = (async () => {
     const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
     const hienCo = ds.find((b) => b.id === id)
     if (!hienCo) return
-    await idbPut(IDB_STORES.boards, { ...hienCo, anhXemTruoc, capNhatLuc: Date.now() })
+    await idbPut(IDB_STORES.boards, {
+      ...hienCo,
+      anhXemTruoc,
+      capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
+    })
   })()
   ghiAnhDangCho = p
   return p

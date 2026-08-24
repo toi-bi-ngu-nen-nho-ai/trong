@@ -268,8 +268,47 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.unmount()
     })
 
-    // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi.
-    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String))
+    // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi. Không
+    // tương tác gì với bảng ở ca này (chỉ mount rồi unmount ngay) nên coThayDoiNoiDung phải là
+    // false — xem cơ chế theo dõi blockUpdated/element{Added,Updated,Removed} ở EdgelessBoard.tsx.
+    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String), false)
+    spy.mockRestore()
+  })
+
+  it('có thêm khối THẬT (store.addBlock) trong phiên mở → unmount gọi capNhatAnhXemTruoc với coThayDoiNoiDung=true', async () => {
+    const spy = vi.spyOn(boardMeta, 'capNhatAnhXemTruoc').mockResolvedValue(undefined)
+
+    await act(async () => {
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-co-sua' }))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // store.addBlock() — CHÍNH API công khai mà mọi thao tác thêm nội dung thật (gõ chữ, chèn note,
+    // dán ảnh...) đi qua, không phải lối tắt riêng cho ca kiểm này (cùng nguyên tắc đã dùng ở
+    // edgeless-board-reorder.spec.ts). Đây là điểm khác biệt DUY NHẤT với ca kiểm phía trên.
+    const eh = document.querySelector('editor-host') as unknown as {
+      std: { store: { root: { id: string } | null; addBlock: (flavour: string, props: object, parent: string) => void } }
+    }
+    await act(async () => {
+      const store = eh.std.store
+      if (store.root) store.addBlock('affine:note', {}, store.root.id)
+    })
+
+    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
+    if (canvasThat) {
+      canvasThat.width = 800
+      canvasThat.height = 600
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true)
     spy.mockRestore()
   })
 })
