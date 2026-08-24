@@ -1359,7 +1359,7 @@ interface SearchResult {
   tags: string[]
   // CHỈ "board" set trường này — nội dung trích từ bảng (chữ trong khối/canvas, xem
   // ghepNoiDungTimKiem ở board/boardMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG hiển thị trực tiếp
-  // (subtitle đã đủ cho hiển thị: "Mindmap").
+  // (huy hiệu "Mindmap" + tên bảng đã đủ cho hiển thị).
   noiDung?: string
 }
 
@@ -1382,7 +1382,11 @@ export function SearchScreen({
   const [activeFilter, setActiveFilter] = useState("Tất cả")
   // boardMeta.ts KHÔNG import BlockSuite (D13) — đọc ở đây chỉ chạm object store nhẹ của IndexedDB,
   // không kéo theo chunk 994 kB của bảng vẽ.
-  const { items: boards } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  // `loading` KHÔNG bỏ đi được: IndexedDB đọc bất đồng bộ nên `boards` rỗng cho tới khi lượt đọc
+  // lúc mount xong — trong cửa sổ đó, gõ đúng tên một bảng đã lưu vẫn rơi vào màn "Không có kết
+  // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). DanhSachBang đã
+  // xử đúng cùng cờ này (`if (loading) return null`).
+  const { items: boards, loading: dangNapBang } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1405,7 +1409,11 @@ export function SearchScreen({
           kind: "board",
           id: b.id,
           title: b.ten,
-          subtitle: "Mindmap",
+          // RỖNG, không phải "Mindmap": RESULT_LABEL.board đã in đúng chữ đó thành huy hiệu ngay
+          // phía trên tiêu đề, nên đặt lại ở đây làm nó xuất hiện HAI LẦN trên cùng một thẻ (review
+          // cuối nhánh, mục 8). Dòng phụ đề tự ẩn khi rỗng (`{r.subtitle && …}` bên dưới) — thẻ bảng
+          // gọn lại đúng bằng phần thật sự có thông tin.
+          subtitle: "",
           // KHÔNG dự phòng `?? SPECIALTIES[0].id` như bangKhopTimKiem (boardMeta.ts): ở đó chuỗi
           // khớp bắt buộc phải là string nên phải có giá trị thay thế, còn ở đây `specialty` là
           // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Bảng
@@ -1575,7 +1583,10 @@ export function SearchScreen({
               </button>
             ))}
           </div>
-        ) : (
+        ) : dangNapBang ? null : (
+          // Chưa nạp xong danh sách bảng thì KHÔNG kết luận "không có kết quả" — để trống một nhịp
+          // rất ngắn (cùng cách DanhSachBang tránh nháy lưới "rỗng" giả), thay vì khẳng định sai rồi
+          // tự lật lại ngay lượt render sau.
           <div className="text-center pt-16">
             <div className="mb-3 flex justify-center" style={{ color: "var(--c-muted)" }}>
               <span style={{ display: "inline-flex", transform: "scale(1.5)" }}>{icons.search(false)}</span>

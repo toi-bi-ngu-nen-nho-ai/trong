@@ -143,6 +143,92 @@ describe('SearchScreen — kết quả loại "board"', () => {
     expect(container.textContent).not.toContain('Bảng nháp vứt đi')
   })
 
+  // Mệnh đề `r.noiDung?.toLowerCase().includes(q)` của `filtered` là ĐƯỜNG DUY NHẤT để một bảng khớp
+  // theo CHỮ BÊN TRONG nó (Task 9) — xoá hẳn dòng đó đi thì mọi ca kiểm cũ của file này vẫn xanh, vì
+  // chúng đều tìm theo tên/tag. Canh riêng ở đây (review cuối nhánh, mục 5).
+  it('gõ một từ CHỈ có trong nội dung bảng (noiDungTimKiem) → bảng vẫn hiện trong kết quả', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-noi-dung',
+      // Tên/tag/tên khoa CỐ Ý không chứa chữ nào của truy vấn bên dưới — nếu chứa thì ca kiểm này
+      // vẫn xanh qua mệnh đề `r.title`, không chứng minh được gì về mệnh đề nội dung.
+      ten: 'Ghi chú buồng bệnh',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: 'kháng sinh phổ rộng liều cao',
+    })
+
+    const onNavigate = vi.fn()
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate,
+          onBack: () => {},
+          customArticles: [],
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'phổ rộng')
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Ghi chú buồng bệnh')
+    })
+
+    const ketQua = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Ghi chú buồng bệnh'),
+    ) as HTMLButtonElement
+    await act(async () => {
+      ketQua.click()
+    })
+    expect(onNavigate).toHaveBeenCalledWith('mindmap', 'bang-noi-dung')
+  })
+
+  // RESULT_LABEL.board đã in sẵn huy hiệu "Mindmap" phía trên tiêu đề, nên đặt thêm subtitle:
+  // "Mindmap" khiến đúng một chữ đó xuất hiện HAI LẦN trên cùng một thẻ — nhiễu, và chiếm mất dòng
+  // phụ đề vốn có thể trống (review cuối nhánh, mục 8).
+  it('thẻ kết quả của bảng chỉ hiện chữ "Mindmap" MỘT lần (huy hiệu), không lặp ở dòng phụ đề', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-nhan',
+      ten: 'Suy tim EF giảm',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate: vi.fn(),
+          onBack: () => {},
+          customArticles: [],
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'suy tim ef')
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Suy tim EF giảm')
+    })
+
+    const ketQua = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Suy tim EF giảm'),
+    ) as HTMLButtonElement
+    expect(ketQua.textContent?.match(/Mindmap/g)?.length ?? 0).toBe(1)
+  })
+
   it('bảng cũ THIẾU chuyenKhoa/tags (bản ghi trước lượt di trú) không làm sập ô tìm kiếm', async () => {
     const bayGio = Date.now()
     // Cố ý ghi bản ghi KHÔNG có chuyenKhoa/tags/noiDungTimKiem — đúng hình dạng bảng tạo trước
