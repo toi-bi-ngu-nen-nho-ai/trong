@@ -340,6 +340,9 @@ export function DanhSachBang({
   // mềm, phục hồi được". Panel này là lưới an toàn tối thiểu: không phải màn "thùng rác" đầy đủ (dọn
   // vĩnh viễn, sắp xếp theo ngày...), chỉ để mở lại được những gì vuaXoa đã bỏ lỡ.
   const [hienDaXoaGanDay, setHienDaXoaGanDay] = useState(false)
+  // null = "Tất cả" (không lọc). Không đưa vào URL/localStorage — lọc chỉ có ý nghĩa trong phiên
+  // đang xem lưới, giống các bộ lọc tạm thời khác của app (SearchScreen.activeFilter).
+  const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(null)
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -384,7 +387,12 @@ export function DanhSachBang({
   if (loading) return null
 
   // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
-  const danhSachSapXep = [...danhSach].filter((b) => !b.daXoaLuc).sort((a, b) => b.capNhatLuc - a.capNhatLuc)
+  // Chip chuyên khoa lọc THÊM sau đó — bang thiếu chuyenKhoa (bản ghi cũ chưa backfill, xem
+  // boardMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES.
+  const danhSachSapXep = [...danhSach]
+    .filter((b) => !b.daXoaLuc)
+    .filter((b) => !chuyenKhoaLoc || (b.chuyenKhoa ?? SPECIALTIES[0].id) === chuyenKhoaLoc)
+    .sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
   const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
 
@@ -490,6 +498,55 @@ export function DanhSachBang({
               ))}
             </div>
           )}
+        </div>
+      )}
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
+        <div
+          role="tablist"
+          aria-label="Lọc theo chuyên khoa"
+          style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
+        >
+          <button
+            type="button"
+            data-testid="chip-chuyen-khoa-tat-ca"
+            onClick={() => setChuyenKhoaLoc(null)}
+            aria-pressed={chuyenKhoaLoc === null}
+            className="mind-focus-ring"
+            style={{
+              flexShrink: 0,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: '6px 12px',
+              borderRadius: 999,
+              border: '1px solid var(--c-line, #d9ddf4)',
+              background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
+              color: chuyenKhoaLoc === null ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+            }}
+          >
+            Tất cả
+          </button>
+          {SPECIALTIES.map((kh) => (
+            <button
+              key={kh.id}
+              type="button"
+              data-testid={`chip-chuyen-khoa-${kh.id}`}
+              onClick={() => setChuyenKhoaLoc(kh.id)}
+              aria-pressed={chuyenKhoaLoc === kh.id}
+              className="mind-focus-ring"
+              style={{
+                flexShrink: 0,
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '6px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--c-line, #d9ddf4)',
+                background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
+                color: chuyenKhoaLoc === kh.id ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+              }}
+            >
+              {kh.name}
+            </button>
+          ))}
         </div>
       )}
       {danhSachSapXep.length === 0 ? (
