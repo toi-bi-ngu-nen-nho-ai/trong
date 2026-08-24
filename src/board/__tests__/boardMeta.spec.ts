@@ -2,8 +2,17 @@ import 'fake-indexeddb/auto'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { capNhatAnhXemTruoc, taoIdBang } from '../boardMeta'
+import type { BangMeta } from '../boardMeta'
+import {
+  bangKhopTimKiem,
+  capNhatAnhXemTruoc,
+  ghepNoiDungTimKiem,
+  taoIdBang,
+  trichVanBanTuCanvas,
+  trichVanBanTuKhoi,
+} from '../boardMeta'
 
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
@@ -50,5 +59,158 @@ describe('capNhatAnhXemTruoc', () => {
     await expect(capNhatAnhXemTruoc('khong-ton-tai', 'x', false)).resolves.toBeUndefined()
     const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
+  })
+})
+
+describe('capNhatAnhXemTruoc — backfill trường mới + noiDungTimKiemMoi', () => {
+  it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định', async () => {
+    const bayGio = Date.now()
+    // Mô phỏng bản ghi tạo TRƯỚC khi có ba trường mới — ép kiểu vì TS sẽ chặn thiếu trường bắt buộc.
+    await idbPut(IDB_STORES.boards, {
+      id: 'cu',
+      ten: 'Bảng cũ',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+    } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
+
+    await capNhatAnhXemTruoc('cu', 'data:image/jpeg;base64,x', false)
+
+    const ds = await idbGetAll<{
+      id: string
+      chuyenKhoa: string
+      tags: string[]
+      noiDungTimKiem: string
+    }>(IDB_STORES.boards)
+    const sau = ds.find((b) => b.id === 'cu')
+    expect(sau?.chuyenKhoa).toBe(SPECIALTIES[0].id)
+    expect(sau?.tags).toEqual([])
+    expect(sau?.noiDungTimKiem).toBe('')
+  })
+
+  it('truyền noiDungTimKiemMoi → ghi đè noiDungTimKiem cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'z',
+      ten: 'Test',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: 'cũ',
+    })
+
+    await capNhatAnhXemTruoc('z', 'data:image/jpeg;base64,x', false, 'nội dung mới')
+
+    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'z')?.noiDungTimKiem).toBe('nội dung mới')
+  })
+
+  it('KHÔNG truyền noiDungTimKiemMoi → giữ nguyên noiDungTimKiem cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'w',
+      ten: 'Test',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: 'giữ nguyên',
+    })
+
+    await capNhatAnhXemTruoc('w', 'data:image/jpeg;base64,x', false)
+
+    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'w')?.noiDungTimKiem).toBe('giữ nguyên')
+  })
+})
+
+describe('trichVanBanTuKhoi', () => {
+  it('gộp text của mọi khối con có props.text, đệ quy nhiều cấp, cách nhau bằng dấu cách', () => {
+    const goc = {
+      children: [
+        { props: { text: 'Đoạn 1' }, children: [] },
+        { children: [{ props: { text: 'Đoạn con' }, children: [] }] },
+        { props: {}, children: [] },
+      ],
+    }
+    expect(trichVanBanTuKhoi(goc)).toBe('Đoạn 1 Đoạn con')
+  })
+
+  it('khối gốc và mọi con đều không có props.text → chuỗi rỗng', () => {
+    expect(trichVanBanTuKhoi({ children: [{ props: {}, children: [] }] })).toBe('')
+  })
+
+  it('props.text không phải Y.Text/có toString (vd số) → bỏ qua, không ném lỗi', () => {
+    expect(trichVanBanTuKhoi({ props: { text: 42 } })).toBe('42')
+    expect(trichVanBanTuKhoi({ props: { text: null } })).toBe('')
+  })
+})
+
+describe('trichVanBanTuCanvas', () => {
+  it('gộp .text của mọi phần tử canvas có chữ, bỏ qua phần tử không có', () => {
+    const els = [{ text: { toString: () => 'Nhãn connector' } }, {}, { text: { toString: () => 'Node mindmap' } }]
+    expect(trichVanBanTuCanvas(els)).toBe('Nhãn connector Node mindmap')
+  })
+})
+
+describe('ghepNoiDungTimKiem', () => {
+  it('nối hai đoạn bằng dấu cách, cắt bớt nếu vượt 5000 ký tự', () => {
+    expect(ghepNoiDungTimKiem('a', 'b')).toBe('a b')
+    const dai = 'x'.repeat(6000)
+    expect(ghepNoiDungTimKiem(dai, '').length).toBe(5000)
+  })
+
+  it('cả hai rỗng → chuỗi rỗng', () => {
+    expect(ghepNoiDungTimKiem('', '')).toBe('')
+  })
+})
+
+describe('bangKhopTimKiem', () => {
+  const bangMau: BangMeta = {
+    id: 'x', ten: 'Suy tim EF giảm', taoLuc: 0, capNhatLuc: 0,
+    chuyenKhoa: 'cardiology', tags: ['nội trú', 'cấp cứu'], noiDungTimKiem: 'furosemide 40mg TM',
+  }
+
+  it('khớp theo tên, không phân biệt dấu/hoa-thường', () => {
+    expect(bangKhopTimKiem(bangMau, 'suy tim')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'SUY TIM')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'suy tim khong dau')).toBe(false)
+  })
+
+  it('khớp theo tag', () => {
+    expect(bangKhopTimKiem(bangMau, 'cấp cứu')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'cap cuu')).toBe(true)
+  })
+
+  it('khớp theo noiDungTimKiem', () => {
+    expect(bangKhopTimKiem(bangMau, 'furosemide')).toBe(true)
+  })
+
+  it('truy vấn rỗng → luôn khớp (không lọc)', () => {
+    expect(bangKhopTimKiem(bangMau, '')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, '   ')).toBe(true)
+  })
+
+  it('không khớp bất kỳ trường nào → false', () => {
+    // 'tiêu hoá' là TÊN của khoa gastrointestinal, còn bangMau thuộc cardiology ('Tim mạch') — nên
+    // kể cả khi tên chuyên khoa đã được đưa vào chuỗi so khớp, truy vấn này vẫn phải trượt.
+    expect(bangKhopTimKiem(bangMau, 'tiêu hoá')).toBe(false)
+  })
+
+  it('khớp theo TÊN chuyên khoa người dùng thấy, không phải id nội bộ', () => {
+    // Chip lọc ở DanhSachBang.tsx hiện `kh.name` ("Tim mạch"), bác sĩ gõ đúng chữ đó — nếu chỉ so
+    // khớp `bang.chuyenKhoa` (id 'cardiology') thì truy vấn này trượt.
+    expect(bangKhopTimKiem(bangMau, 'Tim mạch')).toBe(true)
+    expect(bangKhopTimKiem(bangMau, 'tim mach')).toBe(true)
+  })
+
+  it('bảng CŨ thiếu hẳn chuyenKhoa → không ném lỗi, vẫn khớp theo tên', () => {
+    // Bản ghi tạo TRƯỚC lượt thêm ba trường mới — ép kiểu vì TS chặn thiếu trường bắt buộc.
+    // normalizeSearch(undefined) sẽ ném TypeError nếu chỗ đọc chuyenKhoa không có giá trị dự phòng.
+    const bangCu = { id: 'cu', ten: 'Bảng cũ', taoLuc: 0, capNhatLuc: 0 } as unknown as BangMeta
+    expect(() => bangKhopTimKiem(bangCu, 'bảng')).not.toThrow()
+    expect(bangKhopTimKiem(bangCu, 'bảng cũ')).toBe(true)
+    expect(bangKhopTimKiem(bangCu, 'suy tim')).toBe(false)
+    expect(bangKhopTimKiem(bangCu, '')).toBe(true)
   })
 })

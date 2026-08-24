@@ -14,6 +14,9 @@ import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // tách chunk mà vỏ nạp chậm tồn tại để giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem
 // comment trong board/index.tsx và board/BoardGallery.tsx).
 import { BoardGallery } from "./board/BoardGallery"
+// CHỈ import KIỂU từ boardMeta.ts — và bản thân boardMeta.ts KHÔNG import gì từ @blocksuite/* (D13),
+// nên dòng này không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ.
+import type { BangMeta } from "./board/boardMeta"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -1348,15 +1351,21 @@ const SEARCH_FILTERS = ["Tất cả", ...Array.from(new Set(ARTICLES.map((a) => 
 // (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô tìm kiếm chính. Gộp vào
 // đây thì tìm một lần là ra hết, không phải đoán.
 interface SearchResult {
-  kind: "article" | "customArticle" | "ecg" | "flashcard"
+  kind: "article" | "customArticle" | "ecg" | "flashcard" | "board"
   id: string
   title: string
   subtitle: string
   specialty?: string
   tags: string[]
+  // CHỈ "board" set trường này — nội dung trích từ bảng (chữ trong khối/canvas, xem
+  // ghepNoiDungTimKiem ở board/boardMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG hiển thị trực tiếp
+  // (huy hiệu "Mindmap" + tên bảng đã đủ cho hiển thị).
+  noiDung?: string
 }
 
-function SearchScreen({
+// Export để test dựng riêng màn này (src/__tests__/SearchScreen.spec.ts) mà không phải dựng cả App —
+// App() vẫn dùng y hệt như trước, không đổi hành vi.
+export function SearchScreen({
   onNavigate,
   onBack,
   customArticles,
@@ -1371,6 +1380,13 @@ function SearchScreen({
 }) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("Tất cả")
+  // boardMeta.ts KHÔNG import BlockSuite (D13) — đọc ở đây chỉ chạm object store nhẹ của IndexedDB,
+  // không kéo theo chunk 994 kB của bảng vẽ.
+  // `loading` KHÔNG bỏ đi được: IndexedDB đọc bất đồng bộ nên `boards` rỗng cho tới khi lượt đọc
+  // lúc mount xong — trong cửa sổ đó, gõ đúng tên một bảng đã lưu vẫn rơi vào màn "Không có kết
+  // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). DanhSachBang đã
+  // xử đúng cùng cờ này (`if (loading) return null`).
+  const { items: boards, loading: dangNapBang } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1385,8 +1401,31 @@ function SearchScreen({
       // khoa, chỉ hiện khi đang ở "Tất cả" (xem điều kiện activeFilter bên dưới).
       ...ecgLessons.map((l): SearchResult => ({ kind: "ecg", id: l.id, title: l.title, subtitle: l.summary ?? "", tags: l.tags })),
       ...customFlashcards.map((c): SearchResult => ({ kind: "flashcard", id: c.id, title: c.front, subtitle: c.back, specialty: c.specialty, tags: [] })),
+      // Bảng xoá MỀM (daXoaLuc) đã biến khỏi lưới Mindmap — phải biến khỏi cả ô tìm kiếm chính,
+      // nếu không bấm vào kết quả sẽ mở một bảng người dùng tưởng đã xoá.
+      ...boards
+        .filter((b) => !b.daXoaLuc)
+        .map((b): SearchResult => ({
+          kind: "board",
+          id: b.id,
+          title: b.ten,
+          // RỖNG, không phải "Mindmap": RESULT_LABEL.board đã in đúng chữ đó thành huy hiệu ngay
+          // phía trên tiêu đề, nên đặt lại ở đây làm nó xuất hiện HAI LẦN trên cùng một thẻ (review
+          // cuối nhánh, mục 8). Dòng phụ đề tự ẩn khi rỗng (`{r.subtitle && …}` bên dưới) — thẻ bảng
+          // gọn lại đúng bằng phần thật sự có thông tin.
+          subtitle: "",
+          // KHÔNG dự phòng `?? SPECIALTIES[0].id` như bangKhopTimKiem (boardMeta.ts): ở đó chuỗi
+          // khớp bắt buộc phải là string nên phải có giá trị thay thế, còn ở đây `specialty` là
+          // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Bảng
+          // cũ thiếu `chuyenKhoa` ở runtime → .find() trả undefined → `?.name` cho undefined, an
+          // toàn và trung thực (không gán bừa "Tim mạch" cho bảng chưa từng chọn khoa); nó rơi vào
+          // đúng nhánh sẵn có của bài ECG không có khoa — chỉ hiện khi bộ lọc đang ở "Tất cả".
+          specialty: SPECIALTIES.find((s) => s.id === b.chuyenKhoa)?.name,
+          tags: b.tags ?? [],
+          noiDung: b.noiDungTimKiem,
+        })),
     ]
-  }, [customArticles, customFlashcards, ecgLessons])
+  }, [customArticles, customFlashcards, ecgLessons, boards])
 
   const filtered = useMemo(() => {
     if (query.length === 0) return []
@@ -1399,7 +1438,9 @@ function SearchScreen({
       return (
         r.title.toLowerCase().includes(q) ||
         (r.specialty?.toLowerCase().includes(q) ?? false) ||
-        r.tags.some((t) => t.toLowerCase().includes(q))
+        r.tags.some((t) => t.toLowerCase().includes(q)) ||
+        // Chỉ kết quả loại "board" có trường này — bảng khớp cả theo CHỮ BÊN TRONG nó, không chỉ tên.
+        (r.noiDung?.toLowerCase().includes(q) ?? false)
       )
     })
   }, [allResults, query, activeFilter])
@@ -1409,12 +1450,14 @@ function SearchScreen({
     customArticle: "Tự nhập",
     ecg: "ECG",
     flashcard: "Thẻ ghi nhớ",
+    board: "Mindmap",
   }
 
   function openResult(r: SearchResult) {
     if (r.kind === "article") onNavigate("article", r.id)
     else if (r.kind === "customArticle") onNavigate("customEntry", r.id)
     else if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
+    else if (r.kind === "board") onNavigate("mindmap", r.id)
     else onNavigate("specialty", SPECIALTIES.find((s) => s.name === r.specialty)?.id)
   }
 
@@ -1540,7 +1583,10 @@ function SearchScreen({
               </button>
             ))}
           </div>
-        ) : (
+        ) : dangNapBang ? null : (
+          // Chưa nạp xong danh sách bảng thì KHÔNG kết luận "không có kết quả" — để trống một nhịp
+          // rất ngắn (cùng cách DanhSachBang tránh nháy lưới "rỗng" giả), thay vì khẳng định sai rồi
+          // tự lật lại ngay lượt render sau.
           <div className="text-center pt-16">
             <div className="mb-3 flex justify-center" style={{ color: "var(--c-muted)" }}>
               <span style={{ display: "inline-flex", transform: "scale(1.5)" }}>{icons.search(false)}</span>
@@ -11606,6 +11652,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
   const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
+  // Bảng Mindmap cần mở thẳng khi bấm một kết quả tìm kiếm loại "board" — BoardGallery tiêu thụ rồi
+  // gọi onMoBangYeuCauXong() để đưa state này về undefined (xem BoardGallery.tsx).
+  const [moBangYeuCau, setMoBangYeuCau] = useState<string | undefined>(undefined)
   const [viewCustomId, setViewCustomId] = useState<string | null>(null)
   const [viewEcgId, setViewEcgId] = useState<string | null>(null)
   // Tên tính năng đang xem ở màn "Sắp ra mắt" — id truyền qua navigate() khi bấm một thẻ Truy cập
@@ -11717,6 +11766,7 @@ export default function App() {
       setRecentReads(recordRead("article", id))
     }
     if (s === "specialty" && id) setSpecialtyId(id)
+    if (s === "mindmap" && id) setMoBangYeuCau(id)
     if (s === "comingSoon" && id) setComingSoonFeature(id)
     if (s === "customEntry" && id) {
       setViewCustomId(id)
@@ -12049,7 +12099,11 @@ export default function App() {
               (React.lazy, ./index.tsx) LẪN lượt di trú bảng cũ (import động, ./diTruBangCu.ts) chỉ
               tải khi thật sự cần — bảng khi được mở, di trú khi tab Mindmap được mở lần đầu (xem
               BoardGallery.tsx) — nên không cần cờ "đã từng vào tab" riêng như trước. */}
-          <BoardGallery dangHienTab={screen === "mindmap"} />
+          <BoardGallery
+            dangHienTab={screen === "mindmap"}
+            moBangYeuCau={moBangYeuCau}
+            onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
+          />
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
           {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}

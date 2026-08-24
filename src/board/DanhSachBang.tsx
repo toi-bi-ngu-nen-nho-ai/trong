@@ -3,10 +3,11 @@
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
 import { useEffect, useRef, useState } from 'react'
 
+import { SPECIALTIES } from '../data'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
-import { type BangMeta, taoIdBang } from './boardMeta'
+import { bangKhopTimKiem, type BangMeta, taoIdBang } from './boardMeta'
 
 // Cùng giá trị CONFIRM_DELETE_RESET_MS của App.tsx (5000) — viết hằng số riêng thay vì import vì
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
@@ -64,11 +65,16 @@ function TheBang({
   dangSuaTen,
   dangMoMenu,
   dangXacNhanXoa,
+  dangSuaTag,
   onMo,
   onBatMenu,
   onBatSuaTen,
   onLuuTen,
   onXoa,
+  onBatSuaTag,
+  onDoiChuyenKhoa,
+  onThemTag,
+  onXoaTag,
 }: {
   bang: BangMeta
   index: number
@@ -76,13 +82,19 @@ function TheBang({
   dangSuaTen: boolean
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
+  dangSuaTag: boolean
   onMo: () => void
   onBatMenu: () => void
   onBatSuaTen: () => void
   onLuuTen: (tenMoi: string) => void
   onXoa: () => void
+  onBatSuaTag: () => void
+  onDoiChuyenKhoa: (id: string) => void
+  onThemTag: (tag: string) => void
+  onXoaTag: (tag: string) => void
 }) {
   const [tenNhap, setTenNhap] = useState(bang.ten)
+  const [tagNhap, setTagNhap] = useState('')
   const nutRef = useRef<HTMLButtonElement>(null)
 
   // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc DanhSachBang mount —
@@ -277,6 +289,15 @@ function TheBang({
               động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24). */}
           <button
             type="button"
+            data-testid={`sua-tag-${bang.id}`}
+            onClick={onBatSuaTag}
+            className="mind-focus-ring"
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none' }}
+          >
+            Chuyên khoa/tag
+          </button>
+          <button
+            type="button"
             data-testid={`doi-ten-${bang.id}`}
             onClick={onBatSuaTen}
             className="mind-focus-ring"
@@ -307,6 +328,73 @@ function TheBang({
           </button>
         </div>
       )}
+
+      {dangSuaTag && (
+        <div
+          data-testid={`sua-chuyen-khoa-tag-${bang.id}`}
+          style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 8, padding: 8, zIndex: 1, width: 200 }}
+        >
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', marginBottom: 2 }}>
+            Chuyên khoa
+          </label>
+          <select
+            data-testid={`chon-chuyen-khoa-${bang.id}`}
+            // <label> ngay trên là nhãn TRẦN (không htmlFor, control không có id) nên trình đọc màn
+            // hình không nối được nhãn với ô nào — ô này đọc ra là "không tên". Cùng mức chăm sóc
+            // a11y file này đã áp cho ô tìm ("Tìm kiếm bảng"), nút × ("Xoá tag …"), ô đổi tên
+            // ("Đổi tên bảng") — review cuối nhánh, mục 4.
+            aria-label="Chuyên khoa"
+            value={bang.chuyenKhoa ?? SPECIALTIES[0].id}
+            onChange={(e) => onDoiChuyenKhoa(e.target.value)}
+            className="mind-focus-ring"
+            style={{ width: '100%', fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)', marginBottom: 8 }}
+          >
+            {SPECIALTIES.map((kh) => (
+              <option key={kh.id} value={kh.id}>{kh.name}</option>
+            ))}
+          </select>
+          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', marginBottom: 2 }}>
+            Tag
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            {(bang.tags ?? []).map((t) => (
+              <span
+                key={t}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, padding: '2px 6px', borderRadius: 999, background: 'var(--c-surface-alt, #f6f7fd)' }}
+              >
+                {t}
+                <button
+                  type="button"
+                  aria-label={`Xoá tag ${t}`}
+                  onClick={() => onXoaTag(t)}
+                  className="mind-focus-ring"
+                  style={{ border: 0, background: 'none', padding: 0, fontSize: 11, lineHeight: 1, color: 'var(--c-text-muted, #6b6e96)' }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <input
+            type="text"
+            data-testid={`nhap-tag-${bang.id}`}
+            // Cùng lý do với <select> ngay trên: nhãn "Tag" là <label> trần, không nối được với ô.
+            // Placeholder KHÔNG thay được nhãn truy cập (nó biến mất ngay khi bắt đầu gõ).
+            aria-label="Thêm tag"
+            value={tagNhap}
+            onChange={(e) => setTagNhap(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              const tagSach = tagNhap.trim()
+              if (tagSach) onThemTag(tagSach)
+              setTagNhap('')
+            }}
+            placeholder="Thêm tag, Enter để lưu"
+            className="mind-focus-ring"
+            style={{ width: '100%', fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)' }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -327,6 +415,7 @@ export function DanhSachBang({
   const { items: danhSach, loading, add, update } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
+  const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
   // Mang cả OBJECT (không chỉ id) — cần đủ dữ liệu gốc để đánh dấu daXoaLuc rồi đưa thẳng cho dải
   // "Hoàn tác" mà không phải tra lại danhSach sau khi bang đã bị lọc khỏi danh sách hiển thị.
@@ -339,6 +428,12 @@ export function DanhSachBang({
   // mềm, phục hồi được". Panel này là lưới an toàn tối thiểu: không phải màn "thùng rác" đầy đủ (dọn
   // vĩnh viễn, sắp xếp theo ngày...), chỉ để mở lại được những gì vuaXoa đã bỏ lỡ.
   const [hienDaXoaGanDay, setHienDaXoaGanDay] = useState(false)
+  // null = "Tất cả" (không lọc). Không đưa vào URL/localStorage — lọc chỉ có ý nghĩa trong phiên
+  // đang xem lưới, giống các bộ lọc tạm thời khác của app (SearchScreen.activeFilter).
+  const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(null)
+  // Truy vấn ô tìm nội bộ — cùng quy ước "chỉ sống trong phiên xem lưới" với chuyenKhoaLoc ngay
+  // trên (không vào URL/localStorage). Chuỗi rỗng = chưa lọc (bangKhopTimKiem trả true).
+  const [truyVan, setTruyVan] = useState('')
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -383,19 +478,64 @@ export function DanhSachBang({
   if (loading) return null
 
   // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
-  const danhSachSapXep = [...danhSach].filter((b) => !b.daXoaLuc).sort((a, b) => b.capNhatLuc - a.capNhatLuc)
+  // Chip chuyên khoa lọc THÊM sau đó — bang thiếu chuyenKhoa (bản ghi cũ chưa backfill, xem
+  // boardMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES.
+  // Ô tìm lọc THÊM lần nữa (giao của cả hai, không phải hoặc): bangKhopTimKiem gộp tên/chuyên
+  // khoa/tag/nội dung trích được và bỏ dấu hai phía (xem boardMeta.ts), truy vấn rỗng luôn khớp.
+  const danhSachSapXep = [...danhSach]
+    .filter((b) => !b.daXoaLuc)
+    .filter((b) => !chuyenKhoaLoc || (b.chuyenKhoa ?? SPECIALTIES[0].id) === chuyenKhoaLoc)
+    .filter((b) => bangKhopTimKiem(b, truyVan))
+    .sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
   const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
+  // Lưới rỗng vì BỘ LỌC hoàn toàn khác lưới rỗng vì chưa có bảng nào: mời "Bắt đầu một sơ đồ tư duy
+  // mới" trong tình huống này vừa sai sự thật (bảng vẫn còn nguyên, chỉ đang bị lọc khuất) vừa đẩy
+  // người dùng đi tạo một bảng thừa thay vì sửa truy vấn/tắt chip lọc (review cuối nhánh, mục 7).
+  const rongDoBoLoc = danhSachSapXep.length === 0 && (truyVan.trim().length > 0 || chuyenKhoaLoc !== null)
+
+  // Bỏ xoá mềm cho một bảng (cả hai nút "Hoàn tác": dải toast và panel "Đã xoá gần đây").
+  // "Hoàn tác" là đường phục hồi CUỐI CÙNG nên nó phải chịu ĐÚNG lớp lỗi mà taoBangMoi/
+  // onDoiChuyenKhoa/onLuuTen/onXoaTag đã vá: bảng được ghi lại thật trong IndexedDB nhưng không
+  // khớp chip lọc/ô tìm đang bật nên vẫn vô hình trong lưới — người dùng thấy nút "Hoàn tác" như
+  // bấm hụt, không có gì xảy ra (review cuối nhánh, mục 2). Cùng cách vá với các callback kia: đưa
+  // bộ lọc khiến bảng vừa thao tác rớt khỏi lưới về trạng thái không lọc.
+  const khoiPhucBang = (b: BangMeta) => {
+    const bangMoi = { ...b, daXoaLuc: undefined }
+    update(bangMoi)
+    // So cùng biểu thức với bộ lọc của lưới ở trên (bảng thiếu chuyenKhoa coi như SPECIALTIES[0]).
+    if (chuyenKhoaLoc && (bangMoi.chuyenKhoa ?? SPECIALTIES[0].id) !== chuyenKhoaLoc) setChuyenKhoaLoc(null)
+    // Ô tìm là bộ lọc THỨ HAI, rớt khỏi nó cũng giấu thẻ y hệt — phải canh riêng. Truy vấn rỗng
+    // luôn khớp nên nhánh này tự im lặng khi chưa lọc gì.
+    if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
+  }
 
   const taoBangMoi = () => {
     const luc = Date.now()
-    const meta: BangMeta = { id: taoIdBang(), ten: 'Bảng chưa đặt tên', taoLuc: luc, capNhatLuc: luc }
+    const meta: BangMeta = {
+      id: taoIdBang(),
+      ten: 'Bảng chưa đặt tên',
+      taoLuc: luc,
+      capNhatLuc: luc,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    }
     add(meta)
     // Trước đây mở thẳng vào canvas (onMoBang) — ba bảng tạo liên tiếp đều dừng lại ở tên mặc định
     // "Bảng chưa đặt tên" và ảnh xem trước GIỐNG HỆT NHAU byte-cho-byte (canvas trống chụp y hệt),
     // không cách nào phân biệt trong lưới. Giữ người dùng lại ở danh sách, mở luôn ô đổi tên cho thẻ
     // vừa tạo — họ đặt tên trước rồi mới bấm vào để vẽ, đúng lúc còn nhớ đang tạo bảng cho việc gì.
     setDangSuaTenId(meta.id)
+    // Bảng mới LUÔN được gán chuyenKhoa: SPECIALTIES[0].id — nếu chip lọc đang chọn một chuyên khoa
+    // KHÁC, thẻ vừa tạo sẽ không khớp bộ lọc và biến mất khỏi lưới ngay khi vừa ghi xong (bấm "+"
+    // trông như không phản ứng gì, trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB — review
+    // lượt 1 phát hiện). Đưa bộ lọc về "Tất cả" ngay khi tạo để thẻ mới chắc chắn hiện ra.
+    setChuyenKhoaLoc(null)
+    // Ô tìm gây ĐÚNG lớp lỗi đó một lần nữa, còn dễ vấp hơn chip lọc: tên bảng mới luôn là "Bảng
+    // chưa đặt tên", nên bất kỳ truy vấn nào đang gõ dở (trừ chuỗi khớp đúng tên mặc định) đều loại
+    // thẻ vừa tạo khỏi lưới ngay lượt render kế tiếp. Xoá trắng truy vấn cùng lúc với chip lọc.
+    setTruyVan('')
   }
 
   return (
@@ -463,7 +603,7 @@ export function DanhSachBang({
                   <button
                     type="button"
                     data-testid={`hoan-tac-gan-day-${b.id}`}
-                    onClick={() => update({ ...b, daXoaLuc: undefined })}
+                    onClick={() => khoiPhucBang(b)}
                     className="mind-focus-ring"
                     style={{
                       fontSize: 12,
@@ -483,6 +623,96 @@ export function DanhSachBang({
           )}
         </div>
       )}
+      {/* Cổng hiện/ẩn dựa trên danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danhSachSapXep đã
+          lọc — nếu gắn vào danh sách đã lọc thì gõ tới ký tự không khớp bảng nào sẽ unmount chính ô
+          đang gõ: mất focus giữa chừng, không xoá bớt ký tự để quay lại được. Cùng lý do và cùng
+          điều kiện với dải chip chuyên khoa ngay dưới. */}
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
+        <div style={{ padding: '12px 16px 8px' }}>
+          <input
+            type="search"
+            data-testid="tim-kiem-bang"
+            value={truyVan}
+            onChange={(e) => setTruyVan(e.target.value)}
+            placeholder="Tìm bảng theo tên, tag, nội dung..."
+            aria-label="Tìm kiếm bảng"
+            className="mind-focus-ring"
+            // minHeight 44: vùng chạm tối thiểu cho ngón tay, cùng chuẩn đã áp cho nút "⋯" và các
+            // mục menu trong file này — chiều cao tự nhiên của input này (cỡ chữ 16 bị ép, xem chú
+            // thích dưới, + padding 8 + viền 1) chỉ khoảng 37px, chưa đủ. `input:focus{outline:none}` của index.css xoá sạch tín hiệu focus nên
+            // cần .mind-focus-ring; KHÔNG kèm .mind-search-pill — class đó dành cho khối BỌC NGOÀI
+            // của component SearchField dùng chung (quy tắc `:focus-within` + tắt outline của input
+            // CON bên trong), đặt thẳng lên một input trần thì rule thứ hai không khớp gì còn rule
+            // thứ nhất chỉ là một vòng focus thứ hai trùng lặp, thắng-thua tuỳ thứ tự dòng trong
+            // index.css.
+            // KHÔNG đặt fontSize ở đây: index.css có `input,select,textarea{font-size:16px
+            // !important}` (chặn iOS Safari tự zoom khi focus vào ô chữ nhỏ) — mọi giá trị đặt ở
+            // đây đều bị nuốt, đo trên trình duyệt thật vẫn ra 16px. Ghi 13 vào cho "khớp cỡ chữ
+            // các ô khác trong file" chỉ tạo dòng chết trông như đang có tác dụng.
+            style={{
+              width: '100%',
+              minHeight: 44,
+              padding: '8px 12px',
+              borderRadius: 12,
+              border: '1px solid var(--c-line, #d9ddf4)',
+              background: 'var(--c-surface, #fff)',
+            }}
+          />
+        </div>
+      )}
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
+        <div
+          // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc lập
+          // — KHÔNG dùng role="tablist" (đó là mẫu điều hướng dạng tab, đòi hỏi role="tab" +
+          // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây). Ruling
+          // review lượt 1.
+          role="group"
+          aria-label="Lọc theo chuyên khoa"
+          style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
+        >
+          <button
+            type="button"
+            data-testid="chip-chuyen-khoa-tat-ca"
+            onClick={() => setChuyenKhoaLoc(null)}
+            aria-pressed={chuyenKhoaLoc === null}
+            className="mind-focus-ring"
+            style={{
+              flexShrink: 0,
+              fontSize: 12,
+              fontWeight: 600,
+              padding: '6px 12px',
+              borderRadius: 999,
+              border: '1px solid var(--c-line, #d9ddf4)',
+              background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
+              color: chuyenKhoaLoc === null ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+            }}
+          >
+            Tất cả
+          </button>
+          {SPECIALTIES.map((kh) => (
+            <button
+              key={kh.id}
+              type="button"
+              data-testid={`chip-chuyen-khoa-${kh.id}`}
+              onClick={() => setChuyenKhoaLoc(kh.id)}
+              aria-pressed={chuyenKhoaLoc === kh.id}
+              className="mind-focus-ring"
+              style={{
+                flexShrink: 0,
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '6px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--c-line, #d9ddf4)',
+                background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
+                color: chuyenKhoaLoc === kh.id ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+              }}
+            >
+              {kh.name}
+            </button>
+          ))}
+        </div>
+      )}
       {danhSachSapXep.length === 0 ? (
         <div
           style={{
@@ -500,8 +730,15 @@ export function DanhSachBang({
             <TheTrong />
           </div>
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
-            Bắt đầu một sơ đồ tư duy mới
+            {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
           </p>
+          {rongDoBoLoc && (
+            // Ô tìm và dải chip vẫn hiện ngay phía trên (cả hai gắn vào danhSach GỐC, không phải
+            // danh sách đã lọc) nên không cần thêm nút "xoá bộ lọc" riêng — chỉ cần chỉ đúng chỗ.
+            <p style={{ fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
+              Thử từ khoá khác hoặc bỏ bớt bộ lọc.
+            </p>
+          )}
           <button
             type="button"
             data-testid="tao-bang"
@@ -537,11 +774,42 @@ export function DanhSachBang({
               dangSuaTen={dangSuaTenId === bang.id}
               dangMoMenu={dangMoMenuId === bang.id}
               dangXacNhanXoa={dangXacNhanXoaId === bang.id}
+              dangSuaTag={dangSuaTagId === bang.id}
               onMo={() => onMoBang(bang.id)}
-              onBatMenu={() => setDangMoMenuId(dangMoMenuId === bang.id ? null : bang.id)}
+              onBatMenu={() => {
+                const dangMo = dangMoMenuId === bang.id
+                setDangMoMenuId(dangMo ? null : bang.id)
+                // Panel sửa chuyên khoa/tag và menu "⋯" ghim CÙNG toạ độ (top:30 right:4) với cùng
+                // zIndex, panel render SAU nên luôn vẽ ĐÈ lên menu. Mục "Chuyên khoa/tag" là đường
+                // DUY NHẤT đóng panel (nó là toggle), mà nó nằm trong menu bị che — panel mở ra là
+                // kẹt cho tới khi thẻ unmount. Mở menu thì đóng panel trước: "⋯" luôn là đường thoát.
+                if (!dangMo) setDangSuaTagId(null)
+              }}
               onBatSuaTen={() => {
                 setDangMoMenuId(null)
                 setDangSuaTenId(bang.id)
+              }}
+              onBatSuaTag={() => {
+                setDangMoMenuId(null)
+                setDangSuaTagId(dangSuaTagId === bang.id ? null : bang.id)
+              }}
+              onDoiChuyenKhoa={(id) => {
+                const bangMoi = { ...bang, chuyenKhoa: id, capNhatLuc: Date.now() }
+                update(bangMoi)
+                // Chip lọc đang chọn MỘT chuyên khoa khác id vừa gán → bảng sẽ rớt khỏi danhSachSapXep
+                // ngay khi update() cập nhật state cục bộ (cùng lượt render), kéo theo panel đang mở
+                // (dangSuaTag) unmount cùng lúc — người dùng vừa đổi chuyên khoa thì cả thẻ lẫn panel
+                // biến mất không một lời giải thích. Đúng lớp lỗi review Task 2 đã bắt ở taoBangMoi
+                // (tạo bảng dưới chip lọc khác cũng làm thẻ mới biến mất) — cùng cách vá: đưa bộ lọc
+                // về "Tất cả" ngay khi thao tác khiến bảng đang thao tác rớt khỏi bộ lọc hiện tại.
+                if (chuyenKhoaLoc && chuyenKhoaLoc !== id) setChuyenKhoaLoc(null)
+                // Ô tìm (Task 8) là bộ lọc THỨ HAI, rớt khỏi nó cũng làm thẻ + panel biến mất y hệt,
+                // nên phải vá RIÊNG — chặn được chip lọc không có nghĩa là chặn được ô tìm.
+                // bangKhopTimKiem gộp cả TÊN HIỂN THỊ của chuyên khoa ("Tim mạch", xem boardMeta.ts)
+                // nên đổi khoa thật sự đổi kết quả so khớp. Kiểm bằng chính bản ghi MỚI (bangMoi):
+                // `bang` trong closure vẫn là bản cũ, so khớp nó sẽ ra kết luận sai. Truy vấn rỗng
+                // luôn khớp nên nhánh này tự im lặng khi chưa lọc gì.
+                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
               onLuuTen={(tenMoi) => {
                 setDangSuaTenId(null)
@@ -551,7 +819,13 @@ export function DanhSachBang({
                 // không làm gì cả, khiến tín hiệu "cập nhật gần đây" càng thêm sai lệch (critique
                 // lượt 3, 2026-08-24 — xác nhận trực tiếp bằng Escape trên Browser pane thật).
                 if (tenSach === bang.ten) return
-                update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
+                const bangMoi = { ...bang, ten: tenSach, capNhatLuc: Date.now() }
+                update(bangMoi)
+                // Đổi tên ra NGOÀI truy vấn đang lọc thì thẻ vừa lưu biến mất ngay lượt render kế
+                // tiếp — nhẹ hơn hai ca kia (ô đổi tên đã tự đóng ở dòng đầu callback nên không có
+                // panel nào bị giật mất) nhưng vẫn là "vừa lưu xong thì mất thẻ". Cùng cách vá với
+                // chip lọc ngay trên: xoá trắng bộ lọc khiến bảng đang thao tác rớt khỏi lưới.
+                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
               onXoa={() => {
                 if (dangXacNhanXoaId !== bang.id) {
@@ -561,6 +835,20 @@ export function DanhSachBang({
                 setDangXacNhanXoaId(null)
                 setDangMoMenuId(null)
                 setDangChoXoa(bang)
+              }}
+              onThemTag={(tag) => {
+                const hienCo = bang.tags ?? []
+                if (hienCo.includes(tag)) return
+                update({ ...bang, tags: [...hienCo, tag], capNhatLuc: Date.now() })
+              }}
+              onXoaTag={(tag) => {
+                const bangMoi = { ...bang, tags: (bang.tags ?? []).filter((t) => t !== tag), capNhatLuc: Date.now() }
+                update(bangMoi)
+                // Ca TỆ NHẤT của lớp lỗi này: truy vấn khớp bảng CHỈ nhờ đúng cái tag vừa bị bấm ×.
+                // Panel sửa tag đang mở ngay dưới con trỏ, xoá xong là bảng thôi khớp truyVan → thẻ
+                // rớt khỏi lưới kéo panel unmount cùng lượt render, người dùng mất chỗ đang thao tác
+                // giữa chừng. Cùng cách vá với chip lọc ở onDoiChuyenKhoa phía trên.
+                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
             />
           ))}
@@ -595,7 +883,7 @@ export function DanhSachBang({
           <button
             type="button"
             onClick={() => {
-              update({ ...vuaXoa, daXoaLuc: undefined })
+              khoiPhucBang(vuaXoa)
               setVuaXoa(null)
             }}
             className="mind-focus-ring"

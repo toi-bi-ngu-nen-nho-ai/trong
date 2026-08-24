@@ -3,7 +3,9 @@
 // useIdbCollection<BangMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
 // ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
 // DanhSachBang (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
+import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
+import { normalizeSearch } from '../lib/ui'
 
 export type BangMeta = {
   id: string
@@ -16,6 +18,15 @@ export type BangMeta = {
   // undefined) để bang tái xuất hiện, không cần dựng lại object từ đầu. Không có cơ chế dọn vĩnh
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
+  // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), DanhSachBang.tsx). Bảng cũ
+  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatAnhXemTruoc() bên dưới
+  // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
+  // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
+  // ĐỌC ba trường này trước khi bảng đó từng được mở lại (chip lọc, tìm kiếm) phải tự
+  // `?? SPECIALTIES[0].id`/`?? []`/`?? ''` — xem Task 2/3/7.
+  chuyenKhoa: string
+  tags: string[]
+  noiDungTimKiem: string
 }
 
 export function taoIdBang(): string {
@@ -43,6 +54,7 @@ export function capNhatAnhXemTruoc(
   id: string,
   anhXemTruoc: string,
   coThayDoiNoiDung: boolean,
+  noiDungTimKiemMoi?: string,
 ): Promise<void> {
   const p = (async () => {
     const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
@@ -52,6 +64,9 @@ export function capNhatAnhXemTruoc(
       ...hienCo,
       anhXemTruoc,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
+      chuyenKhoa: hienCo.chuyenKhoa ?? SPECIALTIES[0].id,
+      tags: hienCo.tags ?? [],
+      noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? '',
     })
   })()
   ghiAnhDangCho = p
@@ -64,4 +79,80 @@ export function capNhatAnhXemTruoc(
 export async function doiGhiAnhXongNeuCo(hanGioMs = 800): Promise<void> {
   if (!ghiAnhDangCho) return
   await Promise.race([ghiAnhDangCho, new Promise((r) => setTimeout(r, hanGioMs))])
+}
+
+// Cấu trúc TỐI THIỂU cần để duyệt cây khối tìm chữ — KHÔNG import type thật từ BlockSuite
+// (BlockModel) để giữ file này ngoài ranh giới nạp chậm D13 (xem Global Constraints của plan).
+// Bất kỳ object nào có hình dạng này (kể cả `store.root` thật của BlockSuite) đều dùng được.
+type KhoiCoTheCoChu = {
+  props?: Record<string, unknown>
+  children?: KhoiCoTheCoChu[]
+}
+
+function layChu(vanBan: unknown): string {
+  if (vanBan && typeof (vanBan as { toString: () => string }).toString === 'function') {
+    return String(vanBan).trim()
+  }
+  return ''
+}
+
+// Duyệt đệ quy `store.root` (note/paragraph/list...) gom mọi `props.text` thành một chuỗi — dùng
+// để tìm kiếm, KHÔNG dùng để hiển thị (không giữ định dạng/thứ tự chính xác). Giới hạn độ sâu
+// (mặc định 12) để tránh vòng lặp vô hạn nếu dữ liệu hỏng có cây tự tham chiếu.
+export function trichVanBanTuKhoi(goc: KhoiCoTheCoChu, doSauToiDa = 12): string {
+  const doanVan: string[] = []
+  const duyet = (khoi: KhoiCoTheCoChu, doSau: number) => {
+    if (doSau > doSauToiDa) return
+    const chu = layChu(khoi.props?.text)
+    if (chu) doanVan.push(chu)
+    khoi.children?.forEach((con) => duyet(con, doSau + 1))
+  }
+  duyet(goc, 0)
+  return doanVan.join(' ')
+}
+
+// Phần tử canvas (surface.elementModels — shape/connector/text/mindmap node) mang chữ trực tiếp
+// trên field `.text` (Y.Text), KHÔNG lồng trong `.props` như khối — đã xác nhận qua
+// element-model/{text,shape,connector}.ts của cây vendored, cả ba đều `text?: Y.Text`.
+export function trichVanBanTuCanvas(danhSachPhanTu: Array<{ text?: unknown }>): string {
+  return danhSachPhanTu
+    .map((el) => layChu(el.text))
+    .filter(Boolean)
+    .join(' ')
+}
+
+const DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM = 5000
+
+// Cắt bớt để tránh BangMeta phình quá to với bảng nhiều chữ — 5000 ký tự đủ cho tìm kiếm con
+// chuỗi, không cần giữ nguyên vẹn toàn bộ nội dung (đó là việc của chính bảng, không phải snapshot
+// tìm kiếm này).
+export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): string {
+  return `${vanBanKhoi} ${vanBanCanvas}`.trim().slice(0, DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM)
+}
+
+// So khớp một bảng với một truy vấn tìm kiếm tự do — không phân biệt dấu/hoa-thường (qua
+// normalizeSearch, src/lib/ui.ts). Gộp CẢ BỐN trường (tên, chuyên khoa, tags, nội dung trích từ
+// khối/canvas) thành một chuỗi rồi tìm truy vấn như chuỗi con — đủ dùng cho ô tìm kiếm một dòng ở
+// Task 8, không cần xếp hạng độ liên quan. Truy vấn rỗng/toàn khoảng trắng → luôn khớp (trạng thái
+// "chưa lọc").
+// Chuyên khoa được đưa vào chuỗi so khớp bằng TÊN HIỂN THỊ ("Tim mạch"), không phải id nội bộ
+// ('cardiology'): chip lọc ở DanhSachBang.tsx hiện `kh.name`, nên đó mới là chữ bác sĩ gõ vào ô tìm
+// kiếm. Id vẫn giữ lại trong chuỗi cho ai gõ đúng khoá kỹ thuật — vô hại.
+// `bang.chuyenKhoa` PHẢI có giá trị dự phòng: bảng cũ thiếu hẳn trường này ở runtime (xem chú thích
+// ba trường mới ở đầu file) và normalizeSearch(undefined) sẽ ném lỗi, làm sập cả lượt lọc danh sách.
+export function bangKhopTimKiem(bang: BangMeta, truyVan: string): boolean {
+  const q = normalizeSearch(truyVan)
+  if (!q) return true
+  const idChuyenKhoa = bang.chuyenKhoa ?? SPECIALTIES[0].id
+  const tenChuyenKhoa = SPECIALTIES.find((kh) => kh.id === idChuyenKhoa)?.name ?? ''
+  const doanKhop = [
+    bang.ten,
+    idChuyenKhoa,
+    tenChuyenKhoa,
+    ...(bang.tags ?? []),
+    bang.noiDungTimKiem ?? '',
+  ]
+    .map(normalizeSearch)
+    .join(' ')
+  return doanKhop.includes(q)
 }

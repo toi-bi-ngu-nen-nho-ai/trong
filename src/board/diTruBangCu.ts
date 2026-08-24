@@ -7,6 +7,7 @@ import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 
+import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import type { BangMeta } from './boardMeta'
 
@@ -90,7 +91,15 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     if (!coNoiDungThat) return
 
     const bayGio = Date.now()
-    const meta: BangMeta = { id: 'board', ten: 'Bảng đầu tiên', taoLuc: bayGio, capNhatLuc: bayGio }
+    const meta: BangMeta = {
+      id: 'board',
+      ten: 'Bảng đầu tiên',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    }
     await idbPut(IDB_STORES.boards, meta)
   } finally {
     workspace.forceStop()

@@ -11,19 +11,23 @@
 // view extension, tức là qua `viewExtensions` ngay bên dưới. Vì thế bỏ hẳn dòng import đó thay vì
 // giữ một dòng vô tác dụng kèm chú thích sai. Đường đăng ký thật được canh bằng
 // `__tests__/dang-ky-custom-element.spec.ts`.
-import type { SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
+import { ExportManager, type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
+import type { RootBlockModel } from '@blocksuite/affine/model'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
+import { Text } from '@blocksuite/store'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
+import { IDB_STORES, idbGetAll } from '../lib/idb'
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { apDungViewportChoIOS } from './viewport-ios'
-import { capNhatAnhXemTruoc } from './boardMeta'
+import type { BangMeta } from './boardMeta'
+import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -77,6 +81,56 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
     idTimer = setTimeout(() => giai('het-gio'), hanGioMs)
   })
   return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
+}
+
+// Xuất bảng ra PNG/PDF qua ExportManager — lớp đã vendored sẵn, đăng ký qua SurfaceViewExtension
+// (di.add(ExportManager, [StdIdentifier]), xem export-manager.ts trong cây vendor), truy xuất bằng
+// std.get(ExportManager). exportPng()/exportPdf() không nhận đối số — cả hai tự đọc tên file từ
+// store.root.props.title (getter `doc` của ExportManager trả thẳng `std.store`, tức CÙNG store đã
+// truyền cho BlockStdScope ở effect mount bên dưới, nên đặt title lên `store` ở đây là đủ, không
+// cần đi qua std). Đặt lại title thay vì để nguyên: tiêu đề mặc định của workspace (nếu có) không
+// chắc khớp TÊN bảng người dùng thấy trên DanhSachBang.tsx — tên hiển thị chỉ có trong CSDL boards
+// (BangMeta.ten, src/lib/idb.ts), không nằm trong chính nội dung CRDT của bảng.
+// Module-level (không nằm trong EdgelessBoard()) vì không phụ thuộc gì ngoài các tham số truyền
+// vào — không có lý do phải dựng lại hàm này ở mỗi lượt render.
+//
+// KHÔNG tự nuốt lỗi ở đây (không try/catch) — để promise reject thẳng ra ngoài. Bên gọi (JSX trong
+// EdgelessBoard()) là nơi có state React để hiện băng lỗi cho người dùng thấy; nuốt lỗi ở một hàm
+// module-level không có tay cầm tới UI chỉ để lại một console.error mà người dùng không bao giờ
+// thấy (review lượt 1, phát hiện #3).
+async function xuatBang(
+  std: BlockStdScope,
+  store: Awaited<ReturnType<typeof taoHoacMoBang>>['store'],
+  boardId: string,
+  dinhDang: 'png' | 'pdf',
+) {
+  const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+  const bang = ds.find((b) => b.id === boardId)
+  const tenMoi = bang?.ten ?? 'Bảng chưa đặt tên'
+  if (store.root) {
+    // `store.root` chỉ mang kiểu `BlockModel` chung — `props.title` là trường RIÊNG của
+    // `affine:page` (RootBlockModel), TypeScript không suy được nếu không ép kiểu. ExportManager
+    // vendored làm đúng phép ép này ở export-manager.ts (`rootModel as RootBlockModel`) trước khi
+    // đọc `props.title` để đặt tên file — theo cùng khuôn ở đây.
+    const rootModel = store.root as RootBlockModel
+    // CHỈ gán lại khi giá trị hiện tại thật sự khác — `props.title = new Text(...)` VÔ ĐIỀU KIỆN
+    // là một phép GÁN LẠI PROP KHỐI thật, đi qua yBlock.observe() (sync-controller.ts
+    // `_observeYBlockChanges`) và bắn `store.slots.blockUpdated` với `isLocal: true` — đúng cờ mà
+    // effect mount của EdgelessBoard() lắng nghe để tính `coThayDoiNoiDung`, thứ quyết định
+    // `capNhatLuc` có bump hay không lúc rời bảng (capNhatAnhXemTruoc). Nếu gán vô điều kiện, chỉ
+    // MỞ bảng ra xuất file (không sửa gì) cũng khiến bảng nhảy lên đầu danh sách với nhãn "Vừa
+    // xong" — đúng loại lỗi mà commit ddcf250 đã vá cho một trường hợp khác (mở xem không sửa). So
+    // sánh chuỗi trước khi gán tránh đúng lỗi đó khi bấm xuất NHIỀU LẦN trong cùng một phiên mở
+    // bảng (đo trực tiếp bằng ca kiểm "bấm Xuất PNG hai lần liên tiếp..." trong
+    // edgeless-board-mount.spec.ts); lần xuất ĐẦU TIÊN của một bảng (title CRDT mặc định còn khác
+    // tên hiển thị) vẫn hợp lệ kích hoạt một lần — đó là đồng bộ thật, không phải lỗi.
+    if (rootModel.props.title.toString() !== tenMoi) {
+      rootModel.props.title = new Text(tenMoi)
+    }
+  }
+  const exportManager = std.get(ExportManager)
+  if (dinhDang === 'png') await exportManager.exportPng()
+  else await exportManager.exportPdf()
 }
 
 /**
@@ -221,6 +275,19 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
   // true khi taoHoacMoBang() phải rơi về workspace chỉ-trong-bộ-nhớ (lượt race đồng bộ đầu tiên hết
   // giờ) — quyết định của chủ dự án sau lượt review toàn nhánh: hiện băng cảnh báo thay vì im lặng.
   const [khongLuuDuoc, setKhongLuuDuoc] = useState(false)
+  // Giữ cả `store`/`std` sống sau khi mount xong — cần cho nút "Xuất" (Task 4) gọi ExportManager,
+  // thứ chỉ component này có tay cầm tới (BoardGallery.tsx chỉ biết boardId). null trong lúc đang mở
+  // bảng hoặc lúc lỗi — nút xuất chỉ hiện khi bảng đã mở xong.
+  const [boSuong, setBoSuong] = useState<{
+    store: Awaited<ReturnType<typeof taoHoacMoBang>>['store']
+    std: BlockStdScope
+  } | null>(null)
+  // null khi chưa từng xuất hoặc lần xuất GẦN NHẤT thành công — chỉ khác null trong khoảng thời
+  // gian giữa một lần xuất lỗi và lần xuất kế tiếp (dù thành công hay không): xem chuỗi
+  // .then(() => setLoiXuat(null)).catch(...) ở hai nút "Xuất" bên dưới. Không dùng setTimeout tự
+  // ẩn — giữ đơn giản cho một tính năng phụ, và "ẩn khi bấm xuất lại" vẫn cho người dùng lối thoát
+  // rõ ràng khỏi thông báo lỗi.
+  const [loiXuat, setLoiXuat] = useState<string | null>(null)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -260,6 +327,7 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
         litRender(std.render(), el)
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
+        setBoSuong({ store, std })
 
         // Khối (note, ảnh, đính kèm...) đi qua store.slots.blockUpdated; phần tử canvas thuần
         // (connector, brush, shape, mindmap node...) KHÔNG phải khối — sống trong Y.Map riêng của
@@ -316,7 +384,44 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
           const ctx = nho.getContext('2d')
           if (ctx) {
             ctx.drawImage(canvasGoc, 0, 0, 480, 360)
-            void capNhatAnhXemTruoc(boardId, nho.toDataURL('image/jpeg', 0.6), coThayDoiNoiDung)
+            // Trích văn bản NGAY TRƯỚC KHI workspaceHienTai.forceStop() chạy (mấy dòng dưới) — store
+            // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Không
+            // dùng `boSuong.store` (state React) — nó có thể null lúc unmount xảy ra sớm hơn lượt
+            // setBoSuong (xem ca kiểm "unmount ngay khi đang chờ đồng bộ"); tự lấy lại store qua
+            // `workspaceHienTai.getDoc(boardId).getStore(...)` là con đường CHẮC CHẮN sống nếu tới
+            // được đây (chỉ chạy khi canvasGoc đã có nội dung, tức taoHoacMoBang đã resolve xong).
+            let noiDungTimKiemMoi: string | undefined
+            try {
+              const rootHienTai = workspaceHienTai
+                ?.getDoc(boardId)
+                ?.getStore({ extensions: storeManager.get('store') }).root
+              if (rootHienTai) {
+                const surfaceHienTai = rootHienTai.children.find(
+                  (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
+                )
+                noiDungTimKiemMoi = ghepNoiDungTimKiem(
+                  trichVanBanTuKhoi(rootHienTai),
+                  // Ép kiểu về hình dạng tối thiểu mà trichVanBanTuCanvas cần (`{ text?: unknown }[]`)
+                  // — elementModels là union các lớp GfxPrimitiveElementModel cụ thể (shape/connector/
+                  // text/mindmap...), không lớp nào khai `text` ở kiểu CHUNG nên TypeScript từ chối
+                  // gán thẳng dù đúng ở runtime cho những lớp có field đó (đã xác nhận qua chính
+                  // element-model/{text,shape,connector}.ts của cây vendored, xem chú thích tại định
+                  // nghĩa trichVanBanTuCanvas trong boardMeta.ts).
+                  surfaceHienTai
+                    ? trichVanBanTuCanvas(surfaceHienTai.elementModels as unknown as Array<{ text?: unknown }>)
+                    : '',
+                )
+              }
+            } catch {
+              // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng
+              // lượt ghi ảnh xem trước hay thao tác quay lại danh sách của người dùng.
+            }
+            void capNhatAnhXemTruoc(
+              boardId,
+              nho.toDataURL('image/jpeg', 0.6),
+              coThayDoiNoiDung,
+              noiDungTimKiemMoi,
+            )
           }
         }
       } catch {
@@ -344,6 +449,21 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
   // Class chữ `drt-edgeless-viewport` PHẢI ở lại — nó là thứ `closest()` bên trên tìm, không phải
   // thứ tạo ra kiểu dáng.
   //
+  // Bọc xuatBang() bằng .then/.catch thay vì để onClick tự gọi trần: xuatBang() giờ KHÔNG tự nuốt
+  // lỗi (xem chú thích tại định nghĩa của nó) nên phải có nơi bắt promise reject, và đây là nơi DUY
+  // NHẤT có state React (`loiXuat`) để hiện lỗi cho người dùng thấy (review lượt 1, phát hiện #3).
+  // `.then(() => setLoiXuat(null))` xoá băng lỗi cũ (nếu có) khi lần xuất MỚI thành công — không
+  // dùng setTimeout tự ẩn, giữ đơn giản cho một tính năng phụ.
+  const bamXuat = (dinhDang: 'png' | 'pdf') => {
+    if (!boSuong) return
+    xuatBang(boSuong.std, boSuong.store, boardId, dinhDang)
+      .then(() => setLoiXuat(null))
+      .catch((loi: unknown) => {
+        console.error(`EdgelessBoard: xuất ${dinhDang.toUpperCase()} thất bại:`, loi)
+        setLoiXuat('Không xuất được bảng — thử lại.')
+      })
+  }
+
   // "Đang mở bảng…" hiện TRONG lớp bọc này (không phải thay thế nó) — lớp bọc phải render ngay từ
   // đầu để giữ cấu trúc DOM ổn định cho `closest()` ở trên, kể cả trước khi Lit gắn vào. Khớp thị
   // giác với dòng "Đang tải bảng vẽ…" của Suspense fallback ở src/board/index.tsx. Trạng thái lỗi
@@ -354,27 +474,87 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
       className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip"
       data-theme={chuDe}
     >
-      {khongLuuDuoc && (
-        // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ cao
-        // một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx cho các
-        // băng cảnh báo lâm sàng khác trong app, để không tạo thêm một ngôn ngữ màu mới.
-        <div
-          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
-          role="status"
-          aria-live="polite"
-          style={{
-            background: 'var(--c-warn-soft)',
-            borderBottom: '1px solid var(--c-warn-line)',
-            color: 'var(--c-warn-icon)',
-          }}
-        >
-          Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
+      {(khongLuuDuoc || loiXuat) && (
+        // MỘT cột dọc chung cho mọi băng cảnh báo ghim đầu bảng, thay vì mỗi băng tự ghim `top-0`
+        // riêng: trước đây cả hai cùng `absolute top-0 inset-x-0 z-10` với kiểu dáng y hệt nhau nên
+        // khi CẢ HAI cùng bật, băng lỗi xuất (render sau) nằm ĐÈ đúng lên băng "không lưu được" —
+        // giấu mất cảnh báo nghiêm trọng hơn hẳn (mất dữ liệu) sau một lỗi phụ có thể thử lại
+        // (review cuối nhánh, mục 3). Xếp chồng bằng flex column nên không phải đoán chiều cao băng
+        // trên bằng một `top` cứng — cỡ chữ/khoảng đệm đổi thì vẫn tự đúng.
+        <div className="absolute top-0 inset-x-0 z-10 flex flex-col">
+          {khongLuuDuoc && (
+            // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ
+            // cao một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx
+            // cho các băng cảnh báo lâm sàng khác trong app, để không tạo thêm ngôn ngữ màu mới.
+            // Đứng TRƯỚC băng lỗi xuất trong cột: cảnh báo mất dữ liệu quan trọng hơn, phải ở vị
+            // trí mắt chạm đầu tiên.
+            <div
+              className="px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
+              role="status"
+              aria-live="polite"
+              style={{
+                background: 'var(--c-warn-soft)',
+                borderBottom: '1px solid var(--c-warn-line)',
+                color: 'var(--c-warn-icon)',
+              }}
+            >
+              Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
+            </div>
+          )}
+          {loiXuat && (
+            // CÙNG mẫu hình ảnh/token với băng cảnh báo `khongLuuDuoc` phía trên (review lượt 1,
+            // phát hiện #3) — không dựng component/toast mới, không thêm thư viện.
+            // `pointer-events-none` bỏ đi ở đây so với băng `khongLuuDuoc`: băng đó chỉ mang chữ,
+            // băng này không có gì bên dưới nó cần bấm xuyên qua (hai nút xuất nằm ở `top: 4` với
+            // `zIndex: 20`, luôn đứng trên cột băng `z-10` này).
+            <div
+              className="px-3 py-1.5 text-[12px] font-semibold text-center"
+              role="status"
+              aria-live="polite"
+              style={{
+                background: 'var(--c-warn-soft)',
+                borderBottom: '1px solid var(--c-warn-line)',
+                color: 'var(--c-warn-icon)',
+              }}
+            >
+              {loiXuat}
+            </div>
+          )}
         </div>
       )}
       {loi && (
         <div className="h-full flex flex-col items-center justify-center gap-1 text-[13px] text-slate-400 text-center px-6">
           <p>Không mở được bảng.</p>
           <p>Hãy tải lại trang để thử lại.</p>
+        </div>
+      )}
+      {boSuong && (
+        // Chỉ hiện khi `boSuong` đã có (bảng mở xong, `store`/`std` đã sống) — bấm xuất lúc còn
+        // "Đang mở bảng…" hay lúc lỗi thì không có gì để xuất. `zIndex: 20` đứng trên băng cảnh báo
+        // "không lưu" (`z-10` ở trên) để hai nút này luôn bấm được kể cả khi băng đó đang hiện.
+        // 44×44 — vùng chạm tối thiểu theo chuẩn (review lượt 1, phát hiện #1; bản đầu 40×40 do brief
+        // viết sai kích thước).
+        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 20, display: 'flex', gap: 6 }}>
+          <button
+            type="button"
+            data-testid="xuat-png"
+            aria-label="Xuất bảng thành PNG"
+            onClick={() => bamXuat('png')}
+            className="mind-focus-ring"
+            style={{ width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--c-surface, #fff)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', fontSize: 10, fontWeight: 700 }}
+          >
+            PNG
+          </button>
+          <button
+            type="button"
+            data-testid="xuat-pdf"
+            aria-label="Xuất bảng thành PDF"
+            onClick={() => bamXuat('pdf')}
+            className="mind-focus-ring"
+            style={{ width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--c-surface, #fff)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', fontSize: 10, fontWeight: 700 }}
+          >
+            PDF
+          </button>
         </div>
       )}
       {dangMo && !loi && (

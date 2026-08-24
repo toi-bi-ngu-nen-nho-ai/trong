@@ -5,6 +5,7 @@ import { act, createElement, useEffect } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { capNhatAnhXemTruoc, type BangMeta } from '../boardMeta'
 import { BoardGallery } from '../BoardGallery'
@@ -13,7 +14,15 @@ import { BoardGallery } from '../BoardGallery'
 // (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở DanhSachBang.spec.ts).
 function taoBangGia(ten: string): BangMeta {
   const bayGio = Date.now()
-  const meta: BangMeta = { id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`, ten, taoLuc: bayGio, capNhatLuc: bayGio }
+  const meta: BangMeta = {
+    id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`,
+    ten,
+    taoLuc: bayGio,
+    capNhatLuc: bayGio,
+    chuyenKhoa: SPECIALTIES[0].id,
+    tags: [],
+    noiDungTimKiem: '',
+  }
   return meta
 }
 
@@ -230,5 +239,51 @@ describe('BoardGallery', () => {
     await choDenKhi(() => {
       expect(container.querySelector('.scroll-ios')?.className).not.toContain('board-out')
     }, 3000)
+  })
+
+  it('truyền moBangYeuCau khớp một bảng đã lưu → mở thẳng bảng đó, không cần bấm qua danh sách', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'muc-tieu', ten: 'Bảng mục tiêu', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true, moBangYeuCau: 'muc-tieu' }))
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="boc-bang"]')).not.toBeNull()
+    })
+    // "Có MỘT bảng nào đó mở ra" chưa đủ — phải đúng bảng được yêu cầu. Cùng cách khẳng định với ca
+    // "bấm một thẻ bảng → mount EdgelessBoard với đúng boardId" phía trên (review cuối nhánh, mục 10).
+    expect(container.querySelector('[data-testid="bang-gia"]')?.getAttribute('data-board-id')).toBe('muc-tieu')
+  })
+
+  // App.tsx truyền một arrow function NỘI TUYẾN cho onMoBangYeuCauXong, nên danh tính callback đổi ở
+  // MỌI lượt render của App — effect [moBangYeuCau, onMoBangYeuCauXong] chạy lại theo. Thứ duy nhất
+  // chặn nó mở lại một bảng người dùng đã rời đi là cặp: guard `if (!moBangYeuCau) return` CỘNG việc
+  // cha thật sự đưa moBangYeuCau về undefined qua callback này. Xoá lời gọi callback thì mọi ca kiểm
+  // cũ vẫn xanh — nên phải canh riêng hợp đồng này (review cuối nhánh, mục 6).
+  it('mở bảng theo yêu cầu xong → gọi onMoBangYeuCauXong để cha reset state', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'muc-tieu', ten: 'Bảng mục tiêu', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    const onMoBangYeuCauXong = vi.fn()
+    await act(async () => {
+      root.render(createElement(BoardGallery, {
+        dangHienTab: true,
+        moBangYeuCau: 'muc-tieu',
+        onMoBangYeuCauXong,
+      }))
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="bang-gia"]')?.getAttribute('data-board-id')).toBe('muc-tieu')
+    })
+    expect(onMoBangYeuCauXong).toHaveBeenCalledTimes(1)
   })
 })

@@ -12,11 +12,14 @@
 // vendored) — cùng một môi trường thượng nguồn đã kiểm chứng cho chính đống mã Lit này.
 import 'fake-indexeddb/auto'
 
+import { ExportManager } from '@blocksuite/affine/blocks/surface'
+import { Text } from '@blocksuite/store'
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { IDB_STORES, idbGetAll, idbPut } from '../../lib/idb'
 import * as boardMeta from '../boardMeta'
 import { EdgelessBoard } from '../EdgelessBoard'
 
@@ -271,7 +274,8 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi. Không
     // tương tác gì với bảng ở ca này (chỉ mount rồi unmount ngay) nên coThayDoiNoiDung phải là
     // false — xem cơ chế theo dõi blockUpdated/element{Added,Updated,Removed} ở EdgelessBoard.tsx.
-    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String), false)
+    // Tham số thứ 4 (noiDungTimKiemMoi, Task 6) là chuỗi rỗng — bảng không có chữ nào để trích.
+    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String), false, expect.any(String))
     spy.mockRestore()
   })
 
@@ -308,7 +312,203 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.unmount()
     })
 
-    expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true)
+    // Tham số thứ 4 (noiDungTimKiemMoi, Task 6): khối thêm vào là note trống (không paragraph/text),
+    // nên chuỗi trích ra vẫn rỗng — chỉ `coThayDoiNoiDung` mới đổi thành true ở ca này.
+    expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true, expect.any(String))
     spy.mockRestore()
+  })
+
+  it('bấm nút "Xuất PNG" gọi ExportManager.exportPng() đúng một lần', async () => {
+    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPng').mockResolvedValue(undefined)
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
+      })
+      // Đợi `editor-host` TRƯỚC, tách riêng khỏi lượt đợi nút xuất bên dưới — không phải để rộng
+      // thời gian mà để đúng NHỊP FLUSH của act(). `editor-host` là DOM do Lit ghi trực tiếp
+      // (litRender() đồng bộ, xong ngay khi taoHoacMoBang() resolve), còn nút xuất là DOM do CHÍNH
+      // React vẽ ra từ state `boSuong` — cùng đặt trong MỘT act()/vi.waitFor duy nhất, đã đo được
+      // (điều tra bằng ca kiểm nháp lặp lại nhiều lần) là act() không chắc flush hết lượt cập nhật
+      // `boSuong` trước khi vi.waitFor bên trong nó hết hạn, dù đợi tới 15000ms — nút KHÔNG BAO GIỜ
+      // xuất hiện trong nhánh đó bất kể chờ bao lâu, tức đây là lỗi NHỊP FLUSH chứ không phải chậm.
+      // Tách thành hai act()/vi.waitFor liên tiếp: lượt đầu (đợi editor-host, mốc đồng bộ tức thời)
+      // buộc act() flush xong đợt cập nhật state đó trước khi vào lượt hai — nút xuất luôn có mặt
+      // gần như ngay khi lượt hai bắt đầu poll.
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(document.querySelector('editor-host')).not.toBeNull()
+        })
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+        })
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+      })
+
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(1)
+      })
+    } finally {
+      goiExport.mockRestore()
+    }
+  })
+
+  it('bấm nút "Xuất PDF" gọi ExportManager.exportPdf() đúng một lần', async () => {
+    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPdf').mockResolvedValue(undefined)
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
+      })
+      // Cùng lý do tách lượt đợi editor-host riêng như ca "Xuất PNG" ở trên — xem chú thích ở đó.
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(document.querySelector('editor-host')).not.toBeNull()
+        })
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(container.querySelector('[data-testid="xuat-pdf"]')).not.toBeNull()
+        })
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-pdf"]') as HTMLButtonElement).click()
+      })
+
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(1)
+      })
+    } finally {
+      goiExport.mockRestore()
+    }
+  })
+
+  it('bấm "Xuất PNG" hai lần liên tiếp → chỉ gán lại title CRDT đúng MỘT lần, không vô điều kiện', async () => {
+    // Review lượt 1 (task-4-report.md, phát hiện #2): xuatBang() cũ gán lại
+    // `store.root.props.title = new Text(...)` VÔ ĐIỀU KIỆN mỗi lần xuất — một phép GÁN LẠI prop
+    // khối thật, đi qua yBlock.observe() (sync-controller.ts `_observeYBlockChanges`) và bắn
+    // `blockUpdated` với `isLocal: true`, đúng cờ mà effect mount trong EdgelessBoard() lắng nghe để
+    // tính `coThayDoiNoiDung` (quyết định `capNhatLuc` có bump khi rời bảng hay không). Hệ quả: chỉ
+    // MỞ bảng ra xuất file (không sửa gì) cũng khiến bảng nhảy lên đầu danh sách với nhãn "Vừa xong"
+    // — đúng loại lỗi mà commit ddcf250 đã vá cho một trường hợp khác (mở xem không sửa).
+    //
+    // Ca này canh TRỰC TIẾP số lần `store.slots.blockUpdated` bắn cho prop "title" qua HAI lượt bấm
+    // "Xuất PNG" liên tiếp trên CÙNG một phiên mở bảng — không đi vòng qua một workspace/docSource
+    // thứ hai để "seed sẵn" title khớp trước: đã thử cách đó (chỉnh Y.Text tại chỗ bằng `.insert()`)
+    // và phát hiện NGAY CẢ chỉnh tại chỗ cũng bắn `blockUpdated` (browser thật đã xác nhận qua log
+    // debug: `{"type":"update","flavour":"affine:page","props":{"key":"title"}}`) — tiền đề "chỉ gán
+    // lại mới bắn, sửa tại chỗ thì không" trong chú thích gốc của xuatBang() SAI với build cụ thể
+    // này, nên phép thử ép hai workspace đồng bộ qua fake-indexeddb chỉ thêm một biến rủi ro thời
+    // điểm (timing) không cần thiết. Đếm sự kiện qua hai lượt bấm thật đo ĐÚNG hành vi cần kiểm: lượt
+    // 1 (title CRDT rỗng, khác 'Bảng chưa đặt tên') hợp lệ bắn đúng 1 lần; lượt 2 (title đã khớp từ
+    // lượt 1) phải KHÔNG bắn thêm — `soLanDoiTitle` phải dừng ở 1 sau cả hai lượt.
+    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPng').mockResolvedValue(undefined)
+    try {
+      await act(async () => {
+        root.render(createElement(EdgelessBoard, { boardId: 'bang-xuat-hai-lan' }))
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(document.querySelector('editor-host')).not.toBeNull()
+        })
+      })
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+        })
+      })
+
+      const eh = document.querySelector('editor-host') as unknown as {
+        std: {
+          store: {
+            slots: {
+              blockUpdated: {
+                subscribe: (fn: (p: { props?: { key?: string } }) => void) => { unsubscribe: () => void }
+              }
+            }
+          }
+        }
+      }
+      let soLanDoiTitle = 0
+      const dk = eh.std.store.slots.blockUpdated.subscribe((p) => {
+        if (p.props?.key === 'title') soLanDoiTitle += 1
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(1)
+      })
+
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(goiExport).toHaveBeenCalledTimes(2)
+      })
+
+      dk.unsubscribe()
+      expect(soLanDoiTitle).toBe(1)
+    } finally {
+      goiExport.mockRestore()
+    }
+  })
+
+  it('rời bảng có ghi chú thật → noiDungTimKiem trong BangMeta chứa đúng chữ đó', async () => {
+    // Seed một BangMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatAnhXemTruoc()
+    // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem boardMeta.ts, `if (!hienCo) return`).
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-trich-chu', ten: 'Bảng test', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-trich-chu' }))
+    })
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    // Thêm một note+paragraph có chữ thật vào store đang mở — CHÍNH API công khai
+    // (store.addBlock) mà mọi thao tác thêm nội dung thật đi qua, cùng mẫu hình các ca kiểm khác
+    // trong file này đã dùng (xem ca "có thêm khối THẬT" phía trên).
+    const eh = document.querySelector('editor-host') as unknown as {
+      std: { store: { root: { id: string } | null; addBlock: (f: string, p?: object, parent?: string) => string } }
+    }
+    await act(async () => {
+      const store = eh.std.store
+      if (store.root) {
+        const noteId = store.addBlock('affine:note', {}, store.root.id)
+        store.addBlock('affine:paragraph', { text: new Text('Ghi chú suy tim EF giảm') }, noteId)
+      }
+    })
+
+    // Canvas cần kích thước khác 0 để nhánh "có dữ liệu để chụp" (bao gồm cả trích văn bản, đặt
+    // NGAY TRƯỚC lượt gọi capNhatAnhXemTruoc) chạy trong happy-dom — cùng kỹ thuật các ca kiểm
+    // capNhatAnhXemTruoc khác trong file này đã dùng.
+    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
+    if (canvasThat) {
+      canvasThat.width = 800
+      canvasThat.height = 600
+    }
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    await vi.waitFor(async () => {
+      const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+      expect(ds.find((b) => b.id === 'bang-trich-chu')?.noiDungTimKiem).toContain(
+        'Ghi chú suy tim EF giảm',
+      )
+    })
   })
 })
