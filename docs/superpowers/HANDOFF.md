@@ -1,12 +1,18 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-24** (mục 30, phiên critique lượt 3 + hai lượt debug tiếp theo mục 27). Dự án:
+Cập nhật: **2026-08-24** (mục 31, trả nợ P2 để lại ở mục 30 + phiên critique lượt 3). Dự án:
 **Bs Trọng** — PWA y khoa tiếng Việt.
 
-> **ĐÍNH CHÍNH bản 2026-08-24 (mục 30, mới nhất).** `/impeccable critique` MindMapScreen lượt 3 —
+> **ĐÍNH CHÍNH bản 2026-08-24 (mục 31, mới nhất).** Người dùng: "sửa nốt hết nợ" — khoản nợ P2 để
+> lại có chủ đích ở mục 30 (mở bảng xem không sửa vẫn bump "cập nhật lần cuối") **đã vá xong**,
+> dựng cơ chế phát hiện thay đổi thật qua `store.slots`/`surface.element*` của BlockSuite. Không
+> còn nợ nào để lại có chủ đích từ track critique MindMapScreen. Xem "TRẠNG THÁI HÔM NAY" ngay dưới
+> và **mục 31**.
+
+> **ĐÍNH CHÍNH bản 2026-08-24 (mục 30).** `/impeccable critique` MindMapScreen lượt 3 —
 > dual-agent tìm 5 vấn đề mới, chủ dự án chọn "làm hết một mạch" — **đã sửa cả 5/5, đã kiểm tay
 > thật trên Browser pane (đọc thẳng IndexedDB + đo transform/kích thước thật, không suy luận)**.
-> Xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 30**.
+> Xem **mục 30**.
 
 > **ĐÍNH CHÍNH bản 2026-08-24 (mục 28-29).** Người dùng báo "còn sót nhiều tiếng Anh trên màn hình" —
 > **KHÔNG phải cảm nhận mơ hồ**: đo được bằng script quét tĩnh (AST, không cần Browser pane) **70
@@ -2963,10 +2969,50 @@ tốn thêm ~500s cho một đổi thay cục bộ) · kiểm tay TRỰC TIẾP 
 `src/board/DanhSachBang.tsx` + `src/index.css` — không đụng vendor, không cần `dung:vendor`/`build`/
 `kiem:dist` lại (khác track dịch mục 28/29).
 
-### Chặng kế tiếp
+### Chặng kế tiếp (đã lỗi thời — xem mục 31, mới hơn)
 
-- **P2 phần sâu** (bump "cập nhật lần cuối" khi chỉ MỞ bảng, không sửa) — để lại có chủ đích, xem
-  trên. Cần `brainstorming` nếu muốn làm cơ chế phát hiện thay đổi thật qua Y.Doc.
+- ~~P2 phần sâu (bump "cập nhật lần cuối" khi chỉ MỞ bảng, không sửa) — để lại có chủ đích~~ ĐÃ VÁ,
+  xem mục 31.
 - Critique MindMapScreen lượt 4 — chạy `/impeccable critique MindMapScreen` lại để đo điểm sau đợt
   vá này.
 - Track dịch/TDD/roadmap — không đổi gì so với mục 28/29, xem "PROMPT DÁN VÀO PHIÊN MỚI" ở mục 0.
+
+## 31. TRẢ NỢ P2 MỤC 30 — CƠ CHẾ PHÁT HIỆN THAY ĐỔI THẬT QUA STORE.SLOTS — ĐÃ XONG
+
+Người dùng: "sửa nốt hết nợ" — trả đúng khoản nợ để lại có chủ đích ở mục 30 (P2 phần sâu: mở bảng
+ra xem rồi quay lại, không sửa gì, vẫn khiến "cập nhật lần cuối" nhảy thành "Vừa xong").
+
+**Root cause:** `EdgelessBoard.tsx` gọi `capNhatAnhXemTruoc()` VÔ ĐIỀU KIỆN lúc unmount (chụp ảnh
+xem trước) — hàm đó bump `capNhatLuc: Date.now()` mỗi lần, không phân biệt "chỉ xem" và "có sửa",
+vì lúc viết (chặng "đẩy hiệu ứng DanhSachBang") chưa có cơ chế phát hiện thay đổi thật.
+
+**Cơ chế mới:** Sau khi `taoHoacMoBang()` resolve (SAU seed — không tính lượt tạo khối ban đầu cho
+bảng mới), `EdgelessBoard.tsx` đăng ký lắng nghe hai nguồn tín hiệu THẬT của BlockSuite, cả hai đều
+cần vì phủ hai lớp dữ liệu khác nhau:
+- `store.slots.blockUpdated` (RxJS Subject) — mọi khối (note, ảnh, đính kèm...) add/update/delete.
+- `surface.elementAdded`/`elementUpdated`/`elementRemoved` (lấy `surface` bằng
+  `store.root.children.find(flavour === 'affine:surface')`, KHÔNG qua `GfxController` vì lo ngại
+  thời điểm mount của Lit — surface là data model có sẵn ngay khi store load, không phụ thuộc DOM)
+  — phần tử canvas thuần (connector/brush/shape/mindmap node), sống trong Y.Map riêng của surface,
+  KHÔNG phải khối nên `blockUpdated` không thấy.
+
+Cả hai chỉ đếm sự kiện có `isLocal`/`local` true — bỏ qua sự kiện đến từ đồng bộ/hydrate nền (dù ở
+app một-người-dùng-cục-bộ này trường hợp đó hiếm). Cờ `coThayDoiNoiDung` gom lại lúc unmount, truyền
+vào `capNhatAnhXemTruoc(id, anhXemTruoc, coThayDoiNoiDung)` — ảnh xem trước VẪN luôn ghi (phản ánh
+đúng khung nhìn cuối cùng, kể cả khi chỉ pan/zoom), `capNhatLuc` chỉ bump khi tham số này true.
+
+**Kiểm chứng:** `tsc` sạch · 35/35 test xanh (`boardMeta.spec.ts` + `BoardGallery.spec.ts` +
+`edgeless-board-mount.spec.ts` + `DanhSachBang.spec.ts`) — gồm một ca kiểm TÍCH HỢP THẬT mới
+(`edgeless-board-mount.spec.ts`): gọi `store.addBlock('affine:note', ...)` THẬT qua cầu nối
+React↔Lit thật (không mock BlockSuite), xác nhận spy `capNhatAnhXemTruoc` nhận đúng
+`coThayDoiNoiDung=true`; ca đối chứng (mount rồi unmount ngay, không tương tác gì) xác nhận `false`.
+Không kiểm tay trên Browser pane thật ở lượt này — dev server cổng 8443 không phản hồi lúc chạy
+(`curl` trả `000`), có vẻ không do thay đổi của lượt này (không đụng gì tới cấu hình server/build);
+độ tin cậy dựa vào ca kiểm tích hợp thật ở trên (dùng đúng API công khai `store.addBlock`, đúng cầu
+nối React↔Lit thật, không mock tầng BlockSuite) thay cho lượt kiểm tay.
+
+**Bàn giao:** commit `ddcf250` (sau commit HANDOFF này). Sửa trong `src/board/EdgelessBoard.tsx` +
+`src/board/boardMeta.ts` — không đụng vendor, không cần `dung:vendor`/`build`/`kiem:dist` lại.
+
+**Nợ đã hết — không còn khoản nào để lại có chủ đích từ track critique MindMapScreen.** Muốn tiếp
+tục nâng chất lượng: chạy `/impeccable critique MindMapScreen` lượt 4.
