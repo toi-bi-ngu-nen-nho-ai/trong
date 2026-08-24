@@ -29,8 +29,25 @@ const DA_CHAY_DI_TRU_KEY = 'drtrong:board-di-tru-da-chay'
 // phải trạng thái riêng của một component.
 let dangDiTru = false
 
-export function BoardGallery({ dangHienTab }: { dangHienTab: boolean }) {
+export function BoardGallery({
+  dangHienTab,
+  moBangYeuCau,
+  onMoBangYeuCauXong,
+}: {
+  dangHienTab: boolean
+  moBangYeuCau?: string
+  onMoBangYeuCauXong?: () => void
+}) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
+  // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app — xem App.tsx
+  // navigate()). Gọi onMoBangYeuCauXong() ngay sau khi tiêu thụ để App.tsx reset state về undefined
+  // — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó lần hai (cùng id, state App.tsx không đổi giá trị)
+  // sẽ không kích hoạt lại effect này (dependency không đổi).
+  useEffect(() => {
+    if (!moBangYeuCau) return
+    setOpenBoardId(moBangYeuCau)
+    onMoBangYeuCauXong?.()
+  }, [moBangYeuCau, onMoBangYeuCauXong])
   // true trong khoảng ngắn giữa lúc bấm "quay lại" và lúc lưới danh sách THẬT SỰ được phép mount —
   // xem chú thích dài ở nút "quay lại" bên dưới để hiểu vì sao cần một cờ riêng thay vì mount
   // DanhSachBang NGAY khi openBoardId về null.

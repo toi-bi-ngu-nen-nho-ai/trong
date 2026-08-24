@@ -11641,6 +11641,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
   const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
+  // Bảng Mindmap cần mở thẳng khi bấm một kết quả tìm kiếm loại "board" — BoardGallery tiêu thụ rồi
+  // gọi onMoBangYeuCauXong() để đưa state này về undefined (xem BoardGallery.tsx).
+  const [moBangYeuCau, setMoBangYeuCau] = useState<string | undefined>(undefined)
   const [viewCustomId, setViewCustomId] = useState<string | null>(null)
   const [viewEcgId, setViewEcgId] = useState<string | null>(null)
   // Tên tính năng đang xem ở màn "Sắp ra mắt" — id truyền qua navigate() khi bấm một thẻ Truy cập
@@ -11752,6 +11755,7 @@ export default function App() {
       setRecentReads(recordRead("article", id))
     }
     if (s === "specialty" && id) setSpecialtyId(id)
+    if (s === "mindmap" && id) setMoBangYeuCau(id)
     if (s === "comingSoon" && id) setComingSoonFeature(id)
     if (s === "customEntry" && id) {
       setViewCustomId(id)
@@ -12084,7 +12088,11 @@ export default function App() {
               (React.lazy, ./index.tsx) LẪN lượt di trú bảng cũ (import động, ./diTruBangCu.ts) chỉ
               tải khi thật sự cần — bảng khi được mở, di trú khi tab Mindmap được mở lần đầu (xem
               BoardGallery.tsx) — nên không cần cờ "đã từng vào tab" riêng như trước. */}
-          <BoardGallery dangHienTab={screen === "mindmap"} />
+          <BoardGallery
+            dangHienTab={screen === "mindmap"}
+            moBangYeuCau={moBangYeuCau}
+            onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
+          />
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
           {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}

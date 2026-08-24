@@ -240,4 +240,20 @@ describe('BoardGallery', () => {
       expect(container.querySelector('.scroll-ios')?.className).not.toContain('board-out')
     }, 3000)
   })
+
+  it('truyền moBangYeuCau khớp một bảng đã lưu → mở thẳng bảng đó, không cần bấm qua danh sách', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'muc-tieu', ten: 'Bảng mục tiêu', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true, moBangYeuCau: 'muc-tieu' }))
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="boc-bang"]')).not.toBeNull()
+    })
+  })
 })
