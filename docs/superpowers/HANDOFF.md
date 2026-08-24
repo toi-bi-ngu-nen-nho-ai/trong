@@ -58,18 +58,47 @@ Cập nhật: **2026-08-24** (mục 31, trả nợ P2 để lại ở mục 30 +
 > khi bản HANDOFF đó được viết (15:21). Cú gộp thật là một **merge commit**, không phải
 > fast-forward. Đừng tin bảng cũ; tin `git log --first-parent main`.
 
-## TRẠNG THÁI HÔM NAY — 69 chuỗi tiếng Anh sót (Database/data-view + SlashMenu) ĐÃ DỊCH, ĐÃ KIỂM CHỨNG
+## TRẠNG THÁI HÔM NAY — KHÔNG CÒN NỢ CÓ CHỦ ĐÍCH NÀO ĐANG MỞ (2026-08-24, sau mục 31)
 
 | | |
 |---|---|
-| `main` | Xem `git log --oneline -1` (commit ngay sau bản HANDOFF này) — 1 commit trực tiếp (không worktree) tiếp sau `51ff80e`, xem mục 28 |
+| `main` | `a35761b` — xem `git log --oneline -1` để xác nhận mới hơn. Bảy commit trực tiếp liên tiếp (không worktree) kể từ `51ff80e`: mục 28→31 |
 | `worktree-database-note-day-du` | `4ddae63` — worktree còn trên đĩa tại `.claude/worktrees/database-note-day-du`, giữ lại làm bản sao lưu, không xoá |
 | `p1e-noi-dung-dich` | `b97f056` — giữ lại làm bản sao lưu, không xoá |
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
 | Cây làm việc | sạch trừ đúng các ngoại lệ đã biết (`src/data/antibiotics.ts` — chủ dự án tự sửa, xem mục 10-11; `.impeccable/live/`, xem mục 19; `bang-bam-vendor.json`/`tsconfig.vendor-paths.json`, xem mục 6; ba file browser-use, xem mục 0) **cộng thêm hai file `src/data/categories.ts`/`src/lib/ui.ts` vẫn đang bị một phiên/chủ dự án KHÁC sửa song song (chưa commit từ bản trước, còn nguyên ở bản này) — không thuộc track nào ở đây, đừng đụng, `git status`/`git diff` lại ở phiên sau để biết tình trạng mới nhất** |
-| Bảy cổng | xanh, đo lại trực tiếp trên `main`, 2026-08-24 — `tsc` exit 0 · `npm test` **300/300** (40 file; 3 ca Database/dark-mode/reorder đỏ ở MỘT lượt chạy trọn bộ do timeout 5000ms mặc định dưới tải máy, xanh ở lượt chạy trọn bộ NGAY SAU đó — chập chờn do tải, không phải hồi quy, cùng bản chất đã ghi ở mục 6) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 437 mục · `build` xanh + `kiem:dist` xanh với `bản dịch vi.json — 243/243 có mặt` (242 `vi.json` + 1 `vi-tien-to.json`, tăng từ 173+1) |
+| Bảy cổng | TẤT CẢ đo lại TRỰC TIẾP, ĐẦY ĐỦ (không suy luận, không timeout) ngay cuối phiên này — `tsc` sạch · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục khớp · `build`+`kiem:dist` xanh **`bản dịch vi.json — 247/247 có mặt`** · **`npm test` 302/302, 40/40 file — ĐÃ chạy trọn bộ, không phải suy ra từ chạy riêng lẻ** (lượt full-suite ĐẦU của phiên này bắt được 3 ca đỏ do mục 29 nới allowlist dịch nhưng quên cập nhật hai cổng "chữ ký"/"độc lập" — vá ở commit `e668854`, xem ghi chú ngay dưới mục 31) |
+
+**Chặng "trả nợ P2 mục 30 — cơ chế phát hiện thay đổi thật qua store.slots — ĐÃ XONG"** — xem
+**mục 31**. Người dùng: "sửa nốt hết nợ". Root cause: `capNhatAnhXemTruoc()` bump `capNhatLuc` VÔ
+ĐIỀU KIỆN lúc rời bảng, không phân biệt "chỉ xem" và "có sửa". Vá: `EdgelessBoard.tsx` theo dõi
+`store.slots.blockUpdated` + `surface.element{Added,Updated,Removed}` (chỉ đếm sự kiện local thật)
+trong suốt phiên mở bảng, truyền cờ `coThayDoiNoiDung` vào `capNhatAnhXemTruoc()` — ảnh xem trước
+vẫn luôn ghi, `capNhatLuc` chỉ bump khi có sửa thật. 35/35 test xanh, gồm 1 ca tích hợp thật
+(`store.addBlock()` qua cầu nối React↔Lit thật, không mock). **Không còn nợ có chủ đích nào từ
+track critique MindMapScreen.**
+
+**Chặng "`/impeccable critique` MindMapScreen lượt 3 — sửa 5/5 vấn đề" — ĐÃ XONG, ĐÃ KIỂM TAY THẬT**
+— xem **mục 30**. Dual-agent (2 subagent Sonnet 5 độc lập). Điểm 26/36 (72%, "Tốt" — cải thiện so
+23/40 hai lượt trước). 5 vấn đề: bảng không phân biệt được (P1 — vá bằng chip màu tự động theo id),
+nhãn "cập nhật lần cuối" sai lệch (P2 — vá phần nông ở mục 30, phần sâu trả nợ ở mục 31 trên), lỗi
+`vuaTao` đóng băng hiệu ứng thẻ mới tạo (P2 — root cause: mốc thời gian đông cứng lúc PARENT mount,
+sửa thành đồng hồ riêng từng thẻ), vùng chạm dưới 44px (P3), hai lỗ hổng a11y — toast thiếu
+aria-live, ô đổi tên mất aria-label khi rỗng (P3). Kiểm tay thật trên Browser pane: đọc thẳng
+IndexedDB xác nhận P2a, đo transform/kích thước qua vòng đời thật của bảng mới tạo xác nhận P2b/P3.
+
+**Chặng "dịch nốt toolbar bảng vẽ (Select/Pen/Hand/Highlighter/Curve/Elbowed/Straight)" — ĐÃ XONG,
+ĐÃ KIỂM CHỨNG qua `kiem:dist` thật** — xem **mục 29**. Người dùng báo trực tiếp lỗi này VẪN còn dù
+mục 28 đã dịch 69 chuỗi khác — `systematic-debugging` tìm ra root cause KHÁC: không phải thiếu đo,
+mà thiếu VỊ TRÍ CÚ PHÁP trong allowlist dịch (`luat-vi-tri-dich.mjs`) — thuộc tính `tip:` (Select,
+Pen, Hand, Highlighter) chưa từng được thêm vào danh sách cho phép, và `name:` trong hai dense-menu
+(Connector, Link) bị loại có chủ đích (an toàn chung không đảm bảo) nhưng chưa được xét ngoại lệ
+HẸP-THEO-FILE sau khi đo riêng an toàn. Thêm `tip` vào allowlist chung (đo: 4 chuỗi thật, tiêu thụ
+ngược 100% là hiển thị) + hai ngoại lệ hẹp-theo-file cho `name`/khoá-tính-toán (đo riêng từng file,
+không nới lỏng chung). 7 khoá dịch mới, gỡ 1 khoá chết ("Connector" — `buildConnectorDenseMenu`
+không được import ở đâu trong cây, tree-shake khỏi build thật). `kiem:dist` xanh 247/247.
 
 **Chặng "sửa 70 chuỗi tiếng Anh còn sót (Database/data-view + SlashMenu) — ĐÃ XONG, ĐÃ KIỂM CHỨNG
 qua `kiem:dist` thật"** — xem **mục 28**. Người dùng báo lỗi trực tiếp ("còn sót nhiều tiếng Anh"),
@@ -170,50 +199,57 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 28 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 31 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở. `main` tại SHA ghi ở đầu mục 28 (hoặc mới hơn — chạy
-`git log --oneline -1` để xác nhận). Bảy cổng xanh: npm test 300/300 (40 file, xem ghi chú chập chờn
-tải máy ở mục 28), kiem:dist 243/243 khoá vi.json có mặt. **Cây làm việc có thể KHÔNG sạch tuyệt
-đối** — kiểm `git status` trước: ngoài các ngoại lệ đã biết lâu (antibiotics.ts, ba file
-browser-use), một phiên/chủ dự án khác từng sửa song song `src/data/categories.ts`/`src/lib/ui.ts`
-— nếu vẫn còn `M` chưa commit ở phiên sau, đó không thuộc track nào ở đây, đừng đụng.
+Không còn chặng nào đang dở, KỂ CẢ nợ để lại có chủ đích — mục 31 đã trả nốt khoản cuối cùng (P2
+sâu của critique lượt 3), VÀ khoản "kiểm chứng chưa trọn" mục 31 tự phát hiện (npm test chưa từng
+chạy hết tới cuối ở mục 29) cũng đã vá — xem đính chính trong mục 31. `main` tại `e668854` (hoặc
+mới hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP, ĐẦY ĐỦ cuối phiên
+trước (không suy luận, không timeout): `tsc` sạch · `kiem:vendor` 2.782 file lệch 0 ·
+`kiem:vendor-paths` 438 mục · `build`+`kiem:dist` xanh **247/247 khoá vi.json có mặt** ·
+**`npm test` 302/302, 40/40 file — ĐÃ chạy trọn bộ thật**. **Cây làm việc có thể KHÔNG sạch tuyệt
+đối** — kiểm `git status` trước: ngoài các ngoại lệ đã
+biết lâu (antibiotics.ts, ba file browser-use), một phiên/chủ dự án khác từng sửa song song
+`src/data/categories.ts`/`src/lib/ui.ts` — nếu vẫn còn `M` chưa commit ở phiên sau, đó không thuộc
+track nào ở đây, đừng đụng.
 
-Ba track độc lập, cả ba đều KHÔNG còn việc dở:
+Ba track độc lập, cả ba đều KHÔNG còn việc dở BẮT BUỘC — dưới đây là việc THÊM nếu muốn, không phải
+nợ:
 
-0. **Dịch 70 chuỗi tiếng Anh còn sót ở Database/data-view + SlashMenu — VỪA XONG** (mục 28). Người
-   dùng báo trực tiếp "còn sót tiếng Anh"; đo bằng script AST một lần (không có sẵn trong `scripts/`,
-   xem mục 28 để tái tạo nếu cần đo lại) tìm CHÍNH XÁC 74 chuỗi tới `dist/` chưa dịch, dịch 69 (3
-   phát hiện là false-positive/dead-key khi kiểm bằng gate thật, xem mục 28), còn "PDF" giữ nguyên có
-   chủ đích. Muốn đo lại từ đầu (thượng nguồn đổi/gói mới bật): viết lại script quét
-   `viTriHienThi`+`coNhuLiteral` như mục 28 mô tả — KHÔNG có sẵn thành lệnh `npm run`.
+0. **Dịch — Database/data-view+SlashMenu (mục 28) VÀ toolbar bảng vẽ (mục 29) đều ĐÃ XONG.**
+   247/247 khoá `vi.json` tới `dist/`, đo lại trực tiếp. Cả hai lượt đều là quét CÓ MỤC TIÊU (theo
+   báo cáo cụ thể của người dùng), KHÔNG phải quét toàn bộ vị trí hiển thị một lần duy nhất — mục 29
+   tự ghi rõ điều này. Muốn "triệt để" tuyệt đối (không có báo cáo cụ thể nào thúc đẩy, chỉ để yên
+   tâm): viết lại script quét toàn cây kiểu mục 28 (`viTriHienThi` + `coNhuLiteral`, KHÔNG có sẵn
+   thành lệnh `npm run`) một lần nữa, SAU KHI đã có allowlist mới của mục 29 (`tip` + hai ngoại lệ
+   file trong `luat-vi-tri-dich.mjs`) để không báo trùng.
 
-1. **`/impeccable critique` MindMapScreen (BoardGallery) — 2 lượt, lượt 2 vừa xong** (mục 26+27).
-   Lượt 1: 4 vấn đề ưu tiên (xoá vĩnh viễn không hoàn tác, token màu sai, lưới lệch cột, vùng
-   chạm/focus) — đã sửa, chủ dự án tự kiểm tay xác nhận đúng. Lượt 2 (2026-08-23): critique lại tìm
-   5 vấn đề MỚI (điểm vẫn 23/40 — không thụt lùi, thay chỗ trống), đã sửa 4/5 (panel "Đã xoá gần
-   đây", focus ring ô đổi tên, tên dài line-clamp, "+" ở lại danh sách mở ô đổi tên), đã kiểm tay
-   thật trên trình duyệt (chính phiên thực hiện). P3 còn lại (thiếu màu đặc trưng Mindmap) để lại
-   có chủ đích — chưa quyết định khôi phục trường chuyên khoa/màu vào `BangMeta`. Muốn tiếp tục nâng
-   chất lượng: chạy lại `/impeccable critique MindMapScreen` (target thật:
-   `src/board/BoardGallery.tsx`) để xem điểm cải thiện, rồi lặp lại chu trình. Roadmap PRODUCT.md
-   hứa (tìm kiếm/tag/xuất file cho Mindmap) đã được chủ dự án xác nhận là việc THẬT cần làm dần,
-   không phải chỉ sửa tài liệu — mở bằng `brainstorming` → `writing-plans` vì là chặng lớn.
+1. **`/impeccable critique` MindMapScreen (BoardGallery) — 3 lượt, lượt 3 + nợ P2 sâu đều ĐÃ XONG**
+   (mục 26+27+30+31). Điểm mới nhất 26/36 (72%, "Tốt"). KHÔNG còn vấn đề nào được critique tìm thấy
+   mà chưa sửa — kể cả khoản P2 "để lại có chủ đích" ở mục 30 nay đã trả ở mục 31. Muốn tiếp tục
+   nâng chất lượng: chạy lại `/impeccable critique MindMapScreen` (target thật:
+   `src/board/BoardGallery.tsx`) — lượt 4, xem điểm cải thiện ra sao rồi lặp lại chu trình. Roadmap
+   PRODUCT.md hứa (tìm kiếm/tag/xuất file cho Mindmap) đã được chủ dự án xác nhận là việc THẬT cần
+   làm dần, không phải chỉ sửa tài liệu — mở bằng `brainstorming` → `writing-plans` vì là chặng lớn,
+   CHƯA bắt đầu.
 
-2. **Track dịch + TDD tự động hoá kiểm tay.** Track dịch (vi.json/vendor D12) đã dịch hết mọi chuỗi
-   "tới dist ngay" đo được (166→173 khoá, mục 20-22). Track "TDD tự động hoá kiểm tay" (thay kiểm
-   tay trên trình duyệt thật bằng test tự động, vì Browser pane không compositing khi phiên không có
-   người theo dõi trực tiếp) nay ở **17/22 khoá** của mục 21+22 — năm kỹ thuật đã có
-   (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import config trực
-   tiếp, bơm thẳng signal `message$` của ToolbarRegistry) cộng một PHÁT HIỆN HẠ TẦNG quan trọng ở
-   mục 25: gán thẳng property mới lên global/DOM object KHÔNG có hiệu lực trong pool happy-dom của
-   Vitest ở dự án này — luôn dùng `Object.defineProperty` thay vì `obj.prop = value` khi patch
-   property chưa tồn tại (đã xác nhận qua 3 trường hợp độc lập: fullscreenElement mục 24,
-   isSecureContext + URL.createObjectURL mục 25). Còn 5 khoá vẫn hoãn — TỪNG khoá cần hạ tầng kiểm
-   RIÊNG, hai khoá ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ" ở cuối mục 25
-   để biết chính xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
+2. **Track TDD tự động hoá kiểm tay** (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
+   Browser pane không compositing khi phiên không có người theo dõi trực tiếp) — dừng ở **17/22
+   khoá** của mục 21+22, KHÔNG đổi từ bản trước, còn 5 khoá hoãn thật sự (không phải quên): năm kỹ
+   thuật đã có (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import
+   config trực tiếp, bơm thẳng signal `message$` của ToolbarRegistry) cộng một PHÁT HIỆN HẠ TẦNG
+   quan trọng ở mục 25: gán thẳng property mới lên global/DOM object KHÔNG có hiệu lực trong pool
+   happy-dom của Vitest ở dự án này — luôn dùng `Object.defineProperty` thay vì `obj.prop = value`
+   khi patch property chưa tồn tại (xác nhận qua 3 trường hợp độc lập: fullscreenElement mục 24,
+   isSecureContext + URL.createObjectURL mục 25). TỪNG khoá cần hạ tầng kiểm RIÊNG, hai khoá
+   ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ" ở cuối mục 25 để biết chính
+   xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
+
+**Việc ngoài ba track — chưa nghiệm thu, không phải nợ kỹ thuật (mục 7):** iPad chưa có thiết bị
+thật để đo (đã cấu hình phòng ngừa ở mục 8, chưa xác nhận); vẽ hình bằng công cụ shape mới chạy
+được qua sự kiện tổng hợp, chưa test bằng input thật của hệ điều hành trên thiết bị thật.
 
 **Ghi chú vận hành đáng nhớ (mục 25):** một subagent giao việc TDD kẹt vòng lặp "tự background một
 tiến trình vitest dài rồi kết thúc lượt để chờ được đánh thức" — subagent KHÔNG được đánh thức tự
@@ -3016,3 +3052,19 @@ nối React↔Lit thật, không mock tầng BlockSuite) thay cho lượt kiểm
 
 **Nợ đã hết — không còn khoản nào để lại có chủ đích từ track critique MindMapScreen.** Muốn tiếp
 tục nâng chất lượng: chạy `/impeccable critique MindMapScreen` lượt 4.
+
+> **ĐÍNH CHÍNH ngay trong mục 31 — phiên "dọn bàn giao" sau đó phát hiện mục 29 tự nhận "kiểm chứng
+> qua kiem:dist thật" nhưng CHƯA từng chạy `npm test` TOÀN BỘ tới cuối (lượt full-suite duy nhất
+> của mục 29 bị timeout giữa chừng, không ai để ý vì `kiem:dist` — cổng được nhắc tên — vẫn xanh
+> độc lập). Chạy lại đầy đủ bắt được ĐÚNG 3 ca đỏ, cả ba đều là hệ quả trực tiếp của việc mục 29 nới
+> `THUOC_TINH_HIEN_THI` (thêm `tip`) và thêm hai ngoại lệ hẹp-theo-file mà quên cập nhật hai lớp
+> phòng vệ ĐỘC LẬP D12 tự dựng cho chính mục đích này — chữ ký khoá ("đúng 5 tên" giờ phải là 6, cố
+> ý viết cứng để không lọt qua âm thầm) và cổng độc lập trên `.vendor-build/` thật (gọi thẳng
+> `viTriHienThi()` nhưng thiếu tham số `tenFile` mới nên hai ngoại lệ hẹp-theo-file không bao giờ
+> khớp — báo "vi phạm" oan cho 7 chuỗi đã đo an toàn kỹ). Đã vá ở commit `e668854`: cập nhật hai ca
+> chữ ký lên 6 tên, chuẩn hoá đường dẫn `/` rồi truyền `tenFile` đúng như `dichMotFile()` thật làm,
+> đồng bộ lại `luat-vi-tri-dich.d.mts` (khai kiểu tay cho `scripts/`, bị lệch chữ ký nên `tsc
+> --noEmit` cũng đỏ TS2554 dù `.mjs` đã đúng). **`npm test` giờ 302/302, 40/40 file — đo lại TRỌN
+> BỘ, không suy luận.** Bài học: một cổng xanh không chứng minh CÁC cổng khác cũng xanh nếu lượt
+> chạy đầy đủ cuối cùng chưa từng chạm tới đích — luôn chạy hết TOÀN BỘ `npm test` (không timeout,
+> không suy luận từ lượt chạy riêng lẻ/file cụ thể) trước khi ghi "kiểm chứng" vào HANDOFF.
