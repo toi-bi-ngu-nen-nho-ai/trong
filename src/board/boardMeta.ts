@@ -79,3 +79,52 @@ export async function doiGhiAnhXongNeuCo(hanGioMs = 800): Promise<void> {
   if (!ghiAnhDangCho) return
   await Promise.race([ghiAnhDangCho, new Promise((r) => setTimeout(r, hanGioMs))])
 }
+
+// Cấu trúc TỐI THIỂU cần để duyệt cây khối tìm chữ — KHÔNG import type thật từ BlockSuite
+// (BlockModel) để giữ file này ngoài ranh giới nạp chậm D13 (xem Global Constraints của plan).
+// Bất kỳ object nào có hình dạng này (kể cả `store.root` thật của BlockSuite) đều dùng được.
+type KhoiCoTheCoChu = {
+  props?: Record<string, unknown>
+  children?: KhoiCoTheCoChu[]
+}
+
+function layChu(vanBan: unknown): string {
+  if (vanBan && typeof (vanBan as { toString: () => string }).toString === 'function') {
+    return String(vanBan).trim()
+  }
+  return ''
+}
+
+// Duyệt đệ quy `store.root` (note/paragraph/list...) gom mọi `props.text` thành một chuỗi — dùng
+// để tìm kiếm, KHÔNG dùng để hiển thị (không giữ định dạng/thứ tự chính xác). Giới hạn độ sâu
+// (mặc định 12) để tránh vòng lặp vô hạn nếu dữ liệu hỏng có cây tự tham chiếu.
+export function trichVanBanTuKhoi(goc: KhoiCoTheCoChu, doSauToiDa = 12): string {
+  const doanVan: string[] = []
+  const duyet = (khoi: KhoiCoTheCoChu, doSau: number) => {
+    if (doSau > doSauToiDa) return
+    const chu = layChu(khoi.props?.text)
+    if (chu) doanVan.push(chu)
+    khoi.children?.forEach((con) => duyet(con, doSau + 1))
+  }
+  duyet(goc, 0)
+  return doanVan.join(' ')
+}
+
+// Phần tử canvas (surface.elementModels — shape/connector/text/mindmap node) mang chữ trực tiếp
+// trên field `.text` (Y.Text), KHÔNG lồng trong `.props` như khối — đã xác nhận qua
+// element-model/{text,shape,connector}.ts của cây vendored, cả ba đều `text?: Y.Text`.
+export function trichVanBanTuCanvas(danhSachPhanTu: Array<{ text?: unknown }>): string {
+  return danhSachPhanTu
+    .map((el) => layChu(el.text))
+    .filter(Boolean)
+    .join(' ')
+}
+
+const DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM = 5000
+
+// Cắt bớt để tránh BangMeta phình quá to với bảng nhiều chữ — 5000 ký tự đủ cho tìm kiếm con
+// chuỗi, không cần giữ nguyên vẹn toàn bộ nội dung (đó là việc của chính bảng, không phải snapshot
+// tìm kiếm này).
+export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): string {
+  return `${vanBanKhoi} ${vanBanCanvas}`.trim().slice(0, DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM)
+}

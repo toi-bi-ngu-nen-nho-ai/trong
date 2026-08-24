@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { capNhatAnhXemTruoc, taoIdBang } from '../boardMeta'
+import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, taoIdBang, trichVanBanTuCanvas, trichVanBanTuKhoi } from '../boardMeta'
 
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
@@ -113,5 +113,46 @@ describe('capNhatAnhXemTruoc — backfill trường mới + noiDungTimKiemMoi', 
 
     const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'w')?.noiDungTimKiem).toBe('giữ nguyên')
+  })
+})
+
+describe('trichVanBanTuKhoi', () => {
+  it('gộp text của mọi khối con có props.text, đệ quy nhiều cấp, cách nhau bằng dấu cách', () => {
+    const goc = {
+      children: [
+        { props: { text: 'Đoạn 1' }, children: [] },
+        { children: [{ props: { text: 'Đoạn con' }, children: [] }] },
+        { props: {}, children: [] },
+      ],
+    }
+    expect(trichVanBanTuKhoi(goc)).toBe('Đoạn 1 Đoạn con')
+  })
+
+  it('khối gốc và mọi con đều không có props.text → chuỗi rỗng', () => {
+    expect(trichVanBanTuKhoi({ children: [{ props: {}, children: [] }] })).toBe('')
+  })
+
+  it('props.text không phải Y.Text/có toString (vd số) → bỏ qua, không ném lỗi', () => {
+    expect(trichVanBanTuKhoi({ props: { text: 42 } })).toBe('42')
+    expect(trichVanBanTuKhoi({ props: { text: null } })).toBe('')
+  })
+})
+
+describe('trichVanBanTuCanvas', () => {
+  it('gộp .text của mọi phần tử canvas có chữ, bỏ qua phần tử không có', () => {
+    const els = [{ text: { toString: () => 'Nhãn connector' } }, {}, { text: { toString: () => 'Node mindmap' } }]
+    expect(trichVanBanTuCanvas(els)).toBe('Nhãn connector Node mindmap')
+  })
+})
+
+describe('ghepNoiDungTimKiem', () => {
+  it('nối hai đoạn bằng dấu cách, cắt bớt nếu vượt 5000 ký tự', () => {
+    expect(ghepNoiDungTimKiem('a', 'b')).toBe('a b')
+    const dai = 'x'.repeat(6000)
+    expect(ghepNoiDungTimKiem(dai, '').length).toBe(5000)
+  })
+
+  it('cả hai rỗng → chuỗi rỗng', () => {
+    expect(ghepNoiDungTimKiem('', '')).toBe('')
   })
 })
