@@ -843,3 +843,216 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     expect(sauXoaTag).toBeGreaterThan(sauThemTag)
   })
 })
+
+describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  // happy-dom: gán thẳng `.value` KHÔNG đi qua setter React đã vá (_valueTracker) nên onChange im
+  // lặng không bắn — cùng vướng mắc đã ghi chú ở các ca kiểm "Đổi tên"/"nhập tag" phía trên. Gom
+  // lại thành một hàm để mọi ca kiểm dưới đây gõ đúng như người dùng thật.
+  async function goVaoOTim(o: HTMLInputElement, chu: string) {
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(o, chu)
+      else o.value = chu
+      o.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+
+  it('gõ tên bảng → chỉ còn bảng khớp trong lưới', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    expect(oTim).not.toBeNull()
+    await goVaoOTim(oTim, 'suy tim')
+
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Suy tim EF giảm')
+    expect(container.textContent).not.toContain('Hen phế quản')
+  })
+
+  it('gõ không dấu / khác hoa-thường vẫn khớp; xoá trắng truy vấn → mọi bảng trở lại', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'HEN PHE QUAN')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Hen phế quản')
+
+    // Truy vấn rỗng = trạng thái "chưa lọc" (bangKhopTimKiem trả true) — không được kẹt ở kết quả cũ.
+    await goVaoOTim(oTim, '')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+  })
+
+  it('gõ tag → khớp bảng mang tag đó, dù tên bảng không chứa chữ nào của truy vấn', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Bảng một', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: ['khó thở kịch phát'], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Bảng hai', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    await goVaoOTim(container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement, 'kich phat')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Bảng một')
+  })
+
+  // Ô tìm phải SỐNG SÓT qua lượt render không còn kết quả nào — nếu nó bị gắn vào nhánh
+  // `danhSachSapXep.length === 0` (nhánh rỗng) thì gõ tới ký tự không khớp sẽ unmount chính ô đang
+  // gõ: mất focus giữa chừng, không xoá bớt ký tự để quay lại được. Cổng riêng vì đây là cái bẫy
+  // duy nhất khiến tính năng này hỏng hẳn trên máy thật mà vẫn "xanh" ở các ca kiểm đếm thẻ trên.
+  it('gõ truy vấn KHÔNG khớp bảng nào → lưới rỗng nhưng ô tìm vẫn còn, vẫn giữ nguyên chữ đã gõ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'khong co gi khop')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    })
+
+    const oTimSau = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    expect(oTimSau).not.toBeNull()
+    expect(oTimSau.value).toBe('khong co gi khop')
+  })
+
+  // Cùng lớp lỗi mà taoBangMoi() đã phải vá cho chip lọc chuyên khoa (xem chú thích ở
+  // DanhSachBang.tsx): bảng mới luôn tên "Bảng chưa đặt tên", nên nếu ô tìm còn giữ truy vấn cũ thì
+  // thẻ vừa tạo KHÔNG khớp và biến mất ngay khi vừa ghi xong — bấm "+" trông như không phản ứng gì,
+  // trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB.
+  it('đang gõ tìm kiếm → bấm "+" vẫn phải thấy thẻ mới + ô đổi tên (ô tìm tự xoá trắng)', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'hen')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+    expect(container.querySelector('[data-testid^="input-ten-"]')).not.toBeNull()
+    expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
+  })
+
+  it('ô tìm chỉ hiện khi đã có ít nhất một bảng — lưới rỗng hoàn toàn thì không hiện', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    expect(container.querySelector('[data-testid="tim-kiem-bang"]')).toBeNull()
+  })
+
+  it('ô tìm có nhãn truy cập và vùng chạm tối thiểu 44px', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Bảng bất kỳ', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tim-kiem-bang"]')).not.toBeNull()
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    expect(oTim.getAttribute('aria-label')).toBe('Tìm kiếm bảng')
+    expect(oTim.className).toContain('mind-focus-ring')
+    // happy-dom không dựng layout thật (getBoundingClientRect trả 0) — kiểm thẳng style nội tuyến,
+    // đúng thứ quyết định chiều cao vùng chạm trên máy thật.
+    expect(parseFloat(oTim.style.minHeight)).toBeGreaterThanOrEqual(44)
+  })
+})

@@ -7,7 +7,7 @@ import { SPECIALTIES } from '../data'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
-import { type BangMeta, taoIdBang } from './boardMeta'
+import { bangKhopTimKiem, type BangMeta, taoIdBang } from './boardMeta'
 
 // Cùng giá trị CONFIRM_DELETE_RESET_MS của App.tsx (5000) — viết hằng số riêng thay vì import vì
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
@@ -423,6 +423,9 @@ export function DanhSachBang({
   // null = "Tất cả" (không lọc). Không đưa vào URL/localStorage — lọc chỉ có ý nghĩa trong phiên
   // đang xem lưới, giống các bộ lọc tạm thời khác của app (SearchScreen.activeFilter).
   const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(null)
+  // Truy vấn ô tìm nội bộ — cùng quy ước "chỉ sống trong phiên xem lưới" với chuyenKhoaLoc ngay
+  // trên (không vào URL/localStorage). Chuỗi rỗng = chưa lọc (bangKhopTimKiem trả true).
+  const [truyVan, setTruyVan] = useState('')
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -469,9 +472,12 @@ export function DanhSachBang({
   // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
   // Chip chuyên khoa lọc THÊM sau đó — bang thiếu chuyenKhoa (bản ghi cũ chưa backfill, xem
   // boardMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES.
+  // Ô tìm lọc THÊM lần nữa (giao của cả hai, không phải hoặc): bangKhopTimKiem gộp tên/chuyên
+  // khoa/tag/nội dung trích được và bỏ dấu hai phía (xem boardMeta.ts), truy vấn rỗng luôn khớp.
   const danhSachSapXep = [...danhSach]
     .filter((b) => !b.daXoaLuc)
     .filter((b) => !chuyenKhoaLoc || (b.chuyenKhoa ?? SPECIALTIES[0].id) === chuyenKhoaLoc)
+    .filter((b) => bangKhopTimKiem(b, truyVan))
     .sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
   const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
@@ -498,6 +504,10 @@ export function DanhSachBang({
     // trông như không phản ứng gì, trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB — review
     // lượt 1 phát hiện). Đưa bộ lọc về "Tất cả" ngay khi tạo để thẻ mới chắc chắn hiện ra.
     setChuyenKhoaLoc(null)
+    // Ô tìm gây ĐÚNG lớp lỗi đó một lần nữa, còn dễ vấp hơn chip lọc: tên bảng mới luôn là "Bảng
+    // chưa đặt tên", nên bất kỳ truy vấn nào đang gõ dở (trừ chuỗi khớp đúng tên mặc định) đều loại
+    // thẻ vừa tạo khỏi lưới ngay lượt render kế tiếp. Xoá trắng truy vấn cùng lúc với chip lọc.
+    setTruyVan('')
   }
 
   return (
@@ -583,6 +593,43 @@ export function DanhSachBang({
               ))}
             </div>
           )}
+        </div>
+      )}
+      {/* Cổng hiện/ẩn dựa trên danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danhSachSapXep đã
+          lọc — nếu gắn vào danh sách đã lọc thì gõ tới ký tự không khớp bảng nào sẽ unmount chính ô
+          đang gõ: mất focus giữa chừng, không xoá bớt ký tự để quay lại được. Cùng lý do và cùng
+          điều kiện với dải chip chuyên khoa ngay dưới. */}
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
+        <div style={{ padding: '12px 16px 8px' }}>
+          <input
+            type="search"
+            data-testid="tim-kiem-bang"
+            value={truyVan}
+            onChange={(e) => setTruyVan(e.target.value)}
+            placeholder="Tìm bảng theo tên, tag, nội dung..."
+            aria-label="Tìm kiếm bảng"
+            className="mind-focus-ring"
+            // minHeight 44: vùng chạm tối thiểu cho ngón tay, cùng chuẩn đã áp cho nút "⋯" và các
+            // mục menu trong file này — chiều cao tự nhiên của input này (cỡ chữ 16 bị ép, xem chú
+            // thích dưới, + padding 8 + viền 1) chỉ khoảng 37px, chưa đủ. `input:focus{outline:none}` của index.css xoá sạch tín hiệu focus nên
+            // cần .mind-focus-ring; KHÔNG kèm .mind-search-pill — class đó dành cho khối BỌC NGOÀI
+            // của component SearchField dùng chung (quy tắc `:focus-within` + tắt outline của input
+            // CON bên trong), đặt thẳng lên một input trần thì rule thứ hai không khớp gì còn rule
+            // thứ nhất chỉ là một vòng focus thứ hai trùng lặp, thắng-thua tuỳ thứ tự dòng trong
+            // index.css.
+            // KHÔNG đặt fontSize ở đây: index.css có `input,select,textarea{font-size:16px
+            // !important}` (chặn iOS Safari tự zoom khi focus vào ô chữ nhỏ) — mọi giá trị đặt ở
+            // đây đều bị nuốt, đo trên trình duyệt thật vẫn ra 16px. Ghi 13 vào cho "khớp cỡ chữ
+            // các ô khác trong file" chỉ tạo dòng chết trông như đang có tác dụng.
+            style={{
+              width: '100%',
+              minHeight: 44,
+              padding: '8px 12px',
+              borderRadius: 12,
+              border: '1px solid var(--c-line, #d9ddf4)',
+              background: 'var(--c-surface, #fff)',
+            }}
+          />
         </div>
       )}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
