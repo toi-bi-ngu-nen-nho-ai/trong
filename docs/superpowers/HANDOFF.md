@@ -2834,3 +2834,67 @@ Không còn chặng nào dở ở track dịch "70 chuỗi" này. Lựa chọn:
 - Track critique MindMapScreen lượt 3, hoặc quyết định P3 (màu đặc trưng) — xem mục 27.
 - Track TDD tự động hoá kiểm tay (mục 25) — vẫn 17/22 khoá.
 - Roadmap PRODUCT.md — `brainstorming` → `writing-plans`.
+
+## 29. DỊCH NỐT TOOLBAR BẢNG VẼ (Select/Pen/Hand/Highlighter/Curve/Elbowed/Straight) — ĐÃ XONG, ĐÃ KIỂM CHỨNG
+
+Người dùng báo LẦN NỮA sau mục 28: *"tên tiếng anh khi ấn button, toolbar của bảng sơ đồ ... trên
+github chạy vẫn không thấy tiếng việt"*. `systematic-debugging`, làm trực tiếp trên `main`, 1 commit
+(`74597f9`, ngay sau mục 28's `b513c40`).
+
+**Root cause — khác hẳn mục 28, không phải thiếu đo mà là THIẾU VỊ TRÍ CÚ PHÁP trong allowlist.**
+Mở board thật qua Browser pane (session này CÓ người theo dõi nên compositing được, khác giới hạn
+Shadow DOM `closed` gặp ở mục 28), quét DOM tìm text node/`data-tip` còn tiếng Anh, lần ngược lên AST
+nguồn vendored bằng `Read`/`Grep` trực tiếp (không cần script chẩn đoán riêng như mục 28):
+
+1. **`tip:` property** (`gfx/pointer/.../default-tool-button.ts` "Hand"/"Select",
+   `gfx/brush/.../pen/consts.ts` "Pen"/"Highlighter") — CHƯA TỪNG nằm trong
+   `THUOC_TINH_HIEN_THI` của `scripts/luat-vi-tri-dich.mjs` (khác `tooltip`/`label`/`caption`/
+   `placeholder` đã có từ P1-C). Đo NGƯỢC `.tip` toàn cây: mọi tiêu thụ đều hiển thị thuần
+   (`data-tip=`, `this.tip=`, overlay text) — không so sánh/tra khoá nào. An toàn thêm chung.
+2. **`name:` trong dense-menu** (`connector-dense-menu.ts`, `link-dense-menu.ts` — dùng
+   `menu.action()`/`menu.subMenu()` của `@blocksuite/affine-components/context-menu`) và **khoá
+   tính toán** `[ConnectorMode.X]: '...'` trong `connector.ts` (nguồn của
+   `getConnectorModeName()`, tooltip nút connector gọn). `name` KHÔNG an toàn dịch chung — bằng
+   chứng thật ngay trong cây: `slash-menu.js:39` so sánh `['Code','Link'].includes(i.name)`. Đo
+   RIÊNG từng file thay vì mở khoá `name`/khoá-tính-toán toàn cục: đọc hết mọi nơi tiêu thụ
+   ngược của `config.name`/`keyed(config.name,...)` trong chính component context-menu, xác nhận
+   không có so sánh nghiệp vụ nào đọc lại giá trị CỦA HAI FILE NÀY cụ thể → thêm hai ngoại lệ
+   HẸP-THEO-FILE mới (`FILE_CHO_PHEP_NAME_DENSE_MENU`, `FILE_CHO_PHEP_KHOA_TINH_TOAN`, cả hai
+   nhận `tenFile` do `dichMotFile`/`viTriHienThi` giờ nhận thêm tham số này) thay vì nới rộng
+   `name` chung — giữ nguyên tinh thần "danh sách cho phép, hỏng thì đóng" gốc.
+
+**7 khoá mới** trong `vi.json` (Hand/Select/Pen/Highlighter/Elbowed/Straight — tái dùng
+Curve/Link có sẵn). **1 khoá chết bị gỡ ngay ở lượt đầu:** `"Connector"` (nhãn nhóm dense-menu) —
+`buildConnectorDenseMenu` không được `import` ở BẤT KỲ đâu trong toàn cây vendor (grep xác nhận),
+tree-shake khỏi `dist/` thật, `kiem:dist` tự bắt đúng như thiết kế (không phải false-negative như
+"Video"/"Equation" ở mục 28 — lần này gate bắt ĐÚNG NGAY LƯỢT ĐẦU, không cần vòng 2).
+
+**Bảy cổng đo lại trên `main`, 2026-08-24 (sau `74597f9`):** `tsc` exit 0 · `npm test` **296/300**
+(3 file — 4 ca `edgeless-board-dark-mode/reorder/database.spec.ts` đỏ, cùng bản chất chập chờn
+timeout dưới tải máy đã ghi ở mục 6/28, KHÔNG liên quan thay đổi này — phiên này tải đặc biệt nặng
+vì 2 subagent critique + Browser pane cùng chạy song song) · `kiem:vendor` 2.782 file lệch 0 ·
+`kiem:vendor-paths` 438 mục · `build` xanh + `kiem:dist` xanh với `bản dịch vi.json — 247/247 có
+mặt`.
+
+**Kiểm tay trên Browser pane thật — LÀM ĐƯỢC** (khác mục 28 bị chặn Shadow DOM `closed`, vì cây
+đã dựng lại và tab lần này không bị chặn `read_page`/`javascript_tool`): mở bảng, đọc thuộc tính
+`data-tip` của các nút toolbar qua `javascript_tool` — xác nhận trực tiếp `Chọn`/`Khung`/`Cong`/
+`Ghi chú`/`Bút`/`Tẩy`/`Hình` đều đã tiếng Việt, không còn "Select"/"Pen" tiếng Anh. Không mở tay
+submenu Highlighter/Hand/Elbowed/Straight (không phải tool đang active) — bằng chứng cho bốn khoá
+đó là `bao-cao-dich.json` (đúng vị trí, đúng file) + `kiem:dist` 247/247, cùng mức tin cậy dự án
+đã dùng cho các khoá không kiểm tay trực tiếp được ở mục 21/22.
+
+Bump `public/sw.js` `CACHE` v9→v10 — máy đã cài PWA từ trước không kẹt lại bundle cũ.
+
+### Ngoài phạm vi, còn nợ
+
+- `connector-dense-menu.ts`/`link-dense-menu.ts` — cả hai component ĐÃ dịch xong ở vị trí `name`
+  nhưng bản thân `buildConnectorDenseMenu` chưa từng được wiring vào đâu (dead code thật trong
+  cây vendor, không phải quyết định của dự án này) — nếu thượng nguồn hoặc một đợt bật extension
+  sau này wiring nó vào, bản dịch đã sẵn sàng, không cần làm lại.
+- Không có bằng chứng nào cho thấy còn CHUỖI TIẾNG ANH KHÁC sót trong `dist/` ngoài track đã đo ở
+  mục 28 (Database/SlashMenu) + mục này (toolbar chính) — nhưng cả hai đều là đo CÓ MỤC TIÊU (theo
+  báo cáo cụ thể của người dùng), không phải quét TOÀN BỘ vị trí hiển thị một lần duy nhất. Muốn
+  "triệt để" theo nghĩa tuyệt đối: viết lại script quét toàn cây kiểu mục 28 (`viTriHienThi` +
+  `coNhuLiteral`) một lần nữa, lần này SAU KHI đã có allowlist mới (`tip` + hai ngoại lệ file) để
+  không báo trùng những gì mục này vừa dịch.
