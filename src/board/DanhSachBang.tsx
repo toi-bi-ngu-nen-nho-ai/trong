@@ -751,7 +751,8 @@ export function DanhSachBang({
                 setDangSuaTagId(dangSuaTagId === bang.id ? null : bang.id)
               }}
               onDoiChuyenKhoa={(id) => {
-                update({ ...bang, chuyenKhoa: id, capNhatLuc: Date.now() })
+                const bangMoi = { ...bang, chuyenKhoa: id, capNhatLuc: Date.now() }
+                update(bangMoi)
                 // Chip lọc đang chọn MỘT chuyên khoa khác id vừa gán → bảng sẽ rớt khỏi danhSachSapXep
                 // ngay khi update() cập nhật state cục bộ (cùng lượt render), kéo theo panel đang mở
                 // (dangSuaTag) unmount cùng lúc — người dùng vừa đổi chuyên khoa thì cả thẻ lẫn panel
@@ -759,6 +760,13 @@ export function DanhSachBang({
                 // (tạo bảng dưới chip lọc khác cũng làm thẻ mới biến mất) — cùng cách vá: đưa bộ lọc
                 // về "Tất cả" ngay khi thao tác khiến bảng đang thao tác rớt khỏi bộ lọc hiện tại.
                 if (chuyenKhoaLoc && chuyenKhoaLoc !== id) setChuyenKhoaLoc(null)
+                // Ô tìm (Task 8) là bộ lọc THỨ HAI, rớt khỏi nó cũng làm thẻ + panel biến mất y hệt,
+                // nên phải vá RIÊNG — chặn được chip lọc không có nghĩa là chặn được ô tìm.
+                // bangKhopTimKiem gộp cả TÊN HIỂN THỊ của chuyên khoa ("Tim mạch", xem boardMeta.ts)
+                // nên đổi khoa thật sự đổi kết quả so khớp. Kiểm bằng chính bản ghi MỚI (bangMoi):
+                // `bang` trong closure vẫn là bản cũ, so khớp nó sẽ ra kết luận sai. Truy vấn rỗng
+                // luôn khớp nên nhánh này tự im lặng khi chưa lọc gì.
+                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
               onLuuTen={(tenMoi) => {
                 setDangSuaTenId(null)
@@ -768,7 +776,13 @@ export function DanhSachBang({
                 // không làm gì cả, khiến tín hiệu "cập nhật gần đây" càng thêm sai lệch (critique
                 // lượt 3, 2026-08-24 — xác nhận trực tiếp bằng Escape trên Browser pane thật).
                 if (tenSach === bang.ten) return
-                update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
+                const bangMoi = { ...bang, ten: tenSach, capNhatLuc: Date.now() }
+                update(bangMoi)
+                // Đổi tên ra NGOÀI truy vấn đang lọc thì thẻ vừa lưu biến mất ngay lượt render kế
+                // tiếp — nhẹ hơn hai ca kia (ô đổi tên đã tự đóng ở dòng đầu callback nên không có
+                // panel nào bị giật mất) nhưng vẫn là "vừa lưu xong thì mất thẻ". Cùng cách vá với
+                // chip lọc ngay trên: xoá trắng bộ lọc khiến bảng đang thao tác rớt khỏi lưới.
+                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
               onXoa={() => {
                 if (dangXacNhanXoaId !== bang.id) {
@@ -784,9 +798,15 @@ export function DanhSachBang({
                 if (hienCo.includes(tag)) return
                 update({ ...bang, tags: [...hienCo, tag], capNhatLuc: Date.now() })
               }}
-              onXoaTag={(tag) =>
-                update({ ...bang, tags: (bang.tags ?? []).filter((t) => t !== tag), capNhatLuc: Date.now() })
-              }
+              onXoaTag={(tag) => {
+                const bangMoi = { ...bang, tags: (bang.tags ?? []).filter((t) => t !== tag), capNhatLuc: Date.now() }
+                update(bangMoi)
+                // Ca TỆ NHẤT của lớp lỗi này: truy vấn khớp bảng CHỈ nhờ đúng cái tag vừa bị bấm ×.
+                // Panel sửa tag đang mở ngay dưới con trỏ, xoá xong là bảng thôi khớp truyVan → thẻ
+                // rớt khỏi lưới kéo panel unmount cùng lượt render, người dùng mất chỗ đang thao tác
+                // giữa chừng. Cùng cách vá với chip lọc ở onDoiChuyenKhoa phía trên.
+                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
+              }}
             />
           ))}
           <button

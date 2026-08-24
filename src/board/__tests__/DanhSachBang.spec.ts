@@ -1055,4 +1055,146 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     // đúng thứ quyết định chiều cao vùng chạm trên máy thật.
     expect(parseFloat(oTim.style.minHeight)).toBeGreaterThanOrEqual(44)
   })
+
+  // Ca TỆ NHẤT của lớp lỗi "bảng rớt khỏi bộ lọc giữa chừng thao tác": truy vấn chỉ khớp NHỜ một
+  // tag, người dùng mở panel sửa tag rồi bấm × đúng cái tag đó. Không vá thì update() làm bảng thôi
+  // khớp truyVan ngay CÙNG lượt render — thẻ rớt khỏi lưới kéo theo chính panel đang mở (dangSuaTag)
+  // unmount ngay dưới con trỏ. taoBangMoi() và onDoiChuyenKhoa (chip lọc) đã vá lớp lỗi này rồi,
+  // onXoaTag thì chưa.
+  it('truy vấn chỉ khớp nhờ MỘT tag → bấm × xoá đúng tag đó khi panel sửa đang mở: thẻ + panel không biến mất, ô tìm tự xoá trắng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Bảng một', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: ['kịch phát'], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Bảng hai', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'kich phat')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-a"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-a"]') as HTMLButtonElement).click()
+    })
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-a"]')).not.toBeNull()
+
+    await act(async () => {
+      ;(container.querySelector('[aria-label="Xoá tag kịch phát"]') as HTMLButtonElement).click()
+    })
+
+    // Thẻ vẫn còn trong lưới và panel sửa vẫn mở — truy vấn tự xoá trắng nên bảng không bị lọc ra.
+    expect(container.textContent).toContain('Bảng một')
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-a"]')).not.toBeNull()
+    expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
+
+    const ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'a')?.tags).toEqual([])
+  })
+
+  // onDoiChuyenKhoa đã vá cho chip lọc (chuyenKhoaLoc) từ review Task 2 nhưng KHÔNG vá cho ô tìm.
+  // bangKhopTimKiem so khớp cả TÊN HIỂN THỊ của chuyên khoa (boardMeta.ts) nên truy vấn "tim mach"
+  // khớp được bảng khoa Tim mạch — đổi sang khoa khác là thẻ lẫn panel biến mất y hệt ca chip lọc.
+  it('truy vấn chỉ khớp nhờ TÊN CHUYÊN KHOA → đổi chuyên khoa khi panel sửa đang mở: thẻ + panel không biến mất, ô tìm tự xoá trắng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Bảng X', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Bảng Y', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'tim mach')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    expect(container.textContent).toContain('Bảng X')
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-a"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-a"]') as HTMLButtonElement).click()
+    })
+
+    const chon = container.querySelector('[data-testid="chon-chuyen-khoa-a"]') as HTMLSelectElement
+    await act(async () => {
+      chon.value = 'pulmonology'
+      chon.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    expect(container.textContent).toContain('Bảng X')
+    expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-a"]')).not.toBeNull()
+    expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
+  })
+
+  // Nhẹ hơn hai ca trên (ô đổi tên đã tự đóng trước khi update chạy nên không có panel nào bị giật
+  // mất) nhưng vẫn là "vừa lưu xong thì thẻ biến mất": đổi tên ra ngoài truy vấn đang gõ.
+  it('đổi tên bảng ra NGOÀI truy vấn đang lọc → thẻ vừa đổi tên không biến mất, ô tìm tự xoá trắng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+    await idbPut(IDB_STORES.boards, {
+      id: 'b', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'suy tim')
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-a"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="doi-ten-a"]') as HTMLButtonElement).click()
+    })
+
+    const oTen = container.querySelector('[data-testid="input-ten-a"]') as HTMLInputElement
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(oTen, 'Viêm phổi cộng đồng')
+      else oTen.value = 'Viêm phổi cộng đồng'
+      oTen.dispatchEvent(new Event('input', { bubbles: true }))
+      oTen.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+
+    expect(container.textContent).toContain('Viêm phổi cộng đồng')
+    expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
+  })
 })
