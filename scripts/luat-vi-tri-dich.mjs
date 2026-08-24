@@ -39,7 +39,44 @@ import ts from 'typescript'
 //
 // KHÔNG được thêm `key` vào đây: nó chứa "Align left", "Align right" — đọc lên y hệt nhãn hiển
 // thị nhưng là ĐỊNH DANH mục menu, dịch vào là gãy tra cứu.
-export const THUOC_TINH_HIEN_THI = new Set(['label', 'tooltip', 'description', 'caption', 'placeholder'])
+//
+// `tip` thêm 2026-08-24 — điều tra lỗi "toolbar còn tiếng Anh" (docs/superpowers/HANDOFF.md).
+// Đo toàn cây: đúng 4 chuỗi hiển thị thật (`gfx/pointer/.../default-tool-button.ts` "Hand"/
+// "Select", `gfx/brush/.../pen/consts.ts` "Pen"/"Highlighter") + 1 icon không phải chữ
+// (`widgets/linked-doc/.../obsidian.ts` giá trị "🔥", không khớp khoá tiếng Anh nào nên vô hại).
+// Quét NGƯỢC `.tip` trên toàn cây: mọi chỗ đọc lại đều là tiêu thụ HIỂN THỊ (gán
+// `data-tip="${…tip}"` — đã nằm trong THUOC_TINH_HTML_HIEN_THI, hoặc gán tiếp sang thuộc tính
+// hiển thị khác `this.tip =` / overlay text) — không một so sánh/tra khoá/switch nào đọc `.tip`.
+// An toàn ngang `tooltip`/`caption`/`placeholder`.
+export const THUOC_TINH_HIEN_THI = new Set(['label', 'tooltip', 'description', 'caption', 'placeholder', 'tip'])
+
+// Ngoại lệ HẸP THEO FILE cho `name` — khác THUOC_TINH_HIEN_THI ở trên vì `name` KHÔNG an toàn dịch
+// chung (96 lượt tiêu thụ ngược đo được toàn cây, xem cảnh báo về name/group/title/text phía
+// trên — ví dụ thật: `slash-menu.js:39` so sánh `['Code','Link'].includes(i.name)`,
+// `note-menu-config.js:113` so sánh `item.name !== 'Divider'`). Nhưng đo RIÊNG hai file dưới đây
+// (2026-08-24, cùng điều tra lỗi toolbar): mỗi file định nghĩa đúng một `menu.action()`/
+// `menu.subMenu()` (từ `@blocksuite/affine-components/context-menu`) mà giá trị `name` CHỈ được
+// đọc lại bởi chính component đó để `menu.search()` (lọc theo CHUỖI ĐANG HIỂN THỊ, tự nhất quán
+// sau khi dịch) và `keyed()` (khoá diff DOM, không phải tra cứu nghiệp vụ) — không có so
+// sánh/tra khoá NÀO khác trong toàn cây đọc lại đúng các giá trị `name` của hai file này. Danh
+// sách ĐÓNG theo đường dẫn: thêm file mới phải đo lại tiêu thụ ngược của riêng file đó trước,
+// không suy diễn "chắc cũng an toàn" từ hai file đã đo.
+export const FILE_CHO_PHEP_NAME_DENSE_MENU = new Set([
+  'affine/gfx/connector/src/toolbar/connector-dense-menu.js',
+  'affine/gfx/link/src/toolbar/link-dense-menu.js',
+])
+
+// Ngoại lệ HẸP THEO FILE cho literal là giá trị của một property có KHOÁ TÍNH TOÁN
+// (`[Enum.X]: 'Chuỗi'`) — `tenThuocTinh()` trả null cho khoá tính toán nên `viTriHienThi` bỏ qua
+// mặc định (khoá động, không đoán được tên tại lúc phân tích tĩnh). Đo RIÊNG file dưới đây
+// (2026-08-24): đúng MỘT map (`getConnectorModeName`, 3 giá trị Straight/Elbowed/Curve), có ĐÚNG
+// MỘT nơi tiêu thụ trong toàn cây (`connector-tool-button.ts:60`,
+// `data-tip="${getConnectorModeName(mode)}"` — hiển thị thuần, không so sánh/tra khoá), và KHÔNG
+// còn property khoá-tính-toán+giá-trị-chuỗi nào khác trong cùng file. An toàn dịch. Danh sách
+// ĐÓNG cùng nguyên tắc như FILE_CHO_PHEP_NAME_DENSE_MENU ở trên.
+export const FILE_CHO_PHEP_KHOA_TINH_TOAN = new Set([
+  'affine/model/src/elements/connector/connector.js',
+])
 
 // Đối số của các hàm này là chuỗi hiển thị cho người dùng cuối.
 // KHÔNG thêm `error`/`warn`/`debugLog` (thông báo cho lập trình viên) hay `track` (tên sự kiện đo
@@ -123,13 +160,28 @@ function khopThuocTinhHtml(span) {
   return null
 }
 
-export function viTriHienThi(node) {
+export function viTriHienThi(node, tenFile = null) {
   const p = node.parent
   if (!p) return null
 
   if (p.kind === ts.SyntaxKind.PropertyAssignment && p.initializer === node) {
     const ten = tenThuocTinh(p.name)
-    return ten && THUOC_TINH_HIEN_THI.has(ten) ? `thuộc-tính:${ten}` : null
+    if (ten && THUOC_TINH_HIEN_THI.has(ten)) return `thuộc-tính:${ten}`
+
+    // Hai ngoại lệ hẹp-theo-file, xem chú thích ở định nghĩa FILE_CHO_PHEP_* phía trên — chỉ khớp
+    // khi CẢ tên file lẫn hình dạng cú pháp đều đúng, không phải một trong hai.
+    if (ten === 'name' && tenFile && FILE_CHO_PHEP_NAME_DENSE_MENU.has(tenFile)) {
+      return `thuộc-tính-name-rieng-file:${tenFile}`
+    }
+    if (
+      !ten &&
+      p.name.kind === ts.SyntaxKind.ComputedPropertyName &&
+      tenFile &&
+      FILE_CHO_PHEP_KHOA_TINH_TOAN.has(tenFile)
+    ) {
+      return `khoa-tinh-toan-rieng-file:${tenFile}`
+    }
+    return null
   }
 
   if (p.kind === ts.SyntaxKind.CallExpression && p.expression !== node) {
@@ -226,7 +278,7 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
               'phẳng: { "English": "Tiếng Việt" }.',
           )
         }
-        const viTri = viTriHienThi(n)
+        const viTri = viTriHienThi(n, tenFile)
         if (viTri) {
           const dau = n.getStart(sf)
           thay.push({

@@ -26,7 +26,8 @@
 // sau khi bản dịch kia đã đổi, và tooltip hiện nguyên câu dài thay vì phần đã cắt.
 import ts from 'typescript'
 
-export const THUOC_TINH_CON_GIU = new Set(['tooltip', 'label', 'description', 'caption', 'placeholder'])
+// `tip` thêm 2026-08-24 cùng lúc với luat-vi-tri-dich.mjs — xem chú thích ở đó cho lý do an toàn.
+export const THUOC_TINH_CON_GIU = new Set(['tooltip', 'label', 'description', 'caption', 'placeholder', 'tip'])
 
 function mangGiaTriHienThi(node) {
   if (!node) return null

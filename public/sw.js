@@ -25,7 +25,9 @@
 //     của ô tìm kiếm (trước chỉ có ở màn Dùng thuốc) ra mọi ô tìm trong app.
 // v9: icon-192/icon-512/apple-touch-icon đổi ảnh (commit "Sửa icon") nhưng quên bump số này — máy
 //     đã cài PWA/mở app trước đó kẹt icon cũ vĩnh viễn vì fetch ưu tiên cache. Bump để ép nạp lại.
-const CACHE = "drtrong-v9"
+// v10: dịch nốt toolbar bảng vẽ còn tiếng Anh (Select/Pen/Hand/Highlighter/Curve/Elbowed/Straight)
+//      — bump để máy đã cài PWA từ trước không kẹt lại bundle cũ còn tiếng Anh.
+const CACHE = "drtrong-v10"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
