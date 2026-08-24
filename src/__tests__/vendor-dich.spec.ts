@@ -33,13 +33,14 @@ const dichTagTooltip = (js: string) => thayChuTrongTagTooltip(js, BAN_DO, 'thu.j
 // chuỗi) trở thành một lượt nới CÓ CHỮ KÝ — phải sửa test này mới xanh được — chứ không phải một
 // lượt nới im lặng lọt qua mà không ai để ý.
 describe('D12 — danh sách vị trí cho phép đúng kích thước và nội dung', () => {
-  it('THUOC_TINH_HIEN_THI có đúng 5 tên, đúng thứ tự đo được', () => {
+  it('THUOC_TINH_HIEN_THI có đúng 6 tên, đúng thứ tự đo được (+ tip, mục 29)', () => {
     expect([...THUOC_TINH_HIEN_THI]).toEqual([
       'label',
       'tooltip',
       'description',
       'caption',
       'placeholder',
+      'tip',
     ])
   })
 
@@ -410,6 +411,14 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
       }
       if (!coKhong) continue
 
+      // Chuẩn hoá dấu `/` — PHẢI khớp đúng định dạng `tenFile` mà dich-chuoi-vendor.mjs truyền vào
+      // dichMotFile() (path.relative(...).split(path.sep).join('/')). Hai ngoại lệ hẹp-theo-file
+      // của luat-vi-tri-dich.mjs (FILE_CHO_PHEP_NAME_DENSE_MENU/FILE_CHO_PHEP_KHOA_TINH_TOAN, mục
+      // 29) so khớp CHÍNH XÁC chuỗi có `/` — trên Windows, path.relative() trả về `\`, nên thiếu
+      // bước chuẩn hoá này sẽ khiến hai ngoại lệ đó không bao giờ khớp ở ĐÚNG cổng được sinh ra để
+      // xác nhận độc lập rằng chúng an toàn — báo "vi phạm" oan cho chính các vị trí đã đo an toàn.
+      const relFile = path.relative(BUILD, f).split(path.sep).join('/')
+
       const sf = ts.createSourceFile(f, src, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
       const di = (n: ts.Node) => {
         // Nhận CẢ `NoSubstitutionTemplateLiteral`, đúng như bộ thay ở luat-vi-tri-dich.mjs. Chỉ
@@ -420,7 +429,7 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (laLiteral) {
           const chu = (n as ts.StringLiteralLike).text
           if (banDich.has(chu)) {
-            if (viTriHienThi(n) === null) soPham.push(`${path.relative(BUILD, f)}: "${chu}"`)
+            if (viTriHienThi(n, relFile) === null) soPham.push(`${relFile}: "${chu}"`)
             else daThay.add(chu)
           }
         }

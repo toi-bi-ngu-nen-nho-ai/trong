@@ -3,6 +3,8 @@
 import type ts from 'typescript'
 
 export declare const THUOC_TINH_HIEN_THI: Set<string>
+export declare const FILE_CHO_PHEP_NAME_DENSE_MENU: Set<string>
+export declare const FILE_CHO_PHEP_KHOA_TINH_TOAN: Set<string>
 export declare const DOI_SO_HIEN_THI: Set<string>
 export declare const THUOC_TINH_HTML_HIEN_THI: string[]
 export declare const THUOC_TINH_LIT_HIEN_THI: string[]
@@ -14,7 +16,7 @@ export interface Luot {
   dong: number
 }
 
-export declare function viTriHienThi(node: ts.Node): string | null
+export declare function viTriHienThi(node: ts.Node, tenFile?: string | null): string | null
 
 export declare function dichMotFile(
   js: string,

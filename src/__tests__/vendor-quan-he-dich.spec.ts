@@ -15,9 +15,9 @@ import {
 } from '../../scripts/kiem-quan-he-dich.mjs'
 
 describe('THUOC_TINH_CON_GIU', () => {
-  it('đúng 5 tên, khớp với THUOC_TINH_HIEN_THI của luat-vi-tri-dich.mjs', () => {
+  it('đúng 6 tên, khớp với THUOC_TINH_HIEN_THI của luat-vi-tri-dich.mjs (+ tip, mục 29)', () => {
     expect([...THUOC_TINH_CON_GIU].sort()).toEqual(
-      ['caption', 'description', 'label', 'placeholder', 'tooltip'].sort(),
+      ['caption', 'description', 'label', 'placeholder', 'tip', 'tooltip'].sort(),
     )
   })
 })
