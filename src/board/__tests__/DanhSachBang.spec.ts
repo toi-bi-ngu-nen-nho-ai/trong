@@ -582,4 +582,43 @@ describe('DanhSachBang', () => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     })
   })
+
+  it('đang lọc theo MỘT chuyên khoa (khác chuyên khoa đầu tiên) → bấm "+" vẫn phải thấy thẻ mới + ô đổi tên (không bị chip lọc cũ nuốt mất)', async () => {
+    const bayGio = Date.now()
+    // Seed một bảng thuộc chuyên khoa THỨ HAI (không phải SPECIALTIES[0]) — bảng mới tạo luôn được
+    // gán chuyenKhoa: SPECIALTIES[0].id, nên nếu chip lọc không tự reset về "Tất cả" khi tạo, thẻ
+    // mới sẽ bị chính bộ lọc đang chọn (chuyên khoa thứ hai) loại khỏi lưới ngay khi vừa ghi xong.
+    await idbPut(IDB_STORES.boards, {
+      id: 'khoa-2-1', ten: 'Bảng khoa thứ hai', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[1].id, tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    const chipKhoa2 = container.querySelector(
+      `[data-testid="chip-chuyen-khoa-${SPECIALTIES[1].id}"]`,
+    ) as HTMLButtonElement
+    await act(async () => {
+      chipKhoa2.click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    // Thẻ mới phải HIỆN RA ngay (2 thẻ trong lưới) với ô đổi tên đã mở sẵn — không bị chip lọc cũ
+    // (chuyên khoa thứ hai) âm thầm nuốt mất thẻ vừa tạo (chuyenKhoa mặc định là SPECIALTIES[0].id).
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+    expect(container.querySelector('[data-testid^="input-ten-"]')).not.toBeNull()
+  })
 })

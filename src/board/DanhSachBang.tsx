@@ -413,6 +413,11 @@ export function DanhSachBang({
     // không cách nào phân biệt trong lưới. Giữ người dùng lại ở danh sách, mở luôn ô đổi tên cho thẻ
     // vừa tạo — họ đặt tên trước rồi mới bấm vào để vẽ, đúng lúc còn nhớ đang tạo bảng cho việc gì.
     setDangSuaTenId(meta.id)
+    // Bảng mới LUÔN được gán chuyenKhoa: SPECIALTIES[0].id — nếu chip lọc đang chọn một chuyên khoa
+    // KHÁC, thẻ vừa tạo sẽ không khớp bộ lọc và biến mất khỏi lưới ngay khi vừa ghi xong (bấm "+"
+    // trông như không phản ứng gì, trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB — review
+    // lượt 1 phát hiện). Đưa bộ lọc về "Tất cả" ngay khi tạo để thẻ mới chắc chắn hiện ra.
+    setChuyenKhoaLoc(null)
   }
 
   return (
@@ -502,7 +507,11 @@ export function DanhSachBang({
       )}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
         <div
-          role="tablist"
+          // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc lập
+          // — KHÔNG dùng role="tablist" (đó là mẫu điều hướng dạng tab, đòi hỏi role="tab" +
+          // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây). Ruling
+          // review lượt 1.
+          role="group"
           aria-label="Lọc theo chuyên khoa"
           style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
         >
