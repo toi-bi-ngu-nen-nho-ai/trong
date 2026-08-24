@@ -34,6 +34,19 @@ export function nghiengOnDinh(id: string): number {
   return ((Math.abs(h) % 61) - 30) / 10
 }
 
+// Băm id thành một góc (độ hue) ỔN ĐỊNH trong khoảng [260, 330) — họ tím-hồng quanh --c-accent-2
+// (~327°, xem src/index.css), CỐ TÌNH tránh xa đỏ/hổ phách/xanh lá (~0-50°, ~90-150°) vì ba màu đó
+// dành riêng cho tín hiệu nguy hiểm/cảnh báo/thành công (Untouchable Signal Rule, DESIGN.md) — chấm
+// phân biệt bảng không bao giờ được lẫn với tín hiệu an toàn. Dùng chung `--chip-s`/`--chip-l` (định
+// nghĩa cạnh --c-accent-2 trong index.css, tự đổi theo sáng/tối) nên hue là thứ DUY NHẤT hàm này cần
+// tính — critique lượt 3 (2026-08-24): bảng mới tạo không phân biệt được trong lưới lẫn panel "Đã
+// xoá gần đây" (11/15 bảng thật trên máy dev đọc y hệt "Bảng chưa đặt tên").
+export function mauOnDinh(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) | 0
+  return 260 + (Math.abs(h) % 70)
+}
+
 function TheTrong() {
   return (
     <svg viewBox="0 0 200 150" className="w-full h-full opacity-40" aria-hidden="true">
@@ -47,7 +60,6 @@ function TheTrong() {
 function TheBang({
   bang,
   index,
-  vuaTao,
   dangXoa,
   dangSuaTen,
   dangMoMenu,
@@ -60,7 +72,6 @@ function TheBang({
 }: {
   bang: BangMeta
   index: number
-  vuaTao: boolean
   dangXoa: boolean
   dangSuaTen: boolean
   dangMoMenu: boolean
@@ -73,6 +84,26 @@ function TheBang({
 }) {
   const [tenNhap, setTenNhap] = useState(bang.ten)
   const nutRef = useRef<HTMLButtonElement>(null)
+
+  // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc DanhSachBang mount —
+  // trước đây parent chụp `Date.now()` một lần lúc MOUNT rồi so cho MỌI thẻ; bảng tạo SAU khi
+  // gallery đã mở (đúng luồng "+" → mở ô đổi tên tại chỗ) có taoLuc > mốc đó, hiệu số luôn ÂM nên
+  // `vuaTao` treo `true` suốt phiên xem thay vì tắt sau 3s — thẻ đóng băng ở khung hình đầu của
+  // .card-plop, kéo theo vùng chạm "⋯" bị scale nhỏ lại (critique lượt 3, 2026-08-24). Đồng hồ
+  // riêng + hẹn giờ tự tắt ở đây đảm bảo đúng hạn bất kể parent có re-render đúng lúc t+3s hay không.
+  const [vuaTao, setVuaTao] = useState(() => Date.now() - bang.taoLuc < VUA_TAO_NGUONG_MS)
+  useEffect(() => {
+    if (!vuaTao) return
+    const conLai = VUA_TAO_NGUONG_MS - (Date.now() - bang.taoLuc)
+    if (conLai <= 0) {
+      setVuaTao(false)
+      return
+    }
+    const id = setTimeout(() => setVuaTao(false), conLai)
+    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ cần chạy lại khi ĐỔI bảng (khoá
+    // theo id), không phải mỗi khi `vuaTao` tự nó đổi (tránh vòng lặp huỷ-rồi-lập-lại hẹn giờ).
+  }, [bang.id, bang.taoLuc])
 
   // `tenNhap` chỉ khởi tạo MỘT LẦN từ `useState(bang.ten)` — không tự đồng bộ lại khi mở sửa tên
   // LẦN THỨ HAI. Không có effect này: gõ nháp → Escape (huỷ, không lưu nhưng cũng không reset ô
@@ -118,6 +149,7 @@ function TheBang({
       >
         <div
           style={{
+            position: 'relative',
             aspectRatio: '4 / 3',
             borderRadius: 8,
             overflow: 'hidden',
@@ -134,6 +166,22 @@ function TheBang({
           ) : (
             <TheTrong />
           )}
+          {/* Chấm màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên, gắn ở góc ảnh xem trước để
+              lướt lưới vẫn thấy ngay kể cả khi nhiều bảng cùng tên mặc định "Bảng chưa đặt tên"
+              (critique lượt 3). Viền --c-surface tạo tương phản với ảnh nền bất kỳ màu gì. */}
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: 6,
+              left: 6,
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: `hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`,
+              boxShadow: '0 0 0 2px var(--c-surface, #fff)',
+            }}
+          />
         </div>
         {!dangSuaTen && (
           <>
@@ -167,6 +215,9 @@ function TheBang({
           data-testid={`input-ten-${bang.id}`}
           value={tenNhap}
           autoFocus
+          // aria-label TĨNH, không dựa vào `value` — nếu không, người dùng đọc màn hình xoá trắng ô
+          // để gõ lại sẽ mất tên truy cập giữa chừng (critique lượt 3, 2026-08-24).
+          aria-label="Đổi tên bảng"
           onChange={(e) => setTenNhap(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onLuuTen(tenNhap)
@@ -221,7 +272,16 @@ function TheBang({
 
       {dangMoMenu && (
         <div style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 8, padding: 4, zIndex: 1 }}>
-          <button type="button" data-testid={`doi-ten-${bang.id}`} onClick={onBatSuaTen} className="mind-focus-ring" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 0, background: 'none' }}>
+          {/* Vùng chạm 44px tối thiểu (display:flex+minHeight, không phải padding trần) + khoảng
+              cách/đường phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành
+              động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24). */}
+          <button
+            type="button"
+            data-testid={`doi-ten-${bang.id}`}
+            onClick={onBatSuaTen}
+            className="mind-focus-ring"
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none' }}
+          >
             Đổi tên
           </button>
           <button
@@ -229,7 +289,19 @@ function TheBang({
             data-testid={`xoa-${bang.id}`}
             onClick={onXoa}
             className="mind-focus-ring"
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 0, background: 'none', color: dangXacNhanXoa ? 'var(--c-danger, #c0392b)' : undefined }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              minHeight: 44,
+              textAlign: 'left',
+              padding: '0 10px',
+              marginTop: 2,
+              border: 0,
+              borderTop: '1px solid var(--c-line, #d9ddf4)',
+              background: 'none',
+              color: dangXacNhanXoa ? 'var(--c-danger, #c0392b)' : undefined,
+            }}
           >
             {dangXacNhanXoa ? 'Chắc chắn xoá?' : 'Xoá'}
           </button>
@@ -267,7 +339,6 @@ export function DanhSachBang({
   // mềm, phục hồi được". Panel này là lưới an toàn tối thiểu: không phải màn "thùng rác" đầy đủ (dọn
   // vĩnh viễn, sắp xếp theo ngày...), chỉ để mở lại được những gì vuaXoa đã bỏ lỡ.
   const [hienDaXoaGanDay, setHienDaXoaGanDay] = useState(false)
-  const luoBoMount = useRef(Date.now())
 
   useEffect(() => {
     if (!dangXacNhanXoaId) return
@@ -315,7 +386,6 @@ export function DanhSachBang({
   const danhSachSapXep = [...danhSach].filter((b) => !b.daXoaLuc).sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
   const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
-  const bayGio = luoBoMount.current
 
   const taoBangMoi = () => {
     const luc = Date.now()
@@ -366,6 +436,18 @@ export function DanhSachBang({
                     borderRadius: 8,
                   }}
                 >
+                  {/* Cùng chấm màu ổn định theo id với lưới chính — hai bảng "Bảng chưa đặt tên"
+                      trong panel này giờ phân biệt được TRƯỚC KHI bấm Hoàn tác nhầm (critique lượt 3). */}
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      background: `hsl(${mauOnDinh(b.id)} var(--chip-s) var(--chip-l))`,
+                    }}
+                  />
                   <span
                     style={{
                       flex: 1,
@@ -451,7 +533,6 @@ export function DanhSachBang({
               key={bang.id}
               bang={bang}
               index={index}
-              vuaTao={bayGio - bang.taoLuc < VUA_TAO_NGUONG_MS}
               dangXoa={dangChoXoa?.id === bang.id}
               dangSuaTen={dangSuaTenId === bang.id}
               dangMoMenu={dangMoMenuId === bang.id}
@@ -465,6 +546,11 @@ export function DanhSachBang({
               onLuuTen={(tenMoi) => {
                 setDangSuaTenId(null)
                 const tenSach = tenMoi.trim() || bang.ten
+                // Bỏ qua nếu tên KHÔNG đổi (Escape-huỷ, hoặc blur không gõ gì) — trước đây luôn
+                // ghi update() dù tên y hệt, bump capNhatLuc thành "Vừa xong" cho một thao tác
+                // không làm gì cả, khiến tín hiệu "cập nhật gần đây" càng thêm sai lệch (critique
+                // lượt 3, 2026-08-24 — xác nhận trực tiếp bằng Escape trên Browser pane thật).
+                if (tenSach === bang.ten) return
                 update({ ...bang, ten: tenSach, capNhatLuc: Date.now() })
               }}
               onXoa={() => {
@@ -500,6 +586,8 @@ export function DanhSachBang({
     </div>
     {vuaXoa && (
         <div
+          role="status"
+          aria-live="polite"
           className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40"
           style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h) + 18px)', background: 'rgba(15,23,42,.94)' }}
         >

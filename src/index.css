@@ -150,6 +150,11 @@
   /* Bộ ba R,G,B của accent-2 — cùng khuôn với --c-primary-rgb, để nhét vào rgba() cho viền/nền mờ
      (khung khoanh vùng, vệt lasso) ăn theo sắc này mà vẫn tự đổi theo sáng/tối. */
   --c-accent-2-rgb: 184, 25, 111;
+  /* Độ bão hoà/sáng dùng CHUNG cho chấm màu phân biệt bảng trong DanhSachBang.tsx (mauOnDinh() chỉ
+     tính hue, ghép với hai biến này qua hsl()) — cùng nguyên tắc "chỉ dùng trong Mindmap" như
+     --c-accent-2, tách riêng để tự đổi theo sáng/tối giống mọi token màu khác trong file này. */
+  --chip-s: 58%;
+  --chip-l: 48%;
 
   --c-danger-icon: #dc2626;
   --c-danger: #b91c1c;
@@ -280,6 +285,8 @@
     --c-accent-line: var(--c-primary-line);
     --c-accent-2: #f175a6;
     --c-accent-2-rgb: 241, 117, 166;
+    --chip-s: 62%;
+    --chip-l: 64%;
 
     --c-danger-icon: #ff6b6b;
     --c-danger: #ff8585;
@@ -356,6 +363,8 @@
   --c-accent-line: var(--c-primary-line);
   --c-accent-2: #f175a6;
   --c-accent-2-rgb: 241, 117, 166;
+  --chip-s: 62%;
+  --chip-l: 64%;
 
   --c-danger-icon: #ff6b6b;
   --c-danger: #ff8585;
