@@ -3284,3 +3284,43 @@ DOM (class `danh-sach-bang-nen` đã biến mất) và console sạch, KHÔNG x�
 thái hover/tooltip thật của "More"/"Frame" overlay — bù lại bằng xác minh tĩnh trực tiếp trên
 `dist/assets/*.js` thật (không suy luận): cả ba chuỗi "Thêm"/"Khung"/"Xong" đều có mặt nguyên vẹn,
 đúng vị trí, đúng ngữ cảnh.
+
+### Lượt 2 (cùng phiên) — Shape/Mind Map/Template/Pen/Note + Custom/Slide
+
+Người dùng báo tiếp NGAY sau lượt 1: nút "<"/">" cuộn thanh công cụ khi không đủ rộng vẫn hiện
+"Shape"/"Mind Map"/"Temple"/"Pen"/"Note", và menu tràn của nút "Khung" còn "Custom"/"Slide". HAI
+lỗ hổng D12 MỚI, khác lỗ hổng lượt 1 — commit `0bb5a5d`, đã push.
+
+**5 file `senior-tool.ts`** (brush/mindmap/note/shape/template) đăng ký `SeniorToolExtension` với
+`name: string` — an toàn theo ĐỊNH NGHĨA KIỂU (doc comment ngay trong interface `SeniorTool`:
+"Used to show in nav-button's tooltip"), không cần đo tiêu thụ ngược từng file như
+`FILE_CHO_PHEP_NAME_DENSE_MENU`. Thêm `FILE_CHO_PHEP_NAME_SENIOR_TOOL`. 4/5 chuỗi (Shape, Mind Map,
+Pen, Note) ĐÃ có sẵn trong `vi.json` từ trước — chỉ thiếu VỊ TRÍ CÚ PHÁP, không thiếu bản dịch
+(đúng lớp lỗi lượt 1). Thêm "Template": "Mẫu".
+
+**"Custom"** thiếu khoá `vi.json` (thêm "Tuỳ chỉnh") — vị trí `name: 'Custom'` đã được phép dịch
+từ lượt 1 (`FILE_CHO_PHEP_NAME_DENSE_MENU`), chỉ cần thêm khoá. **"Slide"** là tiền tố TRẦN đầu
+template literal (`` name: `Slide ${config.name}` ``, hiện "Slide 1:1"/"Slide 4:3"...) — cùng lớp
+lỗi "Done" ở lượt 1 (TemplateHead không phải StringLiteral, không AST node nào đại diện) nhưng
+khác VỊ TRÍ trong template (ĐẦU, trước nhịp đầu tiên — không phải GIỮA hai literal). Thêm cơ chế
+mới `thayTienToSlideFrameDenseMenu()`. Thêm "Slide": "Khổ".
+
+**Cổng `kiem:dist` cần vá THÊM MỘT LẦN NỮA** (đúng khuôn "Xong" ở lượt 1): thêm
+`coTrongTienToTemplateHead()` vào `so-khop-ban-dich.mjs`. Phát hiện lúc viết: bộ minify BỎ khoảng
+trắng sau dấu `:` (`name:\`Khổ ${…` khác `name: \`Khổ ${…` chưa minify) nhưng KHÔNG động vào nội
+dung backtick — regex phải chấp nhận `:` có/không khoảng trắng, còn nội dung bên trong so khớp
+CHÍNH XÁC (kể cả dấu cách phân tách tiền tố khỏi `${`).
+
+**Bảy cổng, HEAD `0bb5a5d`, TẤT CẢ XANH, đo trực tiếp (KHÔNG qua `tail`):** `tsc --noEmit` exit 0 ·
+`kiem:vendor` 0 sai lệch · `kiem:vendor-paths` khớp · `build` OK · `kiem:dist` **264/264 có mặt** ·
+`npm test` **381/381, 41/41 file** (369 cũ + 12 ca mới: `FILE_CHO_PHEP_NAME_SENIOR_TOOL` +3,
+`thayTienToSlideFrameDenseMenu` +4, `coTrongTienToTemplateHead` +5).
+
+**Bài học rút ra cho cả track dịch nói chung:** lớp lỗi "chữ trần ngoài AST" (bare text không
+đứng trong `${…}` nào cả) đã xuất hiện BA hình dạng khác nhau qua các mục 21/33/34 — giữa hai thẻ
+(`<drt-tooltip>`), con trực tiếp của một thẻ thường (`<div>`, neo bằng thuộc tính lân cận), và ĐẦU
+một template literal (TemplateHead, neo bằng tên thuộc tính `name:`). Mỗi hình dạng cần MỘT hàm
+`thay*`/`coTrong*` riêng, đo riêng — không có cách tổng quát hoá an toàn (đúng nguyên tắc "hỏng thì
+đóng" xuyên suốt file `luat-vi-tri-dich.mjs`). Nếu tiếp tục gặp báo cáo "còn tiếng Anh" mới, kiểm
+TRƯỚC hết xem có phải hình dạng thứ tư của cùng lớp lỗi này không, trước khi giả định thiếu khoá
+`vi.json`.
