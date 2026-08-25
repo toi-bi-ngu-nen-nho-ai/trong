@@ -1,9 +1,15 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-24** (mục 31, trả nợ P2 để lại ở mục 30 + phiên critique lượt 3). Dự án:
+Cập nhật: **2026-08-25** (mục 33, trả 2 nợ parked + nợ noiDungTimKiem của mục 32). Dự án:
 **Bs Trọng** — PWA y khoa tiếng Việt.
 
-> **ĐÍNH CHÍNH bản 2026-08-24 (mục 31, mới nhất).** Người dùng: "sửa nốt hết nợ" — khoản nợ P2 để
+> **ĐÍNH CHÍNH bản 2026-08-25 (mục 33, mới nhất).** Sau khi mục 32 (tìm kiếm/tag/xuất file) gộp vào
+> `main`, chủ dự án chọn trả 2/3 nợ còn lại đã ghi ở mục 0 lượt trước — **đã xong, đã push**: 2 lỗi
+> nhỏ "parked" (1 dòng mỗi lỗi) VÀ script di trú `noiDungTimKiem` cho bảng cũ (nợ kỹ thuật lớn nhất
+> của mục 32). Track TDD 5 khoá còn lại — chủ dự án chọn DỪNG, không làm thêm (cả 5 đều ngõ cụt/cần
+> duyệt riêng). Xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 33**.
+
+> **ĐÍNH CHÍNH bản 2026-08-24 (mục 31).** Người dùng: "sửa nốt hết nợ" — khoản nợ P2 để
 > lại có chủ đích ở mục 30 (mở bảng xem không sửa vẫn bump "cập nhật lần cuối") **đã vá xong**,
 > dựng cơ chế phát hiện thay đổi thật qua `store.slots`/`surface.element*` của BlockSuite. Không
 > còn nợ nào để lại có chủ đích từ track critique MindMapScreen. Xem "TRẠNG THÁI HÔM NAY" ngay dưới
@@ -199,33 +205,29 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 32 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 33 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
 Không còn chặng nào đang dở. Mục 32 (chặng Mindmap — chuyên khoa/tag, tìm kiếm, xuất PNG/PDF, roadmap
-PRODUCT.md mục 26/31 đã hứa) đã hoàn tất TOÀN BỘ: 10/10 task, review toàn nhánh + đợt vá cuối sạch,
-ĐÃ GỘP vào `main` (merge commit `3eafcdf`) VÀ ĐÃ PUSH lên `origin/main`. `main` tại `3eafcdf` (hoặc
-mới hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP, ĐẦY ĐỦ trên chính kết
-quả gộp (không suy luận, không timeout): `tsc` sạch · `kiem:vendor` 2.782 file lệch 0 ·
-`kiem:vendor-paths` 438 mục · `build`+`kiem:dist` xanh (không còn "affine-") ·
-**`npm test` 352/352, 41/41 file — ĐÃ chạy trọn bộ thật, 2 lượt trước đó dính lỗi hạ tầng (worker
-timeout do dev server Vite thừa trên máy ăn hết CPU) đã dọn sạch tiến trình rồi đo lại sạch**. **Cây
-làm việc có thể KHÔNG sạch tuyệt đối** — kiểm `git status` trước: ngoài các ngoại lệ đã biết lâu
-(antibiotics.ts, ba file browser-use), một phiên/chủ dự án khác từng sửa song song
-`src/data/categories.ts`/`src/lib/ui.ts` — nếu vẫn còn `M` chưa commit ở phiên sau, đó không thuộc
-track nào ở đây, đừng đụng. Worktree `.claude/worktrees/mindmap-tim-kiem-tag-xuat-file` và nhánh
-`worktree-mindmap-tim-kiem-tag-xuat-file` ĐÃ XOÁ (đã gộp, không còn cần giữ).
+PRODUCT.md mục 26/31 đã hứa) đã hoàn tất TOÀN BỘ, ĐÃ GỘP vào `main` VÀ ĐÃ PUSH. Mục 33 (phiên sau đó)
+trả 2/3 nợ optional để lại ở mục 32: vá 2 lỗi nhỏ "parked" (1 dòng mỗi lỗi) VÀ script di trú
+`diTruNoiDungTimKiemNeuCo()` — bảng Mindmap tạo TRƯỚC mục 32 giờ được chủ động trích `noiDungTimKiem`
+một lần, KHÔNG cần người dùng tự mở-đóng lại từng bảng nữa như trước. `main` tại `195f9a2` (hoặc mới
+hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP: `tsc` sạch ·
+`pretest` (`kiem:vendor`/`kiem:vendor-paths`) sạch · `npm run build` OK · **`npm test` 357/357,
+41/41 file**. **Cây làm việc có thể KHÔNG sạch tuyệt đối** — kiểm `git status` trước: ngoài các
+ngoại lệ đã biết lâu (antibiotics.ts, ba file browser-use), một phiên/chủ dự án khác từng sửa song
+song `src/data/categories.ts`/`src/lib/ui.ts` — nếu vẫn còn `M` chưa commit ở phiên sau, đó không
+thuộc track nào ở đây, đừng đụng.
 
-**Một nợ kỹ thuật có chủ đích từ mục 32, CHƯA vá, đọc kỹ trước khi đụng tìm kiếm Mindmap:** bảng
-Mindmap tạo TRƯỚC khi chặng này gộp KHÔNG tìm được theo nội dung bên trong cho tới khi người dùng tự
-mở-đóng lại từng bảng một lần (backfill lười chỉ hoạt động cho `chuyenKhoa`/`tags`, không hoạt động
-cho `noiDungTimKiem` vì trường đó cần trích xuất thật, không thể default). Chi tiết + lý do chấp nhận
-ở mục 32. Muốn vá: dựng script di trú kiểu `diTruBangCu.ts` (mở từng doc cũ, trích văn bản, ghi
-`noiDungTimKiem`) — chưa có, là việc THÊM nếu chủ dự án thấy cần.
+**Track TDD 5 khoá còn lại (mục 21+22) — chủ dự án CHỦ ĐỘNG chọn dừng ở mục 33, không phải quên.**
+Đọc "Còn nợ" cuối mục 25 trước khi đề xuất lại: cả 5 đều ngõ cụt kỹ thuật đã xác nhận (3 khoá cần đổi
+`vite.vendor-plugin.ts`, 1 khoá effort/lợi ích thấp, 1 khoá cần duyệt bật `EmbedDoc` ViewExtension) —
+đừng tự ý làm nếu không có yêu cầu mới.
 
-Bốn track độc lập, cả bốn đều KHÔNG còn việc dở BẮT BUỘC — dưới đây là việc THÊM nếu muốn, không phải
-nợ:
+Ba track độc lập còn lại, cả ba đều KHÔNG còn việc dở BẮT BUỘC — dưới đây là việc THÊM nếu muốn,
+không phải nợ:
 
 0. **Dịch — Database/data-view+SlashMenu (mục 28) VÀ toolbar bảng vẽ (mục 29) đều ĐÃ XONG.**
    247/247 khoá `vi.json` tới `dist/`, đo lại trực tiếp. Cả hai lượt đều là quét CÓ MỤC TIÊU (theo
@@ -242,23 +244,19 @@ nợ:
    (target thật: `src/board/BoardGallery.tsx` + `src/board/DanhSachBang.tsx` — file lớn hẳn sau mục
    32) — lượt 4.
 
-2. **Roadmap PRODUCT.md (tìm kiếm/tag/xuất file cho Mindmap) — ĐÃ XONG, xem mục 32.** Ba khả năng
-   đã hứa (chuyên khoa/tag trên mỗi bảng, tìm kiếm nội bộ + toàn app, xuất PNG/PDF) đều đã có trên
-   `main`. Còn nợ kỹ thuật đã ghi ở trên (backfill nội dung bảng cũ) và hai nợ nhỏ khác (dải chip
-   chuyên khoa không khớp giữa hai màn hình, hai ô tìm kiếm xử lý dấu khác nhau) — cả hai đọc chi
-   tiết ở mục 32, không chặn dùng.
+2. **Roadmap PRODUCT.md (tìm kiếm/tag/xuất file cho Mindmap) — ĐÃ XONG, xem mục 32+33.** Ba khả
+   năng đã hứa (chuyên khoa/tag trên mỗi bảng, tìm kiếm nội bộ + toàn app, xuất PNG/PDF) đều đã có
+   trên `main`. Backfill nội dung bảng cũ ĐÃ VÁ ở mục 33 (`diTruNoiDungTimKiemNeuCo()`). Còn hai nợ
+   nhỏ đã CHẤP NHẬN (không chặn dùng, chưa ai chọn vá): dải chip chuyên khoa không khớp giữa hai màn
+   hình, hai ô tìm kiếm xử lý dấu tiếng Việt khác nhau — chi tiết ở mục 32.
 
 3. **Track TDD tự động hoá kiểm tay** (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
    Browser pane không compositing khi phiên không có người theo dõi trực tiếp) — dừng ở **17/22
-   khoá** của mục 21+22, KHÔNG đổi từ bản trước, còn 5 khoá hoãn thật sự (không phải quên): năm kỹ
-   thuật đã có (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import
-   config trực tiếp, bơm thẳng signal `message$` của ToolbarRegistry) cộng một PHÁT HIỆN HẠ TẦNG
-   quan trọng ở mục 25: gán thẳng property mới lên global/DOM object KHÔNG có hiệu lực trong pool
-   happy-dom của Vitest ở dự án này — luôn dùng `Object.defineProperty` thay vì `obj.prop = value`
-   khi patch property chưa tồn tại (xác nhận qua 3 trường hợp độc lập: fullscreenElement mục 24,
-   isSecureContext + URL.createObjectURL mục 25). TỪNG khoá cần hạ tầng kiểm RIÊNG, hai khoá
-   ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ" ở cuối mục 25 để biết chính
-   xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
+   khoá** của mục 21+22. **Mục 33: chủ dự án được hỏi trực tiếp và CHỌN DỪNG ở đây — đừng tự ý đề
+   xuất lại track này trừ khi có yêu cầu mới.** 5 khoá còn lại đều ngõ cụt kỹ thuật đã xác nhận, hai
+   khoá ("Create Linked Doc", "More") xác nhận ở mục 24-25, ba khoá `NOTE_MENU_ITEMS` cần đổi
+   `vite.vendor-plugin.ts`. Đọc "Còn nợ" ở cuối mục 25 để biết chính xác vị trí nguồn + lý do chưa
+   làm của từng khoá nếu sau này có lý do quay lại, đừng điều tra lại từ đầu.
 
 **Việc ngoài bốn track — chưa nghiệm thu, không phải nợ kỹ thuật (mục 7):** iPad chưa có thiết bị
 thật để đo (đã cấu hình phòng ngừa ở mục 8, chưa xác nhận); vẽ hình bằng công cụ shape mới chạy
@@ -3141,3 +3139,70 @@ CHẬP CHỜN hạ tầng đã biết, không phải hồi quy) · `kiem:vendor`
 **CÒN LẠI — quyết định gộp nhánh, CHƯA gộp vào `main`.** Đây là quyết định của chủ dự án
 (`superpowers:finishing-a-development-branch`), không tự động — nhánh chưa push, chưa mở PR.
 Worktree còn nguyên trên đĩa: `.claude/worktrees/mindmap-tim-kiem-tag-xuat-file`.
+
+---
+
+## 33. TRẢ 2 NỢ PARKED + NỢ noiDungTimKiem CỦA MỤC 32 — ĐÃ XONG, ĐÃ PUSH
+
+Phiên đọc HANDOFF này, làm trực tiếp trên `main` (không worktree — cả ba việc đủ nhỏ, bounded).
+Chủ dự án chọn 3/4 hướng tối ưu liệt kê ở mục 0 lượt trước: (1) vá 2 lỗi nhỏ parked mục 32, (2) di
+trú `noiDungTimKiem` cho bảng cũ, (3) tiếp track TDD 5 khoá còn lại — sau khi đọc lại mục 25 xác
+nhận cả 5 đều ngõ cụt/cần duyệt riêng, chủ dự án chọn **dừng track (3), không làm thêm**. Commit
+`195f9a2`, đã push.
+
+**Hai lỗi parked (mục 32) — vá đúng 1 dòng mỗi lỗi, y hệt mô tả cũ:**
+- `EdgelessBoard.tsx:484` — wrapper cột dọc bọc băng cảnh báo thêm `pointer-events-none`, không còn
+  chặn pan/vẽ ~27px đầu bảng khi băng lỗi-xuất/không-lưu-được hiện.
+- `DanhSachBang.tsx:495` — `rongDoBoLoc` thêm điều kiện `danhSach.filter(b => !b.daXoaLuc).length > 0`,
+  không còn hiện copy "thử bỏ bộ lọc" sai khi vừa xoá mềm đúng bảng khớp cuối cùng.
+
+**Trả nợ `noiDungTimKiem` (nợ kỹ thuật lớn nhất còn lại của mục 32):** thêm
+`diTruNoiDungTimKiemNeuCo()` vào `diTruBangCu.ts` — di trú MỘT LẦN, chủ động trích văn bản cho MỌI
+bảng có `noiDungTimKiem === ''`, không đợi người dùng tự mở-đóng lại từng bảng nữa. Khác
+`diTruBangCuNeuCo()` (một doc CỐ ĐỊNH `'board'`): hàm mới mở MỘT `TestWorkspace` chung rồi lặp
+`workspace.getDoc(bang.id)` cho từng bảng trong danh sách — tái dùng nguyên `trichVanBanTuKhoi`/
+`trichVanBanTuCanvas`/`ghepNoiDungTimKiem` đã có sẵn ở `boardMeta.ts` (không viết lại logic trích
+xuất). Bảng nào doc không mở được (đã xoá) hoặc trích ra rỗng thật (chỉ hình không chữ) → bỏ qua êm,
+không lỗi. **KHÔNG** động vào `capNhatLuc` — cùng nguyên tắc mục 31 (điền bù dữ liệu tìm kiếm không
+phải một lượt sửa của người dùng).
+
+**Quyết định vận hành đáng chú ý nhất — KHÔNG dùng chung cờ localStorage với `diTruBangCuNeuCo()`:**
+phát hiện lúc đọc code thật (không phải đoán): `DA_CHAY_DI_TRU_KEY` (di trú bảng 'board' cũ) rất có
+thể ĐÃ được set từ lâu trên máy chủ dự án đang dùng thật — tính năng đó chạy từ mục 19
+(2026-08-21), rất lâu trước khi tìm kiếm nội dung tồn tại (mục 32, 2026-08-24). Nếu gộp chung một
+cờ, `if (localStorage.getItem(DA_CHAY_DI_TRU_KEY)) return` ở đầu effect sẽ chặn đứng lượt di trú nội
+dung MỚI trước khi nó có cơ hội chạy lấy một lần trên đúng nhóm máy cần nó nhất (máy đã dùng app từ
+trước mục 32). Vá: cờ `DA_CHAY_DI_TRU_NOI_DUNG_KEY` + biến module `dangDiTruNoiDung` HOÀN TOÀN riêng,
+một `useEffect` thứ hai độc lập trong `BoardGallery.tsx`, cùng khuôn try/catch/finally với effect
+cũ nhưng không phụ thuộc trạng thái của nhau.
+
+**TDD trước khi viết implementation** (`superpowers:test-driven-development`): 5 ca mới trong
+`diTruBangCu.spec.ts` (`describe('diTruNoiDungTimKiemNeuCo', ...)`) — bảng thiếu+có nội dung thật →
+trích đúng; bảng đã có `noiDungTimKiem` không rỗng → không đụng lại; không có bảng nào cần di trú →
+không tạo/sửa gì; doc không mở được → bỏ qua êm; IndexedDB hỏng vĩnh viễn + hạn giờ nhỏ → không treo,
+không ghi gì. Dùng lại nguyên `dungDocSourceGia()`/`dungBlobSourceGia()`/`taoHoacMoBang()` đã có sẵn
+trong file test — không dựng lại hạ tầng giả lập mới.
+
+**Bảy cổng, HEAD `195f9a2`, TẤT CẢ XANH, đo trực tiếp:** `tsc --noEmit` exit 0 · `npm test`
+**357/357, 41/41 file** (352 cũ + 5 mới) · `pretest` (`kiem:vendor`/`kiem:vendor-paths`) chạy sạch
+trong cùng lượt · `npm run build` exit 0. Không chạy riêng `kiem:dist` — chặng này không đụng
+`vi.json`/chuỗi hiển thị nào, chỉ logic thuần.
+
+**Quyết định dừng track TDD 5 khoá còn lại (đọc lại mục 25 trước khi hỏi, không tự đoán):** cả 5 đều
+ngõ cụt kỹ thuật đã xác nhận từ trước, không phải "chưa thử" — 3 khoá `NOTE_MENU_ITEMS` cần đổi cách
+`vite.vendor-plugin.ts` đọc `exports` (rủi ro rộng); "More" khả thi lý thuyết nhưng effort/lợi ích
+thấp cho 1 chuỗi; "Create Linked Doc" cần bật `EmbedDoc` ViewExtension (ảnh hưởng bundle size, cần
+duyệt riêng theo tiền lệ mục 20/22). Hỏi chủ dự án qua AskUserQuestion, chọn **"Dừng ở đây"** — track
+TDD giữ nguyên 17/22, không đổi.
+
+**Ba file đang bị sửa song song bởi phiên/chủ dự án khác vẫn CHƯA commit — không đụng, không thuộc
+track nào ở đây:** `src/data/antibiotics.ts`, `src/data/categories.ts`, `src/lib/ui.ts` (`git diff
+--stat` không đổi so với đầu phiên trước: 33/+2−/+7− dòng tương ứng — xác nhận phiên này KHÔNG chạm
+vào). Ba file browser-use (`.env.browser-use`/`BROWSER_USE_SETUP.md`/`browser_use_test.py`) vẫn
+untracked, không thuộc track nào.
+
+**Không còn nợ bắt buộc nào từ mục 32.** Hai hướng tối ưu còn lại nếu muốn làm thêm (không chặn
+dùng): (1) hai nợ nhỏ đã CHẤP NHẬN ở mục 32 (dải chip chuyên khoa lệch tên giữa hai màn hình, hai ô
+tìm kiếm xử lý dấu khác nhau) — sửa đòi đổi ngữ nghĩa lọc toàn app, rộng hơn phạm vi vá nhỏ; (2)
+`/impeccable critique` MindMapScreen lượt 4 (target `BoardGallery.tsx`+`DanhSachBang.tsx`, đã lớn
+hơn hẳn sau mục 32) — người dùng KHÔNG chọn hướng này ở phiên này, còn để ngỏ cho phiên sau.
