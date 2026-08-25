@@ -112,7 +112,12 @@ export const C = {
 // render, gây hiểu lầm khi đọc code. Một chỗ dùng FIELD trên <p> không phải input (tốc độ bơm tính
 // sẵn, App.tsx:7515) KHÔNG bị rule đó ghi đè, nên 16px cũng đúng luôn cho ca đó — số liều/tốc độ
 // càng không nên nhỏ hơn input thật (/impeccable critique 2026-08-18).
-export const FIELD = `w-full h-11 px-3 ${R.input} text-[16px] leading-[1.5] border outline-none ${NUM}`
+// appearance-none: thiếu class này, Safari/iOS vẽ THÊM control chrome mặc định của nó (nền/viền
+// riêng) chồng lên border+rounded-[14px] tự vẽ ở đây — hai lớp vẽ không đồng bộ khi Safari repaint
+// lúc gõ (nhất là khi bàn phím inputMode="decimal" mở), tạo đúng cảm giác "chữ/nền lệch khỏi viền,
+// viền bị cắt xén" mà Chromium không có (không có UA chrome riêng cho input text) nên không tái
+// hiện được trên máy tính — chỉ thấy trên iPhone thật (báo cáo người dùng, 2026-08-25).
+export const FIELD = `w-full h-11 px-3 ${R.input} text-[16px] leading-[1.5] border outline-none appearance-none ${NUM}`
 export const FIELD_STYLE = { borderColor: C.line, background: C.surface }
 
 // `dose-press` (index.css) cho mọi nút một phản hồi chạm giống nhau: thu nhẹ 0,96 trong 0,16s.
