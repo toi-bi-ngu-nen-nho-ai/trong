@@ -31,6 +31,7 @@ import {
   coNhuLiteral,
   coTrongNutDongMenuMobile,
   coTrongTagTooltip,
+  coTrongTienToTemplateHead,
   giaiThichKhopTho,
   timTrungBanDich,
 } from './so-khop-ban-dich.mjs'
@@ -211,7 +212,8 @@ for (const f of dietFile(DIST)) {
       if (
         coNhuLiteral(noiDung, v) ||
         coTrongTagTooltip(noiDung, v) ||
-        coTrongNutDongMenuMobile(noiDung, v)
+        coTrongNutDongMenuMobile(noiDung, v) ||
+        coTrongTienToTemplateHead(noiDung, v)
       )
         thieuBanDich.delete(v)
       // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa

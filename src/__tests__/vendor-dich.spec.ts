@@ -14,8 +14,10 @@ import {
   DOI_SO_HIEN_THI,
   dichMotFile,
   FILE_CHO_PHEP_FILLTEXT,
+  FILE_CHO_PHEP_NAME_SENIOR_TOOL,
   thayChuTrongTagTooltip,
   thayNutDongMenuMobile,
+  thayTienToSlideFrameDenseMenu,
   thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
   THUOC_TINH_HTML_HIEN_THI,
@@ -541,6 +543,14 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (banDich.has(chu)) daThay.add(chu)
       }
 
+      // Cùng nguyên tắc cho tiền tố trần đầu template literal (thayTienToSlideFrameDenseMenu, mục
+      // 34) — `` name: `Khổ ${config.name}` `` sau khi dịch: "Khổ" nằm trong TemplateHead, không
+      // phải StringLiteral/NoSubstitutionTemplateLiteral nên vòng lặp AST ở trên không thấy được.
+      for (const mm of src.matchAll(/name: `([^$`]*?)\$\{/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 
@@ -611,5 +621,74 @@ describe('thayTrenToanCay — thay MỌI vị trí, dùng cho khoá tiền tố'
     expect(cacLuot).toEqual([
       { chuoiGoc: 'Drag/Click to insert ', chuoiDich: 'Kéo/Bấm để chèn ' },
     ])
+  })
+})
+
+// Ngoại lệ hẹp-theo-file cho `name` của SeniorTool (nút "<"/">" cuộn thanh công cụ) — đo 2026-08-25
+// (mục 34), fix "Shape"/"Mind Map"/"Template"/"Pen"/"Note" còn tiếng Anh. An toàn theo ĐỊNH NGHĨA
+// KIỂU (doc comment của interface SeniorTool: "Used to show in nav-button's tooltip"), khác hai
+// ngoại lệ FILE_CHO_PHEP_NAME_DENSE_MENU (đo tiêu thụ ngược từng file).
+describe('FILE_CHO_PHEP_NAME_SENIOR_TOOL — ngoại lệ hẹp-theo-file cho name của SeniorTool', () => {
+  const MOT_FILE = 'affine/gfx/shape/src/toolbar/senior-tool.js'
+
+  it('có đúng 5 file đã đo (Pen/Note/Shape/Template/Mind Map)', () => {
+    expect([...FILE_CHO_PHEP_NAME_SENIOR_TOOL].sort()).toEqual(
+      [
+        'affine/gfx/brush/src/toolbar/senior-tool.js',
+        'affine/gfx/mindmap/src/toolbar/senior-tool.js',
+        'affine/gfx/note/src/toolbar/senior-tool.js',
+        'affine/gfx/shape/src/toolbar/senior-tool.js',
+        'affine/gfx/template/src/toolbar/senior-tool.js',
+      ].sort(),
+    )
+  })
+
+  it('name: được dịch trong file đã đo/duyệt', () => {
+    const ra = dichMotFile(`const a = { name: 'Style' }`, BAN_DO, MOT_FILE).js
+    expect(ra).toContain('Phong cách')
+  })
+
+  it('CÙNG literal name: ở file KHÁC (không trong danh sách) thì KHÔNG dịch', () => {
+    const ra = dichMotFile(`const a = { name: 'Style' }`, BAN_DO, 'khong-o-danh-sach.js').js
+    expect(ra).not.toContain('Phong cách')
+  })
+})
+
+// Tiền tố "Slide " trần đầu template literal (frame-dense-menu.ts) — đo 2026-08-25 (mục 34), fix
+// "Custom"/"Slide" còn tiếng Anh khi bấm nút "Khung". Cùng lớp lỗi chữ trần như
+// thayNutDongMenuMobile nhưng khác VỊ TRÍ (đầu template, không phải giữa hai literal).
+describe('thayTienToSlideFrameDenseMenu — tiền tố trần "Slide " đầu template literal', () => {
+  const TEN_FILE = 'affine/blocks/frame/src/edgeless-toolbar/frame-dense-menu.js'
+  const dungBanDo = { Slide: 'Khổ' }
+
+  it('dịch đúng khi đủ hình dạng name: `Slide ${…}` và đúng file', () => {
+    const ra = thayTienToSlideFrameDenseMenu(
+      'menu.action({\n  name: `Slide ${config.name}`,\n})',
+      dungBanDo,
+      TEN_FILE,
+    )
+    expect(ra.js).toBe('menu.action({\n  name: `Khổ ${config.name}`,\n})')
+    expect(ra.cacLuot).toEqual([{ chuoiGoc: 'Slide', chuoiDich: 'Khổ', dong: 2 }])
+  })
+
+  it('sai file thì KHÔNG đụng gì', () => {
+    const js = 'name: `Slide ${config.name}`'
+    const ra = thayTienToSlideFrameDenseMenu(js, dungBanDo, 'khong-o-danh-sach.js')
+    expect(ra.js).toBe(js)
+    expect(ra.cacLuot).toEqual([])
+  })
+
+  it('bản đồ không có khoá "Slide" thì KHÔNG đụng gì', () => {
+    const js = 'name: `Slide ${config.name}`'
+    const ra = thayTienToSlideFrameDenseMenu(js, { Style: 'Phong cách' }, TEN_FILE)
+    expect(ra.js).toBe(js)
+    expect(ra.cacLuot).toEqual([])
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    const js = 'name: `Slide ${config.name}`'
+    expect(() =>
+      thayTienToSlideFrameDenseMenu(js, { Slide: 42 } as unknown as Record<string, string>, TEN_FILE),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })

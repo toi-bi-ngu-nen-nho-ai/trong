@@ -102,6 +102,23 @@ export function coTrongNutDongMenuMobile(noiDung, s) {
   return re.test(noiDung)
 }
 
+// Cùng lớp với `coTrongTagTooltip`/`coTrongNutDongMenuMobile` (chữ trần không đứng một mình trong
+// literal), nhưng cho tiền tố ĐẦU một template literal (`` name: `Khổ ${…}` ``, xem
+// thayTienToSlideFrameDenseMenu — luat-vi-tri-dich.mjs, mục 34). Đo trên dist/ thật 2026-08-25:
+// bộ minify (esbuild/rollup) BỎ khoảng trắng sau dấu `:` (`name:\`Khổ ${…` — khác bản
+// .vendor-build chưa minify có khoảng trắng) nhưng KHÔNG động vào nội dung bên trong literal
+// backtick — nên phải chấp nhận `:` có/không khoảng trắng theo sau, còn phần bên trong literal so
+// khớp CHÍNH XÁC (khoảng trắng nội dung, vd giữa tiền tố và `${`, là một phần của chữ hiển thị,
+// không phải cú pháp).
+export function coTrongTienToTemplateHead(noiDung, s) {
+  // Khoảng trắng NGAY SAU `s`, trước `${`, là một ký tự THẬT trong TemplateHead (do
+  // thayTienToSlideFrameDenseMenu chèn `` `${vi} ${` `` — dấu cách phân tách tiền tố với phần nội
+  // suy) — khớp CHÍNH XÁC một dấu cách, không phải `\s*` (đó là chữ hiển thị, không phải cú pháp
+  // có thể xê dịch tuỳ ý).
+  const re = new RegExp(`name:\\s*\`${thoatRegex(s)} \\$\\{`)
+  return re.test(noiDung)
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.

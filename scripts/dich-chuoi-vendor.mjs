@@ -17,6 +17,7 @@ import {
   dichMotFile,
   thayChuTrongTagTooltip,
   thayNutDongMenuMobile,
+  thayTienToSlideFrameDenseMenu,
   thayTrenToanCay,
 } from './luat-vi-tri-dich.mjs'
 
@@ -257,10 +258,28 @@ for await (const f of dietJs(BUILD)) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
   }
-  const jsCuoi = ketQuaNutDong.js
   const coDoiNutDong = ketQuaNutDong.cacLuot.length > 0
 
-  if (ketQua.cacLuot.length === 0 && !coDoiTienTo && !coDoiTagTooltip && !coDoiNutDong) continue
+  // Tiền tố "Slide " trần đầu template literal (menu tràn/mobile của Khung) — cùng nguyên tắc thứ
+  // tự, chạy SAU thayNutDongMenuMobile.
+  let ketQuaSlide
+  try {
+    ketQuaSlide = thayTienToSlideFrameDenseMenu(ketQuaNutDong.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const jsCuoi = ketQuaSlide.js
+  const coDoiSlide = ketQuaSlide.cacLuot.length > 0
+
+  if (
+    ketQua.cacLuot.length === 0 &&
+    !coDoiTienTo &&
+    !coDoiTagTooltip &&
+    !coDoiNutDong &&
+    !coDoiSlide
+  )
+    continue
 
   for (const l of ketQua.cacLuot) {
     theoKhoa[l.chuoiGoc].push({ file: rel, viTri: l.viTri, dong: l.dong, chuoiDich: l.chuoiDich })
@@ -279,6 +298,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'chu-tran-nut-dong-menu-mobile',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaSlide.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'tien-to-tran-slide-frame-dense-menu',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })

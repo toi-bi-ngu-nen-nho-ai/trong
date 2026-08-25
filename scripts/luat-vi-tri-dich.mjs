@@ -75,6 +75,22 @@ export const FILE_CHO_PHEP_NAME_DENSE_MENU = new Set([
   'affine/blocks/frame/src/edgeless-toolbar/frame-dense-menu.js',
 ])
 
+// Ngoại lệ HẸP THEO FILE cho `name` của SeniorTool (nút "<"/">" cuộn thanh công cụ khi không đủ
+// rộng — điều tra lỗi "Shape/Mind Map/Template/Pen/Note còn tiếng Anh", mục 34, 2026-08-25). KHÁC
+// FILE_CHO_PHEP_NAME_DENSE_MENU ở trên (đo tiêu thụ ngược TỪNG FILE để suy an toàn): interface
+// `SeniorTool` (affine/widgets/edgeless-toolbar/src/extension/index.ts) tự khai rõ trong doc
+// comment `name: string` là "Used to show in nav-button's tooltip" — an toàn theo ĐỊNH NGHĨA KIỂU,
+// không cần đo tiêu thụ ngược từng file như hai ngoại lệ kia. Danh sách ĐÓNG theo đường dẫn (5 file
+// đăng ký `SeniorToolExtension` đo được toàn cây) — thêm file mới phải xác nhận nó cũng implement
+// đúng interface `SeniorTool`, không suy diễn.
+export const FILE_CHO_PHEP_NAME_SENIOR_TOOL = new Set([
+  'affine/gfx/brush/src/toolbar/senior-tool.js',
+  'affine/gfx/mindmap/src/toolbar/senior-tool.js',
+  'affine/gfx/note/src/toolbar/senior-tool.js',
+  'affine/gfx/shape/src/toolbar/senior-tool.js',
+  'affine/gfx/template/src/toolbar/senior-tool.js',
+])
+
 // Ngoại lệ HẸP THEO FILE cho literal là giá trị của một property có KHOÁ TÍNH TOÁN
 // (`[Enum.X]: 'Chuỗi'`) — `tenThuocTinh()` trả null cho khoá tính toán nên `viTriHienThi` bỏ qua
 // mặc định (khoá động, không đoán được tên tại lúc phân tích tĩnh). Đo RIÊNG file dưới đây
@@ -212,10 +228,13 @@ export function viTriHienThi(node, tenFile = null) {
     const ten = tenThuocTinh(p.name)
     if (ten && THUOC_TINH_HIEN_THI.has(ten)) return `thuộc-tính:${ten}`
 
-    // Hai ngoại lệ hẹp-theo-file, xem chú thích ở định nghĩa FILE_CHO_PHEP_* phía trên — chỉ khớp
+    // Ba ngoại lệ hẹp-theo-file, xem chú thích ở định nghĩa FILE_CHO_PHEP_* phía trên — chỉ khớp
     // khi CẢ tên file lẫn hình dạng cú pháp đều đúng, không phải một trong hai.
     if (ten === 'name' && tenFile && FILE_CHO_PHEP_NAME_DENSE_MENU.has(tenFile)) {
       return `thuộc-tính-name-rieng-file:${tenFile}`
+    }
+    if (ten === 'name' && tenFile && FILE_CHO_PHEP_NAME_SENIOR_TOOL.has(tenFile)) {
+      return `thuộc-tính-name-senior-tool:${tenFile}`
     }
     if (
       !ten &&
@@ -550,5 +569,41 @@ export function thayNutDongMenuMobile(js, banDo, tenFile = 'khong-ten.js') {
   return {
     js: js.replace(RE_NUT_DONG_MENU_MOBILE, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
     cacLuot: [{ chuoiGoc: 'Done', chuoiDich: vi, dong }],
+  }
+}
+
+// Tiền tố TRẦN "Slide " đứng ĐẦU một template literal (`` name: `Slide ${config.name}` ``,
+// frame-dense-menu.ts — mục 34, 2026-08-25, điều tra "Custom"/"Slide" còn tiếng Anh khi bấm nút
+// "Khung"). Cùng lớp lỗi chữ trần như thayNutDongMenuMobile ở trên (TemplateHead không phải
+// StringLiteral/NoSubstitutionTemplateLiteral, không AST node nào đại diện) nhưng khác VỊ TRÍ
+// trong template: đây là ĐẦU (trước nhịp đầu tiên), không phải GIỮA hai literal — nên
+// thayChuTrongTagTooltip (khớp `>…<` giữa hai thẻ) không áp dụng được. Đo 2026-08-25: ĐÚNG MỘT
+// lượt `` name: `Slide ${ `` trong toàn cây vendored — không lượt "Slide" đứng một mình nào khác
+// (FrameConfig chỉ có tỉ lệ khung hình '1:1'/'4:3'/'16:9'/'2:1', ngôn ngữ trung lập, không cần
+// dịch). Danh sách ĐÓNG theo đường dẫn, cùng nguyên tắc mọi FILE_CHO_PHEP_*/thay* hẹp-theo-file ở
+// trên.
+const RE_TIEN_TO_SLIDE_FRAME_DENSE_MENU = /name: `Slide \$\{/
+
+export function thayTienToSlideFrameDenseMenu(js, banDo, tenFile = 'khong-ten.js') {
+  if (tenFile !== 'affine/blocks/frame/src/edgeless-toolbar/frame-dense-menu.js') {
+    return { js, cacLuot: [] }
+  }
+  const m = js.match(RE_TIEN_TO_SLIDE_FRAME_DENSE_MENU)
+  if (!m || !Object.hasOwn(banDo, 'Slide')) return { js, cacLuot: [] }
+
+  const vi = banDo['Slide']
+  if (typeof vi !== 'string') {
+    throw new Error(
+      'luat-vi-tri-dich: khoá "Slide" (tiền tố dense-menu Khung, thayTienToSlideFrameDenseMenu) ' +
+        `có giá trị KHÔNG PHẢI CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+    )
+  }
+
+  const thoatTemplate = (s) => s.replace(/[`$\\]/g, (c) => `\\${c}`)
+  const dong = js.slice(0, m.index).split('\n').length
+
+  return {
+    js: js.replace(RE_TIEN_TO_SLIDE_FRAME_DENSE_MENU, `name: \`${thoatTemplate(vi)} \${`),
+    cacLuot: [{ chuoiGoc: 'Slide', chuoiDich: vi, dong }],
   }
 }

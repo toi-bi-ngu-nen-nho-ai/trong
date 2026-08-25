@@ -260,5 +260,8 @@
   "Font": "Phông chữ",
   "Font style": "Kiểu chữ",
   "Type '/' to insert": "Gõ '/' để chèn",
-  "Type '/' for command": "Gõ '/' để mở lệnh"
+  "Type '/' for command": "Gõ '/' để mở lệnh",
+  "Template": "Mẫu",
+  "Custom": "Tuỳ chỉnh",
+  "Slide": "Khổ"
 }

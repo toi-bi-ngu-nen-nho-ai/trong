@@ -10,6 +10,7 @@ import {
   coNhuLiteral,
   coTrongNutDongMenuMobile,
   coTrongTagTooltip,
+  coTrongTienToTemplateHead,
   dangTrongNhay,
   giaiThichKhopTho,
   timTrungBanDich,
@@ -238,5 +239,35 @@ describe('giaiThichKhopTho', () => {
       vi: 'Phong cách',
       cungThieu: false,
     })
+  })
+})
+
+// CA GHIM ĐÚNG CON BUG ĐANG SỬA (2026-08-25, mục 34). Tiền tố "Khổ" đầu template literal
+// (`` name: `Khổ ${…}` ``, frame-dense-menu.ts) là chữ trần, không đứng một mình trong literal —
+// coNhuLiteral không thấy được, dù bản dịch đã tới dist/ thật.
+describe('coTrongTienToTemplateHead — tiền tố trần đầu template literal, coNhuLiteral không thấy được', () => {
+  it('thấy tiền tố đứng đầu, ngay trước ${…} (đúng dạng minify: không khoảng trắng sau :)', () => {
+    const noiDung = 'X2.map(n=>Q.action({name:`Khổ ${n.name}`,select:'
+    expect(coNhuLiteral(noiDung, 'Khổ')).toBe(false) // đúng lỗ hổng cần vá
+    expect(coTrongTienToTemplateHead(noiDung, 'Khổ')).toBe(true)
+  })
+
+  it('vẫn khớp khi có khoảng trắng sau : (đúng dạng chưa minify)', () => {
+    const noiDung = 'name: `Khổ ${config.name}`'
+    expect(coTrongTienToTemplateHead(noiDung, 'Khổ')).toBe(true)
+  })
+
+  it('thiếu khoảng trắng giữa tiền tố và ${ thì KHÔNG khớp — đó là chữ hiển thị sai', () => {
+    const noiDung = 'name:`Khổ${n.name}`'
+    expect(coTrongTienToTemplateHead(noiDung, 'Khổ')).toBe(false)
+  })
+
+  it('không khớp chuỗi khác', () => {
+    const noiDung = 'name:`Khổ ${n.name}`'
+    expect(coTrongTienToTemplateHead(noiDung, 'Khác')).toBe(false)
+  })
+
+  it('không có thuộc tính name: dạng template thì không khớp', () => {
+    expect(coTrongTienToTemplateHead('const a = "Khổ"', 'Khổ')).toBe(false)
   })
 })
