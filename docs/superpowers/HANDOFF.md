@@ -1,13 +1,20 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-25** (mục 33, trả 2 nợ parked + nợ noiDungTimKiem của mục 32). Dự án:
-**Bs Trọng** — PWA y khoa tiếng Việt.
+Cập nhật: **2026-08-25** (mục 34, fix "Frame"/"Done"/"More" còn tiếng Anh + xoá hoạ tiết sọc chéo).
+Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
-> **ĐÍNH CHÍNH bản 2026-08-25 (mục 33, mới nhất).** Sau khi mục 32 (tìm kiếm/tag/xuất file) gộp vào
+> **ĐÍNH CHÍNH bản 2026-08-25 (mục 34, mới nhất).** Người dùng báo trực tiếp qua
+> `/superpowers:systematic-debugging`: "Frame"/"Done"/"More" chưa dịch + hoạ tiết sọc chéo mất
+> thẩm mỹ — **đã xong, đã push**. Root cause KHÔNG phải một lỗi chung mà BA lỗ hổng riêng biệt
+> trong pipeline dịch D12 (quoted Lit binding, canvas `fillText`, chữ trần trong `<div>` thường) +
+> một cổng `kiem:dist` cũng cần vá theo. 11 khoá `vi.json` mới, 261/261 tới `dist/`. Xem "TRẠNG
+> THÁI HÔM NAY" ngay dưới và **mục 34**.
+
+> **ĐÍNH CHÍNH bản 2026-08-25 (mục 33).** Sau khi mục 32 (tìm kiếm/tag/xuất file) gộp vào
 > `main`, chủ dự án chọn trả 2/3 nợ còn lại đã ghi ở mục 0 lượt trước — **đã xong, đã push**: 2 lỗi
 > nhỏ "parked" (1 dòng mỗi lỗi) VÀ script di trú `noiDungTimKiem` cho bảng cũ (nợ kỹ thuật lớn nhất
 > của mục 32). Track TDD 5 khoá còn lại — chủ dự án chọn DỪNG, không làm thêm (cả 5 đều ngõ cụt/cần
-> duyệt riêng). Xem "TRẠNG THÁI HÔM NAY" ngay dưới và **mục 33**.
+> duyệt riêng). Xem **mục 33**.
 
 > **ĐÍNH CHÍNH bản 2026-08-24 (mục 31).** Người dùng: "sửa nốt hết nợ" — khoản nợ P2 để
 > lại có chủ đích ở mục 30 (mở bảng xem không sửa vẫn bump "cập nhật lần cuối") **đã vá xong**,
@@ -3206,3 +3213,74 @@ dùng): (1) hai nợ nhỏ đã CHẤP NHẬN ở mục 32 (dải chip chuyên k
 tìm kiếm xử lý dấu khác nhau) — sửa đòi đổi ngữ nghĩa lọc toàn app, rộng hơn phạm vi vá nhỏ; (2)
 `/impeccable critique` MindMapScreen lượt 4 (target `BoardGallery.tsx`+`DanhSachBang.tsx`, đã lớn
 hơn hẳn sau mục 32) — người dùng KHÔNG chọn hướng này ở phiên này, còn để ngỏ cho phiên sau.
+
+---
+
+## 34. FIX "Frame"/"Done"/"More" CÒN TIẾNG ANH + XOÁ HOẠ TIẾT SỌC CHÉO — ĐÃ XONG, ĐÃ PUSH
+
+Người dùng báo trực tiếp qua `/superpowers:systematic-debugging`: "Frame"/"Done"/"More" chưa dịch,
+mũi tên trên thanh công cụ, nút button ở màn hình sơ đồ còn tiếng Anh, và họa tiết sọc chéo (mục 32
+Task polish) nhìn mất thẩm mỹ. Root cause (Phase 1-2 của skill, không đoán): BA lỗ hổng RIÊNG BIỆT
+trong pipeline dịch D12 (`scripts/luat-vi-tri-dich.mjs`), không phải một lỗi chung.
+
+**Lỗ hổng 1 — quoted Lit binding.** `khopLit` (luật vị trí `.tooltip=${…}`) chỉ nhận biến thể
+KHÔNG nháy; một số chỗ trong cây vendored viết `.tooltip="${…}"` (CÓ nháy — hợp lệ với lit-html,
+nháy bị bỏ qua lúc parse). Đo toàn cây: 21 lượt, 13 literal đứng một mình bị bỏ lỡ hoàn toàn dù
+khoá đã có sẵn trong `vi.json` ("More" → "Thêm" đã tồn tại từ trước!). Vá: nới regex chấp nhận dấu
+nháy tuỳ chọn — không đổi `THUOC_TINH_LIT_HIEN_THI` (vẫn `['tooltip']`), chỉ nhận thêm MỘT BIẾN THỂ
+CÚ PHÁP. Mở khoá 13 chuỗi: More, Rename, Align, Color, Highlight, Font, Font style, Turn into,
+Switch view, Card style, Border style, Display mode, câu dài về Page Mode.
+
+**Lỗ hổng 2 — canvas fillText.** "Frame" còn hiện ở overlay xem trước khi kéo mũi tên
+auto-complete quanh một khối/hình đã chọn (`AutoCompleteFrameOverlay`,
+`edgeless-selected-rect/src/utils.ts`) — vẽ TRỰC TIẾP lên `<canvas>` qua `ctx.fillText('Frame', …)`,
+hoàn toàn ngoài cây DOM, không AST/vị trí thuộc tính nào chạm tới được. Đo riêng file: đúng 3 lượt
+`fillText` đều là chữ hiển thị thật ("Type '/' to insert"/"Type '/' for command" cũng dịch theo).
+Vá: ngoại lệ hẹp-theo-file mới `FILE_CHO_PHEP_FILLTEXT` cho đối số đầu của `fillText`, KHÔNG thêm
+'fillText' vào `DOI_SO_HIEN_THI` chung (hàm này gọi khắp cây, phần lớn không phải chữ hiển thị).
+
+**Lỗ hổng 3 (phụ) — dense-menu name.** "Frame" còn hiện ở menu tràn/mobile của toolbar
+(`frame-dense-menu.ts`, `menu.subMenu({name: 'Frame'})`) — thêm file thứ ba vào
+`FILE_CHO_PHEP_NAME_DENSE_MENU` đã có (cùng mẫu 2 file mục 29), đo riêng xác nhận an toàn.
+
+**"Done" — cơ chế MỚI, không phải mở khoá luật cũ.** Nút đóng `MobileMenuComponent`
+(`context-menu/menu-renderer.ts`) là chữ TRẦN con trực tiếp của `<div>`, không qua nhịp `${…}` nào
+và không nằm trong `<drt-tooltip>` — cùng lớp lỗi "More Tools" cũ (mục 21) nhưng khác thẻ neo. Viết
+hàm mới `thayNutDongMenuMobile()` (quét regex thô, neo bằng `@click="${this.onClose}"` — đo được
+ĐÚNG MỘT lượt trong toàn file), nối vào `dich-chuoi-vendor.mjs` sau `thayChuTrongTagTooltip`.
+
+**Phát hiện phụ lúc kiểm `kiem:dist`:** "Align" (mới mở khoá) và "Alignment" (đã có từ trước) cùng
+dịch ra "Căn chỉnh" — cổng Luật C bắt đúng (hai khoá trùng giá trị thì một khoá chết vẫn "xanh giả").
+Tách "Align" (nút căn lề văn bản trong Note) thành "Căn lề", giữ "Alignment" (công cụ căn chỉnh đối
+tượng canvas) là "Căn chỉnh".
+
+**Cổng `kiem:dist` cũng cần vá — "Xong" ban đầu báo ĐỎ dù đã tới `dist/` thật** (xác nhận tay qua
+Node): `coNhuLiteral`/`coTrongTagTooltip` (hai hàm so khớp ở `so-khop-ban-dich.mjs`) không thấy
+được hình dạng chữ-trần-trong-div mới. Thêm `coTrongNutDongMenuMobile()` cùng nguyên tắc
+`coTrongTagTooltip` (tự viết lại độc lập, không gọi lại hàm sản xuất) — nối vào `kiem-dist.mjs`.
+
+**TDD đầy đủ, kể cả tự sửa lỗi của chính mình:** viết test cho `thayNutDongMenuMobile` phát hiện
+NGAY một bug trong lượt viết đầu (`dong` tính từ đầu đoạn neo `@click=` thay vì từ vị trí CHỮ "Done"
+thật) — sửa trước khi merge, đúng tinh thần TDD "RED thật, không tự tạo". Một test CŨ
+("`.tooltip=` có NHÁY... sai cú pháp Lit thật, không phải mục đo được") hoá ra dựa trên tiền đề SAI
+— xoá, thay bằng đính chính + ca đúng ở nhóm "vị trí ĐƯỢC dịch". Một cổng độc lập khác ("mọi chuỗi
+tiếng Việt... nằm ở vị trí cho phép", tự quét riêng không gọi lại hàm sản xuất) cũng cần thêm một
+đoạn quét độc lập cho hình dạng "Xong" mới — đúng tinh thần "không kế thừa chung lỗ hổng".
+
+**Xoá `.danh-sach-bang-nen`/`::before`** (`src/index.css`) — họa tiết sọc chéo 45° opacity 0.04 sau
+lưới thẻ bảng, thêm ở một đợt polish trước mục 32, chính code cũ đã ghi "có thể gỡ độc lập". Xoá cả
+CSS lẫn className thừa trong `DanhSachBang.tsx`. Yêu cầu trực tiếp của người dùng, không phải bug.
+
+**Bảy cổng, HEAD `2d62cdf`, TẤT CẢ XANH, đo trực tiếp (KHÔNG để `tail` che exit code — bài học
+trong phiên: `tsc | tail` báo "sạch" giả vì exit code là của `tail`, không phải `tsc`):** `tsc
+--noEmit` exit 0 (đo riêng, không qua pipe) · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths`
+438 mục khớp · `npm run build` OK · `kiem:dist` **261/261 khoá có mặt** (11 khoá mới + 2 khoá sửa vị
+trí) · **`npm test` 369/369, 41/41 file** (357 cũ + 12 ca mới ròng: +3 quoted-tooltip/fillText, +5
+thayNutDongMenuMobile, +4 coTrongNutDongMenuMobile, −1 ca lỗi thời bị xoá).
+
+**Không còn nợ nào từ chặng này.** Kiểm tay trực tiếp trên Browser pane bị giới hạn (không
+compositing khi không có người theo dõi — ghi nhận nhiều lần trước ở HANDOFF này): xác nhận được
+DOM (class `danh-sach-bang-nen` đã biến mất) và console sạch, KHÔNG xác nhận được bằng mắt trạng
+thái hover/tooltip thật của "More"/"Frame" overlay — bù lại bằng xác minh tĩnh trực tiếp trên
+`dist/assets/*.js` thật (không suy luận): cả ba chuỗi "Thêm"/"Khung"/"Xong" đều có mặt nguyên vẹn,
+đúng vị trí, đúng ngữ cảnh.
