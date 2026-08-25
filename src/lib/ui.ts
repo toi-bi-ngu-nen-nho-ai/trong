@@ -140,13 +140,6 @@ export const BTN_BLOCK = `w-full h-11 ${R.box} ${T.chip} border dose-press`
 export const BTN_TALL = `w-full min-h-[44px] px-3 py-2.5 ${R.box} ${T.chip} leading-[1.35] border dose-press`
 export const TAP = "min-h-[44px]"
 
-// ─── Định dạng số cho các hàng thẳng cột ─────────────────────────────────────
-// formatDoseNumber() đổi số chữ số thập phân theo độ lớn (0.0800 / 5.00 / 168) nên khi xếp thành
-// bảng thì các hàng nhấp nhô. Với những chỗ hiển thị theo cột, dùng hàm này để chốt số lẻ.
-export function fixed(value: number, decimals: number): string {
-  return value.toFixed(decimals)
-}
-
 // Bỏ số 0 thừa ở đuôi nhưng vẫn giữ tối đa `max` chữ số thập phân — dùng cho thể tích, số ống.
 //
 // Chỉ bỏ số 0 THUỘC PHẦN THẬP PHÂN vừa được toFixed() thêm vào — không được đụng vào số 0 nằm

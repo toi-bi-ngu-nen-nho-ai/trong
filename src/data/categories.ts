@@ -134,8 +134,6 @@ export const INFUSION_CATEGORIES: InfusionCategoryConfig[] = [
   },
 ]
 
-export const INFUSION_CATEGORY_IDS = INFUSION_CATEGORIES.map((c) => c.id)
-
 export function infusionCategory(id: InfusionCategory): InfusionCategoryConfig {
   const found = INFUSION_CATEGORIES.find((c) => c.id === id)
   // Không bao giờ xảy ra với dữ liệu hợp lệ, nhưng thà rơi về nhóm đầu tiên còn hơn để undefined
