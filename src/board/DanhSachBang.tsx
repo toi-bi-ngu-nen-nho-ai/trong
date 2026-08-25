@@ -63,15 +63,64 @@ export function mauOnDinh(id: string): number {
   return 260 + (Math.abs(h) % 70)
 }
 
+// Băm id thành một trong 4 biến thể nét vẽ ỔN ĐỊNH của MindMapDoodle (0-3: xem MindMapDoodle.tsx)
+// — mở rộng đúng cơ chế hash đã có (nghiengOnDinh/mauOnDinh) sang chiều thứ ba: HÌNH DẠNG, để mỗi
+// bảng có một "nét" hơi khác nhau thay vì tất cả dùng chung y hệt một tác phẩm (critique 2026-08-26,
+// "khoảng cách giữa tham vọng hiến chương và thực thi tại gallery"). Nhân số khác 17/31 (đã dùng ở
+// hai hàm trên) để 3 hàm không tình cờ tương quan với nhau trên cùng một tập id.
+// Độ sáng tương đối (WCAG relative luminance, 0-1) của một màu hex "#rrggbb".
+function doSangTuongDoi(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+  const tuyenTinh = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * tuyenTinh(r) + 0.7152 * tuyenTinh(g) + 0.0722 * tuyenTinh(b)
+}
+
+// Xấp xỉ độ sáng của --c-on-bright ở dark mode (#0b0c1c) — dùng làm ứng viên "chữ gần đen" thay vì
+// đen tuyệt đối, để khớp đúng giá trị token thật app đang dùng ở mọi nơi khác.
+const DO_SANG_GAN_DEN = doSangTuongDoi('#0b0c1c')
+
+function tiLeTuongPhan(l1: number, l2: number): number {
+  const [sang, toi] = l1 > l2 ? [l1, l2] : [l2, l1]
+  return (sang + 0.05) / (toi + 0.05)
+}
+
+// Chọn chữ trắng hoặc gần-đen tuỳ theo màu NỀN CỤ THỂ (kh.color) — KHÔNG dùng var(--c-on-bright)
+// cứng cho nền này: token đó chỉ được hiệu chỉnh cho --c-primary (đổi độ sáng theo theme), còn
+// kh.color là hằng số CỐ ĐỊNH qua cả hai theme (xem comment đầu specialties.ts: "chưa đổi theo chủ
+// đề"). Ghép nhầm --c-on-bright vào nền này khiến cả 11/11 màu chuyên khoa xuống dưới AA ở dark mode
+// (đo được 3.00-3.97:1, critique 2026-08-26 P1) — bài học từ chính lượt vá contrast trước, áp đúng
+// công thức cho MỘT điểm chạm (chip "Tất cả", nền --c-primary) rồi lan sang điểm chạm khác có màu
+// nền hoàn toàn khác bản chất. Hàm này tính tương phản thật với CẢ HAI ứng viên rồi chọn bên thắng —
+// đúng cho bất kỳ giá trị hex nào, kể cả nếu sau này thêm chuyên khoa với màu sáng hơn hẳn 11 màu
+// hiện tại (nơi trắng sẽ không còn thắng nữa).
+function chuTrenNen(hexNen: string): string {
+  const lNen = doSangTuongDoi(hexNen)
+  const dungTrang = tiLeTuongPhan(1, lNen)
+  const dungGanDen = tiLeTuongPhan(DO_SANG_GAN_DEN, lNen)
+  return dungTrang >= dungGanDen ? '#ffffff' : '#0b0c1c'
+}
+
+function bienTheDoodle(id: string): 0 | 1 | 2 | 3 {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 13 + id.charCodeAt(i)) | 0
+  return (Math.abs(h) % 4) as 0 | 1 | 2 | 3
+}
+
 // khoa: id chuyên khoa để tô màu + chọn icon cho huy hiệu — undefined khi không có ngữ cảnh chuyên
 // khoa nào (lưới rỗng toàn bộ, chưa lọc gì). specialtyIcon() đã tự xử lý id lạ/undefined bằng icon
 // "trang giấy" mặc định (xem SpecialtyIcons.tsx), TheTrong không cần thêm nhánh dự phòng cho icon —
 // chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
-function TheTrong({ khoa }: { khoa?: string }) {
+// hatGiongBienThe: id bảng thật khi có (thẻ trong lưới) — cho lưới rỗng toàn bộ (không có bảng nào
+// để lấy id), dùng chuyenKhoaLoc đang lọc làm hạt giống thay thế, chỉ cần MỘT giá trị ổn định nào đó
+// vì tình huống đó chỉ có đúng một doodle hiện cùng lúc, không có nguy cơ trông giống hệt nhau.
+function TheTrong({ khoa, hatGiongBienThe }: { khoa?: string; hatGiongBienThe?: string }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
     <div className="relative w-full h-full" aria-hidden="true">
-      <MindMapDoodle className="w-full h-full opacity-40" />
+      <MindMapDoodle
+        className="w-full h-full opacity-40"
+        variant={hatGiongBienThe ? bienTheDoodle(hatGiongBienThe) : 0}
+      />
       {/* Huy hiệu chuyên khoa lồng bên trong artwork, đặt ở (55%, 55%) — tâm vùng mở của 2 nét
           scribble lớn trong MindMap.svg (đo bằng getBBox() thật, xem MindMapDoodle.tsx), tránh đè
           lên cụm chi tiết nhỏ ở góc trên-trái. KHÔNG cần code tilt riêng: TheTrong vốn đã nằm bên
@@ -142,6 +191,10 @@ function TheBang({
   const [tenNhap, setTenNhap] = useState(bang.ten)
   const [tagNhap, setTagNhap] = useState('')
   const nutRef = useRef<HTMLButtonElement>(null)
+  // Tên chuyên khoa cho aria-label — huy hiệu chuyên khoa trong TheTrong là aria-hidden (nó lồng
+  // vào artwork trang trí), nên người dùng trình đọc màn hình không có cách nào khác biết bảng này
+  // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
+  const tenChuyenKhoa = SPECIALTIES.find((s) => s.id === (bang.chuyenKhoa ?? SPECIALTIES[0].id))?.name
 
   // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc DanhSachBang mount —
   // trước đây parent chụp `Date.now()` một lần lúc MOUNT rồi so cho MỌI thẻ; bảng tạo SAU khi
@@ -221,9 +274,14 @@ function TheBang({
           nutRef.current?.style.removeProperty('--con-tro-y')
         }}
         style={{ display: 'block', width: '100%', border: 0, background: 'none', padding: 0, textAlign: 'left' }}
-        aria-label={`Mở bảng ${bang.ten}`}
+        aria-label={tenChuyenKhoa ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}` : `Mở bảng ${bang.ten}`}
       >
         <div
+          // .mind-paper-grain (index.css): texture giấy tĩnh (SVG feTurbulence, không JS mỗi khung
+          // hình) phía sau doodle placeholder — hiến chương Mindmap đòi "chân thực vật lý... giấy
+          // thật" cho bề mặt này (critique 2026-08-26, "khoảng cách giữa tham vọng hiến chương và
+          // thực thi"). Vô hại khi có ảnh xem trước thật che kín phía trên (bang.anhXemTruoc).
+          className="mind-paper-grain"
           style={{
             position: 'relative',
             aspectRatio: '4 / 3',
@@ -233,14 +291,16 @@ function TheBang({
             // fallback cũ (#f4f1ea, be ấm) từng ÂM THẦM chạy thật mỗi khi phiên trước không kết thúc
             // bằng nút "←" (ảnh xem trước chỉ ghi trong cleanup effect của React, xem EdgelessBoard.tsx),
             // lộ ra giữa nền indigo tối. Đổi sang token thật đang tồn tại.
-            background: 'var(--c-surface-alt, #f6f7fd)',
+            // backgroundColor (không phải `background` shorthand) — shorthand sẽ reset luôn
+            // background-image của .mind-paper-grain (class ở trên) về `none`, xoá mất texture.
+            backgroundColor: 'var(--c-surface-alt, #f6f7fd)',
             color: 'var(--c-text-muted, #6b6e96)',
           }}
         >
           {bang.anhXemTruoc ? (
             <img src={bang.anhXemTruoc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} hatGiongBienThe={bang.id} />
           )}
           {/* Chấm màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên, gắn ở góc ảnh xem trước để
               lướt lưới vẫn thấy ngay kể cả khi nhiều bảng cùng tên mặc định "Bảng chưa đặt tên"
@@ -688,7 +748,10 @@ export function DanhSachBang({
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
-                      color: 'var(--c-primary, #2d3a94)',
+                      // --c-accent-2, KHÔNG --c-primary — cùng hành động "phục hồi bảng vừa xoá" với
+                      // nút Hoàn tác trong toast (ngay dưới, đã đổi màu ở lượt vá trước); hai nút cho
+                      // cùng một hành động phải đọc cùng một ngôn ngữ màu (critique 2026-08-26 P2, lượt 2).
+                      color: 'var(--c-accent-2, #b8196f)',
                       background: 'none',
                       border: 0,
                       padding: '4px 6px',
@@ -774,10 +837,10 @@ export function DanhSachBang({
               borderRadius: 999,
               border: '1px solid var(--c-line, #d9ddf4)',
               background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
-              // var(--c-on-bright), KHÔNG '#fff' cứng — DESIGN.md: text-on-bright-fill phải lật theo
-              // theme để luôn đạt AA. '#fff' cứng trên nền primary dark-mode (#6ea8fe) chỉ 2.4:1, đo
-              // được thật bằng detector (critique 2026-08-26 P1).
-              color: chuyenKhoaLoc === kh.id ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+              // chuTrenNen(kh.color), KHÔNG var(--c-on-bright) — xem comment tại định nghĩa hàm:
+              // token đó chỉ đúng cho nền --c-primary, không đúng cho nền kh.color cố định qua theme
+              // (critique 2026-08-26 P1, lượt 2).
+              color: chuyenKhoaLoc === kh.id ? chuTrenNen(kh.color) : 'var(--c-text-muted, #6b6e96)',
             }}
           >
             {kh.name}
@@ -858,7 +921,7 @@ export function DanhSachBang({
           }}
         >
           <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #6b6e96)' }}>
-            <TheTrong khoa={chuyenKhoaLoc ?? undefined} />
+            <TheTrong khoa={chuyenKhoaLoc ?? undefined} hatGiongBienThe={chuyenKhoaLoc ?? undefined} />
           </div>
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
