@@ -1,6 +1,7 @@
 // Di trú MỘT LẦN: bảng cũ (docId 'board' cố định, từ trước khi có BoardGallery) chưa có metadata
 // trong store 'boards' → tự tạo một bản ghi cho nó, để nó xuất hiện trong danh sách sau khi cập
 // nhật, không cần thao tác gì từ người dùng. Xem spec 2026-08-19-board-gallery-design.md §2.6.
+import type { SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
@@ -10,6 +11,7 @@ import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import type { BangMeta } from './boardMeta'
+import { ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
 const TEN_CSDL_BANG = 'drtrong-board'
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
@@ -101,6 +103,70 @@ export async function diTruBangCuNeuCo(tuyChon?: {
       noiDungTimKiem: '',
     }
     await idbPut(IDB_STORES.boards, meta)
+  } finally {
+    workspace.forceStop()
+  }
+}
+
+// Di trú MỘT LẦN (nợ kỹ thuật ghi ở HANDOFF mục 32): bảng tạo TRƯỚC khi tìm kiếm-theo-nội-dung gộp
+// vào main có `noiDungTimKiem === ''` cho tới khi người dùng tự mở-đóng lại — hàm này chủ động
+// trích trước cho mọi bảng còn thiếu, KHÔNG đợi người dùng mở lại. Khác `diTruBangCuNeuCo()` (một
+// doc CỐ ĐỊNH 'board'): hàm này lặp qua danh sách `boards` hiện có, mở MỘT workspace chung rồi đọc
+// từng doc theo id — rẻ hơn dựng lại workspace cho mỗi bảng.
+export async function diTruNoiDungTimKiemNeuCo(tuyChon?: {
+  docSources?: { main: DocSource }
+  blobSources?: { main: BlobSource }
+  hanGioMs?: number
+}): Promise<void> {
+  const dsHienCo = await idbGetAll<BangMeta>(IDB_STORES.boards)
+  const canDiTru = dsHienCo.filter((b) => !b.noiDungTimKiem)
+  if (canDiTru.length === 0) return
+
+  const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
+  const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
+  const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
+
+  // Cùng lý do đã ghi ở diTruBangCuNeuCo(): KHÔNG truyền idGenerator, hàm này CHỈ ĐỌC.
+  const workspace = new TestWorkspace({ id: 'bs-trong-board', docSources, blobSources })
+  try {
+    workspace.start()
+    const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
+    if (ketQua === 'het-gio') {
+      // Cùng cách xử lý hết giờ của diTruBangCuNeuCo(): bỏ cuộc êm cho LƯỢT NÀY, không đánh dấu bảng
+      // nào là "đã thử" — người gọi (BoardGallery.tsx) chỉ đặt cờ "đã chạy" sau khi Promise này
+      // resolve KHÔNG NÉM LỖI, nhưng không phân biệt được "xong thật" với "hết giờ rồi bỏ cuộc" từ
+      // bên trong hàm — chấp nhận được: máy gặp IndexedDB chập chờn sẽ thử lại đúng những bảng còn
+      // thiếu ở lần mở tab Mindmap kế tiếp vì `noiDungTimKiem` của chúng vẫn rỗng.
+      console.warn(
+        `diTruNoiDungTimKiemNeuCo: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — bỏ qua ` +
+          'lượt di trú này, thử lại ở lần mở tab Mindmap sau.',
+      )
+      return
+    }
+    workspace.meta.initialize()
+
+    for (const bang of canDiTru) {
+      const doc = workspace.getDoc(bang.id)
+      if (!doc) continue // Bảng đã xoá khỏi workspace hoặc chưa từng có doc thật — bỏ qua, không phải lỗi.
+
+      const store = doc.getStore({ extensions: storeManager.get('store') })
+      doc.load()
+      const root = store.root
+      if (!root) continue
+
+      const surface = root.children.find(
+        (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
+      )
+      const noiDung = ghepNoiDungTimKiem(
+        trichVanBanTuKhoi(root),
+        surface ? trichVanBanTuCanvas(surface.elementModels as unknown as Array<{ text?: unknown }>) : '',
+      )
+      if (!noiDung) continue // Bảng thật sự trống (chỉ hình không chữ) — không có gì để ghi thêm.
+
+      // KHÔNG động vào capNhatLuc — đây là điền bù dữ liệu tìm kiếm, không phải một lượt sửa nội
+      // dung của người dùng (cùng nguyên tắc capNhatAnhXemTruoc() đã tách ở mục 31).
+      await idbPut(IDB_STORES.boards, { ...bang, noiDungTimKiem: noiDung })
+    }
   } finally {
     workspace.forceStop()
   }

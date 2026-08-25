@@ -9,9 +9,22 @@ import { createAutoIncrementIdGenerator, TestWorkspace } from '@blocksuite/affin
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { Text } from '@blocksuite/store'
 
-import { IDB_STORES, idbDelete, idbGetAll } from '../../lib/idb'
-import { diTruBangCuNeuCo } from '../diTruBangCu'
+import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
+import type { BangMeta } from '../boardMeta'
+import { diTruBangCuNeuCo, diTruNoiDungTimKiemNeuCo } from '../diTruBangCu'
 import { taoHoacMoBang } from '../EdgelessBoard'
+
+function bangMetaGia(overrides: Partial<BangMeta> & { id: string }): BangMeta {
+  return {
+    ten: 'Bảng',
+    taoLuc: 1,
+    capNhatLuc: 1,
+    chuyenKhoa: 'noi',
+    tags: [],
+    noiDungTimKiem: '',
+    ...overrides,
+  }
+}
 
 function dungDocSourceGia(): DocSource & { kho: Map<string, Uint8Array[]> } {
   const kho = new Map<string, Uint8Array[]>()
@@ -166,5 +179,96 @@ describe('diTruBangCuNeuCo', () => {
 
     const ds = await idbGetAll(IDB_STORES.boards)
     expect(ds).toHaveLength(0)
+  }, 10_000)
+})
+
+describe('diTruNoiDungTimKiemNeuCo', () => {
+  it('bảng thiếu noiDungTimKiem, có nội dung thật trong doc → trích và ghi lại', async () => {
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const bang = await taoHoacMoBang('bang-1', { docSources, blobSources })
+    const noteId = bang.store.addBlock('affine:note', {}, bang.store.root!.id)
+    bang.store.addBlock('affine:paragraph', { text: new Text('nội dung cần tìm') }, noteId)
+    await bang.workspace.waitForSynced()
+    bang.workspace.forceStop()
+
+    await idbPut(IDB_STORES.boards, bangMetaGia({ id: 'bang-1' }))
+
+    await diTruNoiDungTimKiemNeuCo({ docSources, blobSources })
+
+    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    expect(ds[0].noiDungTimKiem).toContain('nội dung cần tìm')
+  })
+
+  it('bảng đã có noiDungTimKiem không rỗng → không đụng lại, giữ nguyên', async () => {
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    await idbPut(
+      IDB_STORES.boards,
+      bangMetaGia({ id: 'bang-2', noiDungTimKiem: 'đã trích từ trước' }),
+    )
+
+    // KHÔNG dựng doc thật cho 'bang-2' — nếu hàm lỡ cố mở nó, workspace.getDoc() trả về
+    // undefined/rỗng nên vẫn không ghi đè, nhưng test này khẳng định đúng NGỮ NGHĨA "bỏ qua bảng đã
+    // có sẵn", không phụ thuộc hành vi mở doc thất bại.
+    await diTruNoiDungTimKiemNeuCo({ docSources, blobSources })
+
+    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    expect(ds[0].noiDungTimKiem).toBe('đã trích từ trước')
+  })
+
+  it('không có bảng nào cần di trú → không tạo/sửa gì, không ném lỗi', async () => {
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    await idbPut(IDB_STORES.boards, bangMetaGia({ id: 'bang-3', noiDungTimKiem: 'sẵn rồi' }))
+
+    await diTruNoiDungTimKiemNeuCo({ docSources, blobSources })
+
+    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    expect(ds).toHaveLength(1)
+    expect(ds[0].noiDungTimKiem).toBe('sẵn rồi')
+  })
+
+  it('bảng cần di trú nhưng doc không mở được (đã xoá/không tồn tại) → bỏ qua êm, không ném lỗi', async () => {
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    await idbPut(IDB_STORES.boards, bangMetaGia({ id: 'bang-mo-coi' }))
+
+    await expect(diTruNoiDungTimKiemNeuCo({ docSources, blobSources })).resolves.toBeUndefined()
+
+    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    expect(ds[0].noiDungTimKiem).toBe('')
+  })
+
+  it('IndexedDB hỏng vĩnh viễn + hạn giờ nhỏ → vẫn trả về, không treo, không ghi gì', async () => {
+    const docSourceTreo: DocSource = {
+      name: 'treo-mai',
+      pull: () => new Promise(() => {}),
+      push: () => new Promise(() => {}),
+      subscribe: () => () => {},
+    }
+    const blobSourceTreo: BlobSource = {
+      name: 'treo-mai',
+      readonly: false,
+      get: () => new Promise(() => {}),
+      set: () => new Promise(() => {}),
+      delete: () => new Promise(() => {}),
+      list: () => new Promise(() => {}),
+    }
+
+    await idbPut(IDB_STORES.boards, bangMetaGia({ id: 'bang-4' }))
+
+    await diTruNoiDungTimKiemNeuCo({
+      docSources: { main: docSourceTreo },
+      blobSources: { main: blobSourceTreo },
+      hanGioMs: 20,
+    })
+
+    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    expect(ds[0].noiDungTimKiem).toBe('')
   }, 10_000)
 })

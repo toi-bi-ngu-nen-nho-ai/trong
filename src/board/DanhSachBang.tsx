@@ -492,7 +492,10 @@ export function DanhSachBang({
   // Lưới rỗng vì BỘ LỌC hoàn toàn khác lưới rỗng vì chưa có bảng nào: mời "Bắt đầu một sơ đồ tư duy
   // mới" trong tình huống này vừa sai sự thật (bảng vẫn còn nguyên, chỉ đang bị lọc khuất) vừa đẩy
   // người dùng đi tạo một bảng thừa thay vì sửa truy vấn/tắt chip lọc (review cuối nhánh, mục 7).
-  const rongDoBoLoc = danhSachSapXep.length === 0 && (truyVan.trim().length > 0 || chuyenKhoaLoc !== null)
+  const rongDoBoLoc =
+    danhSachSapXep.length === 0 &&
+    (truyVan.trim().length > 0 || chuyenKhoaLoc !== null) &&
+    danhSach.filter((b) => !b.daXoaLuc).length > 0
 
   // Bỏ xoá mềm cho một bảng (cả hai nút "Hoàn tác": dải toast và panel "Đã xoá gần đây").
   // "Hoàn tác" là đường phục hồi CUỐI CÙNG nên nó phải chịu ĐÚNG lớp lỗi mà taoBangMoi/

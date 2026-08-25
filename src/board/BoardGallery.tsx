@@ -29,6 +29,14 @@ const DA_CHAY_DI_TRU_KEY = 'drtrong:board-di-tru-da-chay'
 // phải trạng thái riêng của một component.
 let dangDiTru = false
 
+// Cờ RIÊNG cho lượt di trú nội dung tìm kiếm (mục 32, trả nợ) — KHÔNG dùng chung DA_CHAY_DI_TRU_KEY
+// ở trên: cờ đó rất có thể ĐÃ được set từ lâu trên máy đang dùng thật (di trú bảng cũ chạy từ mục 19,
+// trước cả khi tìm kiếm nội dung tồn tại), nên nếu gộp chung, `if (localStorage.getItem(DA_CHAY_DI_TRU_KEY)) return`
+// sẽ chặn đứng lượt di trú nội dung mới trước khi nó có cơ hội chạy lần nào trên đúng nhóm máy cần
+// nó nhất. Hai lượt di trú độc lập hoàn toàn — cờ riêng, biến "đang chạy" riêng.
+const DA_CHAY_DI_TRU_NOI_DUNG_KEY = 'drtrong:board-di-tru-noi-dung-da-chay'
+let dangDiTruNoiDung = false
+
 export function BoardGallery({
   dangHienTab,
   moBangYeuCau,
@@ -98,6 +106,41 @@ export function BoardGallery({
       })
       .finally(() => {
         dangDiTru = false
+      })
+  }, [dangHienTab])
+
+  // Lượt di trú THỨ HAI, ĐỘC LẬP hoàn toàn với lượt trên — trả nợ mục 32 (bảng tạo trước khi tìm
+  // kiếm-theo-nội-dung gộp vào thiếu noiDungTimKiem cho tới khi tự mở-đóng lại). Tách effect riêng
+  // (thay vì gộp vào effect trên, chạy tuần tự sau diTruBangCuNeuCo()) vì hai việc có ĐIỀU KIỆN CHẠY
+  // khác nhau — cờ trên có thể đã set từ lâu trong khi cờ này chưa, gộp chung sẽ làm effect return
+  // sớm trước khi tới được lượt di trú nội dung.
+  useEffect(() => {
+    if (!dangHienTab) return
+    if (dangDiTruNoiDung) return
+    try {
+      if (localStorage.getItem(DA_CHAY_DI_TRU_NOI_DUNG_KEY)) return
+    } catch {
+      // Cùng tinh thần catch ở effect trên — không đọc được cờ thì cứ thử.
+    }
+    dangDiTruNoiDung = true
+    // Import ĐỘNG cùng lý do D13 đã ghi ở effect trên.
+    import('./diTruBangCu')
+      .then((m) => m.diTruNoiDungTimKiemNeuCo())
+      .then(() => {
+        try {
+          localStorage.setItem(DA_CHAY_DI_TRU_NOI_DUNG_KEY, '1')
+        } catch {
+          // Không lưu được cờ thì lần mount tab Mindmap sau thử lại.
+        }
+      })
+      .catch((loi: unknown) => {
+        console.error(
+          'BoardGallery: di trú nội dung tìm kiếm bảng cũ thất bại, sẽ thử lại ở lần mở tab kế tiếp:',
+          loi,
+        )
+      })
+      .finally(() => {
+        dangDiTruNoiDung = false
       })
   }, [dangHienTab])
 

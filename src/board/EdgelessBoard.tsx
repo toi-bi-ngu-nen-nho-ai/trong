@@ -481,7 +481,7 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
         // giấu mất cảnh báo nghiêm trọng hơn hẳn (mất dữ liệu) sau một lỗi phụ có thể thử lại
         // (review cuối nhánh, mục 3). Xếp chồng bằng flex column nên không phải đoán chiều cao băng
         // trên bằng một `top` cứng — cỡ chữ/khoảng đệm đổi thì vẫn tự đúng.
-        <div className="absolute top-0 inset-x-0 z-10 flex flex-col">
+        <div className="absolute top-0 inset-x-0 z-10 flex flex-col pointer-events-none">
           {khongLuuDuoc && (
             // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ
             // cao một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx
