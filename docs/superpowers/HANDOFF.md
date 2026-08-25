@@ -199,23 +199,32 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 31 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 32 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
-Không còn chặng nào đang dở, KỂ CẢ nợ để lại có chủ đích — mục 31 đã trả nốt khoản cuối cùng (P2
-sâu của critique lượt 3), VÀ khoản "kiểm chứng chưa trọn" mục 31 tự phát hiện (npm test chưa từng
-chạy hết tới cuối ở mục 29) cũng đã vá — xem đính chính trong mục 31. `main` tại `e668854` (hoặc
-mới hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP, ĐẦY ĐỦ cuối phiên
-trước (không suy luận, không timeout): `tsc` sạch · `kiem:vendor` 2.782 file lệch 0 ·
-`kiem:vendor-paths` 438 mục · `build`+`kiem:dist` xanh **247/247 khoá vi.json có mặt** ·
-**`npm test` 302/302, 40/40 file — ĐÃ chạy trọn bộ thật**. **Cây làm việc có thể KHÔNG sạch tuyệt
-đối** — kiểm `git status` trước: ngoài các ngoại lệ đã
-biết lâu (antibiotics.ts, ba file browser-use), một phiên/chủ dự án khác từng sửa song song
+Không còn chặng nào đang dở. Mục 32 (chặng Mindmap — chuyên khoa/tag, tìm kiếm, xuất PNG/PDF, roadmap
+PRODUCT.md mục 26/31 đã hứa) đã hoàn tất TOÀN BỘ: 10/10 task, review toàn nhánh + đợt vá cuối sạch,
+ĐÃ GỘP vào `main` (merge commit `3eafcdf`) VÀ ĐÃ PUSH lên `origin/main`. `main` tại `3eafcdf` (hoặc
+mới hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP, ĐẦY ĐỦ trên chính kết
+quả gộp (không suy luận, không timeout): `tsc` sạch · `kiem:vendor` 2.782 file lệch 0 ·
+`kiem:vendor-paths` 438 mục · `build`+`kiem:dist` xanh (không còn "affine-") ·
+**`npm test` 352/352, 41/41 file — ĐÃ chạy trọn bộ thật, 2 lượt trước đó dính lỗi hạ tầng (worker
+timeout do dev server Vite thừa trên máy ăn hết CPU) đã dọn sạch tiến trình rồi đo lại sạch**. **Cây
+làm việc có thể KHÔNG sạch tuyệt đối** — kiểm `git status` trước: ngoài các ngoại lệ đã biết lâu
+(antibiotics.ts, ba file browser-use), một phiên/chủ dự án khác từng sửa song song
 `src/data/categories.ts`/`src/lib/ui.ts` — nếu vẫn còn `M` chưa commit ở phiên sau, đó không thuộc
-track nào ở đây, đừng đụng.
+track nào ở đây, đừng đụng. Worktree `.claude/worktrees/mindmap-tim-kiem-tag-xuat-file` và nhánh
+`worktree-mindmap-tim-kiem-tag-xuat-file` ĐÃ XOÁ (đã gộp, không còn cần giữ).
 
-Ba track độc lập, cả ba đều KHÔNG còn việc dở BẮT BUỘC — dưới đây là việc THÊM nếu muốn, không phải
+**Một nợ kỹ thuật có chủ đích từ mục 32, CHƯA vá, đọc kỹ trước khi đụng tìm kiếm Mindmap:** bảng
+Mindmap tạo TRƯỚC khi chặng này gộp KHÔNG tìm được theo nội dung bên trong cho tới khi người dùng tự
+mở-đóng lại từng bảng một lần (backfill lười chỉ hoạt động cho `chuyenKhoa`/`tags`, không hoạt động
+cho `noiDungTimKiem` vì trường đó cần trích xuất thật, không thể default). Chi tiết + lý do chấp nhận
+ở mục 32. Muốn vá: dựng script di trú kiểu `diTruBangCu.ts` (mở từng doc cũ, trích văn bản, ghi
+`noiDungTimKiem`) — chưa có, là việc THÊM nếu chủ dự án thấy cần.
+
+Bốn track độc lập, cả bốn đều KHÔNG còn việc dở BẮT BUỘC — dưới đây là việc THÊM nếu muốn, không phải
 nợ:
 
 0. **Dịch — Database/data-view+SlashMenu (mục 28) VÀ toolbar bảng vẽ (mục 29) đều ĐÃ XONG.**
@@ -227,15 +236,19 @@ nợ:
    file trong `luat-vi-tri-dich.mjs`) để không báo trùng.
 
 1. **`/impeccable critique` MindMapScreen (BoardGallery) — 3 lượt, lượt 3 + nợ P2 sâu đều ĐÃ XONG**
-   (mục 26+27+30+31). Điểm mới nhất 26/36 (72%, "Tốt"). KHÔNG còn vấn đề nào được critique tìm thấy
-   mà chưa sửa — kể cả khoản P2 "để lại có chủ đích" ở mục 30 nay đã trả ở mục 31. Muốn tiếp tục
-   nâng chất lượng: chạy lại `/impeccable critique MindMapScreen` (target thật:
-   `src/board/BoardGallery.tsx`) — lượt 4, xem điểm cải thiện ra sao rồi lặp lại chu trình. Roadmap
-   PRODUCT.md hứa (tìm kiếm/tag/xuất file cho Mindmap) đã được chủ dự án xác nhận là việc THẬT cần
-   làm dần, không phải chỉ sửa tài liệu — mở bằng `brainstorming` → `writing-plans` vì là chặng lớn,
-   CHƯA bắt đầu.
+   (mục 26+27+30+31). Điểm mới nhất 26/36 (72%, "Tốt"), ĐO TRƯỚC khi chặng tìm kiếm/tag/xuất file
+   (mục 32) gộp vào — muốn biết điểm hiện tại phải chạy lại critique. KHÔNG còn vấn đề nào của các
+   lượt trước chưa sửa. Muốn tiếp tục nâng chất lượng: chạy lại `/impeccable critique MindMapScreen`
+   (target thật: `src/board/BoardGallery.tsx` + `src/board/DanhSachBang.tsx` — file lớn hẳn sau mục
+   32) — lượt 4.
 
-2. **Track TDD tự động hoá kiểm tay** (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
+2. **Roadmap PRODUCT.md (tìm kiếm/tag/xuất file cho Mindmap) — ĐÃ XONG, xem mục 32.** Ba khả năng
+   đã hứa (chuyên khoa/tag trên mỗi bảng, tìm kiếm nội bộ + toàn app, xuất PNG/PDF) đều đã có trên
+   `main`. Còn nợ kỹ thuật đã ghi ở trên (backfill nội dung bảng cũ) và hai nợ nhỏ khác (dải chip
+   chuyên khoa không khớp giữa hai màn hình, hai ô tìm kiếm xử lý dấu khác nhau) — cả hai đọc chi
+   tiết ở mục 32, không chặn dùng.
+
+3. **Track TDD tự động hoá kiểm tay** (thay kiểm tay trên trình duyệt thật bằng test tự động, vì
    Browser pane không compositing khi phiên không có người theo dõi trực tiếp) — dừng ở **17/22
    khoá** của mục 21+22, KHÔNG đổi từ bản trước, còn 5 khoá hoãn thật sự (không phải quên): năm kỹ
    thuật đã có (BlockSelection+toolbar, slash-menu caption, gọi thẳng hàm export công khai, import
@@ -247,7 +260,7 @@ nợ:
    ("Create Linked Doc", "More") là ngõ cụt đã xác nhận. Đọc "Còn nợ" ở cuối mục 25 để biết chính
    xác vị trí nguồn + lý do chưa làm của từng khoá, đừng điều tra lại từ đầu.
 
-**Việc ngoài ba track — chưa nghiệm thu, không phải nợ kỹ thuật (mục 7):** iPad chưa có thiết bị
+**Việc ngoài bốn track — chưa nghiệm thu, không phải nợ kỹ thuật (mục 7):** iPad chưa có thiết bị
 thật để đo (đã cấu hình phòng ngừa ở mục 8, chưa xác nhận); vẽ hình bằng công cụ shape mới chạy
 được qua sự kiện tổng hợp, chưa test bằng input thật của hệ điều hành trên thiết bị thật.
 
@@ -260,7 +273,8 @@ Trình tự nếu tiếp tục track TDD: chạy "Việc làm ngay" ở mục 1 
 (npm ci && npm run dung:vendor, mất vài phút), rồi đọc "Chặng kế tiếp" ở cuối mục 25 để chọn việc —
 không cần brainstorming/writing-plans nếu chỉ tiếp tục thêm test TDD theo đúng các kỹ thuật đã có
 (việc nhỏ, làm trực tiếp); dùng superpowers:brainstorming → writing-plans nếu muốn mở chặng lớn khác
-(bật thêm ViewExtension, nội dung dịch cho 10 extension mục 20, roadmap PRODUCT.md ở mục 26, v.v).
+(bật thêm ViewExtension, nội dung dịch cho 10 extension mục 20, v.v — roadmap PRODUCT.md chính đã
+xong ở mục 32).
 
 Đừng đụng src/data/antibiotics.ts — chủ dự án tự sửa. Ba file browser-use
 (.env.browser-use/BROWSER_USE_SETUP.md/browser_use_test.py) không thuộc track nào, kệ chúng.
