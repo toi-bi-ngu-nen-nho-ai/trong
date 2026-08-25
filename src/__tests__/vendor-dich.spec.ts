@@ -13,7 +13,9 @@ import { dietJs } from '../../scripts/duyet-cay-js.mjs'
 import {
   DOI_SO_HIEN_THI,
   dichMotFile,
+  FILE_CHO_PHEP_FILLTEXT,
   thayChuTrongTagTooltip,
+  thayNutDongMenuMobile,
   thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
   THUOC_TINH_HTML_HIEN_THI,
@@ -93,6 +95,14 @@ describe('D12 — vị trí ĐƯỢC dịch', () => {
 
   it('literal là nhánh whenTrue của biểu thức điều kiện ngay sau .tooltip=', () => {
     const ra = dich('html`<x .tooltip=${popper ? \'Style\' : \'\'}></x>`')
+    expect(ra).toContain('Phong cách')
+  })
+
+  // Đo 2026-08-25 (mục 33) — điều tra lỗi "More còn tiếng Anh": một số chỗ trong cây vendored viết
+  // `.tooltip="${…}"` (CÓ nháy quanh nhịp) thay vì `.tooltip=${…}` — cú pháp Lit hợp lệ cả hai,
+  // nhưng bản cũ của khopLit chỉ nhận biến thể KHÔNG nháy, bỏ lỡ 13 chuỗi literal thật.
+  it('literal đứng một mình sau binding .tooltip="${…}" (CÓ nháy) trong template', () => {
+    const ra = dich('html`<x .tooltip="${\'Style\'}"></x>`')
     expect(ra).toContain('Phong cách')
   })
 })
@@ -185,10 +195,11 @@ describe('D12 — vị trí KHÔNG được đụng', () => {
     expect(ra).toContain(`'Style'`)
   })
 
-  it('binding .tooltip= có NHÁY bao quanh (sai cú pháp Lit thật, không phải mục đo được)', () => {
-    const ra = dich('html`<x .tooltip="${\'Style\'}"></x>`')
-    expect(ra).toContain(`'Style'`)
-  })
+  // ĐÍNH CHÍNH 2026-08-25 (mục 33): ca này TỪNG khẳng định `.tooltip="${…}"` (có nháy) là "sai cú
+  // pháp Lit thật, không phải mục đo được" — SAI. Đo lại xác nhận đây là cú pháp Lit HỢP LỆ (nháy
+  // quanh nhịp property binding bị lit-html bỏ qua lúc parse) và có THẬT 21 lượt trong cây vendored
+  // (13 literal đứng một mình, "More" và 12 chuỗi khác) — khớp `khopLit` đã nới ở luat-vi-tri-dich.mjs.
+  // Ca kiểm ĐÚNG cho hình dạng này giờ nằm ở describe('D12 — vị trí ĐƯỢC dịch') phía trên.
 
   it('binding thuộc tính khác .tooltip= (vd .class=) không được nhận', () => {
     const ra = dich('html`<x .class=${\'Style\'}></x>`')
@@ -294,6 +305,77 @@ describe('thayChuTrongTagTooltip — chữ trần giữa cặp thẻ <drt-toolti
     // Chạy lại qua chính TypeScript để xác nhận kết quả là cú pháp HỢP LỆ, không chỉ "trông đúng".
     const sf = ts.createSourceFile('thu.js', ra, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
     expect((sf as any).parseDiagnostics).toEqual([])
+  })
+})
+
+// Ngoại lệ hẹp-theo-file cho đối số đầu của ctx.fillText(…) — đo 2026-08-25 (mục 33), fix "Frame"
+// còn tiếng Anh ở overlay xem trước canvas (auto-complete-panel). KHÔNG thêm 'fillText' vào
+// DOI_SO_HIEN_THI chung: hàm này gọi khắp cây vendored, phần lớn không phải chữ hiển thị.
+describe('FILE_CHO_PHEP_FILLTEXT — ngoại lệ hẹp-theo-file cho ctx.fillText(…)', () => {
+  const TEN_FILE_DUOC_PHEP = 'affine/widgets/edgeless-selected-rect/src/utils.js'
+
+  it('đối số đầu của fillText được dịch trong file đã đo/duyệt', () => {
+    expect(FILE_CHO_PHEP_FILLTEXT.has(TEN_FILE_DUOC_PHEP)).toBe(true)
+    const ra = dichMotFile("ctx.fillText('Style', x, y)", BAN_DO, TEN_FILE_DUOC_PHEP).js
+    expect(ra).toContain('Phong cách')
+  })
+
+  it('CÙNG lượt gọi fillText ở file KHÁC (không trong danh sách) thì KHÔNG dịch', () => {
+    const ra = dichMotFile("ctx.fillText('Style', x, y)", BAN_DO, 'khong-o-danh-sach.js').js
+    expect(ra).not.toContain('Phong cách')
+    expect(ra).toContain('Style')
+  })
+
+  it('đối số đầu của một hàm KHÁC tên (không phải fillText) trong cùng file không được dịch', () => {
+    const ra = dichMotFile("ctx.strokeText('Style', x, y)", BAN_DO, TEN_FILE_DUOC_PHEP).js
+    expect(ra).not.toContain('Phong cách')
+  })
+})
+
+// Nút đóng menu mobile ("Done" → "Xong", context-menu/menu-renderer.ts) — chữ TRẦN con trực tiếp
+// của <div>, KHÔNG qua nhịp ${…} nào và KHÔNG nằm trong <drt-tooltip>, nên khác cơ chế cả
+// dichMotFile lẫn thayChuTrongTagTooltip — phải neo bằng chính đoạn `@click="${this.onClose}"`.
+describe('thayNutDongMenuMobile — chữ trần nút đóng menu mobile', () => {
+  const TEN_FILE = 'affine/components/src/context-menu/menu-renderer.js'
+  const dungBanDo = { Done: 'Xong' }
+
+  it('dịch đúng khi đủ neo @click="${this.onClose}" và đúng file', () => {
+    const ra = thayNutDongMenuMobile(
+      '<div\n @click="${this.onClose}"\n style="color:red"\n>\n  Done\n</div>',
+      dungBanDo,
+      TEN_FILE,
+    )
+    expect(ra.js).toContain('Xong')
+    expect(ra.js).not.toContain('Done')
+    expect(ra.cacLuot).toEqual([{ chuoiGoc: 'Done', chuoiDich: 'Xong', dong: 5 }])
+  })
+
+  it('sai file (dù đủ neo) thì KHÔNG đụng gì', () => {
+    const js = '<div\n @click="${this.onClose}"\n>\n  Done\n</div>'
+    const ra = thayNutDongMenuMobile(js, dungBanDo, 'khong-o-danh-sach.js')
+    expect(ra.js).toBe(js)
+    expect(ra.cacLuot).toEqual([])
+  })
+
+  it('đúng file nhưng thiếu neo (this.onClose không phải @click) thì KHÔNG đụng gì', () => {
+    const js = '<div\n @click="${this.onOther}"\n>\n  Done\n</div>'
+    const ra = thayNutDongMenuMobile(js, dungBanDo, TEN_FILE)
+    expect(ra.js).toBe(js)
+    expect(ra.cacLuot).toEqual([])
+  })
+
+  it('bản đồ không có khoá "Done" thì KHÔNG đụng gì', () => {
+    const js = '<div\n @click="${this.onClose}"\n>\n  Done\n</div>'
+    const ra = thayNutDongMenuMobile(js, { Style: 'Phong cách' }, TEN_FILE)
+    expect(ra.js).toBe(js)
+    expect(ra.cacLuot).toEqual([])
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    const js = '<div\n @click="${this.onClose}"\n>\n  Done\n</div>'
+    expect(() =>
+      thayNutDongMenuMobile(js, { Done: 42 } as unknown as Record<string, string>, TEN_FILE),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })
 
@@ -444,6 +526,17 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
       // này thì mọi bản dịch đi qua đường đó sẽ bị báo "chưa từng thấy" oan, không phải vì nó sai
       // vị trí mà vì cổng KHÔNG BIẾT NHÌN vị trí đó.
       for (const mm of src.matchAll(/<drt-tooltip[^>]*>([^<]*)<\/drt-tooltip>/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
+      // Cùng nguyên tắc "tự viết lại, không gọi hàm thật" cho hình dạng thứ hai của chữ trần —
+      // nút đóng menu mobile (mục 33, thayNutDongMenuMobile trong luat-vi-tri-dich.mjs). Regex ở
+      // đây KHÔNG khớp theo tên file (khác bản gốc) — cổng độc lập chỉ hỏi "chữ này có nằm đúng
+      // hình dạng neo `@click="${this.onClose}"` ở đâu đó trong toàn cây không", đủ để xác nhận
+      // bản dịch thật sự sống, không cần tái tạo luật hẹp-theo-file (luật đó đã có cổng riêng của
+      // scripts/kiem-quan-he-dich.mjs canh).
+      for (const mm of src.matchAll(/@click="\$\{this\.onClose\}"[\s\S]*?>\s*([^<]*?)\s*<\/div>/g)) {
         const chu = mm[1].trim()
         if (banDich.has(chu)) daThay.add(chu)
       }

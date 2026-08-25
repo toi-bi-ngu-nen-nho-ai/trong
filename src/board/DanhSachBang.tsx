@@ -767,7 +767,7 @@ export function DanhSachBang({
         // thẻ lẫn ô "+" đều dùng aspectRatio (không có width tường minh) nên min-width suy ra bị kéo
         // lệch giữa hai cột — đo được 118px/217px thay vì chia đều. minmax(0, 1fr) chặn hẳn hành vi
         // "auto min" đó, luôn chia đều bất kể nội dung.
-        <div className="danh-sach-bang-nen" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, padding: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, padding: 16 }}>
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}

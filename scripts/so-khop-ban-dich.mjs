@@ -85,6 +85,23 @@ export function coTrongTagTooltip(noiDung, s) {
   return false
 }
 
+// Cùng lớp với `coTrongTagTooltip` (chữ trần không đứng một mình trong literal), nhưng cho ĐÚNG
+// MỘT vị trí đo được ở thayNutDongMenuMobile (luat-vi-tri-dich.mjs) — nút đóng menu mobile
+// (context-menu/menu-renderer.ts), neo bằng `@click="${this.onClose}"` đứng ngay trước. Đo trên
+// dist/ thật 2026-08-25: bộ đóng gói KHÔNG viết lại nội dung/khoảng trắng bên trong literal
+// backtick của template này (cùng tính chất đã ghi ở đầu file cho `coTrongTagTooltip`), nên đoạn
+// neo còn nguyên vẹn sau minify — kiểm tay xác nhận `@click="${this.onClose}"` xuất hiện đúng y
+// hệt bản chưa minify. Thoát ký tự đặc biệt regex trong `s` cho chắc dù bản dịch tiếng Việt hiện
+// tại không chứa ký tự nào cần thoát.
+function thoatRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function coTrongNutDongMenuMobile(noiDung, s) {
+  const re = new RegExp(`@click="\\$\\{this\\.onClose\\}"[\\s\\S]*?>\\s*${thoatRegex(s)}\\s*<\\/div>`)
+  return re.test(noiDung)
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.

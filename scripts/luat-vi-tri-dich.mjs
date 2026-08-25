@@ -61,9 +61,18 @@ export const THUOC_TINH_HIEN_THI = new Set(['label', 'tooltip', 'description', '
 // sánh/tra khoá NÀO khác trong toàn cây đọc lại đúng các giá trị `name` của hai file này. Danh
 // sách ĐÓNG theo đường dẫn: thêm file mới phải đo lại tiêu thụ ngược của riêng file đó trước,
 // không suy diễn "chắc cũng an toàn" từ hai file đã đo.
+//
+// Thêm file thứ ba 2026-08-25 (điều tra lỗi "Frame còn tiếng Anh" ở menu tràn/mobile của thanh
+// công cụ): `frame-dense-menu.ts` cùng hình dạng — đúng MỘT `menu.subMenu({name: 'Frame', ...})`
+// (đăng ký submenu Frame trong menu tràn khi thanh công cụ không đủ rộng) và MỘT `menu.action`
+// lồng bên trong (`name: 'Custom'`, không có trong vi.json nên không bị đụng). `gfx.tool.setTool`/
+// `currentToolName$` so sánh với chuỗi id nội bộ `'frame'` (thường), KHÔNG so sánh với `name`
+// hiển thị — đo cả file không có `.search()`/so sánh nào khác đọc `name`. An toàn ngang hai file
+// đã có.
 export const FILE_CHO_PHEP_NAME_DENSE_MENU = new Set([
   'affine/gfx/connector/src/toolbar/connector-dense-menu.js',
   'affine/gfx/link/src/toolbar/link-dense-menu.js',
+  'affine/blocks/frame/src/edgeless-toolbar/frame-dense-menu.js',
 ])
 
 // Ngoại lệ HẸP THEO FILE cho literal là giá trị của một property có KHOÁ TÍNH TOÁN
@@ -83,6 +92,21 @@ export const FILE_CHO_PHEP_KHOA_TINH_TOAN = new Set([
 // đạc) hay `createIdentifier` (định danh tiêm phụ thuộc — dịch là gãy phân giải service).
 export const DOI_SO_HIEN_THI = new Set(['toast'])
 
+// Ngoại lệ HẸP THEO FILE cho đối số đầu của `ctx.fillText(…)` — KHÔNG thêm 'fillText' vào
+// DOI_SO_HIEN_THI ở trên: hàm Canvas API này được gọi hàng chục lượt khắp cây vendored (rough.js
+// vẽ hình tay, mọi overlay canvas), phần lớn KHÔNG phải chữ hiển thị cho người dùng đọc trực tiếp
+// (nhãn kỹ thuật, số định dạng sẵn) — cho phép chung sẽ vi phạm "hỏng thì đóng". Đo RIÊNG file
+// dưới đây (2026-08-25, điều tra lỗi "Frame còn tiếng Anh" — overlay xem trước lúc kéo mũi tên
+// auto-complete quanh một khối/hình đã chọn, vẽ trực tiếp lên canvas nên hoàn toàn ngoài cây DOM,
+// không cách nào dịch qua vị trí thuộc-tính): ĐÚNG BA lượt `ctx.fillText(literal, …)` trong toàn
+// file, cả ba đều chữ hiển thị thật — "Type '/' to insert" (gợi ý gõ lệnh, overlay Text), "Type
+// '/' for command" (cùng gợi ý, overlay Note/Frame), "Frame" (tiêu đề nổi trên overlay xem trước
+// khung). Không còn lượt `fillText` nào khác trong file. Danh sách ĐÓNG theo đường dẫn, cùng
+// nguyên tắc FILE_CHO_PHEP_NAME_DENSE_MENU ở trên — thêm file mới phải đo lại riêng file đó.
+export const FILE_CHO_PHEP_FILLTEXT = new Set([
+  'affine/widgets/edgeless-selected-rect/src/utils.js',
+])
+
 // Luật hẹp cho template: chỉ nhận literal đứng MỘT MÌNH trong một nhịp `${…}` và đứng ngay sau
 // một thuộc tính HTML hiển thị. Danh sách có đúng một mục vì đó là mục duy nhất ĐO ĐƯỢC (12 lượt,
 // 10 chuỗi, tất cả qua data-tip=). Thượng nguồn thêm `title=` hay `aria-label=` thì chuỗi đó
@@ -90,13 +114,28 @@ export const DOI_SO_HIEN_THI = new Set(['toast'])
 export const THUOC_TINH_HTML_HIEN_THI = ['data-tip']
 
 // Luật hẹp cho BINDING THUỘC TÍNH của Lit (`.tên=${…}`) — khác cú pháp thuộc tính HTML thường ở
-// trên tại một điểm quan trọng: KHÔNG có nháy bao quanh nhịp (Lit không đòi nháy cho property
-// binding). Đo 2026-08-21: 63 lượt `.tooltip=${…}` trong toàn cây vendor; kiểm tay trên trình
-// duyệt thật (dev server, tab Mindmap) xác nhận đúng 5 chuỗi tới người dùng qua `.tooltip=` —
-// "Fit to screen"/"Zoom out"/"Zoom in"/"Toggle Zoom Tool Bar" (widgets/edgeless-zoom-toolbar,
-// literal đứng một mình) và "Others" (gfx/mindmap/toolbar/mindmap-tool-button.ts:354, literal là
-// một nhánh của biểu thức điều kiện `popper ? '' : 'Others'`). Danh sách có đúng một mục vì đó là
-// mục duy nhất đo được — mở rộng khi đo chỗ mới, cùng nguyên tắc THUOC_TINH_HTML_HIEN_THI ở trên.
+// trên tại một điểm quan trọng: Lit KHÔNG đòi nháy bao quanh nhịp cho property binding, nhưng một
+// số chỗ trong cây vendored VẪN viết nháy quanh nó (`.tooltip="${…}"`, hợp lệ với lit-html — nháy
+// bị bỏ qua lúc parse, chỉ là phong cách viết khác). Đo 2026-08-21: 63 lượt `.tooltip=${…}`
+// KHÔNG nháy; kiểm tay trên trình duyệt thật (dev server, tab Mindmap) xác nhận đúng 5 chuỗi tới
+// người dùng qua nhánh này — "Fit to screen"/"Zoom out"/"Zoom in"/"Toggle Zoom Tool Bar"
+// (widgets/edgeless-zoom-toolbar, literal đứng một mình) và "Others"
+// (gfx/mindmap/toolbar/mindmap-tool-button.ts:354, literal là một nhánh của biểu thức điều kiện
+// `popper ? '' : 'Others'`).
+//
+// Đo thêm 2026-08-25 — điều tra lỗi "toolbar còn tiếng Anh" (nút "More" và 12 chuỗi khác không
+// dịch dù khoá đã có trong vi.json): biến thể CÓ NHÁY `.tooltip="${…}"` khớp 21 lượt riêng, và cả
+// hai regex bên dưới đều bỏ lỡ nó — `khopHtml` đòi tên KHÔNG có dấu `.` đứng trước (`.tooltip`
+// luôn có `.` ngay trước "tooltip", không phải khoảng trắng, nên biên trái `(?:^|\s)` không khớp);
+// `khopLit` (bản cũ) đòi span kết thúc CHÍNH XÁC ở `=`, không chấp nhận dấu nháy `"` ngay sau —
+// nên literal bên trong bị BỎ QUA HOÀN TOÀN, không phải dịch sai vị trí. 13/21 lượt là literal
+// đứng một mình (8 còn lại là biểu thức động — `tooltip ?? label`, `label`, `key`,
+// `currentAction.label`, `ifDefined(key)`, và một `html\`…\`` lồng — tự động không khớp vì không
+// phải StringLiteral): "Rename", "Border style", "Display mode", "This note is part of Page
+// Mode. Click to remove it from the page.", "Turn into", "Align", "Card style", "Color",
+// "Highlight", "Switch view", "Font", "Font style", "More". Vá: `khopLit` chấp nhận dấu nháy TUỲ
+// CHỌN ngay sau `=` (`["']?` trước `$`) — không đổi tên thuộc tính nào được phép, chỉ nhận thêm
+// MỘT BIẾN THỂ CÚ PHÁP của chính `tooltip` đã có trong danh sách, nên an toàn ngang phần đã đo.
 export const THUOC_TINH_LIT_HIEN_THI = ['tooltip']
 
 function tenThuocTinh(name) {
@@ -152,7 +191,12 @@ function khopThuocTinhHtml(span) {
   // Dấu `.` phải đứng NGAY sau biên trái `(?:^|\s)` — cùng lý do neo biên đã ghi ở trên, để
   // `?tooltip=`/`@tooltip=` (binding boolean/event của Lit, khác nghĩa, chưa đo được cho tên nào)
   // và `tooltip=` trơn (chưa đo được — HTML thật không có thuộc tính `tooltip`) không lọt qua.
-  const khopLit = truoc.match(/(?:^|\s)\.([A-Za-z][\w:-]*)=$/)
+  // `["']?` ngay trước `$` — CHẤP NHẬN dấu nháy tuỳ chọn ngay sau `=` (đo 2026-08-25, xem chú
+  // thích ở định nghĩa THUOC_TINH_LIT_HIEN_THI phía trên): một số chỗ viết `.tooltip="${…}"` thay
+  // vì `.tooltip=${…}` — cú pháp Lit hợp lệ cả hai, nhưng bản cũ của regex này đòi kết thúc CHÍNH
+  // XÁC ở `=` nên bỏ lỡ hoàn toàn biến thể có nháy. Không nới biên trái, không đổi
+  // THUOC_TINH_LIT_HIEN_THI — chỉ nhận thêm một cách VIẾT của cùng tên thuộc tính đã được duyệt.
+  const khopLit = truoc.match(/(?:^|\s)\.([A-Za-z][\w:-]*)=["']?$/)
   if (khopLit && THUOC_TINH_LIT_HIEN_THI.includes(khopLit[1])) {
     return `thuộc-tính-lit:${khopLit[1]}`
   }
@@ -186,7 +230,15 @@ export function viTriHienThi(node, tenFile = null) {
 
   if (p.kind === ts.SyntaxKind.CallExpression && p.expression !== node) {
     const ten = tenHam(p.expression)
-    return ten && DOI_SO_HIEN_THI.has(ten) ? `đối-số:${ten}` : null
+    if (ten && DOI_SO_HIEN_THI.has(ten)) return `đối-số:${ten}`
+
+    // Ngoại lệ hẹp-theo-file cho `fillText`, xem chú thích ở định nghĩa FILE_CHO_PHEP_FILLTEXT
+    // phía trên — chỉ khớp khi CẢ tên hàm lẫn tên file đều đúng, cùng nguyên tắc hai ngoại lệ
+    // hẹp-theo-file của nhánh PropertyAssignment ở trên.
+    if (ten === 'fillText' && tenFile && FILE_CHO_PHEP_FILLTEXT.has(tenFile)) {
+      return `doi-so-rieng-file:${tenFile}`
+    }
+    return null
   }
 
   if (p.kind === ts.SyntaxKind.TemplateSpan && p.expression === node) {
@@ -458,5 +510,45 @@ export function thayChuTrongTagTooltip(js, banDo, tenFile = 'khong-ten.js') {
     cacLuot: thay
       .sort((a, b) => a.dau - b.dau)
       .map(({ chuoiGoc, chuoiDich, dong }) => ({ chuoiGoc, chuoiDich, dong })),
+  }
+}
+
+// Chữ TRẦN "Done" — nút đóng của MobileMenuComponent (context-menu/menu-renderer.ts), con trực
+// tiếp của `<div @click="${this.onClose}">…</div>`, KHÔNG qua nhịp `${…}` nào — cùng lớp lỗi như
+// "More Tools" ở `RE_TAG_TOOLTIP` phía trên (chữ trần giữa hai thẻ không có node AST nào đại
+// diện), nhưng thẻ ở đây là `<div>` thường (không phải một web component tên riêng như
+// `drt-tooltip`) nên không neo được bằng TÊN THẺ — phải neo bằng chính đoạn
+// `@click="${this.onClose}"` đứng ngay trước nó. Đo 2026-08-25 (điều tra lỗi "toolbar còn tiếng
+// Anh"): ĐÚNG MỘT lượt `this.onClose` dùng làm giá trị `@click=` trong toàn file (lượt còn lại,
+// dòng khai `this.onClose = () => {…}`, không khớp hình dạng `@click="${...}"`) — và ĐÚNG MỘT chữ
+// "Done" trong toàn file. Danh sách ĐÓNG theo đường dẫn, cùng nguyên tắc mọi FILE_CHO_PHEP_* ở
+// trên — KHÔNG tổng quát hoá thành "mọi chữ trần giữa hai thẻ", chỉ khớp đúng một vị trí đã đo.
+const RE_NUT_DONG_MENU_MOBILE = /(@click="\$\{this\.onClose\}"[\s\S]*?>\s*)Done(\s*<\/div>)/
+
+export function thayNutDongMenuMobile(js, banDo, tenFile = 'khong-ten.js') {
+  if (tenFile !== 'affine/components/src/context-menu/menu-renderer.js') {
+    return { js, cacLuot: [] }
+  }
+  const m = js.match(RE_NUT_DONG_MENU_MOBILE)
+  if (!m || !Object.hasOwn(banDo, 'Done')) return { js, cacLuot: [] }
+
+  const vi = banDo['Done']
+  if (typeof vi !== 'string') {
+    throw new Error(
+      'luat-vi-tri-dich: khoá "Done" (nút đóng menu mobile, thayNutDongMenuMobile) có giá trị ' +
+        `KHÔNG PHẢI CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+    )
+  }
+
+  // Cùng lý do thoát ký tự với thayChuTrongTagTooltip — chèn thẳng vào phần TEXT của một template
+  // literal đang mở, không qua JSON.stringify.
+  const thoatTemplate = (s) => s.replace(/[`$\\]/g, (c) => `\\${c}`)
+  // Dòng của CHÍNH CHỮ "Done" (m[1] là toàn bộ đoạn neo đứng TRƯỚC nó, xem RE_NUT_DONG_MENU_MOBILE)
+  // — không phải dòng bắt đầu của cả khớp (đoạn neo `@click=...` thường nằm ở dòng khác hẳn).
+  const dong = js.slice(0, m.index + m[1].length).split('\n').length
+
+  return {
+    js: js.replace(RE_NUT_DONG_MENU_MOBILE, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
+    cacLuot: [{ chuoiGoc: 'Done', chuoiDich: vi, dong }],
   }
 }

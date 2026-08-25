@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 import {
   coDungNhuDaChen,
   coNhuLiteral,
+  coTrongNutDongMenuMobile,
   coTrongTagTooltip,
   dangTrongNhay,
   giaiThichKhopTho,
@@ -107,6 +108,34 @@ describe('coTrongTagTooltip — chữ trần giữa <drt-tooltip>, coNhuLiteral 
 
   it('không có thẻ drt-tooltip nào thì không khớp', () => {
     expect(coTrongTagTooltip('const a = "Công cụ khác"', 'Công cụ khác')).toBe(false)
+  })
+})
+
+// CA GHIM ĐÚNG CON BUG ĐANG SỬA (2026-08-25). Nút đóng menu mobile ("Done" → "Xong") là chữ trần
+// con trực tiếp của <div>, KHÔNG qua nhịp ${} nào và KHÔNG nằm trong <drt-tooltip> — coNhuLiteral
+// lẫn coTrongTagTooltip đều không thấy được, dù bản dịch đã tới dist/ thật (đo tay 2026-08-25:
+// "Xong" nằm nguyên vẹn ngay sau đoạn neo trong dist/assets/EdgelessBoard-*.js).
+describe('coTrongNutDongMenuMobile — chữ trần nút đóng menu mobile, hai hàm trên không thấy được', () => {
+  const NEO = '@click="${this.onClose}"'
+
+  it('thấy chữ trần đứng sau đoạn neo, trước </div>', () => {
+    const noiDung = `${NEO}\n style="color:red"\n>\n  Xong\n</div>`
+    expect(coNhuLiteral(noiDung, 'Xong')).toBe(false) // đúng lỗ hổng cần vá
+    expect(coTrongNutDongMenuMobile(noiDung, 'Xong')).toBe(true)
+  })
+
+  it('vẫn khớp khi văn bản đã bị minify dồn vào một dòng', () => {
+    const noiDung = `x${NEO} style="color:${'${H(`a`)}'};width:50px">Xong</div>y`
+    expect(coTrongNutDongMenuMobile(noiDung, 'Xong')).toBe(true)
+  })
+
+  it('không có đoạn neo onClose thì không khớp dù có đúng chữ', () => {
+    expect(coTrongNutDongMenuMobile('<div>Xong</div>', 'Xong')).toBe(false)
+  })
+
+  it('không khớp chuỗi khác', () => {
+    const noiDung = `${NEO}>Xong</div>`
+    expect(coTrongNutDongMenuMobile(noiDung, 'Khác')).toBe(false)
   })
 })
 

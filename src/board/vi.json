@@ -246,5 +246,19 @@
   "Vertical style": "Kiểu dọc",
   "View name": "Tên chế độ xem",
   "Visualize data in a dashboard.": "Trực quan hoá dữ liệu dạng bảng điều khiển.",
-  "Yesterday": "Hôm qua"
+  "Yesterday": "Hôm qua",
+  "Done": "Xong",
+  "Border style": "Kiểu viền",
+  "Display mode": "Chế độ hiển thị",
+  "This note is part of Page Mode. Click to remove it from the page.": "Ghi chú này thuộc chế độ Trang. Bấm để gỡ khỏi trang.",
+  "Turn into": "Chuyển thành",
+  "Align": "Căn lề",
+  "Card style": "Kiểu thẻ",
+  "Color": "Màu",
+  "Highlight": "Tô sáng",
+  "Switch view": "Đổi kiểu xem",
+  "Font": "Phông chữ",
+  "Font style": "Kiểu chữ",
+  "Type '/' to insert": "Gõ '/' để chèn",
+  "Type '/' for command": "Gõ '/' để mở lệnh"
 }

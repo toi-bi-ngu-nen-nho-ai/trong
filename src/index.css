@@ -625,27 +625,6 @@ html.theme-shift * {
   animation: emptyBreathe 2.4s ease-in-out infinite;
 }
 
-/* LỚP C — có thể gỡ độc lập (git revert commit này) mà không ảnh hưởng phần còn lại của chặng.
-   Hoạ tiết nền mờ sau lưới thẻ — CSS thuần, không ảnh (giữ offline/bundle gọn), độ mờ rất thấp,
-   không đảo ngược sáng/tối cho nhau (đúng luật "không invert theme" của DESIGN.md). */
-.danh-sach-bang-nen {
-  position: relative;
-}
-.danh-sach-bang-nen::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.04;
-  background-image: repeating-linear-gradient(
-    45deg,
-    var(--c-text) 0,
-    var(--c-text) 1px,
-    transparent 1px,
-    transparent 12px
-  );
-}
-
 /* LỚP C — nghiêng nhẹ theo vị trí con trỏ khi hover, chỉ bật với chuột thật (không giả trên cảm
    ứng). JS (DanhSachBang.tsx) cập nhật --con-tro-x/--con-tro-y qua pointermove; nếu JS không chạy
    (hoặc trên cảm ứng, nơi media query dưới đây không khớp), thẻ vẫn dùng đúng .the-bang-vat:hover

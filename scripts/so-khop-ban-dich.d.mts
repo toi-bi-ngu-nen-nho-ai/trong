@@ -15,6 +15,8 @@ export declare function coDungNhuDaChen(noiDung: string, s: string): boolean
 
 export declare function coTrongTagTooltip(noiDung: string, s: string): boolean
 
+export declare function coTrongNutDongMenuMobile(noiDung: string, s: string): boolean
+
 export declare function timTrungBanDich(banDo: Record<string, string>): NhomTrung[]
 
 export declare function giaiThichKhopTho(

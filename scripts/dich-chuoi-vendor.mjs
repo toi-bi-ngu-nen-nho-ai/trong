@@ -13,7 +13,12 @@ import path from 'node:path'
 
 import { dietJs } from './duyet-cay-js.mjs'
 import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile, kiemTienTo } from './kiem-quan-he-dich.mjs'
-import { dichMotFile, thayChuTrongTagTooltip, thayTrenToanCay } from './luat-vi-tri-dich.mjs'
+import {
+  dichMotFile,
+  thayChuTrongTagTooltip,
+  thayNutDongMenuMobile,
+  thayTrenToanCay,
+} from './luat-vi-tri-dich.mjs'
 
 const GOC = path.resolve(import.meta.dirname, '..')
 const BUILD = path.join(GOC, '.vendor-build')
@@ -240,10 +245,22 @@ for await (const f of dietJs(BUILD)) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
   }
-  const jsCuoi = ketQuaTagTooltip.js
   const coDoiTagTooltip = ketQuaTagTooltip.cacLuot.length > 0
 
-  if (ketQua.cacLuot.length === 0 && !coDoiTienTo && !coDoiTagTooltip) continue
+  // Nút đóng menu mobile ("Done") — cùng cơ chế quét văn bản thô (không phải vị trí AST) và cùng
+  // bản đồ `banDo`, chạy SAU thayChuTrongTagTooltip vì lý do thứ tự giống hệt (hai cơ chế không
+  // đụng cùng vùng văn bản, chỉ cần nhất quán "tiền tố trước, phần còn lại sau").
+  let ketQuaNutDong
+  try {
+    ketQuaNutDong = thayNutDongMenuMobile(ketQuaTagTooltip.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const jsCuoi = ketQuaNutDong.js
+  const coDoiNutDong = ketQuaNutDong.cacLuot.length > 0
+
+  if (ketQua.cacLuot.length === 0 && !coDoiTienTo && !coDoiTagTooltip && !coDoiNutDong) continue
 
   for (const l of ketQua.cacLuot) {
     theoKhoa[l.chuoiGoc].push({ file: rel, viTri: l.viTri, dong: l.dong, chuoiDich: l.chuoiDich })
@@ -253,6 +270,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'chu-tran-trong-tag-tooltip',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaNutDong.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'chu-tran-nut-dong-menu-mobile',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })

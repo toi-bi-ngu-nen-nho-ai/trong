@@ -5,6 +5,7 @@ import type ts from 'typescript'
 export declare const THUOC_TINH_HIEN_THI: Set<string>
 export declare const FILE_CHO_PHEP_NAME_DENSE_MENU: Set<string>
 export declare const FILE_CHO_PHEP_KHOA_TINH_TOAN: Set<string>
+export declare const FILE_CHO_PHEP_FILLTEXT: Set<string>
 export declare const DOI_SO_HIEN_THI: Set<string>
 export declare const THUOC_TINH_HTML_HIEN_THI: string[]
 export declare const THUOC_TINH_LIT_HIEN_THI: string[]
@@ -46,3 +47,15 @@ export declare function thayChuTrongTagTooltip(
   banDo: Record<string, string>,
   tenFile?: string,
 ): { js: string; cacLuot: LuotTagTooltip[] }
+
+export interface LuotNutDongMenuMobile {
+  chuoiGoc: string
+  chuoiDich: string
+  dong: number
+}
+
+export declare function thayNutDongMenuMobile(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotNutDongMenuMobile[] }

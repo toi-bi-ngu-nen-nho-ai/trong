@@ -29,6 +29,7 @@ import path from 'node:path'
 
 import {
   coNhuLiteral,
+  coTrongNutDongMenuMobile,
   coTrongTagTooltip,
   giaiThichKhopTho,
   timTrungBanDich,
@@ -207,7 +208,12 @@ for (const f of dietFile(DIST)) {
       // "More Tools" → "Công cụ khác") không hề đứng một mình trong MỘT literal — nó là một khúc
       // văn bản nằm GIỮA hai literal khác của cùng một template lớn hơn, nên `coNhuLiteral` không
       // bao giờ thấy nó (đo được thật: luật C báo "Công cụ khác" thiếu dù bản dịch đã tới dist/).
-      if (coNhuLiteral(noiDung, v) || coTrongTagTooltip(noiDung, v)) thieuBanDich.delete(v)
+      if (
+        coNhuLiteral(noiDung, v) ||
+        coTrongTagTooltip(noiDung, v) ||
+        coTrongNutDongMenuMobile(noiDung, v)
+      )
+        thieuBanDich.delete(v)
       // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa
       // được ghi vào đây rồi sau đó khớp chặt ở file khác thì vẫn bị xoá khỏi `thieuBanDich`, nên
       // nó không bao giờ được in ra — thông báo chỉ lặp trên `thieuBanDich`.
