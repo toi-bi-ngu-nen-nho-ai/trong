@@ -4,6 +4,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
+import { specialtyIcon } from '../components/SpecialtyIcons'
+import { MindMapDoodle } from './MindMapDoodle'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
@@ -48,13 +50,44 @@ export function mauOnDinh(id: string): number {
   return 260 + (Math.abs(h) % 70)
 }
 
-function TheTrong() {
+// khoa: id chuyên khoa để tô màu + chọn icon cho huy hiệu — undefined khi không có ngữ cảnh chuyên
+// khoa nào (lưới rỗng toàn bộ, chưa lọc gì). specialtyIcon() đã tự xử lý id lạ/undefined bằng icon
+// "trang giấy" mặc định (xem SpecialtyIcons.tsx), TheTrong không cần thêm nhánh dự phòng cho icon —
+// chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
+function TheTrong({ khoa }: { khoa?: string }) {
+  const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
-    <svg viewBox="0 0 200 150" className="w-full h-full opacity-40" aria-hidden="true">
-      <circle cx="60" cy="50" r="20" fill="none" stroke="currentColor" strokeWidth="2" />
-      <line x1="80" y1="50" x2="120" y2="50" stroke="currentColor" strokeWidth="2" />
-      <rect x="120" y="35" width="40" height="30" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
-    </svg>
+    <div className="relative w-full h-full" aria-hidden="true">
+      <MindMapDoodle className="w-full h-full opacity-40" />
+      {/* Huy hiệu chuyên khoa lồng bên trong artwork, đặt ở (55%, 55%) — tâm vùng mở của 2 nét
+          scribble lớn trong MindMap.svg (đo bằng getBBox() thật, xem MindMapDoodle.tsx), tránh đè
+          lên cụm chi tiết nhỏ ở góc trên-trái. KHÔNG cần code tilt riêng: TheTrong vốn đã nằm bên
+          trong nút .the-bang-vat (thẻ bảng) hoặc div .empty-breathe (lưới rỗng) — huy hiệu tự
+          nghiêng/thở theo transform của cha vì cùng nằm trong một cây DOM đang biến đổi, không phải
+          một layer tách rời. Màu dùng cú pháp `${spec.color}15` đã có sẵn trong App.tsx (không phải
+          token --c-*): xem Global Constraints của kế hoạch này — spec.color là ngoại lệ cố ý. */}
+      <div
+        aria-hidden="true"
+        data-testid="huy-hieu-chuyen-khoa"
+        data-khoa={khoa ?? ''}
+        style={{
+          position: 'absolute',
+          top: '55%',
+          left: '55%',
+          transform: 'translate(-50%, -50%)',
+          width: '32%',
+          aspectRatio: '1 / 1',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: spec ? `${spec.color}15` : 'var(--c-surface-alt, #f6f7fd)',
+          color: spec ? spec.color : 'var(--c-text-muted, #6b6e96)',
+        }}
+      >
+        {specialtyIcon(khoa, 'w-[60%] h-[60%]')}
+      </div>
+    </div>
   )
 }
 
@@ -176,7 +209,7 @@ function TheBang({
           {bang.anhXemTruoc ? (
             <img src={bang.anhXemTruoc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <TheTrong />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
           )}
           {/* Chấm màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên, gắn ở góc ảnh xem trước để
               lướt lưới vẫn thấy ngay kể cả khi nhiều bảng cùng tên mặc định "Bảng chưa đặt tên"
@@ -778,7 +811,7 @@ export function DanhSachBang({
           }}
         >
           <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #6b6e96)' }}>
-            <TheTrong />
+            <TheTrong khoa={chuyenKhoaLoc ?? undefined} />
           </div>
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}

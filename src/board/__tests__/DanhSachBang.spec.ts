@@ -672,6 +672,135 @@ describe('DanhSachBang', () => {
     })
     expect(container.querySelector('[data-testid^="input-ten-"]')).not.toBeNull()
   })
+
+  it('bảng CHƯA có anhXemTruoc → huy hiệu chuyên khoa khớp bang.chuyenKhoa', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-khoa-1', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    const huyHieu = container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')
+    expect(huyHieu).not.toBeNull()
+    expect(huyHieu?.getAttribute('data-khoa')).toBe('cardiology')
+  })
+
+  it('đổi chuyên khoa qua popover "Chuyên khoa/tag" → huy hiệu đổi theo NGAY, không cần mở lại thẻ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-khoa-2', ten: 'Bảng chờ đổi khoa', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-bang-khoa-2"]')).not.toBeNull()
+    })
+
+    expect(
+      container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')?.getAttribute('data-khoa'),
+    ).toBe('cardiology')
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-khoa-2"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-bang-khoa-2"]') as HTMLButtonElement).click()
+    })
+    const chon = container.querySelector('[data-testid="chon-chuyen-khoa-bang-khoa-2"]') as HTMLSelectElement
+    await act(async () => {
+      chon.value = 'pulmonology'
+      chon.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    expect(
+      container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')?.getAttribute('data-khoa'),
+    ).toBe('pulmonology')
+  })
+
+  it('bảng THIẾU chuyenKhoa (bản ghi cũ) → huy hiệu coi như chuyên khoa đầu tiên, không NHẢY xuống icon mặc định', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-khoa-cu', ten: 'Bảng cũ', taoLuc: bayGio, capNhatLuc: bayGio })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    const huyHieu = container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')
+    expect(huyHieu?.getAttribute('data-khoa')).toBe(SPECIALTIES[0].id)
+  })
+
+  it('bảng ĐÃ có anhXemTruoc (ảnh thật) → KHÔNG hiện huy hiệu, tránh đè lên nét vẽ thật', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-co-anh', ten: 'Bảng có ảnh', taoLuc: bayGio, capNhatLuc: bayGio,
+      anhXemTruoc: 'data:image/png;base64,iVBORw0KGgo=', chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"] img')).not.toBeNull()
+    })
+
+    expect(container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
+  })
+
+  it('lưới rỗng toàn bộ, CHƯA lọc chuyên khoa → huy hiệu trung tính (data-khoa rỗng)', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    // Lưới hoàn toàn không có bảng nào → dải chip lọc chuyên khoa cũng không render (gate cùng
+    // điều kiện `danhSach.filter(...).length > 0` với ô tìm, xem DanhSachBang.tsx) — huy hiệu ở
+    // trạng thái rỗng vẫn phải render, chỉ là trung tính (không có chip nào để lọc theo).
+    const huyHieu = container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')
+    expect(huyHieu).not.toBeNull()
+    expect(huyHieu?.getAttribute('data-khoa')).toBe('')
+  })
+
+  it('lưới rỗng do LỌC hết (chip chuyên khoa) → huy hiệu đổi theo chip đang chọn', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    })
+
+    const huyHieu = container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')
+    expect(huyHieu?.getAttribute('data-khoa')).toBe('pulmonology')
+  })
 })
 
 describe('DanhSachBang — sửa chuyên khoa/tag', () => {
