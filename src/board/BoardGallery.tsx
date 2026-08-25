@@ -3,10 +3,10 @@
 // thừa đúng lý do ResizeObserver đã đo ở hack "mount vĩnh viễn" cũ — xem
 // docs/superpowers/specs/2026-08-19-board-gallery-design.md §1) — khác hack cũ ở chỗ giờ CÓ unmount
 // thật khi người dùng bấm quay lại danh sách, vì D4 đã đảm bảo không mất nội dung.
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { doiGhiAnhXongNeuCo } from './boardMeta'
-import { DanhSachBang } from './DanhSachBang'
+import { DanhSachBang, type BoardOpenOrigin } from './DanhSachBang'
 import { EdgelessBoard } from './index'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
@@ -47,12 +47,25 @@ export function BoardGallery({
   onMoBangYeuCauXong?: () => void
 }) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
+  // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm (xem BoardOpenOrigin, DanhSachBang.tsx) —
+  // null khi bảng được mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn app, moBangYeuCau
+  // ngay dưới): không có thẻ nào để đo, chuyển cảnh rơi về .board-in cũ (scale-fade chung chung).
+  const [openOrigin, setOpenOrigin] = useState<BoardOpenOrigin | null>(null)
+  // true từ lúc mở một bảng tới khi EdgelessBoard báo canvas thật đã sẵn sàng (onReady) — điều khiển
+  // lớp phủ ảnh xem trước (bocRef bên dưới): người dùng thấy đúng tấm ảnh của thẻ vừa bấm PHÓNG TO
+  // liền mạch theo chuyển động FLIP, rồi mới mờ dần lộ ra canvas thật bên dưới, thay vì canvas trống
+  // xuất hiện đột ngột không liên quan tới thẻ vừa chạm (hiến chương Mindmap, continuity bắt buộc).
+  const [dangChoCanvas, setDangChoCanvas] = useState(false)
+  const bocRef = useRef<HTMLDivElement>(null)
   // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app — xem App.tsx
   // navigate()). Gọi onMoBangYeuCauXong() ngay sau khi tiêu thụ để App.tsx reset state về undefined
   // — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó lần hai (cùng id, state App.tsx không đổi giá trị)
   // sẽ không kích hoạt lại effect này (dependency không đổi).
   useEffect(() => {
     if (!moBangYeuCau) return
+    // Mở từ kết quả tìm kiếm toàn app — không có thẻ nào trong lưới để đo rect, nên KHÔNG có origin
+    // FLIP (rơi về .board-in scale-fade cũ, xem className của lớp bọc canvas bên dưới).
+    setOpenOrigin(null)
     setOpenBoardId(moBangYeuCau)
     onMoBangYeuCauXong?.()
   }, [moBangYeuCau, onMoBangYeuCauXong])
@@ -144,11 +157,57 @@ export function BoardGallery({
       })
   }, [dangHienTab])
 
+  // Chạy kỹ thuật FLIP: đo rect THẬT của lớp bọc canvas (bocRef) ngay khi nó vừa mount (trước khi
+  // trình duyệt sơn khung hình kế tiếp — useLayoutEffect, không phải useEffect), rồi đặt các biến
+  // CSS lệch/thu nhỏ đúng bằng khoảng cách từ vị trí thẻ (openOrigin) tới vị trí đích, để animation
+  // "First" khớp CHÍNH XÁC hình dạng/vị trí thẻ vừa bấm thay vì một cú phóng chung chung không neo
+  // vào đâu (critique 2026-08-26 P1, hiến chương Mindmap: continuity là "mandatory").
+  useLayoutEffect(() => {
+    if (!openBoardId || !openOrigin || !bocRef.current) return
+    const el = bocRef.current
+    const dich = el.getBoundingClientRect()
+    if (dich.width === 0 || dich.height === 0) return
+    const scaleX = openOrigin.width / dich.width
+    const scaleY = openOrigin.height / dich.height
+    const dx = openOrigin.left + openOrigin.width / 2 - (dich.left + dich.width / 2)
+    const dy = openOrigin.top + openOrigin.height / 2 - (dich.top + dich.height / 2)
+    el.style.setProperty('--flip-x', `${dx}px`)
+    el.style.setProperty('--flip-y', `${dy}px`)
+    el.style.setProperty('--flip-sx', String(scaleX))
+    el.style.setProperty('--flip-sy', String(scaleY))
+    el.style.setProperty('--flip-tilt', `${openOrigin.tilt}deg`)
+    el.classList.add('board-flip-start')
+    // Buộc reflow để trình duyệt GHI NHẬN trạng thái đầu (transform co về đúng vị trí/kích thước
+    // thẻ) trước khi lớp -run bật transition ở khung hình kế tiếp — thiếu bước này, hai lớp có thể
+    // vào cùng một batch style recalculation và trình duyệt bỏ qua thẳng luôn trạng thái đầu.
+    void el.offsetWidth
+    // requestAnimationFrame KHÔNG chạy khi tab đang ở nền/document ẩn (Page Visibility — trình
+    // duyệt tạm dừng vòng lặp render lúc đó) — hiếm nhưng có thể thật (người dùng bấm mở bảng đúng
+    // lúc app bị đưa xuống nền). setTimeout dự phòng đảm bảo lớp -run vẫn được thêm (classList.add
+    // là idempotent, an toàn nếu cả hai cùng chạy) để chuyển cảnh không kẹt mãi ở khung hình đầu.
+    let daThem = false
+    const them = () => {
+      if (daThem) return
+      daThem = true
+      el.classList.add('board-flip-run')
+    }
+    const rafId = requestAnimationFrame(them)
+    const timerId = setTimeout(them, 120)
+    return () => {
+      cancelAnimationFrame(rafId)
+      clearTimeout(timerId)
+    }
+  }, [openBoardId, openOrigin])
+
   return (
     <>
       {!openBoardId && !dangDong && dangHienTab && (
         <DanhSachBang
-          onMoBang={setOpenBoardId}
+          onMoBang={(id, origin) => {
+            setOpenOrigin(origin ?? null)
+            setDangChoCanvas(true)
+            setOpenBoardId(id)
+          }}
           dungTuBang={vuaDongBang}
           onHieuUngXong={() => setVuaDongBang(false)}
         />
@@ -156,11 +215,23 @@ export function BoardGallery({
       {openBoardId && (
         <div
           key={openBoardId}
+          ref={bocRef}
           data-testid="boc-bang"
-          className={`absolute inset-0 board-in${dangHienTab ? '' : ' invisible pointer-events-none'}`}
+          className={`absolute inset-0 ${openOrigin ? '' : 'board-in'}${dangHienTab ? '' : ' invisible pointer-events-none'}`}
           inert={!dangHienTab}
         >
-          <EdgelessBoard boardId={openBoardId} />
+          <EdgelessBoard boardId={openBoardId} onReady={() => setDangChoCanvas(false)} />
+          {/* Lớp phủ ảnh xem trước của đúng thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho
+              tới khi EdgelessBoard báo sẵn sàng thật (onReady), rồi mờ dần lộ canvas ra. Không hiện
+              gì nếu bảng chưa từng có ảnh xem trước (bảng mới tạo) — không có gì để phủ lên. */}
+          {openOrigin?.anhXemTruoc && (
+            <img
+              src={openOrigin.anhXemTruoc}
+              alt=""
+              aria-hidden="true"
+              className={`absolute inset-0 w-full h-full object-cover board-flip-cover${dangChoCanvas ? '' : ' board-flip-cover-hide'}`}
+            />
+          )}
           <button
             type="button"
             data-testid="quay-lai"
@@ -174,6 +245,7 @@ export function BoardGallery({
               setDangDong(true)
               setVuaDongBang(true)
               setOpenBoardId(null)
+              setOpenOrigin(null)
 
               // Nhường một nhịp macrotask cho React thật sự CHẠY cleanup effect vừa lên lịch ở trên
               // (passive effect — không chạy đồng bộ ngay sau setState). `setTimeout(0)` chứ không

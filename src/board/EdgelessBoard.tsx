@@ -263,7 +263,16 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   }
 }
 
-export function EdgelessBoard({ boardId }: { boardId: string }) {
+export function EdgelessBoard({
+  boardId,
+  onReady,
+}: {
+  boardId: string
+  // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng để
+  // mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một thời
+  // lượng cố định không khớp tốc độ mạng/máy thật.
+  onReady?: () => void
+}) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
@@ -328,6 +337,7 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
         setBoSuong({ store, std })
+        onReady?.()
 
         // Khối (note, ảnh, đính kèm...) đi qua store.slots.blockUpdated; phần tử canvas thuần
         // (connector, brush, shape, mindmap node...) KHÔNG phải khối — sống trong Y.Map riêng của

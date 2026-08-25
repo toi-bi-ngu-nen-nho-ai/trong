@@ -23,6 +23,19 @@ const VUA_TAO_NGUONG_MS = 3000
 // xoá mềm (daXoaLuc) chạy, để animation kịp chạy hết trước khi thẻ biến mất khỏi lưới.
 const XOA_TRE_MS = 200
 
+// Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm, chụp lại NGAY LÚC BẤM (getBoundingClientRect
+// thật, không phải suy ra từ index lưới) — BoardGallery.tsx dùng để chạy chuyển cảnh FLIP thật từ
+// thẻ sang canvas thay vì một cú phóng chung chung không neo vào đâu (hiến chương Mindmap, mục
+// "Continuity of the visual anchor... mandatory" — critique 2026-08-26 P1).
+export type BoardOpenOrigin = {
+  top: number
+  left: number
+  width: number
+  height: number
+  tilt: number
+  anhXemTruoc?: string
+}
+
 // Cửa sổ "Hoàn tác" sau khi xoá mềm một bảng — cùng độ dài với XAC_NHAN_XOA_MS (quy ước sẵn có của
 // đúng màn này cho "khoảng ân hạn"), đủ lâu để đọc tên bảng vừa xoá và quyết định, không quá lâu
 // tới mức dải xác nhận cảm giác bị kẹt trên màn hình.
@@ -116,7 +129,7 @@ function TheBang({
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
   dangSuaTag: boolean
-  onMo: () => void
+  onMo: (origin?: BoardOpenOrigin) => void
   onBatMenu: () => void
   onBatSuaTen: () => void
   onLuuTen: (tenMoi: string) => void
@@ -175,7 +188,25 @@ function TheBang({
       <button
         ref={nutRef}
         type="button"
-        onClick={onMo}
+        onClick={() => {
+          // Chỉ dựng origin khi rect đo được có kích thước thật (>0) — rect rỗng (0×0) xảy ra khi
+          // phần tử chưa layout xong hoặc trong môi trường không có engine layout thật (vd ca kiểm
+          // happy-dom). Không có kích thước thật thì FLIP không có gì để "First" từ đó — rơi về
+          // .board-in (scale-fade) cũ thay vì một chuyển cảnh co về góc (0,0) vô nghĩa.
+          const r = nutRef.current?.getBoundingClientRect()
+          onMo(
+            r && r.width > 0 && r.height > 0
+              ? {
+                  top: r.top,
+                  left: r.left,
+                  width: r.width,
+                  height: r.height,
+                  tilt: nghiengOnDinh(bang.id),
+                  anhXemTruoc: bang.anhXemTruoc,
+                }
+              : undefined,
+          )
+        }}
         className="the-bang-vat the-bang-nghieng-con-tro mind-focus-ring"
         onPointerMove={(e) => {
           if (e.pointerType !== 'mouse') return
@@ -316,7 +347,12 @@ function TheBang({
       </button>
 
       {dangMoMenu && (
-        <div style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}>
+        // .mind-menu-bang: trên màn hẹp (mobile), src/index.css ghim panel này xuống ĐÁY màn hình
+        // (bottom sheet, luôn trong tầm ngón cái) thay vì neo cứng top:30 relative-tới-thẻ — thẻ ở
+        // HÀNG TRÊN CÙNG của lưới dài mở panel gần rìa trên, không phải vùng ngón cái thoải mái nhất
+        // khi dùng một tay (critique 2026-08-26, minor observation). .mind-sheet thêm hiệu ứng trượt
+        // lên nhẹ, nhất quán với các sheet khác của app.
+        <div className="mind-menu-bang mind-sheet" style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}>
           {/* Vùng chạm 44px tối thiểu (display:flex+minHeight, không phải padding trần) + khoảng
               cách/đường phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành
               động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24). */}
@@ -365,6 +401,9 @@ function TheBang({
       {dangSuaTag && (
         <div
           data-testid={`sua-chuyen-khoa-tag-${bang.id}`}
+          // Cùng .mind-menu-bang/.mind-sheet với menu "⋯" ngay trên — cùng lý do (thẻ hàng trên
+          // cùng, tầm ngón cái).
+          className="mind-menu-bang mind-sheet"
           style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 8, zIndex: 1, width: 200 }}
         >
           <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', marginBottom: 2 }}>
@@ -437,7 +476,7 @@ export function DanhSachBang({
   dungTuBang,
   onHieuUngXong,
 }: {
-  onMoBang: (boardId: string) => void
+  onMoBang: (boardId: string, origin?: BoardOpenOrigin) => void
   dungTuBang?: boolean
   onHieuUngXong?: () => void
 }) {
@@ -702,12 +741,16 @@ export function DanhSachBang({
         </div>
       )}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
-        // 4 chip đầu luôn hiện; phần còn lại gấp sau nút "Thêm". Nếu bộ lọc ĐANG chọn nằm trong
-        // phần gấp mà dải đang thu gọn, vẫn chèn riêng đúng chip đó vào — ẩn hẳn chip đang bật sẽ
-        // khiến người dùng không hiểu vì sao lưới đang lọc theo một chuyên khoa "biến mất" khỏi
-        // dải. Nút "Thêm/Ẩn bớt" chỉ đổi `hienHetChip`, không bị khoá kẹt bởi lựa chọn hiện tại —
-        // "Ẩn bớt" luôn thu gọn về đúng {4 chip đầu + chip đang chọn nếu có}.
-        const VISIBLE = 4
+        // 2 chip đầu luôn hiện; phần còn lại gấp sau nút "Thêm" — cộng "Tất cả" + "Thêm" là ĐÚNG 4
+        // lựa chọn rời rạc tại điểm quyết định này (luật ≤4, Cognitive Load Checklist). Trước đây
+        // VISIBLE=4 cộng "Tất cả"+"Thêm" ra 6 lựa chọn cùng lúc, đã giảm từ 12 chip ở một lượt trước
+        // đó nhưng chưa đạt ngưỡng (critique 2026-08-25 rồi 2026-08-26, cùng một phát hiện tái diễn).
+        // Nếu bộ lọc ĐANG chọn nằm trong phần gấp mà dải đang thu gọn, vẫn chèn riêng đúng chip đó
+        // vào — ẩn hẳn chip đang bật sẽ khiến người dùng không hiểu vì sao lưới đang lọc theo một
+        // chuyên khoa "biến mất" khỏi dải. Nút "Thêm/Ẩn bớt" chỉ đổi `hienHetChip`, không bị khoá
+        // kẹt bởi lựa chọn hiện tại — "Ẩn bớt" luôn thu gọn về đúng {2 chip đầu + chip đang chọn
+        // nếu có}.
+        const VISIBLE = 2
         const chipHien = SPECIALTIES.slice(0, VISIBLE)
         const chipAn = SPECIALTIES.slice(VISIBLE)
         const chonNamOTrongPhanAn = chuyenKhoaLoc !== null && chipAn.some((kh) => kh.id === chuyenKhoaLoc)
@@ -731,7 +774,10 @@ export function DanhSachBang({
               borderRadius: 999,
               border: '1px solid var(--c-line, #d9ddf4)',
               background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
-              color: chuyenKhoaLoc === kh.id ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+              // var(--c-on-bright), KHÔNG '#fff' cứng — DESIGN.md: text-on-bright-fill phải lật theo
+              // theme để luôn đạt AA. '#fff' cứng trên nền primary dark-mode (#6ea8fe) chỉ 2.4:1, đo
+              // được thật bằng detector (critique 2026-08-26 P1).
+              color: chuyenKhoaLoc === kh.id ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
             }}
           >
             {kh.name}
@@ -761,7 +807,8 @@ export function DanhSachBang({
                 borderRadius: 999,
                 border: '1px solid var(--c-line, #d9ddf4)',
                 background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
-                color: chuyenKhoaLoc === null ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+                // Cùng vá với chip chuyên khoa (veChip ở trên): var(--c-on-bright) thay '#fff' cứng.
+                color: chuyenKhoaLoc === null ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
               }}
             >
               Tất cả
@@ -816,6 +863,17 @@ export function DanhSachBang({
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
           </p>
+          {/* Chỉ hiện ở lưới THẬT SỰ trống (chưa từng tạo bảng nào) — trạng thái rỗng do bộ lọc
+              (rongDoBoLoc) đã có gợi ý riêng ("Thử từ khoá khác...") ngay dưới, không cần lặp lại.
+              Trước đây lời mời chỉ có một dòng, không hề gợi ý được năng lực liên kết-tới-Thư-viện
+              hay lý do đây là bề mặt được đầu tư ≥50% công sức thiết kế của cả app (hiến chương
+              Mindmap) — người dùng lần đầu không có cách nào biết giá trị này tồn tại trước khi tự
+              mò ra (critique 2026-08-26, persona Jordan). */}
+          {!rongDoBoLoc && (
+            <p style={{ fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', margin: 0, maxWidth: 220 }}>
+              Ghi chú nối thẳng tới bài viết trong Thư viện, vẽ tay tự do, và sơ đồ phác đồ điều trị.
+            </p>
+          )}
           {rongDoBoLoc && (
             // Ô tìm và dải chip vẫn hiện ngay phía trên (cả hai gắn vào danhSach GỐC, không phải
             // danh sách đã lọc) nên không cần thêm nút "xoá bộ lọc" riêng — chỉ cần chỉ đúng chỗ.
@@ -864,7 +922,7 @@ export function DanhSachBang({
               dangMoMenu={dangMoMenuId === bang.id}
               dangXacNhanXoa={dangXacNhanXoaId === bang.id}
               dangSuaTag={dangSuaTagId === bang.id}
-              onMo={() => onMoBang(bang.id)}
+              onMo={(origin) => onMoBang(bang.id, origin)}
               onBatMenu={() => {
                 const dangMo = dangMoMenuId === bang.id
                 setDangMoMenuId(dangMo ? null : bang.id)
@@ -980,7 +1038,11 @@ export function DanhSachBang({
             }}
             className="mind-focus-ring"
             style={{
-              color: 'var(--c-toast-green, #4ade80)',
+              // --c-accent-2 (magenta riêng Mindmap), KHÔNG --c-toast-green — token xanh lá đó dành
+              // cho ngữ nghĩa lâm sàng "thành công" (Untouchable Signal Rule, DESIGN.md); một hành
+              // động UI thường (hoàn tác xoá bảng) mượn nhầm màu đó làm mờ ranh giới "One Other Place
+              // Rule" của Mindmap (critique 2026-08-26, minor observation).
+              color: 'var(--c-accent-2, #b8196f)',
               fontWeight: 600,
               fontSize: 13,
               background: 'none',

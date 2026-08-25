@@ -557,6 +557,36 @@ html.theme-shift * {
 .board-in { animation: boardIn 0.2s cubic-bezier(0.22, 0.68, 0.24, 1) both; }
 .board-out { animation: boardOut 0.2s cubic-bezier(0.22, 0.68, 0.24, 1) both; }
 
+/* ─── FLIP thật từ đúng thẻ vừa bấm sang canvas (critique 2026-08-26 P1) ─────────────────────────
+   Thay .board-in (scale-fade không neo vào đâu) khi biết được vị trí/kích thước/góc nghiêng thật
+   của thẻ nguồn (BoardGallery.tsx đo bằng getBoundingClientRect() thật, không suy đoán). -start đặt
+   lớp bọc co về ĐÚNG vị trí/kích thước/góc nghiêng của thẻ; -run bật transition về nhận dạng
+   (translate/scale/rotate 0) — cùng đường cong "confident arrival" dùng cho các entrance khác của
+   app, KHÔNG dùng easing nảy: đây là một vật thể lớn lên thành khung nhìn toàn màn hình, nảy ở quy
+   mô này đọc như giật hình chứ không phải vật lý. */
+.board-flip-start {
+  transform: translate(var(--flip-x, 0), var(--flip-y, 0)) scale(var(--flip-sx, 1), var(--flip-sy, 1))
+    rotate(var(--flip-tilt, 0deg));
+  opacity: 0.55;
+}
+.board-flip-run {
+  transition:
+    transform 0.38s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.22s ease-out;
+  transform: translate(0, 0) scale(1, 1) rotate(0deg);
+  opacity: 1;
+}
+/* Lớp phủ ảnh xem trước của thẻ, che canvas cho tới khi EdgelessBoard báo sẵn sàng (onReady) —
+   người dùng thấy đúng tấm ảnh vừa bấm phóng to liền mạch, không phải canvas trống xuất hiện đột
+   ngột. object-fit: cover khớp cách ảnh xem trước được vẽ trong DanhSachBang.tsx. */
+.board-flip-cover {
+  transition: opacity 0.25s ease-out;
+}
+.board-flip-cover-hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Danh tính vật lý đứng yên của mặt thẻ bảng + phản hồi hover/press. KHÔNG nằm trong khối
    prefers-reduced-motion bên dưới — góc nghiêng nghỉ là một TƯ THẾ TĨNH (lựa chọn hình ảnh), không
    phải chuyển động; :active phải sống sót qua reduced-motion theo đúng "Do" của DESIGN.md.
@@ -751,6 +781,23 @@ html.theme-shift * {
   animation: mindSheetUp 0.24s cubic-bezier(0.22, 1.1, 0.36, 1);
 }
 
+/* Menu "⋯" / panel chuyên khoa-tag của một thẻ bảng (DanhSachBang.tsx) — trên màn hẹp, ghim xuống
+   ĐÁY màn hình (bottom sheet) thay vì neo cứng top:30 RELATIVE TỚI THẺ: một thẻ ở hàng trên cùng
+   của lưới dài mở panel ngay gần rìa trên màn hình, ngoài tầm ngón cái thoải mái khi cầm điện thoại
+   một tay (critique 2026-08-26). !important cần thiết vì các thuộc tính vị trí được đặt qua inline
+   style (đọc bang.id động) — không có cách nào cho ưu tiên thấp hơn để override bằng specificity
+   thường. Chỉ đổi Ở MOBILE: trên màn rộng (chuột, đủ chỗ mọi phía), vị trí neo-vào-thẻ cũ vẫn hợp lý. */
+@media (max-width: 640px) {
+  .mind-menu-bang {
+    position: fixed !important;
+    top: auto !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(var(--nav-body-h, 0px) + 18px) !important;
+    width: auto !important;
+  }
+}
+
 /* Người bật "Giảm chuyển động" ở hệ điều hành thường vì lý do sức khoẻ (rối loạn tiền đình, dễ say
    chuyển động…) nên đáng để tắt riêng. Đổi sang mờ/hiện gần như tức thời thay vì tắt hẳn animation:
    người dùng vẫn cần biết "vừa có gì đó xảy ra", chỉ là không cần chuyển động thị giác để biết điều đó. */
@@ -758,6 +805,8 @@ html.theme-shift * {
   .mind-sheet,
   .board-in,
   .board-out,
+  .board-flip-start,
+  .board-flip-run,
   .fade-in,
   .toast-in,
   .toast-in-full,

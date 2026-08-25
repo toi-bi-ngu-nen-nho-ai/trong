@@ -26,8 +26,8 @@ import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type Rea
 // mạng, dù sóng đã có trở lại. Cách duy nhất để thử lại thật là dựng một đối tượng lazy MỚI.
 // Kho dưới đây giữ đúng một đối tượng cho mỗi lần thử, để các lượt re-render bình thường của React
 // không dựng lại (và không tháo/lắp lại) bảng vẽ đang chạy.
-const kho = new Map<number, ComponentType<{ boardId: string }>>()
-function layBang(lan: number): ComponentType<{ boardId: string }> {
+const kho = new Map<number, ComponentType<{ boardId: string; onReady?: () => void }>>()
+function layBang(lan: number): ComponentType<{ boardId: string; onReady?: () => void }> {
   const co = kho.get(lan)
   if (co) return co
   const moi = lazy(() => import('./EdgelessBoard').then((m) => ({ default: m.EdgelessBoard })))
@@ -40,7 +40,7 @@ interface State {
   lan: number
 }
 
-export class EdgelessBoard extends Component<{ boardId: string }, State> {
+export class EdgelessBoard extends Component<{ boardId: string; onReady?: () => void }, State> {
   state: State = { loi: null, lan: 0 }
 
   static getDerivedStateFromError(loi: Error): Partial<State> {
@@ -88,12 +88,21 @@ export class EdgelessBoard extends Component<{ boardId: string }, State> {
     return (
       <Suspense
         fallback={
-          <div className="h-full flex items-center justify-center text-[13px] text-slate-400">
-            Đang tải bảng vẽ…
+          // Cùng .mind-loading-ink (giọt mực loang) với màn "Đang mở bảng…" của EdgelessBoard.tsx
+          // NGAY SAU đây trong cùng một thao tác mở bảng — trước đây hai màn chờ nối tiếp nhau đọc
+          // như hai UI khác nhau (chữ xám tĩnh → giọt mực có thương hiệu), đúng lúc bước vào "phòng
+          // thư giãn" của app (critique 2026-08-26 P2, persona Casey: mạng bệnh viện chậm dễ đọc
+          // nhầm màn tĩnh là app treo).
+          <div
+            className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
+            style={{ color: 'var(--c-text-muted, #6b6e96)' }}
+          >
+            <div className="mind-loading-ink" aria-hidden="true" />
+            <span>Đang tải bảng vẽ…</span>
           </div>
         }
       >
-        <Bang boardId={this.props.boardId} />
+        <Bang boardId={this.props.boardId} onReady={this.props.onReady} />
       </Suspense>
     )
   }
