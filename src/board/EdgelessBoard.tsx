@@ -541,7 +541,23 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
             aria-label="Xuất bảng thành PNG"
             onClick={() => bamXuat('png')}
             className="mind-focus-ring"
-            style={{ width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--c-surface, #fff)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', fontSize: 10, fontWeight: 700 }}
+            // Trước đây shadow rgba(0,0,0,.2) trần — chưa khai báo trong DESIGN.md (detector
+            // `design-system-color` bắt đúng dòng này) và không có glow ở dark mode như mọi lớp nổi
+            // khác trong app (--c-shadow/--c-shadow-glow, "Ethereal Glass", Floating-Layer-Only Rule).
+            // Đổi sang cặp token đó + viền mực magenta nhạt (--c-accent-2) để hai nút này thuộc về
+            // đúng bộ nhận diện Mindmap thay vì FAB trắng chung chung mọi app khác đều có (critique
+            // 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu"). Cỡ chữ 10→11 vì detector
+            // đo được 10px dưới ngưỡng đọc được tối thiểu.
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
+              background: 'var(--c-surface, #fff)',
+              boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
+              fontSize: 11,
+              fontWeight: 700,
+            }}
           >
             PNG
           </button>
@@ -551,15 +567,31 @@ export function EdgelessBoard({ boardId }: { boardId: string }) {
             aria-label="Xuất bảng thành PDF"
             onClick={() => bamXuat('pdf')}
             className="mind-focus-ring"
-            style={{ width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--c-surface, #fff)', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', fontSize: 10, fontWeight: 700 }}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
+              background: 'var(--c-surface, #fff)',
+              boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
+              fontSize: 11,
+              fontWeight: 700,
+            }}
           >
             PDF
           </button>
         </div>
       )}
       {dangMo && !loi && (
-        <div className="h-full flex items-center justify-center text-[13px] text-slate-400">
-          Đang mở bảng…
+        // Thay chữ xám tĩnh cũ (từng là khoảng chờ ~5-7s không tín hiệu duy nhất trong app, critique
+        // 2026-08-25) bằng ink-bloom (.mind-loading-ink, src/index.css) — đọc như canvas đang được vẽ
+        // ra, không phải màn hình đứng yên/hỏng.
+        <div
+          className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
+          style={{ color: 'var(--c-text-muted, #6b6e96)' }}
+        >
+          <div className="mind-loading-ink" aria-hidden="true" />
+          <span>Đang mở bảng…</span>
         </div>
       )}
       <div ref={hostRef} className="absolute inset-0" />

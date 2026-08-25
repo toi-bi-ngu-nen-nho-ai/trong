@@ -625,6 +625,28 @@ html.theme-shift * {
   animation: emptyBreathe 2.4s ease-in-out infinite;
 }
 
+/* Ô nạp bảng lúc mở lần đầu — thay chữ xám tĩnh bằng một "giọt mực đang loang" dùng chính màu ink
+   riêng của Mindmap (--c-accent-2), đọc như canvas đang được vẽ ra thay vì màn hình đứng yên/hỏng
+   (critique 2026-08-25, mục "Loading là khoảng chết"). Thuần transform+opacity, không JS mỗi
+   frame — đúng ràng buộc hiệu năng của mặt bằng vật liệu (surface brief Mindmap). LẶP VÔ HẠN nên
+   nằm trong danh sách gate reduced-motion ngay dưới, cùng .empty-breathe. */
+@keyframes inkBloom {
+  0%, 100% { transform: scale(0.85); opacity: 0.35; }
+  50%      { transform: scale(1.15); opacity: 0.75; }
+}
+.mind-loading-ink {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.55) 0%,
+    rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.08) 70%,
+    transparent 100%
+  );
+  animation: inkBloom 1.6s ease-in-out infinite;
+}
+
 /* LỚP C — nghiêng nhẹ theo vị trí con trỏ khi hover, chỉ bật với chuột thật (không giả trên cảm
    ứng). JS (DanhSachBang.tsx) cập nhật --con-tro-x/--con-tro-y qua pointermove; nếu JS không chạy
    (hoặc trên cảm ứng, nơi media query dưới đây không khớp), thẻ vẫn dùng đúng .the-bang-vat:hover
@@ -744,7 +766,8 @@ html.theme-shift * {
   .card-settle,
   .card-plop,
   .card-slide-out,
-  .empty-breathe {
+  .empty-breathe,
+  .mind-loading-ink {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

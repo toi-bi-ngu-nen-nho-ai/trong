@@ -193,6 +193,10 @@ export function BoardGallery({
             // mục "Vùng chạm dưới chuẩn". Đây là một nút tròn thật (có nền/bóng), khác nút "⋯" của
             // DanhSachBang.tsx (chỉ ba dấu chấm, không nền) — phóng to cả hình tròn thấy được luôn,
             // không cần tách vùng chạm khỏi vùng thị giác.
+            // Shadow đổi từ rgba(0,0,0,.2) trần sang --c-shadow/--c-shadow-glow (cùng cặp token nút
+            // export PNG/PDF của EdgelessBoard.tsx vừa đổi) + viền mực magenta nhạt --c-accent-2, để
+            // nút quay lại cũng thuộc bộ nhận diện Mindmap thay vì FAB trắng chung chung (critique
+            // 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu").
             style={{
               position: 'absolute',
               top: 4,
@@ -201,9 +205,9 @@ export function BoardGallery({
               width: 44,
               height: 44,
               borderRadius: '50%',
-              border: 0,
+              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
               background: 'var(--c-surface, #fff)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+              boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
             }}
           >
             ←

@@ -283,7 +283,7 @@ function TheBang({
       </button>
 
       {dangMoMenu && (
-        <div style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 8, padding: 4, zIndex: 1 }}>
+        <div style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}>
           {/* Vùng chạm 44px tối thiểu (display:flex+minHeight, không phải padding trần) + khoảng
               cách/đường phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành
               động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24). */}
@@ -332,7 +332,7 @@ function TheBang({
       {dangSuaTag && (
         <div
           data-testid={`sua-chuyen-khoa-tag-${bang.id}`}
-          style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 8, padding: 8, zIndex: 1, width: 200 }}
+          style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 8, zIndex: 1, width: 200 }}
         >
           <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', marginBottom: 2 }}>
             Chuyên khoa
@@ -431,6 +431,11 @@ export function DanhSachBang({
   // null = "Tất cả" (không lọc). Không đưa vào URL/localStorage — lọc chỉ có ý nghĩa trong phiên
   // đang xem lưới, giống các bộ lọc tạm thời khác của app (SearchScreen.activeFilter).
   const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(null)
+  // Dải chip chuyên khoa mặc định chỉ hiện 4 chip đầu + nút "Thêm" — 12 chip đồng hạng trên một
+  // hàng buộc cuộn-và-quét mới tìm ra một chuyên khoa, vi phạm luật ≤4 lựa chọn tại một điểm quyết
+  // định (critique 2026-08-25, mục "Hàng filter chuyên khoa"). Không lưu localStorage: đây là trạng
+  // thái mở-ra tạm thời của một phiên xem lưới, cùng quy ước với chuyenKhoaLoc/truyVan ngay trên.
+  const [hienHetChip, setHienHetChip] = useState(false)
   // Truy vấn ô tìm nội bộ — cùng quy ước "chỉ sống trong phiên xem lưới" với chuyenKhoaLoc ngay
   // trên (không vào URL/localStorage). Chuỗi rỗng = chưa lọc (bangKhopTimKiem trả true).
   const [truyVan, setTruyVan] = useState('')
@@ -663,21 +668,27 @@ export function DanhSachBang({
           />
         </div>
       )}
-      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
-        <div
-          // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc lập
-          // — KHÔNG dùng role="tablist" (đó là mẫu điều hướng dạng tab, đòi hỏi role="tab" +
-          // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây). Ruling
-          // review lượt 1.
-          role="group"
-          aria-label="Lọc theo chuyên khoa"
-          style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
-        >
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
+        // 4 chip đầu luôn hiện; phần còn lại gấp sau nút "Thêm". Nếu bộ lọc ĐANG chọn nằm trong
+        // phần gấp mà dải đang thu gọn, vẫn chèn riêng đúng chip đó vào — ẩn hẳn chip đang bật sẽ
+        // khiến người dùng không hiểu vì sao lưới đang lọc theo một chuyên khoa "biến mất" khỏi
+        // dải. Nút "Thêm/Ẩn bớt" chỉ đổi `hienHetChip`, không bị khoá kẹt bởi lựa chọn hiện tại —
+        // "Ẩn bớt" luôn thu gọn về đúng {4 chip đầu + chip đang chọn nếu có}.
+        const VISIBLE = 4
+        const chipHien = SPECIALTIES.slice(0, VISIBLE)
+        const chipAn = SPECIALTIES.slice(VISIBLE)
+        const chonNamOTrongPhanAn = chuyenKhoaLoc !== null && chipAn.some((kh) => kh.id === chuyenKhoaLoc)
+        const chipDangHienNgoaiVISIBLE = hienHetChip
+          ? chipAn
+          : chipAn.filter((kh) => kh.id === chuyenKhoaLoc)
+        const soChipConLai = chipAn.length - chipDangHienNgoaiVISIBLE.length
+        const veChip = (kh: (typeof SPECIALTIES)[number]) => (
           <button
+            key={kh.id}
             type="button"
-            data-testid="chip-chuyen-khoa-tat-ca"
-            onClick={() => setChuyenKhoaLoc(null)}
-            aria-pressed={chuyenKhoaLoc === null}
+            data-testid={`chip-chuyen-khoa-${kh.id}`}
+            onClick={() => setChuyenKhoaLoc(kh.id)}
+            aria-pressed={chuyenKhoaLoc === kh.id}
             className="mind-focus-ring"
             style={{
               flexShrink: 0,
@@ -686,19 +697,28 @@ export function DanhSachBang({
               padding: '6px 12px',
               borderRadius: 999,
               border: '1px solid var(--c-line, #d9ddf4)',
-              background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
-              color: chuyenKhoaLoc === null ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+              background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
+              color: chuyenKhoaLoc === kh.id ? '#fff' : 'var(--c-text-muted, #6b6e96)',
             }}
           >
-            Tất cả
+            {kh.name}
           </button>
-          {SPECIALTIES.map((kh) => (
+        )
+        return (
+          <div
+            // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc lập
+            // — KHÔNG dùng role="tablist" (đó là mẫu điều hướng dạng tab, đòi hỏi role="tab" +
+            // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây). Ruling
+            // review lượt 1.
+            role="group"
+            aria-label="Lọc theo chuyên khoa"
+            style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
+          >
             <button
-              key={kh.id}
               type="button"
-              data-testid={`chip-chuyen-khoa-${kh.id}`}
-              onClick={() => setChuyenKhoaLoc(kh.id)}
-              aria-pressed={chuyenKhoaLoc === kh.id}
+              data-testid="chip-chuyen-khoa-tat-ca"
+              onClick={() => setChuyenKhoaLoc(null)}
+              aria-pressed={chuyenKhoaLoc === null}
               className="mind-focus-ring"
               style={{
                 flexShrink: 0,
@@ -707,15 +727,43 @@ export function DanhSachBang({
                 padding: '6px 12px',
                 borderRadius: 999,
                 border: '1px solid var(--c-line, #d9ddf4)',
-                background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
-                color: chuyenKhoaLoc === kh.id ? '#fff' : 'var(--c-text-muted, #6b6e96)',
+                background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
+                color: chuyenKhoaLoc === null ? '#fff' : 'var(--c-text-muted, #6b6e96)',
               }}
             >
-              {kh.name}
+              Tất cả
             </button>
-          ))}
-        </div>
-      )}
+            {chipHien.map(veChip)}
+            {chipDangHienNgoaiVISIBLE.map(veChip)}
+            {chipAn.length > 0 && (
+              <button
+                type="button"
+                data-testid="chip-chuyen-khoa-them"
+                onClick={() => setHienHetChip((v) => !v)}
+                className="mind-focus-ring"
+                style={{
+                  flexShrink: 0,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  border: '1px dashed var(--c-line, #d9ddf4)',
+                  background: 'none',
+                  color: 'var(--c-text-muted, #6b6e96)',
+                }}
+              >
+                {hienHetChip
+                  ? 'Ẩn bớt ▴'
+                  : soChipConLai > 0
+                    ? `Thêm +${soChipConLai} ▾`
+                    : chonNamOTrongPhanAn
+                      ? 'Ẩn bớt ▴'
+                      : 'Thêm ▾'}
+              </button>
+            )}
+          </div>
+        )
+      })()}
       {danhSachSapXep.length === 0 ? (
         <div
           style={{
@@ -747,14 +795,19 @@ export function DanhSachBang({
             data-testid="tao-bang"
             onClick={taoBangMoi}
             className="mind-focus-ring"
+            // Viền/dấu cộng đổi sang --c-accent-2 (magenta riêng của Mindmap, xem DESIGN.md "The One
+            // Other Place Rule") — trước đây cùng màu xám trung tính với MỌI thẻ khác trên lưới, nên
+            // hành động chính duy nhất của Gallery không có ưu tiên thị giác nào (critique 2026-08-25,
+            // mục "Ô + tạo mới không có ưu tiên thị giác"). Nền tint rất nhạt (.05 alpha) giữ tông vẫn
+            // là ô rỗng viền đứt, không biến thành một thẻ đặc như thẻ nội dung thật.
             style={{
               width: 96,
               height: 72,
-              border: '2px dashed var(--c-line, #d9ddf4)',
+              border: '2px dashed var(--c-accent-2, #b8196f)',
               borderRadius: 8,
-              background: 'none',
+              background: 'rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.05)',
               fontSize: 28,
-              color: 'var(--c-text-muted, #6b6e96)',
+              color: 'var(--c-accent-2, #b8196f)',
             }}
             aria-label="Tạo bảng mới"
           >
@@ -860,13 +913,16 @@ export function DanhSachBang({
             data-testid="tao-bang"
             onClick={taoBangMoi}
             className="mind-focus-ring"
+            // Cùng lý do và cùng cặp giá trị với ô "+" ở trạng thái rỗng phía trên: viền/dấu cộng
+            // dùng --c-accent-2 để đây vẫn đọc là "lời mời ấm" giữa một lưới thẻ lạnh, thay vì cùng
+            // xám trung tính với trạng thái rỗng/đường viền phân cách.
             style={{
               aspectRatio: '4 / 3',
-              border: '2px dashed var(--c-line, #d9ddf4)',
+              border: '2px dashed var(--c-accent-2, #b8196f)',
               borderRadius: 8,
-              background: 'none',
+              background: 'rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.05)',
               fontSize: 24,
-              color: 'var(--c-text-muted, #6b6e96)',
+              color: 'var(--c-accent-2, #b8196f)',
             }}
             aria-label="Tạo bảng mới"
           >
