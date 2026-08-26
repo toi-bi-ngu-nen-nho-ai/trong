@@ -407,16 +407,30 @@ function TheBang({
         // HÀNG TRÊN CÙNG của lưới dài mở panel gần rìa trên, không phải vùng ngón cái thoải mái nhất
         // khi dùng một tay (critique 2026-08-26, minor observation). .mind-sheet thêm hiệu ứng trượt
         // lên nhẹ, nhất quán với các sheet khác của app.
-        <div className="mind-menu-bang mind-sheet" style={{ position: 'absolute', top: 30, right: 4, background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}>
+        <div className="mind-menu-bang mind-sheet" style={{ position: 'absolute', top: 30, right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}>
           {/* Vùng chạm 44px tối thiểu (display:flex+minHeight, không phải padding trần) + khoảng
               cách/đường phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành
-              động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24). */}
+              động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24).
+              width:'max-content' trên div ngoài + whiteSpace nowrap trên từng nhãn (mới thêm
+              2026-08-26, phản hồi thật "cắt cụt ngang") — trước đây div ngoài KHÔNG có width tường
+              minh, phải tự suy shrink-to-fit trong khi mọi <button> con lại đặt width:100% CỦA CHÍNH
+              div đó — vòng phụ thuộc khiến trình duyệt suy ra độ rộng hẹp hơn nội dung thật, ngắt dòng
+              ngay giữa nhãn dài nhất ("Chuyên khoa/tag" vỡ thành "Chuyên" / "khoa/tag" trên hai dòng).
+              CHỌN 'max-content' thay vì một số minWidth cố định (thử trước, ĐÃ BỎ): số cố định đè
+              lên đúng cơ chế "trải full-width" của bottom sheet mobile ngay dưới (.mind-menu-bang
+              media max-width:640px đặt width:auto!important + left/right:12px) — !important CHỈ
+              thắng width, không thắng min-width, nên minWidth cố định vẫn ăn vào SAU khi width:auto
+              đã giải, ép menu bottom-sheet mobile co lại đúng bằng con số đó thay vì trải hết bề
+              ngang (đo thật: 172px thay vì ~351px ở màn 375px — hồi quy tự phát hiện lúc kiểm tay).
+              max-content không xung đột: nó là GIÁ TRỊ width thật (không phải min-width) nên bị
+              width:auto!important ở mobile ghi đè đúng như ý, còn ở desktop trình duyệt tự suy đúng
+              độ rộng cần thiết từ nội dung chữ dài nhất — không cần đoán một con số px. */}
           <button
             type="button"
             data-testid={`sua-tag-${bang.id}`}
             onClick={onBatSuaTag}
             className="mind-focus-ring"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none' }}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
           >
             Chuyên khoa/tag
           </button>
@@ -425,7 +439,7 @@ function TheBang({
             data-testid={`doi-ten-${bang.id}`}
             onClick={onBatSuaTen}
             className="mind-focus-ring"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none' }}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
           >
             Đổi tên
           </button>
@@ -446,6 +460,7 @@ function TheBang({
               borderTop: '1px solid var(--c-line, #d9ddf4)',
               background: 'none',
               color: dangXacNhanXoa ? 'var(--c-danger, #c0392b)' : undefined,
+              whiteSpace: 'nowrap',
             }}
           >
             {dangXacNhanXoa ? 'Chắc chắn xoá?' : 'Xoá'}

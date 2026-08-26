@@ -399,6 +399,27 @@ export function EdgelessBoard({
           nho.height = 360
           const ctx = nho.getContext('2d')
           if (ctx) {
+            // Tô nền TRƯỚC drawImage — bảng TRỐNG (chưa vẽ gì) chỉ có canvasGoc trong suốt hoàn
+            // toàn (nền chấm lưới người dùng thấy trên màn là một lớp CSS riêng phủ NGOÀI canvas,
+            // không phải nội dung canvas thật). toDataURL('image/jpeg', ...) không có kênh alpha nên
+            // vùng trong suốt đó tự động tô ĐEN khi xuất — kết quả là một ô đen thay hẳn icon chuyên
+            // khoa mặc định vốn đang hiện tốt cho bảng chưa có anhXemTruoc (phản hồi thật 2026-08-26:
+            // mở một bảng mới trống rồi quay lại, thẻ hoá ô đen). ĐÃ THỬ bỏ hẳn lượt ghi khi canvas
+            // trống (quét kênh alpha rồi return sớm) — vỡ 3 test edgeless-board-mount.spec.ts đang
+            // khoá cứng "unmount LUÔN gọi capNhatAnhXemTruoc kể cả khi không tương tác gì" (đúng hợp
+            // đồng đã ghi ở đầu capNhatAnhXemTruoc trong boardMeta.ts: "Ảnh xem trước LUÔN được ghi
+            // lại... kể cả khi họ chỉ pan/zoom mà không sửa gì"), plus happy-dom không rasterize
+            // drawImage() thật nên getImageData() luôn ra toàn số 0 trong môi trường test dù canvas
+            // "có nội dung" theo kịch bản test — không có cách nào phân biệt hai ca đó qua pixel
+            // trong happy-dom. Tô nền là fix ĐÚNG TẦNG: giữ nguyên hợp đồng "luôn ghi", chỉ đổi màu
+            // nền JPEG-hoá-đen thành đúng màu nền thật của theme đang áp — cùng kỹ thuật
+            // getComputedStyle('--c-surface') + fallback hex mà src/lib/theme.ts đã dùng cho
+            // <meta name="theme-color">, tránh một nguồn sự thật thứ hai cho màu nền theme.
+            const mauNenTM =
+              getComputedStyle(document.documentElement).getPropertyValue('--c-surface').trim() ||
+              (resolveTheme() === 'dark' ? '#14162c' : '#ffffff')
+            ctx.fillStyle = mauNenTM
+            ctx.fillRect(0, 0, 480, 360)
             ctx.drawImage(canvasGoc, 0, 0, 480, 360)
             // Trích văn bản NGAY TRƯỚC KHI workspaceHienTai.forceStop() chạy (mấy dòng dưới) — store
             // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Không
