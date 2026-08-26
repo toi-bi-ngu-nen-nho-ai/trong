@@ -34,6 +34,11 @@ export type BoardOpenOrigin = {
   height: number
   tilt: number
   anhXemTruoc?: string
+  // Hue nhận diện của bảng (mauOnDinh(bang.id)) — EdgelessBoard.tsx dùng để tô đúng màu giọt mực
+  // loading bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn một magenta cố định
+  // (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu": continuity vật liệu nối dài từ thẻ
+  // sang lúc chờ canvas).
+  mauNhanDien?: number
 }
 
 // Cửa sổ "Hoàn tác" sau khi xoá mềm một bảng — cùng độ dài với XAC_NHAN_XOA_MS (quy ước sẵn có của
@@ -256,6 +261,7 @@ function TheBang({
                   height: r.height,
                   tilt: nghiengOnDinh(bang.id),
                   anhXemTruoc: bang.anhXemTruoc,
+                  mauNhanDien: mauOnDinh(bang.id),
                 }
               : undefined,
           )

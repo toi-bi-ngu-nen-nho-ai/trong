@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef } from 'react'
+
 // Nghệ thuật vẽ tay dùng làm nền placeholder cho bảng Mindmap chưa có nét vẽ thật (TheTrong,
 // DanhSachBang.tsx). Nguồn: MindMap.svg do người dùng cung cấp — 8 path, đã ĐO bằng getBBox() thật
 // (không đoán): 2 path đầu (chỉ số 0, 1) là nét scribble lớn choán gần hết khung 513×435
@@ -40,8 +42,71 @@ export function MindMapDoodle({
 }): React.ReactElement {
   const duong = variant === 2 || variant === 3 ? DUONG_NET.slice(0, 2) : DUONG_NET
   const lat = variant === 1 || variant === 3
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  // "Giấy sống" (overdrive 2026-08-26, Hướng 1): nét mực TỰ VẼ RA khi doodle vừa mount, thay vì
+  // hiện sẵn tĩnh — đúng khoảnh khắc chứng minh "đây là phòng não phải, có sự sống" mà critique lượt
+  // 3 chỉ ra copy trạng thái rỗng chưa làm được bằng thị giác. Kỹ thuật dash-offset kinh điển: đo độ
+  // dài THẬT của từng path bằng getTotalLength() (không đoán một hằng số — path dài ngắn rất khác
+  // nhau giữa 2 nét scribble lớn và 6 nét chi tiết nhỏ), rồi animate dashoffset từ đúng độ dài đó về
+  // 0. useLayoutEffect (không phải useEffect) để đặt dasharray/dashoffset TRƯỚC khi trình duyệt sơn
+  // khung hình đầu — nếu không, path hiện đầy đủ một nhịp rồi mới "biến mất để vẽ lại", giật mắt.
+  useLayoutEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const cacDuong = Array.from(svg.querySelectorAll('path'))
+    const doDai = cacDuong.map((p) => {
+      // getTotalLength() không tồn tại/không hoạt động thật trong một số môi trường DOM giả lập
+      // (ca kiểm happy-dom) — bọc try/catch, coi như 0 (bỏ qua path đó) thay vì ném lỗi làm hỏng
+      // toàn bộ component. Trên trình duyệt thật luôn trả về một số hữu hạn dương.
+      try {
+        const d = p.getTotalLength()
+        return Number.isFinite(d) && d > 0 ? d : 0
+      } catch {
+        return 0
+      }
+    })
+    if (doDai.every((d) => d === 0)) return // môi trường không đo được path — giữ nguyên hiện đầy đủ
+    cacDuong.forEach((p, i) => {
+      if (doDai[i] === 0) return
+      p.style.strokeDasharray = `${doDai[i]}`
+      p.style.strokeDashoffset = `${doDai[i]}`
+    })
+    // Buộc reflow rồi mới bật transition ở khung hình kế tiếp (cùng kỹ thuật FLIP hai bước đã dùng ở
+    // BoardGallery.tsx) — thiếu bước này trình duyệt có thể gộp cả trạng thái đầu lẫn đích vào một
+    // lượt tính toán style, bỏ qua thẳng animation.
+    void svg.getBoundingClientRect()
+    let daChay = false
+    const chay = () => {
+      if (daChay) return
+      daChay = true
+      cacDuong.forEach((p, i) => {
+        if (doDai[i] === 0) return
+        // Lệch nhịp nhẹ theo thứ tự path (tối đa 4 nấc) — 2 nét scribble lớn vẽ trước, cụm chi tiết
+        // nhỏ nối theo sau, đọc như một nét bút liên tục thay vì mọi nét cùng hiện một lúc.
+        p.style.transition = `stroke-dashoffset 0.9s cubic-bezier(0.65, 0, 0.35, 1) ${Math.min(i, 4) * 110}ms`
+        p.style.strokeDashoffset = '0'
+      })
+    }
+    // requestAnimationFrame KHÔNG chạy khi tab ở nền/document ẩn (Page Visibility) — setTimeout dự
+    // phòng đảm bảo nét mực vẫn vẽ ra dù hiếm khi rơi đúng lúc đó (cùng kỹ thuật đã dùng cho FLIP ở
+    // BoardGallery.tsx). `chay` tự chặn double-run nên cả hai cùng bắn không sao.
+    const rafId = requestAnimationFrame(chay)
+    const timerId = setTimeout(chay, 120)
+    return () => {
+      cancelAnimationFrame(rafId)
+      clearTimeout(timerId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `duong`/`lat` suy ra TỪ variant, và
+    // variant là một hash ỔN ĐỊNH theo id bảng trong suốt đời component (không đổi giữa các lần
+    // render) — chỉ cần chạy lại khi chính variant đổi, không phải mỗi khi mảng `duong` có reference
+    // mới (nó luôn là slice() mới mỗi render dù nội dung giống hệt).
+  }, [variant])
+
   return (
     <svg
+      ref={svgRef}
       viewBox="0 0 513 435"
       className={className}
       fill="none"

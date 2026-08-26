@@ -266,12 +266,18 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
 export function EdgelessBoard({
   boardId,
   onReady,
+  mauNhanDien,
 }: {
   boardId: string
   // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng để
   // mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một thời
   // lượng cố định không khớp tốc độ mạng/máy thật.
   onReady?: () => void
+  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô đúng màu giọt mực
+  // loading (--mind-ink-h, index.css) bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn
+  // magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi mở
+  // KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — CSS tự rơi về hue magenta mặc định (327).
+  mauNhanDien?: number
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
@@ -600,7 +606,11 @@ export function EdgelessBoard({
           className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
           style={{ color: 'var(--c-text-muted, #6b6e96)' }}
         >
-          <div className="mind-loading-ink" aria-hidden="true" />
+          <div
+            className="mind-loading-ink"
+            aria-hidden="true"
+            style={mauNhanDien !== undefined ? ({ '--mind-ink-h': mauNhanDien } as React.CSSProperties) : undefined}
+          />
           <span>Đang mở bảng…</span>
         </div>
       )}

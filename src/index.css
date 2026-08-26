@@ -578,27 +578,59 @@ html.theme-shift * {
 }
 /* Lớp phủ ảnh xem trước của thẻ, che canvas cho tới khi EdgelessBoard báo sẵn sàng (onReady) —
    người dùng thấy đúng tấm ảnh vừa bấm phóng to liền mạch, không phải canvas trống xuất hiện đột
-   ngột. object-fit: cover khớp cách ảnh xem trước được vẽ trong DanhSachBang.tsx. */
+   ngột. object-fit: cover khớp cách ảnh xem trước được vẽ trong DanhSachBang.tsx.
+   -hide LẬT NHƯ GIỞ MỘT TRANG GIẤY (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu") thay
+   vì chỉ mờ dần phẳng — bản lề bên trái (transform-origin: left), perspective cục bộ đặt ngay trong
+   transform (không cần đụng ancestor). Đây là MỘT PHẦN của cơ chế continuity đã được gate reduced-
+   motion (cùng .board-flip-start/-run) — trước lượt này .board-flip-cover bị BỎ SÓT khỏi danh sách
+   đó (critique 2026-08-26 lượt 3, P3): người bật "Giảm chuyển động" vẫn nhận đúng hiệu ứng lật/mờ
+   đầy đủ. Đã vá cùng lúc, xem danh sách selector trong khối @media bên dưới. */
 .board-flip-cover {
-  transition: opacity 0.25s ease-out;
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.4s cubic-bezier(0.55, 0, 0.1, 1);
+  transform-origin: left center;
+  backface-visibility: hidden;
 }
 .board-flip-cover-hide {
   opacity: 0;
+  transform: perspective(1400px) rotateY(-100deg);
+  pointer-events: none;
+}
+
+/* Canvas "gập lại" khi bấm quay lại (overdrive 2026-08-26, Hướng 2) — chạy TRƯỚC khi BoardGallery.tsx
+   thật sự tháo EdgelessBoard, nên nội dung bảng vẫn còn sống, co/nghiêng/mờ dần thay vì biến mất tức
+   thì. Chỉ MỘT `to {}` — trình duyệt tự nội suy từ transform/opacity HIỆN TẠI của phần tử (thường là
+   nhận dạng, vì .board-flip-run đã chạy xong từ lâu) sang trạng thái cuối này, không cần khai "from". */
+@keyframes boardCollapse {
+  to {
+    transform: scale(0.92) translateY(14px) rotate(-1.5deg);
+    opacity: 0;
+  }
+}
+.board-collapse {
+  animation: boardCollapse 0.22s cubic-bezier(0.4, 0, 0.68, 0.06) forwards;
   pointer-events: none;
 }
 
 /* Danh tính vật lý đứng yên của mặt thẻ bảng + phản hồi hover/press. KHÔNG nằm trong khối
    prefers-reduced-motion bên dưới — góc nghiêng nghỉ là một TƯ THẾ TĨNH (lựa chọn hình ảnh), không
    phải chuyển động; :active phải sống sót qua reduced-motion theo đúng "Do" của DESIGN.md.
-   KHÔNG thêm box-shadow — Floating-Layer-Only Rule của DESIGN.md, cảm giác "nhấc lên" chỉ đến từ
-   transform (un-rotate + scale). */
+   Thẻ NGHỈ vẫn không có box-shadow (Floating-Layer-Only Rule của DESIGN.md nguyên vẹn) — bóng đổ
+   ở :hover bên dưới là NGOẠI LỆ CÓ CHỦ Ý (overdrive 2026-08-26, Hướng 1 "Giấy sống"): hover là một
+   trạng thái TẠM THỜI, tờ giấy đang thật sự nhấc lên khỏi bàn dưới ngón tay/con trỏ, không phải một
+   card đứng yên được trang trí thêm — đúng tinh thần "floating" mà luật đó bảo vệ, chỉ khác ở việc
+   trạng thái floating này transient thay vì thường trực. Bóng biến mất ngay khi rời hover. */
 .the-bang-vat {
   transform: rotate(var(--tilt, 0deg));
-  transition: transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.18s ease-out;
 }
 @media (hover: hover) and (pointer: fine) {
   .the-bang-vat:hover {
     transform: rotate(0deg) scale(1.02);
+    box-shadow: 0 6px 16px var(--c-shadow), var(--c-shadow-glow);
   }
 }
 .the-bang-vat:active {
@@ -674,14 +706,22 @@ html.theme-shift * {
   background-size: 120px 120px;
 }
 
+/* --mind-ink-h: mặc định ~327° (hue của --c-accent-2, xem comment mauOnDinh trong DanhSachBang.tsx)
+   — EdgelessBoard.tsx GHI ĐÈ biến này bằng đúng hue nhận diện của bảng đang mở (mauOnDinh(boardId))
+   khi biết được, để giọt mực loading "loang" đúng màu chấm nhận diện của CHÍNH bảng đó thay vì luôn
+   một màu magenta cố định — continuity vật liệu nối dài từ thẻ sang lúc chờ canvas (overdrive
+   2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). Dùng hsl()+--chip-s/--chip-l (cùng cặp token
+   mauOnDinh() dùng cho chấm màu trên thẻ, tự đổi độ bão hoà/độ sáng theo theme) thay vì rgba(--c-
+   accent-2-rgb) cố định — nhánh mặc định (không có hue riêng) vẫn ra đúng magenta cũ vì 327° là hue
+   thật của --c-accent-2. */
 .mind-loading-ink {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.55) 0%,
-    rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.08) 70%,
+    hsl(var(--mind-ink-h, 327) var(--chip-s) var(--chip-l) / 0.55) 0%,
+    hsl(var(--mind-ink-h, 327) var(--chip-s) var(--chip-l) / 0.08) 70%,
     transparent 100%
   );
   animation: inkBloom 1.6s ease-in-out infinite;
@@ -697,6 +737,15 @@ html.theme-shift * {
       rotateX(calc((var(--con-tro-y, 0.5) - 0.5) * -6deg))
       rotateY(calc((var(--con-tro-x, 0.5) - 0.5) * 6deg))
       scale(1.02);
+  }
+  /* Texture giấy (.mind-paper-grain, index này) trôi NGƯỢC chiều rất nhẹ theo cùng --con-tro-x/-y
+     mà rule nghiêng ở trên đã dùng — --con-tro-x/-y đặt trực tiếp trên chính .the-bang-vat (nút cha)
+     nên kế thừa xuống được div con này qua cascade CSS custom property bình thường, không cần JS
+     thêm. Cùng ngân sách 8px nhẹ nhàng, đọc như ánh sáng lướt trên bề mặt giấy khi nghiêng, không
+     phải hiệu ứng nổi bật riêng (overdrive 2026-08-26, Hướng 1 "Giấy sống"). */
+  .the-bang-vat:hover .mind-paper-grain {
+    transition: background-position 0.18s ease-out;
+    background-position: calc((var(--con-tro-x, 0.5) - 0.5) * -8px) calc((var(--con-tro-y, 0.5) - 0.5) * -8px);
   }
 }
 
@@ -817,6 +866,9 @@ html.theme-shift * {
   .board-out,
   .board-flip-start,
   .board-flip-run,
+  .board-flip-cover,
+  .board-flip-cover-hide,
+  .board-collapse,
   .fade-in,
   .toast-in,
   .toast-in-full,

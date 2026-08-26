@@ -57,6 +57,14 @@ export function BoardGallery({
   // xuất hiện đột ngột không liên quan tới thẻ vừa chạm (hiến chương Mindmap, continuity bắt buộc).
   const [dangChoCanvas, setDangChoCanvas] = useState(false)
   const bocRef = useRef<HTMLDivElement>(null)
+  // Ảnh xem trước (hoặc null = không có, dùng nền trơn) của bảng VỪA đóng — không null trong khoảng
+  // ngắn animation "gập lại" (.board-collapse, index.css) chạy TRÊN MỘT LỚP PHỦ RIÊNG, tách hẳn khỏi
+  // EdgelessBoard thật (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). CỐ Ý không giữ
+  // EdgelessBoard sống lâu hơn để chờ animation — chuỗi tháo/ghi ảnh xem trước/mở lại lưới bên dưới
+  // là một cuộc đua ĐÃ ĐO ĐƯỢC THẬT (xem chú thích ở nút "quay lại"), giữ nguyên timing hiện tại là
+  // bắt buộc; lớp phủ này chỉ là trang trí CHẠY SONG SONG, không chặn hay trì hoãn bất cứ bước nào
+  // của chuỗi đó.
+  const [dangGapLai, setDangGapLai] = useState<{ anhXemTruoc?: string } | null>(null)
   // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app — xem App.tsx
   // navigate()). Gọi onMoBangYeuCauXong() ngay sau khi tiêu thụ để App.tsx reset state về undefined
   // — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó lần hai (cùng id, state App.tsx không đổi giá trị)
@@ -212,6 +220,17 @@ export function BoardGallery({
           onHieuUngXong={() => setVuaDongBang(false)}
         />
       )}
+      {/* Lớp phủ "gập lại" — RENDER NGOÀI {openBoardId && ...} nên vẫn sống tiếp sau khi openBoardId
+          đã về null (canvas thật đã tháo thật sự, đúng timing cũ). Chỉ trang trí, aria-hidden. */}
+      {dangGapLai && (
+        <div className="absolute inset-0 board-collapse pointer-events-none" aria-hidden="true">
+          {dangGapLai.anhXemTruoc ? (
+            <img src={dangGapLai.anhXemTruoc} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0" style={{ background: 'var(--c-surface-alt, #f6f7fd)' }} />
+          )}
+        </div>
+      )}
       {openBoardId && (
         <div
           key={openBoardId}
@@ -220,7 +239,11 @@ export function BoardGallery({
           className={`absolute inset-0 ${openOrigin ? '' : 'board-in'}${dangHienTab ? '' : ' invisible pointer-events-none'}`}
           inert={!dangHienTab}
         >
-          <EdgelessBoard boardId={openBoardId} onReady={() => setDangChoCanvas(false)} />
+          <EdgelessBoard
+            boardId={openBoardId}
+            onReady={() => setDangChoCanvas(false)}
+            mauNhanDien={openOrigin?.mauNhanDien}
+          />
           {/* Lớp phủ ảnh xem trước của đúng thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho
               tới khi EdgelessBoard báo sẵn sàng thật (onReady), rồi mờ dần lộ canvas ra. Không hiện
               gì nếu bảng chưa từng có ảnh xem trước (bảng mới tạo) — không có gì để phủ lên. */}
@@ -236,6 +259,16 @@ export function BoardGallery({
             type="button"
             data-testid="quay-lai"
             onClick={async () => {
+              // Bật lớp phủ "gập lại" (overlay riêng, xem JSX phía trên) — KHÔNG await gì ở đây, để
+              // chuỗi tháo/ghi/mở lại lưới ngay bên dưới chạy ĐÚNG TIMING CŨ (đã được canh bằng ca
+              // kiểm thật: ảnh xem trước phải hiện NGAY khi lưới mount lại, không được trễ thêm một
+              // khoảng tuỳ ý vì một hiệu ứng trang trí). Overlay tự dọn mình bằng setTimeout riêng,
+              // không giao tiếp gì với chuỗi bên dưới (overdrive 2026-08-26, Hướng 2).
+              const giamChuyenDong =
+                typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+              setDangGapLai({ anhXemTruoc: openOrigin?.anhXemTruoc })
+              setTimeout(() => setDangGapLai(null), giamChuyenDong ? 10 : 260)
+
               // Tháo EdgelessBoard TRƯỚC (kích hoạt cleanup effect của nó — nơi bắt đầu lượt ghi ảnh
               // xem trước, xem EdgelessBoard.tsx), nhưng CHƯA cho DanhSachBang mount lại ngay: cờ
               // `dangDong` giữ cả hai nhánh vắng mặt (màn hình trống một nhịp rất ngắn) để tránh
