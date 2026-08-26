@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
 import { specialtyIcon } from '../components/SpecialtyIcons'
-import { MindMapDoodle } from './MindMapDoodle'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
@@ -70,11 +69,6 @@ export function mauOnDinh(id: string): number {
   return 260 + (Math.abs(h) % 70)
 }
 
-// Băm id thành một trong 4 biến thể nét vẽ ỔN ĐỊNH của MindMapDoodle (0-3: xem MindMapDoodle.tsx)
-// — mở rộng đúng cơ chế hash đã có (nghiengOnDinh/mauOnDinh) sang chiều thứ ba: HÌNH DẠNG, để mỗi
-// bảng có một "nét" hơi khác nhau thay vì tất cả dùng chung y hệt một tác phẩm (critique 2026-08-26,
-// "khoảng cách giữa tham vọng hiến chương và thực thi tại gallery"). Nhân số khác 17/31 (đã dùng ở
-// hai hàm trên) để 3 hàm không tình cờ tương quan với nhau trên cùng một tập id.
 // Độ sáng tương đối (WCAG relative luminance, 0-1) của một màu hex "#rrggbb".
 function doSangTuongDoi(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -107,36 +101,16 @@ function chuTrenNen(hexNen: string): string {
   return dungTrang >= dungGanDen ? '#ffffff' : '#0b0c1c'
 }
 
-function bienTheDoodle(id: string): 0 | 1 | 2 | 3 {
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (h * 13 + id.charCodeAt(i)) | 0
-  return (Math.abs(h) % 4) as 0 | 1 | 2 | 3
-}
-
 // khoa: id chuyên khoa để tô màu + chọn icon cho huy hiệu — undefined khi không có ngữ cảnh chuyên
 // khoa nào (lưới rỗng toàn bộ, chưa lọc gì). specialtyIcon() đã tự xử lý id lạ/undefined bằng icon
 // "trang giấy" mặc định (xem SpecialtyIcons.tsx), TheTrong không cần thêm nhánh dự phòng cho icon —
 // chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
-// hatGiongBienThe: id bảng thật khi có (thẻ trong lưới) — cho lưới rỗng toàn bộ (không có bảng nào
-// để lấy id), dùng chuyenKhoaLoc đang lọc làm hạt giống thay thế, chỉ cần MỘT giá trị ổn định nào đó
-// vì tình huống đó chỉ có đúng một doodle hiện cùng lúc, không có nguy cơ trông giống hệt nhau.
-function TheTrong({ khoa, hatGiongBienThe }: { khoa?: string; hatGiongBienThe?: string }) {
+function TheTrong({ khoa }: { khoa?: string }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
     <div className="relative w-full h-full" aria-hidden="true">
-      <MindMapDoodle
-        className="w-full h-full opacity-40"
-        variant={hatGiongBienThe ? bienTheDoodle(hatGiongBienThe) : 0}
-      />
-      {/* Huy hiệu chuyên khoa lồng bên trong artwork — CHÍNH GIỮA tờ giấy (50%, 50% khung 4:3), KHÔNG
-          nền/viền tròn: icon trần hoà thẳng vào nét vẽ, không phải một "sticker" dán lên trên (debug
-          2026-08-26, test tay: "nền tròn xung quanh, không hoà vào trang giấy, không nằm giữa tờ
-          giấy"). Trước đây neo ở (55%,55%) để né cụm chi tiết góc trên-trái của MindMap.svg VÀ có
-          nền tint tròn `${spec.color}15` — bỏ cả hai: không nền thì không còn gì để né, và 50/50 mới
-          đúng nghĩa "giữa tờ giấy". KHÔNG cần code tilt riêng: TheTrong vốn đã nằm bên trong nút
-          .the-bang-vat (thẻ bảng) hoặc div .empty-breathe (lưới rỗng) — huy hiệu tự nghiêng/thở theo
-          transform của cha. Màu dùng cú pháp spec.color thẳng (không phải token --c-*) — ngoại lệ cố
-          ý, xem Global Constraints. */}
+      {/* Không còn nền doodle vẽ tay — phản hồi thật (2026-08-26, test tay): "xóa ảnh background
+          nét line đi". Huy hiệu chuyên khoa CHÍNH GIỮA khung 4:3 (50%,50%), không nền/viền tròn. */}
       <div
         aria-hidden="true"
         data-testid="huy-hieu-chuyen-khoa"
@@ -301,24 +275,30 @@ function TheBang({
           {bang.anhXemTruoc ? (
             <img src={bang.anhXemTruoc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} hatGiongBienThe={bang.id} />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
           )}
-          {/* Chấm màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên, gắn ở góc ảnh xem trước để
+          {/* Ghim màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên, gắn ở góc ảnh xem trước để
               lướt lưới vẫn thấy ngay kể cả khi nhiều bảng cùng tên mặc định "Bảng chưa đặt tên"
-              (critique lượt 3). Viền --c-surface tạo tương phản với ảnh nền bất kỳ màu gì. */}
-          <span
+              (critique lượt 3). Đổi từ chấm tròn sang hình ghim thật (2026-08-26, phản hồi test tay
+              kèm ảnh tham chiếu) — cùng ẩn dụ "bảng ghim lên tường" mà hiến chương Mindmap nhắc tới.
+              drop-shadow kép (không phải box-shadow — silhouette ghim không phải hình tròn) tạo viền
+              sáng mỏng quanh MỌI cạnh bất kể hình dạng, tương phản với ảnh nền bất kỳ màu gì. */}
+          <svg
             aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`}
             style={{
               position: 'absolute',
-              top: 6,
-              left: 6,
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: `hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`,
-              boxShadow: '0 0 0 2px var(--c-surface, #fff)',
+              top: 4,
+              left: 4,
+              width: 16,
+              height: 16,
+              filter: 'drop-shadow(0 0 1px var(--c-surface, #fff)) drop-shadow(0 0 1px var(--c-surface, #fff))',
             }}
-          />
+          >
+            <ellipse cx="9" cy="7.5" rx="5.2" ry="3.4" transform="rotate(-32 9 7.5)" />
+            <path d="M11.6 10.2 L20.5 19.6 L17.3 20.6 L9.8 12.6 Z" />
+          </svg>
         </div>
         {!dangSuaTen && (
           <>
@@ -922,7 +902,7 @@ export function DanhSachBang({
           }}
         >
           <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #6b6e96)' }}>
-            <TheTrong khoa={chuyenKhoaLoc ?? undefined} hatGiongBienThe={chuyenKhoaLoc ?? undefined} />
+            <TheTrong khoa={chuyenKhoaLoc ?? undefined} />
           </div>
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
