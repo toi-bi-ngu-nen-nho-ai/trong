@@ -12248,10 +12248,17 @@ export default function App() {
             // getBoundingClientRect() ở cả 375px và 390px: logo top=24 cao=28 tâm=38 ở cả hai, tức
             // hằng số này ổn định theo bề ngang (h-7 khoá chiều cao, w-auto chỉ co bề ngang).
             //
-            // Vì sao tách riêng theo màn: logo "Bs Trọng" chỉ có ở HomeScreen. Màn "specialty" dùng
-            // header khác hẳn (nút "Quay lại trang chủ", paddingTop 21) nên mốc căn của nó khác —
-            // GIỮ NGUYÊN 24 cho màn đó vì môi trường kiểm hiện tại không mở được màn specialty để đo
-            // thật, và không ship một con số chỉ suy từ đọc code. Ai đo được thì sửa nốt.
+            // Vì sao tách riêng theo màn: logo "Bs Trọng" CHỈ có ở HomeScreen. Màn "specialty" dùng
+            // header khác hẳn nên mốc căn khác, mà cụm nút này nổi chung cho cả hai màn.
+            // TÂM HÀNG Ở MÀN CHUYÊN KHOA = 31px, cộng từ header của SpecialtyScreen:
+            //     paddingTop 21 + nửa chiều cao hàng nút "Quay lại trang chủ" (20/2 = 10) = 31.
+            // Đo thật bằng getBoundingClientRect(): nút back top=21 cao=20 tâm=31.
+            // Trước đây màn này ăn chung số 24 của màn home nên lệch 7px — ít lộ hơn bên home (14px)
+            // nên lọt qua nhiều lượt kiểm, tới khi người dùng chỉ đích danh mới thấy (2026-08-26).
+            // CÁCH MỞ MÀN NÀY ĐỂ ĐO LẠI: picker chuyên khoa là bánh xe cuộn, chốt lựa chọn đi qua
+            // snapTo() chạy bằng requestAnimationFrame — môi trường kiểm nào đóng băng rAF (vd
+            // Browser pane không compositing) sẽ KHÔNG vào được màn này bằng click, phải thay tạm
+            // requestAnimationFrame bằng setTimeout rồi mới mô phỏng chạm được.
             //
             // Cụm nút không nằm cùng flow với header nên mốc neo này độc lập, không tự khớp theo —
             // mỗi lần đổi bố cục header (chiều cao logo, padding, translate) PHẢI ĐO LẠI số này.
@@ -12259,7 +12266,7 @@ export default function App() {
             // trim, header bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG MỘT LƯỢNG
             // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
             style={{
-              top: `calc(var(--safe-top-trim) + ${screen === "home" ? 38 : 24}px)`,
+              top: `calc(var(--safe-top-trim) + ${screen === "home" ? 38 : 31}px)`,
               right: 18,
               transform: "translateY(-50%)",
             }}
