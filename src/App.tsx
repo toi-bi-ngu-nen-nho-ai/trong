@@ -5470,7 +5470,12 @@ function DisclaimerBar() {
           }
           setDismissed(true)
         }}
-        className="flex-none w-6 h-6 -m-1 rounded-full flex items-center justify-center"
+        // 44px vùng chạm thật (w-11 h-11) nhưng -m-2 kéo lại gần bằng đúng footprint hình 24px cũ,
+        // không đẩy giãn hàng chứa nó — cùng kỹ thuật đã dùng cho nút xoá ảnh trong bảng pha
+        // (dòng ~10318: w-11 h-11 -m-2). Bản trước dùng w-6 h-6 -m-1 = vùng chạm thật chỉ 24×24px,
+        // dưới hẳn ngưỡng 44px chung của màn này — âm margin không nới KÍCH THƯỚC phần tử, chỉ kéo
+        // nó lại gần nội dung xung quanh (/impeccable critique 2026-08-26 lượt 2, P2).
+        className="flex-none w-11 h-11 -m-2 rounded-full flex items-center justify-center"
         style={{ color: C.textSoft }}
         aria-label="Ẩn dải nhắc này cho phiên hiện tại"
       >
