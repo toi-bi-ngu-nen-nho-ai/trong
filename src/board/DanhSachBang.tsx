@@ -283,34 +283,35 @@ function TheBang({
             )}
           </div>
           {/* Ghim màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên (critique lượt 3). Đầu ghim
-              tròn bóng + chuôi ngắm xuống giấy, phỏng theo ẢNH THAM CHIẾU lần 2 (2026-08-26) — trước
-              đó là hình thoi/kim nghiêng phỏng theo ảnh lần 1. Neo top-center (không phải top-left
-              như chấm cũ) và TRÀN NHẸ lên trên mép giấy (top âm) — đúng cảm giác "ghim THẬT xuyên
-              qua giấy" của ảnh, không phải một icon trang trí nằm gọn trong khung. Màu vẫn giữ theo
-              nhận diện từng bảng (không cố định đỏ như ảnh) — đây là chi tiết CHỨC NĂNG (phân biệt
-              nhiều bảng cùng tên mặc định), không phải trang trí thuần, nên không đánh đổi. */}
+              tròn bóng + chuôi cắm THẲNG ĐỨNG xuống giấy — bản trước chuôi vẽ CHÉO, mút chuôi trồi ra
+              ngoài rìa đầu ghim tròn, đọc thành hình cái kính lúp/kẹo mút chứ không phải cây ghim xuyên
+              giấy (phản hồi thật 2026-08-26: "ghim ẩu tả, giống kính lúp"). Chuôi mới đi thẳng từ đáy
+              đầu ghim xuống, nằm GỌN trong bề ngang đầu ghim — đúng dáng ghim tạc thật cắm vuông góc
+              vào mặt phẳng. Neo top-center, TRÀN NHẸ lên trên mép giấy (top âm) — vẫn giữ cảm giác
+              "ghim THẬT xuyên qua giấy". Màu vẫn theo nhận diện từng bảng (không cố định đỏ như ảnh
+              tham chiếu) — chi tiết CHỨC NĂNG (phân biệt nhiều bảng cùng tên mặc định), không đánh đổi. */}
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
             style={{
               position: 'absolute',
-              top: -6,
+              top: -7,
               left: '55%',
               transform: 'translateX(-50%)',
-              width: 20,
-              height: 20,
-              filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))',
+              width: 18,
+              height: 18,
+              filter: 'drop-shadow(0 1.5px 2px rgba(0,0,0,0.35))',
             }}
           >
             <path
-              d="M13.2 13.6 L19 20"
+              d="M12 13.4 L12 19.4"
               stroke={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`}
-              strokeWidth="1.8"
+              strokeWidth="2.1"
               strokeLinecap="round"
               fill="none"
             />
-            <circle cx="10" cy="9" r="6.2" fill={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`} />
-            <ellipse cx="7.8" cy="6.4" rx="2.3" ry="1.5" fill="rgba(255,255,255,0.55)" transform="rotate(-28 7.8 6.4)" />
+            <circle cx="12" cy="8.6" r="6.6" fill={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`} />
+            <ellipse cx="9.6" cy="5.8" rx="2.4" ry="1.5" fill="rgba(255,255,255,0.55)" transform="rotate(-28 9.6 5.8)" />
           </svg>
         </div>
         {!dangSuaTen && (
@@ -963,12 +964,16 @@ export function DanhSachBang({
           </button>
         </div>
       ) : (
-        // minmax(0, 1fr) thay vì '1fr' trần — '1fr' trần để Grid tự suy min-width từ NỘI DUNG khi
-        // thiếu item để lấp đầy hàng (số bảng LẺ: ô "+" rơi cùng hàng với đúng 1 thẻ thật), và cả
-        // thẻ lẫn ô "+" đều dùng aspectRatio (không có width tường minh) nên min-width suy ra bị kéo
-        // lệch giữa hai cột — đo được 118px/217px thay vì chia đều. minmax(0, 1fr) chặn hẳn hành vi
-        // "auto min" đó, luôn chia đều bất kể nội dung.
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, padding: 16 }}>
+        // repeat(auto-fill, minmax(110px, 140px)) thay vì 2 cột cố định — cột cố định nghĩa là ĐÚNG
+        // 2 thẻ chia hết bề ngang bất kể màn rộng bao nhiêu; trên web/iPad (≥768px) mỗi thẻ bị kéo to
+        // gần hết khung hình (đo thật 905×680px ở 1920px) — phản hồi thật "MindMapScreen bị tràn trên
+        // web/ipad" (2026-08-26). Số trong minmax() là cận TRÊN trình duyệt dùng để quyết định số cột
+        // (đo thật trên Browser pane, không phải suy từ lý thuyết CSS Grid suông): max=140 ⇒ 2 cột ở
+        // điện thoại hẹp (375px, khớp hành vi cũ), 4 cột ở iPad (768px), càng nhiều cột hơn ở desktop
+        // rộng — thẻ luôn giữ cỡ ~135-140px (khoảng một thẻ ghi chú thật) dù màn rộng cỡ nào, không
+        // cần media query riêng từng breakpoint. Từng thử max=200 trước: chỉ ra 2 cột suốt tới 768px
+        // (thẻ ~193px, vẫn còn khá lớn) — max=140 mới cho đúng mật độ mong muốn.
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 140px))', gap: 8, padding: 16 }}>
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}

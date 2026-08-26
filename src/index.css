@@ -661,17 +661,25 @@ html.theme-shift * {
   border-radius: 2px;
 }
 .mind-note-card::before {
-  /* Góc cong dưới-trái — tam giác lật mặt sau tờ giấy (xám nhạt) lộ ra, cùng một bóng nhỏ hắt lên
-     phần giấy phía trên nó để bán được cảm giác "vừa được lật lên". */
+  /* Góc cong dưới-trái — mặt sau tờ giấy (xám nhạt) lộ ra khi góc cong lên, cùng một bóng nhỏ hắt
+     lên phần giấy phía trên nó để bán được cảm giác "vừa được lật lên".
+     clip-path CONG (path, không phải polygon tam giác thẳng cạnh) — bản trước cắt một đường CHÉO
+     THẲNG góc 45°, đọc như một nhát cắt cứng chứ không phải giấy tự cong (phản hồi thật 2026-08-26:
+     "nếp gấp giấy sơ sài, thô cứng, không có mềm mại, khuôn giấy cứng ngắc"). Đường cong mới bo tròn
+     dần từ mép trái xuống mép dưới, ôm sát góc thật của tờ giấy — dáng một mẩu giấy nhỏ tự cuộn lên,
+     không phải một tam giác hình học. Kích thước CỐ ĐỊNH (không còn % + max-width) — nay `.mind-note-
+     card` đã có cỡ ổn định trong một khoảng hẹp (lưới auto-fill 110-140px, xem DanhSachBang.tsx),
+     không còn cần co giãn theo cỡ thẻ như hồi thẻ có thể phình tới 900px+. path() dùng toạ độ px
+     TUYỆT ĐỐI theo đúng hộp 30×30 khai báo ngay dưới — không tự co giãn theo box như polygon(%), nên
+     PHẢI giữ nguyên cặp width/height này nếu đổi path. */
   content: '';
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 24%;
-  aspect-ratio: 1 / 1;
-  max-width: 26px;
-  background: linear-gradient(135deg, #d3d1c8 44%, #fcfbf8 46%, #fcfbf8 100%);
-  clip-path: polygon(0 100%, 100% 100%, 0 0);
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #d3d1c8 30%, #fcfbf8 68%, #fcfbf8 100%);
+  clip-path: path('M0,16 C0,25 5,30 15,30 L0,30 Z');
   filter: drop-shadow(-1px 1.5px 2px rgba(0, 0, 0, 0.28));
 }
 
