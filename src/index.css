@@ -106,13 +106,11 @@
      tới — xem "Untouchable Signal Rule" trong DESIGN.md, giữ nguyên bất kể đổi bảng màu chủ đạo. */
   --c-surface: #ffffff;
   --c-surface-alt: #f6f7fd;
-  /* --c-note: mặt "tờ giấy ghim" của thẻ bảng Mindmap trống (DanhSachBang.tsx) — CỐ Ý ấm hơn
-     --c-surface-alt trung tính lạnh của cả app, theo đúng ảnh tham chiếu người dùng gửi (2026-08-26:
-     giấy note trắng ấm ghim lên nền bần/cork). Cùng tinh thần "One Other Place Rule" đã áp cho
-     --c-accent-2 — Mindmap có vật liệu riêng, KHÔNG lan sang màn khác. Không dùng ảnh/texture thật
-     (người dùng từ chối rõ: "không có bờ/ảnh gì phủ ngoài") — chỉ một mảng màu phẳng, không viền,
-     không bóng, đúng cảm giác "không ranh giới" của các nút khác trong app. */
-  --c-note: #faf3e4;
+  /* --c-note: mặt "tờ giấy ghim" của thẻ bảng Mindmap trống (DanhSachBang.tsx, .mind-note-card) —
+     GIẤY LUÔN TRẮNG bất kể theme app sáng/tối (giấy thật không đổi màu theo ánh sáng phòng — đúng
+     ảnh tham chiếu lần 2, 2026-08-26, không còn tông kem ấm của ảnh lần 1). Cùng tinh thần "One
+     Other Place Rule" đã áp cho --c-accent-2 — Mindmap có vật liệu riêng. */
+  --c-note: #fbfaf7;
   --c-page: #f1f2fb;
   --c-line-soft: #e9ebf9;
   --c-line: #d9ddf4;
@@ -266,10 +264,9 @@
        khác nhau thật sự chứ không phải một cái chỉnh độ sáng của cái kia. */
     --c-surface: #14162c;
     --c-surface-alt: #1b1e3d;
-    /* Bản tối của --c-note: ấm-tối (nâu-xám), KHÔNG phải bản indigo lạnh của --c-surface-alt bị
-       giảm sáng — cùng lý do "hai bản sắc thật sự khác nhau" ở comment trên, áp riêng cho vật liệu
-       giấy Mindmap. */
-    --c-note: #2b2419;
+    /* Bản tối của --c-note CHỈ dịu bớt một chút (không đổi hẳn sang tối) — giấy vẫn là giấy trắng
+       dưới ánh đèn ban đêm, không phải một bề mặt tối riêng như --c-surface-alt dark. */
+    --c-note: #efece3;
     --c-page: #0b0c1c;
     --c-line-soft: #23264a;
     --c-line: #2e3260;
@@ -348,7 +345,7 @@
 
   --c-surface: #14162c;
   --c-surface-alt: #1b1e3d;
-  --c-note: #2b2419;
+  --c-note: #efece3;
   --c-page: #0b0c1c;
   --c-line-soft: #23264a;
   --c-line: #2e3260;
@@ -647,6 +644,35 @@ html.theme-shift * {
 }
 .the-bang-vat:active {
   transform: rotate(0deg) scale(0.97);
+}
+
+/* Tờ giấy ghim — phỏng theo ẢNH THAM CHIẾU người dùng gửi lần 2 (2026-08-26): trắng, mép dưới-trái
+   cong lên (curl), có bóng đổ thật để "nổi" khỏi trang thay vì một khối màu phẳng. Bề mặt Mindmap có
+   luật vật liệu RIÊNG (surface brief: "chân thực vật lý") nên box-shadow ở đây KHÔNG vi phạm
+   Floating-Layer-Only Rule của DESIGN.md — luật đó áp cho phần còn lại của app, không áp cho chính
+   bề mặt được hiến chương giao nhiệm vụ "đẩy vật liệu tới giới hạn". Gradient/tông cong dùng giá trị
+   xám-trắng CỐ ĐỊNH (không suy ra từ --c-note theo theme) vì đây là bóng đổ VẬT LÝ trên giấy, không
+   đổi theo theme UI xung quanh — giống hệt cách ảnh tham chiếu không có bản "dark mode" riêng. */
+.mind-note-card {
+  background: linear-gradient(180deg, var(--c-note, #fbfaf7) 0%, var(--c-note, #fbfaf7) 74%, #e6e4dc 100%);
+  box-shadow:
+    0 14px 22px -10px rgba(15, 15, 15, 0.38),
+    0 4px 8px rgba(15, 15, 15, 0.14);
+  border-radius: 2px;
+}
+.mind-note-card::before {
+  /* Góc cong dưới-trái — tam giác lật mặt sau tờ giấy (xám nhạt) lộ ra, cùng một bóng nhỏ hắt lên
+     phần giấy phía trên nó để bán được cảm giác "vừa được lật lên". */
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 24%;
+  aspect-ratio: 1 / 1;
+  max-width: 26px;
+  background: linear-gradient(135deg, #d3d1c8 44%, #fcfbf8 46%, #fcfbf8 100%);
+  clip-path: polygon(0 100%, 100% 100%, 0 0);
+  filter: drop-shadow(-1px 1.5px 2px rgba(0, 0, 0, 0.28));
 }
 
 /* Thẻ "rơi vào chỗ" lúc lưới vào màn — biến thể của .rise-in nhưng dừng ở góc nghiêng NGHỈ của

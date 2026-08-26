@@ -259,46 +259,58 @@ function TheBang({
         aria-label={tenChuyenKhoa ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}` : `Mở bảng ${bang.ten}`}
       >
         <div
-          style={{
-            position: 'relative',
-            aspectRatio: '4 / 3',
-            borderRadius: 8,
-            overflow: 'hidden',
-            // --c-note (không phải --c-surface-alt trung tính lạnh của cả app) — mặt "tờ giấy ghim"
-            // ấm, theo đúng ảnh tham chiếu người dùng gửi (2026-08-26). Không viền/không bóng/không
-            // texture ảnh — một mảng màu phẳng duy nhất, đúng yêu cầu "không có bờ/ảnh gì phủ ngoài,
-            // cảm giác không ranh giới như các button". Tương thích dark/light qua chính token này
-            // (định nghĩa cả hai theme trong index.css).
-            background: 'var(--c-note, #faf3e4)',
-            color: 'var(--c-text-muted, #6b6e96)',
-          }}
+          // .mind-note-card (index.css): tờ giấy ghim y hệt ảnh tham chiếu người dùng gửi lần 2
+          // (2026-08-26) — trắng, mép dưới-trái cong lên (curl), có bóng đổ thật để "nổi" khỏi trang
+          // (KHÔNG áp Floating-Layer-Only Rule ở đây — bề mặt Mindmap có luật vật liệu riêng, xem
+          // surface brief "chân thực vật lý"). overflow KHÔNG hidden ở div này — góc cong + bóng cần
+          // tràn ra ngoài khung 4:3; ảnh/doodle bên trong được bọc riêng một div overflow:hidden.
+          className="mind-note-card"
+          style={{ position: 'relative', aspectRatio: '4 / 3' }}
         >
-          {bang.anhXemTruoc ? (
-            <img src={bang.anhXemTruoc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
-          )}
-          {/* Ghim màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên, gắn ở góc ảnh xem trước để
-              lướt lưới vẫn thấy ngay kể cả khi nhiều bảng cùng tên mặc định "Bảng chưa đặt tên"
-              (critique lượt 3). Đổi từ chấm tròn sang hình ghim thật (2026-08-26, phản hồi test tay
-              kèm ảnh tham chiếu) — cùng ẩn dụ "bảng ghim lên tường" mà hiến chương Mindmap nhắc tới.
-              drop-shadow kép (không phải box-shadow — silhouette ghim không phải hình tròn) tạo viền
-              sáng mỏng quanh MỌI cạnh bất kể hình dạng, tương phản với ảnh nền bất kỳ màu gì. */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflow: 'hidden',
+              borderRadius: 2,
+              color: 'var(--c-text-muted, #6b6e96)',
+            }}
+          >
+            {bang.anhXemTruoc ? (
+              <img src={bang.anhXemTruoc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
+            )}
+          </div>
+          {/* Ghim màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên (critique lượt 3). Đầu ghim
+              tròn bóng + chuôi ngắm xuống giấy, phỏng theo ẢNH THAM CHIẾU lần 2 (2026-08-26) — trước
+              đó là hình thoi/kim nghiêng phỏng theo ảnh lần 1. Neo top-center (không phải top-left
+              như chấm cũ) và TRÀN NHẸ lên trên mép giấy (top âm) — đúng cảm giác "ghim THẬT xuyên
+              qua giấy" của ảnh, không phải một icon trang trí nằm gọn trong khung. Màu vẫn giữ theo
+              nhận diện từng bảng (không cố định đỏ như ảnh) — đây là chi tiết CHỨC NĂNG (phân biệt
+              nhiều bảng cùng tên mặc định), không phải trang trí thuần, nên không đánh đổi. */}
           <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
-            fill={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`}
             style={{
               position: 'absolute',
-              top: 4,
-              left: 4,
-              width: 16,
-              height: 16,
-              filter: 'drop-shadow(0 0 1px var(--c-surface, #fff)) drop-shadow(0 0 1px var(--c-surface, #fff))',
+              top: -6,
+              left: '55%',
+              transform: 'translateX(-50%)',
+              width: 20,
+              height: 20,
+              filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))',
             }}
           >
-            <ellipse cx="9" cy="7.5" rx="5.2" ry="3.4" transform="rotate(-32 9 7.5)" />
-            <path d="M11.6 10.2 L20.5 19.6 L17.3 20.6 L9.8 12.6 Z" />
+            <path
+              d="M13.2 13.6 L19 20"
+              stroke={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`}
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="10" cy="9" r="6.2" fill={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`} />
+            <ellipse cx="7.8" cy="6.4" rx="2.3" ry="1.5" fill="rgba(255,255,255,0.55)" transform="rotate(-28 7.8 6.4)" />
           </svg>
         </div>
         {!dangSuaTen && (

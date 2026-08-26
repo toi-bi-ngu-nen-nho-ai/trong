@@ -84,6 +84,24 @@
         "rule": "design-system-color",
         "value": "#d5cdb8",
         "createdAt": "2026-08-21T09:03:19.176Z"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#e6e4dc",
+        "createdAt": "2026-08-26T05:00:11.940Z",
+        "reason": "Claude: bóng đổ vật lý trên giấy (.mind-note-card gradient dưới cùng) — vật liệu Mindmap có luật riêng, đã ghi vào DESIGN.md mục Note Paper 2026-08-26, không đổi theo theme app"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d3d1c8",
+        "createdAt": "2026-08-26T05:00:22.610Z",
+        "reason": "Claude: bóng đổ mặt sau giấy cong (.mind-note-card::before) — cùng ngoại lệ vật liệu Mindmap với #e6e4dc, DESIGN.md mục Note Paper 2026-08-26"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px",
+        "createdAt": "2026-08-26T05:00:22.853Z",
+        "reason": "Claude: góc gần-vuông của tờ giấy ghim (.mind-note-card) — cố ý khác thang bo góc UI chuẩn (14px), vì đây là vật thể giấy vật lý theo ảnh tham chiếu, không phải card giao diện thường"
       }
     ]
   }
