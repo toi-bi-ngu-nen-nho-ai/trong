@@ -19,6 +19,7 @@ colors:
   green-soft: "#f0fdf4"
   surface: "#ffffff"
   surface-alt: "#f6f7fd"
+  note: "#faf3e4"
   page: "#f1f2fb"
   text: "#12142b"
   text-muted: "#6b6e96"
@@ -95,6 +96,7 @@ The palette reads as one confident, cool-violet system: electric indigo as the s
 ### Neutral
 - **Cool Paper** (`#ffffff` surface / `#f1f2fb` page, light mode): a barely-tinted cool-violet neutral (same hue family as primary, near-zero chroma) so white cards visibly lift off a faintly-tinted page background without needing a border or shadow.
 - **Night Glass** (`#14162c` surface / `#0b0c1c` page, dark mode): near-OLED indigo-black, independently tuned — text/background pairs were re-measured for AA rather than assumed to transfer, and pushed noticeably darker than the old teal-gray dark surface for a more premium, more dramatic night identity.
+- **Note Paper** (`--c-note`, `#faf3e4` light / `#2b2419` dark): a warm, second neutral reserved exclusively for the Mindmap board-card surface (`DanhSachBang.tsx`) — same "One Other Place Rule" as Mindmap Magenta above, scoped to a different axis (warmth, not hue). Added 2026-08-26 from a user-supplied reference image (a paper note pinned to a corkboard): the color alone carries that mood, deliberately with no photographic texture, border, or shadow — flat fill only, so the card still reads as borderless as any other control in the app.
 
 ### Named Rules
 **The Untouchable Signal Rule.** `--c-danger*`, `--c-warn*`, and `--c-green*` are a separate token family from `--c-primary*`/`--c-accent*` and are never restyled, retinted, or animated as part of a brand refresh — confirmed by surviving the 2026-08 Azure→Indigo rebrand completely unchanged, byte-for-byte. Red is always danger, amber is always caution, and neither one gets the bounce/pop/glow treatment the rest of the UI uses for delight — a flat, serious presentation at the exact moment a clinician needs to trust the color without a second thought.

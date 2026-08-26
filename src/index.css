@@ -106,6 +106,13 @@
      tới — xem "Untouchable Signal Rule" trong DESIGN.md, giữ nguyên bất kể đổi bảng màu chủ đạo. */
   --c-surface: #ffffff;
   --c-surface-alt: #f6f7fd;
+  /* --c-note: mặt "tờ giấy ghim" của thẻ bảng Mindmap trống (DanhSachBang.tsx) — CỐ Ý ấm hơn
+     --c-surface-alt trung tính lạnh của cả app, theo đúng ảnh tham chiếu người dùng gửi (2026-08-26:
+     giấy note trắng ấm ghim lên nền bần/cork). Cùng tinh thần "One Other Place Rule" đã áp cho
+     --c-accent-2 — Mindmap có vật liệu riêng, KHÔNG lan sang màn khác. Không dùng ảnh/texture thật
+     (người dùng từ chối rõ: "không có bờ/ảnh gì phủ ngoài") — chỉ một mảng màu phẳng, không viền,
+     không bóng, đúng cảm giác "không ranh giới" của các nút khác trong app. */
+  --c-note: #faf3e4;
   --c-page: #f1f2fb;
   --c-line-soft: #e9ebf9;
   --c-line: #d9ddf4;
@@ -259,6 +266,10 @@
        khác nhau thật sự chứ không phải một cái chỉnh độ sáng của cái kia. */
     --c-surface: #14162c;
     --c-surface-alt: #1b1e3d;
+    /* Bản tối của --c-note: ấm-tối (nâu-xám), KHÔNG phải bản indigo lạnh của --c-surface-alt bị
+       giảm sáng — cùng lý do "hai bản sắc thật sự khác nhau" ở comment trên, áp riêng cho vật liệu
+       giấy Mindmap. */
+    --c-note: #2b2419;
     --c-page: #0b0c1c;
     --c-line-soft: #23264a;
     --c-line: #2e3260;
@@ -337,6 +348,7 @@
 
   --c-surface: #14162c;
   --c-surface-alt: #1b1e3d;
+  --c-note: #2b2419;
   --c-page: #0b0c1c;
   --c-line-soft: #23264a;
   --c-line: #2e3260;

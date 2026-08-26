@@ -264,11 +264,12 @@ function TheBang({
             aspectRatio: '4 / 3',
             borderRadius: 8,
             overflow: 'hidden',
-            // --c-surface-soft KHÔNG tồn tại trong index.css (chỉ có --c-surface/--c-surface-alt) —
-            // fallback cũ (#f4f1ea, be ấm) từng ÂM THẦM chạy thật mỗi khi phiên trước không kết thúc
-            // bằng nút "←" (ảnh xem trước chỉ ghi trong cleanup effect của React, xem EdgelessBoard.tsx),
-            // lộ ra giữa nền indigo tối. Đổi sang token thật đang tồn tại.
-            background: 'var(--c-surface-alt, #f6f7fd)',
+            // --c-note (không phải --c-surface-alt trung tính lạnh của cả app) — mặt "tờ giấy ghim"
+            // ấm, theo đúng ảnh tham chiếu người dùng gửi (2026-08-26). Không viền/không bóng/không
+            // texture ảnh — một mảng màu phẳng duy nhất, đúng yêu cầu "không có bờ/ảnh gì phủ ngoài,
+            // cảm giác không ranh giới như các button". Tương thích dark/light qua chính token này
+            // (định nghĩa cả hai theme trong index.css).
+            background: 'var(--c-note, #faf3e4)',
             color: 'var(--c-text-muted, #6b6e96)',
           }}
         >
