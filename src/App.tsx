@@ -5435,16 +5435,48 @@ function DisclaimerGate({ ack, onAcknowledge }: { ack: boolean; onAcknowledge: (
   )
 }
 
+// Ẩn dải nhắc theo PHIÊN (sessionStorage — đóng tab/trình duyệt là thấy lại), KHÔNG vĩnh viễn như
+// DISCLAIMER_KEY của DisclaimerGate: đây chỉ là dải rút gọn một dòng, bản đầy đủ đã bắt đọc và xác
+// nhận một lần ở DisclaimerGate rồi. Dải này lặp lại y nguyên trên MỌI lần mở màn trong một ca trực
+// (có thể vào ra hàng chục lần/ngày) mà không có cách nào tắt, chiếm đúng vị trí đầu tiên bác sĩ vội
+// nhìn thấy phía trên khung bệnh nhân (/impeccable critique 2026-08-26, P3).
+const DISCLAIMER_BAR_DISMISS_KEY = "drtrong:disclaimerBarDismissed"
+
 // Dải nhắc thường trực — rút còn MỘT dòng. Bản đầy đủ đã hiện ở màn xác nhận lần đầu; ở đây chỉ
 // cần một lời nhắc không chiếm chỗ, vì nó nằm trên đầu mọi lần mở app.
 function DisclaimerBar() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem(DISCLAIMER_BAR_DISMISS_KEY) === "1"
+    } catch {
+      return false
+    }
+  })
+  if (dismissed) return null
   // Trước đây `truncate` trên một dòng pháp lý: máy hẹp cắt mất nửa câu, không cách nào đọc hết.
   // Bỏ truncate, cho xuống tối đa hai dòng — đổi hình dạng từ viên (rounded-full, chỉ đẹp một
   // dòng) sang khối bo góc mềm để hai dòng không trông méo.
   return (
-    <p className={`${T.meta} px-3 py-1.5 ${R.box} mx-5 mb-2`} style={{ background: C.surfaceAlt, color: C.textSoft }}>
-      Công cụ tham khảo — luôn kiểm tra lại trước khi thực hiện.
-    </p>
+    <div className={`flex items-start gap-2 px-3 py-1.5 ${R.box} mx-5 mb-2`} style={{ background: C.surfaceAlt }}>
+      <p className={`${T.meta} flex-1`} style={{ color: C.textSoft }}>
+        Công cụ tham khảo — luôn kiểm tra lại trước khi thực hiện.
+      </p>
+      <button
+        onClick={() => {
+          try {
+            sessionStorage.setItem(DISCLAIMER_BAR_DISMISS_KEY, "1")
+          } catch {
+            // Không lưu được thì lần dựng màn kế tiếp lại hiện — chấp nhận được, không chặn dùng app.
+          }
+          setDismissed(true)
+        }}
+        className="flex-none w-6 h-6 -m-1 rounded-full flex items-center justify-center"
+        style={{ color: C.textSoft }}
+        aria-label="Ẩn dải nhắc này cho phiên hiện tại"
+      >
+        {icons.x()}
+      </button>
+    </div>
   )
 }
 
@@ -10984,18 +11016,38 @@ function InfusionCategoryScreen({
 // Nút tròn 36px, CHỈ hình mặt trời/mặt trăng — bằng đúng chiều cao nút chọn chuyên khoa đứng cạnh
 // nên hai cái nằm khít một hàng ngang. Bản chữ trước đây ("TỰ ĐỘNG"/"SÁNG"/"TỐI") rộng tới 81px,
 // vừa chiếm chỗ vừa buộc phải đọc mới hiểu.
-function ThemeToggle() {
+// `variant="inline"` (dùng ở ScreenHeader.actions của DungThuocScreen): bản nổi mặc định có nền mờ
+// + đổ bóng riêng để đứng ĐỘC LẬP trên nền Trang chủ — đặt thẳng nó cạnh các pill viền mỏng không
+// đổ bóng khác trên cùng một hàng hành động sẽ trông như hai hệ thống nút khác nhau. Bản inline
+// dùng đúng khung pill viền mỏng đó (không nền mờ/không bóng), giữ nguyên logic xoay vòng trạng thái.
+// Lý do cần đưa nút này vào DungThuocScreen: lối tắt cài trên home-screen mở thẳng "?screen=mixing"
+// (bỏ qua Trang chủ, xem App() initialScreen) — trước đây ThemeToggle CHỈ có ở Trang chủ, nên bác sĩ
+// vào thẳng màn Dùng thuốc lúc trực đêm không có cách nào giảm chói màn hình mà không phải vòng qua
+// đúng màn hình lối tắt này cố tình bỏ qua (/impeccable critique 2026-08-26, P1).
+function ThemeToggle({ variant = "floating" }: { variant?: "floating" | "inline" }) {
   const [mode, setMode] = useState<ThemeMode>(loadTheme)
   const next: Record<ThemeMode, ThemeMode> = { auto: "light", light: "dark", dark: "auto" }
   const glyph = mode === "light" ? icons.sun() : mode === "dark" ? icons.moon() : icons.sunMoon()
+  const handleClick = () => {
+    const m = next[mode]
+    setMode(m)
+    saveTheme(m)
+    tickHaptic()
+  }
+  const label = `Chủ đề: ${THEME_LABELS[mode]}. Chạm để đổi.`
+  const title = `Chủ đề: ${THEME_LABELS[mode]}`
+  if (variant === "inline") {
+    return (
+      <button onClick={handleClick} className="flex-none flex items-center justify-center py-1" aria-label={label} title={title}>
+        <span className={`h-9 w-9 ${R.pill} border flex items-center justify-center`} style={{ borderColor: C.line, color: C.textSoft }}>
+          {glyph}
+        </span>
+      </button>
+    )
+  }
   return (
     <button
-      onClick={() => {
-        const m = next[mode]
-        setMode(m)
-        saveTheme(m)
-        tickHaptic()
-      }}
+      onClick={handleClick}
       className="flex-none w-9 h-9 rounded-full flex items-center justify-center active:scale-95"
       style={{
         // Cùng bộ nền/viền/đổ bóng với nút chọn chuyên khoa bên cạnh — hai nút đọc thành một cụm.
@@ -11007,8 +11059,8 @@ function ThemeToggle() {
         color: C.textSoft,
         transition: "background .25s ease, color .25s ease, transform .12s ease",
       }}
-      aria-label={`Chủ đề: ${THEME_LABELS[mode]}. Chạm để đổi.`}
-      title={`Chủ đề: ${THEME_LABELS[mode]}`}
+      aria-label={label}
+      title={title}
     >
       {glyph}
     </button>
@@ -11039,6 +11091,10 @@ const MIXING_TITLES: Record<MixingTab, string> = {
 // đúng nút được gợi ý hay tự mình bấm trước khi đọc gợi ý — nên không vi phạm nguyên tắc "không thêm
 // một hàng thường trực" đã đặt ra cho nút Tìm (xem comment tại nút "Tìm" trong DungThuocScreen).
 const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
+
+// Báo một lần duy nhất khi hàng tab thật sự tự sắp lại theo tần suất dùng — xem effect khai báo
+// tabOrderIds trong DungThuocScreen (/impeccable critique 2026-08-26, P1).
+const TAB_REORDER_HINT_KEY = "drtrong:tabReorderHintSeen"
 
 // Đóng băng thứ tự tab theo phiên (xem comment ở khai báo tabOrderIds trong DungThuocScreen) tránh
 // được nạn xáo trộn mỗi lần dựng lại màn, nhưng đóng băng VĨNH VIỄN cho tới khi đóng hẳn tab trình
@@ -11095,13 +11151,80 @@ function DungThuocScreen({
     () => (tabOrderIds.length > 0 ? reconcileOrder(MIXING_TABS, tabOrderIds) : MIXING_TABS),
     [tabOrderIds],
   )
+  // Báo MỘT LẦN DUY NHẤT trong đời máy khi thứ tự hàng tab THẬT SỰ đổi (không phải lần tính đầu
+  // tiên, vốn chưa có gì để so với). Hàng tab tự sắp lại theo tần suất dùng có ích, nhưng phá trí
+  // nhớ vị trí ("nhóm Giải độc luôn ở cuối") mà không có gì báo hiệu (/impeccable critique
+  // 2026-08-26, P1) — không lặp lại mỗi lần đổi để khỏi biến một thao tác có ích thành phiền, chỉ
+  // cần bác sĩ biết việc này CÓ THỂ xảy ra một lần rồi tự suy ra những lần sau.
+  const [tabReorderNotice, setTabReorderNotice] = useState(false)
+  const tabReorderNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (tabReorderNoticeTimer.current) clearTimeout(tabReorderNoticeTimer.current) }, [])
   useEffect(() => {
-    if (tabOrderIds.length === 0 || Date.now() - tabOrderAt > TAB_ORDER_REFRESH_MS) {
+    if (tabOrderIds.length === 0) {
       setTabOrderIds(sortByUsage(MIXING_TABS).map((t) => t.id))
       setTabOrderAt(Date.now())
+    } else if (Date.now() - tabOrderAt > TAB_ORDER_REFRESH_MS) {
+      const next = sortByUsage(MIXING_TABS).map((t) => t.id)
+      const changed = next.length !== tabOrderIds.length || next.some((id, i) => id !== tabOrderIds[i])
+      setTabOrderIds(next)
+      setTabOrderAt(Date.now())
+      if (changed) {
+        let seen = false
+        try {
+          seen = localStorage.getItem(TAB_REORDER_HINT_KEY) === "1"
+        } catch {
+          // Không đọc được thì coi như chưa thấy — thà báo thừa một lần còn hơn không báo lần nào.
+        }
+        if (!seen) {
+          try {
+            localStorage.setItem(TAB_REORDER_HINT_KEY, "1")
+          } catch {
+            // Không lưu được thì lần sau có thể báo lại — chấp nhận được, không chặn việc dùng app.
+          }
+          setTabReorderNotice(true)
+          tabReorderNoticeTimer.current = setTimeout(() => setTabReorderNotice(false), 6000)
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  // Chỉ báo vị trí cuộn cho hàng 10 tab: trước đây chỉ có hai dải mờ hai mép báo "còn cuộn được",
+  // không có gì nói ĐANG Ở ĐÂU trong hàng — hàng rộng gấp ~2,4 lần khung nhìn trên điện thoại nên
+  // "Giải độc" ở cuối có thể cách xa cả một màn hình cuộn (/impeccable critique 2026-08-26, P1).
+  // Cập nhật trực tiếp qua ref (không qua setState) vì sự kiện scroll bắn liên tục — render lại cả
+  // cây component ở mỗi khung hình cuộn sẽ giật trên máy yếu, trong khi bar/track chỉ cần đổi style.
+  const tabProgressTrackRef = useRef<HTMLDivElement | null>(null)
+  const tabProgressBarRef = useRef<HTMLDivElement | null>(null)
+  const updateTabProgress = useCallback(() => {
+    const el = tabRowRef.current
+    const track = tabProgressTrackRef.current
+    const bar = tabProgressBarRef.current
+    if (!el || !track || !bar) return
+    const { scrollLeft, scrollWidth, clientWidth } = el
+    if (scrollWidth <= clientWidth + 1) {
+      track.style.opacity = "0"
+      return
+    }
+    track.style.opacity = "1"
+    const trackWidth = track.clientWidth
+    const barWidth = Math.max(24, (clientWidth / scrollWidth) * trackWidth)
+    const maxScroll = scrollWidth - clientWidth
+    const maxLeft = trackWidth - barWidth
+    const left = maxScroll > 0 ? (scrollLeft / maxScroll) * maxLeft : 0
+    bar.style.width = `${barWidth}px`
+    bar.style.transform = `translateX(${left}px)`
+  }, [])
+  useEffect(() => {
+    const el = tabRowRef.current
+    if (!el) return
+    updateTabProgress()
+    el.addEventListener("scroll", updateTabProgress, { passive: true })
+    window.addEventListener("resize", updateTabProgress)
+    return () => {
+      el.removeEventListener("scroll", updateTabProgress)
+      window.removeEventListener("resize", updateTabProgress)
+    }
+  }, [orderedTabs, updateTabProgress])
   const { patient, setField, reset, restore } = usePatientVitals()
   // Nâng lên từ DisclaimerGate: cha cần biết tấm phủ có đang mở hay không để đánh dấu `inert` cho
   // nội dung phía sau nó (bàn phím/trình đọc màn hình vẫn thấy được các control nền dù aria-modal
@@ -11161,27 +11284,49 @@ function DungThuocScreen({
   const searchResults = useMemo(() => {
     const q = normalizeSearch(globalQuery)
     if (!q) return []
-    const out: { tab: MixingTab; tabLabel: string; id: string; name: string; route: string }[] = []
-    mergeWithOverrides(ANTIBIOTICS, customAntibiotics).forEach((d) => {
-      if (normalizeSearch(d.name).includes(q)) out.push({ tab: "antibiotics", tabLabel: "Kháng sinh", id: d.id, name: d.name, route: d.route })
+    const out: { tab: MixingTab; tabLabel: string; id: string; name: string; route: string; diseaseId?: string; matchedDisease?: string }[] = []
+    const seen = new Set<string>()
+    const push = (entry: (typeof out)[number]) => {
+      // Cùng một thuốc có thể khớp cả theo tên LẪN theo bệnh lý (vd đã gõ đúng tên) — giữ bản khớp
+      // theo tên (đến trước, không có nhãn bệnh lý) thay vì hiện trùng thuốc đó hai lần.
+      const key = `${entry.tab}:${entry.id}`
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push(entry)
+    }
+    const allAbx = mergeWithOverrides(ANTIBIOTICS, customAntibiotics)
+    allAbx.forEach((d) => {
+      if (normalizeSearch(d.name).includes(q)) push({ tab: "antibiotics", tabLabel: "Kháng sinh", id: d.id, name: d.name, route: d.route })
     })
     INFUSION_CATEGORIES.forEach((c) => {
       mergeWithOverrides(c.staticDrugs, customInfusions[c.id] ?? []).forEach((d) => {
-        if (normalizeSearch(d.name).includes(q)) out.push({ tab: c.id, tabLabel: c.tabLabel, id: d.id, name: d.name, route: d.route })
+        if (normalizeSearch(d.name).includes(q)) push({ tab: c.id, tabLabel: c.tabLabel, id: d.id, name: d.name, route: d.route })
+      })
+    })
+    // Tìm THEO TÊN BỆNH LÝ (vd "viêm màng não") — trước đây chỉ khớp tên thuốc, nên một bác sĩ nhớ
+    // ca bệnh trước khi nhớ đúng tên hoạt chất tra ra 0 kết quả dù dữ liệu bệnh lý đã có sẵn
+    // (/impeccable critique 2026-08-26, P2). Ghi kèm `diseaseId` để mở thẳng ĐÚNG chỉ định (liều có
+    // thể khác liều chuẩn — vd viêm màng não cần liều cao hơn), không chỉ mở đúng thuốc.
+    diseases.forEach((disease) => {
+      if (!normalizeSearch(disease.name).includes(q)) return
+      disease.antibiotics.forEach((abxId) => {
+        const d = allAbx.find((a) => a.id === abxId)
+        if (d) push({ tab: "antibiotics", tabLabel: "Kháng sinh", id: d.id, name: d.name, route: d.route, diseaseId: disease.id, matchedDisease: disease.name })
       })
     })
     // Cắt ngắn: danh sách dài hơn một màn hình thì không còn là kết quả tìm kiếm nữa mà là danh mục.
     return out.slice(0, 30)
-  }, [globalQuery, customAntibiotics, customInfusions])
+  }, [globalQuery, customAntibiotics, customInfusions, diseases])
 
   // Mở thẳng thuốc vừa chọn: đặt sẵn các bước chọn của tab đích rồi mới đổi tab (xem
   // writeStickyState trong lib/uiState.ts).
-  function openSearchResult(r: { tab: MixingTab; id: string; name: string }) {
+  function openSearchResult(r: { tab: MixingTab; id: string; name: string; diseaseId?: string }) {
     if (r.tab === "antibiotics") {
       writeStickyState("abx.query", "")
       writeStickyState<string | null>("abx.group", r.name)
-      // Bỏ qua bước chọn bệnh lý: đã gọi đích danh một thuốc, không bắt chọn thêm bước nữa.
-      writeStickyState<string | null>("abx.disease", DISEASE_SKIP)
+      // Khớp qua tên bệnh lý thì mở thẳng ĐÚNG chỉ định đó (liều có thể khác liều chuẩn) — khớp qua
+      // tên thuốc thì bỏ qua bước chọn bệnh lý như trước (đã gọi đích danh một thuốc).
+      writeStickyState<string | null>("abx.disease", r.diseaseId ?? DISEASE_SKIP)
       writeStickyState<string | null>("abx.entry", r.id)
     } else {
       const cat = infusionCategory(r.tab)
@@ -11341,6 +11486,7 @@ function DungThuocScreen({
         title={MIXING_TITLES[tab]}
         actions={
           <>
+            <ThemeToggle variant="inline" />
             <button
               onClick={() => {
                 setSearchOpen((v) => !v)
@@ -11439,7 +11585,10 @@ function DungThuocScreen({
                         </span>
                       </div>
                       <p className={`${T.meta} truncate`} style={{ color: C.textSoft }}>
-                        {shortRoute(r.route)}
+                        {/* Khớp qua tên bệnh lý (không phải tên thuốc) — nói rõ VÌ SAO kết quả này xuất
+                            hiện, để bác sĩ không tưởng đây là khớp tên thuốc rồi thắc mắc sao lại đúng
+                            chỉ định đó (/impeccable critique 2026-08-26, P2). */}
+                        {r.matchedDisease ? `Khớp bệnh lý: ${r.matchedDisease} · ${shortRoute(r.route)}` : shortRoute(r.route)}
                       </p>
                     </button>
                   ))}
@@ -11490,7 +11639,32 @@ function DungThuocScreen({
         </div>
         <div className="absolute left-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to right, var(--c-page), transparent)" }} />
         <div className="absolute right-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to left, var(--c-page), transparent)" }} />
+        {/* Track/bar nằm trong đúng khoảng pb-3 (12px) chừa sẵn dưới hàng tab — không chiếm thêm
+            chỗ, không đụng hai dải mờ (chỉ phủ tới bottom-3, không phủ khoảng này). opacity ban đầu
+            0 tránh nháy một dải đầy trước khi updateTabProgress() đo xong kích thước thật lúc mount. */}
+        <div ref={tabProgressTrackRef} className="absolute left-5 right-5 bottom-0 h-[3px] rounded-full pointer-events-none" style={{ background: C.lineSoft, opacity: 0, transition: "opacity .2s ease" }}>
+          <div ref={tabProgressBarRef} className="h-full rounded-full" style={{ background: C.primaryLine, transition: "transform .1s linear" }} />
+        </div>
       </div>
+      {/* Báo một lần khi hàng tab vừa TỰ sắp lại theo tần suất dùng — xem effect khai báo
+          tabReorderNotice ở trên. Cùng khuôn dạng với gợi ý "Tìm" bên dưới, chỉ khác nội dung. */}
+      {tabReorderNotice && (
+        <div
+          className="fade-in flex-none mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-[14px]"
+          style={{ background: C.primarySoft, border: `1px solid ${C.primaryLine}` }}
+        >
+          <p className={`${T.meta} flex-1`} style={{ color: C.primary }}>
+            Thứ tự nhóm thuốc vừa đổi theo tần suất bạn dùng gần đây.
+          </p>
+          <button
+            onClick={() => setTabReorderNotice(false)}
+            className={`flex-none h-11 px-3 ${R.pill} dose-press text-[12px] font-bold`}
+            style={{ background: C.primary, color: "var(--c-on-bright)" }}
+          >
+            Đã hiểu
+          </button>
+        </div>
+      )}
       {/* Gợi ý một lần cho nút Tìm, biến mất vĩnh viễn khi mở ô tìm hoặc bấm "Đã hiểu". */}
       {showTabHint && (
         <div
