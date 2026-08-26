@@ -21,6 +21,8 @@
 // tham số `screen`).
 import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
+import { batLopCssVendor } from './lop-css-vendor'
+
 // `React.lazy` NHỚ VĨNH VIỄN kết quả lượt gọi factory đầu tiên — kể cả một promise BỊ TỪ CHỐI.
 // Nghĩa là bấm "Thử lại" trên cùng một đối tượng lazy sẽ ném lại đúng lỗi cũ mà không hề chạm
 // mạng, dù sóng đã có trở lại. Cách duy nhất để thử lại thật là dựng một đối tượng lazy MỚI.
@@ -30,6 +32,11 @@ const kho = new Map<number, ComponentType<{ boardId: string; onReady?: () => voi
 function layBang(lan: number): ComponentType<{ boardId: string; onReady?: () => void; mauNhanDien?: number }> {
   const co = kho.get(lan)
   if (co) return co
+  // PHẢI đứng trước `import()`: chunk bảng vẽ tiêm ~190 thẻ <style> vào <head> ngay khi nạp, và bộ
+  // theo dõi bên trong chỉ bọc được thẻ nào rơi vào SAU khi nó chạy (xem ./lop-css-vendor.ts —
+  // không bọc thì CSS không-lớp của BlockSuite đè mọi utility Tailwind của app, hỏng vĩnh viễn cả
+  // những màn không liên quan). Hàm tự chặn gọi lại lần hai nên đặt trong layBang() là an toàn.
+  batLopCssVendor()
   const moi = lazy(() => import('./EdgelessBoard').then((m) => ({ default: m.EdgelessBoard })))
   kho.set(lan, moi)
   return moi

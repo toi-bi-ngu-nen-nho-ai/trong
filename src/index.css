@@ -7,6 +7,25 @@
    JetBrains Mono cho số liệu/liều lượng cần đọc rõ từng ký tự (KHÔNG đổi — đây là lựa chọn an toàn
    lâm sàng, tách biệt khỏi quyết định thẩm mỹ), Space Grotesk cho tiêu đề/nhấn mạnh mạnh tay. Gộp
    một lời gọi @import để chỉ tốn một lượt xin phông chữ qua mạng. */
+/* ─── Lớp thác đổ cho CSS của cây BlockSuite ──────────────────────────────────────────────────────
+   PHẢI đứng TRƯỚC `@import 'tailwindcss'` và không được xê dịch xuống dưới. Thứ tự ưu tiên của các
+   lớp thác đổ (cascade layer) do THỨ TỰ KHAI BÁO ĐẦU TIÊN quyết định: lớp khai TRƯỚC = ưu tiên
+   THẤP hơn. Khai `drt-vendor` ngay dòng đầu đẩy nó xuống dưới cả bốn lớp Tailwind
+   (theme/base/components/utilities) mà `@import 'tailwindcss'` khai ngay sau đó. Đặt được ở đây là
+   nhờ luật CSS cho phép CÂU LỆNH `@layer a;` đứng trước `@import` (khác KHỐI `@layer a {...}`).
+
+   Vì sao cần: cây BlockSuite tiêm ~190 thẻ <style> thẳng vào <head> lúc bảng vẽ mở, và những thẻ đó
+   KHÔNG thuộc lớp nào. Theo luật thác đổ, CSS KHÔNG-LỚP luôn thắng CSS CÓ-LỚP bất kể độ đặc hiệu —
+   mà Tailwind v4 đặt TOÀN BỘ utility vào `@layer utilities`. Hệ quả đo được thật (2026-08-26, báo
+   từ iPhone): mở một sơ đồ tư duy rồi thoát ra là mọi `<input>` toàn app bị luật TRẦN `input{...}`
+   của một stylesheet vốn viết cho shadow DOM (có `:host`) rò ra ghi đè — mất `px-3`, mất `border`,
+   phông nhảy sang Inter — và hỏng VĨNH VIỄN vì thẻ <style> đó không bao giờ bị gỡ khi rời bảng.
+   Bọc CSS đó vào lớp này (xem src/board/lop-css-vendor.ts) trả quyền quyết định lại cho utility.
+
+   KHÔNG xoá dòng này dù grep trong CHÍNH file này không thấy ai dùng tên lớp: nơi dùng là bước bọc
+   lúc chạy ở src/board/lop-css-vendor.ts. */
+@layer drt-vendor;
+
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,500;1,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
@@ -509,6 +528,23 @@ input:focus { outline: none; }
 /* iOS Safari tự động zoom khi focus vào input có font-size < 16px — ép tối thiểu 16px để tránh lỗi phóng to màn hình */
 input, select, textarea {
   font-size: 16px !important;
+}
+
+/* Bịt nốt phần CSS bảng vẽ mà phép bọc lớp KHÔNG với tới được.
+   `@layer drt-vendor` (dòng đầu file) hạ CSS BlockSuite xuống dưới mọi lớp của app — đủ để trả lại
+   `padding`/`border`/`font-family`… vì những thuộc tính đó app CÓ khai (qua utility Tailwind). Còn
+   `display` và `flex` thì app KHÔNG khai cho ô nhập: giá trị đúng (`inline-block`) vốn đến từ
+   stylesheet MẶC ĐỊNH CỦA TRÌNH DUYỆT, mà CSS tác giả — kể cả khi đã bị xếp vào lớp thấp nhất —
+   vẫn luôn thắng stylesheet trình duyệt. Nên riêng hai thuộc tính này phải tự khai mới chặn được
+   luật trần `input{display:flex;flex:1 1 0}` rò ra từ bảng vẽ.
+   Dùng `revert` (trả về giá trị của trình duyệt) chứ KHÔNG ghi cứng `inline-block`: ghi cứng sẽ đè
+   luôn những ô nhập mà app cố ý đặt `block`/`flex` bằng utility Tailwind. Đặt trong `@layer base`
+   để vẫn thua utility (lớp cao hơn) nhưng thắng `drt-vendor` (lớp thấp hơn) — đúng thứ tự cần. */
+@layer base {
+  input, select, textarea {
+    display: revert;
+    flex: revert;
+  }
 }
 
 /* ─── Hoà màu khi đổi chủ đề sáng/tối ────────────────────────────────────────────────────────────
