@@ -20,8 +20,10 @@ const XAC_NHAN_XOA_MS = 5000
 const VUA_TAO_NGUONG_MS = 3000
 
 // Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi đánh dấu
-// xoá mềm (daXoaLuc) chạy, để animation kịp chạy hết trước khi thẻ biến mất khỏi lưới.
-const XOA_TRE_MS = 200
+// xoá mềm (daXoaLuc) chạy, để animation kịp chạy hết trước khi thẻ biến mất khỏi lưới. PHẢI khớp
+// đúng thời lượng animation CSS (0.4s, tăng từ 0.2s cũ — debug 2026-08-26, "xoá quá nhanh, có như
+// không có") — lệch hai số này là jump-cut hoặc khoảng trắng chết, xem comment tại .card-slide-out.
+const XOA_TRE_MS = 400
 
 // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm, chụp lại NGAY LÚC BẤM (getBoundingClientRect
 // thật, không phải suy ra từ index lưới) — BoardGallery.tsx dùng để chạy chuyển cảnh FLIP thật từ
@@ -126,33 +128,33 @@ function TheTrong({ khoa, hatGiongBienThe }: { khoa?: string; hatGiongBienThe?: 
         className="w-full h-full opacity-40"
         variant={hatGiongBienThe ? bienTheDoodle(hatGiongBienThe) : 0}
       />
-      {/* Huy hiệu chuyên khoa lồng bên trong artwork, đặt ở (55%, 55%) — tâm vùng mở của 2 nét
-          scribble lớn trong MindMap.svg (đo bằng getBBox() thật, xem MindMapDoodle.tsx), tránh đè
-          lên cụm chi tiết nhỏ ở góc trên-trái. KHÔNG cần code tilt riêng: TheTrong vốn đã nằm bên
-          trong nút .the-bang-vat (thẻ bảng) hoặc div .empty-breathe (lưới rỗng) — huy hiệu tự
-          nghiêng/thở theo transform của cha vì cùng nằm trong một cây DOM đang biến đổi, không phải
-          một layer tách rời. Màu dùng cú pháp `${spec.color}15` đã có sẵn trong App.tsx (không phải
-          token --c-*): xem Global Constraints của kế hoạch này — spec.color là ngoại lệ cố ý. */}
+      {/* Huy hiệu chuyên khoa lồng bên trong artwork — CHÍNH GIỮA tờ giấy (50%, 50% khung 4:3), KHÔNG
+          nền/viền tròn: icon trần hoà thẳng vào nét vẽ, không phải một "sticker" dán lên trên (debug
+          2026-08-26, test tay: "nền tròn xung quanh, không hoà vào trang giấy, không nằm giữa tờ
+          giấy"). Trước đây neo ở (55%,55%) để né cụm chi tiết góc trên-trái của MindMap.svg VÀ có
+          nền tint tròn `${spec.color}15` — bỏ cả hai: không nền thì không còn gì để né, và 50/50 mới
+          đúng nghĩa "giữa tờ giấy". KHÔNG cần code tilt riêng: TheTrong vốn đã nằm bên trong nút
+          .the-bang-vat (thẻ bảng) hoặc div .empty-breathe (lưới rỗng) — huy hiệu tự nghiêng/thở theo
+          transform của cha. Màu dùng cú pháp spec.color thẳng (không phải token --c-*) — ngoại lệ cố
+          ý, xem Global Constraints. */}
       <div
         aria-hidden="true"
         data-testid="huy-hieu-chuyen-khoa"
         data-khoa={khoa ?? ''}
         style={{
           position: 'absolute',
-          top: '55%',
-          left: '55%',
+          top: '50%',
+          left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '32%',
+          width: '34%',
           aspectRatio: '1 / 1',
-          borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: spec ? `${spec.color}15` : 'var(--c-surface-alt, #f6f7fd)',
           color: spec ? spec.color : 'var(--c-text-muted, #6b6e96)',
         }}
       >
-        {specialtyIcon(khoa, 'w-[60%] h-[60%]')}
+        {specialtyIcon(khoa, 'w-full h-full')}
       </div>
     </div>
   )
@@ -283,11 +285,6 @@ function TheBang({
         aria-label={tenChuyenKhoa ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}` : `Mở bảng ${bang.ten}`}
       >
         <div
-          // .mind-paper-grain (index.css): texture giấy tĩnh (SVG feTurbulence, không JS mỗi khung
-          // hình) phía sau doodle placeholder — hiến chương Mindmap đòi "chân thực vật lý... giấy
-          // thật" cho bề mặt này (critique 2026-08-26, "khoảng cách giữa tham vọng hiến chương và
-          // thực thi"). Vô hại khi có ảnh xem trước thật che kín phía trên (bang.anhXemTruoc).
-          className="mind-paper-grain"
           style={{
             position: 'relative',
             aspectRatio: '4 / 3',
@@ -297,9 +294,7 @@ function TheBang({
             // fallback cũ (#f4f1ea, be ấm) từng ÂM THẦM chạy thật mỗi khi phiên trước không kết thúc
             // bằng nút "←" (ảnh xem trước chỉ ghi trong cleanup effect của React, xem EdgelessBoard.tsx),
             // lộ ra giữa nền indigo tối. Đổi sang token thật đang tồn tại.
-            // backgroundColor (không phải `background` shorthand) — shorthand sẽ reset luôn
-            // background-image của .mind-paper-grain (class ở trên) về `none`, xoá mất texture.
-            backgroundColor: 'var(--c-surface-alt, #f6f7fd)',
+            background: 'var(--c-surface-alt, #f6f7fd)',
             color: 'var(--c-text-muted, #6b6e96)',
           }}
         >

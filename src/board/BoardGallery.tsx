@@ -56,6 +56,14 @@ export function BoardGallery({
   // liền mạch theo chuyển động FLIP, rồi mới mờ dần lộ ra canvas thật bên dưới, thay vì canvas trống
   // xuất hiện đột ngột không liên quan tới thẻ vừa chạm (hiến chương Mindmap, continuity bắt buộc).
   const [dangChoCanvas, setDangChoCanvas] = useState(false)
+  // true từ lúc mở tới khi animation FLIP (phóng to thẻ thành khung toàn màn hình) THẬT SỰ chạy
+  // xong — độc lập với dangChoCanvas. BUG THẬT đã sửa (2026-08-26, debug lượt người dùng test tay):
+  // trước đây lớp phủ chỉ chờ `dangChoCanvas` (tức chờ EdgelessBoard.onReady) — nếu canvas tải
+  // NHANH (chunk đã cache, đồng bộ IndexedDB tức thời, rất thường gặp), onReady bắn ra TRƯỚC KHI
+  // animation FLIP (0.38s + tối đa 120ms dự phòng) kịp chạy xong, khiến lớp phủ lật/lộ canvas ngay
+  // giữa chừng lúc thẻ còn đang phóng to — "ghim" xảy ra trước khi "tờ giấy" full màn hình. Lớp phủ
+  // giờ chờ CẢ HAI điều kiện.
+  const [dangPhongTo, setDangPhongTo] = useState(false)
   const bocRef = useRef<HTMLDivElement>(null)
   // Ảnh xem trước (hoặc null = không có, dùng nền trơn) của bảng VỪA đóng — không null trong khoảng
   // ngắn animation "gập lại" (.board-collapse, index.css) chạy TRÊN MỘT LỚP PHỦ RIÊNG, tách hẳn khỏi
@@ -74,6 +82,7 @@ export function BoardGallery({
     // Mở từ kết quả tìm kiếm toàn app — không có thẻ nào trong lưới để đo rect, nên KHÔNG có origin
     // FLIP (rơi về .board-in scale-fade cũ, xem className của lớp bọc canvas bên dưới).
     setOpenOrigin(null)
+    setDangPhongTo(true)
     setOpenBoardId(moBangYeuCau)
     onMoBangYeuCauXong?.()
   }, [moBangYeuCau, onMoBangYeuCauXong])
@@ -207,6 +216,16 @@ export function BoardGallery({
     }
   }, [openBoardId, openOrigin])
 
+  // Lưới an toàn cho dangPhongTo — phòng khi transitionend/animationend không bắn (phần tử bị ẩn/
+  // tháo giữa chừng do chuyển tab, hoặc trình duyệt bỏ qua sự kiện) khiến lớp phủ kẹt mãi không lộ
+  // canvas. 600ms > cả hai đường (FLIP 0.38s+120ms dự phòng, hoặc .board-in 0.2s) một biên an toàn
+  // rộng rãi.
+  useEffect(() => {
+    if (!openBoardId || !dangPhongTo) return
+    const id = setTimeout(() => setDangPhongTo(false), 600)
+    return () => clearTimeout(id)
+  }, [openBoardId, dangPhongTo])
+
   return (
     <>
       {!openBoardId && !dangDong && dangHienTab && (
@@ -214,6 +233,7 @@ export function BoardGallery({
           onMoBang={(id, origin) => {
             setOpenOrigin(origin ?? null)
             setDangChoCanvas(true)
+            setDangPhongTo(true)
             setOpenBoardId(id)
           }}
           dungTuBang={vuaDongBang}
@@ -238,6 +258,16 @@ export function BoardGallery({
           data-testid="boc-bang"
           className={`absolute inset-0 ${openOrigin ? '' : 'board-in'}${dangHienTab ? '' : ' invisible pointer-events-none'}`}
           inert={!dangHienTab}
+          // Đánh dấu FLIP/scale-fade đã chạy XONG THẬT (không phải suy đoán) — bắt cả hai đường:
+          // .board-flip-run dùng CSS transition (transitionend), .board-in dùng CSS animation
+          // (animationend). e.target === e.currentTarget lọc bỏ sự kiện nổi bọt từ con (nút PNG/PDF,
+          // ảnh phủ... cũng có thể có transition/animation riêng).
+          onTransitionEnd={(e) => {
+            if (e.target === e.currentTarget && e.propertyName === 'transform') setDangPhongTo(false)
+          }}
+          onAnimationEnd={(e) => {
+            if (e.target === e.currentTarget) setDangPhongTo(false)
+          }}
         >
           <EdgelessBoard
             boardId={openBoardId}
@@ -245,14 +275,17 @@ export function BoardGallery({
             mauNhanDien={openOrigin?.mauNhanDien}
           />
           {/* Lớp phủ ảnh xem trước của đúng thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho
-              tới khi EdgelessBoard báo sẵn sàng thật (onReady), rồi mờ dần lộ canvas ra. Không hiện
-              gì nếu bảng chưa từng có ảnh xem trước (bảng mới tạo) — không có gì để phủ lên. */}
+              tới khi CẢ HAI đều xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ
+              animation phóng to thẻ đã chạy hết (dangPhongTo) — thiếu điều kiện thứ hai, canvas tải
+              nhanh sẽ lộ ra giữa chừng lúc thẻ còn đang phóng to (bug thật, debug 2026-08-26: "full
+              tờ giấy trước, rồi mới tới ghim"). Không hiện gì nếu bảng chưa từng có ảnh xem trước
+              (bảng mới tạo) — không có gì để phủ lên. */}
           {openOrigin?.anhXemTruoc && (
             <img
               src={openOrigin.anhXemTruoc}
               alt=""
               aria-hidden="true"
-              className={`absolute inset-0 w-full h-full object-cover board-flip-cover${dangChoCanvas ? '' : ' board-flip-cover-hide'}`}
+              className={`absolute inset-0 w-full h-full object-cover board-flip-cover${dangChoCanvas || dangPhongTo ? '' : ' board-flip-cover-hide'}`}
             />
           )}
           <button

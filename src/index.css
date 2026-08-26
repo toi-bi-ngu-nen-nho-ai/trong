@@ -673,8 +673,14 @@ html.theme-shift * {
   from { opacity: 1; transform: translateX(0) scale(1); }
   to   { opacity: 0; transform: translateX(-24px) rotate(-8deg) scale(0.92); }
 }
+/* 0.2s + easing chỉ tăng tốc (cubic-bezier(0.4,0,1,1)) đọc như "có như không có" — gần như đứng yên
+   nửa đầu rồi vụt biến mất (debug 2026-08-26, test tay). Đổi sang 0.4s + easing chuẩn hai đầu mượt
+   (material "standard" — chậm-nhanh-chậm) để mắt kịp thấy cả quãng đường trượt/xoay/co lại, không
+   chỉ một cú giật cuối. QUAN TRỌNG: XOA_TRE_MS trong DanhSachBang.tsx PHẢI khớp 400ms này — nó là
+   thời gian component đợi trước khi thật sự đánh dấu xoá mềm, lệch với animation sẽ cắt ngang giữa
+   chừng (jump-cut) hoặc để khoảng trắng chết sau khi animation đã xong. */
 .card-slide-out {
-  animation: cardSlideOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: cardSlideOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 /* Nhịp thở nhẹ mời gọi ở trạng thái rỗng — LẶP VÔ HẠN nên PHẢI gate reduced-motion (khác các
@@ -696,16 +702,6 @@ html.theme-shift * {
   0%, 100% { transform: scale(0.85); opacity: 0.35; }
   50%      { transform: scale(1.15); opacity: 0.75; }
 }
-/* Texture giấy tĩnh cho nền thẻ bảng (DanhSachBang.tsx, khung ảnh xem trước 4:3) — SVG feTurbulence
-   nhúng thẳng làm data URI, KHÔNG phải hiệu ứng JS mỗi khung hình (đúng ràng buộc hiệu năng của
-   surface brief Mindmap: "vật liệu mua bằng SVG filter/pattern tĩnh"). Alpha rất thấp (0.05, kênh
-   RGB=0/đen) để đọc như hạt giấy mờ trên cả nền sáng lẫn tối, không cần nhánh riêng theo theme.
-   Vô hại khi có ảnh xem trước thật phủ kín phía trên (object-fit: cover, opaque). */
-.mind-paper-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 120px 120px;
-}
-
 /* --mind-ink-h: mặc định ~327° (hue của --c-accent-2, xem comment mauOnDinh trong DanhSachBang.tsx)
    — EdgelessBoard.tsx GHI ĐÈ biến này bằng đúng hue nhận diện của bảng đang mở (mauOnDinh(boardId))
    khi biết được, để giọt mực loading "loang" đúng màu chấm nhận diện của CHÍNH bảng đó thay vì luôn
@@ -737,15 +733,6 @@ html.theme-shift * {
       rotateX(calc((var(--con-tro-y, 0.5) - 0.5) * -6deg))
       rotateY(calc((var(--con-tro-x, 0.5) - 0.5) * 6deg))
       scale(1.02);
-  }
-  /* Texture giấy (.mind-paper-grain, index này) trôi NGƯỢC chiều rất nhẹ theo cùng --con-tro-x/-y
-     mà rule nghiêng ở trên đã dùng — --con-tro-x/-y đặt trực tiếp trên chính .the-bang-vat (nút cha)
-     nên kế thừa xuống được div con này qua cascade CSS custom property bình thường, không cần JS
-     thêm. Cùng ngân sách 8px nhẹ nhàng, đọc như ánh sáng lướt trên bề mặt giấy khi nghiêng, không
-     phải hiệu ứng nổi bật riêng (overdrive 2026-08-26, Hướng 1 "Giấy sống"). */
-  .the-bang-vat:hover .mind-paper-grain {
-    transition: background-position 0.18s ease-out;
-    background-position: calc((var(--con-tro-x, 0.5) - 0.5) * -8px) calc((var(--con-tro-y, 0.5) - 0.5) * -8px);
   }
 }
 
@@ -845,14 +832,19 @@ html.theme-shift * {
    của lưới dài mở panel ngay gần rìa trên màn hình, ngoài tầm ngón cái thoải mái khi cầm điện thoại
    một tay (critique 2026-08-26). !important cần thiết vì các thuộc tính vị trí được đặt qua inline
    style (đọc bang.id động) — không có cách nào cho ưu tiên thấp hơn để override bằng specificity
-   thường. Chỉ đổi Ở MOBILE: trên màn rộng (chuột, đủ chỗ mọi phía), vị trí neo-vào-thẻ cũ vẫn hợp lý. */
+   thường. Chỉ đổi Ở MOBILE: trên màn rộng (chuột, đủ chỗ mọi phía), vị trí neo-vào-thẻ cũ vẫn hợp lý.
+   BUG THẬT đã sửa (2026-08-26, test tay trên iPhone): thiếu var(--nav-pad-bottom) (= env(safe-area-
+   inset-bottom), vùng home-indicator) trong phép tính — chỉ cộng --nav-body-h (48px, chiều cao NỘI
+   DUNG thanh nav) khiến panel đè lên đúng phần safe-area của thanh nav thật trên iPhone có notch/Face
+   ID (~34px), dù đo đúng trên môi trường giả lập không có safe-area (--safe-bottom=0) nên không phát
+   hiện ra lúc code. Chiều cao THẬT của thanh nav = --nav-body-h + --nav-pad-bottom. */
 @media (max-width: 640px) {
   .mind-menu-bang {
     position: fixed !important;
     top: auto !important;
     left: 12px !important;
     right: 12px !important;
-    bottom: calc(var(--nav-body-h, 0px) + 18px) !important;
+    bottom: calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px) !important;
     width: auto !important;
   }
 }

@@ -376,7 +376,7 @@ describe('DanhSachBang', () => {
     expect(theDangXoa.className).toContain('card-slide-out')
     expect(theDangXoa.style.pointerEvents).toBe('none')
 
-    // Sau khoảng chờ animation (200ms), thẻ mới thật sự biến mất khỏi state + IndexedDB.
+    // Sau khoảng chờ animation (400ms, xem XOA_TRE_MS), thẻ mới thật sự biến mất khỏi state + IndexedDB.
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
     }, 3000)
