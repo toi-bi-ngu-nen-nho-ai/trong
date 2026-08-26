@@ -415,12 +415,34 @@ export function EdgelessBoard({
             // nền JPEG-hoá-đen thành đúng màu nền thật của theme đang áp — cùng kỹ thuật
             // getComputedStyle('--c-surface') + fallback hex mà src/lib/theme.ts đã dùng cho
             // <meta name="theme-color">, tránh một nguồn sự thật thứ hai cho màu nền theme.
-            const mauNenTM =
-              getComputedStyle(document.documentElement).getPropertyValue('--c-surface').trim() ||
-              (resolveTheme() === 'dark' ? '#14162c' : '#ffffff')
-            ctx.fillStyle = mauNenTM
-            ctx.fillRect(0, 0, 480, 360)
             ctx.drawImage(canvasGoc, 0, 0, 480, 360)
+
+            // Bảng TRỐNG (chưa vẽ gì) cho canvas TRONG SUỐT HOÀN TOÀN — nền chấm lưới người dùng
+            // thấy trên màn là một lớp CSS phủ NGOÀI canvas, không phải nội dung canvas. Quét kênh
+            // alpha để phân biệt "trống thật" với "có nội dung": thoát ở pixel đục ĐẦU TIÊN nên
+            // bảng có nội dung gần như không tốn gì, chỉ bảng trống mới quét hết 480×360.
+            let coNoiDung = false
+            const duLieu = ctx.getImageData(0, 0, 480, 360).data
+            for (let i = 3; i < duLieu.length; i += 4) {
+              if (duLieu[i] !== 0) {
+                coNoiDung = true
+                break
+              }
+            }
+
+            // Chỉ lấp nền khi THẬT SỰ có nội dung. `destination-over` vẽ màu nền XUỐNG DƯỚI phần đã
+            // vẽ (không đè lên), nên không cần drawImage lần hai. Cần lấp vì toDataURL('jpeg') không
+            // có kênh alpha: vùng trong suốt quanh nét vẽ sẽ tự hoá ĐEN nếu để nguyên.
+            // Màu nền lấy từ --c-surface đang áp — cùng nguồn sự thật mà src/lib/theme.ts dùng cho
+            // <meta name="theme-color">, không tự chế bảng màu thứ hai.
+            if (coNoiDung) {
+              ctx.globalCompositeOperation = 'destination-over'
+              ctx.fillStyle =
+                getComputedStyle(document.documentElement).getPropertyValue('--c-surface').trim() ||
+                (resolveTheme() === 'dark' ? '#14162c' : '#ffffff')
+              ctx.fillRect(0, 0, 480, 360)
+              ctx.globalCompositeOperation = 'source-over'
+            }
             // Trích văn bản NGAY TRƯỚC KHI workspaceHienTai.forceStop() chạy (mấy dòng dưới) — store
             // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Không
             // dùng `boSuong.store` (state React) — nó có thể null lúc unmount xảy ra sớm hơn lượt
@@ -453,9 +475,14 @@ export function EdgelessBoard({
               // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng
               // lượt ghi ảnh xem trước hay thao tác quay lại danh sách của người dùng.
             }
+            // Bảng trống truyền CHUỖI RỖNG chứ không phải ảnh ô-màu-phẳng: boardMeta.ts hiểu đó là
+            // "giữ nguyên ảnh cũ", nhờ vậy thẻ bảng chưa vẽ gì vẫn hiện icon chuyên khoa thay vì một
+            // ô đặc. Vẫn GỌI (không bỏ qua) vì lượt gọi này còn gánh bump capNhatLuc + backfill
+            // chuyenKhoa/tags/noiDungTimKiem — bỏ qua là mất luôn mấy việc đó (đã thử và vỡ 3 ca
+            // kiểm trong edgeless-board-mount.spec.ts).
             void capNhatAnhXemTruoc(
               boardId,
-              nho.toDataURL('image/jpeg', 0.6),
+              coNoiDung ? nho.toDataURL('image/jpeg', 0.6) : '',
               coThayDoiNoiDung,
               noiDungTimKiemMoi,
             )

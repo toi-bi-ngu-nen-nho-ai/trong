@@ -12235,17 +12235,34 @@ export default function App() {
             // Đo THẬT bằng getBoundingClientRect() (không suy từ padding/line-height, quá nhiều lớp
             // để tính tay cho đúng): logo "Bs Trọng" mới có tỉ lệ rất ngang (1106×225 ≈ 4.9:1), nên
             // kích thước bị RÀNG BUỘC bởi paddingRight:180 chừa cho cụm nút — ở khung hẹp nhất
-            // (375px, iPhone SE) chỉ còn ~175px bề ngang, ép chiều cao logo xuống h-8 (32px) để
-            // không chồng lên cụm nút. Tâm logo = pt-2 (8px) + nửa chiều cao logo (32/2=16px) = y=24
-            // khi --safe-top=0. pb-4 KHÔNG cộng vào — align-items:center canh giữa trong content-box,
-            // mà content-box cao đúng bằng item cao nhất khi chỉ có một item, nên padding-bottom
-            // không ăn vào phép tính tâm. Đo lại xác nhận cy hai bên bằng nhau tuyệt đối, không phải
-            // suy diễn. Cụm nút không nằm trong cùng flow với header nên mốc neo này độc lập, không
-            // tự động khớp theo — mỗi lần đổi bố cục header (logo/chiều cao) phải đo lại đúng số này.
+            // (375px, iPhone SE) chỉ còn ~175px bề ngang.
+            //
+            // TÂM LOGO Ở MÀN TRANG CHỦ = 38px khi --safe-top=0, cộng từ chính các lớp đang có
+            // (HomeScreen, chỗ render icons.logo):
+            //     pt-2 của .scroll-ios (8) + pt-2 của div header (8) + translate-y-2 của span (8)
+            //     → mép trên logo y=24;  logo h-7 (28px) → tâm = 24 + 14 = 38.
+            // Con số cũ ở đây là 24, tính theo giả định logo cao h-8 (32px) và KHÔNG có
+            // translate-y-2. Cả hai giả định đó đã lỗi thời: logo hiện là h-7 và span bọc nó CÓ
+            // translate-y-2. Hậu quả đo được thật (2026-08-26, người dùng báo): cụm nút nằm CAO HƠN
+            // logo đúng 14px — nhìn như một hàng đầu trang nhưng lệch hẳn. Đã đo lại bằng
+            // getBoundingClientRect() ở cả 375px và 390px: logo top=24 cao=28 tâm=38 ở cả hai, tức
+            // hằng số này ổn định theo bề ngang (h-7 khoá chiều cao, w-auto chỉ co bề ngang).
+            //
+            // Vì sao tách riêng theo màn: logo "Bs Trọng" chỉ có ở HomeScreen. Màn "specialty" dùng
+            // header khác hẳn (nút "Quay lại trang chủ", paddingTop 21) nên mốc căn của nó khác —
+            // GIỮ NGUYÊN 24 cho màn đó vì môi trường kiểm hiện tại không mở được màn specialty để đo
+            // thật, và không ship một con số chỉ suy từ đọc code. Ai đo được thì sửa nốt.
+            //
+            // Cụm nút không nằm cùng flow với header nên mốc neo này độc lập, không tự khớp theo —
+            // mỗi lần đổi bố cục header (chiều cao logo, padding, translate) PHẢI ĐO LẠI số này.
             // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
             // trim, header bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG MỘT LƯỢNG
             // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
-            style={{ top: "calc(var(--safe-top-trim) + 24px)", right: 18, transform: "translateY(-50%)" }}
+            style={{
+              top: `calc(var(--safe-top-trim) + ${screen === "home" ? 38 : 24}px)`,
+              right: 18,
+              transform: "translateY(-50%)",
+            }}
           >
             {screen === "home" && <ThemeToggle />}
             <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />

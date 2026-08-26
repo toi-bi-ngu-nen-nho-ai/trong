@@ -62,7 +62,17 @@ export function capNhatAnhXemTruoc(
     if (!hienCo) return
     await idbPut(IDB_STORES.boards, {
       ...hienCo,
-      anhXemTruoc,
+      // Chuỗi RỖNG = "bảng không có gì để chụp, đừng đụng vào ảnh cũ" (xem EdgelessBoard.tsx). Cần
+      // một quy ước như vậy vì lượt gọi này KHÔNG được phép bỏ qua khi bảng trống: nó còn gánh việc
+      // bump capNhatLuc và backfill chuyenKhoa/tags/noiDungTimKiem cho bản ghi cũ.
+      // Vì sao KHÔNG ghi đè: bảng trống chụp ra một ô MÀU PHẲNG (canvas trong suốt, xuất JPEG thành
+      // một mảng đặc màu nền) — ghi đè là thay icon chuyên khoa đang hiện đẹp bằng một ô đặc vô
+      // nghĩa, và hỏng vĩnh viễn vì lần sau mở lại vẫn trống nên vẫn ghi đè tiếp (lỗi thật
+      // 2026-08-26: thẻ bảng mới hoá ô xanh đen trên máy người dùng, đo được ảnh 480×360 chỉ có
+      // ĐÚNG MỘT màu rgb(20,22,43) = --c-surface bản tối).
+      // Giữ ảnh CŨ chứ không xoá: một lượt mở-rồi-thoát-ngay có thể bắt được canvas chưa kịp vẽ,
+      // xoá thì mất trắng ảnh đúng của bảng có nội dung — giữ ảnh hơi cũ ít hại hơn nhiều.
+      anhXemTruoc: anhXemTruoc || hienCo.anhXemTruoc,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
       chuyenKhoa: hienCo.chuyenKhoa ?? SPECIALTIES[0].id,
       tags: hienCo.tags ?? [],
