@@ -11180,7 +11180,13 @@ function DungThuocScreen({
         } catch {
           // Không đọc được thì coi như chưa thấy — thà báo thừa một lần còn hơn không báo lần nào.
         }
-        if (!seen) {
+        // Không báo nếu gợi ý "Tìm" (showTabHint, khai báo bên dưới trong cùng component — closure
+        // đọc đúng giá trị vì effect này chạy SAU khi cả hàm component đã dựng xong) đang hiện: hai
+        // banner một-lần giống hệt khuôn dạng (fade-in, primarySoft, nút "Đã hiểu") đứng liền kề nhau
+        // sẽ trông như một banner bị lặp. KHÔNG đánh dấu "đã thấy" trong ca này — để lần tự sắp lại
+        // TIẾP THEO (sau TAB_ORDER_REFRESH_MS) còn cơ hội báo, thay vì mất vĩnh viễn chỉ vì trùng thời
+        // điểm với gợi ý Tìm (/impeccable critique 2026-08-26 lượt 2, P3).
+        if (!seen && !showTabHint) {
           try {
             localStorage.setItem(TAB_REORDER_HINT_KEY, "1")
           } catch {
