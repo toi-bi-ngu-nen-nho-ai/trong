@@ -697,6 +697,43 @@ export function DanhSachBang({
     return () => clearTimeout(id)
   }, [dungTuBang, onHieuUngXong])
 
+  // Đóng menu "⋯"/panel "Chuyên khoa,tag" khi CHẠM/BẤM ra ngoài, hoặc bấm Escape — hai popover này
+  // là <div> thường, không tự có hành vi "rời khỏi là đóng" như <input> (ô đổi tên NGAY DƯỚI, xem
+  // dangSuaTenId, đã có blur-để-lưu + Escape-để-huỷ SẴN vì nó là control gốc trình duyệt). Thiếu
+  // gần một năm không ai để ý vì mọi lượt kiểm/test tay của tính năng này đều làm trên iPhone, luôn
+  // bấm ĐÚNG mục menu muốn chọn — không ai từng bấm RA NGOÀI để xem điều gì xảy ra. Trên PC (chuột)
+  // và iPad (có trackpad qua Magic Keyboard, hoặc chỉ đơn giản chạm ra chỗ khác trên màn lớn), bấm ra
+  // ngoài để đóng popover là phản xạ phổ biến nhất — thiếu nó, menu "⋯" bấm mở xong rồi bấm sang việc
+  // khác sẽ ĐỨNG NGUYÊN, nổi lơ lửng đè lên thẻ khác cho tới khi tự tay bấm lại đúng "⋯" đó lần nữa
+  // (phản hồi thật 2026-08-27: "chỉnh tương thích trên iPhone mà quên PC/iPad", dẫn đúng cách ô đổi
+  // tên đã tương thích nhiều thiết bị để áp dụng lại ở đây).
+  // `pointerdown` (không phải `mousedown`) — cùng họ Pointer Events mà .the-bang-nghieng-con-tro
+  // (onPointerMove/onPointerLeave) đã dùng trong file này, bắt ĐỦ cả chuột/bút/chạm trong một API
+  // duy nhất, không cần một nhánh `touchstart` riêng cho di động.
+  useEffect(() => {
+    if (!dangMoMenuId && !dangSuaTagId) return
+    const dongNeuBenNgoai = (e: PointerEvent) => {
+      const target = e.target as Element | null
+      // Bấm vào chính nút "⋯"/"Chuyên khoa,tag" (mở/đóng bảng khác) hoặc vào TRONG panel đang mở
+      // (một mục menu, select, ô nhập tag...) — để đúng onClick của các phần tử đó tự quyết định,
+      // không chặn/giật trước.
+      if (target?.closest('.mind-menu-bang, [data-testid^="menu-bang-"], [data-testid^="sua-tag-"]')) return
+      setDangMoMenuId(null)
+      setDangSuaTagId(null)
+    }
+    const dongNeuEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setDangMoMenuId(null)
+      setDangSuaTagId(null)
+    }
+    document.addEventListener('pointerdown', dongNeuBenNgoai)
+    document.addEventListener('keydown', dongNeuEscape)
+    return () => {
+      document.removeEventListener('pointerdown', dongNeuBenNgoai)
+      document.removeEventListener('keydown', dongNeuEscape)
+    }
+  }, [dangMoMenuId, dangSuaTagId])
+
   // Chưa nạp xong lần đầu — không hiện gì (kể cả thẻ "+"), tránh nháy "rỗng" giả trước khi
   // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
   if (loading) return null
