@@ -270,14 +270,27 @@ function TheBang({
           <div
             style={{
               position: 'absolute',
-              inset: 0,
+              // Ảnh thật (anhXemTruoc) chừa mép giấy 6px đều bốn phía — ẢNH KHÔNG PHỦ KÍN sát viền
+              // thẻ như trước. Lượt trước ảnh tràn hết inset:0 xoá mất toàn bộ chất liệu "giấy ghim"
+              // của .mind-note-card ngay khi bảng có nội dung: nền canvas tối gần trùng nền app khiến
+              // thẻ đọc thành một khối màu phẳng nổi trơ trên nền — đúng cảm giác "ảnh placeholder AI"
+              // generic, không còn là MỘT TẤM ẢNH ĐƯỢC GHIM LÊN GIẤY THẬT (phản hồi thật 2026-08-27,
+              // taste review). Giấy giờ LUÔN lộ ra như đường viền Polaroid, bất kể bảng trống hay có
+              // nội dung — nhất quán với TheTrong (bảng trống, vẫn tràn kín vì đó là icon trang trí
+              // của CHÍNH tờ giấy, không phải một tấm ảnh dán lên trên).
+              inset: bang.anhXemTruoc ? 6 : 0,
               overflow: 'hidden',
               borderRadius: 2,
               color: 'var(--c-text-muted, #6b6e96)',
+              boxShadow: bang.anhXemTruoc ? 'inset 0 0 0 1px rgba(0,0,0,0.08)' : undefined,
             }}
           >
             {bang.anhXemTruoc ? (
-              <img src={bang.anhXemTruoc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img
+                src={bang.anhXemTruoc}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
             ) : (
               <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
             )}
@@ -303,6 +316,21 @@ function TheBang({
               filter: 'drop-shadow(0 1.5px 2px rgba(0,0,0,0.35))',
             }}
           >
+            {/* Đầu ghim đổ GRADIENT khối cầu (sáng trên-trái mờ dần xuống tối dưới-phải) thay vì tô
+                PHẲNG một màu + dán một elip trắng làm gloss — công thức "tô phẳng + một highlight
+                lệch góc" đọc thành sticker 3D giả rẻ tiền, kiểu icon AI-generated hàng loạt, chứ
+                không phải ánh sáng thật đổ lên một viên bi kim loại/nhựa (phản hồi thật 2026-08-27,
+                taste review — so với ảnh tham chiếu ghim thật, mặt ghim có SẮC ĐỘ chuyển dần theo
+                khối cầu, không phải một mảng highlight rời rạc). id gradient khoá theo bang.id vì
+                <linearGradient> cần id DUY NHẤT trong toàn trang khi nhiều thẻ cùng render. Elip
+                gloss vẫn giữ lại (không xoá hẳn — vật liệu bóng thật SỰ có phản chiếu điểm) nhưng thu
+                nhỏ + giảm độ đục để thành một điểm sáng phụ, không còn là chi tiết áp đảo cả đầu ghim. */}
+            <defs>
+              <linearGradient id={`ghim-grad-${bang.id}`} x1="20%" y1="10%" x2="80%" y2="90%">
+                <stop offset="0%" stopColor={`hsl(${mauOnDinh(bang.id)} var(--chip-s) calc(var(--chip-l) + 12%))`} />
+                <stop offset="100%" stopColor={`hsl(${mauOnDinh(bang.id)} var(--chip-s) calc(var(--chip-l) - 10%))`} />
+              </linearGradient>
+            </defs>
             <path
               d="M12 13.4 L12 19.4"
               stroke={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`}
@@ -310,8 +338,8 @@ function TheBang({
               strokeLinecap="round"
               fill="none"
             />
-            <circle cx="12" cy="8.6" r="6.6" fill={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`} />
-            <ellipse cx="9.6" cy="5.8" rx="2.4" ry="1.5" fill="rgba(255,255,255,0.55)" transform="rotate(-28 9.6 5.8)" />
+            <circle cx="12" cy="8.6" r="6.6" fill={`url(#ghim-grad-${bang.id})`} />
+            <ellipse cx="9.7" cy="6.1" rx="1.5" ry="0.9" fill="rgba(255,255,255,0.4)" transform="rotate(-28 9.7 6.1)" />
           </svg>
         </div>
         {!dangSuaTen && (
@@ -407,7 +435,17 @@ function TheBang({
         // HÀNG TRÊN CÙNG của lưới dài mở panel gần rìa trên, không phải vùng ngón cái thoải mái nhất
         // khi dùng một tay (critique 2026-08-26, minor observation). .mind-sheet thêm hiệu ứng trượt
         // lên nhẹ, nhất quán với các sheet khác của app.
-        <div className="mind-menu-bang mind-sheet" style={{ position: 'absolute', top: 30, right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}>
+        <div
+          // mind-menu-compact: chỉ 3 dòng chữ ngắn (Chuyên khoa/tag, Đổi tên, Xoá) — KHÔNG cần trải
+          // full-bleed như panel "Chuyên khoa/tag" ngay dưới (có select+chip+input, thật sự cần rộng).
+          // Cả hai vốn dùng chung .mind-menu-bang nên trên mobile đều bị media query kéo full-bleed
+          // như nhau, khiến menu thưa nội dung này đọc thành một menu quá khổ so với "các menu còn
+          // lại" của app (phản hồi thật 2026-08-27, taste review). Modifier này cho index.css tách
+          // riêng: vẫn ghim đáy màn hình trong tầm ngón cái (lý do gốc của bottom-sheet, giữ nguyên
+          // critique 2026-08-26), chỉ bỏ ép trải hết bề ngang.
+          className="mind-menu-bang mind-menu-compact mind-sheet"
+          style={{ position: 'absolute', top: 30, right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
+        >
           {/* Vùng chạm 44px tối thiểu (display:flex+minHeight, không phải padding trần) + khoảng
               cách/đường phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành
               động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24).
@@ -1104,7 +1142,12 @@ export function DanhSachBang({
           role="status"
           aria-live="polite"
           className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40"
-          style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h) + 18px)', background: 'rgba(15,23,42,.94)' }}
+          // Thiếu var(--nav-pad-bottom, safe-area-inset-bottom) — ĐÚNG lỗi đã vá cho .mind-menu-bang
+          // (xem comment index.css tại rule đó, 2026-08-26: chỉ cộng --nav-body-h khiến panel đè lên
+          // safe-area thanh nav thật trên iPhone có notch/Face ID, không phát hiện ra trên giả lập vì
+          // --safe-bottom=0 ở đó) nhưng chưa lan sang toast này — dải "Hoàn tác" không nằm SÁT bottom
+          // nav như ý đồ, mà đè/lệch xuống dưới nó (phản hồi thật 2026-08-27, taste review).
+          style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px)', background: 'rgba(15,23,42,.94)' }}
         >
           <span className="flex-1 text-[12.5px] text-white leading-snug">Đã xoá "{vuaXoa.ten}"</span>
           <button

@@ -339,10 +339,18 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
           expect(document.querySelector('editor-host')).not.toBeNull()
         })
       })
+      // Nút xuất giờ nằm SAU nút "⋯" (gộp PNG/PDF vào một menu, xem EdgelessBoard.tsx) — đợi trigger
+      // trước, bấm mở menu, rồi mới thấy "xuat-png" trong DOM.
       await act(async () => {
         await vi.waitFor(() => {
-          expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+          expect(container.querySelector('[data-testid="mo-menu-xuat"]')).not.toBeNull()
         })
+      })
+      await act(async () => {
+        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
       })
 
       await act(async () => {
@@ -371,8 +379,14 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       })
       await act(async () => {
         await vi.waitFor(() => {
-          expect(container.querySelector('[data-testid="xuat-pdf"]')).not.toBeNull()
+          expect(container.querySelector('[data-testid="mo-menu-xuat"]')).not.toBeNull()
         })
+      })
+      await act(async () => {
+        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(container.querySelector('[data-testid="xuat-pdf"]')).not.toBeNull()
       })
 
       await act(async () => {
@@ -418,8 +432,14 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       })
       await act(async () => {
         await vi.waitFor(() => {
-          expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+          expect(container.querySelector('[data-testid="mo-menu-xuat"]')).not.toBeNull()
         })
+      })
+      await act(async () => {
+        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
       })
 
       const eh = document.querySelector('editor-host') as unknown as {
@@ -445,6 +465,14 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
         expect(goiExport).toHaveBeenCalledTimes(1)
       })
 
+      // Bấm mục menu tự đóng menu (đúng hành vi menu "⋯" khác trong app, xem DanhSachBang.tsx) —
+      // mở lại trước lượt bấm thứ hai.
+      await act(async () => {
+        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
+      })
+      await vi.waitFor(() => {
+        expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
+      })
       await act(async () => {
         ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
       })

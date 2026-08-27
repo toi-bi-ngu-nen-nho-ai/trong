@@ -921,13 +921,30 @@ html.theme-shift * {
    ID (~34px), dù đo đúng trên môi trường giả lập không có safe-area (--safe-bottom=0) nên không phát
    hiện ra lúc code. Chiều cao THẬT của thanh nav = --nav-body-h + --nav-pad-bottom. */
 @media (max-width: 640px) {
-  .mind-menu-bang {
+  .mind-menu-bang:not(.mind-menu-compact) {
     position: fixed !important;
     top: auto !important;
     left: 12px !important;
     right: 12px !important;
     bottom: calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px) !important;
     width: auto !important;
+  }
+
+  /* .mind-menu-compact (menu "⋯" của DanhSachBang.tsx: chỉ 3 dòng chữ ngắn) — GIỮ vị trí ghim đáy
+     màn hình trong tầm ngón cái (lý do gốc của bottom-sheet, critique 2026-08-26) nhưng KHÔNG ép
+     trải full-bleed left/right:12px như panel chuyên khoa/tag (đủ nội dung để cần bề rộng đó). Neo
+     bên PHẢI (khớp nút "⋯" luôn ở góc phải mỗi thẻ) và co theo nội dung bằng width:max-content —
+     kỹ thuật ĐÃ DÙNG đúng cho bản desktop của chính menu này (xem inline style DanhSachBang.tsx),
+     không mixed với minWidth cố định nên không lặp lại lỗi ngắt dòng đã vá 2026-08-26 (xem comment
+     tại JSX: minWidth cố định từng đè lên width:auto!important, ép menu hẹp hơn nội dung thật). */
+  .mind-menu-bang.mind-menu-compact {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    right: 12px !important;
+    bottom: calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px) !important;
+    width: max-content !important;
+    max-width: calc(100vw - 24px);
   }
 }
 

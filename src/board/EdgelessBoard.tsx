@@ -303,6 +303,12 @@ export function EdgelessBoard({
   // ẩn — giữ đơn giản cho một tính năng phụ, và "ẩn khi bấm xuất lại" vẫn cho người dùng lối thoát
   // rõ ràng khỏi thông báo lỗi.
   const [loiXuat, setLoiXuat] = useState<string | null>(null)
+  // Hai nút tròn PNG/PDF luôn nổi trên canvas từng đọc thành hai FAB rời rạc, không gắn với hành
+  // động nào người dùng đang làm — cảm giác "chèn thêm tính năng" hơn là một phần tự nhiên của màn
+  // hình (phản hồi thật 2026-08-27, taste review: "quá AI"). Gộp lại thành MỘT nút "⋯" mở menu, cùng
+  // mẫu `.mind-menu-bang`/`.mind-menu-compact` đã dùng cho menu thẻ bảng (DanhSachBang.tsx) — nhất
+  // quán ngôn ngữ "chấm ba lần → menu gọn" trong toàn Mindmap thay vì mỗi màn tự bịa một kiểu chrome.
+  const [dangMoMenuXuat, setDangMoMenuXuat] = useState(false)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -595,41 +601,19 @@ export function EdgelessBoard({
       {boSuong && (
         // Chỉ hiện khi `boSuong` đã có (bảng mở xong, `store`/`std` đã sống) — bấm xuất lúc còn
         // "Đang mở bảng…" hay lúc lỗi thì không có gì để xuất. `zIndex: 20` đứng trên băng cảnh báo
-        // "không lưu" (`z-10` ở trên) để hai nút này luôn bấm được kể cả khi băng đó đang hiện.
-        // 44×44 — vùng chạm tối thiểu theo chuẩn (review lượt 1, phát hiện #1; bản đầu 40×40 do brief
-        // viết sai kích thước).
-        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 20, display: 'flex', gap: 6 }}>
+        // "không lưu" (`z-10` ở trên) để nút này luôn bấm được kể cả khi băng đó đang hiện.
+        // MỘT nút "⋯" 44×44 thay vì hai FAB PNG/PDF luôn nổi — xem chú thích tại định nghĩa
+        // `dangMoMenuXuat`. Menu dùng lại nguyên `.mind-menu-bang.mind-menu-compact.mind-sheet` của
+        // DanhSachBang.tsx (index.css) nên tự ghim đáy màn hình trong tầm ngón cái ở mobile, co theo
+        // nội dung — không cần viết lại logic định vị responsive riêng cho màn này.
+        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 20 }}>
           <button
             type="button"
-            data-testid="xuat-png"
-            aria-label="Xuất bảng thành PNG"
-            onClick={() => bamXuat('png')}
-            className="mind-focus-ring"
-            // Trước đây shadow rgba(0,0,0,.2) trần — chưa khai báo trong DESIGN.md (detector
-            // `design-system-color` bắt đúng dòng này) và không có glow ở dark mode như mọi lớp nổi
-            // khác trong app (--c-shadow/--c-shadow-glow, "Ethereal Glass", Floating-Layer-Only Rule).
-            // Đổi sang cặp token đó + viền mực magenta nhạt (--c-accent-2) để hai nút này thuộc về
-            // đúng bộ nhận diện Mindmap thay vì FAB trắng chung chung mọi app khác đều có (critique
-            // 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu"). Cỡ chữ 10→11 vì detector
-            // đo được 10px dưới ngưỡng đọc được tối thiểu.
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
-              background: 'var(--c-surface, #fff)',
-              boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            PNG
-          </button>
-          <button
-            type="button"
-            data-testid="xuat-pdf"
-            aria-label="Xuất bảng thành PDF"
-            onClick={() => bamXuat('pdf')}
+            data-testid="mo-menu-xuat"
+            aria-label="Xuất bảng"
+            aria-haspopup="menu"
+            aria-expanded={dangMoMenuXuat}
+            onClick={() => setDangMoMenuXuat((v) => !v)}
             className="mind-focus-ring"
             style={{
               width: 44,
@@ -638,12 +622,44 @@ export function EdgelessBoard({
               border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
               background: 'var(--c-surface, #fff)',
               boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
-              fontSize: 11,
-              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            PDF
+            ⋯
           </button>
+          {dangMoMenuXuat && (
+            <div
+              className="mind-menu-bang mind-menu-compact mind-sheet"
+              style={{ position: 'absolute', top: 50, right: 0, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
+            >
+              <button
+                type="button"
+                data-testid="xuat-png"
+                onClick={() => {
+                  bamXuat('png')
+                  setDangMoMenuXuat(false)
+                }}
+                className="mind-focus-ring"
+                style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
+              >
+                Xuất PNG
+              </button>
+              <button
+                type="button"
+                data-testid="xuat-pdf"
+                onClick={() => {
+                  bamXuat('pdf')
+                  setDangMoMenuXuat(false)
+                }}
+                className="mind-focus-ring"
+                style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
+              >
+                Xuất PDF
+              </button>
+            </div>
+          )}
         </div>
       )}
       {dangMo && !loi && (

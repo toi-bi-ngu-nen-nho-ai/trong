@@ -346,9 +346,21 @@ export function BoardGallery({
               border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
               background: 'var(--c-surface, #fff)',
               boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            ←
+            {/* Ký tự Unicode "←" trần đọc như một placeholder chưa hoàn thiện — chữ hệ thống,
+                không khớp nét/độ dày với BẤT KỲ icon nào khác trong app, kể cả icons.back của
+                App.tsx (chevron-left SVG 24×24, strokeWidth 2, dùng ở MỌI nút quay lại khác của
+                app) — đây là chỗ DUY NHẤT còn dùng chữ thay vì icon (phản hồi thật 2026-08-27,
+                taste review: "quá AI"). icons.back là hàm PRIVATE trong App.tsx (không export,
+                xem chú thích component gốc ConfirmIconButton cùng file) nên chép lại đúng path đó
+                tại đây thay vì import — cùng path nghĩa là cùng icon, không phải một icon mới. */}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
         </div>
       )}
