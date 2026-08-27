@@ -272,6 +272,7 @@ export function BoardGallery({
             boardId={openBoardId}
             onReady={() => setDangChoCanvas(false)}
             mauNhanDien={openOrigin?.mauNhanDien}
+            chuyenKhoaBang={openOrigin?.chuyenKhoa}
           />
           {/* Lớp phủ ảnh xem trước của đúng thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho
               tới khi CẢ HAI đều xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ

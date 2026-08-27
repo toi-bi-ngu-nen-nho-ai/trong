@@ -22,6 +22,7 @@
 import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
 import { batLopCssVendor } from './lop-css-vendor'
+import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 
 // `React.lazy` NHỚ VĨNH VIỄN kết quả lượt gọi factory đầu tiên — kể cả một promise BỊ TỪ CHỐI.
 // Nghĩa là bấm "Thử lại" trên cùng một đối tượng lazy sẽ ném lại đúng lỗi cũ mà không hề chạm
@@ -32,6 +33,7 @@ type PropsBang = {
   boardId: string
   onReady?: () => void
   mauNhanDien?: number
+  chuyenKhoaBang?: string
 }
 const kho = new Map<number, ComponentType<PropsBang>>()
 function layBang(lan: number): ComponentType<PropsBang> {
@@ -100,16 +102,16 @@ export class EdgelessBoard extends Component<PropsBang, State> {
     return (
       <Suspense
         fallback={
-          // Cùng .mind-loading-ink (giọt mực loang) với màn "Đang mở bảng…" của EdgelessBoard.tsx
-          // NGAY SAU đây trong cùng một thao tác mở bảng — trước đây hai màn chờ nối tiếp nhau đọc
-          // như hai UI khác nhau (chữ xám tĩnh → giọt mực có thương hiệu), đúng lúc bước vào "phòng
-          // thư giãn" của app (critique 2026-08-26 P2, persona Casey: mạng bệnh viện chậm dễ đọc
-          // nhầm màn tĩnh là app treo).
+          // Cùng VeChuyenKhoaDangTai (nét vẽ icon chuyên khoa) với màn "Đang mở bảng…" của
+          // EdgelessBoard.tsx NGAY SAU đây trong cùng một thao tác mở bảng — trước đây hai màn chờ
+          // nối tiếp nhau đọc như hai UI khác nhau (chữ xám tĩnh → giọt mực có thương hiệu), đúng lúc
+          // bước vào "phòng thư giãn" của app (critique 2026-08-26 P2, persona Casey: mạng bệnh viện
+          // chậm dễ đọc nhầm màn tĩnh là app treo).
           <div
             className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
             style={{ color: 'var(--c-text-muted, #6b6e96)' }}
           >
-            <div className="mind-loading-ink" aria-hidden="true" />
+            <VeChuyenKhoaDangTai khoa={this.props.chuyenKhoaBang} mauNhanDien={this.props.mauNhanDien} />
             <span>Đang tải bảng vẽ…</span>
           </div>
         }
@@ -118,6 +120,7 @@ export class EdgelessBoard extends Component<PropsBang, State> {
           boardId={this.props.boardId}
           onReady={this.props.onReady}
           mauNhanDien={this.props.mauNhanDien}
+          chuyenKhoaBang={this.props.chuyenKhoaBang}
         />
       </Suspense>
     )

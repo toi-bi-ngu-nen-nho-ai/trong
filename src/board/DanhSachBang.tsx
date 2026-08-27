@@ -40,6 +40,12 @@ export type BoardOpenOrigin = {
   // (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu": continuity vật liệu nối dài từ thẻ
   // sang lúc chờ canvas).
   mauNhanDien?: number
+  // Chuyên khoa của bảng — EdgelessBoard.tsx dùng để VẼ ĐÚNG icon chuyên khoa của CHÍNH bảng đang
+  // mở trong lúc chờ canvas, thay vì một chấm tròn phập phồng vô nghĩa (phản hồi thật 2026-08-27:
+  // "chấm tròn nhìn xàm", icon phải "thay đổi theo người dùng - không cố định lúc tạo"). undefined
+  // khi mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn app) — cùng nhánh dự phòng với
+  // mauNhanDien ngay trên, specialtyIcon() tự rơi về icon mặc định khi thiếu.
+  chuyenKhoa?: string
 }
 
 // Cửa sổ "Hoàn tác" sau khi xoá mềm một bảng — cùng độ dài với XAC_NHAN_XOA_MS (quy ước sẵn có của
@@ -238,6 +244,7 @@ function TheBang({
                   tilt: nghiengOnDinh(bang.id),
                   anhXemTruoc: bang.anhXemTruoc,
                   mauNhanDien: mauOnDinh(bang.id),
+                  chuyenKhoa: bang.chuyenKhoa,
                 }
               : undefined,
           )

@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { apDungViewportChoIOS } from './viewport-ios'
+import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
@@ -218,28 +219,32 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   }
 }
 
-// Phép nhúng canvas THUẦN — không còn tay cầm/imperative handle nào lộ ra ngoài, không còn state
-// nào liên quan tới xuất file. Xuất file (giờ dùng ảnh xem trước đã lưu) sống hẳn ở menu "⋯" của
-// THẺ bảng trong DanhSachBang.tsx, và rename/đổi chuyên khoa cũng vốn đã ở đó từ trước — component
-// này KHÔNG cần biết BoardGallery.tsx làm gì với chrome của nó (đúng tinh thần "file phải nhỏ" ghi
-// ở đầu file). Hai lượt trước từng thêm forwardRef + useImperativeHandle riêng cho việc xuất PNG —
-// bỏ hẳn (không phải giữ lại dead code): không còn nơi nào gọi qua ref nữa (phản hồi thật
-// 2026-08-27, lần 3: "xoá luôn nút ... của đổi tên/chuyên khoa xuất file" ở màn vẽ).
+// Xuất file (giờ dùng ảnh xem trước đã lưu) sống hẳn ở menu "⋯" của THẺ bảng trong
+// DanhSachBang.tsx, và rename/đổi chuyên khoa cũng vốn đã ở đó từ trước — component này KHÔNG cần
+// biết BoardGallery.tsx làm gì với chrome của nó (đúng tinh thần "file phải nhỏ" ghi ở đầu file).
+// Hai lượt trước từng thêm forwardRef + useImperativeHandle riêng cho việc xuất PNG — bỏ hẳn (không
+// phải giữ lại dead code): không còn nơi nào gọi qua ref nữa (phản hồi thật 2026-08-27, lần 3: "xoá
+// luôn nút ... của đổi tên/chuyên khoa xuất file" ở màn vẽ).
 export function EdgelessBoard({
   boardId,
   onReady,
   mauNhanDien,
+  chuyenKhoaBang,
 }: {
   boardId: string
   // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
   // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
   // thời lượng cố định không khớp tốc độ mạng/máy thật.
   onReady?: () => void
-  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô đúng màu giọt mực
-  // loading (--mind-ink-h, index.css) bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn
-  // magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi mở
-  // KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — CSS tự rơi về hue magenta mặc định (327).
+  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô màu icon chuyên
+  // khoa đang vẽ (VeChuyenKhoaDangTai) bằng đúng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì
+  // luôn magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi
+  // mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — rơi về hue magenta mặc định (327).
   mauNhanDien?: number
+  // Chuyên khoa của bảng (BoardOpenOrigin.chuyenKhoa, DanhSachBang.tsx) — VẼ ĐÚNG icon chuyên khoa
+  // của CHÍNH bảng đang mở trong lúc chờ canvas. undefined khi mở KHÔNG qua một thẻ trong lưới —
+  // specialtyIcon() tự rơi về icon "trang giấy" mặc định, không văng lỗi.
+  chuyenKhoaBang?: string
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
@@ -495,17 +500,14 @@ export function EdgelessBoard({
       )}
       {dangMo && !loi && (
         // Thay chữ xám tĩnh cũ (từng là khoảng chờ ~5-7s không tín hiệu duy nhất trong app, critique
-        // 2026-08-25) bằng ink-bloom (.mind-loading-ink, src/index.css) — đọc như canvas đang được vẽ
-        // ra, không phải màn hình đứng yên/hỏng.
+        // 2026-08-25) — rồi thay TIẾP chấm tròn ink-bloom cũ (từng đọc "nhìn xàm", phản hồi thật
+        // 2026-08-27) bằng icon CHUYÊN KHOA của chính bảng đang mở, tự vẽ nét rồi tô đặc dần —
+        // VeChuyenKhoaDangTai ở trên.
         <div
           className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
           style={{ color: 'var(--c-text-muted, #6b6e96)' }}
         >
-          <div
-            className="mind-loading-ink"
-            aria-hidden="true"
-            style={mauNhanDien !== undefined ? ({ '--mind-ink-h': mauNhanDien } as React.CSSProperties) : undefined}
-          />
+          <VeChuyenKhoaDangTai khoa={chuyenKhoaBang} mauNhanDien={mauNhanDien} />
           <span>Đang mở bảng…</span>
         </div>
       )}
