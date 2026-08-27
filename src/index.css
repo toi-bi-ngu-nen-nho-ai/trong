@@ -775,14 +775,25 @@ html.theme-shift * {
   animation: emptyBreathe 2.4s ease-in-out infinite;
 }
 
-/* Ô nạp bảng lúc mở lần đầu — thay chữ xám tĩnh bằng một "giọt mực đang loang" dùng chính màu ink
-   riêng của Mindmap (--c-accent-2), đọc như canvas đang được vẽ ra thay vì màn hình đứng yên/hỏng
-   (critique 2026-08-25, mục "Loading là khoảng chết"). Thuần transform+opacity, không JS mỗi
-   frame — đúng ràng buộc hiệu năng của mặt bằng vật liệu (surface brief Mindmap). LẶP VÔ HẠN nên
-   nằm trong danh sách gate reduced-motion ngay dưới, cùng .empty-breathe. */
-@keyframes inkBloom {
-  0%, 100% { transform: scale(0.85); opacity: 0.35; }
-  50%      { transform: scale(1.15); opacity: 0.75; }
+/* Ô nạp bảng lúc mở lần đầu — "giọt mực đang loang" dùng chính màu ink riêng của Mindmap
+   (--c-accent-2), đọc như canvas đang được vẽ ra thay vì màn hình đứng yên/hỏng (critique
+   2026-08-25, mục "Loading là khoảng chết"). Bản ĐẦU (inkBloom) phập phồng tại chỗ — co lại rồi
+   phồng lên rồi co lại, đối xứng hai chiều, không có HƯỚNG. Bản NÀY (inkRise, 2026-08-27, phản hồi
+   thật: "người bấm đang thấy cảm giác hướng tới một tương lai tốt hơn") đổi thành một hành trình MỘT
+   CHIỀU lặp lại — mỗi vòng, một giọt mực dâng lên, nở to, sáng dần rồi tan vào phía trên, như ánh
+   sáng/bong bóng nổi lên mặt nước, không phải nhịp thở lo âu tại chỗ. Hai lớp (::before/::after)
+   LỆCH PHA nhau (0.9s trên chu kỳ 1.9s) tạo cảm giác từng đợt mực nối tiếp nhau dâng lên, thay vì
+   một nhịp đơn độc — "có gì đó đang liên tục được xây lên", đúng tinh thần "hướng tới", không phải
+   một hiệu ứng ngẫu nhiên chọn cho vui. cubic-bezier(0.16,1,0.3,1): đường giảm tốc tự nhiên của một
+   cú ĐẾN NƠI tự tin (đúng gợi ý animate.md), không phải easing đối xứng ease-in-out cũ vốn không có
+   điểm bắt đầu/kết thúc rõ ràng. Vẫn thuần transform+opacity(+gradient tĩnh), không JS mỗi frame —
+   đúng ràng buộc hiệu năng của mặt bằng vật liệu (surface brief Mindmap). LẶP VÔ HẠN nên ::before/
+   ::after PHẢI có mặt riêng trong danh sách gate reduced-motion ngay dưới — pseudo-element không kế
+   thừa animation-duration từ selector gốc .mind-loading-ink. */
+@keyframes inkRise {
+  0%   { transform: translateY(9px) scale(0.7); opacity: 0.18; }
+  50%  { transform: translateY(-2px) scale(1.18); opacity: 0.85; }
+  100% { transform: translateY(-11px) scale(0.92); opacity: 0; }
 }
 /* --mind-ink-h: mặc định ~327° (hue của --c-accent-2, xem comment mauOnDinh trong DanhSachBang.tsx)
    — EdgelessBoard.tsx GHI ĐÈ biến này bằng đúng hue nhận diện của bảng đang mở (mauOnDinh(boardId))
@@ -791,18 +802,29 @@ html.theme-shift * {
    2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). Dùng hsl()+--chip-s/--chip-l (cùng cặp token
    mauOnDinh() dùng cho chấm màu trên thẻ, tự đổi độ bão hoà/độ sáng theo theme) thay vì rgba(--c-
    accent-2-rgb) cố định — nhánh mặc định (không có hue riêng) vẫn ra đúng magenta cũ vì 327° là hue
-   thật của --c-accent-2. */
+   thật của --c-accent-2. Custom property KẾ THỪA được vào ::before/::after bên dưới (chuẩn CSS,
+   không phải hành vi riêng), nên không cần lặp lại khai báo đó ở từng pseudo-element. */
 .mind-loading-ink {
+  position: relative;
   width: 40px;
   height: 40px;
+}
+.mind-loading-ink::before,
+.mind-loading-ink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    hsl(var(--mind-ink-h, 327) var(--chip-s) var(--chip-l) / 0.55) 0%,
-    hsl(var(--mind-ink-h, 327) var(--chip-s) var(--chip-l) / 0.08) 70%,
+    hsl(var(--mind-ink-h, 327) var(--chip-s) var(--chip-l) / 0.7) 0%,
+    hsl(var(--mind-ink-h, 327) var(--chip-s) var(--chip-l) / 0.1) 70%,
     transparent 100%
   );
-  animation: inkBloom 1.6s ease-in-out infinite;
+  animation: inkRise 1.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+.mind-loading-ink::after {
+  animation-delay: 0.9s;
 }
 
 /* LỚP C — nghiêng nhẹ theo vị trí con trỏ khi hover, chỉ bật với chuột thật (không giả trên cảm
@@ -974,6 +996,24 @@ html.theme-shift * {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transform: none !important;
+  }
+
+  /* inkRise KẾT THÚC ở opacity:0 (để lặp sạch — mỗi vòng là một giọt mới, xem chú thích tại
+     @keyframes) — snap-tới-khung-hình-cuối kiểu ba dòng ở trên sẽ để lại một ô TRONG SUỐT, tức
+     hiệu ứng loading BIẾN MẤT hẳn dưới reduced-motion thay vì đứng yên rõ ràng (vi phạm thẳng
+     "feedback xác nhận hành động phải vẫn đọc được", animate.md). Ép opacity tĩnh dương ở đây thay
+     vì để animation tự settle; ::after (lớp lệch pha) tắt hẳn — MỘT chấm mực đứng yên là đủ báo
+     "đang tải", hai lớp chồng không lệch pha chỉ là cùng một hình vẽ hai lần. */
+  .mind-loading-ink::before,
+  .mind-loading-ink::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+    opacity: 0.6 !important;
+  }
+  .mind-loading-ink::after {
+    display: none;
   }
 }
 
