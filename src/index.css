@@ -45,6 +45,15 @@
      VÀ app chạy toàn màn hình (Safari thường trả 0 vì thanh công cụ đã chiếm chỗ đó). */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* left/right: bằng 0 hầu hết thời gian (chỉ khác 0 thật sự ở landscape trên máy có tai thỏ/Dynamic
+     Island — notch nằm về một cạnh bên thay vì cạnh trên) — nhưng NHỮNG NÚT GÓC MÀN HÌNH đặt sát
+     mép trái/phải (nút "quay lại" của Mindmap, BoardGallery.tsx) vẫn có thể bị viền bo góc VẬT LÝ
+     của màn hình (không phải notch) đè lên nếu không chừa gì cả — đúng lớp lỗi "xén góc" đã vá cho
+     --safe-top/--safe-bottom giờ lan sang trục ngang (phản hồi thật 2026-08-27, lần 3: "cắt xén bên
+     trái", test tay trên iPhone). Thêm hai biến này để DÙNG ĐƯỢC ở bất kỳ nút góc màn hình nào khác
+     sau này, không phải hardcode env() rời rạc từng chỗ. */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   /* Bờ trên trừ bớt một chút so với vùng an toàn thật: --safe-top một mình để chỗ hơi rộng, phần
      đầu trang (tên app, nút chủ đề) nhìn trôi xa khỏi tai thỏ/Dynamic Island hơn cần thiết. Trừ
      12px (đợt chỉnh 2026-08 thứ hai, trước 8px) kéo nội dung lên gần viền máy hơn nữa, vẫn còn dư

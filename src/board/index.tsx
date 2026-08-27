@@ -19,19 +19,9 @@
 // Boundary dưới đây giữ hỏng hóc lại BÊN TRONG tab Mindmap: thanh nav và mọi màn hình khác vẫn
 // dùng được. Nửa còn lại của cách sửa nằm ở src/components/ErrorBoundary.tsx (nút phục hồi gỡ bỏ
 // tham số `screen`).
-import {
-  Component,
-  createRef,
-  lazy,
-  Suspense,
-  type ComponentType,
-  type ErrorInfo,
-  type ReactNode,
-  type RefAttributes,
-} from 'react'
+import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
 import { batLopCssVendor } from './lop-css-vendor'
-import type { EdgelessBoardHandle } from './EdgelessBoard'
 
 // `React.lazy` NHỚ VĨNH VIỄN kết quả lượt gọi factory đầu tiên — kể cả một promise BỊ TỪ CHỐI.
 // Nghĩa là bấm "Thử lại" trên cùng một đối tượng lazy sẽ ném lại đúng lỗi cũ mà không hề chạm
@@ -43,14 +33,8 @@ type PropsBang = {
   onReady?: () => void
   mauNhanDien?: number
 }
-// RefAttributes<EdgelessBoardHandle>: EdgelessBoard.tsx giờ là forwardRef, lộ ra đúng một hành
-// động (`xuatPng`) — BoardGallery.tsx cầm ref NÀY để gọi xuất PNG từ nút "⋯" của CHÍNH NÓ (đứng
-// cạnh nút "quay lại", ngoài vùng vẽ), thay vì màn vẽ tự vẽ menu xuất/đổi tên/đổi chuyên khoa như
-// lượt trước đã hiểu sai (phản hồi thật 2026-08-27, lần 2: "dồn về BoardGallery... màn làm việc
-// mindmap sửa cái đó làm gì").
-type BangComponent = ComponentType<PropsBang & RefAttributes<EdgelessBoardHandle>>
-const kho = new Map<number, BangComponent>()
-function layBang(lan: number): BangComponent {
+const kho = new Map<number, ComponentType<PropsBang>>()
+function layBang(lan: number): ComponentType<PropsBang> {
   const co = kho.get(lan)
   if (co) return co
   // PHẢI đứng trước `import()`: chunk bảng vẽ tiêm ~190 thẻ <style> vào <head> ngay khi nạp, và bộ
@@ -70,17 +54,6 @@ interface State {
 
 export class EdgelessBoard extends Component<PropsBang, State> {
   state: State = { loi: null, lan: 0 }
-  // Ref tới INSTANCE thật (EdgelessBoard.tsx, sau lazy+forwardRef) — React tự gắn lại ref này vào
-  // đúng instance mới mỗi khi Suspense/lazy resolve xong hoặc "Thử lại" dựng lại cây, không cần
-  // logic thủ công nào ở đây.
-  private bangRef = createRef<EdgelessBoardHandle>()
-
-  // Public: BoardGallery.tsx gọi qua `ref` tới CHÍNH class này (`<EdgelessBoard ref={...} />`).
-  // Không tự try/catch ở đây — EdgelessBoard.tsx (bamXuat) đã tự hiện băng lỗi `loiXuat` ngay trên
-  // canvas, đúng nơi người dùng đang nhìn lúc bấm xuất.
-  xuatPng = () => {
-    this.bangRef.current?.xuatPng()
-  }
 
   static getDerivedStateFromError(loi: Error): Partial<State> {
     return { loi }
@@ -142,7 +115,6 @@ export class EdgelessBoard extends Component<PropsBang, State> {
         }
       >
         <Bang
-          ref={this.bangRef}
           boardId={this.props.boardId}
           onReady={this.props.onReady}
           mauNhanDien={this.props.mauNhanDien}

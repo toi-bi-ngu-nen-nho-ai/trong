@@ -11,22 +11,18 @@
 // view extension, tức là qua `viewExtensions` ngay bên dưới. Vì thế bỏ hẳn dòng import đó thay vì
 // giữ một dòng vô tác dụng kèm chú thích sai. Đường đăng ký thật được canh bằng
 // `__tests__/dang-ky-custom-element.spec.ts`.
-import { ExportManager, type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
+import { type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
-import type { RootBlockModel } from '@blocksuite/affine/model'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
-import { Text } from '@blocksuite/store'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { render as litRender } from 'lit'
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { IDB_STORES, idbGetAll } from '../lib/idb'
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { apDungViewportChoIOS } from './viewport-ios'
-import type { BangMeta } from './boardMeta'
 import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
@@ -83,56 +79,14 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
   return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
 }
 
-// Xuất bảng ra PNG qua ExportManager — lớp đã vendored sẵn, đăng ký qua SurfaceViewExtension
-// (di.add(ExportManager, [StdIdentifier]), xem export-manager.ts trong cây vendor), truy xuất bằng
-// std.get(ExportManager). exportPng() không nhận đối số — tự đọc tên file từ store.root.props.title
-// (getter `doc` của ExportManager trả thẳng `std.store`, tức CÙNG store đã truyền cho BlockStdScope
-// ở effect mount bên dưới, nên đặt title lên `store` ở đây là đủ, không cần đi qua std). Đặt lại
-// title thay vì để nguyên: tiêu đề mặc định của workspace (nếu có) không chắc khớp TÊN bảng người
-// dùng thấy trên DanhSachBang.tsx — tên hiển thị chỉ có trong CSDL boards (BangMeta.ten,
-// src/lib/idb.ts), không nằm trong chính nội dung CRDT của bảng.
-// Module-level (không nằm trong EdgelessBoard()) vì không phụ thuộc gì ngoài các tham số truyền
-// vào — không có lý do phải dựng lại hàm này ở mỗi lượt render.
-//
-// CHỈ còn xuất PNG — Xuất PDF đã bị XOÁ HẲN (không phải ẩn UI) theo yêu cầu thật 2026-08-27, nên
-// tham số `dinhDang` cũng bỏ luôn thay vì giữ lại một nhánh 'pdf' không còn nơi nào gọi tới.
-//
-// KHÔNG tự nuốt lỗi ở đây (không try/catch) — để promise reject thẳng ra ngoài. Bên gọi (JSX trong
-// EdgelessBoard()) là nơi có state React để hiện băng lỗi cho người dùng thấy; nuốt lỗi ở một hàm
-// module-level không có tay cầm tới UI chỉ để lại một console.error mà người dùng không bao giờ
-// thấy (review lượt 1, phát hiện #3).
-async function xuatBang(
-  std: BlockStdScope,
-  store: Awaited<ReturnType<typeof taoHoacMoBang>>['store'],
-  boardId: string,
-) {
-  const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
-  const bang = ds.find((b) => b.id === boardId)
-  const tenMoi = bang?.ten ?? 'Bảng chưa đặt tên'
-  if (store.root) {
-    // `store.root` chỉ mang kiểu `BlockModel` chung — `props.title` là trường RIÊNG của
-    // `affine:page` (RootBlockModel), TypeScript không suy được nếu không ép kiểu. ExportManager
-    // vendored làm đúng phép ép này ở export-manager.ts (`rootModel as RootBlockModel`) trước khi
-    // đọc `props.title` để đặt tên file — theo cùng khuôn ở đây.
-    const rootModel = store.root as RootBlockModel
-    // CHỈ gán lại khi giá trị hiện tại thật sự khác — `props.title = new Text(...)` VÔ ĐIỀU KIỆN
-    // là một phép GÁN LẠI PROP KHỐI thật, đi qua yBlock.observe() (sync-controller.ts
-    // `_observeYBlockChanges`) và bắn `store.slots.blockUpdated` với `isLocal: true` — đúng cờ mà
-    // effect mount của EdgelessBoard() lắng nghe để tính `coThayDoiNoiDung`, thứ quyết định
-    // `capNhatLuc` có bump hay không lúc rời bảng (capNhatAnhXemTruoc). Nếu gán vô điều kiện, chỉ
-    // MỞ bảng ra xuất file (không sửa gì) cũng khiến bảng nhảy lên đầu danh sách với nhãn "Vừa
-    // xong" — đúng loại lỗi mà commit ddcf250 đã vá cho một trường hợp khác (mở xem không sửa). So
-    // sánh chuỗi trước khi gán tránh đúng lỗi đó khi bấm xuất NHIỀU LẦN trong cùng một phiên mở
-    // bảng (đo trực tiếp bằng ca kiểm "bấm Xuất PNG hai lần liên tiếp..." trong
-    // edgeless-board-mount.spec.ts); lần xuất ĐẦU TIÊN của một bảng (title CRDT mặc định còn khác
-    // tên hiển thị) vẫn hợp lệ kích hoạt một lần — đó là đồng bộ thật, không phải lỗi.
-    if (rootModel.props.title.toString() !== tenMoi) {
-      rootModel.props.title = new Text(tenMoi)
-    }
-  }
-  const exportManager = std.get(ExportManager)
-  await exportManager.exportPng()
-}
+// Xuất PNG/PDF từng sống ở đây qua ExportManager (BlockStdScope chỉ mount SAU khi mở bảng) — đã bỏ
+// HẲN khỏi màn vẽ này (không phải ẩn UI): tính năng xuất giờ dùng ẢNH XEM TRƯỚC đã lưu sẵn
+// (BangMeta.anhXemTruoc, một JPEG chụp lúc rời bảng gần nhất) và sống trong menu "⋯" của THẺ bảng ở
+// lưới danh sách (DanhSachBang.tsx) — không cần mở bảng, không cần ExportManager/std/store nào ở
+// đây nữa (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của đổi tên/chuyên khoa xuất file" ở
+// màn vẽ, "tính năng xuất file chuyển ra board"). Đánh đổi: ảnh xem trước vốn để làm thumbnail thẻ,
+// không phải bản xuất tươi từ canvas hiện tại — nếu cần đúng bản mới nhất, mở bảng, rời ra (ảnh xem
+// trước tự ghi lại) rồi mới xuất từ menu thẻ.
 
 /**
  * Dựng hoặc mở lại bảng đã lưu. Bền vững qua IndexedDB (mặc định) — nếu không đồng bộ xong trong
@@ -264,32 +218,29 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   }
 }
 
-// API mà BoardGallery.tsx cầm qua ref để gọi Xuất PNG từ CHROME của nó (nút "⋯" cạnh nút "quay
-// lại") — component này (đúng tinh thần "file phải nhỏ" ở đầu file) không tự vẽ menu/rename/đổi
-// chuyên khoa nữa; nó chỉ còn PHÉP NHÚNG canvas + expose đúng một hành động cần tay cầm tới
-// ExportManager (thứ chỉ sống được sau khi std/store đã mount, xem `boSuong`). Lượt trước từng dựng
-// hẳn một menu "⋯" ngay trong màn vẽ này (Xuất PNG + Đổi tên + Chuyên khoa) — SAI Ý: người dùng
-// muốn dồn về CHROME của BoardGallery.tsx (đứng cạnh nút quay lại, ngoài vùng vẽ), không phải chèn
-// thêm UI quản lý bảng vào chính "màn làm việc mindmap" (phản hồi thật 2026-08-27, lần 2).
-export type EdgelessBoardHandle = {
-  xuatPng: () => void
-}
-
-export const EdgelessBoard = forwardRef<
-  EdgelessBoardHandle,
-  {
-    boardId: string
-    // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
-    // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
-    // thời lượng cố định không khớp tốc độ mạng/máy thật.
-    onReady?: () => void
-    // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô đúng màu giọt mực
-    // loading (--mind-ink-h, index.css) bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn
-    // magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi mở
-    // KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — CSS tự rơi về hue magenta mặc định (327).
-    mauNhanDien?: number
-  }
->(function EdgelessBoard({ boardId, onReady, mauNhanDien }, ref) {
+// Phép nhúng canvas THUẦN — không còn tay cầm/imperative handle nào lộ ra ngoài, không còn state
+// nào liên quan tới xuất file. Xuất file (giờ dùng ảnh xem trước đã lưu) sống hẳn ở menu "⋯" của
+// THẺ bảng trong DanhSachBang.tsx, và rename/đổi chuyên khoa cũng vốn đã ở đó từ trước — component
+// này KHÔNG cần biết BoardGallery.tsx làm gì với chrome của nó (đúng tinh thần "file phải nhỏ" ghi
+// ở đầu file). Hai lượt trước từng thêm forwardRef + useImperativeHandle riêng cho việc xuất PNG —
+// bỏ hẳn (không phải giữ lại dead code): không còn nơi nào gọi qua ref nữa (phản hồi thật
+// 2026-08-27, lần 3: "xoá luôn nút ... của đổi tên/chuyên khoa xuất file" ở màn vẽ).
+export function EdgelessBoard({
+  boardId,
+  onReady,
+  mauNhanDien,
+}: {
+  boardId: string
+  // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
+  // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
+  // thời lượng cố định không khớp tốc độ mạng/máy thật.
+  onReady?: () => void
+  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô đúng màu giọt mực
+  // loading (--mind-ink-h, index.css) bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn
+  // magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi mở
+  // KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — CSS tự rơi về hue magenta mặc định (327).
+  mauNhanDien?: number
+}) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
@@ -301,19 +252,6 @@ export const EdgelessBoard = forwardRef<
   // true khi taoHoacMoBang() phải rơi về workspace chỉ-trong-bộ-nhớ (lượt race đồng bộ đầu tiên hết
   // giờ) — quyết định của chủ dự án sau lượt review toàn nhánh: hiện băng cảnh báo thay vì im lặng.
   const [khongLuuDuoc, setKhongLuuDuoc] = useState(false)
-  // Giữ cả `store`/`std` sống sau khi mount xong — cần cho nút "Xuất" (Task 4) gọi ExportManager,
-  // thứ chỉ component này có tay cầm tới (BoardGallery.tsx chỉ biết boardId). null trong lúc đang mở
-  // bảng hoặc lúc lỗi — nút xuất chỉ hiện khi bảng đã mở xong.
-  const [boSuong, setBoSuong] = useState<{
-    store: Awaited<ReturnType<typeof taoHoacMoBang>>['store']
-    std: BlockStdScope
-  } | null>(null)
-  // null khi chưa từng xuất hoặc lần xuất GẦN NHẤT thành công — chỉ khác null trong khoảng thời
-  // gian giữa một lần xuất lỗi và lần xuất kế tiếp (dù thành công hay không): xem chuỗi
-  // .then(() => setLoiXuat(null)).catch(...) ở hai nút "Xuất" bên dưới. Không dùng setTimeout tự
-  // ẩn — giữ đơn giản cho một tính năng phụ, và "ẩn khi bấm xuất lại" vẫn cho người dùng lối thoát
-  // rõ ràng khỏi thông báo lỗi.
-  const [loiXuat, setLoiXuat] = useState<string | null>(null)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -353,7 +291,6 @@ export const EdgelessBoard = forwardRef<
         litRender(std.render(), el)
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
-        setBoSuong({ store, std })
         onReady?.()
 
         // Khối (note, ảnh, đính kèm...) đi qua store.slots.blockUpdated; phần tử canvas thuần
@@ -455,11 +392,10 @@ export const EdgelessBoard = forwardRef<
               ctx.globalCompositeOperation = 'source-over'
             }
             // Trích văn bản NGAY TRƯỚC KHI workspaceHienTai.forceStop() chạy (mấy dòng dưới) — store
-            // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Không
-            // dùng `boSuong.store` (state React) — nó có thể null lúc unmount xảy ra sớm hơn lượt
-            // setBoSuong (xem ca kiểm "unmount ngay khi đang chờ đồng bộ"); tự lấy lại store qua
-            // `workspaceHienTai.getDoc(boardId).getStore(...)` là con đường CHẮC CHẮN sống nếu tới
-            // được đây (chỉ chạy khi canvasGoc đã có nội dung, tức taoHoacMoBang đã resolve xong).
+            // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Tự lấy
+            // lại store qua `workspaceHienTai.getDoc(boardId).getStore(...)` — con đường CHẮC CHẮN
+            // sống nếu tới được đây (chỉ chạy khi canvasGoc đã có nội dung, tức taoHoacMoBang đã
+            // resolve xong), không phụ thuộc bất kỳ state React nào có thể lệch nhịp lúc unmount.
             let noiDungTimKiemMoi: string | undefined
             try {
               const rootHienTai = workspaceHienTai
@@ -524,26 +460,6 @@ export const EdgelessBoard = forwardRef<
   // Class chữ `drt-edgeless-viewport` PHẢI ở lại — nó là thứ `closest()` bên trên tìm, không phải
   // thứ tạo ra kiểu dáng.
   //
-  // Bọc xuatBang() bằng .then/.catch thay vì để onClick tự gọi trần: xuatBang() giờ KHÔNG tự nuốt
-  // lỗi (xem chú thích tại định nghĩa của nó) nên phải có nơi bắt promise reject, và đây là nơi DUY
-  // NHẤT có state React (`loiXuat`) để hiện lỗi cho người dùng thấy (review lượt 1, phát hiện #3).
-  // `.then(() => setLoiXuat(null))` xoá băng lỗi cũ (nếu có) khi lần xuất MỚI thành công — không
-  // dùng setTimeout tự ẩn, giữ đơn giản cho một tính năng phụ.
-  const bamXuat = () => {
-    if (!boSuong) return
-    xuatBang(boSuong.std, boSuong.store, boardId)
-      .then(() => setLoiXuat(null))
-      .catch((loi: unknown) => {
-        console.error('EdgelessBoard: xuất PNG thất bại:', loi)
-        setLoiXuat('Không xuất được bảng — thử lại.')
-      })
-  }
-  // Tay cầm duy nhất lộ ra ngoài (xem EdgelessBoardHandle) — BoardGallery.tsx gọi qua ref để kích
-  // hoạt xuất PNG từ nút "⋯" của CHÍNH NÓ, không cần biết gì về ExportManager/std/store. Băng lỗi
-  // `loiXuat` vẫn hiện NGAY TRÊN canvas này như cũ dù nút bấm giờ ở nơi khác — đúng canvas là nơi
-  // người dùng đang nhìn lúc bấm xuất.
-  useImperativeHandle(ref, () => ({ xuatPng: bamXuat }))
-
   // "Đang mở bảng…" hiện TRONG lớp bọc này (không phải thay thế nó) — lớp bọc phải render ngay từ
   // đầu để giữ cấu trúc DOM ổn định cho `closest()` ở trên, kể cả trước khi Lit gắn vào. Khớp thị
   // giác với dòng "Đang tải bảng vẽ…" của Suspense fallback ở src/board/index.tsx. Trạng thái lỗi
@@ -554,51 +470,21 @@ export const EdgelessBoard = forwardRef<
       className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip"
       data-theme={chuDe}
     >
-      {(khongLuuDuoc || loiXuat) && (
-        // MỘT cột dọc chung cho mọi băng cảnh báo ghim đầu bảng, thay vì mỗi băng tự ghim `top-0`
-        // riêng: trước đây cả hai cùng `absolute top-0 inset-x-0 z-10` với kiểu dáng y hệt nhau nên
-        // khi CẢ HAI cùng bật, băng lỗi xuất (render sau) nằm ĐÈ đúng lên băng "không lưu được" —
-        // giấu mất cảnh báo nghiêm trọng hơn hẳn (mất dữ liệu) sau một lỗi phụ có thể thử lại
-        // (review cuối nhánh, mục 3). Xếp chồng bằng flex column nên không phải đoán chiều cao băng
-        // trên bằng một `top` cứng — cỡ chữ/khoảng đệm đổi thì vẫn tự đúng.
-        <div className="absolute top-0 inset-x-0 z-10 flex flex-col pointer-events-none">
-          {khongLuuDuoc && (
-            // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ
-            // cao một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx
-            // cho các băng cảnh báo lâm sàng khác trong app, để không tạo thêm ngôn ngữ màu mới.
-            // Đứng TRƯỚC băng lỗi xuất trong cột: cảnh báo mất dữ liệu quan trọng hơn, phải ở vị
-            // trí mắt chạm đầu tiên.
-            <div
-              className="px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
-              role="status"
-              aria-live="polite"
-              style={{
-                background: 'var(--c-warn-soft)',
-                borderBottom: '1px solid var(--c-warn-line)',
-                color: 'var(--c-warn-icon)',
-              }}
-            >
-              Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
-            </div>
-          )}
-          {loiXuat && (
-            // CÙNG mẫu hình ảnh/token với băng cảnh báo `khongLuuDuoc` phía trên (review lượt 1,
-            // phát hiện #3) — không dựng component/toast mới, không thêm thư viện.
-            // `pointer-events-none` bỏ đi ở đây so với băng `khongLuuDuoc`: băng đó chỉ mang chữ,
-            // băng này không có gì bên dưới nó cần bấm xuyên qua.
-            <div
-              className="px-3 py-1.5 text-[12px] font-semibold text-center"
-              role="status"
-              aria-live="polite"
-              style={{
-                background: 'var(--c-warn-soft)',
-                borderBottom: '1px solid var(--c-warn-line)',
-                color: 'var(--c-warn-icon)',
-              }}
-            >
-              {loiXuat}
-            </div>
-          )}
+      {khongLuuDuoc && (
+        // Băng cảnh báo mỏng, ghim trên đầu — KHÔNG che phần còn lại của bảng vẽ bên dưới (chỉ cao
+        // một dòng chữ), theo đúng dùng lại token cảnh báo `--c-warn-*` đã dùng ở App.tsx cho các
+        // băng cảnh báo lâm sàng khác trong app, để không tạo thêm ngôn ngữ màu mới.
+        <div
+          className="absolute top-0 inset-x-0 z-10 px-3 py-1.5 text-[12px] font-semibold text-center pointer-events-none"
+          role="status"
+          aria-live="polite"
+          style={{
+            background: 'var(--c-warn-soft)',
+            borderBottom: '1px solid var(--c-warn-line)',
+            color: 'var(--c-warn-icon)',
+          }}
+        >
+          Bảng đang ở chế độ không lưu — nội dung sẽ mất khi tải lại trang.
         </div>
       )}
       {loi && (
@@ -626,4 +512,4 @@ export const EdgelessBoard = forwardRef<
       <div ref={hostRef} className="absolute inset-0" />
     </div>
   )
-})
+}

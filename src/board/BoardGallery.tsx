@@ -5,9 +5,6 @@
 // thật khi người dùng bấm quay lại danh sách, vì D4 đã đảm bảo không mất nội dung.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { SPECIALTIES } from '../data'
-import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
-import type { BangMeta } from './boardMeta'
 import { doiGhiAnhXongNeuCo } from './boardMeta'
 import { DanhSachBang, type BoardOpenOrigin } from './DanhSachBang'
 import { EdgelessBoard } from './index'
@@ -97,63 +94,6 @@ export function BoardGallery({
   // hiện. KHÔNG dùng chung với dangDong (dangDong canh cuộc đua ảnh xem trước, không liên quan
   // animation) — hai mối quan tâm tách biệt dù cùng bật/tắt gần nhau trong thời gian.
   const [vuaDongBang, setVuaDongBang] = useState(false)
-  // Tên/chuyên khoa của bảng ĐANG MỞ — đọc riêng ở đây (KHÔNG qua useIdbCollection như
-  // DanhSachBang.tsx, hook đó không mount khi có bảng đang mở) vì menu "⋯" ở CHÍNH BoardGallery
-  // (cạnh nút "quay lại", KHÔNG phải trong EdgelessBoard.tsx — lượt trước đặt nhầm vào màn vẽ, phản
-  // hồi thật 2026-08-27 lần 2) làm được "Đổi tên"/"Chuyên khoa" ngay khi đang xem bảng. undefined
-  // khi chưa nạp xong hoặc không có bảng nào đang mở.
-  const [tenBangMo, setTenBangMo] = useState<string | undefined>(undefined)
-  const [chuyenKhoaBangMo, setChuyenKhoaBangMo] = useState<string | undefined>(undefined)
-  useEffect(() => {
-    // Đổi bảng (hoặc đóng hẳn) luôn đóng menu "⋯" và mọi ô nhập con của nó — mở bảng khác mà menu
-    // xuất/đổi tên của bảng CŨ còn treo là một trạng thái sai (thao tác sẽ ghi nhầm vào bảng mới).
-    setDangMoMenuXuat(false)
-    setDangSuaTenXuat(false)
-    setDangSuaChuyenKhoaXuat(false)
-    if (!openBoardId) {
-      setTenBangMo(undefined)
-      setChuyenKhoaBangMo(undefined)
-      return
-    }
-    let huy = false
-    idbGetAll<BangMeta>(IDB_STORES.boards).then((ds) => {
-      if (huy) return
-      const b = ds.find((x) => x.id === openBoardId)
-      setTenBangMo(b?.ten)
-      setChuyenKhoaBangMo(b?.chuyenKhoa)
-    })
-    return () => {
-      huy = true
-    }
-  }, [openBoardId])
-  // Đọc-sửa-ghi trực tiếp qua idb.ts — cùng khuôn capNhatAnhXemTruoc() (boardMeta.ts): không có
-  // instance useIdbCollection nào ở component này để gọi update() qua. Cập nhật capNhatLuc cùng lúc
-  // (khớp quy ước onLuuTen/onDoiChuyenKhoa của DanhSachBang.tsx — đổi tên/chuyên khoa LÀ một thay
-  // đổi thật, không phải chỉ mở xem).
-  const capNhatBangMo = async (thayDoi: Partial<Pick<BangMeta, 'ten' | 'chuyenKhoa'>>) => {
-    if (!openBoardId) return
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
-    const hienCo = ds.find((b) => b.id === openBoardId)
-    if (!hienCo) return
-    const moi = { ...hienCo, ...thayDoi, capNhatLuc: Date.now() }
-    await idbPut(IDB_STORES.boards, moi)
-    if (thayDoi.ten !== undefined) setTenBangMo(moi.ten)
-    if (thayDoi.chuyenKhoa !== undefined) setChuyenKhoaBangMo(moi.chuyenKhoa)
-  }
-  // Ref tới INSTANCE thật của EdgelessBoard (class ở src/board/index.tsx, sau forwardRef+lazy) —
-  // menu "⋯" ở đây gọi edgelessRef.current?.xuatPng() để kích hoạt Xuất PNG mà không cần biết gì
-  // về ExportManager/std/store, những thứ chỉ CHÍNH EdgelessBoard.tsx có tay cầm tới.
-  const edgelessRef = useRef<EdgelessBoard>(null)
-  // State của menu "⋯" (Xuất PNG / Đổi tên / Chuyên khoa) — CÙNG khuôn dangMoMenuXuat/
-  // dangSuaTenXuat/dangSuaChuyenKhoaXuat mà lượt trước từng đặt SAI trong EdgelessBoard.tsx. Bấm
-  // "Đổi tên"/"Chuyên khoa" không đóng menu mà THAY nội dung bằng ô nhập/ô chọn tương ứng; luôn
-  // reset hai cờ con này mỗi khi bấm nút "⋯" (mở hay đóng đều reset) để mở lại menu luôn thấy đúng
-  // 3 mục hành động.
-  const [dangMoMenuXuat, setDangMoMenuXuat] = useState(false)
-  const [dangSuaTenXuat, setDangSuaTenXuat] = useState(false)
-  const [tenNhapXuat, setTenNhapXuat] = useState('')
-  const [dangSuaChuyenKhoaXuat, setDangSuaChuyenKhoaXuat] = useState(false)
-
   useEffect(() => {
     // Chỉ thử di trú lần đầu người dùng THẬT SỰ mở tab Mindmap — không phải ngay lúc BoardGallery
     // mount (nó luôn mount cùng app shell, kể cả khi người dùng chưa từng chạm tab này).
@@ -329,7 +269,6 @@ export function BoardGallery({
           }}
         >
           <EdgelessBoard
-            ref={edgelessRef}
             boardId={openBoardId}
             onReady={() => setDangChoCanvas(false)}
             mauNhanDien={openOrigin?.mauNhanDien}
@@ -391,19 +330,22 @@ export function BoardGallery({
             // mục "Vùng chạm dưới chuẩn". Đây là một nút tròn thật (có nền/bóng), khác nút "⋯" của
             // DanhSachBang.tsx (chỉ ba dấu chấm, không nền) — phóng to cả hình tròn thấy được luôn,
             // không cần tách vùng chạm khỏi vùng thị giác.
-            // Shadow đổi từ rgba(0,0,0,.2) trần sang --c-shadow/--c-shadow-glow (cùng cặp token nút
-            // export PNG/PDF của EdgelessBoard.tsx vừa đổi) + viền mực magenta nhạt --c-accent-2, để
-            // nút quay lại cũng thuộc bộ nhận diện Mindmap thay vì FAB trắng chung chung (critique
-            // 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu").
+            // Shadow đổi từ rgba(0,0,0,.2) trần sang --c-shadow/--c-shadow-glow + viền mực magenta
+            // nhạt --c-accent-2, để nút quay lại thuộc bộ nhận diện Mindmap thay vì FAB trắng chung
+            // chung (critique 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu").
             style={{
               position: 'absolute',
               // calc(var(--safe-top)+4px), KHÔNG 4px trần — trên iPhone có tai thỏ/Dynamic Island,
               // 4px trần đặt nút NGAY DƯỚI status bar nên phần vòng tròn phía trên bị viền cong của
               // khung máy/status bar đè lên, đọc thành "xén góc" (phản hồi thật 2026-08-27, test tay
               // trên iPhone) — ĐÚNG lớp lỗi mà --safe-top (index.css) đã được lập ra để mọi màn khác
-              // tránh, chỉ riêng nút này (và nút "⋯" đối xứng ngay dưới) từng bỏ sót.
+              // tránh. calc(var(--safe-left)+4px) cùng lý do trên trục ngang — vá xong cạnh trên vẫn
+              // còn "bị cắt xén bên trái" (phản hồi thật 2026-08-27, lần 3, cũng test trên iPhone):
+              // nút nằm sát mép trái tuyệt đối, không chừa gì cho viền bo góc vật lý của màn hình
+              // hoặc notch lệch cạnh khi xoay ngang — --safe-left (index.css, mới thêm) resolve về
+              // 0px trên máy không cần bù, nên hành vi cũ (left:4) vẫn giữ nguyên ở đa số trường hợp.
               top: 'calc(var(--safe-top, 0px) + 4px)',
-              left: 4,
+              left: 'calc(var(--safe-left, 0px) + 4px)',
               zIndex: 20,
               width: 44,
               height: 44,
@@ -427,137 +369,6 @@ export function BoardGallery({
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          {/* Menu "⋯" — gộp Xuất PNG + Đổi tên + Chuyên khoa, đứng ở CHROME của BoardGallery (cạnh
-              nút "quay lại", ngoài vùng vẽ) chứ KHÔNG phải trong EdgelessBoard.tsx — hai lượt trước
-              đặt nhầm nó vào "màn làm việc mindmap" (phản hồi thật 2026-08-27, lần 2). Chỉ hiện khi
-              canvas thật đã sẵn sàng (`!dangChoCanvas`, đúng lúc EdgelessBoard.onReady bắn — khớp
-              thời điểm `boSuong` có giá trị bên trong EdgelessBoard.tsx, xem chú thích onReady ở
-              đó) — bấm xuất/đổi tên lúc còn "Đang mở bảng…" thì chưa có gì để thao tác.
-              top dùng calc(var(--safe-top)+4px) — cùng lý do nút "quay lại" ngay trên. */}
-          {!dangChoCanvas && (
-            <div style={{ position: 'absolute', top: 'calc(var(--safe-top, 0px) + 4px)', right: 4, zIndex: 20 }}>
-              <button
-                type="button"
-                data-testid="mo-menu-xuat"
-                aria-label="Xuất bảng"
-                aria-haspopup="menu"
-                aria-expanded={dangMoMenuXuat}
-                onClick={() => {
-                  setDangMoMenuXuat((v) => !v)
-                  setDangSuaTenXuat(false)
-                  setDangSuaChuyenKhoaXuat(false)
-                }}
-                className="mind-focus-ring"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
-                  background: 'var(--c-surface, #fff)',
-                  boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                ⋯
-              </button>
-              {dangMoMenuXuat && (
-                <div
-                  className="mind-menu-bang mind-menu-compact mind-sheet"
-                  style={{ position: 'absolute', top: 50, right: 0, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
-                >
-                  {dangSuaTenXuat ? (
-                    <div style={{ padding: 4 }}>
-                      <input
-                        type="text"
-                        autoFocus
-                        value={tenNhapXuat}
-                        onChange={(e) => setTenNhapXuat(e.target.value)}
-                        aria-label="Đổi tên bảng"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const tenSach = tenNhapXuat.trim() || tenBangMo || ''
-                            if (tenSach !== tenBangMo) void capNhatBangMo({ ten: tenSach })
-                            setDangSuaTenXuat(false)
-                            setDangMoMenuXuat(false)
-                          }
-                          if (e.key === 'Escape') setDangSuaTenXuat(false)
-                        }}
-                        onBlur={() => {
-                          const tenSach = tenNhapXuat.trim() || tenBangMo || ''
-                          if (tenSach !== tenBangMo) void capNhatBangMo({ ten: tenSach })
-                          setDangSuaTenXuat(false)
-                          setDangMoMenuXuat(false)
-                        }}
-                        className="mind-focus-ring"
-                        style={{ width: 160, fontSize: 13, fontWeight: 600, border: '1px solid var(--c-line, #d9ddf4)', borderRadius: 4, padding: '4px 6px', background: 'var(--c-surface, #fff)' }}
-                      />
-                    </div>
-                  ) : dangSuaChuyenKhoaXuat ? (
-                    <div style={{ padding: 4 }}>
-                      <select
-                        autoFocus
-                        data-testid="chon-chuyen-khoa-xuat"
-                        aria-label="Chuyên khoa"
-                        value={chuyenKhoaBangMo ?? SPECIALTIES[0].id}
-                        onChange={(e) => {
-                          void capNhatBangMo({ chuyenKhoa: e.target.value })
-                          setDangSuaChuyenKhoaXuat(false)
-                          setDangMoMenuXuat(false)
-                        }}
-                        className="mind-focus-ring"
-                        style={{ width: 160, fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)' }}
-                      >
-                        {SPECIALTIES.map((kh) => (
-                          <option key={kh.id} value={kh.id}>{kh.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <>
-                      {/* fontSize 10 + fontWeight 600 — khớp nhãn thanh nav dưới (App.tsx), cùng
-                          chuẩn đã áp cho menu "⋯" của DanhSachBang.tsx (phản hồi thật 2026-08-27:
-                          "chữ menu quá bự"). */}
-                      <button
-                        type="button"
-                        data-testid="xuat-png"
-                        onClick={() => {
-                          edgelessRef.current?.xuatPng()
-                          setDangMoMenuXuat(false)
-                        }}
-                        className="mind-focus-ring"
-                        style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
-                      >
-                        Xuất PNG
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="mo-doi-ten-xuat"
-                        onClick={() => {
-                          setTenNhapXuat(tenBangMo ?? '')
-                          setDangSuaTenXuat(true)
-                        }}
-                        className="mind-focus-ring"
-                        style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
-                      >
-                        Đổi tên
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="mo-doi-chuyen-khoa-xuat"
-                        onClick={() => setDangSuaChuyenKhoaXuat(true)}
-                        className="mind-focus-ring"
-                        style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
-                      >
-                        Chuyên khoa
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </>

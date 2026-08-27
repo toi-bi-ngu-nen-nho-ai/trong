@@ -488,6 +488,29 @@ function TheBang({
           >
             Đổi tên
           </button>
+          {bang.anhXemTruoc && (
+            // Xuất ẢNH XEM TRƯỚC đã lưu sẵn (data URL JPEG, ghi lúc rời bảng — capNhatAnhXemTruoc(),
+            // boardMeta.ts) — KHÔNG mở bảng để xuất bằng ExportManager thật. Đây là điểm "chuyển ra
+            // board" người dùng yêu cầu (phản hồi thật 2026-08-27, lần 3: xoá hẳn menu xuất trong
+            // màn vẽ, dồn về đúng menu "..." sẵn có của thẻ ở lưới cùng Đổi tên/Chuyên khoa). Đặt
+            // tên "Xuất ảnh" (không phải "Xuất PNG") vì file THẬT LÀ JPEG — nhãn phải khớp đúng định
+            // dạng thật xuất ra, không hứa suông một định dạng khác. Ẩn hẳn mục này khi bảng chưa
+            // từng có ảnh xem trước (mới tạo, chưa từng mở) — không có gì để xuất.
+            <button
+              type="button"
+              data-testid={`xuat-anh-${bang.id}`}
+              onClick={() => {
+                const a = document.createElement('a')
+                a.href = bang.anhXemTruoc as string
+                a.download = `${bang.ten.replace(/[\\/:*?"<>|]/g, '_')}.jpg`
+                a.click()
+              }}
+              className="mind-focus-ring"
+              style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
+            >
+              Xuất ảnh
+            </button>
+          )}
           <button
             type="button"
             data-testid={`xoa-${bang.id}`}
@@ -1043,7 +1066,16 @@ export function DanhSachBang({
         // rộng — thẻ luôn giữ cỡ ~135-140px (khoảng một thẻ ghi chú thật) dù màn rộng cỡ nào, không
         // cần media query riêng từng breakpoint. Từng thử max=200 trước: chỉ ra 2 cột suốt tới 768px
         // (thẻ ~193px, vẫn còn khá lớn) — max=140 mới cho đúng mật độ mong muốn.
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 140px))', gap: 8, padding: 16 }}>
+        // justifyContent:'center' — NGUYÊN NHÂN THẬT của "không cân đối" (phản hồi thật 2026-08-27,
+        // đo trực tiếp trên DOM ở 390px: 2 thẻ dồn hết về trái, trái 19px/phải trống 89px). auto-fill
+        // tạo THÊM cột trống vô hình để lấp hết bề ngang container (đúng cơ chế auto-fill, khác
+        // auto-fit collapse cột rỗng) — mặc định justify-content:start đóng khung 2 thẻ THẬT vào bên
+        // trái, cột trống vô hình chiếm nốt phần còn lại bên phải. max-width:720 ở trên (bọc ngoài)
+        // chỉ trị đúng triệu chứng trên PC/iPad rộng (giới hạn khung đọc), KHÔNG trị được ca này —
+        // ở màn hẹp hơn 720px nó không có tác dụng gì. center giữ nguyên hành vi auto-fill/số cột
+        // hiện có, chỉ đổi cách PHÂN BỐ khoảng trống dư ra hai bên đều nhau thay vì dồn hết sang một
+        // phía — đúng cả màn hẹp (2 thẻ) lẫn màn rộng (vài thẻ giữa một hàng dài cột trống).
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 140px))', justifyContent: 'center', gap: 8, padding: 16 }}>
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}
