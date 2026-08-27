@@ -14,14 +14,14 @@ import 'fake-indexeddb/auto'
 
 import { ExportManager } from '@blocksuite/affine/blocks/surface'
 import { Text } from '@blocksuite/store'
-import { act } from 'react'
+import { act, createRef } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbGetAll, idbPut } from '../../lib/idb'
 import * as boardMeta from '../boardMeta'
-import { EdgelessBoard } from '../EdgelessBoard'
+import { EdgelessBoard, type EdgelessBoardHandle } from '../EdgelessBoard'
 
 // React 19 yêu cầu cờ này để `act()` không cảnh báo; vitest không tự đặt.
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -318,79 +318,27 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     spy.mockRestore()
   })
 
-  it('bấm nút "Xuất PNG" gọi ExportManager.exportPng() đúng một lần', async () => {
+  it('ref.xuatPng() gọi ExportManager.exportPng() đúng một lần', async () => {
+    // Nút/menu "Xuất PNG" đã dời hẳn ra BoardGallery.tsx (phản hồi thật 2026-08-27, lần 2: "màn làm
+    // việc mindmap sửa cái đó làm gì") — EdgelessBoard.tsx giờ chỉ lộ đúng một tay cầm imperative
+    // (`xuatPng`, xem EdgelessBoardHandle) qua forwardRef, không tự vẽ nút nào cho hành động này
+    // nữa. Ca kiểm gọi thẳng qua ref, đúng cách BoardGallery.tsx sẽ gọi.
     const goiExport = vi.spyOn(ExportManager.prototype, 'exportPng').mockResolvedValue(undefined)
+    const bangRef = createRef<EdgelessBoardHandle>()
     try {
       await act(async () => {
-        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
+        root.render(createElement(EdgelessBoard, { boardId: 'board', ref: bangRef }))
       })
-      // Đợi `editor-host` TRƯỚC, tách riêng khỏi lượt đợi nút xuất bên dưới — không phải để rộng
-      // thời gian mà để đúng NHỊP FLUSH của act(). `editor-host` là DOM do Lit ghi trực tiếp
-      // (litRender() đồng bộ, xong ngay khi taoHoacMoBang() resolve), còn nút xuất là DOM do CHÍNH
-      // React vẽ ra từ state `boSuong` — cùng đặt trong MỘT act()/vi.waitFor duy nhất, đã đo được
-      // (điều tra bằng ca kiểm nháp lặp lại nhiều lần) là act() không chắc flush hết lượt cập nhật
-      // `boSuong` trước khi vi.waitFor bên trong nó hết hạn, dù đợi tới 15000ms — nút KHÔNG BAO GIỜ
-      // xuất hiện trong nhánh đó bất kể chờ bao lâu, tức đây là lỗi NHỊP FLUSH chứ không phải chậm.
-      // Tách thành hai act()/vi.waitFor liên tiếp: lượt đầu (đợi editor-host, mốc đồng bộ tức thời)
-      // buộc act() flush xong đợt cập nhật state đó trước khi vào lượt hai — nút xuất luôn có mặt
-      // gần như ngay khi lượt hai bắt đầu poll.
+      // Đợi `editor-host` — mốc đồng bộ Lit ghi trực tiếp (litRender() đồng bộ, xong ngay khi
+      // taoHoacMoBang() resolve) — trước khi tin `boSuong` (và do đó `bangRef.current`) đã sẵn sàng.
       await act(async () => {
         await vi.waitFor(() => {
           expect(document.querySelector('editor-host')).not.toBeNull()
         })
       })
-      // Nút xuất giờ nằm SAU nút "⋯" (gộp PNG/PDF vào một menu, xem EdgelessBoard.tsx) — đợi trigger
-      // trước, bấm mở menu, rồi mới thấy "xuat-png" trong DOM.
-      await act(async () => {
-        await vi.waitFor(() => {
-          expect(container.querySelector('[data-testid="mo-menu-xuat"]')).not.toBeNull()
-        })
-      })
-      await act(async () => {
-        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
-      })
-      await vi.waitFor(() => {
-        expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
-      })
 
       await act(async () => {
-        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
-      })
-
-      await vi.waitFor(() => {
-        expect(goiExport).toHaveBeenCalledTimes(1)
-      })
-    } finally {
-      goiExport.mockRestore()
-    }
-  })
-
-  it('bấm nút "Xuất PDF" gọi ExportManager.exportPdf() đúng một lần', async () => {
-    const goiExport = vi.spyOn(ExportManager.prototype, 'exportPdf').mockResolvedValue(undefined)
-    try {
-      await act(async () => {
-        root.render(createElement(EdgelessBoard, { boardId: 'board' }))
-      })
-      // Cùng lý do tách lượt đợi editor-host riêng như ca "Xuất PNG" ở trên — xem chú thích ở đó.
-      await act(async () => {
-        await vi.waitFor(() => {
-          expect(document.querySelector('editor-host')).not.toBeNull()
-        })
-      })
-      await act(async () => {
-        await vi.waitFor(() => {
-          expect(container.querySelector('[data-testid="mo-menu-xuat"]')).not.toBeNull()
-        })
-      })
-      await act(async () => {
-        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
-      })
-      await vi.waitFor(() => {
-        expect(container.querySelector('[data-testid="xuat-pdf"]')).not.toBeNull()
-      })
-
-      await act(async () => {
-        ;(container.querySelector('[data-testid="xuat-pdf"]') as HTMLButtonElement).click()
+        bangRef.current?.xuatPng()
       })
 
       await vi.waitFor(() => {
@@ -421,25 +369,15 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     // 1 (title CRDT rỗng, khác 'Bảng chưa đặt tên') hợp lệ bắn đúng 1 lần; lượt 2 (title đã khớp từ
     // lượt 1) phải KHÔNG bắn thêm — `soLanDoiTitle` phải dừng ở 1 sau cả hai lượt.
     const goiExport = vi.spyOn(ExportManager.prototype, 'exportPng').mockResolvedValue(undefined)
+    const bangRef = createRef<EdgelessBoardHandle>()
     try {
       await act(async () => {
-        root.render(createElement(EdgelessBoard, { boardId: 'bang-xuat-hai-lan' }))
+        root.render(createElement(EdgelessBoard, { boardId: 'bang-xuat-hai-lan', ref: bangRef }))
       })
       await act(async () => {
         await vi.waitFor(() => {
           expect(document.querySelector('editor-host')).not.toBeNull()
         })
-      })
-      await act(async () => {
-        await vi.waitFor(() => {
-          expect(container.querySelector('[data-testid="mo-menu-xuat"]')).not.toBeNull()
-        })
-      })
-      await act(async () => {
-        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
-      })
-      await vi.waitFor(() => {
-        expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
       })
 
       const eh = document.querySelector('editor-host') as unknown as {
@@ -459,22 +397,14 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       })
 
       await act(async () => {
-        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+        bangRef.current?.xuatPng()
       })
       await vi.waitFor(() => {
         expect(goiExport).toHaveBeenCalledTimes(1)
       })
 
-      // Bấm mục menu tự đóng menu (đúng hành vi menu "⋯" khác trong app, xem DanhSachBang.tsx) —
-      // mở lại trước lượt bấm thứ hai.
       await act(async () => {
-        ;(container.querySelector('[data-testid="mo-menu-xuat"]') as HTMLButtonElement).click()
-      })
-      await vi.waitFor(() => {
-        expect(container.querySelector('[data-testid="xuat-png"]')).not.toBeNull()
-      })
-      await act(async () => {
-        ;(container.querySelector('[data-testid="xuat-png"]') as HTMLButtonElement).click()
+        bangRef.current?.xuatPng()
       })
       await vi.waitFor(() => {
         expect(goiExport).toHaveBeenCalledTimes(2)

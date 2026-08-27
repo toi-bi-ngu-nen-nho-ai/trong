@@ -463,12 +463,19 @@ function TheBang({
               max-content không xung đột: nó là GIÁ TRỊ width thật (không phải min-width) nên bị
               width:auto!important ở mobile ghi đè đúng như ý, còn ở desktop trình duyệt tự suy đúng
               độ rộng cần thiết từ nội dung chữ dài nhất — không cần đoán một con số px. */}
+          {/* fontSize 10 + fontWeight 600 — KHỚP đúng nhãn thanh nav dưới (App.tsx: text-[10px],
+              fontWeight 500/700 tuỳ trạng thái). Ba nút này trước đây KHÔNG đặt fontSize nào, nên
+              thừa kế cỡ chữ mặc định trình duyệt (~16px) — to hơn HẲN mọi chữ khác quanh nó (chip
+              12px, nhãn "Chuyên khoa"/tag 11px) — vừa đọc "chữ menu quá bự", vừa kéo bề rộng
+              max-content của cả thanh menu to theo (phản hồi thật 2026-08-27, layout review). Chữ
+              nhỏ lại không thu hẹp vùng chạm: minHeight:44 vẫn giữ nguyên, chỉ khối TEXT bên trong
+              gọn lại — không bị ép/cắt cụt vì max-content vẫn tự co đúng theo độ rộng chữ mới. */}
           <button
             type="button"
             data-testid={`sua-tag-${bang.id}`}
             onClick={onBatSuaTag}
             className="mind-focus-ring"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
           >
             Chuyên khoa/tag
           </button>
@@ -477,7 +484,7 @@ function TheBang({
             data-testid={`doi-ten-${bang.id}`}
             onClick={onBatSuaTen}
             className="mind-focus-ring"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
           >
             Đổi tên
           </button>
@@ -499,6 +506,8 @@ function TheBang({
               background: 'none',
               color: dangXacNhanXoa ? 'var(--c-danger, #c0392b)' : undefined,
               whiteSpace: 'nowrap',
+              fontSize: 10,
+              fontWeight: 600,
             }}
           >
             {dangXacNhanXoa ? 'Chắc chắn xoá?' : 'Xoá'}
@@ -729,6 +738,14 @@ export function DanhSachBang({
   return (
     <>
     <div className={`scroll-ios h-full${dungTuBang ? ' board-out' : ''}`}>
+      {/* Bọc toàn bộ nội dung trong một cột co giãn tối đa 720px, CĂN GIỮA — lưới thẻ dùng
+          minmax(110px,140px) nên với ít bảng (2-3 thẻ), trên màn rộng (PC/iPad ngang) chúng dồn hết
+          về góc trái, để lại một khoảng trắng khổng lồ bên phải, đọc thành "không phủ hết màn, mất
+          cân đối" thay vì một cột nội dung có chủ đích (phản hồi thật 2026-08-27, layout review).
+          720px ≈ 4 cột thẻ thoải mái — đủ để lưới không co lại thành một cột hẹp bất thường, vẫn
+          giữ cảm giác "sổ tay cầm tay" thay vì trải hết bề ngang một màn desktop. KHÔNG ảnh hưởng
+          màn hẹp (điện thoại) — max-width chỉ có tác dụng khi khung cha rộng hơn 720px. */}
+      <div style={{ maxWidth: 720, margin: '0 auto' }}>
       {daXoaGanDay.length > 0 && (
         <div style={{ padding: '12px 16px 0' }}>
           <button
@@ -1136,6 +1153,7 @@ export function DanhSachBang({
           </button>
         </div>
       )}
+      </div>
     </div>
     {vuaXoa && (
         <div

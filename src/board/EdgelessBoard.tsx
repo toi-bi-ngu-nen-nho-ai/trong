@@ -21,7 +21,7 @@ import { Text } from '@blocksuite/store'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 import { render as litRender } from 'lit'
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 
 import { IDB_STORES, idbGetAll } from '../lib/idb'
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
@@ -83,16 +83,19 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
   return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
 }
 
-// Xuất bảng ra PNG/PDF qua ExportManager — lớp đã vendored sẵn, đăng ký qua SurfaceViewExtension
+// Xuất bảng ra PNG qua ExportManager — lớp đã vendored sẵn, đăng ký qua SurfaceViewExtension
 // (di.add(ExportManager, [StdIdentifier]), xem export-manager.ts trong cây vendor), truy xuất bằng
-// std.get(ExportManager). exportPng()/exportPdf() không nhận đối số — cả hai tự đọc tên file từ
-// store.root.props.title (getter `doc` của ExportManager trả thẳng `std.store`, tức CÙNG store đã
-// truyền cho BlockStdScope ở effect mount bên dưới, nên đặt title lên `store` ở đây là đủ, không
-// cần đi qua std). Đặt lại title thay vì để nguyên: tiêu đề mặc định của workspace (nếu có) không
-// chắc khớp TÊN bảng người dùng thấy trên DanhSachBang.tsx — tên hiển thị chỉ có trong CSDL boards
-// (BangMeta.ten, src/lib/idb.ts), không nằm trong chính nội dung CRDT của bảng.
+// std.get(ExportManager). exportPng() không nhận đối số — tự đọc tên file từ store.root.props.title
+// (getter `doc` của ExportManager trả thẳng `std.store`, tức CÙNG store đã truyền cho BlockStdScope
+// ở effect mount bên dưới, nên đặt title lên `store` ở đây là đủ, không cần đi qua std). Đặt lại
+// title thay vì để nguyên: tiêu đề mặc định của workspace (nếu có) không chắc khớp TÊN bảng người
+// dùng thấy trên DanhSachBang.tsx — tên hiển thị chỉ có trong CSDL boards (BangMeta.ten,
+// src/lib/idb.ts), không nằm trong chính nội dung CRDT của bảng.
 // Module-level (không nằm trong EdgelessBoard()) vì không phụ thuộc gì ngoài các tham số truyền
 // vào — không có lý do phải dựng lại hàm này ở mỗi lượt render.
+//
+// CHỈ còn xuất PNG — Xuất PDF đã bị XOÁ HẲN (không phải ẩn UI) theo yêu cầu thật 2026-08-27, nên
+// tham số `dinhDang` cũng bỏ luôn thay vì giữ lại một nhánh 'pdf' không còn nơi nào gọi tới.
 //
 // KHÔNG tự nuốt lỗi ở đây (không try/catch) — để promise reject thẳng ra ngoài. Bên gọi (JSX trong
 // EdgelessBoard()) là nơi có state React để hiện băng lỗi cho người dùng thấy; nuốt lỗi ở một hàm
@@ -102,7 +105,6 @@ async function xuatBang(
   std: BlockStdScope,
   store: Awaited<ReturnType<typeof taoHoacMoBang>>['store'],
   boardId: string,
-  dinhDang: 'png' | 'pdf',
 ) {
   const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
   const bang = ds.find((b) => b.id === boardId)
@@ -129,8 +131,7 @@ async function xuatBang(
     }
   }
   const exportManager = std.get(ExportManager)
-  if (dinhDang === 'png') await exportManager.exportPng()
-  else await exportManager.exportPdf()
+  await exportManager.exportPng()
 }
 
 /**
@@ -263,22 +264,32 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   }
 }
 
-export function EdgelessBoard({
-  boardId,
-  onReady,
-  mauNhanDien,
-}: {
-  boardId: string
-  // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng để
-  // mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một thời
-  // lượng cố định không khớp tốc độ mạng/máy thật.
-  onReady?: () => void
-  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô đúng màu giọt mực
-  // loading (--mind-ink-h, index.css) bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn
-  // magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi mở
-  // KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — CSS tự rơi về hue magenta mặc định (327).
-  mauNhanDien?: number
-}) {
+// API mà BoardGallery.tsx cầm qua ref để gọi Xuất PNG từ CHROME của nó (nút "⋯" cạnh nút "quay
+// lại") — component này (đúng tinh thần "file phải nhỏ" ở đầu file) không tự vẽ menu/rename/đổi
+// chuyên khoa nữa; nó chỉ còn PHÉP NHÚNG canvas + expose đúng một hành động cần tay cầm tới
+// ExportManager (thứ chỉ sống được sau khi std/store đã mount, xem `boSuong`). Lượt trước từng dựng
+// hẳn một menu "⋯" ngay trong màn vẽ này (Xuất PNG + Đổi tên + Chuyên khoa) — SAI Ý: người dùng
+// muốn dồn về CHROME của BoardGallery.tsx (đứng cạnh nút quay lại, ngoài vùng vẽ), không phải chèn
+// thêm UI quản lý bảng vào chính "màn làm việc mindmap" (phản hồi thật 2026-08-27, lần 2).
+export type EdgelessBoardHandle = {
+  xuatPng: () => void
+}
+
+export const EdgelessBoard = forwardRef<
+  EdgelessBoardHandle,
+  {
+    boardId: string
+    // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
+    // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
+    // thời lượng cố định không khớp tốc độ mạng/máy thật.
+    onReady?: () => void
+    // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô đúng màu giọt mực
+    // loading (--mind-ink-h, index.css) bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn
+    // magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi mở
+    // KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — CSS tự rơi về hue magenta mặc định (327).
+    mauNhanDien?: number
+  }
+>(function EdgelessBoard({ boardId, onReady, mauNhanDien }, ref) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
@@ -303,12 +314,6 @@ export function EdgelessBoard({
   // ẩn — giữ đơn giản cho một tính năng phụ, và "ẩn khi bấm xuất lại" vẫn cho người dùng lối thoát
   // rõ ràng khỏi thông báo lỗi.
   const [loiXuat, setLoiXuat] = useState<string | null>(null)
-  // Hai nút tròn PNG/PDF luôn nổi trên canvas từng đọc thành hai FAB rời rạc, không gắn với hành
-  // động nào người dùng đang làm — cảm giác "chèn thêm tính năng" hơn là một phần tự nhiên của màn
-  // hình (phản hồi thật 2026-08-27, taste review: "quá AI"). Gộp lại thành MỘT nút "⋯" mở menu, cùng
-  // mẫu `.mind-menu-bang`/`.mind-menu-compact` đã dùng cho menu thẻ bảng (DanhSachBang.tsx) — nhất
-  // quán ngôn ngữ "chấm ba lần → menu gọn" trong toàn Mindmap thay vì mỗi màn tự bịa một kiểu chrome.
-  const [dangMoMenuXuat, setDangMoMenuXuat] = useState(false)
 
   // ─── Chủ đề sáng/tối của riêng bảng vẽ ───────────────────────────────────────────────────────
   // Bảng màu vendored (.vendor-build/theme/style.css) khoá TOÀN BỘ bản tối vào đúng một bộ chọn
@@ -524,15 +529,20 @@ export function EdgelessBoard({
   // NHẤT có state React (`loiXuat`) để hiện lỗi cho người dùng thấy (review lượt 1, phát hiện #3).
   // `.then(() => setLoiXuat(null))` xoá băng lỗi cũ (nếu có) khi lần xuất MỚI thành công — không
   // dùng setTimeout tự ẩn, giữ đơn giản cho một tính năng phụ.
-  const bamXuat = (dinhDang: 'png' | 'pdf') => {
+  const bamXuat = () => {
     if (!boSuong) return
-    xuatBang(boSuong.std, boSuong.store, boardId, dinhDang)
+    xuatBang(boSuong.std, boSuong.store, boardId)
       .then(() => setLoiXuat(null))
       .catch((loi: unknown) => {
-        console.error(`EdgelessBoard: xuất ${dinhDang.toUpperCase()} thất bại:`, loi)
+        console.error('EdgelessBoard: xuất PNG thất bại:', loi)
         setLoiXuat('Không xuất được bảng — thử lại.')
       })
   }
+  // Tay cầm duy nhất lộ ra ngoài (xem EdgelessBoardHandle) — BoardGallery.tsx gọi qua ref để kích
+  // hoạt xuất PNG từ nút "⋯" của CHÍNH NÓ, không cần biết gì về ExportManager/std/store. Băng lỗi
+  // `loiXuat` vẫn hiện NGAY TRÊN canvas này như cũ dù nút bấm giờ ở nơi khác — đúng canvas là nơi
+  // người dùng đang nhìn lúc bấm xuất.
+  useImperativeHandle(ref, () => ({ xuatPng: bamXuat }))
 
   // "Đang mở bảng…" hiện TRONG lớp bọc này (không phải thay thế nó) — lớp bọc phải render ngay từ
   // đầu để giữ cấu trúc DOM ổn định cho `closest()` ở trên, kể cả trước khi Lit gắn vào. Khớp thị
@@ -575,8 +585,7 @@ export function EdgelessBoard({
             // CÙNG mẫu hình ảnh/token với băng cảnh báo `khongLuuDuoc` phía trên (review lượt 1,
             // phát hiện #3) — không dựng component/toast mới, không thêm thư viện.
             // `pointer-events-none` bỏ đi ở đây so với băng `khongLuuDuoc`: băng đó chỉ mang chữ,
-            // băng này không có gì bên dưới nó cần bấm xuyên qua (hai nút xuất nằm ở `top: 4` với
-            // `zIndex: 20`, luôn đứng trên cột băng `z-10` này).
+            // băng này không có gì bên dưới nó cần bấm xuyên qua.
             <div
               className="px-3 py-1.5 text-[12px] font-semibold text-center"
               role="status"
@@ -598,70 +607,6 @@ export function EdgelessBoard({
           <p>Hãy tải lại trang để thử lại.</p>
         </div>
       )}
-      {boSuong && (
-        // Chỉ hiện khi `boSuong` đã có (bảng mở xong, `store`/`std` đã sống) — bấm xuất lúc còn
-        // "Đang mở bảng…" hay lúc lỗi thì không có gì để xuất. `zIndex: 20` đứng trên băng cảnh báo
-        // "không lưu" (`z-10` ở trên) để nút này luôn bấm được kể cả khi băng đó đang hiện.
-        // MỘT nút "⋯" 44×44 thay vì hai FAB PNG/PDF luôn nổi — xem chú thích tại định nghĩa
-        // `dangMoMenuXuat`. Menu dùng lại nguyên `.mind-menu-bang.mind-menu-compact.mind-sheet` của
-        // DanhSachBang.tsx (index.css) nên tự ghim đáy màn hình trong tầm ngón cái ở mobile, co theo
-        // nội dung — không cần viết lại logic định vị responsive riêng cho màn này.
-        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 20 }}>
-          <button
-            type="button"
-            data-testid="mo-menu-xuat"
-            aria-label="Xuất bảng"
-            aria-haspopup="menu"
-            aria-expanded={dangMoMenuXuat}
-            onClick={() => setDangMoMenuXuat((v) => !v)}
-            className="mind-focus-ring"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
-              background: 'var(--c-surface, #fff)',
-              boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            ⋯
-          </button>
-          {dangMoMenuXuat && (
-            <div
-              className="mind-menu-bang mind-menu-compact mind-sheet"
-              style={{ position: 'absolute', top: 50, right: 0, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
-            >
-              <button
-                type="button"
-                data-testid="xuat-png"
-                onClick={() => {
-                  bamXuat('png')
-                  setDangMoMenuXuat(false)
-                }}
-                className="mind-focus-ring"
-                style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
-              >
-                Xuất PNG
-              </button>
-              <button
-                type="button"
-                data-testid="xuat-pdf"
-                onClick={() => {
-                  bamXuat('pdf')
-                  setDangMoMenuXuat(false)
-                }}
-                className="mind-focus-ring"
-                style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap' }}
-              >
-                Xuất PDF
-              </button>
-            </div>
-          )}
-        </div>
-      )}
       {dangMo && !loi && (
         // Thay chữ xám tĩnh cũ (từng là khoảng chờ ~5-7s không tín hiệu duy nhất trong app, critique
         // 2026-08-25) bằng ink-bloom (.mind-loading-ink, src/index.css) — đọc như canvas đang được vẽ
@@ -681,4 +626,4 @@ export function EdgelessBoard({
       <div ref={hostRef} className="absolute inset-0" />
     </div>
   )
-}
+})
