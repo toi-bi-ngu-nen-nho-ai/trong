@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
-import { idbDelete, idbGetAll, idbPut, idbPutMany, idbReplaceAll } from "./idb"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { idbDelete, idbGetAllCoKetQua, idbPut, idbPutMany, idbReplaceAll } from "./idb"
 import { loadCollection, removeCollection } from "./storage"
 
 // Hook quản lý một danh sách tự nhập lưu trong IndexedDB (bài học ECG, bài viết) — cùng bộ hàm
@@ -13,36 +13,57 @@ import { loadCollection, removeCollection } from "./storage"
 // khi bài viết có thể chèn ảnh), truyền khoá cũ vào đây — lần chạy đầu sau khi cập nhật app, dữ
 // liệu cũ sẽ được chuyển sang IndexedDB rồi mới xoá khoá localStorage (chỉ xoá khi ghi thành công,
 // để không bao giờ mất dữ liệu nếu IndexedDB bị chặn).
+//
+// HAI ĐƯỜNG HỎNG mà hook này phải nói ra được, vì cả hai đều im lặng theo mặc định:
+//   `loiDoc` — lượt đọc lúc mount thất bại. Nếu không phân biệt, "đọc hỏng" trông y hệt "chưa có
+//   gì": bảng Mindmap biến mất kèm lời mời tạo bảng mới, còn bài viết/ECG thì mục tự soạn lặng lẽ
+//   rụng khỏi danh sách vốn đã trộn với nội dung tĩnh nên nhìn vẫn đầy.
+//   `loiGhi` — một lượt ghi trả về thất bại (hết quota, IndexedDB bị chặn). Giao diện cập nhật lạc
+//   quan nên luôn trông như đã lưu xong.
+// Cả hai đều có đường thử lại (`thuLaiDoc`, `thuLaiGhi`) chứ không chỉ báo lỗi rồi bỏ mặc.
 export function useIdbCollection<T extends { id: string }>(store: string, legacyLocalKey?: string) {
   const [items, setItems] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
-  // true khi một lượt ghi xuống IndexedDB TRẢ VỀ THẤT BẠI (hết quota, IndexedDB bị chặn ở chế độ
-  // riêng tư, CSDL hỏng). Trước lượt vá này mọi lệnh ghi đều là `void idbPut(...)`: idb.ts VẪN trả
-  // Promise<boolean> nhưng không ai đọc, nên giao diện cập nhật lạc quan rồi LUÔN trông như đã lưu
-  // xong kể cả khi không có gì được lưu. Nguy hiểm nhất ở đúng thao tác "Hoàn tác" của màn Mindmap
-  // — đường phục hồi CUỐI CÙNG sau khi xoá bảng — vì nó phá thẳng lời hứa "xoá mềm, phục hồi được"
-  // trong PRODUCT.md mà không phát ra tín hiệu nào (critique 2026-08-28, P1).
-  // Cờ này KHÔNG tự tắt: dữ liệu chưa lưu vẫn là dữ liệu chưa lưu cho tới khi người dùng tự xác
-  // nhận đã đọc (xoaLoiGhi) — khác toast báo thành công, thứ tự tắt được vì chẳng mất gì.
+  // Câu giải thích được (tiếng Việt) khi lượt đọc thất bại, null khi đọc bình thường. Là chuỗi chứ
+  // không phải boolean vì hai ca hay gặp nhất cần hai lời khuyên KHÁC nhau: "đóng tab app bản cũ
+  // rồi thử lại" so với "trình duyệt đang chặn lưu trữ" (xem openDb trong idb.ts).
+  const [loiDoc, setLoiDoc] = useState<string | null>(null)
+  // Tăng lên để chạy lại lượt đọc (thuLaiDoc). Là state chứ không phải ref vì nó nằm trong deps của
+  // useEffect đọc dữ liệu.
+  const [lanDoc, setLanDoc] = useState(0)
+  // true khi một lượt ghi TRẢ VỀ THẤT BẠI. Không tự tắt: dữ liệu chưa lưu vẫn là dữ liệu chưa lưu
+  // cho tới khi người dùng tự xác nhận đã đọc (xoaLoiGhi) hoặc thử lại thành công (thuLaiGhi).
   const [loiGhi, setLoiGhi] = useState(false)
-
-  // Bọc mọi lệnh ghi: GIỮ NGUYÊN tính "chạy nền, không chặn re-render" như trước (chỗ gọi vẫn không
-  // await), chỉ thêm việc ĐỌC kết quả boolean vốn đã có sẵn.
-  const theoDoiGhi = useCallback((ketQua: Promise<boolean>) => {
-    void ketQua.then((ok) => {
-      if (!ok) setLoiGhi(true)
-    })
-  }, [])
-
-  const xoaLoiGhi = useCallback(() => setLoiGhi(false), [])
+  // Số lượt ghi đang chờ thử lại — để màn hình nói được "3 thay đổi chưa lưu" thay vì một câu lỗi
+  // chung chung. Là state riêng (không đọc thẳng hangChoRef.length) vì ref không kích hoạt re-render.
+  const [soGhiCho, setSoGhiCho] = useState(0)
+  // Hàng chờ các lượt ghi đã hỏng, giữ nguyên THỨ TỰ gốc. Lưu dạng thunk (không phải payload) để
+  // thử lại chạy đúng lệnh idb ban đầu — put hay delete, store nào, bản ghi nào.
+  const hangChoRef = useRef<Array<() => Promise<boolean>>>([])
 
   useEffect(() => {
     let cancelled = false
     async function boot() {
-      const stored = await idbGetAll<T>(store)
-      const byId = new Map(stored.map((i) => [i.id, i]))
+      const kq = await idbGetAllCoKetQua<T>(store)
+      if (cancelled) return
+
+      if (!kq.ok) {
+        // KHÔNG đụng vào `items`: giữ nguyên những gì đang hiển thị (thường là [] lúc mount, nhưng
+        // nếu đây là lượt THỬ LẠI sau khi đã đọc được một lần thì danh sách cũ còn tốt hơn rỗng).
+        // Cũng KHÔNG chạy di trú legacy ở nhánh này — xem lý do ngay dưới.
+        setLoiDoc(kq.loi)
+        setLoading(false)
+        return
+      }
+
+      const byId = new Map(kq.items.map((i) => [i.id, i]))
       if (legacyLocalKey) {
         // Chỉ chuyển sang IndexedDB những mục cũ chưa có ở đó (tránh đè bản đã sửa sau này).
+        //
+        // Lời hứa "tránh đè bản đã sửa" CHỈ đúng khi `byId` phản ánh đúng nội dung IndexedDB. Trước
+        // đây lượt đọc hỏng cũng trả [] nên `byId` rỗng, khiến MỌI mục localStorage cũ thành
+        // "pending" và bị ghi đè lên bản IndexedDB mới hơn — đúng thứ dòng comment này cam kết
+        // không làm. Nay nhánh !kq.ok đã return sớm ở trên, nên tới được đây nghĩa là đã đọc thật.
         const legacy = loadCollection<T>(legacyLocalKey)
         const pending = legacy.filter((i) => !byId.has(i.id))
         if (legacy.length > 0) {
@@ -55,13 +76,62 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
       }
       if (cancelled) return
       setItems(sortNewestFirst(Array.from(byId.values())))
+      setLoiDoc(null)
       setLoading(false)
     }
     void boot()
     return () => {
       cancelled = true
     }
-  }, [store, legacyLocalKey])
+  }, [store, legacyLocalKey, lanDoc])
+
+  // Đọc lại từ đầu. Dùng cho nút "Thử lại" ở màn hình khi loiDoc khác null — ca điển hình là người
+  // dùng đóng tab app bản cũ đang giữ IndexedDB rồi bấm thử lại, không phải tải lại cả app.
+  const thuLaiDoc = useCallback(() => {
+    setLoading(true)
+    setLoiDoc(null)
+    setLanDoc((n) => n + 1)
+  }, [])
+
+  // Bọc mọi lệnh ghi: giữ nguyên tính "chạy nền, không chặn re-render" (chỗ gọi vẫn không await),
+  // chỉ thêm việc ĐỌC kết quả boolean vốn idb.ts đã trả sẵn.
+  //
+  // TRAN_HANG_CHO: không có trần thì một vòng autosave đang hỏng (bảng vẽ debounce 400ms) sẽ nhồi
+  // hàng nghìn thunk vào bộ nhớ. Chạm trần thì ngừng xếp thêm nhưng GIỮ cờ lỗi — lúc đó lời khuyên
+  // đúng không còn là "thử lại" mà là xuất file sao lưu.
+  const theoDoiGhi = useCallback((chay: () => Promise<boolean>) => {
+    void chay().then((ok) => {
+      if (ok) return
+      if (hangChoRef.current.length < TRAN_HANG_CHO) {
+        hangChoRef.current.push(chay)
+        setSoGhiCho(hangChoRef.current.length)
+      }
+      setLoiGhi(true)
+    })
+  }, [])
+
+  // Chạy lại các lượt ghi đã hỏng, TUẦN TỰ theo đúng thứ tự gốc — hai lượt ghi cùng một id mà chạy
+  // song song thì bản thắng là bản ngẫu nhiên.
+  const thuLaiGhi = useCallback(async () => {
+    const cho = hangChoRef.current
+    hangChoRef.current = []
+    setSoGhiCho(0)
+    setLoiGhi(false)
+    const conHong: Array<() => Promise<boolean>> = []
+    for (const chay of cho) {
+      if (!(await chay())) conHong.push(chay)
+    }
+    if (conHong.length > 0) {
+      // Giữ luôn cả những lượt ghi mới hỏng thêm TRONG LÚC đang thử lại, không đè mất chúng.
+      hangChoRef.current = [...conHong, ...hangChoRef.current].slice(0, TRAN_HANG_CHO)
+      setSoGhiCho(hangChoRef.current.length)
+      setLoiGhi(true)
+    }
+  }, [])
+
+  // Chỉ tắt DẢI BÁO, không xoá hàng chờ: người dùng đóng thông báo không có nghĩa là dữ liệu đã
+  // được lưu, nên lần thuLaiGhi sau vẫn còn nguyên việc để làm.
+  const xoaLoiGhi = useCallback(() => setLoiGhi(false), [])
 
   // Loại bỏ trước mọi bản ghi trùng id thay vì chèn thẳng lên đầu — giống useLocalCollection.add.
   // Id sinh theo Date.now() nên chạm 2 lần vào nút Lưu (mạng/thiết bị chậm) có thể gọi add() 2 lần
@@ -69,7 +139,7 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
   const add = useCallback(
     (item: T) => {
       setItems((prev) => [item, ...prev.filter((i) => i.id !== item.id)])
-      theoDoiGhi(idbPut(store, item))
+      theoDoiGhi(() => idbPut(store, item))
     },
     [store, theoDoiGhi],
   )
@@ -82,7 +152,7 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
         const idx = prev.findIndex((i) => i.id === item.id)
         return idx === -1 ? [item, ...prev] : prev.map((i, ix) => (ix === idx ? item : i))
       })
-      theoDoiGhi(idbPut(store, item))
+      theoDoiGhi(() => idbPut(store, item))
     },
     [store, theoDoiGhi],
   )
@@ -90,7 +160,7 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
   const remove = useCallback(
     (id: string) => {
       setItems((prev) => prev.filter((i) => i.id !== id))
-      theoDoiGhi(idbDelete(store, id))
+      theoDoiGhi(() => idbDelete(store, id))
     },
     [store, theoDoiGhi],
   )
@@ -104,7 +174,7 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
         incoming.forEach((i) => byId.set(i.id, i))
         return Array.from(byId.values())
       })
-      theoDoiGhi(idbPutMany(store, incoming))
+      theoDoiGhi(() => idbPutMany(store, incoming))
     },
     [store, theoDoiGhi],
   )
@@ -114,13 +184,31 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
   const replaceAll = useCallback(
     (next: T[]) => {
       setItems(next)
-      theoDoiGhi(idbReplaceAll(store, next))
+      theoDoiGhi(() => idbReplaceAll(store, next))
     },
     [store, theoDoiGhi],
   )
 
-  return { items, loading, loiGhi, xoaLoiGhi, add, update, remove, upsertMany, replaceAll }
+  return {
+    items,
+    loading,
+    loiDoc,
+    thuLaiDoc,
+    loiGhi,
+    soGhiCho,
+    xoaLoiGhi,
+    thuLaiGhi,
+    add,
+    update,
+    remove,
+    upsertMany,
+    replaceAll,
+  }
 }
+
+// Trần hàng chờ thử-lại-ghi. Ở cấp module (không phải trong hook) để mọi collection dùng chung một
+// con số và để hằng số không bị dựng lại mỗi lần render.
+const TRAN_HANG_CHO = 100
 
 // IndexedDB trả về theo thứ tự khoá (id) tăng dần, trong khi màn hình muốn mục mới nhất lên đầu.
 // Id của mục tự nhập đều có dạng `custom-...-<mốc thời gian>` nên sắp giảm dần theo id là đủ để

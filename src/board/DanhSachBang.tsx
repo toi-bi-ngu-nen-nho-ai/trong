@@ -835,7 +835,18 @@ export function DanhSachBang({
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
   // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
   // viết — không tự viết state/fetch riêng cho danh sách bảng (xem cảnh báo ở Task 1).
-  const { items: danhSach, loading, loiGhi, xoaLoiGhi, add, update } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  const {
+    items: danhSach,
+    loading,
+    loiDoc,
+    thuLaiDoc,
+    loiGhi,
+    soGhiCho,
+    xoaLoiGhi,
+    thuLaiGhi,
+    add,
+    update,
+  } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
@@ -947,6 +958,72 @@ export function DanhSachBang({
         <div className="scroll-ios flex-1">
           <div className="mind-board-wrap">
             <LuoiChoTai />
+          </div>
+        </div>
+      </div>
+    )
+
+  // ĐỌC HỎNG — phải chặn TRƯỚC lưới, vì nếu để lọt xuống thì `danhSach` rỗng sẽ render trạng thái
+  // rỗng "Bắt đầu một sơ đồ tư duy mới": một lời khẳng định SAI rằng người dùng chưa có bảng nào,
+  // đúng vào lúc dữ liệu của họ chỉ đang không đọc được. Ca hay gặp nhất không hề hiếm — còn một
+  // tab app bản cũ đang giữ IndexedDB thì openDb() rơi vào nhánh onblocked (xem idb.ts).
+  // Không dùng chung dải cảnh báo nhỏ như lỗi ghi: lỗi ghi xảy ra CẠNH nội dung vẫn đang hiển thị,
+  // còn lỗi đọc nghĩa là không có gì để hiển thị cả — nó phải chiếm chỗ của chính lưới bảng.
+  if (loiDoc)
+    return (
+      <div className="h-full flex flex-col">
+        <ScreenHeader title="Sơ đồ tư duy" />
+        <div className="scroll-ios flex-1">
+          <div className="mind-board-wrap">
+            <div
+              role="alert"
+              data-testid="loi-doc-bang"
+              className="flex flex-col items-center text-center gap-3 px-6"
+              style={{ paddingTop: 48, paddingBottom: 48 }}
+            >
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 3.6 2.7 19.2a1.2 1.2 0 0 0 1 1.8h16.6a1.2 1.2 0 0 0 1-1.8L12 3.6Z"
+                  stroke="var(--c-danger-icon, #dc2626)"
+                  strokeWidth="1.7"
+                  strokeLinejoin="round"
+                />
+                <path d="M12 9.6v4.2" stroke="var(--c-danger-icon, #dc2626)" strokeWidth="1.7" strokeLinecap="round" />
+                <circle cx="12" cy="17" r="1.05" fill="var(--c-danger-icon, #dc2626)" />
+              </svg>
+              <p className="text-[15px] font-bold m-0" style={{ color: 'var(--c-text, #12142b)' }}>
+                Chưa đọc được danh sách bảng
+              </p>
+              {/* Câu thứ hai là thông điệp từ idb.ts — nói ĐÚNG nguyên nhân và cách thoát cho từng
+                  ca (đóng tab app bản cũ / trình duyệt đang chặn lưu trữ), thay vì một câu lỗi
+                  chung chung. */}
+              <p className="text-[13px] leading-snug m-0" style={{ color: 'var(--c-text-soft, #454870)', maxWidth: 340 }}>
+                {loiDoc}
+              </p>
+              {/* Trấn an rõ ràng: mặc định người dùng sẽ đọc màn này thành "mất hết bảng rồi". */}
+              <p className="text-[12.5px] leading-snug m-0" style={{ color: 'var(--c-text-muted, #6b6e96)', maxWidth: 340 }}>
+                Các bảng của bạn vẫn nằm trên máy — app chỉ chưa mở được kho lưu trữ.
+              </p>
+              <button
+                type="button"
+                onClick={thuLaiDoc}
+                data-testid="thu-lai-doc-bang"
+                className="mind-btn mind-focus-ring"
+                style={{
+                  minHeight: 44,
+                  padding: '0 20px',
+                  marginTop: 4,
+                  borderRadius: 9999,
+                  border: 0,
+                  background: 'var(--c-primary, #2d3a94)',
+                  color: 'var(--c-on-bright, #ffffff)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                Thử lại
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1493,10 +1570,38 @@ export function DanhSachBang({
           <path d="M12 9.6v4.2" stroke="var(--c-danger-icon, #dc2626)" strokeWidth="1.8" strokeLinecap="round" />
           <circle cx="12" cy="17" r="1.05" fill="var(--c-danger-icon, #dc2626)" />
         </svg>
-        <span className="flex-1 text-[12.5px] leading-snug">
-          Không lưu được thay đổi vào bộ nhớ máy. Thao tác vừa rồi có thể mất khi bạn đóng app — hãy
-          xuất bản sao ra file trước khi tiếp tục.
-        </span>
+        <div className="flex-1 flex flex-col items-start gap-1.5">
+          <span className="text-[12.5px] leading-snug">
+            {/* Nói SỐ thay đổi chưa lưu thay vì "có lỗi xảy ra": người dùng cần biết mình đang mất
+                bao nhiêu việc để quyết định thử lại hay xuất file ngay. soGhiCho chạm trần 100 thì
+                lời khuyên "thử lại" không còn đủ — xem TRAN_HANG_CHO trong useIdbCollection. */}
+            {soGhiCho > 1
+              ? `${soGhiCho} thay đổi chưa lưu được vào bộ nhớ máy.`
+              : 'Không lưu được thay đổi vào bộ nhớ máy.'}{' '}
+            Chúng có thể mất khi bạn đóng app — thử lại, hoặc xuất bản sao ra file trước khi tiếp tục.
+          </span>
+          <button
+            type="button"
+            onClick={() => void thuLaiGhi()}
+            data-testid="thu-lai-ghi-bang"
+            className="mind-focus-ring"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: 36,
+              padding: '0 12px',
+              marginLeft: -12,
+              borderRadius: 9999,
+              border: 0,
+              background: 'none',
+              color: 'var(--c-danger-deep, #991b1b)',
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            Thử lại
+          </button>
+        </div>
         <button
           type="button"
           onClick={xoaLoiGhi}

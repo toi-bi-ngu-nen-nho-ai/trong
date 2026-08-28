@@ -126,6 +126,12 @@
         "value": "#fecaca",
         "createdAt": "2026-08-28T11:24:09.127Z",
         "reason": "false positive: la gia tri du phong cua --c-danger-line, token DA CO o src/index.css:221; DESIGN.md bao ho ca ho --c-danger* (Untouchable Signal Rule) nhung frontmatter khong liet ke du tung thanh vien"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#454870",
+        "createdAt": "2026-08-28T12:18:02.519Z",
+        "reason": "false positive: gia tri du phong cua --c-text-soft, token DA CO o src/index.css:152; DESIGN.md frontmatter khong liet ke du ho --c-text*"
       }
     ]
   }

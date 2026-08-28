@@ -1346,7 +1346,7 @@ export function SearchScreen({
   // lúc mount xong — trong cửa sổ đó, gõ đúng tên một bảng đã lưu vẫn rơi vào màn "Không có kết
   // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). DanhSachBang đã
   // xử đúng cùng cờ này (`if (loading) return null`).
-  const { items: boards, loading: dangNapBang } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  const { items: boards, loading: dangNapBang, loiDoc: loiDocBang } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1553,6 +1553,17 @@ export function SearchScreen({
             </div>
             <p className="font-semibold text-slate-700">Không có kết quả cho "{query}"</p>
             <p className="text-sm text-slate-400 mt-1">Thử từ khoá khác hoặc thêm kiến thức mới</p>
+            {/* Đọc danh sách bảng hỏng thì "không có kết quả" chỉ đúng một nửa: bài viết/ECG/thẻ vẫn
+                được tìm bình thường, riêng sơ đồ tư duy thì KHÔNG nằm trong lượt tìm này. Nói ra,
+                thay vì để người dùng kết luận bảng của họ đã mất. Dòng phụ, không phải role="alert":
+                đây là chú thích phạm vi tìm kiếm, không phải sự cố cần cắt ngang — màn Sơ đồ tư duy
+                mới là nơi báo động và có nút thử lại. */}
+            {loiDocBang && (
+              <p className="text-sm mt-3 mx-auto" style={{ color: "var(--c-warn, #92400e)", maxWidth: 320 }}>
+                Lượt tìm này chưa bao gồm sơ đồ tư duy — chưa mở được kho lưu trữ trên máy. Mở tab
+                "Mindmap" để xem chi tiết và thử lại.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -4062,6 +4073,7 @@ function DataSyncScreen({
   customInfusions,
   customEcgLessons,
   customFlashcards,
+  duLieuChuaDocDuoc,
   onImport,
   onRestoreSnapshot,
   onBackupDone,
@@ -4073,6 +4085,12 @@ function DataSyncScreen({
   customInfusions: Record<InfusionCategory, InfusionDrug[]>
   customEcgLessons: EcgLesson[]
   customFlashcards: FlashCard[]
+  // true khi một trong các danh mục lưu ở IndexedDB (bài viết, bài học ECG) KHÔNG đọc được lượt
+  // này. Bắt buộc phải biết ở đây vì màn này là nơi duy nhất có thể biến một sự cố đọc tạm thời
+  // thành MẤT DỮ LIỆU THẬT: payload xuất ra dựng từ chính các mảng trong bộ nhớ, mà đọc hỏng thì
+  // chúng rỗng — người dùng nhận về một file "sao lưu" chứa `articles: []` rồi ghi đè lên bản
+  // backup tốt trước đó. Ảo giác mất dữ liệu ở các màn khác còn cứu được; ca này thì không.
+  duLieuChuaDocDuoc: boolean
   onImport: (data: ImportPayload) => void
   onRestoreSnapshot: (snapshot: SyncSnapshot) => void
   onBackupDone: () => void
@@ -4129,6 +4147,16 @@ function DataSyncScreen({
   async function handleExport() {
     if (selectedCount === 0) {
       setStatus("Chọn ít nhất một mục để xuất.")
+      return
+    }
+    // CHẶN CỨNG, không phải cảnh báo rồi vẫn cho đi tiếp: xuất lúc này tạo ra một file trông hợp lệ
+    // nhưng thiếu dữ liệu, và người dùng thường ghi đè nó lên bản sao lưu trước đó — biến một sự cố
+    // đọc tạm thời (tab app bản cũ đang giữ IndexedDB) thành mất dữ liệu vĩnh viễn. Đây là đúng
+    // loại thao tác một chiều mà chặn thì phiền vài giây, còn cho qua thì không lấy lại được.
+    if (duLieuChuaDocDuoc) {
+      setStatus(
+        "Chưa xuất được: app chưa đọc được toàn bộ dữ liệu trên máy lượt này, nên file xuất ra sẽ thiếu. Đóng các tab khác đang mở app rồi tải lại trang, sau đó xuất lại.",
+      )
       return
     }
     setExporting(true)
@@ -12357,6 +12385,9 @@ export default function App() {
               customInfusions={customInfusions}
               customEcgLessons={ecgCol.items}
               customFlashcards={customFlashcardsCol.items}
+              // Chỉ hai danh mục này nằm ở IndexedDB; kháng sinh/bệnh lý/thuốc truyền/thẻ ghi nhớ
+              // dùng localStorage (đọc đồng bộ, không có trạng thái "đọc hỏng" tương đương).
+              duLieuChuaDocDuoc={customArticlesCol.loiDoc !== null || ecgCol.loiDoc !== null}
               onImport={handleImportData}
               onRestoreSnapshot={handleRestoreSnapshot}
               onBackupDone={() => setShowBackupReminder(false)}
@@ -12466,6 +12497,66 @@ export default function App() {
             tay `--safe-bottom` vào đây — nếu không, dải này sẽ nổi quá thấp, lấn vào đúng vùng
             thanh gạt trên iPhone toàn màn hình. */}
         <UpdateBanner offsetBottom={isDetailScreen ? "calc(24px + var(--safe-bottom))" : "calc(var(--nav-body-h) + 18px)"} />
+
+        {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: cả bài viết lẫn bài học ECG dùng
+            CHUNG một IndexedDB, hỏng thì hỏng cùng lúc, và người dùng có thể đang ở bất kỳ tab nào.
+            Vì sao phải nói ra: mục tự soạn được TRỘN với nội dung tĩnh (ARTICLES, ECG_LESSONS) nên
+            khi đọc hỏng, màn hình vẫn đầy bài — không một dấu hiệu nào cho thấy phần của người dùng
+            đã rụng mất. Khác dải "Có bản cập nhật" và toast: dải này KHÔNG tự tắt và không đóng
+            được, vì nó chỉ biến mất khi vấn đề thật sự hết (thuLaiDoc thành công). */}
+        {(customArticlesCol.loiDoc || ecgCol.loiDoc) && (
+          <div
+            role="alert"
+            data-testid="dai-loi-doc-idb"
+            className="absolute left-3 right-3 z-40 flex items-start gap-2.5 px-4 py-3 rounded-2xl"
+            style={{
+              bottom: isDetailScreen ? "calc(24px + var(--safe-bottom))" : "calc(var(--nav-body-h) + 18px)",
+              background: "var(--c-warn-soft, #fffbeb)",
+              border: "1px solid var(--c-warn-line, #fde68a)",
+              color: "var(--c-warn, #92400e)",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flex: "none", marginTop: 1 }}>
+              <path
+                d="M12 3.6 2.7 19.2a1.2 1.2 0 0 0 1 1.8h16.6a1.2 1.2 0 0 0 1-1.8L12 3.6Z"
+                stroke="var(--c-warn-icon, #b45309)"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path d="M12 9.6v4.2" stroke="var(--c-warn-icon, #b45309)" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="12" cy="17" r="1.05" fill="var(--c-warn-icon, #b45309)" />
+            </svg>
+            <div className="flex-1 flex flex-col items-start gap-1.5">
+              <span className="text-[12.5px] leading-snug">
+                Chưa đọc được bài viết và bài học ECG bạn tự soạn — danh sách đang thiếu phần của
+                bạn. Đừng xuất sao lưu cho tới khi đọc lại được.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  customArticlesCol.thuLaiDoc()
+                  ecgCol.thuLaiDoc()
+                }}
+                className="dose-press"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  minHeight: 36,
+                  padding: "0 12px",
+                  marginLeft: -12,
+                  borderRadius: 9999,
+                  border: 0,
+                  background: "none",
+                  color: "var(--c-warn, #92400e)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                Thử lại
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dải xác nhận — nổi trên thanh nav, không nhận thao tác nên không che nút nào. Cộng thêm
             52px (chiều cao viên "Có bản cập nhật" + khoảng cách) khi dải đó đang hiện, để xếp CHỒNG

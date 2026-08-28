@@ -67,20 +67,45 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise
 }
 
-// Đọc toàn bộ mục trong một store. Trả về [] nếu chưa có gì, hoặc nếu IndexedDB không khả dụng/lỗi
-// (ví dụ chế độ riêng tư ở một số trình duyệt) — để không làm gãy luồng dùng app.
-export async function idbGetAll<T>(store: string): Promise<T[]> {
+// Kết quả đọc PHÂN BIỆT ĐƯỢC "rỗng thật" với "đọc hỏng" — thứ mà idbGetAll() bên dưới không làm
+// được, vì hợp đồng của nó là nuốt lỗi thành [].
+export type KetQuaDocIdb<T> = { ok: true; items: T[] } | { ok: false; loi: string }
+
+// Đọc toàn bộ mục trong một store, GIỮ LẠI lỗi thay vì nuốt.
+//
+// Vì sao cần: nhánh `catch { return [] }` của idbGetAll khiến "chưa có gì" và "không đọc được" trả
+// về y hệt nhau. Đường thất bại KHÔNG hiếm trong app này — openDb() reject ở nhánh `onblocked` chỉ
+// cần người dùng còn một tab khác mở app bản cũ (chuyện thường với PWA sau mỗi lần cập nhật), và
+// reject luôn khi trình duyệt chặn IndexedDB (chế độ riêng tư). Hậu quả trước đây: mở tab thứ hai
+// là toàn bộ bảng Mindmap "biến mất", kèm trạng thái rỗng mời tạo bảng mới — ảo giác mất dữ liệu
+// trên đúng sản phẩm lấy tự chủ dữ liệu làm cam kết cốt lõi. Với bài viết/ECG còn kín đáo hơn: mục
+// tự soạn được TRỘN với nội dung tĩnh nên màn hình vẫn đầy, chỉ phần của người dùng lặng lẽ mất.
+export async function idbGetAllCoKetQua<T>(store: string): Promise<KetQuaDocIdb<T>> {
   try {
     const db = await openDb()
-    return await new Promise((resolve, reject) => {
+    const items = await new Promise<T[]>((resolve, reject) => {
       const tx = db.transaction(store, "readonly")
       const req = tx.objectStore(store).getAll()
       req.onsuccess = () => resolve(req.result as T[])
       req.onerror = () => reject(req.error)
     })
-  } catch {
-    return []
+    return { ok: true, items }
+  } catch (loi) {
+    // openDb() đã đặt sẵn câu tiếng Việt giải thích được cho hai ca hay gặp nhất (tab cũ đang giữ
+    // DB, trình duyệt không có IndexedDB); ca còn lại là DOMException của chính IndexedDB.
+    return { ok: false, loi: loi instanceof Error ? loi.message : "Không đọc được dữ liệu đã lưu trên máy." }
   }
+}
+
+// Đọc toàn bộ mục trong một store. Trả về [] nếu chưa có gì, hoặc nếu IndexedDB không khả dụng/lỗi
+// (ví dụ chế độ riêng tư ở một số trình duyệt) — để không làm gãy luồng dùng app.
+//
+// GIỮ NGUYÊN hợp đồng nuốt-lỗi-thành-[] cho những nơi thật sự chỉ cần "danh sách tốt nhất có thể"
+// (di trú bảng cũ, đọc metadata phụ, và toàn bộ ca kiểm). Nơi nào cần PHÂN BIỆT rỗng với hỏng thì
+// gọi idbGetAllCoKetQua ở trên — useIdbCollection là đúng ca đó.
+export async function idbGetAll<T>(store: string): Promise<T[]> {
+  const kq = await idbGetAllCoKetQua<T>(store)
+  return kq.ok ? kq.items : []
 }
 
 // Ghi (thêm mới hoặc đè nếu trùng id) nhiều mục cùng lúc.
