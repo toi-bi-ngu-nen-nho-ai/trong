@@ -16,6 +16,25 @@ import { loadCollection, removeCollection } from "./storage"
 export function useIdbCollection<T extends { id: string }>(store: string, legacyLocalKey?: string) {
   const [items, setItems] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
+  // true khi một lượt ghi xuống IndexedDB TRẢ VỀ THẤT BẠI (hết quota, IndexedDB bị chặn ở chế độ
+  // riêng tư, CSDL hỏng). Trước lượt vá này mọi lệnh ghi đều là `void idbPut(...)`: idb.ts VẪN trả
+  // Promise<boolean> nhưng không ai đọc, nên giao diện cập nhật lạc quan rồi LUÔN trông như đã lưu
+  // xong kể cả khi không có gì được lưu. Nguy hiểm nhất ở đúng thao tác "Hoàn tác" của màn Mindmap
+  // — đường phục hồi CUỐI CÙNG sau khi xoá bảng — vì nó phá thẳng lời hứa "xoá mềm, phục hồi được"
+  // trong PRODUCT.md mà không phát ra tín hiệu nào (critique 2026-08-28, P1).
+  // Cờ này KHÔNG tự tắt: dữ liệu chưa lưu vẫn là dữ liệu chưa lưu cho tới khi người dùng tự xác
+  // nhận đã đọc (xoaLoiGhi) — khác toast báo thành công, thứ tự tắt được vì chẳng mất gì.
+  const [loiGhi, setLoiGhi] = useState(false)
+
+  // Bọc mọi lệnh ghi: GIỮ NGUYÊN tính "chạy nền, không chặn re-render" như trước (chỗ gọi vẫn không
+  // await), chỉ thêm việc ĐỌC kết quả boolean vốn đã có sẵn.
+  const theoDoiGhi = useCallback((ketQua: Promise<boolean>) => {
+    void ketQua.then((ok) => {
+      if (!ok) setLoiGhi(true)
+    })
+  }, [])
+
+  const xoaLoiGhi = useCallback(() => setLoiGhi(false), [])
 
   useEffect(() => {
     let cancelled = false
@@ -50,9 +69,9 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
   const add = useCallback(
     (item: T) => {
       setItems((prev) => [item, ...prev.filter((i) => i.id !== item.id)])
-      void idbPut(store, item)
+      theoDoiGhi(idbPut(store, item))
     },
-    [store],
+    [store, theoDoiGhi],
   )
 
   // Dùng khi SỬA một mục đã có. Nếu id chưa có trong danh sách thì xử lý như thêm mới (chèn lên
@@ -63,17 +82,17 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
         const idx = prev.findIndex((i) => i.id === item.id)
         return idx === -1 ? [item, ...prev] : prev.map((i, ix) => (ix === idx ? item : i))
       })
-      void idbPut(store, item)
+      theoDoiGhi(idbPut(store, item))
     },
-    [store],
+    [store, theoDoiGhi],
   )
 
   const remove = useCallback(
     (id: string) => {
       setItems((prev) => prev.filter((i) => i.id !== id))
-      void idbDelete(store, id)
+      theoDoiGhi(idbDelete(store, id))
     },
-    [store],
+    [store, theoDoiGhi],
   )
 
   // Dùng khi nhập file JSON (đồng bộ thủ công) — gộp theo id, không xoá mục hiện có mà file nhập
@@ -85,9 +104,9 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
         incoming.forEach((i) => byId.set(i.id, i))
         return Array.from(byId.values())
       })
-      void idbPutMany(store, incoming)
+      theoDoiGhi(idbPutMany(store, incoming))
     },
-    [store],
+    [store, theoDoiGhi],
   )
 
   // Dùng cho "Hoàn tác nhập file" — thay hẳn danh sách hiện tại bằng snapshot chụp trước lúc nhập,
@@ -95,12 +114,12 @@ export function useIdbCollection<T extends { id: string }>(store: string, legacy
   const replaceAll = useCallback(
     (next: T[]) => {
       setItems(next)
-      void idbReplaceAll(store, next)
+      theoDoiGhi(idbReplaceAll(store, next))
     },
-    [store],
+    [store, theoDoiGhi],
   )
 
-  return { items, loading, add, update, remove, upsertMany, replaceAll }
+  return { items, loading, loiGhi, xoaLoiGhi, add, update, remove, upsertMany, replaceAll }
 }
 
 // IndexedDB trả về theo thứ tự khoá (id) tăng dần, trong khi màn hình muốn mục mới nhất lên đầu.

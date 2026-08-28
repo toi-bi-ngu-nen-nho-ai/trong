@@ -142,6 +142,16 @@
      ảnh tham chiếu lần 2, 2026-08-26, không còn tông kem ấm của ảnh lần 1). Cùng tinh thần "One
      Other Place Rule" đã áp cho --c-accent-2 — Mindmap có vật liệu riêng. */
   --c-note: #fbfaf7;
+  /* MỰC TRÊN GIẤY — cặp đôi bắt buộc của --c-note, và CỐ Ý KHÔNG có bản ghi đè ở hai khối dark bên
+     dưới. Lý do: --c-note không đổi theo theme, nên mọi thứ vẽ LÊN nó cũng không được đổi. Trước
+     khi có token này, nút "⋯" và huy hiệu chuyên khoa mặc định kế thừa --c-text/--c-text-muted —
+     hai token LẬT sang near-white ở bản tối — nên trên giấy sáng chúng thành chữ sáng trên nền
+     sáng: đo thật trên trang được 1,03:1 (nút "⋯") và 2,69:1 (huy hiệu), tức nút mở MỌI hành động
+     của thẻ biến mất khỏi màn hình đúng lúc ca trực đêm (critique 2026-08-28, P0). Cùng lối nghĩ
+     với --c-on-bright: "chữ đặt trên nền X" là token riêng của X, không phải token chữ toàn cục.
+     Thêm bất cứ thứ gì vẽ trên .mind-note-card thì tô bằng hai token này, đừng dùng --c-text*. */
+  --c-on-note: #12142b;        /* 17,3:1 trên giấy bản sáng · 15,5:1 trên giấy bản tối */
+  --c-on-note-muted: #5c5f7a;  /*  5,9:1 trên giấy bản sáng ·  5,2:1 trên giấy bản tối */
   --c-page: #f1f2fb;
   --c-line-soft: #e9ebf9;
   --c-line: #d9ddf4;

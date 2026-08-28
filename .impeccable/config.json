@@ -114,6 +114,18 @@
         "value": "minddotbounce",
         "createdAt": "2026-08-28T04:48:09.988Z",
         "reason": "user confirmed: asked for the standard bouncing three-dot loader ('... nhảy lên nhảy xuống theo trình tự, như template thế giới'); keyframe is a plain 7px translateY up/back with ease-in-out timing, no overshoot/elastic curve — 'bounce' is only in the name"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#5c5f7a",
+        "createdAt": "2026-08-28T09:16:32.210Z",
+        "reason": "user confirmed: chon phuong an token --c-on-note trong /impeccable critique 2026-08-28; day la muc-tren-giay bat bien theo theme, co y nam ngoai thang mau doi-theo-theme cua DESIGN.md (do 5,9:1 sang / 5,2:1 toi tren .mind-note-card)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#fecaca",
+        "createdAt": "2026-08-28T11:24:09.127Z",
+        "reason": "false positive: la gia tri du phong cua --c-danger-line, token DA CO o src/index.css:221; DESIGN.md bao ho ca ho --c-danger* (Untouchable Signal Rule) nhung frontmatter khong liet ke du tung thanh vien"
       }
     ]
   }

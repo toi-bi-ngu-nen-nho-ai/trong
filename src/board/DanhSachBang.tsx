@@ -46,6 +46,18 @@ export type BoardOpenOrigin = {
 // tới mức dải xác nhận cảm giác bị kẹt trên màn hình.
 const HOAN_TAC_XOA_MS = 5000
 
+// Nhấn-giữ trên thẻ mở CÙNG menu mà nút "⋯" mở — lối vào THỨ HAI, không thay thế nút. Trước đây
+// "⋯" là cửa duy nhất tới đổi tên/gắn khoa/xuất PNG/xoá, nên toàn bộ khả năng quản lý bảng dồn rủi
+// ro vào việc người dùng tự tìm ra một glyph nhỏ ở góc thẻ (critique 2026-08-28, P2). Nhấn-giữ là
+// cử chỉ đúng ẩn dụ "cầm tờ giấy lên" và là quy ước sẵn có trên di động, nên nó thêm đường vào mà
+// không phải làm nút "⋯" nặng nề hơn (giữ nguyên thẩm mỹ giấy).
+// 500ms: mốc quen thuộc của long-press trên iOS/Android — ngắn hơn thì cú chạm mở bảng bình thường
+// dễ lỡ kích hoạt, dài hơn thì đọc như treo máy.
+const NHAN_GIU_MS = 500
+// Ngón tay dịch quá ngần này (px) trong lúc đang đếm giờ = người dùng đang CUỘN lưới, không phải
+// nhấn giữ — huỷ hẹn giờ. pointercancel bắt được phần lớn ca cuộn thật, nhưng không phải mọi ca.
+const NHAN_GIU_TRUOT_TOI_DA = 10
+
 // Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
 // Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
 // không tự xoay mỗi khi có gì đó khiến component render lại).
@@ -124,7 +136,14 @@ function TheTrong({ khoa }: { khoa?: string }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: spec ? spec.color : 'var(--c-text-muted, #6b6e96)',
+          // Nhánh "chưa gắn chuyên khoa" tô bằng --c-on-note-muted, KHÔNG phải --c-text-muted:
+          // huy hiệu này nằm TRÊN tờ giấy (.mind-note-card) vốn không đổi theo theme, còn
+          // --c-text-muted thì lật sáng ở bản tối — cặp đó đo được 2,69:1 trên giấy bản tối, dưới
+          // ngưỡng 3:1 của WCAG 1.4.11 cho đồ hoạ mang nghĩa (critique 2026-08-28, P0). Token mới
+          // giữ 5,9:1 / 5,2:1 ở cả hai bản mà vẫn nhạt hơn hẳn --c-on-note, đúng sắc thái "chưa
+          // gắn khoa". Nhánh spec.color không đổi: màu chuyên khoa đều đậm, thấp nhất đo được
+          // 5,04:1 trên giấy nên vốn đã an toàn ở cả hai bản.
+          color: spec ? spec.color : 'var(--c-on-note-muted, #5c5f7a)',
         }}
       >
         {specialtyIcon(khoa, 'w-full h-full')}
@@ -178,6 +197,24 @@ function TheBang({
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const tagPanelRef = useRef<HTMLDivElement>(null)
+  // Hẹn giờ nhấn-giữ (xem NHAN_GIU_MS) + toạ độ điểm chạm đầu để đo trượt. `daNhanGiuRef` là cờ
+  // "lượt chạm này ĐÃ mở menu bằng nhấn-giữ" — onClick đọc nó để KHÔNG mở luôn cả bảng ngay sau đó
+  // (pointerup vẫn sinh ra một click bình thường, không có cờ này thì giữ tay = vừa mở menu vừa mở
+  // bảng, menu nháy lên rồi biến mất cùng lúc canvas chiếm màn hình).
+  const hesNhanGiuRef = useRef<number | null>(null)
+  const diemChamRef = useRef<{ x: number; y: number } | null>(null)
+  const daNhanGiuRef = useRef(false)
+
+  const huyNhanGiu = () => {
+    if (hesNhanGiuRef.current !== null) {
+      clearTimeout(hesNhanGiuRef.current)
+      hesNhanGiuRef.current = null
+    }
+    diemChamRef.current = null
+  }
+  // Thẻ có thể bị gỡ khỏi DOM giữa lúc đang đếm giờ (xoá bảng, đổi chip lọc, huỷ tìm kiếm) — hẹn
+  // giờ còn sống sẽ gọi onBatMenu() cho một thẻ không còn tồn tại.
+  useEffect(() => huyNhanGiu, [])
   // Hue nhận diện của GHIM = hue của chuyên khoa bảng (không phải hash id như trước). mauOnDinh()
   // vẫn băm ra một hue trong [260,330) — họ tím-hồng an toàn, tránh xa đỏ/hổ phách/lục (Untouchable
   // Signal Rule) — nhưng giờ khoá theo chuyenKhoa nên MÀU GHIM và ICON CHUYÊN KHOA trên cùng một
@@ -276,6 +313,11 @@ function TheBang({
         ref={nutRef}
         type="button"
         onClick={() => {
+          // Lượt chạm này vừa mở menu bằng nhấn-giữ → nuốt cú click đi kèm, đừng mở luôn cả bảng.
+          if (daNhanGiuRef.current) {
+            daNhanGiuRef.current = false
+            return
+          }
           // Chỉ dựng origin khi rect đo được có kích thước thật (>0) — rect rỗng (0×0) xảy ra khi
           // phần tử chưa layout xong hoặc trong môi trường không có engine layout thật (vd ca kiểm
           // happy-dom). Không có kích thước thật thì FLIP không có gì để "First" từ đó — rơi về
@@ -296,8 +338,32 @@ function TheBang({
           )
         }}
         className="the-bang-vat the-bang-nghieng-con-tro mind-focus-ring"
+        // Nhấn-giữ CHỈ cho cảm ứng/bút. Chuột được loại trừ có chủ ý: trên máy có con trỏ, nút "⋯"
+        // đã hiện rõ khi rê tới và không ai có thói quen giữ chuột để mở menu — bật cho chuột chỉ
+        // tạo ra một cái bẫy "giữ hơi lâu rồi thả thì bảng không mở".
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse') return
+          huyNhanGiu()
+          daNhanGiuRef.current = false
+          diemChamRef.current = { x: e.clientX, y: e.clientY }
+          hesNhanGiuRef.current = window.setTimeout(() => {
+            hesNhanGiuRef.current = null
+            daNhanGiuRef.current = true
+            onBatMenu()
+          }, NHAN_GIU_MS)
+        }}
+        onPointerUp={huyNhanGiu}
+        onPointerCancel={huyNhanGiu}
+        // Long-press trên cảm ứng làm iOS/Android bật menu ngữ cảnh hệ thống ("Sao chép", "Chia
+        // sẻ…") đè lên menu của app — chặn để hai menu không chồng nhau.
+        onContextMenu={(e) => e.preventDefault()}
         onPointerMove={(e) => {
-          if (e.pointerType !== 'mouse') return
+          if (e.pointerType !== 'mouse') {
+            // Trượt quá ngưỡng = đang cuộn lưới, không phải nhấn giữ.
+            const d = diemChamRef.current
+            if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > NHAN_GIU_TRUOT_TOI_DA) huyNhanGiu()
+            return
+          }
           const el = nutRef.current
           if (!el) return
           const r = el.getBoundingClientRect()
@@ -305,10 +371,23 @@ function TheBang({
           el.style.setProperty('--con-tro-y', String((e.clientY - r.top) / r.height))
         }}
         onPointerLeave={() => {
+          huyNhanGiu()
           nutRef.current?.style.removeProperty('--con-tro-x')
           nutRef.current?.style.removeProperty('--con-tro-y')
         }}
-        style={{ display: 'block', width: '100%', border: 0, background: 'none', padding: 0, textAlign: 'left' }}
+        // WebkitTouchCallout/userSelect none: đi kèm nhấn-giữ ở trên — iOS bật bong bóng "Sao chép"
+        // và bôi đen tên bảng ngay giữa cử chỉ giữ nếu không tắt, khiến menu app mở ra dưới một lớp
+        // lựa chọn văn bản đang nhấp nháy. Không ảnh hưởng bàn phím/trình đọc màn hình.
+        style={{
+          display: 'block',
+          width: '100%',
+          border: 0,
+          background: 'none',
+          padding: 0,
+          textAlign: 'left',
+          WebkitTouchCallout: 'none',
+          userSelect: 'none',
+        }}
         aria-label={tenChuyenKhoa ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}` : `Mở bảng ${bang.ten}`}
       >
         <div
@@ -465,9 +544,17 @@ function TheBang({
         className="mind-focus-ring"
         // Vùng chạm 44×44 (chuẩn tối thiểu cho ngón tay, WCAG 2.2 AA + khuyến nghị thực hành) — giữ
         // cùng gốc top/right:4 như cũ (không đẩy ra ngoài mép thẻ, tránh chồng lên khoảng gap của
-        // lưới) nên box lớn hơn ăn VÀO PHÍA TRONG thẻ; dấu "⋯" tự căn giữa lại bằng flex, dịch nhẹ
+        // lưới) nên box lớn hơn ăn VÀO PHÍA TRONG thẻ; icon tự căn giữa lại bằng flex, dịch nhẹ
         // vào trong so với vị trí cũ — chấp nhận được, không phóng to một hình tròn nền/viền vốn
         // không tồn tại (nút này chưa từng có background/border thấy được, chỉ có ba dấu chấm).
+        //
+        // color BẮT BUỘC đặt ở đây, không để kế thừa: nút nằm TRÊN tờ giấy .mind-note-card (không
+        // đổi theo theme) nhưng Tailwind preflight cho <button> `color: inherit`, nên trước lượt vá
+        // này nó nhận --c-text — token LẬT sang near-white ở bản tối. Đo thật trên trang:
+        // rgb(236,239,252) trên giấy rgb(239,236,227) = 1,03:1, tức nút mở TOÀN BỘ hành động của
+        // thẻ (đổi tên, gắn khoa, xuất PNG, xoá) VÔ HÌNH ở dark mode — đúng ca dùng ban đêm mà
+        // DESIGN.md đặt làm ràng buộc hạng nhất (critique 2026-08-28, P0). --c-on-note giữ 17,3:1
+        // bản sáng / 15,5:1 bản tối.
         style={{
           position: 'absolute',
           top: 4,
@@ -477,12 +564,22 @@ function TheBang({
           borderRadius: '50%',
           border: 0,
           background: 'none',
+          color: 'var(--c-on-note, #12142b)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        ⋯
+        {/* Icon VẼ THẬT thay cho ký tự Unicode "⋯" dùng trước đây. Hai lý do: (1) glyph Unicode
+            render khác nhau theo font/hệ điều hành và không nhận được cỡ/khoảng cách nhất quán như
+            phần còn lại của hệ icon app (đều là SVG currentColor); (2) ba chấm đặc r=1.5 ở 18px
+            đọc rõ hơn hẳn glyph text cùng ô — trực tiếp nới cái affordance vốn quá mờ nhạt
+            (critique 2026-08-28, P2). currentColor nên tự ăn theo --c-on-note đặt ngay trên. */}
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+          <circle cx="3.5" cy="9" r="1.5" fill="currentColor" />
+          <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+          <circle cx="14.5" cy="9" r="1.5" fill="currentColor" />
+        </svg>
       </button>
 
       {dangMoMenu && (
@@ -738,7 +835,7 @@ export function DanhSachBang({
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
   // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
   // viết — không tự viết state/fetch riêng cho danh sách bảng (xem cảnh báo ở Task 1).
-  const { items: danhSach, loading, add, update } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  const { items: danhSach, loading, loiGhi, xoaLoiGhi, add, update } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
@@ -1363,6 +1460,67 @@ export function DanhSachBang({
       </div>
       </div>
     </div>
+    {/* Dải BÁO LỖI GHI — hiện khi useIdbCollection báo một lượt ghi IndexedDB thất bại thật (xem
+        loiGhi ở đó). Đặt TRƯỚC dải "Hoàn tác" và không tự tắt: người dùng phải tự đóng, vì thứ nó
+        báo là "thao tác vừa rồi CÓ THỂ chưa được lưu", không phải một xác nhận thoáng qua.
+        Trình bày theo Untouchable Signal Rule của DESIGN.md: nền/viền/chữ đọc từ họ token
+        --c-danger-*, PHẲNG và nghiêm túc — không bounce, không glow, không đếm ngược như dải xanh
+        bên dưới. Không chỉ dùng màu để truyền tin (colorblind-safe): có icon cảnh báo + câu chữ
+        nói rõ vấn đề VÀ đường thoát (xuất file sao lưu), đúng yêu cầu "errors name the problem and
+        the recovery". role="alert" thay vì "status" — đây là thứ phải cắt ngang, không phải thông
+        báo lịch sự.
+        aria-live mặc định của role="alert" là assertive, không cần khai thêm. */}
+    {loiGhi && (
+      <div
+        role="alert"
+        className="absolute flex items-start gap-2.5 px-4 py-3 rounded-2xl z-50"
+        style={{
+          left: 12,
+          right: 12,
+          bottom: 'calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px)',
+          background: 'var(--c-danger-soft, #fef2f2)',
+          border: '1px solid var(--c-danger-line, #fecaca)',
+          color: 'var(--c-danger-deep, #991b1b)',
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ flex: 'none', marginTop: 1 }}>
+          <path
+            d="M12 3.6 2.7 19.2a1.2 1.2 0 0 0 1 1.8h16.6a1.2 1.2 0 0 0 1-1.8L12 3.6Z"
+            stroke="var(--c-danger-icon, #dc2626)"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <path d="M12 9.6v4.2" stroke="var(--c-danger-icon, #dc2626)" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="12" cy="17" r="1.05" fill="var(--c-danger-icon, #dc2626)" />
+        </svg>
+        <span className="flex-1 text-[12.5px] leading-snug">
+          Không lưu được thay đổi vào bộ nhớ máy. Thao tác vừa rồi có thể mất khi bạn đóng app — hãy
+          xuất bản sao ra file trước khi tiếp tục.
+        </span>
+        <button
+          type="button"
+          onClick={xoaLoiGhi}
+          aria-label="Đóng thông báo lỗi lưu"
+          className="mind-focus-ring"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 44,
+            minWidth: 44,
+            margin: -10,
+            color: 'var(--c-danger-deep, #991b1b)',
+            background: 'none',
+            border: 0,
+            flex: 'none',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+    )}
     {vuaXoa && (
         <div
           key={vuaXoa.id}
