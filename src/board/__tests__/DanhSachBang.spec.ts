@@ -810,7 +810,7 @@ describe('DanhSachBang', () => {
     expect(container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 
-  it('lưới rỗng toàn bộ → hiện minh hoạ nét-line "tường ghi chú", KHÔNG còn huy hiệu doc phẳng', async () => {
+  it('lưới rỗng toàn bộ → hiện BIỂU TƯỢNG mindmap, KHÔNG còn huy hiệu doc phẳng', async () => {
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
@@ -818,14 +818,13 @@ describe('DanhSachBang', () => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
 
-    // 2026-08-28 (phản hồi chủ dự án): trạng thái rỗng thay huy hiệu "trang giấy" (TheTrong) bằng
-    // hình vẽ nét-line "tường ghi chú được ghim" — vẽ bằng currentColor nên tự hợp sáng/tối. Huy
-    // hiệu chuyên khoa (data-khoa) không còn ở màn rỗng.
-    expect(container.querySelector('[data-testid="minh-hoa-tuong-ghim"]')).not.toBeNull()
+    // 2026-08-29 (phản hồi chủ dự án): trạng thái rỗng dùng thẳng icon tab Mindmap (App.tsx
+    // icons.mindmap) thay cho hình tự vẽ. Huy hiệu chuyên khoa (data-khoa) không còn ở màn rỗng.
+    expect(container.querySelector('[data-testid="bieu-tuong-mindmap"]')).not.toBeNull()
     expect(container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 
-  it('lưới rỗng do LỌC hết (chip chuyên khoa) → vẫn hiện minh hoạ nét-line + lời mời tạo bảng', async () => {
+  it('lưới rỗng do LỌC hết (chip chuyên khoa) → vẫn hiện biểu tượng mindmap + lời mời tạo bảng', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
@@ -848,7 +847,7 @@ describe('DanhSachBang', () => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
     })
 
-    expect(container.querySelector('[data-testid="minh-hoa-tuong-ghim"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="bieu-tuong-mindmap"]')).not.toBeNull()
     expect(container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 })

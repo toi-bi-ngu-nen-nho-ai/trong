@@ -162,107 +162,24 @@ function TheTrong({ khoa }: { khoa?: string }) {
 // trong mã nguồn, người sửa sau sẽ vô tình gõ đè thành dấu cách thường mà không ai thấy.
 const LOI_MOI_TRONG = 'Biến kiến thức thành bức tranh trực quan, dễ hình dung'
 
-// Một cây ghim NÉT-LINE nghiêng phải, dùng lại cho cả ba tờ trong minh hoạ bên dưới. `x`,`y` là tâm
-// đầu ghim; mũi kim rơi xuống-TRÁI vì thân ghim ngả sang phải — cùng dáng với cây ghim tô màu trên
-// thẻ bảng thật (xem TheBang), để hai chỗ nói cùng một ngôn ngữ hình.
-// Toạ độ mũi/vành tính theo trục ghim nghiêng ~20°: trục (sin20, -cos20) = (0.34, -0.94), vành thì
-// vuông góc với trục. Viết thẳng số đã tính thay vì gọi Math.sin tại chỗ render — đây là hình vẽ
-// tĩnh, không có tham số nào đổi lúc chạy.
-function GhimNetLine({ x, y }: { x: number; y: number }) {
-  return (
-    <g>
-      {/* Kim chạy xuống-TRÁI vì thân ghim ngả sang phải; điểm xuất phát nằm ngay trên đường tròn
-          đầu ghim (không chui vào trong) nên chỗ nối đọc sạch. Chỉ hai nét — đầu tròn và kim.
-          Bản trước có thêm một vạch "vành đáy": ở cỡ render 140px vạch đó nhỏ hơn 2px, không đọc ra
-          bề dày mà thành một gạch thừa cạnh đầu ghim. Chi tiết chỉ đáng vẽ khi còn đọc được. */}
-      <path d={`M${x - 1.4} ${y + 4} L${x - 4.2} ${y + 11.5}`} strokeWidth={1.6} />
-      <circle cx={x} cy={y} r="4.2" strokeWidth={1.8} />
-    </g>
-  )
-}
-
-// Minh hoạ nét-line cho trạng thái lưới rỗng — "bức tường ghi chú được ghim" theo ảnh tham chiếu
-// chủ dự án gửi 2026-08-28. Bản VẼ LẠI (phản hồi 2026-08-28, mục 1: bản trước "quá tệ").
-//
-// Bản trước hỏng ở ba chỗ, và đây là cách bản này chữa:
-//  1) KHUNG QUÁ NHỎ. 104×78 cho ba tờ giấy + chỉ nối + ghim là nhồi quá nhiều chi tiết vào quá ít
-//     pixel — mọi thứ dính vào nhau thành một vệt xám. Khung mới 160×120 (render 140×105) cho từng
-//     hình đủ chỗ thở.
-//  2) KHÔNG CÓ CHIỀU SÂU. Ba tờ giấy cùng cỡ, cùng độ đậm, xếp cạnh nhau như ba ô vuông. Bản này có
-//     MỘT tờ chính lớn hẳn ở giữa + hai tờ phụ nhỏ hơn, mờ hơn (opacity .42) thò ra sau — mắt đọc
-//     ngay ra lớp trước/lớp sau.
-//  3) NỘI DUNG CHUNG CHUNG. Mấy vạch ngang "giả chữ" trong tờ giấy có thể là bất cứ app ghi chú
-//     nào. Tờ chính giờ vẽ đúng MỘT SƠ ĐỒ TƯ DUY (nút trung tâm + ba nhánh cong ra ba nút con) —
-//     nói thẳng màn này chứa cái gì, thay vì "đây là tờ giấy". Cộng thêm góc dưới-trái CUỘN LÊN,
-//     nhắc lại đúng .mind-note-card của thẻ bảng thật.
-//
-// NÉT vẽ bằng `currentColor` (không màu cứng, không <image>) nên tự hợp cả bản sáng lẫn tối; div
-// cha đặt color = --c-text-muted.
-//
-// RUỘT các tờ giấy PHẢI được tô — không để trong suốt. Nét-line không có nền thì tờ nằm sau lộ
-// nguyên đường viền XUYÊN QUA tờ nằm trước, và cả ba tờ dính thành một mớ đường kẻ chồng nhau
-// (đúng triệu chứng của bản trước). Tô bằng --c-surface, KHÔNG phải --c-page: đo thật trên trang,
-// nền ngay sau minh hoạ là --c-surface (#ffffff bản sáng / #14162c bản tối), còn --c-page là nền
-// của lớp ngoài hơn nữa. Tô nhầm token thì tờ giấy hiện thành một mảng lệch tông trên nền thay vì
-// biến mất — sai lầm này chỉ lộ ra khi đo, không lộ khi đọc mã.
-//
-// CỐ Ý KHÔNG dùng vectorEffect="non-scaling-stroke" như bản trước: nó ghim MỌI nét về đúng 1px
-// thật, xoá sạch thứ bậc dày/mỏng giữa viền giấy (2) và sơ đồ (1.5) — một lý do nữa khiến bản
-// trước đọc thành mớ nét đều đều như nhau.
-function MinhHoaTuongGhim() {
+// Biểu tượng "Sơ đồ tư duy" cho trạng thái lưới rỗng — CÙNG icon với tab Mindmap ở thanh nav dưới
+// (App.tsx: icons.mindmap, viewBox 0 0 608 608, tô currentColor). Hai <path> chép nguyên xi vào
+// đây thay vì import: `icons` là object PRIVATE trong App.tsx (12.000+ dòng, không export) — cùng
+// path nghĩa là cùng hình, không phải một icon mới. Thay cho hình tự vẽ trước đây (phản hồi chủ dự
+// án 2026-08-29: "xoá hình bạn vẽ, thay bằng hình icon mindmap"). currentColor tự ăn theo màu div
+// cha (--c-text-muted) nên hợp cả bản sáng lẫn tối.
+function BieuTuongMindmap() {
   return (
     <svg
-      viewBox="0 0 160 120"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      viewBox="0 0 608 608"
+      fill="currentColor"
+      stroke="none"
       aria-hidden="true"
-      data-testid="minh-hoa-tuong-ghim"
+      data-testid="bieu-tuong-mindmap"
       style={{ width: '100%', height: '100%', display: 'block' }}
     >
-      {/* ── Lớp SAU: hai tờ phụ chỉ thò ra một dải, cho chiều sâu mà không tranh chỗ ──── */}
-      <g style={{ opacity: 0.5 }}>
-        <g transform="rotate(10 122 60)">
-          <rect x="98" y="36" width="48" height="48" rx="2.5" fill="var(--c-surface, #fff)" />
-        </g>
-        <g transform="rotate(-12 46 42)">
-          <rect x="20" y="16" width="52" height="52" rx="2.5" fill="var(--c-surface, #fff)" />
-        </g>
-      </g>
-
-      {/* ── Lớp TRƯỚC: tờ chính, góc dưới-trái cuộn lên ──────────────────────────────
-          Viền vẽ bằng MỘT path liền (không phải <rect>) vì góc dưới-trái không còn là góc vuông —
-          nó bo ra ngoài thành nếp cuộn. Đường cong thứ hai ngay dưới là mép nếp gấp, thứ cho người
-          xem đọc ra "tờ giấy đang cong lên" thay vì "góc bị bo tròn". */}
-      <g transform="rotate(-2.5 83 63)">
-        <path
-          d="M46 26 L120 26 Q122 26 122 28 L122 98 Q122 100 120 100 L58 100 C49 100 44 95 44 86 L44 28 Q44 26 46 26 Z"
-          fill="var(--c-surface, #fff)"
-        />
-        <path d="M58 100 C52 96 46 91 44 86" strokeWidth={1.6} />
-
-        {/* Sơ đồ tư duy vẽ TRÊN tờ giấy — nút trung tâm + ba nhánh cong ra ba nút con. Đầu mỗi
-            nhánh dừng đúng trên đường tròn (không chui vào trong nút), nên chỗ nối đọc sạch. */}
-        <g strokeWidth={1.5}>
-          <circle cx="83" cy="62" r="6.5" />
-          <circle cx="62" cy="45" r="3.6" />
-          <circle cx="107" cy="54" r="3.6" />
-          <circle cx="94" cy="86" r="3.6" />
-          <path d="M77.9 57.9 Q70.5 50.5 64.8 47.3" />
-          <path d="M89.2 59.9 Q96.5 55.4 103.6 55.1" />
-          <path d="M85.7 67.9 Q88 76.5 92.5 82.7" />
-        </g>
-      </g>
-
-      {/* ── Ghim ở GÓC TRÊN-TRÁI của hai tờ nhìn thấy được. Tờ phụ bên phải KHÔNG có ghim: phần
-             thò ra của nó sát mép khung, nhét thêm một cây ghim vào đó chỉ làm chật.
-             KHÔNG có sợi chỉ nối hai ghim — đã thử và bỏ: ở cỡ này nó đi vòng ngay sát hai đầu ghim
-             nên đọc thành một vòng dây thừa quấn quanh chúng, không ra "hai tờ được nối với nhau".
-             Ý "liên kết" đã do chính SƠ ĐỒ vẽ trên tờ giấy gánh, không cần nói lại lần thứ hai. */}
-      <GhimNetLine x={24} y={19} />
-      <GhimNetLine x={52} y={24} />
+      <path d="M118.906410,117.928040 C133.539993,93.791702 152.227600,73.907448 174.708923,57.503590 C200.352142,38.792599 228.852142,26.546539 259.626648,19.118103 C284.605316,13.088681 310.035553,10.891353 335.406097,13.052048 C390.167786,17.715855 440.343872,35.114105 482.760406,71.374138 C513.184021,97.381973 533.056519,129.907104 542.523560,168.882431 C547.748108,190.391571 549.950562,212.173187 549.084106,234.197601 C548.410828,251.311401 545.916077,268.256165 542.856873,285.146790 C539.976929,301.047852 536.352783,316.690094 531.575073,332.125305 C526.484558,348.570923 519.520630,364.165344 511.599152,379.386566 C503.141602,395.637848 494.668274,411.887268 491.931366,430.348907 C491.761169,431.496979 491.421631,432.633301 491.373047,433.784058 C490.549103,453.301483 491.635590,472.695770 494.969452,491.965607 C498.648407,513.230286 502.889008,534.370544 508.256805,555.280212 C515.833496,584.794495 491.929840,601.507507 472.126221,601.426208 C388.142365,601.081543 304.154724,601.022156 220.172134,601.501404 C201.947968,601.605408 185.421768,588.026184 183.257233,568.591553 C182.531525,562.075745 184.842758,555.712952 186.290771,549.482422 C189.260284,536.705322 190.410797,523.900818 189.827454,510.857666 C189.381409,500.884186 187.789658,499.264038 178.091125,499.270538 C166.759811,499.278137 155.427979,499.331970 144.097275,499.246307 C119.581573,499.061005 98.586548,483.006256 92.253807,459.285339 C89.691040,449.685822 90.868210,439.740479 90.737724,429.936493 C90.650040,423.348450 90.728981,423.356384 84.127533,423.316833 C75.175163,423.263184 66.335518,423.764069 57.685825,419.815979 C41.548100,412.450043 30.176935,393.495789 33.040939,376.327148 C34.358864,368.426697 38.213509,361.257111 41.389156,353.935699 C51.321606,331.036499 61.435879,308.214386 71.159393,285.226929 C79.658264,265.134705 83.507843,244.008759 84.996986,222.264771 C85.914673,208.864944 88.538200,195.587204 91.995163,182.569504 C98.004524,159.940369 106.763206,138.416901 118.906410,117.928040 M362.500000,576.818054 C399.663788,576.824402 436.827576,576.843201 473.991364,576.827209 C481.949432,576.823792 486.990204,570.663574 485.314758,562.940369 C484.329041,558.396729 482.973999,553.933960 481.954865,549.396667 C475.579315,521.013062 470.159698,492.506226 467.635345,463.438446 C465.194733,435.334991 469.154510,408.681549 482.350250,383.625488 C489.490662,370.067291 496.914490,356.622772 502.501099,342.346741 C514.327942,312.124329 520.929932,280.661804 523.885010,248.381653 C526.256653,222.474197 524.510925,196.948700 517.844421,171.734299 C510.804016,145.106003 497.980194,121.749222 479.156677,101.693825 C463.003845,84.483917 443.887207,71.437988 422.757599,61.004940 C394.897430,47.248596 365.330109,39.739254 334.603119,37.523029 C304.361420,35.341805 274.476440,38.258488 245.491776,48.231949 C218.036438,57.679184 193.257233,71.550133 171.797791,91.159599 C150.392044,110.720009 134.986465,134.406982 124.116447,161.165649 C116.371666,180.230911 111.721420,200.078354 109.249153,220.456436 C107.710548,233.138687 107.285324,245.919037 104.633240,258.511047 C99.889656,281.033356 90.447861,301.768402 81.324013,322.652100 C73.796677,339.881500 66.106705,357.040558 58.680969,374.313385 C53.891441,385.454132 59.927811,396.323029 71.892288,398.974335 C79.175301,400.588257 86.540611,400.057312 93.799400,399.682220 C106.701424,399.015564 115.628586,409.585938 115.198555,421.361603 C114.876442,430.181793 115.058090,439.025208 115.183365,447.855865 C115.394127,462.713135 127.443565,474.692932 142.313324,474.808868 C155.311554,474.910217 168.311172,474.820251 181.310043,474.860138 C185.658722,474.873505 189.917816,475.519653 193.988953,477.141724 C209.152649,483.183258 212.921783,496.321045 214.133316,510.568420 C215.544693,527.166382 212.349792,543.416443 208.605438,559.475647 C205.818466,571.428711 209.695129,576.827393 222.010376,576.828552 C268.506927,576.832947 315.003448,576.822144 362.500000,576.818054 z" />
+      <path d="M465.892609,173.131989 C477.955750,187.286011 480.877411,202.762497 472.907623,219.312363 C464.914276,235.911194 450.662140,243.710114 432.640930,244.031754 C423.179169,244.200623 414.280060,240.909821 406.642029,235.074432 C404.236481,233.236603 402.323212,233.321381 399.870056,234.741913 C386.611206,242.419754 373.322845,250.047974 359.975555,257.570709 C357.573853,258.924347 356.537964,260.077759 357.819885,262.996826 C364.359955,277.888855 363.944763,292.809998 356.774536,307.309113 C354.532196,311.843353 354.828613,314.430664 358.873138,317.750824 C366.457336,323.976746 373.517731,330.854187 380.629150,337.635620 C383.242767,340.127991 385.503693,340.545624 388.999817,339.179352 C411.180115,330.511444 432.222565,337.601868 444.855957,357.697327 C454.578156,373.162079 450.940582,396.408203 436.871338,408.723175 C412.747772,429.838837 378.165680,422.120972 365.824799,392.586853 C361.701843,382.719879 362.221100,372.384979 366.130005,362.429779 C367.110016,359.933868 367.365356,358.401062 365.191162,356.410400 C356.591766,348.536896 348.140900,340.499542 339.717133,332.437073 C337.868500,330.667755 336.363678,330.446411 334.020599,331.712433 C315.823853,341.544464 297.271027,342.452576 278.511719,333.342712 C276.172791,332.206909 274.843964,332.905945 273.429962,334.678833 C262.629089,348.220978 251.815506,361.753174 240.943573,375.238159 C239.299011,377.277985 239.598755,378.917786 240.809601,381.085022 C250.020264,397.570679 248.898926,415.157227 237.927521,428.746765 C226.770462,442.566345 206.963776,449.227966 190.218063,443.788269 C172.412979,438.004456 159.316437,422.716278 159.583115,402.207184 C159.820572,383.945435 172.800735,367.185333 190.808136,362.167999 C199.191910,359.832031 207.577332,360.058319 215.886505,362.229462 C219.034286,363.051910 220.906097,362.027649 222.749268,359.721680 C233.669327,346.059570 244.631546,332.431000 255.639557,318.839691 C257.021790,317.133118 257.755585,315.851501 256.304047,313.620728 C247.473648,300.049805 245.433990,285.280579 249.117950,269.643646 C249.548843,267.814636 248.942215,266.860718 247.474457,265.985504 C239.893906,261.465332 232.308838,256.950684 224.802567,252.309219 C222.569458,250.928375 221.196808,251.990326 219.506454,253.265472 C198.818207,268.872284 169.387131,263.407440 155.868225,241.496597 C140.995728,217.391861 153.118912,186.935577 180.816910,178.819702 C204.713394,171.817719 229.380859,185.700729 235.646530,209.714355 C237.181717,215.598038 236.755936,221.589233 236.233994,227.545578 C236.017670,230.014130 236.774200,231.603729 238.952759,232.855423 C245.448944,236.587723 251.901306,240.401443 258.279144,244.332062 C260.819946,245.897949 262.687469,245.599457 264.932373,243.646164 C272.024445,237.475235 279.725983,232.334335 289.184387,230.402786 C291.820557,229.864410 292.879333,228.023178 292.875214,225.267502 C292.837311,199.938263 292.822083,174.608627 292.955078,149.279922 C292.974335,145.608521 290.804077,144.504776 288.062317,143.340942 C274.240112,137.473679 264.808350,127.332130 262.077209,112.593864 C256.852478,84.399071 277.869568,64.741364 299.074036,62.192936 C320.553589,59.611446 341.525970,73.925781 347.014954,92.960762 C352.755768,112.869034 342.001343,135.469803 322.617523,143.053665 C318.340759,144.726913 316.774506,146.878326 316.812744,151.439545 C317.012390,175.267624 317.009033,199.098801 316.844879,222.927307 C316.813110,227.543472 318.381744,229.794708 322.899750,231.058273 C328.146332,232.525589 333.328613,234.561142 337.698792,238.038330 C340.122711,239.966980 342.427368,239.941406 345.043945,238.426834 C359.309967,230.169189 373.606781,221.964661 387.912720,213.776276 C389.877350,212.651764 390.488678,211.407867 390.140503,208.935608 C386.901550,185.938980 400.411163,166.129669 422.770264,160.403946 C439.600342,156.094116 453.466248,161.449875 465.892609,173.131989 M289.602570,311.917358 C302.271973,317.095734 314.664093,317.081055 325.844299,308.550995 C334.182190,302.189453 339.397125,293.281708 338.359467,282.666992 C336.518036,263.829742 322.422058,252.143723 303.333252,252.320084 C289.499878,252.447891 275.755585,262.867920 272.469421,275.718933 C268.691711,290.492340 275.021393,304.339142 289.602570,311.917358 M287.101257,96.777718 C281.872620,108.473328 289.195740,120.694138 302.059418,122.670181 C313.939575,124.495132 326.520844,112.872147 324.217407,101.894653 C322.341461,92.954506 316.027008,86.981010 306.902893,85.515076 C300.150909,84.430260 291.592834,89.053734 287.101257,96.777718 M418.231934,213.232635 C422.852417,218.130066 428.449310,220.231949 435.227081,219.744232 C446.711090,218.917877 455.233643,208.144119 452.425018,197.559311 C450.407867,189.957397 445.366425,184.937057 437.771179,183.553040 C429.429382,182.032974 421.610016,183.933823 416.812469,191.679001 C412.486633,198.662598 412.841614,205.880707 418.231934,213.232635 M212.677292,222.004974 C213.047638,211.728622 208.598633,205.264038 198.913986,202.006332 C190.104355,199.042953 179.540695,203.632889 175.360443,212.240387 C171.467224,220.256897 174.645584,230.146896 182.762451,235.272842 C193.805878,242.247025 208.494797,236.078705 212.677292,222.004974 M422.435974,388.846069 C427.471649,381.145233 427.153168,372.131531 421.641022,366.349152 C415.912659,360.339935 405.752167,358.237610 398.093506,361.476898 C390.116638,364.850769 385.131439,374.589752 387.440063,382.289215 C391.946198,397.317749 409.954437,401.025848 422.435974,388.846069 M222.638062,405.885406 C223.057495,395.107025 219.030197,389.060425 209.290344,385.845123 C200.451050,382.927185 191.060837,386.182922 186.128296,393.875824 C182.402374,399.686859 183.398682,409.979431 188.483307,415.215302 C197.259109,424.252106 217.927414,423.970337 222.638062,405.885406 z" />
     </svg>
   )
 }
@@ -330,15 +247,6 @@ function TheBang({
   // Thẻ có thể bị gỡ khỏi DOM giữa lúc đang đếm giờ (xoá bảng, đổi chip lọc, huỷ tìm kiếm) — hẹn
   // giờ còn sống sẽ gọi onBatMenu() cho một thẻ không còn tồn tại.
   useEffect(() => huyNhanGiu, [])
-  // Hue nhận diện của GHIM = hue của chuyên khoa bảng (không phải hash id như trước). mauOnDinh()
-  // vẫn băm ra một hue trong [260,330) — họ tím-hồng an toàn, tránh xa đỏ/hổ phách/lục (Untouchable
-  // Signal Rule) — nhưng giờ khoá theo chuyenKhoa nên MÀU GHIM và ICON CHUYÊN KHOA trên cùng một
-  // thẻ luôn NHẤT QUÁN (critique 2026-08-28 P1/P2: trước đây thẻ mang hai màu "nhận diện" độc lập
-  // có thể chọi nhau). Bảng cùng chuyên khoa dùng chung hue ghim — vẫn phân biệt được bằng icon
-  // (giống nhau), tên, và vị trí; ca trùng "cùng khoa + cùng tên mặc định" hiếm và luồng tạo mở
-  // ngay ô đổi tên. KHÔNG dùng spec.color trực tiếp: nhiều chuyên khoa mang sắc đỏ/cam/lục, ghim
-  // theo màu đó sẽ đọc như một tín hiệu an toàn lâm sàng.
-  const hueGhim = mauOnDinh(bang.chuyenKhoa ?? SPECIALTIES[0].id)
   // Tên chuyên khoa cho aria-label — huy hiệu chuyên khoa trong TheTrong là aria-hidden (nó lồng
   // vào artwork trang trí), nên người dùng trình đọc màn hình không có cách nào khác biết bảng này
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
@@ -542,93 +450,9 @@ function TheBang({
               <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
             )}
           </div>
-          {/* Cây ghim — GÓC TRÁI tờ giấy, NGHIÊNG QUA PHẢI (phản hồi chủ dự án 2026-08-28, mục 4:
-              "để cây ghim ở góc trái tờ giấy, nghiêng qua phải, vẽ chăm chút cây ghim hơn nữa").
-              Trước đây ghim neo top-center và cắm THẲNG ĐỨNG: một hình tròn tô gradient + một vạch
-              tròn làm chuôi. Đó chính là công thức bị chê "quá AI" — không có bộ phận nào của một
-              cây ghim thật, chỉ là hai hình học xếp cạnh nhau.
-              Bản này dựng đúng bốn bộ phận của một cây đinh ghim thật, và mỗi bộ phận mang đúng vật
-              liệu của nó:
-                • KIM bằng THÉP (gradient xám trụ tròn: tối - sáng - tối ngang thân), KHÔNG tô cùng
-                  màu nhựa với đầu ghim. Đây là chi tiết đắt nhất: ghim thật luôn hai vật liệu, tô
-                  một màu suốt từ đầu xuống mũi là dấu hiệu rõ nhất của hình vẽ máy sinh.
-                • CỔ ghim thắt lại giữa đầu và kim, đáy hơi cong (mặt trụ nhìn nghiêng).
-                • VÀNH ĐÁY của vòm — mặt DƯỚI đầu ghim, luôn nằm trong bóng nên tối hơn hẳn vòm; đây
-                  là thứ cho đầu ghim có BỀ DÀY thay vì là một đĩa tròn phẳng.
-                • VÒM đổ gradient TOẢ TRÒN (radial) tâm lệch trên-trái — khối cầu có sắc độ chuyển
-                  dần theo mặt cong; gradient tuyến tính của bản trước cho ra một dải màu phẳng.
-              Thêm hai chi tiết ánh sáng: một cung sáng mảnh ôm rìa trên-trái (phản chiếu viền của
-              vật liệu bóng) và một điểm sáng nhỏ. Và một vệt tiếp xúc mờ trên giấy ngay chân kim —
-              vệt này nằm NGOÀI nhóm xoay vì nó thuộc về mặt giấy, không xoay theo cây ghim.
-              rotate(17 11 34) lấy MŨI KIM làm tâm xoay, nên nghiêng người ghim qua phải mà mũi vẫn
-              cắm đúng một điểm cố định trên giấy.
-              id gradient khoá theo bang.id: id trong <defs> là DUY NHẤT TOÀN TRANG, nhiều thẻ cùng
-              render mà trùng id thì mọi thẻ dùng chung gradient của thẻ đầu tiên.
-              Màu vòm vẫn theo nhận diện từng bảng — chi tiết CHỨC NĂNG (phân biệt bảng cùng tên mặc
-              định), không đánh đổi. */}
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 30 38"
-            style={{
-              position: 'absolute',
-              top: -10,
-              left: 9,
-              width: 19,
-              height: 24,
-              // Bóng hắt xuống DƯỚI-PHẢI, cùng hướng với nguồn sáng trên-trái đã dùng cho vòm — bản
-              // trước đổ bóng thẳng xuống (0 1.5px) trong khi highlight lại lệch trái, hai chi tiết
-              // cãi nhau về vị trí ngọn đèn.
-              filter: 'drop-shadow(1.4px 1.8px 1.5px rgba(0,0,0,0.32))',
-              overflow: 'visible',
-            }}
-          >
-            <defs>
-              <radialGradient id={`ghim-vom-${bang.id}`} cx="32%" cy="25%" r="80%">
-                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) + 26%))`} />
-                <stop offset="45%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) + 6%))`} />
-                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 20%))`} />
-              </radialGradient>
-              {/* VÀNH = CHÍNH đường tròn của vòm, tô tối hơn và tụt xuống 2 đơn vị, vẽ TRƯỚC vòm nên
-                  chỉ ló ra một lưỡi liềm ở đáy. Bản trước dùng một elip DẸT rx bằng vòm: ở khoảng
-                  giữa thân, elip dẹt rộng hơn tiết diện vòm nên nó thò ra hai bên thành hai cái
-                  "tai" — lỗi hình học, không phải lỗi màu. Dùng cùng một đường tròn thì bề ngang
-                  không bao giờ vượt vòm quá vài phần mười đơn vị. */}
-              <linearGradient id={`ghim-vanh-${bang.id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 16%))`} />
-                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 34%))`} />
-              </linearGradient>
-              <linearGradient id={`ghim-co-${bang.id}`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 30%))`} />
-                <stop offset="38%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 8%))`} />
-                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 34%))`} />
-              </linearGradient>
-              {/* Thép: tối ở hai mép, sáng lệch trái — đúng cách ánh sáng chạy trên một thân trụ
-                  tròn. Màu xám trung tính CỐ ĐỊNH, không đọc theme: kim ghim nằm TRÊN tờ giấy, mà
-                  giấy thì không đổi theo sáng/tối (xem --c-note trong index.css). */}
-              <linearGradient id={`ghim-kim-${bang.id}`} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#6b717c" />
-                <stop offset="36%" stopColor="#dadee4" />
-                <stop offset="100%" stopColor="#767c88" />
-              </linearGradient>
-              {/* Điểm loé TÁN DẦN ra trong suốt. Bản trước dùng một cung tròn trắng nét dày ôm rìa
-                  vòm: nét có BIÊN CỨNG nên nó không đọc thành phản chiếu, mà thành một mảng nhựa
-                  trắng dán đè lên đầu ghim — đúng thứ trông "quá AI". Ánh sáng phản chiếu trên vật
-                  liệu bóng luôn tắt dần, không có viền. */}
-              <radialGradient id={`ghim-loe-${bang.id}`} cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
-                <stop offset="55%" stopColor="rgba(255,255,255,0.22)" />
-                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-              </radialGradient>
-            </defs>
-            <ellipse cx="11" cy="33.6" rx="3.2" ry="0.9" fill="rgba(0,0,0,0.16)" />
-            <g transform="rotate(17 11 34)">
-              <path d="M9.75 20.8 L12.25 20.8 L11.55 30.8 L11 34 L10.45 30.8 Z" fill={`url(#ghim-kim-${bang.id})`} />
-              <path d="M8.3 17.6 L13.7 17.6 L12.8 21.2 Q11 21.9 9.2 21.2 Z" fill={`url(#ghim-co-${bang.id})`} />
-              <ellipse cx="11" cy="12.6" rx="7.4" ry="6.9" fill={`url(#ghim-vanh-${bang.id})`} />
-              <ellipse cx="11" cy="10.6" rx="7.4" ry="6.9" fill={`url(#ghim-vom-${bang.id})`} />
-              <ellipse cx="7.9" cy="7.2" rx="3.2" ry="2.2" fill={`url(#ghim-loe-${bang.id})`} transform="rotate(-32 7.9 7.2)" />
-            </g>
-          </svg>
+          {/* Không còn cây ghim vẽ trên thẻ — chủ dự án yêu cầu bỏ hẳn (2026-08-29: "xóa ghim").
+              Phân biệt bảng cùng tên mặc định vẫn còn: icon + màu chuyên khoa trong TheTrong, tên,
+              vị trí trong lưới, và chấm màu ổn định trong panel "Đã xoá gần đây". */}
         </div>
         {!dangSuaTen && (
           <>
@@ -1571,8 +1395,8 @@ export function DanhSachBang({
             textAlign: 'center',
           }}
         >
-          <div className="empty-breathe" style={{ width: 140, height: 105, color: 'var(--c-text-muted, #6b6e96)' }}>
-            <MinhHoaTuongGhim />
+          <div className="empty-breathe" style={{ width: 92, height: 92, color: 'var(--c-text-muted, #6b6e96)' }}>
+            <BieuTuongMindmap />
           </div>
           {/* Lưới THẬT SỰ trống: một câu nói thẳng giá trị của bề mặt (hiến chương: biến lý thuyết
               thành một bức tranh trực quan, dễ hình dung) TRƯỚC dòng mời cũ — người lần đầu không có
