@@ -810,7 +810,7 @@ describe('DanhSachBang', () => {
     expect(container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 
-  it('lưới rỗng toàn bộ, CHƯA lọc chuyên khoa → huy hiệu trung tính (data-khoa rỗng)', async () => {
+  it('lưới rỗng toàn bộ → hiện minh hoạ nét-line "tường ghi chú", KHÔNG còn huy hiệu doc phẳng', async () => {
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
@@ -818,15 +818,14 @@ describe('DanhSachBang', () => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
 
-    // Lưới hoàn toàn không có bảng nào → dải chip lọc chuyên khoa cũng không render (gate cùng
-    // điều kiện `danhSach.filter(...).length > 0` với ô tìm, xem DanhSachBang.tsx) — huy hiệu ở
-    // trạng thái rỗng vẫn phải render, chỉ là trung tính (không có chip nào để lọc theo).
-    const huyHieu = container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')
-    expect(huyHieu).not.toBeNull()
-    expect(huyHieu?.getAttribute('data-khoa')).toBe('')
+    // 2026-08-28 (phản hồi chủ dự án): trạng thái rỗng thay huy hiệu "trang giấy" (TheTrong) bằng
+    // hình vẽ nét-line "tường ghi chú được ghim" — vẽ bằng currentColor nên tự hợp sáng/tối. Huy
+    // hiệu chuyên khoa (data-khoa) không còn ở màn rỗng.
+    expect(container.querySelector('[data-testid="minh-hoa-tuong-ghim"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 
-  it('lưới rỗng do LỌC hết (chip chuyên khoa) → huy hiệu đổi theo chip đang chọn', async () => {
+  it('lưới rỗng do LỌC hết (chip chuyên khoa) → vẫn hiện minh hoạ nét-line + lời mời tạo bảng', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
@@ -849,8 +848,8 @@ describe('DanhSachBang', () => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
     })
 
-    const huyHieu = container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')
-    expect(huyHieu?.getAttribute('data-khoa')).toBe('pulmonology')
+    expect(container.querySelector('[data-testid="minh-hoa-tuong-ghim"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 })
 
@@ -1347,10 +1346,14 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
 
     const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
     expect(oTim.getAttribute('aria-label')).toBe('Tìm kiếm bảng')
-    expect(oTim.className).toContain('mind-focus-ring')
+    // Ô tìm dùng khuôn "pill" chung của app (HomeScreen/SearchScreen): vòng focus "ôm sát" nằm ở
+    // lớp bọc `.mind-search-pill` (index.css: :focus-within), không còn `.mind-focus-ring` trên
+    // chính input.
+    const voPill = oTim.closest('.mind-search-pill') as HTMLElement | null
+    expect(voPill).not.toBeNull()
     // happy-dom không dựng layout thật (getBoundingClientRect trả 0) — kiểm thẳng style nội tuyến,
-    // đúng thứ quyết định chiều cao vùng chạm trên máy thật.
-    expect(parseFloat(oTim.style.minHeight)).toBeGreaterThanOrEqual(44)
+    // đúng thứ quyết định chiều cao vùng chạm trên máy thật. minHeight 44 nằm ở lớp bọc pill.
+    expect(parseFloat(voPill!.style.minHeight)).toBeGreaterThanOrEqual(44)
   })
 
   // Ca TỆ NHẤT của lớp lỗi "bảng rớt khỏi bộ lọc giữa chừng thao tác": truy vấn chỉ khớp NHỜ một

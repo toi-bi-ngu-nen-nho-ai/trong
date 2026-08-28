@@ -152,6 +152,65 @@ function TheTrong({ khoa }: { khoa?: string }) {
   )
 }
 
+// Minh hoạ nét-line cho trạng thái lưới rỗng — một "bức tường ghi chú được ghim" (theo ảnh tham
+// chiếu người dùng gửi 2026-08-28): vài tờ giấy hơi nghiêng, mỗi tờ một cây ghim tròn ở mép trên,
+// nối nhau bằng sợi chỉ mảnh — đúng ẩn dụ sơ đồ tư duy (các nút ghi chú liên kết). VẼ HOÀN TOÀN
+// bằng `currentColor` (không màu cứng, không <image>) nên tự hợp cả bản sáng lẫn tối; div cha đã
+// đặt color = --c-text-muted. Thay cho huy hiệu "trang giấy" (TheTrong) vốn là icon doc phẳng.
+// `vectorEffect=non-scaling-stroke`: hộp .empty-breathe co giãn nhẹ khi "thở", nét vẽ vẫn giữ đúng
+// độ dày.
+function MinhHoaTuongGhim() {
+  const netChinh = { vectorEffect: 'non-scaling-stroke' } as React.CSSProperties
+  const netChu = { vectorEffect: 'non-scaling-stroke', opacity: 0.55 } as React.CSSProperties
+  return (
+    <svg
+      viewBox="0 0 104 78"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      data-testid="minh-hoa-tuong-ghim"
+      style={{ width: '100%', height: '100%', display: 'block' }}
+    >
+      {/* Sợi chỉ nối các ghim — vẽ TRƯỚC để nằm sau giấy */}
+      <g strokeWidth={1.4} style={{ opacity: 0.4 }}>
+        <path d="M30 20 C 45 9, 61 11, 75 17" style={netChinh} />
+        <path d="M33 40 C 39 52, 47 51, 51 44" style={netChinh} />
+        <path d="M71 39 C 67 52, 59 51, 54 44" style={netChinh} />
+      </g>
+      {/* Tờ trái */}
+      <g transform="rotate(-7 27 32)">
+        <rect x="12" y="17" width="30" height="30" rx="3" style={netChinh} />
+        <line x1="18" y1="27" x2="36" y2="27" strokeWidth={1.6} style={netChu} />
+        <line x1="18" y1="33" x2="32" y2="33" strokeWidth={1.6} style={netChu} />
+        <line x1="18" y1="39" x2="28" y2="39" strokeWidth={1.6} style={netChu} />
+        <circle cx="27" cy="17" r="2.8" fill="currentColor" stroke="none" />
+      </g>
+      {/* Tờ phải */}
+      <g transform="rotate(6 77 29)">
+        <rect x="62" y="14" width="30" height="30" rx="3" style={netChinh} />
+        <line x1="68" y1="24" x2="86" y2="24" strokeWidth={1.6} style={netChu} />
+        <line x1="68" y1="30" x2="82" y2="30" strokeWidth={1.6} style={netChu} />
+        <line x1="68" y1="36" x2="78" y2="36" strokeWidth={1.6} style={netChu} />
+        <circle cx="77" cy="14" r="2.8" fill="currentColor" stroke="none" />
+      </g>
+      {/* Tờ dưới giữa — có góc dưới-trái cuộn lên, nhắc lại tờ giấy trong ảnh tham chiếu */}
+      <g transform="rotate(-2 52 55)">
+        <path
+          d="M38 43 Q38 41 40 41 L64 41 Q66 41 66 43 L66 67 Q66 69 64 69 L45 69 L38 62 Z"
+          style={netChinh}
+        />
+        <path d="M45 69 Q40 66 38 62" style={netChinh} />
+        <line x1="43" y1="50" x2="59" y2="50" strokeWidth={1.6} style={netChu} />
+        <line x1="43" y1="56" x2="55" y2="56" strokeWidth={1.6} style={netChu} />
+        <circle cx="52" cy="41" r="2.8" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  )
+}
+
 function TheBang({
   bang,
   index,
@@ -1114,7 +1173,12 @@ export function DanhSachBang({
 
   return (
     <>
-    <div className="h-full flex flex-col">
+    {/* `screen-transition` (index.css: fadeSlideIn) — CÙNG hiệu ứng vào màn với "Hướng dẫn"/"Thẻ ghi
+        nhớ" (ComingSoonScreen) và mọi màn khác trong app. Trước đây tab Mindmap là màn DUY NHẤT
+        thiếu nó, nên bấm nav "Mindmap" hiện ra khô khốc, lệch nhịp với các tab kề bên (phản hồi chủ
+        dự án 2026-08-28). Chỉ chạy khi vào từ tab khác — lượt quay lại từ một bảng đang mở
+        (`dungTuBang`) đã có `.board-out` riêng ở vùng cuộn bên dưới, chồng hai hiệu ứng là thừa. */}
+    <div className={`h-full flex flex-col${dungTuBang ? '' : ' screen-transition'}`}>
       <ScreenHeader title="Sơ đồ tư duy" />
       <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
       {/* .mind-board-wrap (index.css) — bọc toàn bộ nội dung trong một cột co giãn tối đa, CĂN GIỮA.
@@ -1132,26 +1196,62 @@ export function DanhSachBang({
           bảng nào mà unmount chính ô đang gõ thì mất focus giữa chừng, không xoá bớt để quay lại được. */}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
         <div style={{ padding: '12px 16px 4px' }}>
-          <input
-            type="search"
-            data-testid="tim-kiem-bang"
-            value={truyVan}
-            onChange={(e) => setTruyVan(e.target.value)}
-            placeholder="Tìm bảng theo tên, tag, nội dung..."
-            aria-label="Tìm kiếm bảng"
-            className="mind-focus-ring"
-            // KHÔNG đặt fontSize ở đây: index.css có `input,select,textarea{font-size:16px !important}`
-            // (chặn iOS Safari tự zoom) — mọi giá trị đặt ở đây đều bị nuốt. minHeight 44 = vùng chạm
-            // tối thiểu, cùng chuẩn với nút "⋯" và mục menu trong file này.
-            style={{
-              width: '100%',
-              minHeight: 44,
-              padding: '8px 12px',
-              borderRadius: 12,
-              border: '1px solid var(--c-line, #d9ddf4)',
-              background: 'var(--c-surface, #fff)',
-            }}
-          />
+          {/* CÙNG khuôn "pill" với ô tìm toàn app (HomeScreen / SearchScreen): nền --c-line-soft, bo
+              2xl, icon kính lúp bên trái, nút × xoá nhanh khi có chữ. Trước đây là ô viền mảnh nền
+              --c-surface, không khớp phần còn lại của app (phản hồi chủ dự án 2026-08-28) — chỉ đổi
+              lớp vỏ, logic lọc (truyVan/setTruyVan) giữ nguyên. `.mind-search-pill` (index.css) lo
+              vòng focus "ôm sát" dùng chung nên bỏ .mind-focus-ring khỏi input. KHÔNG đặt fontSize:
+              index.css có `input,select,textarea{font-size:16px !important}` (chặn iOS Safari tự
+              zoom) — mọi giá trị đặt ở đây đều bị nuốt. */}
+          <div
+            className="mind-search-pill flex items-center gap-3 px-4 py-3 rounded-2xl"
+            style={{ background: 'var(--c-line-soft, #eef0f8)', minHeight: 44 }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              aria-hidden="true"
+              style={{ width: 20, height: 20, flexShrink: 0, color: 'var(--c-text-muted, #6b6e96)' }}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="search"
+              data-testid="tim-kiem-bang"
+              value={truyVan}
+              onChange={(e) => setTruyVan(e.target.value)}
+              placeholder="Tìm bảng theo tên, tag, nội dung..."
+              aria-label="Tìm kiếm bảng"
+              className="flex-1"
+              style={{ minWidth: 0, border: 0, background: 'transparent', color: 'var(--c-text, #12142b)' }}
+            />
+            {truyVan && (
+              <button
+                type="button"
+                onClick={() => setTruyVan('')}
+                aria-label="Xoá tìm kiếm"
+                className="mind-focus-ring"
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  border: 0,
+                  background: 'none',
+                  padding: 2,
+                  color: 'var(--c-text-muted, #6b6e96)',
+                }}
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style={{ width: 16, height: 16 }}>
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
       {daXoaGanDay.length > 0 && (
@@ -1374,32 +1474,25 @@ export function DanhSachBang({
             textAlign: 'center',
           }}
         >
-          <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #6b6e96)' }}>
-            <TheTrong khoa={chuyenKhoaLoc ?? undefined} />
+          <div className="empty-breathe" style={{ width: 104, height: 78, color: 'var(--c-text-muted, #6b6e96)' }}>
+            <MinhHoaTuongGhim />
           </div>
           {/* Lưới THẬT SỰ trống: một câu nói thẳng giá trị của bề mặt (hiến chương: biến lý thuyết
-              thành bức tranh hành động được) TRƯỚC dòng mời cũ — người lần đầu không có cách nào
-              biết vì sao đây là "phòng não phải" ≥50% công sức thiết kế nếu chỉ thấy một dòng xám
-              (critique 2026-08-28 P3, persona Jordan). */}
+              thành một bức tranh trực quan, dễ hình dung) TRƯỚC dòng mời cũ — người lần đầu không có
+              cách nào biết vì sao đây là "phòng não phải" ≥50% công sức thiết kế nếu chỉ thấy một
+              dòng xám (critique 2026-08-28 P3, persona Jordan). `textWrap: 'balance'` cho hai dòng
+              chữ khi xuống hàng dài gần bằng nhau, không lệch bậc thang (phản hồi chủ dự án
+              2026-08-28: "căn chỉnh cho đều hàng"). Đã bỏ dòng "Ghi chú nối thẳng tới bài viết…
+              phác đồ điều trị" — hứa hẹn một năng lực liên kết chưa hiện diện rõ trong luồng, gây
+              rối hơn là dẫn dắt (cùng phản hồi). */}
           {!rongDoBoLoc && (
-            <p style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--c-text, #12142b)', margin: 0, maxWidth: 260, lineHeight: 1.3 }}>
-              Biến kiến thức thành bức tranh để hành động
+            <p style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--c-text, #12142b)', margin: 0, maxWidth: 280, lineHeight: 1.3, textWrap: 'balance' }}>
+              Biến kiến thức thành bức tranh trực quan, dễ hình dung
             </p>
           )}
-          <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
+          <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0, maxWidth: 280, textWrap: 'balance' }}>
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
           </p>
-          {/* Chỉ hiện ở lưới THẬT SỰ trống (chưa từng tạo bảng nào) — trạng thái rỗng do bộ lọc
-              (rongDoBoLoc) đã có gợi ý riêng ("Thử từ khoá khác...") ngay dưới, không cần lặp lại.
-              Trước đây lời mời chỉ có một dòng, không hề gợi ý được năng lực liên kết-tới-Thư-viện
-              hay lý do đây là bề mặt được đầu tư ≥50% công sức thiết kế của cả app (hiến chương
-              Mindmap) — người dùng lần đầu không có cách nào biết giá trị này tồn tại trước khi tự
-              mò ra (critique 2026-08-26, persona Jordan). */}
-          {!rongDoBoLoc && (
-            <p style={{ fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', margin: 0, maxWidth: 220 }}>
-              Ghi chú nối thẳng tới bài viết trong Thư viện, vẽ tay tự do, và sơ đồ phác đồ điều trị.
-            </p>
-          )}
           {rongDoBoLoc && (
             // Ô tìm và dải chip vẫn hiện ngay phía trên (cả hai gắn vào danhSach GỐC, không phải
             // danh sách đã lọc) nên không cần thêm nút "xoá bộ lọc" riêng — chỉ cần chỉ đúng chỗ.
