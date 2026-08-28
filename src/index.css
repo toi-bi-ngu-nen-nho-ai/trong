@@ -739,6 +739,52 @@ html.theme-shift * {
   filter: drop-shadow(-1px 1.5px 2px rgba(0, 0, 0, 0.28));
 }
 
+/* Lưới thẻ Board Gallery (DanhSachBang.tsx: cả lưới thật lẫn LuoiChoTai giữ chỗ lúc tải dùng chung
+   lớp này, để bộ khung không nhảy cỡ khi dữ liệu thật thay thế). Cột dùng 1fr (không phải minmax cố
+   định như trước) nên thẻ DÃN theo bề ngang khung chứa thay vì đứng yên ở cỡ tối đa 140px — phản hồi
+   thật 2026-08-28: "không gian bảng bị ép hẹp hai bên trên PC/iPad, bảng nên to hơn". Mặc định (viết
+   trước, áp dụng PC/iPad/màn rộng) = 4 cột; override ở @media max-width:640px (cùng ngưỡng
+   .mind-menu-bang đã dùng cho bottom-sheet mobile ngay dưới) rút về 2 cột cho iPhone — hai mức RỜI
+   RẠC theo lớp thiết bị như yêu cầu, không phải một dải auto-fill liên tục co giãn theo từng px. Cỡ
+   thẻ tuyệt đối tính ra từ 1fr × max-width của .mind-board-wrap ngay dưới — card ~240px ở PC/iPad
+   rộng, ~165-190px ở iPhone — lớn hơn hẳn 140px cũ nhưng vẫn có trần (max-width của wrap) để không
+   phình vô hạn trên màn siêu rộng. Corner-curl tuyệt đối 30×30px của .mind-note-card::before phía
+   trên KHÔNG scale theo — vẫn đọc tốt ở tỉ lệ nhỏ hơn so với thẻ to hơn (một góc giấy cong thật cũng
+   không phình theo cỡ ảnh in), không cần đổi sang % cho lượt này. */
+.mind-board-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+/* 1fr một mình tương đương minmax(auto,1fr) — 'auto' kéo theo phần đóng góp min-content THẬT của
+   từng ô vào phép tính bề rộng cột. Đo trực tiếp trên Browser pane (2026-08-28, 6 bảng + ô "+"):
+   cột chứa ô "+" (chỉ có aspect-ratio 4/3, không có hai dòng chữ bên dưới như .the-bang) bị kéo rộng
+   289px trong khi ba cột kia chỉ 223px — min-width:auto mặc định của grid item khiến track sizing
+   coi đóng góp của aspect-ratio-only item khác với đóng góp của thẻ có nội dung text, hai loại ô
+   không còn chia đều 1fr như ý dù cùng khai báo cột 1fr. min-width:0 tắt hẳn đóng góp min-content
+   tự động đó — mọi ô quay lại chia đúng 1/4 (hoặc 1/2 ở mobile) bề ngang như 1fr thật sự nghĩa là. */
+.mind-board-grid > * {
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .mind-board-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+/* Cột nội dung co giãn của Board Gallery (DanhSachBang.tsx) — CĂN GIỮA, trần 1040px. Trần nới từ
+   720px cũ (2026-08-28, phản hồi thật: "không gian bảng bị ép hẹp hai bên") vì .mind-board-grid giờ
+   dùng cột 1fr co GIÃN theo bề ngang khung chứa thay vì cỡ ô cố định — trần hẹp cũ ép cả 4 thẻ dừng
+   lại ở ~140px trên PC/iPad rộng dù còn thừa chỗ. 1040px cho thẻ ~240px ở 4 cột (1040 - 32px padding
+   - 48px gap, chia 4) — lớn hơn hẳn 140px cũ mà vẫn có trần, không phình vô hạn trên màn siêu rộng.
+   Không ảnh hưởng màn hẹp (điện thoại) — max-width chỉ có tác dụng khi khung cha rộng hơn nó. */
+.mind-board-wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
 /* Thẻ "rơi vào chỗ" lúc lưới vào màn — biến thể của .rise-in nhưng dừng ở góc nghiêng NGHỈ của
    từng thẻ (--tilt, xem nghiengOnDinh trong DanhSachBang.tsx) thay vì luôn thẳng đứng. Dùng lại
    NGUYÊN VẸN cơ chế --i/28ms/cap-8 mà .rise-in đã có — không phát minh cách stagger khác. */

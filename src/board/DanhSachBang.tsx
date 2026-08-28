@@ -698,16 +698,9 @@ function TheBang({
 // đã gate reduced-motion) cho biết nội dung đang tới.
 function LuoiChoTai() {
   return (
-    <div
-      aria-hidden="true"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 140px))',
-        justifyContent: 'center',
-        gap: 8,
-        padding: 16,
-      }}
-    >
+    // .mind-board-grid (index.css) — CÙNG lớp với lưới thật bên dưới, để khung giữ chỗ khớp đúng số
+    // cột/cỡ ô của dữ liệu thật sắp thay thế nó, không nhảy layout khi useIdbCollection đọc xong.
+    <div aria-hidden="true" className="mind-board-grid">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
@@ -848,7 +841,7 @@ export function DanhSachBang({
       <div className="h-full flex flex-col">
         <ScreenHeader title="Sơ đồ tư duy" />
         <div className="scroll-ios flex-1">
-          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div className="mind-board-wrap">
             <LuoiChoTai />
           </div>
         </div>
@@ -924,14 +917,15 @@ export function DanhSachBang({
     <div className="h-full flex flex-col">
       <ScreenHeader title="Sơ đồ tư duy" />
       <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
-      {/* Bọc toàn bộ nội dung trong một cột co giãn tối đa 720px, CĂN GIỮA — lưới thẻ dùng
-          minmax(110px,140px) nên với ít bảng (2-3 thẻ), trên màn rộng (PC/iPad ngang) chúng dồn hết
-          về góc trái, để lại một khoảng trắng khổng lồ bên phải, đọc thành "không phủ hết màn, mất
-          cân đối" thay vì một cột nội dung có chủ đích (phản hồi thật 2026-08-27, layout review).
-          720px ≈ 4 cột thẻ thoải mái — đủ để lưới không co lại thành một cột hẹp bất thường, vẫn
-          giữ cảm giác "sổ tay cầm tay" thay vì trải hết bề ngang một màn desktop. KHÔNG ảnh hưởng
-          màn hẹp (điện thoại) — max-width chỉ có tác dụng khi khung cha rộng hơn 720px. */}
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      {/* .mind-board-wrap (index.css) — bọc toàn bộ nội dung trong một cột co giãn tối đa, CĂN GIỮA.
+          Trần nới từ 720px lên 1040px (2026-08-28, phản hồi thật: "không gian bảng bị ép hẹp hai
+          bên") — 720px từng đúng khi lưới thẻ dùng minmax(110px,140px) cố định (4 cột thẻ ~140px
+          vừa lấp đủ 720px), nhưng .mind-board-grid giờ dùng cột 1fr co GIÃN theo bề ngang khung chứa
+          (xem index.css), nên trần hẹp cũ ép luôn cả 4 thẻ dừng ở ~140px trên PC/iPad rộng thay vì
+          được lớn lên cùng khung — đúng triệu chứng người dùng báo. 1040px cho thẻ ~240px ở PC/iPad
+          rộng (lớn hơn hẳn 140px cũ) mà vẫn có trần, không phình vô hạn trên màn siêu rộng. KHÔNG
+          ảnh hưởng màn hẹp (điện thoại) — max-width chỉ có tác dụng khi khung cha rộng hơn nó. */}
+      <div className="mind-board-wrap">
       {/* Ô tìm đứng TRƯỚC "Đã xoá gần đây" — công cụ tìm chính phải nằm trên affordance phục hồi
           hiếm dùng (critique 2026-08-28: recovery-panel nằm trên ô tìm). Cổng hiện/ẩn gắn vào
           danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danh sách đã lọc — gõ tới ký tự không khớp
@@ -1238,25 +1232,18 @@ export function DanhSachBang({
           </button>
         </div>
       ) : (
-        // repeat(auto-fill, minmax(110px, 140px)) thay vì 2 cột cố định — cột cố định nghĩa là ĐÚNG
-        // 2 thẻ chia hết bề ngang bất kể màn rộng bao nhiêu; trên web/iPad (≥768px) mỗi thẻ bị kéo to
-        // gần hết khung hình (đo thật 905×680px ở 1920px) — phản hồi thật "MindMapScreen bị tràn trên
-        // web/ipad" (2026-08-26). Số trong minmax() là cận TRÊN trình duyệt dùng để quyết định số cột
-        // (đo thật trên Browser pane, không phải suy từ lý thuyết CSS Grid suông): max=140 ⇒ 2 cột ở
-        // điện thoại hẹp (375px, khớp hành vi cũ), 4 cột ở iPad (768px), càng nhiều cột hơn ở desktop
-        // rộng — thẻ luôn giữ cỡ ~135-140px (khoảng một thẻ ghi chú thật) dù màn rộng cỡ nào, không
-        // cần media query riêng từng breakpoint. Từng thử max=200 trước: chỉ ra 2 cột suốt tới 768px
-        // (thẻ ~193px, vẫn còn khá lớn) — max=140 mới cho đúng mật độ mong muốn.
-        // justifyContent:'center' — NGUYÊN NHÂN THẬT của "không cân đối" (phản hồi thật 2026-08-27,
-        // đo trực tiếp trên DOM ở 390px: 2 thẻ dồn hết về trái, trái 19px/phải trống 89px). auto-fill
-        // tạo THÊM cột trống vô hình để lấp hết bề ngang container (đúng cơ chế auto-fill, khác
-        // auto-fit collapse cột rỗng) — mặc định justify-content:start đóng khung 2 thẻ THẬT vào bên
-        // trái, cột trống vô hình chiếm nốt phần còn lại bên phải. max-width:720 ở trên (bọc ngoài)
-        // chỉ trị đúng triệu chứng trên PC/iPad rộng (giới hạn khung đọc), KHÔNG trị được ca này —
-        // ở màn hẹp hơn 720px nó không có tác dụng gì. center giữ nguyên hành vi auto-fill/số cột
-        // hiện có, chỉ đổi cách PHÂN BỐ khoảng trống dư ra hai bên đều nhau thay vì dồn hết sang một
-        // phía — đúng cả màn hẹp (2 thẻ) lẫn màn rộng (vài thẻ giữa một hàng dài cột trống).
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 140px))', justifyContent: 'center', gap: 8, padding: 16 }}>
+        // .mind-board-grid (index.css) — 4 cột 1fr cố định trên PC/iPad, rút về 2 cột dưới
+        // @media max-width:640px cho iPhone (2026-08-28, thay cho repeat(auto-fill, minmax(110px,
+        // 140px)) cũ). Cột cố định + 1fr (thay vì auto-fill dò cột theo cỡ ô cố định) là đổi hướng
+        // CÓ CHỦ Ý: yêu cầu mới là đúng 2 mức cột theo LỚP THIẾT BỊ (iPhone/PC-iPad), không phải một
+        // dải liên tục co giãn theo từng px màn hình — 1fr khiến thẻ DÃN lấp đúng 1/4 hoặc 1/2 bề
+        // ngang khung .mind-board-wrap thay vì đứng yên ở cỡ tối đa 140px cũ (đúng phản hồi "bảng nên
+        // to hơn"). Ít bảng hơn số cột (vd 2 bảng trong lưới 4 cột) để trống các cột còn lại bên phải
+        // thay vì tự co lưới lại/căn giữa — hành vi lưới-căn-trái tiêu chuẩn (Google Drive, Notion…),
+        // khoảng trống thừa nhỏ hơn NHIỀU so với ca "không cân đối" đã sửa trước đây (ca đó phát sinh
+        // từ auto-fill dò RA THÊM cột rỗng vô hình để lấp hết bề ngang một container rộng trong khi
+        // mỗi cột bị ghim cỡ nhỏ cố định — vấn đề gốc đã biến mất cùng với chính cơ chế auto-fill).
+        <div className="mind-board-grid">
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}
