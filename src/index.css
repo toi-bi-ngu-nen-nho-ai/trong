@@ -176,6 +176,23 @@
      Thêm bất cứ thứ gì vẽ trên .mind-note-card thì tô bằng hai token này, đừng dùng --c-text*. */
   --c-on-note: #12142b;        /* 17,3:1 trên giấy bản sáng · 15,5:1 trên giấy bản tối */
   --c-on-note-muted: #5c5f7a;  /*  5,9:1 trên giấy bản sáng ·  5,2:1 trên giấy bản tối */
+  /* VẬT LIỆU của tờ giấy ghim — ba token dưới đây từng là giá trị xám-trắng VIẾT CỨNG ngay trong
+     .mind-note-card (gradient đáy #e6e4dc, mặt sau góc cong #fcfbf8/#d3d1c8). Cứng hoá là sai vì
+     --c-note CÓ đổi ở bản tối (#fbfaf7 → #efece3): giấy dịu đi một bậc trong khi mép/mặt sau đứng
+     yên, nên ở bản tối tờ giấy đọc thành "mặt phẳng sáng dán một vệt tối lệch tông" thay vì một tờ
+     giấy liền khối (phản hồi chủ dự án 2026-08-28, mục 5). Ba token này dịch cùng bậc với --c-note
+     ở cả hai bản, giữ nguyên quan hệ sáng-tối bên TRONG chính tờ giấy. */
+  --c-note-edge: #e6e4dc;        /* mép đáy tờ giấy, tối hơn mặt giấy một bậc */
+  --c-note-back: #fcfbf8;        /* mặt SAU tờ giấy lộ ra ở góc cong — sáng hơn mặt trước */
+  --c-note-back-shade: #d3d1c8;  /* chân nếp gấp, nơi mặt sau chui vào bóng */
+  /* Bóng đổ của tờ giấy. Ở bản sáng, bóng đen trên nền trắng là đủ để giấy "nổi" khỏi trang. Ở bản
+     tối, nền app là #0b0c1c gần đen — bóng ĐEN trên nền đen thì VÔ HÌNH, nên thẻ mất hẳn cảm giác
+     nằm trên mặt bàn, đúng triệu chứng "chưa có đổ bóng ở bản tối" (phản hồi chủ dự án 2026-08-28,
+     mục 5). Bản tối vì thế đậm bóng lên VÀ thêm một viền sáng mảnh quanh mép giấy: trên nền tối,
+     thứ tách một vật thể khỏi nền là ÁNH SÁNG viền, không phải bóng. */
+  --c-note-shadow:
+    0 14px 22px -10px rgba(15, 15, 15, 0.38),
+    0 4px 8px rgba(15, 15, 15, 0.14);
   --c-page: #f1f2fb;
   --c-line-soft: #e9ebf9;
   --c-line: #d9ddf4;
@@ -341,8 +358,16 @@
     --c-surface: #14162c;
     --c-surface-alt: #1b1e3d;
     /* Bản tối của --c-note CHỈ dịu bớt một chút (không đổi hẳn sang tối) — giấy vẫn là giấy trắng
-       dưới ánh đèn ban đêm, không phải một bề mặt tối riêng như --c-surface-alt dark. */
+       dưới ánh đèn ban đêm, không phải một bề mặt tối riêng như --c-surface-alt dark. Ba token
+       vật liệu ngay dưới dịch CÙNG một bậc để tờ giấy giữ nguyên quan hệ sáng-tối bên trong. */
     --c-note: #efece3;
+    --c-note-edge: #dbd8cf;
+    --c-note-back: #f4f1e9;
+    --c-note-back-shade: #c6c3ba;
+    --c-note-shadow:
+      0 18px 28px -12px rgba(0, 0, 0, 0.8),
+      0 6px 14px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.07);
     --c-page: #0b0c1c;
     --c-line-soft: #23264a;
     --c-line: #2e3260;
@@ -422,6 +447,13 @@
   --c-surface: #14162c;
   --c-surface-alt: #1b1e3d;
   --c-note: #efece3;
+  --c-note-edge: #dbd8cf;
+  --c-note-back: #f4f1e9;
+  --c-note-back-shade: #c6c3ba;
+  --c-note-shadow:
+    0 18px 28px -12px rgba(0, 0, 0, 0.8),
+    0 6px 14px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.07);
   --c-page: #0b0c1c;
   --c-line-soft: #23264a;
   --c-line: #2e3260;
@@ -816,10 +848,16 @@ html.theme-shift * {
    xám-trắng CỐ ĐỊNH (không suy ra từ --c-note theo theme) vì đây là bóng đổ VẬT LÝ trên giấy, không
    đổi theo theme UI xung quanh — giống hệt cách ảnh tham chiếu không có bản "dark mode" riêng. */
 .mind-note-card {
-  background: linear-gradient(180deg, var(--c-note, #fbfaf7) 0%, var(--c-note, #fbfaf7) 74%, #e6e4dc 100%);
-  box-shadow:
-    0 14px 22px -10px rgba(15, 15, 15, 0.38),
-    0 4px 8px rgba(15, 15, 15, 0.14);
+  background: linear-gradient(
+    180deg,
+    var(--c-note, #fbfaf7) 0%,
+    var(--c-note, #fbfaf7) 74%,
+    var(--c-note-edge, #e6e4dc) 100%
+  );
+  /* KHÔNG kèm giá trị dự phòng cho var(): --c-note-shadow khai báo ở :root NGAY TRONG FILE NÀY nên
+     không bao giờ thiếu, còn chép lại nguyên bộ bóng làm dự phòng là dựng thêm một nguồn sự thật
+     thứ hai — sửa token mà quên sửa bản chép sẽ lệch âm thầm. */
+  box-shadow: var(--c-note-shadow);
   border-radius: 2px;
 }
 .mind-note-card::before {
@@ -840,9 +878,31 @@ html.theme-shift * {
   bottom: 0;
   width: 30px;
   height: 30px;
-  background: linear-gradient(135deg, #d3d1c8 30%, #fcfbf8 68%, #fcfbf8 100%);
+  background: linear-gradient(
+    135deg,
+    var(--c-note-back-shade, #d3d1c8) 30%,
+    var(--c-note-back, #fcfbf8) 68%,
+    var(--c-note-back, #fcfbf8) 100%
+  );
   clip-path: path('M0,16 C0,25 5,30 15,30 L0,30 Z');
   filter: drop-shadow(-1px 1.5px 2px rgba(0, 0, 0, 0.28));
+}
+
+/* Ô "+" tạo bảng mới — dùng ở CẢ HAI chỗ (trạng thái rỗng và cuối lưới, DanhSachBang.tsx), gộp về
+   một lớp thay vì hai khối style nội tuyến chép tay song song nhau như trước.
+   `1px` thay `2px`: viền đứt của trình duyệt vẽ nét và khoảng hở TỈ LỆ THUẬN với độ dày viền, nên
+   2px cho nét dài ~6px — đọc thành mấy vạch to thưa thớt, không ra "đường cắt rời". Hạ xuống 1px
+   vừa mảnh hơn vừa tự động cho nét ngắn ~3px và GẤP ĐÔI số nét trên cùng chu vi (phản hồi chủ dự án
+   2026-08-28, mục 3: "gồm nhiều nét đứt ngắn, mảnh hơn").
+   Màu lấy từ --c-accent-2 / --c-accent-2-rgb — cả hai token ĐÃ có bản ghi đè ở hai khối dark
+   (#b8196f bản sáng → #f175a6 bản tối), nên ô này tự đổi theo chế độ sáng/tối mà không cần khai
+   thêm gì (cùng phản hồi, "chỉnh theo màu của chế độ Dark/Light"). Alpha nền nhích 0.05 → 0.06 vì
+   viền mảnh đi thì mảng nền phải gánh thêm một chút để ô vẫn đọc ra là vùng bấm được. */
+.mind-o-tao-bang {
+  border: 1px dashed var(--c-accent-2, #b8196f);
+  border-radius: 8px;
+  background: rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.06);
+  color: var(--c-accent-2, #b8196f);
 }
 
 /* Lưới thẻ Board Gallery (DanhSachBang.tsx: cả lưới thật lẫn LuoiChoTai giữ chỗ lúc tải dùng chung

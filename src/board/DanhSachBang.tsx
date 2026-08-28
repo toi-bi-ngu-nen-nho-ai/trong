@@ -152,19 +152,67 @@ function TheTrong({ khoa }: { khoa?: string }) {
   )
 }
 
-// Minh hoạ nét-line cho trạng thái lưới rỗng — một "bức tường ghi chú được ghim" (theo ảnh tham
-// chiếu người dùng gửi 2026-08-28): vài tờ giấy hơi nghiêng, mỗi tờ một cây ghim tròn ở mép trên,
-// nối nhau bằng sợi chỉ mảnh — đúng ẩn dụ sơ đồ tư duy (các nút ghi chú liên kết). VẼ HOÀN TOÀN
-// bằng `currentColor` (không màu cứng, không <image>) nên tự hợp cả bản sáng lẫn tối; div cha đã
-// đặt color = --c-text-muted. Thay cho huy hiệu "trang giấy" (TheTrong) vốn là icon doc phẳng.
-// `vectorEffect=non-scaling-stroke`: hộp .empty-breathe co giãn nhẹ khi "thở", nét vẽ vẫn giữ đúng
-// độ dày.
+// Lời mời ở trạng thái lưới rỗng. ` ` là DẤU CÁCH KHÔNG NGẮT (non-breaking space) chèn vào
+// giữa các âm tiết của cùng MỘT từ ghép — trình duyệt được phép xuống dòng ở bất kỳ dấu cách nào,
+// mà tiếng Việt viết rời từng âm tiết nên "bức tranh" bị cắt thành "bức" cuối dòng trên / "tranh"
+// đầu dòng dưới (phản hồi chủ dự án 2026-08-28, mục 2: 'chữ "bức tranh" phải sát nhau'). Khoá cứng
+// bốn từ ghép mang nghĩa — "kiến thức", "bức tranh", "trực quan", "hình dung" — vẫn chừa đủ chỗ
+// ngắt hợp lệ (sau "Biến", "thành", dấu phẩy, "dễ") để text-wrap:balance chia hai dòng cho đều.
+// Dùng escape ` ` chứ KHÔNG dán ký tự thật vào chuỗi: ký tự thật nhìn y hệt dấu cách thường
+// trong mã nguồn, người sửa sau sẽ vô tình gõ đè thành dấu cách thường mà không ai thấy.
+const LOI_MOI_TRONG = 'Biến kiến thức thành bức tranh trực quan, dễ hình dung'
+
+// Một cây ghim NÉT-LINE nghiêng phải, dùng lại cho cả ba tờ trong minh hoạ bên dưới. `x`,`y` là tâm
+// đầu ghim; mũi kim rơi xuống-TRÁI vì thân ghim ngả sang phải — cùng dáng với cây ghim tô màu trên
+// thẻ bảng thật (xem TheBang), để hai chỗ nói cùng một ngôn ngữ hình.
+// Toạ độ mũi/vành tính theo trục ghim nghiêng ~20°: trục (sin20, -cos20) = (0.34, -0.94), vành thì
+// vuông góc với trục. Viết thẳng số đã tính thay vì gọi Math.sin tại chỗ render — đây là hình vẽ
+// tĩnh, không có tham số nào đổi lúc chạy.
+function GhimNetLine({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      {/* Kim chạy xuống-TRÁI vì thân ghim ngả sang phải; điểm xuất phát nằm ngay trên đường tròn
+          đầu ghim (không chui vào trong) nên chỗ nối đọc sạch. Chỉ hai nét — đầu tròn và kim.
+          Bản trước có thêm một vạch "vành đáy": ở cỡ render 140px vạch đó nhỏ hơn 2px, không đọc ra
+          bề dày mà thành một gạch thừa cạnh đầu ghim. Chi tiết chỉ đáng vẽ khi còn đọc được. */}
+      <path d={`M${x - 1.4} ${y + 4} L${x - 4.2} ${y + 11.5}`} strokeWidth={1.6} />
+      <circle cx={x} cy={y} r="4.2" strokeWidth={1.8} />
+    </g>
+  )
+}
+
+// Minh hoạ nét-line cho trạng thái lưới rỗng — "bức tường ghi chú được ghim" theo ảnh tham chiếu
+// chủ dự án gửi 2026-08-28. Bản VẼ LẠI (phản hồi 2026-08-28, mục 1: bản trước "quá tệ").
+//
+// Bản trước hỏng ở ba chỗ, và đây là cách bản này chữa:
+//  1) KHUNG QUÁ NHỎ. 104×78 cho ba tờ giấy + chỉ nối + ghim là nhồi quá nhiều chi tiết vào quá ít
+//     pixel — mọi thứ dính vào nhau thành một vệt xám. Khung mới 160×120 (render 140×105) cho từng
+//     hình đủ chỗ thở.
+//  2) KHÔNG CÓ CHIỀU SÂU. Ba tờ giấy cùng cỡ, cùng độ đậm, xếp cạnh nhau như ba ô vuông. Bản này có
+//     MỘT tờ chính lớn hẳn ở giữa + hai tờ phụ nhỏ hơn, mờ hơn (opacity .42) thò ra sau — mắt đọc
+//     ngay ra lớp trước/lớp sau.
+//  3) NỘI DUNG CHUNG CHUNG. Mấy vạch ngang "giả chữ" trong tờ giấy có thể là bất cứ app ghi chú
+//     nào. Tờ chính giờ vẽ đúng MỘT SƠ ĐỒ TƯ DUY (nút trung tâm + ba nhánh cong ra ba nút con) —
+//     nói thẳng màn này chứa cái gì, thay vì "đây là tờ giấy". Cộng thêm góc dưới-trái CUỘN LÊN,
+//     nhắc lại đúng .mind-note-card của thẻ bảng thật.
+//
+// NÉT vẽ bằng `currentColor` (không màu cứng, không <image>) nên tự hợp cả bản sáng lẫn tối; div
+// cha đặt color = --c-text-muted.
+//
+// RUỘT các tờ giấy PHẢI được tô — không để trong suốt. Nét-line không có nền thì tờ nằm sau lộ
+// nguyên đường viền XUYÊN QUA tờ nằm trước, và cả ba tờ dính thành một mớ đường kẻ chồng nhau
+// (đúng triệu chứng của bản trước). Tô bằng --c-surface, KHÔNG phải --c-page: đo thật trên trang,
+// nền ngay sau minh hoạ là --c-surface (#ffffff bản sáng / #14162c bản tối), còn --c-page là nền
+// của lớp ngoài hơn nữa. Tô nhầm token thì tờ giấy hiện thành một mảng lệch tông trên nền thay vì
+// biến mất — sai lầm này chỉ lộ ra khi đo, không lộ khi đọc mã.
+//
+// CỐ Ý KHÔNG dùng vectorEffect="non-scaling-stroke" như bản trước: nó ghim MỌI nét về đúng 1px
+// thật, xoá sạch thứ bậc dày/mỏng giữa viền giấy (2) và sơ đồ (1.5) — một lý do nữa khiến bản
+// trước đọc thành mớ nét đều đều như nhau.
 function MinhHoaTuongGhim() {
-  const netChinh = { vectorEffect: 'non-scaling-stroke' } as React.CSSProperties
-  const netChu = { vectorEffect: 'non-scaling-stroke', opacity: 0.55 } as React.CSSProperties
   return (
     <svg
-      viewBox="0 0 104 78"
+      viewBox="0 0 160 120"
       fill="none"
       stroke="currentColor"
       strokeWidth={2}
@@ -174,39 +222,47 @@ function MinhHoaTuongGhim() {
       data-testid="minh-hoa-tuong-ghim"
       style={{ width: '100%', height: '100%', display: 'block' }}
     >
-      {/* Sợi chỉ nối các ghim — vẽ TRƯỚC để nằm sau giấy */}
-      <g strokeWidth={1.4} style={{ opacity: 0.4 }}>
-        <path d="M30 20 C 45 9, 61 11, 75 17" style={netChinh} />
-        <path d="M33 40 C 39 52, 47 51, 51 44" style={netChinh} />
-        <path d="M71 39 C 67 52, 59 51, 54 44" style={netChinh} />
+      {/* ── Lớp SAU: hai tờ phụ chỉ thò ra một dải, cho chiều sâu mà không tranh chỗ ──── */}
+      <g style={{ opacity: 0.5 }}>
+        <g transform="rotate(10 122 60)">
+          <rect x="98" y="36" width="48" height="48" rx="2.5" fill="var(--c-surface, #fff)" />
+        </g>
+        <g transform="rotate(-12 46 42)">
+          <rect x="20" y="16" width="52" height="52" rx="2.5" fill="var(--c-surface, #fff)" />
+        </g>
       </g>
-      {/* Tờ trái */}
-      <g transform="rotate(-7 27 32)">
-        <rect x="12" y="17" width="30" height="30" rx="3" style={netChinh} />
-        <line x1="18" y1="27" x2="36" y2="27" strokeWidth={1.6} style={netChu} />
-        <line x1="18" y1="33" x2="32" y2="33" strokeWidth={1.6} style={netChu} />
-        <line x1="18" y1="39" x2="28" y2="39" strokeWidth={1.6} style={netChu} />
-        <circle cx="27" cy="17" r="2.8" fill="currentColor" stroke="none" />
-      </g>
-      {/* Tờ phải */}
-      <g transform="rotate(6 77 29)">
-        <rect x="62" y="14" width="30" height="30" rx="3" style={netChinh} />
-        <line x1="68" y1="24" x2="86" y2="24" strokeWidth={1.6} style={netChu} />
-        <line x1="68" y1="30" x2="82" y2="30" strokeWidth={1.6} style={netChu} />
-        <line x1="68" y1="36" x2="78" y2="36" strokeWidth={1.6} style={netChu} />
-        <circle cx="77" cy="14" r="2.8" fill="currentColor" stroke="none" />
-      </g>
-      {/* Tờ dưới giữa — có góc dưới-trái cuộn lên, nhắc lại tờ giấy trong ảnh tham chiếu */}
-      <g transform="rotate(-2 52 55)">
+
+      {/* ── Lớp TRƯỚC: tờ chính, góc dưới-trái cuộn lên ──────────────────────────────
+          Viền vẽ bằng MỘT path liền (không phải <rect>) vì góc dưới-trái không còn là góc vuông —
+          nó bo ra ngoài thành nếp cuộn. Đường cong thứ hai ngay dưới là mép nếp gấp, thứ cho người
+          xem đọc ra "tờ giấy đang cong lên" thay vì "góc bị bo tròn". */}
+      <g transform="rotate(-2.5 83 63)">
         <path
-          d="M38 43 Q38 41 40 41 L64 41 Q66 41 66 43 L66 67 Q66 69 64 69 L45 69 L38 62 Z"
-          style={netChinh}
+          d="M46 26 L120 26 Q122 26 122 28 L122 98 Q122 100 120 100 L58 100 C49 100 44 95 44 86 L44 28 Q44 26 46 26 Z"
+          fill="var(--c-surface, #fff)"
         />
-        <path d="M45 69 Q40 66 38 62" style={netChinh} />
-        <line x1="43" y1="50" x2="59" y2="50" strokeWidth={1.6} style={netChu} />
-        <line x1="43" y1="56" x2="55" y2="56" strokeWidth={1.6} style={netChu} />
-        <circle cx="52" cy="41" r="2.8" fill="currentColor" stroke="none" />
+        <path d="M58 100 C52 96 46 91 44 86" strokeWidth={1.6} />
+
+        {/* Sơ đồ tư duy vẽ TRÊN tờ giấy — nút trung tâm + ba nhánh cong ra ba nút con. Đầu mỗi
+            nhánh dừng đúng trên đường tròn (không chui vào trong nút), nên chỗ nối đọc sạch. */}
+        <g strokeWidth={1.5}>
+          <circle cx="83" cy="62" r="6.5" />
+          <circle cx="62" cy="45" r="3.6" />
+          <circle cx="107" cy="54" r="3.6" />
+          <circle cx="94" cy="86" r="3.6" />
+          <path d="M77.9 57.9 Q70.5 50.5 64.8 47.3" />
+          <path d="M89.2 59.9 Q96.5 55.4 103.6 55.1" />
+          <path d="M85.7 67.9 Q88 76.5 92.5 82.7" />
+        </g>
       </g>
+
+      {/* ── Ghim ở GÓC TRÊN-TRÁI của hai tờ nhìn thấy được. Tờ phụ bên phải KHÔNG có ghim: phần
+             thò ra của nó sát mép khung, nhét thêm một cây ghim vào đó chỉ làm chật.
+             KHÔNG có sợi chỉ nối hai ghim — đã thử và bỏ: ở cỡ này nó đi vòng ngay sát hai đầu ghim
+             nên đọc thành một vòng dây thừa quấn quanh chúng, không ra "hai tờ được nối với nhau".
+             Ý "liên kết" đã do chính SƠ ĐỒ vẽ trên tờ giấy gánh, không cần nói lại lần thứ hai. */}
+      <GhimNetLine x={24} y={19} />
+      <GhimNetLine x={52} y={24} />
     </svg>
   )
 }
@@ -486,51 +542,92 @@ function TheBang({
               <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
             )}
           </div>
-          {/* Ghim màu ổn định theo id — bản sắc thị giác KHÔNG cần gõ tên (critique lượt 3). Đầu ghim
-              tròn bóng + chuôi cắm THẲNG ĐỨNG xuống giấy — bản trước chuôi vẽ CHÉO, mút chuôi trồi ra
-              ngoài rìa đầu ghim tròn, đọc thành hình cái kính lúp/kẹo mút chứ không phải cây ghim xuyên
-              giấy (phản hồi thật 2026-08-26: "ghim ẩu tả, giống kính lúp"). Chuôi mới đi thẳng từ đáy
-              đầu ghim xuống, nằm GỌN trong bề ngang đầu ghim — đúng dáng ghim tạc thật cắm vuông góc
-              vào mặt phẳng. Neo top-center, TRÀN NHẸ lên trên mép giấy (top âm) — vẫn giữ cảm giác
-              "ghim THẬT xuyên qua giấy". Màu vẫn theo nhận diện từng bảng (không cố định đỏ như ảnh
-              tham chiếu) — chi tiết CHỨC NĂNG (phân biệt nhiều bảng cùng tên mặc định), không đánh đổi. */}
+          {/* Cây ghim — GÓC TRÁI tờ giấy, NGHIÊNG QUA PHẢI (phản hồi chủ dự án 2026-08-28, mục 4:
+              "để cây ghim ở góc trái tờ giấy, nghiêng qua phải, vẽ chăm chút cây ghim hơn nữa").
+              Trước đây ghim neo top-center và cắm THẲNG ĐỨNG: một hình tròn tô gradient + một vạch
+              tròn làm chuôi. Đó chính là công thức bị chê "quá AI" — không có bộ phận nào của một
+              cây ghim thật, chỉ là hai hình học xếp cạnh nhau.
+              Bản này dựng đúng bốn bộ phận của một cây đinh ghim thật, và mỗi bộ phận mang đúng vật
+              liệu của nó:
+                • KIM bằng THÉP (gradient xám trụ tròn: tối - sáng - tối ngang thân), KHÔNG tô cùng
+                  màu nhựa với đầu ghim. Đây là chi tiết đắt nhất: ghim thật luôn hai vật liệu, tô
+                  một màu suốt từ đầu xuống mũi là dấu hiệu rõ nhất của hình vẽ máy sinh.
+                • CỔ ghim thắt lại giữa đầu và kim, đáy hơi cong (mặt trụ nhìn nghiêng).
+                • VÀNH ĐÁY của vòm — mặt DƯỚI đầu ghim, luôn nằm trong bóng nên tối hơn hẳn vòm; đây
+                  là thứ cho đầu ghim có BỀ DÀY thay vì là một đĩa tròn phẳng.
+                • VÒM đổ gradient TOẢ TRÒN (radial) tâm lệch trên-trái — khối cầu có sắc độ chuyển
+                  dần theo mặt cong; gradient tuyến tính của bản trước cho ra một dải màu phẳng.
+              Thêm hai chi tiết ánh sáng: một cung sáng mảnh ôm rìa trên-trái (phản chiếu viền của
+              vật liệu bóng) và một điểm sáng nhỏ. Và một vệt tiếp xúc mờ trên giấy ngay chân kim —
+              vệt này nằm NGOÀI nhóm xoay vì nó thuộc về mặt giấy, không xoay theo cây ghim.
+              rotate(17 11 34) lấy MŨI KIM làm tâm xoay, nên nghiêng người ghim qua phải mà mũi vẫn
+              cắm đúng một điểm cố định trên giấy.
+              id gradient khoá theo bang.id: id trong <defs> là DUY NHẤT TOÀN TRANG, nhiều thẻ cùng
+              render mà trùng id thì mọi thẻ dùng chung gradient của thẻ đầu tiên.
+              Màu vòm vẫn theo nhận diện từng bảng — chi tiết CHỨC NĂNG (phân biệt bảng cùng tên mặc
+              định), không đánh đổi. */}
           <svg
             aria-hidden="true"
-            viewBox="0 0 24 24"
+            viewBox="0 0 30 38"
             style={{
               position: 'absolute',
-              top: -7,
-              left: '55%',
-              transform: 'translateX(-50%)',
-              width: 18,
-              height: 18,
-              filter: 'drop-shadow(0 1.5px 2px rgba(0,0,0,0.35))',
+              top: -10,
+              left: 9,
+              width: 19,
+              height: 24,
+              // Bóng hắt xuống DƯỚI-PHẢI, cùng hướng với nguồn sáng trên-trái đã dùng cho vòm — bản
+              // trước đổ bóng thẳng xuống (0 1.5px) trong khi highlight lại lệch trái, hai chi tiết
+              // cãi nhau về vị trí ngọn đèn.
+              filter: 'drop-shadow(1.4px 1.8px 1.5px rgba(0,0,0,0.32))',
+              overflow: 'visible',
             }}
           >
-            {/* Đầu ghim đổ GRADIENT khối cầu (sáng trên-trái mờ dần xuống tối dưới-phải) thay vì tô
-                PHẲNG một màu + dán một elip trắng làm gloss — công thức "tô phẳng + một highlight
-                lệch góc" đọc thành sticker 3D giả rẻ tiền, kiểu icon AI-generated hàng loạt, chứ
-                không phải ánh sáng thật đổ lên một viên bi kim loại/nhựa (phản hồi thật 2026-08-27,
-                taste review — so với ảnh tham chiếu ghim thật, mặt ghim có SẮC ĐỘ chuyển dần theo
-                khối cầu, không phải một mảng highlight rời rạc). id gradient khoá theo bang.id vì
-                <linearGradient> cần id DUY NHẤT trong toàn trang khi nhiều thẻ cùng render. Elip
-                gloss vẫn giữ lại (không xoá hẳn — vật liệu bóng thật SỰ có phản chiếu điểm) nhưng thu
-                nhỏ + giảm độ đục để thành một điểm sáng phụ, không còn là chi tiết áp đảo cả đầu ghim. */}
             <defs>
-              <linearGradient id={`ghim-grad-${bang.id}`} x1="20%" y1="10%" x2="80%" y2="90%">
-                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) + 12%))`} />
-                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 10%))`} />
+              <radialGradient id={`ghim-vom-${bang.id}`} cx="32%" cy="25%" r="80%">
+                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) + 26%))`} />
+                <stop offset="45%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) + 6%))`} />
+                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 20%))`} />
+              </radialGradient>
+              {/* VÀNH = CHÍNH đường tròn của vòm, tô tối hơn và tụt xuống 2 đơn vị, vẽ TRƯỚC vòm nên
+                  chỉ ló ra một lưỡi liềm ở đáy. Bản trước dùng một elip DẸT rx bằng vòm: ở khoảng
+                  giữa thân, elip dẹt rộng hơn tiết diện vòm nên nó thò ra hai bên thành hai cái
+                  "tai" — lỗi hình học, không phải lỗi màu. Dùng cùng một đường tròn thì bề ngang
+                  không bao giờ vượt vòm quá vài phần mười đơn vị. */}
+              <linearGradient id={`ghim-vanh-${bang.id}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 16%))`} />
+                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 34%))`} />
               </linearGradient>
+              <linearGradient id={`ghim-co-${bang.id}`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 30%))`} />
+                <stop offset="38%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 8%))`} />
+                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 34%))`} />
+              </linearGradient>
+              {/* Thép: tối ở hai mép, sáng lệch trái — đúng cách ánh sáng chạy trên một thân trụ
+                  tròn. Màu xám trung tính CỐ ĐỊNH, không đọc theme: kim ghim nằm TRÊN tờ giấy, mà
+                  giấy thì không đổi theo sáng/tối (xem --c-note trong index.css). */}
+              <linearGradient id={`ghim-kim-${bang.id}`} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#6b717c" />
+                <stop offset="36%" stopColor="#dadee4" />
+                <stop offset="100%" stopColor="#767c88" />
+              </linearGradient>
+              {/* Điểm loé TÁN DẦN ra trong suốt. Bản trước dùng một cung tròn trắng nét dày ôm rìa
+                  vòm: nét có BIÊN CỨNG nên nó không đọc thành phản chiếu, mà thành một mảng nhựa
+                  trắng dán đè lên đầu ghim — đúng thứ trông "quá AI". Ánh sáng phản chiếu trên vật
+                  liệu bóng luôn tắt dần, không có viền. */}
+              <radialGradient id={`ghim-loe-${bang.id}`} cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
+                <stop offset="55%" stopColor="rgba(255,255,255,0.22)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </radialGradient>
             </defs>
-            <path
-              d="M12 13.4 L12 19.4"
-              stroke={`hsl(${hueGhim} var(--chip-s) var(--chip-l))`}
-              strokeWidth="2.1"
-              strokeLinecap="round"
-              fill="none"
-            />
-            <circle cx="12" cy="8.6" r="6.6" fill={`url(#ghim-grad-${bang.id})`} />
-            <ellipse cx="9.7" cy="6.1" rx="1.5" ry="0.9" fill="rgba(255,255,255,0.4)" transform="rotate(-28 9.7 6.1)" />
+            <ellipse cx="11" cy="33.6" rx="3.2" ry="0.9" fill="rgba(0,0,0,0.16)" />
+            <g transform="rotate(17 11 34)">
+              <path d="M9.75 20.8 L12.25 20.8 L11.55 30.8 L11 34 L10.45 30.8 Z" fill={`url(#ghim-kim-${bang.id})`} />
+              <path d="M8.3 17.6 L13.7 17.6 L12.8 21.2 Q11 21.9 9.2 21.2 Z" fill={`url(#ghim-co-${bang.id})`} />
+              <ellipse cx="11" cy="12.6" rx="7.4" ry="6.9" fill={`url(#ghim-vanh-${bang.id})`} />
+              <ellipse cx="11" cy="10.6" rx="7.4" ry="6.9" fill={`url(#ghim-vom-${bang.id})`} />
+              <ellipse cx="7.9" cy="7.2" rx="3.2" ry="2.2" fill={`url(#ghim-loe-${bang.id})`} transform="rotate(-32 7.9 7.2)" />
+            </g>
           </svg>
         </div>
         {!dangSuaTen && (
@@ -1474,7 +1571,7 @@ export function DanhSachBang({
             textAlign: 'center',
           }}
         >
-          <div className="empty-breathe" style={{ width: 104, height: 78, color: 'var(--c-text-muted, #6b6e96)' }}>
+          <div className="empty-breathe" style={{ width: 140, height: 105, color: 'var(--c-text-muted, #6b6e96)' }}>
             <MinhHoaTuongGhim />
           </div>
           {/* Lưới THẬT SỰ trống: một câu nói thẳng giá trị của bề mặt (hiến chương: biến lý thuyết
@@ -1487,7 +1584,7 @@ export function DanhSachBang({
               rối hơn là dẫn dắt (cùng phản hồi). */}
           {!rongDoBoLoc && (
             <p style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--c-text, #12142b)', margin: 0, maxWidth: 280, lineHeight: 1.3, textWrap: 'balance' }}>
-              Biến kiến thức thành bức tranh trực quan, dễ hình dung
+              {LOI_MOI_TRONG}
             </p>
           )}
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0, maxWidth: 280, textWrap: 'balance' }}>
@@ -1504,21 +1601,12 @@ export function DanhSachBang({
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
-            className="mind-focus-ring"
-            // Viền/dấu cộng đổi sang --c-accent-2 (magenta riêng của Mindmap, xem DESIGN.md "The One
-            // Other Place Rule") — trước đây cùng màu xám trung tính với MỌI thẻ khác trên lưới, nên
-            // hành động chính duy nhất của Gallery không có ưu tiên thị giác nào (critique 2026-08-25,
-            // mục "Ô + tạo mới không có ưu tiên thị giác"). Nền tint rất nhạt (.05 alpha) giữ tông vẫn
-            // là ô rỗng viền đứt, không biến thành một thẻ đặc như thẻ nội dung thật.
-            style={{
-              width: 96,
-              height: 72,
-              border: '2px dashed var(--c-accent-2, #b8196f)',
-              borderRadius: 8,
-              background: 'rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.05)',
-              fontSize: 28,
-              color: 'var(--c-accent-2, #b8196f)',
-            }}
+            // .mind-o-tao-bang (index.css): viền đứt mảnh + nền tint, cả hai đọc từ --c-accent-2
+            // (magenta riêng của Mindmap, xem DESIGN.md "The One Other Place Rule") nên tự đổi theo
+            // sáng/tối. Trước đây viền/nền viết nội tuyến ở ĐÂY và ở ô "+" cuối lưới — hai bản chép
+            // tay phải nhớ sửa song song.
+            className="mind-focus-ring mind-o-tao-bang"
+            style={{ width: 104, height: 78, fontSize: 28 }}
             aria-label="Tạo bảng mới"
           >
             +
@@ -1628,18 +1716,10 @@ export function DanhSachBang({
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
-            className="mind-focus-ring"
-            // Cùng lý do và cùng cặp giá trị với ô "+" ở trạng thái rỗng phía trên: viền/dấu cộng
-            // dùng --c-accent-2 để đây vẫn đọc là "lời mời ấm" giữa một lưới thẻ lạnh, thay vì cùng
-            // xám trung tính với trạng thái rỗng/đường viền phân cách.
-            style={{
-              aspectRatio: '4 / 3',
-              border: '2px dashed var(--c-accent-2, #b8196f)',
-              borderRadius: 8,
-              background: 'rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.05)',
-              fontSize: 24,
-              color: 'var(--c-accent-2, #b8196f)',
-            }}
+            // Cùng .mind-o-tao-bang với ô "+" ở trạng thái rỗng phía trên — một nguồn sự thật cho
+            // viền/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
+            className="mind-focus-ring mind-o-tao-bang"
+            style={{ aspectRatio: '4 / 3', fontSize: 24 }}
             aria-label="Tạo bảng mới"
           >
             +
