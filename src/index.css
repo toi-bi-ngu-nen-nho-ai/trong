@@ -570,6 +570,75 @@ input, select, textarea {
   }
 }
 
+/* Lỗ hổng THỨ HAI của phép bọc lớp: ĐỤNG TÊN CLASS.
+   BlockSuite cũng có một class tên `.truncate` (`{ align-self: stretch; text-overflow: ellipsis;
+   white-space: nowrap; overflow: hidden }`), nằm trong đám <style> tiêm thẳng ra <head>. Lớp thác đổ
+   chỉ phân xử được khi HAI BÊN CÙNG KHAI một thuộc tính: ba thuộc tính sau trùng đúng với `.truncate`
+   của Tailwind nên đã thua sẵn. Nhưng `align-self` thì Tailwind KHÔNG khai trong `.truncate` — không
+   có ai tranh, nên `stretch` cứ thế ăn, ở MỌI chỗ app dùng class `truncate`, vĩnh viễn kể từ lần mở
+   bảng vẽ đầu tiên.
+   Triệu chứng thật (2026-08-28, người dùng báo từ iPhone): vào sơ đồ tư duy rồi thoát ra, nút chọn
+   chuyên khoa "Trang chủ" ở đầu Trang chủ có chữ lệch hẳn lên khỏi hàng — nhãn là
+   `<span class="… truncate">` nằm trong `<button class="flex items-center">`, bị `align-self:stretch`
+   kéo cao từ 16px thành 34.7px (đo thật) nên chữ dựng ở mép trên thay vì canh giữa nút.
+   Quét toàn bộ 914 luật trong lớp `drt-vendor` đối chiếu với mọi phần tử light-DOM của app:
+   `.truncate` là luật DUY NHẤT chạm tới app — vá đúng một thuộc tính này là đủ, không phải đuổi bắt.
+   `revert` chứ không phải `center`: trả về giá trị trình duyệt (`auto` = nghe theo `align-items` của
+   cha). Vẫn đặt trong `@layer base` để bất kỳ utility `self-*` nào app cố ý dùng (lớp `utilities`,
+   cao hơn) vẫn thắng. */
+@layer base {
+  .truncate {
+    align-self: revert;
+  }
+}
+
+/* Lỗ hổng THỨ BA — CHIỀU NGƯỢC LẠI: preflight của app ăn mất hộp của bảng vẽ.
+   Hai lỗ trên là "vendor đè app". Cái này là "app đè vendor", và do CHÍNH phép bọc lớp gây ra:
+   Tailwind v4 đặt preflight `*,::before,::after { margin:0; padding:0; border:0 solid }` trong
+   `@layer base`, cao hơn `drt-vendor`. Trước 2026-08-26 CSS bảng vẽ không thuộc lớp nào nên nó
+   thắng preflight; bọc vào lớp thấp nhất xong thì mọi `padding`/`margin`/`border` của BlockSuite bị
+   preflight xoá sạch — nhưng CHỈ ở component dựng bằng `ShadowlessElement` (render ra LIGHT DOM).
+   Component dùng shadow DOM không hề hấn: CSS của chúng đi đường `adoptedStyleSheets` riêng,
+   preflight của document không với tới.
+   Đo thật ở khung nhìn 375px (2026-08-28, người dùng báo từ iPhone: 'thanh công cụ "Khung" và các
+   lựa chọn của nó bị cắt mất bên trái'): quét 277 luật có thuộc tính hộp trong lớp `drt-vendor` đối
+   chiếu 124 phần tử light-DOM → đúng HỌ MENU hỏng, không gì khác. Trên iPhone thanh công cụ bảng vẽ
+   co còn 1 nút + nút "⋯", nên "Khung" nằm trong menu ⋯ — menu đó là `<mobile-menu>` phủ kín màn
+   hình, và nó mất:
+     mobile-menu          padding 8px + env(safe-area-inset-top/bottom)  →  0
+     .mobile-menu-body    padding 24px 16px                              →  0
+     .mobile-menu-button  padding 11px 8px                               →  0
+   Hệ quả đo được: mọi hàng chạy từ x=0 tới x=375 — icon và chữ "Khung"/"Khổ 16:9" dán thẳng vào mép
+   trái màn hình (đọc ra thành "bị cắt"), và hàng chỉ còn cao 22px thay vì 44px (11+22+11), tức tụt
+   dưới ngưỡng vùng chạm 44px của dự án. `drt-menu` (menu bản desktop, cùng `ShadowlessElement`) mất
+   `padding: 8px` và viền `0.5px` y hệt.
+   `revert-layer` chứ KHÔNG chép lại con số: nó trả về đúng giá trị của lớp NGAY DƯỚI `base` — tức
+   `drt-vendor` — nên số liệu luôn bám theo thượng nguồn, không lệch khi nâng cấp vendor. Đặt trong
+   `@layer base` là đủ thắng preflight (cùng lớp, độ đặc hiệu 0,0,1 > 0,0,0 của `*`), mà vẫn thua
+   `utilities` nếu sau này app cố ý đặt utility lên chính cây menu. Không sửa được ở
+   `src/vendor/blocksuite/` (luật D11) nên phép vá bắt buộc nằm phía app. */
+@layer base {
+  drt-menu,
+  drt-menu *,
+  mobile-menu,
+  mobile-menu * {
+    margin: revert-layer;
+    padding: revert-layer;
+    border: revert-layer;
+  }
+
+  /* Thượng nguồn chỉ chừa vùng an toàn cho trục DỌC (`env(safe-area-inset-top/bottom)` nằm trong
+     padding của `mobile-menu`); trục NGANG để 8px chay. Với một tấm phủ kín màn hình thì thiếu đúng
+     phần mà dự án đã có sẵn thuốc: --safe-left/--safe-right (xem :root đầu file) — dựng ra chính vì
+     phản hồi "cắt xén bên trái" trên iPhone, do viền bo góc VẬT LÝ của màn hình chứ không phải notch.
+     Cộng ở ĐÂY (gốc tấm) chứ không ở từng hàng: padding của gốc đẩy vào cả hàng "Xong" trên đầu lẫn
+     mọi hàng lựa chọn — một chỗ khai cho cả tấm. */
+  mobile-menu {
+    padding-left: calc(8px + var(--safe-left));
+    padding-right: calc(8px + var(--safe-right));
+  }
+}
+
 /* ─── Hoà màu khi đổi chủ đề sáng/tối ────────────────────────────────────────────────────────────
    Lớp này do beginThemeShift() trong src/lib/theme.ts gắn lên <html> đúng bằng thời lượng một lần
    đổi chủ đề rồi gỡ ra — KHÔNG bao giờ thường trực (nếu thường trực thì mọi phép đổi nền khác của
