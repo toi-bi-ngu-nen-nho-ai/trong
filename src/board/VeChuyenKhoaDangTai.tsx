@@ -1,104 +1,122 @@
-// Hiệu ứng loading "đang mở bảng" — MỘT nét line đơn chuyển động như đang vẽ icon CHUYÊN KHOA của
-// chính bảng đang mở, lặp vô hạn. File RIÊNG (không nằm trong EdgelessBoard.tsx) vì src/board/index.tsx
-// (vỏ nạp chậm D13) cũng cần dùng nó cho màn chờ tải chunk lần đầu ("Đang tải bảng vẽ…") —
-// index.tsx TUYỆT ĐỐI không được import bất cứ gì từ EdgelessBoard.tsx (module đó kéo theo ~993 kB
-// gzip BlockSuite, xem chú thích D13 ở index.tsx), nhưng file này chỉ phụ thuộc React +
-// SpecialtyIcons.tsx (nhẹ, không BlockSuite) nên an toàn để cả hai phía cùng import tĩnh.
+// Hiệu ứng loading "đang mở bảng" — MỘT nét line tự phác dần icon CHUYÊN KHOA của bảng đang mở, lặp
+// vô hạn. File RIÊNG (không nằm trong EdgelessBoard.tsx) vì src/board/index.tsx (vỏ nạp chậm D13)
+// cũng dùng nó cho màn chờ tải chunk lần đầu ("Đang tải bảng vẽ…") — index.tsx TUYỆT ĐỐI không được
+// import bất cứ gì từ EdgelessBoard.tsx (module đó kéo theo ~993 kB gzip BlockSuite), còn file này
+// chỉ phụ thuộc React + SpecialtyIcons.tsx (nhẹ, không BlockSuite) nên an toàn cho cả hai phía
+// import tĩnh.
 //
-// Loading trước đây là MỘT chấm tròn phập phồng vô nghĩa, giống hệt cho mọi bảng (inkBloom rồi
-// inkRise, index.css — cả hai đã xoá). Phản hồi thật 2026-08-27, lần 2: "chấm tròn nhìn xàm", thay
-// bằng "nét line động đang vẽ icon chuyên khoa". LẦN ĐẦU sửa việc này từng CHỒNG một lớp icon TÔ ĐẶC
-// mờ dần lên trên nét vẽ (để che phần path phức tạp vẽ lộn xộn giữa chừng) — phản hồi thật ngay sau
-// đó, lần 3: lớp tô đặc phồng lên rồi biến mất mỗi vòng lặp đọc như "bức ảnh hoàn thiện nhấp nháy
-// như tắc kè bông", không phải "đang vẽ". Bỏ hẳn kiểu che-bằng-flash đó. Bản này KHÔNG có lớp nào đổi
-// opacity qua lại: lớp NỀN (layTo) là icon tô đặc mờ CỐ ĐỊNH (opacity không đổi suốt vòng lặp, chỉ để
-// mắt nhận ra hình dạng đích), lớp NÉT (layNet) là MỘT stroke-dasharray tự vẽ dần rồi bật lại về đầu
-// — không opacity keyframe nào trên nét vẽ, không có khung hình "đã hoàn thiện" nào bị lộ ra rồi tắt.
-// Điểm khó thật vẫn còn nguyên: 12/13 icon chuyên khoa (SpecialtyIcons.tsx) là minh hoạ giải phẫu CHI
-// TIẾT — một `<path>` DUY NHẤT nhưng hàng nghìn đơn vị độ dài — nên không có dasharray cố định nào
-// đoán trước được, phải đo path.getTotalLength() THẬT lúc chạy cho ĐÚNG icon đang hiện (đúng yêu cầu
-// "thay đổi theo người dùng, không cố định lúc tạo").
+// Lịch sử 4 vòng phản hồi thật:
+//   1) chữ xám tĩnh  →  2) chấm tròn phập phồng ("nhìn xàm")  →  3) tự vẽ nét TRÊN silhouette tô
+//   đặc chi tiết, có lúc chồng thêm lớp tô mờ dần ("nhấp nháy như tắc kè bông")  →  4 (bản này):
+//   kể cả khi bỏ hết lớp tô, "vẽ dần" cái silhouette vẫn chỉ ra một ĐỐM SÁNG bò dọc đường ngoằn
+//   ngoèo, KHÔNG giống "đang vẽ icon". Nguyên nhân gốc: 10/13 icon SPECIALTY_ICONS là ĐƯỜNG BAO
+//   của một mảng TÔ ĐẶC — không có thứ tự nét, nửa chừng là khúc viền vô nghĩa.
+//
+// Bản này đổi KIẾN TRÚC, không phải tham số: dùng specialtyLinePath (SpecialtyIcons.tsx) — icon NÉT
+// ĐƠN khung 24, vẽ theo thứ tự tay người — gồm:
+//   • .drt-trail : <path> nét đã đặt xuống; strokeDashoffset chạy dai→0 để lộ dần (KHÔNG keyframe
+//                  opacity trên nét).
+//   • .drt-tip   : MỘT hạt tròn sáng có quầng ("đầu bút") cưỡi dọc CHÍNH path đó bằng CSS Motion
+//                  Path (offset-path: path(d) + offset-distance 0%→100% đồng bộ mép nét) — đây là
+//                  phần "đường line đang chạy" chủ dự án yêu cầu, thấy rõ ở mọi kích cỡ. Dạng dash
+//                  ngắn kiểu bút trước đó gần như vô hình ở 64px.
+// Hết một vòng: nét KHÔNG mờ đi mà trượt hẳn khỏi đuôi path (dashoffset 0→-dai) rồi vẽ lại từ đầu —
+// không khung hình "đã hoàn thiện" nào loé lên rồi tắt. Mốc loop offset -dai ↔ dai đều là path
+// rỗng nên nối vòng liền mạch.
+//
+// giảm-chuyển-động / thiếu Web Animations API (happy-dom trong vitest, vài trình duyệt cũ): đứng
+// yên ở nét đã-vẽ-xong (dashoffset 0, ẩn hạt đầu bút). getTotalLength() CHỈ gọi SAU nhánh guard
+// này — happy-dom không cài nó, gọi sớm sẽ ném TypeError giữa useEffect và làm vỡ cả EdgelessBoard
+// (edgeless-board-mount.spec.ts bắt đúng ca đó).
 import { useEffect, useRef } from 'react'
 
-import { specialtyIcon } from '../components/SpecialtyIcons'
+import { specialtyLinePath } from '../components/SpecialtyIcons'
 
 export function VeChuyenKhoaDangTai({ khoa, mauNhanDien }: { khoa?: string; mauNhanDien?: number }) {
-  const layNetRef = useRef<HTMLDivElement>(null)
-  const layToRef = useRef<HTMLDivElement>(null)
+  const bocRef = useRef<HTMLDivElement>(null)
+  const d = specialtyLinePath(khoa)
 
   useEffect(() => {
-    const layNet = layNetRef.current
-    const layTo = layToRef.current
-    if (!layNet || !layTo) return
-    const duongNet = Array.from(layNet.querySelectorAll('path'))
-    if (duongNet.length === 0) return
+    const boc = bocRef.current
+    if (!boc) return
+    const vet = boc.querySelector<SVGPathElement>('.drt-trail')
+    const dau = boc.querySelector<SVGCircleElement>('.drt-tip')
+    if (!vet || !dau) return
 
     const giamChuyenDong =
-      typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    // happy-dom (môi trường vitest) chưa cài Element.animate() — và một số trình duyệt thật cũ cũng
-    // vậy. Rơi về đúng nhánh trạng thái tĩnh "đã vẽ xong" dùng chung với reduced-motion thay vì để
-    // p.animate() ném TypeError giữa useEffect, làm crash cả EdgelessBoard (bắt được qua 7/7 ca vỡ
-    // của edgeless-board-mount.spec.ts khi thiếu guard này).
-    const thieuWaapi = typeof duongNet[0].animate !== 'function'
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const thieuWaapi = typeof vet.animate !== 'function'
 
     if (giamChuyenDong || thieuWaapi) {
-      // Đứng yên ở trạng thái ĐÃ VẼ XONG — vẫn là icon đúng chuyên khoa, chỉ không có chuyển động
-      // (giảm chuyển động ≠ tắt hẳn phản hồi — feedback xác nhận vẫn phải đọc được, animate.md).
-      duongNet.forEach((p) => {
-        p.style.strokeDasharray = 'none'
-      })
-      layTo.style.opacity = '1'
+      // Đứng yên ở nét ĐÃ VẼ XONG — vẫn đúng icon khoa, chỉ không chuyển động. KHÔNG chạm
+      // getTotalLength() ở đây (happy-dom chưa cài; xem chú thích đầu file).
+      vet.style.strokeDasharray = 'none'
+      vet.style.strokeDashoffset = '0'
+      dau.style.opacity = '0'
       return
     }
 
-    // layTo giữ đúng opacity 0.16 đặt sẵn trong JSX bên dưới — nền mờ CỐ ĐỊNH, không đổi động ở đây
-    // (khác bản trước có layTo.animate phồng-rồi-tắt), nên không cần đụng gì tới nó trong nhánh này.
+    const dai = vet.getTotalLength()
+    vet.style.strokeDasharray = `${dai}`
+    // Hạt đầu bút bám CHÍNH path này; offset-distance đo theo % nên đồng bộ trực tiếp với phần
+    // trăm nét đã lộ ra, không cần biết `dai`.
+    dau.style.offsetPath = `path('${d}')`
+    dau.style.offsetRotate = '0deg'
 
-    const hoatAnh: Animation[] = []
-    const CHU_KY_MS = 2400
-    duongNet.forEach((p) => {
-      const daiThat = p.getTotalLength()
-      p.style.strokeDasharray = `${daiThat}`
-      hoatAnh.push(
-        p.animate(
-          [
-            // Vẽ dần: easing ease-out riêng cho đoạn 0→58% (nét "chậm lại" khi gần xong, giống tay
-            // vẽ thật) — chỉ strokeDashoffset đổi, KHÔNG có key `opacity` nào ở đây.
-            { strokeDashoffset: daiThat, offset: 0, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
-            // Giữ nguyên hình đã vẽ xong một nhịp để mắt kịp nhận ra icon.
-            { strokeDashoffset: 0, offset: 0.58, easing: 'linear' },
-            { strokeDashoffset: 0, offset: 0.82, easing: 'cubic-bezier(0.7, 0, 1, 1)' },
-            // Bật nhanh về đầu (nét "biến mất" bằng cách rút dasharray, không phải bằng fade) — độ
-            // dốc easing ease-in mạnh ở đoạn 82→100% làm cú bật này đọc như một nét vừa rút xong để
-            // vẽ lại, chứ không phải một cú giật khung hình.
-            { strokeDashoffset: daiThat, offset: 1 },
-          ],
-          { duration: CHU_KY_MS, iterations: Infinity },
-        ),
-      )
-    })
-    return () => hoatAnh.forEach((a) => a.cancel())
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ cần dựng lại hoạt ảnh khi ĐỔI
-    // chuyên khoa (icon khác = path khác = độ dài khác), không phải mỗi khi mauNhanDien đổi (màu
-    // tính thẳng vào `color` inline mỗi lượt render, không cần hoạt ảnh biết giá trị đó).
+    const CHU_KY_MS = 2600
+    const VE_XONG = 0.62 // mốc % chu kỳ: nét vẽ xong
+    const GIU_XONG = 0.86 // giữ nguyên hình tới đây rồi mới cho nét trượt đi
+    const easeVe = 'cubic-bezier(0.65, 0, 0.35, 1)'
+
+    const aVet = vet.animate(
+      [
+        { strokeDashoffset: dai, offset: 0, easing: easeVe },
+        { strokeDashoffset: 0, offset: VE_XONG, easing: 'linear' },
+        { strokeDashoffset: 0, offset: GIU_XONG, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' },
+        { strokeDashoffset: -dai, offset: 1 }, // trượt hẳn khỏi đuôi — "chạy hết" chứ không fade
+      ],
+      { duration: CHU_KY_MS, iterations: Infinity },
+    )
+
+    // Hạt đầu bút: đi 0%→100% dọc path CÙNG easing easeVe trên quãng 0→VE_XONG nên luôn nằm đúng
+    // mép nét đang lộ ra. Hiện lên chớp nhoáng ở đầu, tắt ngay khi vẽ xong (trước lúc nét trượt đi).
+    const tatDau = Math.min(VE_XONG + 0.05, GIU_XONG)
+    const aDau = dau.animate(
+      [
+        { offsetDistance: '0%', opacity: 0, offset: 0 },
+        { offsetDistance: '0%', opacity: 1, offset: 0.05, easing: easeVe },
+        { offsetDistance: '100%', opacity: 1, offset: VE_XONG },
+        { offsetDistance: '100%', opacity: 0, offset: tatDau },
+        { offsetDistance: '100%', opacity: 0, offset: 1 },
+      ],
+      { duration: CHU_KY_MS, iterations: Infinity },
+    )
+
+    return () => {
+      aVet.cancel()
+      aDau.cancel()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ dựng lại khi ĐỔI khoa (icon khác
+    // = path khác = độ dài khác). mauNhanDien đổi chỉ cần render lại `color` inline, hoạt ảnh không
+    // cần biết giá trị đó.
   }, [khoa])
 
   return (
     <div
       aria-hidden="true"
+      ref={bocRef}
+      className="mind-loading-net"
       style={{
-        position: 'relative',
         width: 64,
         height: 64,
         color: `hsl(${mauNhanDien ?? 327} var(--chip-s) var(--chip-l))`,
       }}
     >
-      <div ref={layToRef} style={{ position: 'absolute', inset: 0, opacity: 0.16 }}>
-        {specialtyIcon(khoa, 'w-full h-full')}
-      </div>
-      <div ref={layNetRef} className="mind-loading-net" style={{ position: 'absolute', inset: 0 }}>
-        {specialtyIcon(khoa, 'w-full h-full')}
-      </div>
+      <svg viewBox="0 0 24 24">
+        <path className="drt-trail" d={d} />
+        <circle className="drt-tip" r={1.4} />
+      </svg>
     </div>
   )
 }

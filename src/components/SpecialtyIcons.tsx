@@ -118,3 +118,48 @@ export function specialtyIcon(id: string | undefined, cls = "w-5 h-5"): React.Re
   const draw = (id && SPECIALTY_ICONS[id]) || SPECIALTY_ICONS.default
   return draw(cls)
 }
+
+// ── Bộ icon NÉT ĐƠN cho màn chờ mở bảng ───────────────────────────────────────────────────────
+// SPECIALTY_ICONS ở trên là silhouette TÔ ĐẶC chi tiết: mỗi hình một <path> hàng nghìn đơn vị, là
+// ĐƯỜNG BAO quanh một mảng đặc. Hiển thị tĩnh thì đẹp, nhưng đem "vẽ dần" bằng stroke-dashoffset
+// thì nửa chừng chỉ là một khúc viền vô nghĩa — đầu nét sáng bò quanh hình, KHÔNG đọc ra "đang vẽ
+// icon" (phản hồi thật 2026-08-28, vòng 4). Bộ dưới đây là bản NÉT ĐƠN của từng khoa: mỗi icon MỘT
+// chuỗi `d` duy nhất (nhiều subpath `M…` cho phép — bút "nhấc lên" giữa các mảng), khung 0 0 24 24,
+// vẽ theo thứ tự tay-người nên mỗi khung hình trung gian vẫn là "một phần của icon". Dùng bởi
+// VeChuyenKhoaDangTai.tsx (màn "Đang mở bảng…" + màn tải chunk lần đầu ở board/index.tsx).
+// hematology / emergency / default tái dùng thẳng hình trong SPECIALTY_ICONS vì chúng vốn đã là
+// nét đơn khung 24.
+const SPECIALTY_LINE_PATHS: Record<string, string> = {
+  home: "M3.8 11.4 L12 4 L20.2 11.4 M6 9.6 V20 H18 V9.6 M10.2 20 V14.6 H13.8 V20",
+  cardiology:
+    "M12 19.4 C9.6 17.4 4.6 13.6 4.6 9.1 C4.6 6.4 6.7 4.6 9 4.6 C10.6 4.6 11.7 5.6 12 6.4 C12.3 5.6 13.4 4.6 15 4.6 C17.3 4.6 19.4 6.4 19.4 9.1 C19.4 13.6 14.4 17.4 12 19.4 Z",
+  pulmonology:
+    "M12 3.6 V8.6 M12 8.6 C11.4 11.4 11.4 14.4 11 17.2 C10.7 19.6 9 20.6 7.7 19.4 C6.1 18 6.2 14.8 7 12.2 C8 8.8 12 8.6 12 8.6 M12 8.6 C12.6 11.4 12.6 14.4 13 17.2 C13.3 19.6 15 20.6 16.3 19.4 C17.9 18 17.8 14.8 17 12.2 C16 8.8 12 8.6 12 8.6",
+  gastrointestinal:
+    "M9 3.8 C9.3 6.3 8.9 8 7.6 8.9 C4.8 10.9 4.2 14.8 6.5 17.2 C9.1 20 14.1 19.8 16.3 16.8 C17.9 14.6 16.9 11.7 14 11.7 C12.4 11.7 11.8 10 12.2 7.9 C12.5 6.3 12 4.8 10.5 4 Z M15 15.9 C17.2 16.5 18.5 14.7 17.7 12.6",
+  nephrology:
+    "M14.5 5 C10 5 6.6 8.7 6.6 12 C6.6 15.3 10 19 14.5 19 C16.1 19 16.9 17.9 16.3 16.4 C15.6 14.5 13.5 14.6 13.5 12 C13.5 9.4 15.6 9.5 16.3 7.6 C16.9 6.1 16.1 5 14.5 5 Z M13.3 16.4 C13.3 18.6 12.3 20.4 10.8 20.6",
+  endocrine:
+    "M12 9 C10.2 7.3 7.2 6.9 6 8.9 C4.8 10.9 5.8 13.8 8.8 13.8 C10.8 13.8 12 11.9 12 9 M12 9 C13.8 7.3 16.8 6.9 18 8.9 C19.2 10.9 18.2 13.8 15.2 13.8 C13.2 13.8 12 11.9 12 9 M12 9 V15",
+  neurology:
+    "M12 5.4 C9 5 6.6 6.5 6.1 9 C4.6 9.6 4.6 12 6 12.9 C6 15.6 8.6 18.1 12 18.1 C15.4 18.1 18 15.6 18 12.9 C19.4 12 19.4 9.6 17.9 9 C17.4 6.5 15 5 12 5.4 Z M12 5.4 V18.1 M8.6 8.4 C9.6 8.9 9.6 10.1 8.7 10.7 M15.4 8.4 C14.4 8.9 14.4 10.1 15.3 10.7 M9 13.4 C10 13.9 10 15.1 9.1 15.7 M15 13.4 C14 13.9 14 15.1 14.9 15.7",
+  infectious:
+    "M12 6.6 C15 6.6 17.4 9 17.4 12 C17.4 15 15 17.4 12 17.4 C9 17.4 6.6 15 6.6 12 C6.6 9 9 6.6 12 6.6 Z M12 6.6 V3.6 M12 17.4 V20.4 M6.6 12 H3.6 M17.4 12 H20.4 M8.1 8.1 L6 6 M15.9 8.1 L18 6 M8.1 15.9 L6 18 M15.9 15.9 L18 18",
+  pathophysiology:
+    "M12 5 C15.9 5 19 8.1 19 12 C19 15.9 15.9 19 12 19 C8.1 19 5 15.9 5 12 C5 8.1 8.1 5 12 5 Z M12 9.4 C13.4 9.4 14.6 10.6 14.6 12 C14.6 13.4 13.4 14.6 12 14.6 C10.6 14.6 9.4 13.4 9.4 12 C9.4 10.6 10.6 9.4 12 9.4 Z",
+  pharmacology:
+    "M7 8 H17 C19.2 8 21 9.8 21 12 C21 14.2 19.2 16 17 16 H7 C4.8 16 3 14.2 3 12 C3 9.8 4.8 8 7 8 Z M12 8 V16",
+  hematology:
+    "M12 3.8 C12 3.8 6.4 10 6.4 13.4 C6.4 16.5 8.9 19.1 12 19.1 C15.1 19.1 17.6 16.5 17.6 13.4 C17.6 10 12 3.8 12 3.8 Z M13.9 13.5 C13.9 12.4 13 11.5 12 11.5 C11 11.5 10.1 12.4 10.1 13.5 C10.1 14.6 11 15.5 12 15.5 C13 15.5 13.9 14.6 13.9 13.5 Z",
+  emergency:
+    "M9.7 3.8h4.6a.8.8 0 01.8.8v4.3h4.3a.8.8 0 01.8.8v4.6a.8.8 0 01-.8.8h-4.3v4.3a.8.8 0 01-.8.8H9.7a.8.8 0 01-.8-.8v-4.3H4.6a.8.8 0 01-.8-.8V9.7a.8.8 0 01.8-.8h4.3V4.6a.8.8 0 01.8-.8z",
+  default:
+    "M6.6 3.6 H13.5 L18.4 8.5 V19.2 A1.8 1.8 0 0 1 16.6 21 H6.6 A1.8 1.8 0 0 1 4.8 19.2 V5.4 A1.8 1.8 0 0 1 6.6 3.6 Z M13.4 3.8 V7.1 A1.5 1.5 0 0 0 14.9 8.6 H18.2",
+}
+
+// Chuỗi `d` icon nét đơn của một chuyên khoa (khung 0 0 24 24). Id lạ → icon trang giấy chung,
+// không bao giờ rỗng. Trả CHUỖI (không phải phần tử) để nơi dùng tự dựng <path> — màn loading cần
+// HAI <path> chồng nhau cùng `d` (một nét nền, một "đầu bút" sáng chạy dọc).
+export function specialtyLinePath(id: string | undefined): string {
+  return (id && SPECIALTY_LINE_PATHS[id]) || SPECIALTY_LINE_PATHS.default
+}

@@ -501,8 +501,8 @@ export function EdgelessBoard({
       {dangMo && !loi && (
         // Thay chữ xám tĩnh cũ (từng là khoảng chờ ~5-7s không tín hiệu duy nhất trong app, critique
         // 2026-08-25) — rồi thay TIẾP chấm tròn ink-bloom cũ (từng đọc "nhìn xàm", phản hồi thật
-        // 2026-08-27) bằng icon CHUYÊN KHOA của chính bảng đang mở, tự vẽ nét rồi tô đặc dần —
-        // VeChuyenKhoaDangTai ở trên.
+        // 2026-08-27) bằng icon NÉT ĐƠN của chính chuyên khoa bảng đang mở, tự phác dần như đang vẽ
+        // (một "đầu bút" sáng chạy dọc nét) — VeChuyenKhoaDangTai ở trên.
         <div
           className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
           style={{ color: 'var(--c-text-muted, #6b6e96)' }}

@@ -784,30 +784,50 @@ html.theme-shift * {
   animation: emptyBreathe 2.4s ease-in-out infinite;
 }
 
-/* Ô nạp bảng lúc mở lần đầu — TỪNG là một chấm tròn phập phồng vô nghĩa (inkBloom rồi inkRise,
-   giống hệt cho MỌI bảng bất kể chuyên khoa gì). Phản hồi thật 2026-08-27, lần 2: "chấm tròn nhìn
-   xàm", thay bằng "nét line động đang vẽ icon chuyên khoa của mindmap đó — icon thay đổi theo người
-   dùng, không cố định lúc tạo". Hiệu ứng VẼ THẬT (đo path.getTotalLength() lúc chạy rồi animate
-   stroke-dashoffset — không đoán trước dasharray được vì mỗi chuyên khoa là một path khác hẳn, xem
-   VeChuyenKhoaDangTai trong EdgelessBoard.tsx) không thể biểu diễn bằng @keyframes tĩnh của CSS —
-   JS điều khiển toàn bộ qua Web Animations API, class dưới đây CHỈ lo phần TĨNH: icon phải đọc như
-   nét vẽ chứ không phải một mảng tô đặc.
-   fill:none + stroke:currentColor GHI ĐÈ fill="currentColor" stroke="none" khai trên chính thẻ
-   <svg>/<path> — presentation attribute SVG có độ ưu tiên THẤP NHẤT trong cascade, một rule CSS bất
-   kỳ (kể cả chỉ một class selector) đã thắng, không cần !important.
-   vector-effect:non-scaling-stroke bắt buộc: các icon viewBox lớn (0 0 672 672, 0 0 709 709…) mà
-   không có nó, stroke-width tính theo ĐƠN VỊ VIEWBOX — 2.5 trong một hệ 672 đơn vị co lại còn hiển
-   thị 64px thì mảnh gần như vô hình. Có non-scaling-stroke, stroke-width tính theo PIXEL MÀN HÌNH
-   thật, luôn đọc được bất kể icon nào đang vẽ. */
-.mind-loading-net svg,
-.mind-loading-net path {
+/* Ô nạp bảng lúc mở lần đầu — 4 vòng phản hồi thật: chữ xám → chấm tròn phập phồng ("nhìn xàm") →
+   tự vẽ nét TRÊN silhouette tô đặc → bản này. Vòng 4: "vẽ dần" cái silhouette chi tiết chỉ ra một
+   ĐỐM SÁNG bò dọc đường ngoằn ngoèo, KHÔNG giống đang vẽ icon (10/13 icon SPECIALTY_ICONS là đường
+   BAO của một mảng tô đặc — không thứ tự nét). Đổi sang icon NÉT ĐƠN (SPECIALTY_LINE_PATHS trong
+   SpecialtyIcons.tsx, khung 0 0 24 24, vẽ theo thứ tự tay người) và chồng HAI <path> cùng `d`:
+   .drt-trail (<path>) = nét đã đặt xuống, .drt-tip (<circle>) = hạt "đầu bút" sáng cưỡi dọc path
+   bằng CSS Motion Path. Toàn bộ chuyển động do JS lái qua Web Animations API (đo
+   path.getTotalLength() lúc chạy — mỗi khoa một path khác, không đoán trước dasharray được, xem
+   VeChuyenKhoaDangTai.tsx); các rule dưới đây CHỈ lo phần TĨNH + phân vai hai lớp.
+   fill:none + stroke:currentColor trên .drt-trail: các icon nét đơn vốn đã khai vậy — rule này chỉ
+   khẳng định lại cho đồng nhất (và vô hại nếu sau này có icon nào lỡ khai fill).
+   overflow:visible để quầng sáng .drt-tip không bị khung 24 xén.
+   vector-effect:non-scaling-stroke: giữ độ dày nét theo PIXEL MÀN HÌNH thật, không theo đơn vị
+   viewBox — khung 24 co về 64px thì 2,25px vẫn ra đúng 2,25px, không phụ thuộc DPR. Chỉ .drt-tip
+   có drop-shadow (nó LÀ đầu bút); .drt-trail KHÔNG glow — trước đây glow cả nét làm toàn hình
+   "sáng light lên" thay vì đọc ra đang vẽ. */
+.mind-loading-net svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.mind-loading-net .drt-trail {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.5;
+  stroke-width: 2.25;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 3px currentColor);
+  opacity: 0.9;
+}
+/* Hạt đầu bút ẩn mặc định; chỉ hiện khi trình duyệt có CSS Motion Path (offset-path: path()) —
+   nếu không, hạt sẽ kẹt ở góc (0,0) nhấp nháy như lỗi. Không hạt thì .drt-trail vẫn tự vẽ bình
+   thường, chấp nhận được. iOS/iPadOS Safari 16+ và Chrome đều đã hỗ trợ. */
+.mind-loading-net .drt-tip {
+  display: none;
+}
+@supports (offset-path: path("M0 0 L1 1")) {
+  .mind-loading-net .drt-tip {
+    display: block;
+    fill: currentColor;
+    stroke: none;
+    filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 1.5px currentColor);
+  }
 }
 
 /* LỚP C — nghiêng nhẹ theo vị trí con trỏ khi hover, chỉ bật với chuột thật (không giả trên cảm
@@ -981,7 +1001,7 @@ html.theme-shift * {
   }
   /* .mind-loading-net KHÔNG cần mặt ở đây — VeChuyenKhoaDangTai (EdgelessBoard.tsx) tự kiểm
      window.matchMedia('(prefers-reduced-motion: reduce)') TRƯỚC KHI gọi Web Animations API, bỏ
-     qua hẳn animate() và đứng yên ở trạng thái đã-vẽ-xong (dashoffset 0, tô đặc opacity 1) — một
+     qua hẳn animate() và đứng yên ở trạng thái đã-vẽ-xong (dashoffset 0, ẩn đầu bút) — một
      gate CSS !important ở đây sẽ không có animation nào của JS để chặn, chỉ thêm code chết. */
 }
 
