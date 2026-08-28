@@ -32,7 +32,6 @@ import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 type PropsBang = {
   boardId: string
   onReady?: () => void
-  mauNhanDien?: number
 }
 const kho = new Map<number, ComponentType<PropsBang>>()
 function layBang(lan: number): ComponentType<PropsBang> {
@@ -110,16 +109,12 @@ export class EdgelessBoard extends Component<PropsBang, State> {
             className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
             style={{ color: 'var(--c-text-muted, #6b6e96)' }}
           >
-            <VeChuyenKhoaDangTai mauNhanDien={this.props.mauNhanDien} />
+            <VeChuyenKhoaDangTai />
             <span>Đang tải bảng vẽ…</span>
           </div>
         }
       >
-        <Bang
-          boardId={this.props.boardId}
-          onReady={this.props.onReady}
-          mauNhanDien={this.props.mauNhanDien}
-        />
+        <Bang boardId={this.props.boardId} onReady={this.props.onReady} />
       </Suspense>
     )
   }

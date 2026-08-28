@@ -36,16 +36,8 @@ export type BoardOpenOrigin = {
   height: number
   tilt: number
   anhXemTruoc?: string
-  // Hue nhận diện của bảng (mauOnDinh(bang.id)) — EdgelessBoard.tsx dùng để tô đúng màu giọt mực
-  // loading bằng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn một magenta cố định
-  // (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu": continuity vật liệu nối dài từ thẻ
-  // sang lúc chờ canvas).
-  mauNhanDien?: number
-  // Chuyên khoa của bảng — EdgelessBoard.tsx dùng để VẼ ĐÚNG icon chuyên khoa của CHÍNH bảng đang
-  // mở trong lúc chờ canvas, thay vì một chấm tròn phập phồng vô nghĩa (phản hồi thật 2026-08-27:
-  // "chấm tròn nhìn xàm", icon phải "thay đổi theo người dùng - không cố định lúc tạo"). undefined
-  // khi mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn app) — cùng nhánh dự phòng với
-  // mauNhanDien ngay trên, specialtyIcon() tự rơi về icon mặc định khi thiếu.
+  // Chuyên khoa của bảng — undefined khi mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn
+  // app).
   chuyenKhoa?: string
 }
 
@@ -298,10 +290,6 @@ function TheBang({
                   height: r.height,
                   tilt: nghiengOnDinh(bang.id),
                   anhXemTruoc: bang.anhXemTruoc,
-                  // Cùng hue với GHIM của thẻ (hueGhim = mauOnDinh(chuyenKhoa)) — continuity vật
-                  // liệu: màu giọt mực lúc chờ canvas khớp đúng màu ghim của bảng vừa bấm, không
-                  // phải một hash id riêng.
-                  mauNhanDien: mauOnDinh(bang.chuyenKhoa ?? SPECIALTIES[0].id),
                   chuyenKhoa: bang.chuyenKhoa,
                 }
               : undefined,
@@ -517,9 +505,15 @@ function TheBang({
           className="mind-menu-bang mind-menu-compact mind-sheet"
           style={{ position: 'absolute', top: 30, right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
         >
-          {/* Vùng chạm 44px tối thiểu (display:flex+minHeight, không phải padding trần) + khoảng
-              cách/đường phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành
-              động phá huỷ đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24).
+          {/* Vùng chạm 40px (display:flex+minHeight, không phải padding trần) + khoảng cách/đường
+              phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành động phá huỷ
+              đứng ngay sát hành động an toàn (critique lượt 3, 2026-08-24), nên tăng lên 44px. 44px
+              sau đó tự đọc thành "dòng dãn cách quá xa" cho 3-4 dòng chữ 12px ngắn xếp chồng (phản
+              hồi thật 2026-08-28) — hạ về 40px: vẫn vượt xa ngưỡng WCAG 2.5.8 AA (24px, không phải
+              44 — 44 là mức khuyến nghị AAA/HIG, không bắt buộc), vẫn đủ rộng hơn hẳn 30.6px từng bị
+              coi là lỗi, chỉ bớt khoảng đệm rỗng trên/dưới mỗi dòng chữ. Đường phân + marginTop trước
+              "Xoá" giữ nguyên — đó là phần thật sự xử lý ranh giới phá huỷ/an toàn, độc lập với chiều
+              cao từng dòng.
               width:'max-content' trên div ngoài + whiteSpace nowrap trên từng nhãn (mới thêm
               2026-08-26, phản hồi thật "cắt cụt ngang") — trước đây div ngoài KHÔNG có width tường
               minh, phải tự suy shrink-to-fit trong khi mọi <button> con lại đặt width:100% CỦA CHÍNH
@@ -539,7 +533,7 @@ function TheBang({
               thừa kế cỡ chữ mặc định trình duyệt (~16px) — to hơn HẲN mọi chữ khác quanh nó (chip
               12px, nhãn "Chuyên khoa"/tag 11px) — vừa đọc "chữ menu quá bự", vừa kéo bề rộng
               max-content của cả thanh menu to theo (phản hồi thật 2026-08-27, layout review). Chữ
-              nhỏ lại không thu hẹp vùng chạm: minHeight:44 vẫn giữ nguyên, chỉ khối TEXT bên trong
+              nhỏ lại không thu hẹp vùng chạm: minHeight:40 vẫn giữ nguyên, chỉ khối TEXT bên trong
               gọn lại — không bị ép/cắt cụt vì max-content vẫn tự co đúng theo độ rộng chữ mới. */}
           <button
             type="button"
@@ -547,7 +541,7 @@ function TheBang({
             onClick={onBatSuaTag}
             className="mind-focus-ring"
             role="menuitem"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
           >
             Chuyên khoa/tag
           </button>
@@ -557,7 +551,7 @@ function TheBang({
             onClick={onBatSuaTen}
             className="mind-focus-ring"
             role="menuitem"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
           >
             Đổi tên
           </button>
@@ -565,23 +559,36 @@ function TheBang({
             // Xuất ẢNH XEM TRƯỚC đã lưu sẵn (data URL JPEG, ghi lúc rời bảng — capNhatAnhXemTruoc(),
             // boardMeta.ts) — KHÔNG mở bảng để xuất bằng ExportManager thật. Đây là điểm "chuyển ra
             // board" người dùng yêu cầu (phản hồi thật 2026-08-27, lần 3: xoá hẳn menu xuất trong
-            // màn vẽ, dồn về đúng menu "..." sẵn có của thẻ ở lưới cùng Đổi tên/Chuyên khoa). Đặt
-            // tên "Xuất ảnh" (không phải "Xuất PNG") vì file THẬT LÀ JPEG — nhãn phải khớp đúng định
-            // dạng thật xuất ra, không hứa suông một định dạng khác. Ẩn hẳn mục này khi bảng chưa
-            // từng có ảnh xem trước (mới tạo, chưa từng mở) — không có gì để xuất.
+            // màn vẽ, dồn về đúng menu "..." sẵn có của thẻ ở lưới cùng Đổi tên/Chuyên khoa). Ẩn hẳn
+            // mục này khi bảng chưa từng có ảnh xem trước (mới tạo/còn trống, chưa từng mở) — không
+            // có gì để xuất (capNhatAnhXemTruoc() cố ý KHÔNG chụp bảng trống, xem boardMeta.ts).
+            // Nhãn "Xuất PNG" (2026-08-28, phản hồi thật: "thiếu nút xuất PNG" — trước đây đặt tên
+            // "Xuất ảnh" vì file gốc là JPEG, nhãn phải khớp định dạng thật). Vẽ lại ảnh JPEG lên một
+            // <canvas> rồi toDataURL('image/png') để tệp xuất ra ĐÚNG LÀ PNG thật (không chỉ đổi đuôi
+            // .png lên byte JPEG) — data: URL không dính CORS/taint nên canvas đọc lại được an toàn.
             <button
               type="button"
               data-testid={`xuat-anh-${bang.id}`}
               onClick={() => {
-                const a = document.createElement('a')
-                a.href = bang.anhXemTruoc as string
-                a.download = `${bang.ten.replace(/[\\/:*?"<>|]/g, '_')}.jpg`
-                a.click()
+                const anh = new Image()
+                anh.onload = () => {
+                  const canvas = document.createElement('canvas')
+                  canvas.width = anh.naturalWidth
+                  canvas.height = anh.naturalHeight
+                  const ctx = canvas.getContext('2d')
+                  if (!ctx) return
+                  ctx.drawImage(anh, 0, 0)
+                  const a = document.createElement('a')
+                  a.href = canvas.toDataURL('image/png')
+                  a.download = `${bang.ten.replace(/[\\/:*?"<>|]/g, '_')}.png`
+                  a.click()
+                }
+                anh.src = bang.anhXemTruoc as string
               }}
               className="mind-focus-ring"
-              style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
+              style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
             >
-              Xuất ảnh
+              Xuất PNG
             </button>
           )}
           <button
@@ -594,7 +601,7 @@ function TheBang({
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              minHeight: 44,
+              minHeight: 40,
               textAlign: 'left',
               padding: '0 10px',
               marginTop: 2,

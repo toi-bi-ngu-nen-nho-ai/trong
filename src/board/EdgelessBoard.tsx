@@ -228,18 +228,12 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
 export function EdgelessBoard({
   boardId,
   onReady,
-  mauNhanDien,
 }: {
   boardId: string
   // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
   // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
   // thời lượng cố định không khớp tốc độ mạng/máy thật.
   onReady?: () => void
-  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô màu ba chấm loading
-  // (VeChuyenKhoaDangTai) bằng đúng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn magenta
-  // cố định. undefined khi mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — VeChuyenKhoaDangTai
-  // rơi về màu chữ mờ kế thừa từ div bọc.
-  mauNhanDien?: number
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
@@ -496,12 +490,12 @@ export function EdgelessBoard({
       {dangMo && !loi && (
         // Chữ xám tĩnh cũ (khoảng chờ ~5-7s không tín hiệu, critique 2026-08-25) → chấm tròn
         // ink-bloom → 4 vòng hiệu ứng tự vẽ icon chuyên khoa (đều đọc sai) → nay BA CHẤM nhảy so
-        // le kiểu template phổ thông (VeChuyenKhoaDangTai), tô theo màu nhận diện bảng.
+        // le kiểu template phổ thông (VeChuyenKhoaDangTai), ăn currentColor của div bọc ngay dưới.
         <div
           className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
           style={{ color: 'var(--c-text-muted, #6b6e96)' }}
         >
-          <VeChuyenKhoaDangTai mauNhanDien={mauNhanDien} />
+          <VeChuyenKhoaDangTai />
           <span>Đang mở bảng…</span>
         </div>
       )}

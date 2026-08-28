@@ -62,9 +62,12 @@
   --safe-top-trim: max(0px, calc(var(--safe-top) - 12px));
 
   /* Chiều cao phần bấm được của thanh điều hướng dưới (chưa tính vùng thanh gạt Home).
-     Trước 52px, sau chỉnh còn 46px thấy hơi thấp — nhích lại lên 48px (đợt chỉnh 2026-08 thứ hai);
-     các mục bên trong tự canh giữa theo flex nên không cần chỉnh gì thêm khi đổi con số này. */
-  --nav-body-h: 48px;
+     Trước 52px, sau chỉnh còn 46px thấy hơi thấp — nhích lại lên 48px (đợt chỉnh 2026-08 thứ hai),
+     rồi 51px (2026-08-28, phản hồi thật: "tiêu đề khít sát màn" — trên máy KHÔNG có thanh gạt Home
+     (--safe-bottom=0, vd Android/desktop), nhãn label căn giữa trong 48px cũ chỉ còn ~1px hở dưới
+     cùng trước khi chạm thẳng mép màn hình); các mục bên trong tự canh giữa theo flex nên không cần
+     chỉnh gì thêm khi đổi con số này. */
+  --nav-body-h: 51px;
   /* Khoảng chừa dưới đáy các thanh dính đáy (thanh nav dưới, thanh nút "Lưu" ở màn soạn bài).
      PHẢI bằng đúng vùng thanh gạt Home, không được để 0.
      Trước đây để 0 với lý do "cho nội dung xuống sát cạnh máy". Trên iPhone X chạy toàn màn hình
@@ -846,9 +849,11 @@ html.theme-shift * {
    phồng → tự vẽ nét trên silhouette → nét đơn + hạt đầu bút) — mọi bản đều đọc sai ("line sáng
    light lên", không ra "đang vẽ"). Bỏ hẳn 2026-08-28 theo yêu cầu chủ dự án: chỉ cần "..." nhảy
    theo trình tự như template thế giới.
-   Markup: <div class="mind-loading-dots"><i/><i/><i/></div> (VeChuyenKhoaDangTai.tsx). Ba chấm ăn
-   currentColor (EdgelessBoard/index.tsx đặt màu chữ mờ ở div bọc) hoặc màu nhận diện khoa nếu
-   component nhận mauNhanDien. animation-delay so le 0 / .16s / .32s cho hiệu ứng "sóng".
+   Markup: <div class="mind-loading-dots"><i/><i/><i/></div> (VeChuyenKhoaDangTai.tsx). Ba chấm LUÔN
+   ăn currentColor (EdgelessBoard/index.tsx đặt --c-text-muted ở div bọc) — bản trước từng tô riêng
+   theo hue nhận diện bảng (luôn rơi vào họ hồng/tím), bỏ hẳn 2026-08-28 vì đọc như "màu hồng cố
+   định", không đổi thật theo dark/light (xem comment đầu VeChuyenKhoaDangTai.tsx). animation-delay
+   so le 0 / .16s / .32s cho hiệu ứng "sóng".
    LẶP VÔ HẠN → reduced-motion xử lý ở khối @media chung phía dưới (cùng .empty-breathe...): tắt
    nhún, ba chấm vẫn hiện mờ đều để biết "đang chờ". */
 .mind-loading-dots {

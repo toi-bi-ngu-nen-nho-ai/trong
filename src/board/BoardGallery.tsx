@@ -268,11 +268,7 @@ export function BoardGallery({
             if (e.target === e.currentTarget) setDangPhongTo(false)
           }}
         >
-          <EdgelessBoard
-            boardId={openBoardId}
-            onReady={() => setDangChoCanvas(false)}
-            mauNhanDien={openOrigin?.mauNhanDien}
-          />
+          <EdgelessBoard boardId={openBoardId} onReady={() => setDangChoCanvas(false)} />
           {/* Lớp phủ ảnh xem trước của đúng thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho
               tới khi CẢ HAI đều xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ
               animation phóng to thẻ đã chạy hết (dangPhongTo) — thiếu điều kiện thứ hai, canvas tải
@@ -344,8 +340,10 @@ export function BoardGallery({
               // nút nằm sát mép trái tuyệt đối, không chừa gì cho viền bo góc vật lý của màn hình
               // hoặc notch lệch cạnh khi xoay ngang — --safe-left (index.css, mới thêm) resolve về
               // 0px trên máy không cần bù, nên hành vi cũ (left:4) vẫn giữ nguyên ở đa số trường hợp.
+              // left nhích thêm 5px (4→9, 2026-08-28, phản hồi thật: "quá sát màn hình") — trên máy
+              // không cần bù (--safe-left=0) đây là toàn bộ khoảng cách thật tới mép trái.
               top: 'calc(var(--safe-top, 0px) + 4px)',
-              left: 'calc(var(--safe-left, 0px) + 4px)',
+              left: 'calc(var(--safe-left, 0px) + 9px)',
               zIndex: 20,
               width: 44,
               height: 44,
