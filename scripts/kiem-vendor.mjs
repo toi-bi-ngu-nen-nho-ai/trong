@@ -23,6 +23,7 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
 import { BANG_BAM, VENDOR, dangDoiChieu, docCayVendor } from './tao-bam-vendor.mjs'
+import { tomTatDoiChieu } from './tom-tat-doi-chieu.mjs'
 
 // Đường dẫn checkout AFFiNE trên máy cục bộ. Ghi đè bằng biến môi trường BLOCKSUITE_UPSTREAM
 // trên máy khác; mặc định giữ nguyên đường dẫn hiện tại để không phá luồng làm việc sẵn có.
@@ -180,19 +181,16 @@ if (gocThua.length) {
   gocThua.forEach((ten) => console.error('  ', ten))
 }
 
-// `khongDoiChieuDuoc` phải gồm CẢ `gocThua` — đúng bằng tập mà `process.exit` bên dưới xét.
-// Trước đây dòng này chỉ cộng `thua + thieu`, nên một cây chỉ hỏng vì thư mục gốc thừa sẽ in
-// "không đối chiếu được 0" rồi thoát mã 1: dòng tổng kết nói cổng sạch trong khi cổng đang đỏ.
-const khongDoiChieuDuoc = thua.length + thieu.length + gocThua.length
-console.log(
-  `\nĐã so ${tong} file với thượng nguồn, lệch ${lech}, không đối chiếu được ${khongDoiChieuDuoc}`,
-)
-process.exit(
-  loiBam === 0 &&
-    lech === 0 &&
-    thua.length === 0 &&
-    thieu.length === 0 &&
-    gocThua.length === 0
-    ? 0
-    : 1,
-)
+// Dòng chữ và mã thoát ra khỏi CÙNG một phép tính (`scripts/tom-tat-doi-chieu.mjs`) — trước đây
+// là hai biểu thức viết tay và chúng đã lệch nhau thật: dòng chữ bỏ sót `gocThua`, nên một cây
+// chỉ hỏng vì thư mục gốc thừa in "không đối chiếu được 0" rồi thoát mã 1.
+const tomTat = tomTatDoiChieu({
+  tong,
+  lech,
+  loiBam,
+  thua: thua.length,
+  thieu: thieu.length,
+  gocThua: gocThua.length,
+})
+console.log(tomTat.dong)
+process.exit(tomTat.ma)

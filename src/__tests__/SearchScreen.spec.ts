@@ -6,6 +6,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../lib/idb'
+import { SPECIALTIES } from '../data/specialties'
 import { SearchScreen } from '../App'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -268,5 +269,234 @@ describe('SearchScreen — kết quả loại "board"', () => {
     })
 
     expect(onNavigate).toHaveBeenCalledWith('mindmap', 'bang-cu')
+  })
+})
+
+// ─── Nợ vặt HANDOFF mục 6: hai ô tìm kiếm xử lý dấu tiếng Việt khác nhau ──────
+//
+// Ô tìm của lưới Sơ đồ tư duy (`bangKhopTimKiem`, boardMeta.ts) bỏ dấu từ trước; ô tìm chính này
+// thì `toLowerCase()`. Cùng một truy vấn không dấu ra kết quả ở màn kia mà không ra ở màn này —
+// người trực gõ nhanh không dấu sẽ kết luận "app không có bài đó". Chuẩn chung là bỏ dấu.
+describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  async function dungMan() {
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate: vi.fn(),
+          onBack: () => {},
+          customArticles: [],
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+    return container.querySelector('input[type="search"]') as HTMLInputElement
+  }
+
+  // Bài viết DỰNG SẴN, không phải bảng: đường bài viết là đường mà `toLowerCase()` cũ phục vụ, nên
+  // nếu chỉ canh bằng bảng thì một lượt sửa hồi quy chỉ nửa vời vẫn xanh.
+  it('bài viết dựng sẵn: gõ "nhiem khuan huyet" (không dấu) → ra "Nhiễm khuẩn huyết"', async () => {
+    const oTim = await dungMan()
+    await goVaoOTim(oTim, 'nhiem khuan huyet')
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Nhiễm khuẩn huyết')
+    })
+  })
+
+  it('bảng đã lưu: gõ "dot cap copd" (không dấu) → ra bảng "Đợt cấp COPD nặng"', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-khong-dau',
+      ten: 'Đợt cấp COPD nặng',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'pulmonology',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+    const oTim = await dungMan()
+    await goVaoOTim(oTim, 'dot cap copd')
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Đợt cấp COPD nặng')
+    })
+  })
+
+  // Chiều ngược lại: bỏ dấu KHÔNG được làm hỏng lượt gõ có dấu đầy đủ (cách gõ của máy tính bàn).
+  it('gõ đủ dấu vẫn ra đúng bài đó', async () => {
+    const oTim = await dungMan()
+    await goVaoOTim(oTim, 'nhiễm khuẩn huyết')
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Nhiễm khuẩn huyết')
+    })
+  })
+
+  // Nội dung bên trong bảng (`noiDungTimKiem`) đi qua một mệnh đề RIÊNG trong `filtered` — vá ba
+  // mệnh đề kia mà quên mệnh đề này thì hai ca trên vẫn xanh.
+  it('nội dung bên trong bảng cũng khớp không dấu', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-noi-dung-khong-dau',
+      ten: 'Bảng nháp X',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: 'kháng đông đường uống thế hệ mới',
+    })
+    const oTim = await dungMan()
+    await goVaoOTim(oTim, 'khang dong duong uong')
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Bảng nháp X')
+    })
+  })
+})
+
+// ─── Nợ vặt HANDOFF mục 6: dải chip chuyên khoa không khớp giữa hai màn ──────────
+//
+// Dải chip cũ suy từ `ARTICLES` tĩnh, mà ARTICLES chỉ dùng 6 tên khoa. Bảng Mindmap gắn được cả
+// 11 khoa của SPECIALTIES — 5 khoa còn lại (Tiêu hoá, Huyết học, Nhiễm, Sinh lý (bệnh), Dược lâm
+// sàng) không có chip nào, tức người dùng gắn khoa cho bảng rồi lại không lọc được theo nó.
+describe('SearchScreen — dải chip chuyên khoa', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  async function dungMan() {
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate: vi.fn(),
+          onBack: () => {},
+          customArticles: [],
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+  }
+
+  const tenChip = () =>
+    Array.from(container.querySelectorAll('[data-testid^="chip-khoa-"]')).map((b) =>
+      (b.textContent ?? '').trim(),
+    )
+
+  it('bảng gắn khoa mà không bài viết nào dùng (Tiêu hoá) vẫn có chip riêng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-tieu-hoa',
+      ten: 'Xuất huyết tiêu hoá trên',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'gastrointestinal',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+    await dungMan()
+    await choDenKhi(() => {
+      expect(tenChip()).toContain('Tiêu hoá')
+    })
+  })
+
+  it('bảng đã xoá mềm KHÔNG sinh ra chip — chip phải theo đúng tập kết quả thật', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-huyet-hoc-da-xoa',
+      ten: 'Bảng huyết học nháp',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      daXoaLuc: bayGio,
+      chuyenKhoa: 'hematology',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+    await dungMan()
+    // Đợi hook nạp xong rồi mới khẳng định "không có", nếu không ca này xanh giả.
+    await choDenKhi(() => {
+      expect(tenChip().length).toBeGreaterThan(1)
+    })
+    expect(tenChip()).not.toContain('Huyết học')
+  })
+
+  // Hai tên chỉ CÙNG một khoa: ARTICLES viết "Hồi sức - Cấp cứu", SPECIALTIES (nguồn của lưới
+  // Mindmap và của huy hiệu khoa) gọi là "Cấp cứu". Hai chip cho một khoa là dải chip nói dối.
+  it('gộp bí danh: có chip "Cấp cứu", KHÔNG có chip "Hồi sức - Cấp cứu"', async () => {
+    await dungMan()
+    await choDenKhi(() => {
+      expect(tenChip()).toContain('Cấp cứu')
+    })
+    expect(tenChip()).not.toContain('Hồi sức - Cấp cứu')
+  })
+
+  it('chọn chip "Cấp cứu" vẫn lọc ra bài viết mang tên khoa cũ', async () => {
+    await dungMan()
+    await choDenKhi(() => {
+      expect(tenChip()).toContain('Cấp cứu')
+    })
+    const chip = container.querySelector('[data-testid="chip-khoa-Cấp cứu"]') as HTMLButtonElement
+    await act(async () => {
+      chip.click()
+    })
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'nhiem khuan huyet')
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Nhiễm khuẩn huyết')
+    })
+  })
+
+  it('thứ tự chip khớp thứ tự SPECIALTIES của màn Sơ đồ tư duy, "Tất cả" đứng đầu', async () => {
+    const bayGio = Date.now()
+    // Thêm một bảng thuộc khoa nằm GIỮA dãy SPECIALTIES: nếu dải chip xếp theo thứ tự gặp được
+    // (bảng nạp sau bài viết) thì "Tiêu hoá" rơi xuống cuối và ca này đỏ.
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-tieu-hoa-2',
+      ten: 'Bảng tiêu hoá',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'gastrointestinal',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+    await dungMan()
+    await choDenKhi(() => {
+      expect(tenChip()).toContain('Tiêu hoá')
+    })
+    const chip = tenChip()
+    expect(chip[0]).toBe('Tất cả')
+    const thuTu = SPECIALTIES.map((s) => s.name)
+    const chiSo = chip.slice(1).map((t) => thuTu.indexOf(t))
+    expect(chiSo, `chip lạ ngoài SPECIALTIES: ${chip.slice(1)}`).not.toContain(-1)
+    expect(chiSo).toEqual([...chiSo].sort((a, b) => a - b))
   })
 })
