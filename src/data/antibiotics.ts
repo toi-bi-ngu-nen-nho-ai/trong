@@ -57,7 +57,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
     indications: [
       {
         diseaseId: "cap",
-        standardDose: "15-20 mg/kg mỗi 24h",
         tiers: [                             
           { min: 80.01, label: "CrCl >80", dose: "15–20 mg/kg mỗi 24h" },
           { min: 60.01, label: "CrCl >60–80 ", dose: "12 mg/kg mỗi 24h" },
@@ -97,7 +96,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
         defaultVolumeMl: 200,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
-        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
       },
       {
         vialAmount: 500,
@@ -108,7 +106,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
         defaultVolumeMl: 100,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
-        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
       },
       {
         vialAmount: 1000,
@@ -119,7 +116,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
         defaultVolumeMl: 200,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
-        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
       },
             {
         vialAmount: 500,
@@ -130,7 +126,6 @@ export const ANTIBIOTICS: Antibiotic[] = [
         defaultVolumeMl: 100,
         diluents: ["NaCl 0,9%", "Glucose 5%"],
         maxConc: 35,                  // 30-35 microgram/ml là nồng độ tối đa khuyến cáo để tránh độc tính thận và tai
-        infuseNote: "Pha 500 mg amikacin vào 100-200ml dịch truyền, truyền tĩnh mạch trong 30-60 phút.",
       },
     ],
   },
@@ -138,26 +133,28 @@ export const ANTIBIOTICS: Antibiotic[] = [
     id: "ampicillin-iv",
     name: "Ampicillin",
     compatKey: COMPAT_KEYS.ampicillin,
-    route: "Tiêm/truyền tĩnh mạch (IV)",
-    standardDose: "1–2 g mỗi 4–6h (IV)",
+    route: "TMC",
+    standardDose: "2 g mỗi 6h",
     note: ARC_NOTE,
     tiers: [
-      { min: 90, label: "CrCl ≥ 90", dose: `2 g mỗi 4h (${ARC_TIER_NOTE})` },
-      { min: 50, label: "CrCl 50–89", dose: "1–2 g mỗi 6h" },
-      { min: 10, label: "CrCl 10–49", dose: "1–2 g mỗi 6–12h" },
-      { min: 0, label: "CrCl < 10", dose: "1–2 g mỗi 12–24h" },
+      { min: 90.01, label: "CrCl >90", dose: `2 g mỗi 6h (${ARC_TIER_NOTE})` },
+      { min: 50.01, label: "CrCl >50–90", dose: "2 g mỗi 6h" },
+      { min: 30.01, label: "CrCl >30–50", dose: "2 g mỗi 6-8h" },
+      { min: 10.01, label: "CrCl >10–30", dose: "2 g mỗi 8-12h" },
+      { min: 0.01, label: "CrCl <10", dose: "2 g mỗi 12h" },
     ],
-    warnings: [{ text: "Nguy cơ phát ban cao hơn ở bệnh nhân tăng bạch cầu đơn nhân nhiễm khuẩn hoặc dùng cùng allopurinol.", severity: "trung bình" }],
     indications: [
       {
-        diseaseId: "meningitis",
-        standardDose: "2 g mỗi 4h (IV) — liều cao để phủ Listeria trên thần kinh trung ương",
+        diseaseId: "cap",
+        standardDose: "2 g mỗi 6h",
+        note: ARC_NOTE,
         tiers: [
-          { min: 50, label: "CrCl ≥ 50", dose: "2 g mỗi 4h" },
-          { min: 10, label: "CrCl 10–49", dose: "2 g mỗi 6–8h" },
-          { min: 0, label: "CrCl < 10", dose: "2 g mỗi 12h" },
+          { min: 90.01, label: "CrCl >90", dose: `2 g mỗi 6h (${ARC_TIER_NOTE})` },
+          { min: 50.01, label: "CrCl >50–90", dose: "2 g mỗi 6h" },
+          { min: 30.01, label: "CrCl >30–50", dose: "2 g mỗi 6-8h" },
+          { min: 10.01, label: "CrCl >10–30", dose: "2 g mỗi 8-12h" },
+          { min: 0.01, label: "CrCl <10", dose: "2 g mỗi 12h" },
         ],
-        note: "Phối hợp thường quy khi nghi ngờ Listeria monocytogenes (người già, suy giảm miễn dịch, phụ nữ mang thai).",
       },
     ],
     mix: [
