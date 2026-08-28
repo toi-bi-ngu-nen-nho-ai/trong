@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "pretest": "node scripts/kiem-vendor-build.mjs && node scripts/kiem-vendor-paths.mjs",
     "test": "vitest run",
+    "pretest:watch": "node scripts/kiem-vendor-build.mjs && node scripts/kiem-vendor-paths.mjs",
     "test:watch": "vitest",
     "kiem:vendor": "node scripts/kiem-vendor.mjs",
     "kiem:vendor-build": "node scripts/kiem-vendor-build.mjs",

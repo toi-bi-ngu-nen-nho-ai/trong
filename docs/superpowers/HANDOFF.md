@@ -100,7 +100,7 @@ Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 | `p1d-siet-so-khop` | `b36a398` — giữ lại làm bản sao lưu, không xoá |
 | `p1c-chuoi-khong-toi-dist` | `1c1a93d` — giữ lại làm bản sao lưu, không xoá |
 | `p1b-vi-json-vi-tri` | `39315f3` — giữ lại làm bản sao lưu, không xoá |
-| Cây làm việc | sạch trừ đúng các ngoại lệ đã biết (`src/data/antibiotics.ts` — chủ dự án tự sửa, xem mục 10-11; `.impeccable/live/`, xem mục 19; `bang-bam-vendor.json`/`tsconfig.vendor-paths.json`, xem mục 6; ba file browser-use, xem mục 0) **cộng thêm hai file `src/data/categories.ts`/`src/lib/ui.ts` vẫn đang bị một phiên/chủ dự án KHÁC sửa song song (chưa commit từ bản trước, còn nguyên ở bản này) — không thuộc track nào ở đây, đừng đụng, `git status`/`git diff` lại ở phiên sau để biết tình trạng mới nhất** |
+| Cây làm việc | sạch trừ đúng các ngoại lệ đã biết (`src/data/antibiotics.ts` — **ĐÃ ĐÓNG 2026-08-28: chủ dự án đã tự commit ở `f4a7acb`, không còn là ngoại lệ**; `.impeccable/live/`, xem mục 19; `bang-bam-vendor.json`/`tsconfig.vendor-paths.json`, xem mục 6; ba file browser-use, xem mục 0) **cộng thêm hai file `src/data/categories.ts`/`src/lib/ui.ts` vẫn đang bị một phiên/chủ dự án KHÁC sửa song song (chưa commit từ bản trước, còn nguyên ở bản này) — không thuộc track nào ở đây, đừng đụng, `git status`/`git diff` lại ở phiên sau để biết tình trạng mới nhất** |
 | Bảy cổng | TẤT CẢ đo lại TRỰC TIẾP, ĐẦY ĐỦ (không suy luận, không timeout) ngay cuối phiên này — `tsc` sạch · `kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục khớp · `build`+`kiem:dist` xanh **`bản dịch vi.json — 247/247 có mặt`** · **`npm test` 302/302, 40/40 file — ĐÃ chạy trọn bộ, không phải suy ra từ chạy riêng lẻ** (lượt full-suite ĐẦU của phiên này bắt được 3 ca đỏ do mục 29 nới allowlist dịch nhưng quên cập nhật hai cổng "chữ ký"/"độc lập" — vá ở commit `e668854`, xem ghi chú ngay dưới mục 31) |
 
 **Chặng "trả nợ P2 mục 30 — cơ chế phát hiện thay đổi thật qua store.slots — ĐÃ XONG"** — xem
@@ -246,7 +246,7 @@ một lần, KHÔNG cần người dùng tự mở-đóng lại từng bảng n�
 hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP: `tsc` sạch ·
 `pretest` (`kiem:vendor`/`kiem:vendor-paths`) sạch · `npm run build` OK · **`npm test` 357/357,
 41/41 file**. **Cây làm việc có thể KHÔNG sạch tuyệt đối** — kiểm `git status` trước: ngoài các
-ngoại lệ đã biết lâu (antibiotics.ts, ba file browser-use), một phiên/chủ dự án khác từng sửa song
+ngoại lệ đã biết lâu (ba file browser-use; antibiotics.ts đã đóng ở `f4a7acb`), một phiên/chủ dự án khác từng sửa song
 song `src/data/categories.ts`/`src/lib/ui.ts` — nếu vẫn còn `M` chưa commit ở phiên sau, đó không
 thuộc track nào ở đây, đừng đụng.
 
@@ -303,7 +303,7 @@ không cần brainstorming/writing-plans nếu chỉ tiếp tục thêm test TDD
 (bật thêm ViewExtension, nội dung dịch cho 10 extension mục 20, v.v — roadmap PRODUCT.md chính đã
 xong ở mục 32).
 
-Đừng đụng src/data/antibiotics.ts — chủ dự án tự sửa. Ba file browser-use
+src/data/antibiotics.ts KHÔNG còn là ngoại lệ — chủ dự án đã commit ở `f4a7acb` (2026-08-28). Ba file browser-use
 (.env.browser-use/BROWSER_USE_SETUP.md/browser_use_test.py) không thuộc track nào, kệ chúng.
 ```
 
@@ -315,7 +315,7 @@ xong ở mục 32).
 git fetch origin
 git branch --show-current               # kỳ vọng: main
 git log --oneline -1                    # kỳ vọng: 6d499cd hoặc mới hơn
-git status --short                      # kỳ vọng: chỉ antibiotics.ts + ba file browser-use + hai file sinh ra ở mục 6
+git status --short                      # kỳ vọng: chỉ ba file browser-use + hai file sinh ra ở mục 6
 ```
 
 Nếu `git log` cho một commit mà bảng đồ phục hồi (mục 3) không có, đọc commit đó bằng

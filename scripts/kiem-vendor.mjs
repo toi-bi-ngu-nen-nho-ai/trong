@@ -104,8 +104,15 @@ if (!existsSync(UPSTREAM)) {
 // không đối chiếu được — đúng chỗ mà việc đưa LICENSE vào diện kiểm sinh ra để bịt.
 const ANH_XA_RIENG = new Map([['LICENSE', path.resolve(UPSTREAM, '..', 'LICENSE')]])
 
+// Mọi đường dẫn IN RA đều đi qua đây: tương đối so với gốc được nêu, và luôn dùng dấu `/`.
+// Trước đây ba khối báo lỗi bên dưới in ba kiểu khác nhau — `LỆCH:` in tương đối, hai khối
+// `thua`/`thieu` in nguyên đường dẫn tuyệt đối với dấu phân cách của HĐH (`\` trên Windows) —
+// nên cùng một cây lại cho ra hai dạng đường dẫn khác nhau tuỳ máy chạy cổng, khó dán vào
+// lệnh khác và khó so hai lượt chạy trên hai HĐH.
+const duongDep = (goc, f) => path.relative(goc, f).split(path.sep).join('/')
+
 const duongThuongNguon = (f) => {
-  const rel = path.relative(VENDOR, f).split(path.sep).join('/')
+  const rel = duongDep(VENDOR, f)
   return ANH_XA_RIENG.get(rel) ?? path.join(UPSTREAM, rel)
 }
 
@@ -122,7 +129,7 @@ for await (const f of dietFile(VENDOR)) {
   tong++
   if (chuanHoa(readFileSync(f, 'utf8')) !== chuanHoa(readFileSync(tuongUng, 'utf8'))) {
     lech++
-    console.error('LỆCH:', path.relative(VENDOR, f))
+    console.error('LỆCH:', duongDep(VENDOR, f))
   }
 }
 
@@ -146,7 +153,7 @@ for (const ten of goc) {
     for await (const f of dietFile(path.join(UPSTREAM, ten))) {
       const tuongUng = path.join(VENDOR, path.relative(UPSTREAM, f))
       if (!existsSync(tuongUng)) {
-        thieu.push(path.relative(UPSTREAM, f))
+        thieu.push(duongDep(UPSTREAM, f))
       }
     }
   } catch (err) {
@@ -160,7 +167,7 @@ for (const ten of goc) {
 
 if (thua.length) {
   console.error(`\n${thua.length} file cục bộ không có bản tương ứng ở thượng nguồn:`)
-  thua.slice(0, 10).forEach((f) => console.error('  ', f))
+  thua.slice(0, 10).forEach((f) => console.error('  ', duongDep(VENDOR, f)))
 }
 
 if (thieu.length) {
@@ -173,8 +180,12 @@ if (gocThua.length) {
   gocThua.forEach((ten) => console.error('  ', ten))
 }
 
+// `khongDoiChieuDuoc` phải gồm CẢ `gocThua` — đúng bằng tập mà `process.exit` bên dưới xét.
+// Trước đây dòng này chỉ cộng `thua + thieu`, nên một cây chỉ hỏng vì thư mục gốc thừa sẽ in
+// "không đối chiếu được 0" rồi thoát mã 1: dòng tổng kết nói cổng sạch trong khi cổng đang đỏ.
+const khongDoiChieuDuoc = thua.length + thieu.length + gocThua.length
 console.log(
-  `\nĐã so ${tong} file với thượng nguồn, lệch ${lech}, không đối chiếu được ${thua.length + thieu.length}`,
+  `\nĐã so ${tong} file với thượng nguồn, lệch ${lech}, không đối chiếu được ${khongDoiChieuDuoc}`,
 )
 process.exit(
   loiBam === 0 &&

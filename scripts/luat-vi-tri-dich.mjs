@@ -91,6 +91,22 @@ export const FILE_CHO_PHEP_NAME_SENIOR_TOOL = new Set([
   'affine/gfx/template/src/toolbar/senior-tool.js',
 ])
 
+// Ngoại lệ HẸP THEO FILE cho bảng `placeholders` của khối đoạn văn — chữ mờ hiện TRONG một đoạn
+// văn rỗng ("Type '/' for commands"). Vì sao không thêm `text` vào THUOC_TINH_HIEN_THI chung:
+// `text:` là một trong những tên property phổ biến nhất cả cây vendored và phần lớn lượt dùng KHÔNG
+// phải chuỗi hiển thị (nội dung model, payload sự kiện, khoá so sánh) — nới chung là mở toang.
+// Đo RIÊNG file này (2026-08-28): `placeholders` có đúng MỘT nơi tiêu thụ trong toàn cây
+// (`view.js:35`, `placeholders[model.props.type]` — tra theo KHOÁ rồi trả thẳng cho `getPlaceholder`,
+// không so sánh giá trị với gì), và không property `text` nào khác trong file. An toàn dịch.
+//
+// CHỈ mở cho khoá `text`, KHÔNG mở cho h1..h6 trong cùng bảng: giá trị của chúng ("Heading 1"…) còn
+// xuất hiện ở 4 file khác (rich-text/conversion.js `name:`, fragments/outline/config.js,
+// blocks/note + gfx/note tooltips) — dịch chúng là quyết định RỘNG HƠN một placeholder, phải đo
+// từng nơi tiêu thụ trước, chưa làm ở lượt này.
+export const FILE_CHO_PHEP_PLACEHOLDER_DOAN_VAN = new Set([
+  'affine/blocks/paragraph/src/view.js',
+])
+
 // Ngoại lệ HẸP THEO FILE cho literal là giá trị của một property có KHOÁ TÍNH TOÁN
 // (`[Enum.X]: 'Chuỗi'`) — `tenThuocTinh()` trả null cho khoá tính toán nên `viTriHienThi` bỏ qua
 // mặc định (khoá động, không đoán được tên tại lúc phân tích tĩnh). Đo RIÊNG file dưới đây
@@ -235,6 +251,9 @@ export function viTriHienThi(node, tenFile = null) {
     }
     if (ten === 'name' && tenFile && FILE_CHO_PHEP_NAME_SENIOR_TOOL.has(tenFile)) {
       return `thuộc-tính-name-senior-tool:${tenFile}`
+    }
+    if (ten === 'text' && tenFile && FILE_CHO_PHEP_PLACEHOLDER_DOAN_VAN.has(tenFile)) {
+      return `placeholder-doan-van-rieng-file:${tenFile}`
     }
     if (
       !ten &&

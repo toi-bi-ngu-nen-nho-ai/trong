@@ -1304,7 +1304,11 @@ function LibraryScreen({
   )
 }
 
-const SEARCH_FILTERS = ["Tất cả", ...Array.from(new Set(ARTICLES.map((a) => a.specialty)))]
+// Hai tên chỉ CÙNG MỘT khoa: dữ liệu bài viết dựng sẵn viết "Hồi sức - Cấp cứu", còn SPECIALTIES
+// (nguồn thật của lưới Mindmap và của huy hiệu chuyên khoa) gọi là "Cấp cứu". Không đổi tên trong
+// dữ liệu bài viết — nhãn đó còn hiện ở chỗ khác — chỉ gom hai tên về một chip khi LỌC.
+const BI_DANH_KHOA: Record<string, string> = { "Hồi sức - Cấp cứu": "Cấp cứu" }
+const khoaChuan = (ten?: string) => (ten ? BI_DANH_KHOA[ten] ?? ten : undefined)
 
 // Một kết quả tìm kiếm gộp từ nhiều nguồn khác nhau (bài viết dựng sẵn/tự nhập, bài học ECG, thẻ ghi
 // nhớ) — trước đây SearchScreen chỉ tìm trong ARTICLES tĩnh, nên mọi nội dung người dùng TỰ THÊM
@@ -1387,23 +1391,44 @@ export function SearchScreen({
     ]
   }, [customArticles, customFlashcards, ecgLessons, boards])
 
+  // Dải chip suy từ CHÍNH kết quả đang có, không phải từ mỗi ARTICLES như trước. Bảng Mindmap gắn
+  // một trong 5 khoa mà không bài viết dựng sẵn nào dùng (Tiêu hoá, Huyết học, Nhiễm, Sinh lý bệnh,
+  // Dược lâm sàng) trước đây không có chip nào để lọc — chỉ hiện dưới "Tất cả" (nợ ghi ở HANDOFF
+  // mục 32). Thứ tự: theo SPECIALTIES cho khớp đúng thứ tự dải chip bên màn Sơ đồ tư duy, rồi mới
+  // tới tên lạ (nếu dữ liệu về sau có khoa ngoài danh sách).
+  const boLocKhoa = useMemo(() => {
+    const co = new Set(allResults.map((r) => khoaChuan(r.specialty)).filter(Boolean) as string[])
+    const theoThuTu = SPECIALTIES.map((sp) => sp.name).filter((n) => co.has(n))
+    const conLai = [...co].filter((n) => !theoThuTu.includes(n)).sort()
+    return ["Tất cả", ...theoThuTu, ...conLai]
+  }, [allResults])
+
+  // Chip đang chọn có thể BIẾN MẤT khỏi dải khi dữ liệu đổi (xoá mềm bảng cuối cùng của một khoa).
+  // Giữ nguyên `activeFilter` thì màn hình rơi vào lọc theo một khoa không còn chip nào sáng — nhìn
+  // như "không có kết quả" không giải thích được. Rơi về "Tất cả" cho tới khi khoa đó có lại.
+  const locHieuLuc = boLocKhoa.includes(activeFilter) ? activeFilter : "Tất cả"
+
   const filtered = useMemo(() => {
     if (query.length === 0) return []
-    const q = query.toLowerCase()
+    // normalizeSearch (bỏ dấu) chứ KHÔNG phải toLowerCase: ô tìm của lưới Sơ đồ tư duy đã bỏ dấu từ
+    // trước, nên cùng một truy vấn "ho hap" ra kết quả ở màn này mà không ra ở màn kia — hai ô tìm
+    // trong cùng một app cư xử khác nhau (nợ ghi ở HANDOFF mục 32). Gõ tiếng Việt không dấu là cách
+    // gõ nhanh mặc định lúc trực, nên chuẩn chung là bỏ dấu.
+    const q = normalizeSearch(query)
     return allResults.filter((r) => {
-      // Bài ECG không có `specialty` khi chưa gắn khoa (r.specialty == null) — activeFilter khác
-      // "Tất cả" thì r.specialty !== activeFilter đã đúng (null luôn khác một chuỗi cụ thể) nên tự
-      // động bị loại, không cần kiểm tra riêng.
-      if (activeFilter !== "Tất cả" && r.specialty !== activeFilter) return false
+      // Bài ECG không có `specialty` khi chưa gắn khoa (r.specialty == null) — locHieuLuc khác
+      // "Tất cả" thì khoaChuan(r.specialty) !== locHieuLuc đã đúng (undefined luôn khác một chuỗi
+      // cụ thể) nên tự động bị loại, không cần kiểm tra riêng.
+      if (locHieuLuc !== "Tất cả" && khoaChuan(r.specialty) !== locHieuLuc) return false
       return (
-        r.title.toLowerCase().includes(q) ||
-        (r.specialty?.toLowerCase().includes(q) ?? false) ||
-        r.tags.some((t) => t.toLowerCase().includes(q)) ||
+        normalizeSearch(r.title).includes(q) ||
+        (r.specialty ? normalizeSearch(r.specialty).includes(q) : false) ||
+        r.tags.some((t) => normalizeSearch(t).includes(q)) ||
         // Chỉ kết quả loại "board" có trường này — bảng khớp cả theo CHỮ BÊN TRONG nó, không chỉ tên.
-        (r.noiDung?.toLowerCase().includes(q) ?? false)
+        (r.noiDung ? normalizeSearch(r.noiDung).includes(q) : false)
       )
     })
-  }, [allResults, query, activeFilter])
+  }, [allResults, query, locHieuLuc])
 
   const RESULT_LABEL: Record<SearchResult["kind"], string> = {
     article: "",
@@ -1456,14 +1481,15 @@ export function SearchScreen({
 
         {/* Filters */}
         <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5">
-          {SEARCH_FILTERS.map((f) => (
+          {boLocKhoa.map((f) => (
             <button
               key={f}
               onClick={() => setActiveFilter(f)}
+              data-testid={`chip-khoa-${f}`}
               className="flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors"
               style={{
-                background: activeFilter === f ? "var(--c-primary)" : "var(--c-line-soft)",
-                color: activeFilter === f ? "var(--c-surface)" : "var(--c-text-muted)",
+                background: locHieuLuc === f ? "var(--c-primary)" : "var(--c-line-soft)",
+                color: locHieuLuc === f ? "var(--c-surface)" : "var(--c-text-muted)",
               }}
             >
               {f}
