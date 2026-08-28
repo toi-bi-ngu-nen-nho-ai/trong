@@ -229,22 +229,17 @@ export function EdgelessBoard({
   boardId,
   onReady,
   mauNhanDien,
-  chuyenKhoaBang,
 }: {
   boardId: string
   // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
   // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
   // thời lượng cố định không khớp tốc độ mạng/máy thật.
   onReady?: () => void
-  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô màu icon chuyên
-  // khoa đang vẽ (VeChuyenKhoaDangTai) bằng đúng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì
-  // luôn magenta cố định (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu"). undefined khi
-  // mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — rơi về hue magenta mặc định (327).
+  // Hue nhận diện của bảng (BoardOpenOrigin.mauNhanDien, DanhSachBang.tsx) — tô màu ba chấm loading
+  // (VeChuyenKhoaDangTai) bằng đúng màu chấm nhận diện của CHÍNH bảng đang mở, thay vì luôn magenta
+  // cố định. undefined khi mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm) — VeChuyenKhoaDangTai
+  // rơi về màu chữ mờ kế thừa từ div bọc.
   mauNhanDien?: number
-  // Chuyên khoa của bảng (BoardOpenOrigin.chuyenKhoa, DanhSachBang.tsx) — VẼ ĐÚNG icon chuyên khoa
-  // của CHÍNH bảng đang mở trong lúc chờ canvas. undefined khi mở KHÔNG qua một thẻ trong lưới —
-  // specialtyIcon() tự rơi về icon "trang giấy" mặc định, không văng lỗi.
-  chuyenKhoaBang?: string
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
@@ -499,15 +494,14 @@ export function EdgelessBoard({
         </div>
       )}
       {dangMo && !loi && (
-        // Thay chữ xám tĩnh cũ (từng là khoảng chờ ~5-7s không tín hiệu duy nhất trong app, critique
-        // 2026-08-25) — rồi thay TIẾP chấm tròn ink-bloom cũ (từng đọc "nhìn xàm", phản hồi thật
-        // 2026-08-27) bằng icon NÉT ĐƠN của chính chuyên khoa bảng đang mở, tự phác dần như đang vẽ
-        // (một "đầu bút" sáng chạy dọc nét) — VeChuyenKhoaDangTai ở trên.
+        // Chữ xám tĩnh cũ (khoảng chờ ~5-7s không tín hiệu, critique 2026-08-25) → chấm tròn
+        // ink-bloom → 4 vòng hiệu ứng tự vẽ icon chuyên khoa (đều đọc sai) → nay BA CHẤM nhảy so
+        // le kiểu template phổ thông (VeChuyenKhoaDangTai), tô theo màu nhận diện bảng.
         <div
           className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
           style={{ color: 'var(--c-text-muted, #6b6e96)' }}
         >
-          <VeChuyenKhoaDangTai khoa={chuyenKhoaBang} mauNhanDien={mauNhanDien} />
+          <VeChuyenKhoaDangTai mauNhanDien={mauNhanDien} />
           <span>Đang mở bảng…</span>
         </div>
       )}

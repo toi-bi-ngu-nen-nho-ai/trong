@@ -826,49 +826,45 @@ html.theme-shift * {
   animation: emptyBreathe 2.4s ease-in-out infinite;
 }
 
-/* Ô nạp bảng lúc mở lần đầu — 4 vòng phản hồi thật: chữ xám → chấm tròn phập phồng ("nhìn xàm") →
-   tự vẽ nét TRÊN silhouette tô đặc → bản này. Vòng 4: "vẽ dần" cái silhouette chi tiết chỉ ra một
-   ĐỐM SÁNG bò dọc đường ngoằn ngoèo, KHÔNG giống đang vẽ icon (10/13 icon SPECIALTY_ICONS là đường
-   BAO của một mảng tô đặc — không thứ tự nét). Đổi sang icon NÉT ĐƠN (SPECIALTY_LINE_PATHS trong
-   SpecialtyIcons.tsx, khung 0 0 24 24, vẽ theo thứ tự tay người) và chồng HAI <path> cùng `d`:
-   .drt-trail (<path>) = nét đã đặt xuống, .drt-tip (<circle>) = hạt "đầu bút" sáng cưỡi dọc path
-   bằng CSS Motion Path. Toàn bộ chuyển động do JS lái qua Web Animations API (đo
-   path.getTotalLength() lúc chạy — mỗi khoa một path khác, không đoán trước dasharray được, xem
-   VeChuyenKhoaDangTai.tsx); các rule dưới đây CHỈ lo phần TĨNH + phân vai hai lớp.
-   fill:none + stroke:currentColor trên .drt-trail: các icon nét đơn vốn đã khai vậy — rule này chỉ
-   khẳng định lại cho đồng nhất (và vô hại nếu sau này có icon nào lỡ khai fill).
-   overflow:visible để quầng sáng .drt-tip không bị khung 24 xén.
-   vector-effect:non-scaling-stroke: giữ độ dày nét theo PIXEL MÀN HÌNH thật, không theo đơn vị
-   viewBox — khung 24 co về 64px thì 2,25px vẫn ra đúng 2,25px, không phụ thuộc DPR. Chỉ .drt-tip
-   có drop-shadow (nó LÀ đầu bút); .drt-trail KHÔNG glow — trước đây glow cả nét làm toàn hình
-   "sáng light lên" thay vì đọc ra đang vẽ. */
-.mind-loading-net svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+/* Màn chờ mở bảng — BA CHẤM nhảy lên xuống so le ("typing indicator" phổ thông). Trước đây chỗ này
+   là hiệu ứng tự vẽ icon chuyên khoa của bảng đang mở (4 vòng phản hồi: chữ xám → chấm tròn phập
+   phồng → tự vẽ nét trên silhouette → nét đơn + hạt đầu bút) — mọi bản đều đọc sai ("line sáng
+   light lên", không ra "đang vẽ"). Bỏ hẳn 2026-08-28 theo yêu cầu chủ dự án: chỉ cần "..." nhảy
+   theo trình tự như template thế giới.
+   Markup: <div class="mind-loading-dots"><i/><i/><i/></div> (VeChuyenKhoaDangTai.tsx). Ba chấm ăn
+   currentColor (EdgelessBoard/index.tsx đặt màu chữ mờ ở div bọc) hoặc màu nhận diện khoa nếu
+   component nhận mauNhanDien. animation-delay so le 0 / .16s / .32s cho hiệu ứng "sóng".
+   LẶP VÔ HẠN → reduced-motion xử lý ở khối @media chung phía dưới (cùng .empty-breathe...): tắt
+   nhún, ba chấm vẫn hiện mờ đều để biết "đang chờ". */
+.mind-loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 16px;
 }
-.mind-loading-net .drt-trail {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.25;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-  opacity: 0.9;
+.mind-loading-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: mindDotBounce 1.2s ease-in-out infinite;
 }
-/* Hạt đầu bút ẩn mặc định; chỉ hiện khi trình duyệt có CSS Motion Path (offset-path: path()) —
-   nếu không, hạt sẽ kẹt ở góc (0,0) nhấp nháy như lỗi. Không hạt thì .drt-trail vẫn tự vẽ bình
-   thường, chấp nhận được. iOS/iPadOS Safari 16+ và Chrome đều đã hỗ trợ. */
-.mind-loading-net .drt-tip {
-  display: none;
+.mind-loading-dots i:nth-child(2) {
+  animation-delay: 0.16s;
 }
-@supports (offset-path: path("M0 0 L1 1")) {
-  .mind-loading-net .drt-tip {
-    display: block;
-    fill: currentColor;
-    stroke: none;
-    filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 1.5px currentColor);
+.mind-loading-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes mindDotBounce {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  35% {
+    transform: translateY(-7px);
+    opacity: 1;
   }
 }
 
@@ -1050,16 +1046,16 @@ html.theme-shift * {
   .card-settle,
   .card-plop,
   .card-slide-out,
-  .empty-breathe {
+  .empty-breathe,
+  .mind-loading-dots i {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transform: none !important;
   }
-  /* .mind-loading-net KHÔNG cần mặt ở đây — VeChuyenKhoaDangTai (EdgelessBoard.tsx) tự kiểm
-     window.matchMedia('(prefers-reduced-motion: reduce)') TRƯỚC KHI gọi Web Animations API, bỏ
-     qua hẳn animate() và đứng yên ở trạng thái đã-vẽ-xong (dashoffset 0, ẩn đầu bút) — một
-     gate CSS !important ở đây sẽ không có animation nào của JS để chặn, chỉ thêm code chết. */
+  /* .mind-loading-dots i nằm trong danh sách trên: sau 1 "iteration" 0.01ms nó nằm ở keyframe
+     100% (translateY 0, opacity .45) và transform:none chặn mọi nhún — ba chấm hiện mờ đều,
+     tĩnh. Người dùng vẫn biết "đang chờ" mà không có chuyển động. */
 }
 
 /* Vòng focus khi điều hướng bằng bàn phím (Tab), áp cho màn "Dùng thuốc" (`.scr-dose`, gán ở gốc

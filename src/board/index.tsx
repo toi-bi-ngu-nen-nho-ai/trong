@@ -33,7 +33,6 @@ type PropsBang = {
   boardId: string
   onReady?: () => void
   mauNhanDien?: number
-  chuyenKhoaBang?: string
 }
 const kho = new Map<number, ComponentType<PropsBang>>()
 function layBang(lan: number): ComponentType<PropsBang> {
@@ -102,7 +101,7 @@ export class EdgelessBoard extends Component<PropsBang, State> {
     return (
       <Suspense
         fallback={
-          // Cùng VeChuyenKhoaDangTai (nét vẽ icon chuyên khoa) với màn "Đang mở bảng…" của
+          // Cùng VeChuyenKhoaDangTai (ba chấm nhảy so le) với màn "Đang mở bảng…" của
           // EdgelessBoard.tsx NGAY SAU đây trong cùng một thao tác mở bảng — trước đây hai màn chờ
           // nối tiếp nhau đọc như hai UI khác nhau (chữ xám tĩnh → giọt mực có thương hiệu), đúng lúc
           // bước vào "phòng thư giãn" của app (critique 2026-08-26 P2, persona Casey: mạng bệnh viện
@@ -111,7 +110,7 @@ export class EdgelessBoard extends Component<PropsBang, State> {
             className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
             style={{ color: 'var(--c-text-muted, #6b6e96)' }}
           >
-            <VeChuyenKhoaDangTai khoa={this.props.chuyenKhoaBang} mauNhanDien={this.props.mauNhanDien} />
+            <VeChuyenKhoaDangTai mauNhanDien={this.props.mauNhanDien} />
             <span>Đang tải bảng vẽ…</span>
           </div>
         }
@@ -120,7 +119,6 @@ export class EdgelessBoard extends Component<PropsBang, State> {
           boardId={this.props.boardId}
           onReady={this.props.onReady}
           mauNhanDien={this.props.mauNhanDien}
-          chuyenKhoaBang={this.props.chuyenKhoaBang}
         />
       </Suspense>
     )
