@@ -1,9 +1,23 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-25** (mục 34, fix "Frame"/"Done"/"More" còn tiếng Anh + xoá hoạ tiết sọc chéo).
+Cập nhật: **2026-08-28** (mục 35, chặng thiết kế/lưu trữ Mindmap 27-28/8 + cầu nối token thương hiệu).
 Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
-> **ĐÍNH CHÍNH bản 2026-08-25 (mục 34, mới nhất).** Người dùng báo trực tiếp qua
+> **CÁCH TRẢ LỜI — chủ dự án yêu cầu trực tiếp, 2026-08-28.** Trả lời **ngắn gọn, đúng trọng tâm**: không
+> dài dòng, không mơ hồ, không giải thích phức tạp — nguyên văn: *"tôi hoang mang"*. Mở bằng kết luận, mỗi mục
+> một câu, số đo thay cho tính từ, kết bằng ĐÚNG MỘT câu hỏi hoặc một bước tiếp theo. Chi tiết dài
+> (root cause, lý do thiết kế, số đo bảy cổng) đẩy vào **commit message và chính file này**, không đổ vào
+> câu trả lời trong phiên.
+
+> **ĐÍNH CHÍNH bản 2026-08-28 (mục 35, mới nhất).** Mười hai commit trực tiếp lên `main` trong hai
+> ngày 27-28/8, không qua worktree: dọn thiết kế Board Gallery, vá hai lỗ hổng thác đổ CSS, phân
+> biệt "đọc hỏng" với "chưa có gì" cho IndexedDB, và nối token thương hiệu vào bảng vẽ (magenta
+> thay xanh AFFiNE). **Tất cả đã push.** `main` tại `2203d5f` hoặc mới hơn. Xem **mục 35**.
+>
+> **NỢ iPad ĐÃ ĐÓNG (2026-08-28).** Chủ dự án **đã nghiệm thu trên thiết bị thật** — mục 7 không
+> còn khoản "iPad chưa có thiết bị để đo" nữa. Đừng đề xuất lại việc "cần iPad thật để xác nhận".
+
+> **ĐÍNH CHÍNH bản 2026-08-25 (mục 34).** Người dùng báo trực tiếp qua
 > `/superpowers:systematic-debugging`: "Frame"/"Done"/"More" chưa dịch + hoạ tiết sọc chéo mất
 > thẩm mỹ — **đã xong, đã push**. Root cause KHÔNG phải một lỗi chung mà BA lỗ hổng riêng biệt
 > trong pipeline dịch D12 (quoted Lit binding, canvas `fillText`, chữ trần trong `<div>` thường) +
@@ -212,7 +226,10 @@ Mở Claude Code trong thư mục repo này rồi dán nguyên văn khối dư�
 hướng và làm tiếp mà không cần giải thích lại từ đầu.
 
 ```
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 33 (mới nhất). Đây là bàn
+TRẢ LỜI NGẮN GỌN, ĐÚNG TRỌNG TÂM — không dài dòng, không mơ hồ, không giải thích phức tạp. Chi tiết
+dài viết vào commit message và HANDOFF, đừng đổ vào câu trả lời.
+
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 35 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
@@ -220,7 +237,7 @@ Không còn chặng nào đang dở. Mục 32 (chặng Mindmap — chuyên khoa/
 PRODUCT.md mục 26/31 đã hứa) đã hoàn tất TOÀN BỘ, ĐÃ GỘP vào `main` VÀ ĐÃ PUSH. Mục 33 (phiên sau đó)
 trả 2/3 nợ optional để lại ở mục 32: vá 2 lỗi nhỏ "parked" (1 dòng mỗi lỗi) VÀ script di trú
 `diTruNoiDungTimKiemNeuCo()` — bảng Mindmap tạo TRƯỚC mục 32 giờ được chủ động trích `noiDungTimKiem`
-một lần, KHÔNG cần người dùng tự mở-đóng lại từng bảng nữa như trước. `main` tại `195f9a2` (hoặc mới
+một lần, KHÔNG cần người dùng tự mở-đóng lại từng bảng nữa như trước. `main` tại `2203d5f` (hoặc mới
 hơn — chạy `git log --oneline -1` để xác nhận). Bảy cổng đo lại TRỰC TIẾP: `tsc` sạch ·
 `pretest` (`kiem:vendor`/`kiem:vendor-paths`) sạch · `npm run build` OK · **`npm test` 357/357,
 41/41 file**. **Cây làm việc có thể KHÔNG sạch tuyệt đối** — kiểm `git status` trước: ngoài các
@@ -265,9 +282,9 @@ không phải nợ:
    `vite.vendor-plugin.ts`. Đọc "Còn nợ" ở cuối mục 25 để biết chính xác vị trí nguồn + lý do chưa
    làm của từng khoá nếu sau này có lý do quay lại, đừng điều tra lại từ đầu.
 
-**Việc ngoài bốn track — chưa nghiệm thu, không phải nợ kỹ thuật (mục 7):** iPad chưa có thiết bị
-thật để đo (đã cấu hình phòng ngừa ở mục 8, chưa xác nhận); vẽ hình bằng công cụ shape mới chạy
-được qua sự kiện tổng hợp, chưa test bằng input thật của hệ điều hành trên thiết bị thật.
+**Việc ngoài bốn track — chưa nghiệm thu, không phải nợ kỹ thuật (mục 7):** chỉ còn MỘT khoản — vẽ
+hình bằng công cụ shape mới chạy được qua sự kiện tổng hợp, chưa test bằng input thật của hệ điều hành.
+**iPad ĐÃ NGHIỆM THU (2026-08-28), khoản đó đã đóng — đừng đề xuất lại.**
 
 **Ghi chú vận hành đáng nhớ (mục 25):** một subagent giao việc TDD kẹt vòng lặp "tự background một
 tiến trình vitest dài rồi kết thúc lượt để chờ được đánh thức" — subagent KHÔNG được đánh thức tự
@@ -542,50 +559,48 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
 
 ## 7. CHƯA NGHIỆM THU — việc của chủ dự án, không phải nợ kỹ thuật
 
-Hai mục ban đầu (chế độ tối, mất hình khi chuyển tab) **đã sửa** — xem `beb334f`/`a10401b` ở
-mục 3. Hai mục dưới đây **vẫn còn nguyên**; chủ dự án đã cân nhắc và chấp nhận rủi ro để gộp vì
-hiện chưa có iPad.
+Hai mục ban đầu (chế độ tối, mất hình khi chuyển tab) **đã sửa** — xem `beb334f`/`a10401b` ở mục 3.
 
-1. **iPad — toàn bộ.** Một nửa mốc nghiệm thu của kế hoạch, không có thiết bị để chạy.
-   Rủi ro chưa gỡ: xử lý pointer/touch và pinch-zoom dưới mô hình cử chỉ của Safari; hành vi
-   `@container viewport` trên iPadOS; và chi phí bộ nhớ/parse của chunk ~994 kB gzip (~4 MB thô)
-   trong WKWebView — đúng loại áp lực mà `SKIP_REFRESH_DURING_GESTURE` sinh ra để chịu. **Đã cấu
-   hình ở mục 8** (2026-08-18) — nhưng giá trị CHƯA đo trên thiết bị thật, nên rủi ro này CHƯA
-   được coi là đóng, chỉ mới có một lớp giảm nhẹ chưa kiểm chứng.
+**iPad — ĐÃ NGHIỆM THU, ĐÓNG (2026-08-28).** Chủ dự án đã tự kiểm trên thiết bị thật và xác nhận đạt.
+Khoản này trước đây là một nửa mốc nghiệm thu của kế hoạch và từng chặn bốn giá trị `viewportRuntimeConfig`
+ở mục 8 khỏi được coi là xác nhận. **Đừng đề xuất lại việc "cần iPad thật để đo"**; phần ghi chú kỹ thuật
+của mục 8 (hiệu ứng phụ của `SKIP_REFRESH_DURING_GESTURE`) vẫn giữ nguyên làm tài liệu, không phải nợ.
 
-   > **NGUYÊN NHÂN GỐC ĐÃ XÁC NHẬN (2026-08-18) — chạm để gõ chữ không hiện bàn phím trên điện
-   > thoại thật.** Chủ dự án tự kiểm trên máy: chạm vào bảng để soạn text, không có bàn phím ảo
-   > nào hiện lên. Điều tra bằng `superpowers:systematic-debugging` (Phase 1-3, không sửa được vì
-   > lý do dưới) tìm thấy gốc rễ trong chính cây vendored:
+> **GIỚI HẠN ĐÃ BIẾT, KHÔNG VÁ — chạm để gõ chữ không hiện bàn phím trên điện thoại/iPad.**
+> Nguyên nhân gốc đã xác nhận (2026-08-18) — khoản này KHÔNG bị lượt nghiệm thu iPad đóng, nó là giới
+> hạn đã chấp nhận riêng. Chủ dự án tự kiểm trên máy: chạm vào bảng để soạn text, không có bàn phím ảo
+> nào hiện lên. Điều tra bằng `superpowers:systematic-debugging` (Phase 1-3, không sửa được vì
+> lý do dưới) tìm thấy gốc rễ trong chính cây vendored:
+>
+> - `addNote()` ở
+>   `src/vendor/blocksuite/affine/gfx/note/src/note-tool.ts:253-268` gọi
+>   `focusTextModel(gfx.std, blockId)` **bên trong `requestAnimationFrame`** — cả đường tạo note
+>   bằng tap (`click()`, dòng 119-130) lẫn bằng kéo-thả (`dragEnd()`, dòng 136-164) đều đi qua
+>   hàm này nên đều dính.
+> - `focusTextModel()` ở `src/vendor/blocksuite/affine/rich-text/src/dom.ts:66-73` tự nó
+>   **không gọi `.focus()`** — nó chỉ set một `TextSelection` trong store; DOM `.focus()` thật
+>   sự xảy ra sau đó qua một tầng reactive khác, tức càng xa hơn nữa khỏi cử chỉ chạm gốc.
+> - Safari trên iOS chỉ bật bàn phím ảo khi `.focus()` lên phần tử `contenteditable` được gọi
+>   **đồng bộ, ngay trong handler xử lý touchend/pointerup** của người dùng. Bất kỳ
+>   `requestAnimationFrame`/`.then()`/cơ chế reactive nào chen vào giữa đều cắt chuỗi "user
+>   gesture" đó — Safari lặng lẽ từ chối hiện bàn phím, không lỗi, không cảnh báo.
+> - **Không phải lỗi cục bộ.** Grep toàn bộ `.vendor-build`/`src/vendor`: MỌI lệnh gọi
+>   `focusTextModel()` trong cả cây (paragraph, list, callout, note, doc-title, edgeless-text…)
+>   đều bị hoãn qua `requestAnimationFrame`/`.then()`/`host.updateComplete.then()` — không một
+>   chỗ nào gọi đồng bộ trong handler gốc. Đây là cách toàn bộ luồng "tạo khối rồi focus vào nó"
+>   của thượng nguồn AFFiNE/BlockSuite được thiết kế, không phải một dòng lệch riêng lẻ vá được.
    >
-   > - `addNote()` ở
-   >   `src/vendor/blocksuite/affine/gfx/note/src/note-tool.ts:253-268` gọi
-   >   `focusTextModel(gfx.std, blockId)` **bên trong `requestAnimationFrame`** — cả đường tạo note
-   >   bằng tap (`click()`, dòng 119-130) lẫn bằng kéo-thả (`dragEnd()`, dòng 136-164) đều đi qua
-   >   hàm này nên đều dính.
-   > - `focusTextModel()` ở `src/vendor/blocksuite/affine/rich-text/src/dom.ts:66-73` tự nó
-   >   **không gọi `.focus()`** — nó chỉ set một `TextSelection` trong store; DOM `.focus()` thật
-   >   sự xảy ra sau đó qua một tầng reactive khác, tức càng xa hơn nữa khỏi cử chỉ chạm gốc.
-   > - Safari trên iOS chỉ bật bàn phím ảo khi `.focus()` lên phần tử `contenteditable` được gọi
-   >   **đồng bộ, ngay trong handler xử lý touchend/pointerup** của người dùng. Bất kỳ
-   >   `requestAnimationFrame`/`.then()`/cơ chế reactive nào chen vào giữa đều cắt chuỗi "user
-   >   gesture" đó — Safari lặng lẽ từ chối hiện bàn phím, không lỗi, không cảnh báo.
-   > - **Không phải lỗi cục bộ.** Grep toàn bộ `.vendor-build`/`src/vendor`: MỌI lệnh gọi
-   >   `focusTextModel()` trong cả cây (paragraph, list, callout, note, doc-title, edgeless-text…)
-   >   đều bị hoãn qua `requestAnimationFrame`/`.then()`/`host.updateComplete.then()` — không một
-   >   chỗ nào gọi đồng bộ trong handler gốc. Đây là cách toàn bộ luồng "tạo khối rồi focus vào nó"
-   >   của thượng nguồn AFFiNE/BlockSuite được thiết kế, không phải một dòng lệch riêng lẻ vá được.
-   >
-   > **Vì sao chưa vá:** `note-tool.ts` và `dom.ts` nằm trong `src/vendor/blocksuite/` — luật D11
-   > (`src/vendor/blocksuite/README.md`) cấm sửa, phải khớp thượng nguồn nguyên văn. Gốc rễ nằm ở
-   > kiến trúc focus-qua-selection-reactive xuyên suốt cả cây, không phải một điểm vá cục bộ, nên
-   > sửa đúng nghĩa đòi hỏi hoặc (a) vá thượng nguồn và chấp nhận lệch D11 có kiểm soát, hoặc
-   > (b) đợi bản vá từ chính dự án AFFiNE/BlockSuite. Chủ dự án đã chọn: **ghi lại làm giới hạn đã
-   > biết, không vá** ở lượt này — quyết định ở đây nếu quay lại vấn đề này.
-2. **Vẽ hình bằng công cụ shape.** Chạy được bằng sự kiện tổng hợp bắn vào đúng phần tử canvas,
-   **chưa phải input thật của hệ điều hành**. `ShapeViewExtension`, `BrushViewExtension`,
-   `ConnectorViewExtension`, `MindmapViewExtension` đều đã đăng ký nhưng chưa từng vẽ ra gì trên
-   thiết bị thật.
+> **Vì sao chưa vá:** `note-tool.ts` và `dom.ts` nằm trong `src/vendor/blocksuite/` — luật D11
+> (`src/vendor/blocksuite/README.md`) cấm sửa, phải khớp thượng nguồn nguyên văn. Gốc rễ nằm ở
+> kiến trúc focus-qua-selection-reactive xuyên suốt cả cây, không phải một điểm vá cục bộ, nên
+> sửa đúng nghĩa đòi hỏi hoặc (a) vá thượng nguồn và chấp nhận lệch D11 có kiểm soát, hoặc
+> (b) đợi bản vá từ chính dự án AFFiNE/BlockSuite. Chủ dự án đã chọn: **ghi lại làm giới hạn đã
+> biết, không vá** ở lượt này — quyết định ở đây nếu quay lại vấn đề này.
+
+**Vẽ hình bằng công cụ shape — CÒN NGUYÊN.** Chạy được bằng sự kiện tổng hợp bắn vào đúng phần tử canvas,
+**chưa phải input thật của hệ điều hành**. `ShapeViewExtension`, `BrushViewExtension`,
+`ConnectorViewExtension`, `MindmapViewExtension` đều đã đăng ký nhưng chưa từng vẽ ra gì trên
+thiết bị thật.
 
 ---
 
@@ -3324,3 +3339,87 @@ một template literal (TemplateHead, neo bằng tên thuộc tính `name:`). M�
 đóng" xuyên suốt file `luat-vi-tri-dich.mjs`). Nếu tiếp tục gặp báo cáo "còn tiếng Anh" mới, kiểm
 TRƯỚC hết xem có phải hình dạng thứ tư của cùng lớp lỗi này không, trước khi giả định thiếu khoá
 `vi.json`.
+
+---
+
+## 35. CHẶNG THIẾT KẾ/LƯU TRỮ MINDMAP 27-28/8 + CẦU NỐI TOKEN THƯƠNG HIỆU — ĐÃ XONG, ĐÃ PUSH
+
+Mười hai commit trực tiếp lên `main` (không worktree), từ `0cae4cb` tới `2203d5f`. Ba nhóm:
+
+**A. Dọn thiết kế Board Gallery (27/8)** — `0cae4cb` → `51919a9`. Tiêu đề tab + vùng chạm 44px +
+a11y menu + dải "Hoàn tác" token hoá; mặt bảng bần (cork) sau lưới thẻ rồi **gỡ lại** ở `9d4d69b`
+khi Board Gallery chuyển sang dùng `ScreenHeader` chung (bỏ luôn nút "+" thừa); màn loading đổi từ
+hiệu ứng tự vẽ icon sang ba chấm "..." nhảy so le; lưới dãn theo màn hình (4 cột PC/iPad, 2 cột
+iPhone); menu bảng gọn lại + "Xuất PNG" thành xuất thật.
+
+**B. Hai lỗ hổng thác đổ CSS + mực trên giấy (27-28/8)** — `50fa6d6`, `deb562e`, `f3efd34`. CSS
+BlockSuite tiêm ~190 thẻ `<style>` KHÔNG-lớp vào `<head>`, thắng mọi utility Tailwind (nằm trong
+`@layer utilities`) — vào-ra bảng vẽ một lần là hỏng VĨNH VIỄN input toàn app. Vá bằng lớp thác đổ
+`drt-vendor` khai ở dòng đầu `src/index.css` + bước bọc lúc chạy ở `src/board/lop-css-vendor.ts`.
+**KHÔNG xoá dòng `@layer drt-vendor;` đó, cũng đừng xoá lời gọi `batLopCssVendor()`** — grep trong
+chính index.css không thấy ai dùng tên lớp, nhưng nơi dùng nằm ở file kia. `f3efd34` thêm cặp token
+`--c-on-note`/`--c-on-note-muted`: giấy `--c-note` không đổi theo theme nên mọi thứ vẽ LÊN nó cũng
+không được đổi (trước đó nút "⋯" trên thẻ bảng đo được 1,03:1 ở bản tối — biến mất khỏi màn hình).
+
+**C. IndexedDB: phân biệt "đọc hỏng" với "chưa có gì" (28/8)** — `7fe1c65`, vá cổng ở `a339138`.
+`idbGetAll()` nuốt lỗi thành `[]`, nên tab thứ hai giữ DB (nhánh `onblocked`, chuyện thường với PWA
+sau mỗi lần cập nhật) làm toàn bộ bảng Mindmap "biến mất" kèm trạng thái rỗng mời tạo bảng mới.
+Thêm `idbGetAllCoKetQua()` giữ lỗi; `useIdbCollection` phơi `loiDoc`/`thuLaiDoc`; DanhSachBang chặn
+TRƯỚC lưới bằng `role="alert"`; SearchScreen nói rõ lượt tìm chưa gồm sơ đồ tư duy.
+`idbGetAll()` GIỮ NGUYÊN hợp đồng nuốt-lỗi cho nơi chỉ cần "danh sách tốt nhất có thể".
+
+> **BÀI HỌC (`a339138`): `vitest run` xanh KHÔNG có nghĩa `tsc` xanh.** File test mới của `7fe1c65`
+> dựng `BangMeta` thiếu trường bắt buộc `noiDungTimKiem` — 3/3 ca xanh vì vitest không type-check,
+> `tsc --noEmit` đỏ. Chạy ĐỦ bảy cổng trước khi tin một chặng đã xong.
+
+**D. Cầu nối token thương hiệu (28/8)** — `2203d5f`, trả P0+P1 của critique 2026-08-27
+(`.impeccable/critique/2026-08-27T09-32-18Z__src-board-mindmap-screen.md`, 30/40).
+
+`--c-accent-2` (magenta) tồn tại CHỈ để Sơ đồ tư duy có một màu không màn nào khác chạm tới, nhưng
+màu lặp lại nhiều nhất trên chính màn đó vẫn là xanh `#1E96EB` của thượng nguồn — không chỗ nào
+trong `src/` ghi đè token vendor.
+
+**Phạm vi rộng hơn báo cáo critique.** Critique chỉ nêu `--drt-brand-color`; đo lại trên `dist/`
+thì bốn token mới là toàn bộ nguồn xanh đi qua biến CSS còn sống: `--drt-primary-color` (70 lượt),
+`--drt-text-emphasis-color` (8), `--drt-brand-color` (7), `--drt-blue` (3), cộng bản mờ
+`--drt-primary-color-04`. Cả năm nối sang `--c-accent-2` trong `src/board/cau-noi-thuong-hieu.css`,
+import ở `EdgelessBoard.tsx` NGAY SAU stylesheet theme vendor.
+
+Độ đặc hiệu là có chủ ý: theme vendor khai token ở `:root`/`[data-theme=light]`/`[data-theme=dark]`,
+mà EdgelessBoard gắn `data-theme` lên chính thẻ `.drt-edgeless-viewport` — luật trần (0,1,0) HOÀ
+điểm với `[data-theme=dark]` và thua theo thứ tự, nên phải thêm `[data-theme]` để lên (0,2,0).
+
+**Giấy khối ghi chú chỉ đổi ở bản SÁNG** (`--drt-v2-edgeless-note-white` → `--c-note`) — giới hạn
+có chủ đích, không phải bỏ sót. Mực là `--drt-text-primary-color`, lật gần trắng ở bản tối; màu nền
+mỗi khối do người dùng chọn và áp bằng **inline style** (`edgeless-note-background.js`), không để
+lại thuộc tính DOM nào cho CSS bám, nên không ghim được mực cho ĐÚNG khối nền trắng mà không phá
+khối nền vàng/xanh/tím (ở bản tối chúng là các sắc TỐI). Đổi giấy sang kem ở bản tối = đúng lỗi P0
+mà `f3efd34` vừa phải vá trên thẻ bảng.
+
+**Hai chỗ vẫn xanh, KHÔNG sửa được bằng CSS (luật D11):**
+- `blocks/frame/src/frame-manager.js:66` vẽ viền Frame thẳng lên canvas: `ctx.strokeStyle = '#1E96EB'`.
+- `blocks/edgeless-text/src/edgeless-text-block.js:255` đọc `var(--affine—primary—color, #1e96eb)`
+  — tên biến thượng nguồn gõ bằng **gạch DÀI (em dash)**, không phải gạch nối, nên không biến nào
+  khớp và nó vĩnh viễn rơi về màu dự phòng cứng. Cũng vì gạch dài mà bước đổi tên D16 không bắt được.
+
+**Kiểm tay thật trên Browser pane** (bảng đang mở, đọc `getComputedStyle`, không suy luận): tối
+`#f175a6`, sáng `#b8196f`, biến thấm vào **cả 60 shadow host** trong viewport (toolbar, slash-menu,
+drag-handle). Giấy: sáng `#fbfaf7`, tối giữ `#252525` của vendor. Ảnh chụp màn hình KHÔNG lấy được
+(Browser pane không compositing trong phiên này) — bằng chứng là số đo DOM.
+
+> **BẰNG CHỨNG ĐỎ THẬT bắt lỗi chính ca kiểm mới.** Bản đầu của ca "EdgelessBoard phải import cầu
+> nối" dùng `indexOf` trên TÊN FILE — comment dòng import ra mà ca vẫn xanh. Siết thành khớp CÂU
+> LỆNH `import` ở đầu dòng (`nguon.search(/^import '\.\/cau-noi-thuong-hieu\.css'/m)`), chạy lại:
+> đỏ đúng lúc gỡ, xanh đúng lúc trả về. Ca kiểm đọc-file-nguồn dễ mắc đúng lỗi này.
+
+`cau-noi-thuong-hieu.spec.ts` có 5 ca, gồm dây bẫy ghim đúng **17 token** mang xanh vendor trong
+theme (4 token tới `dist/` + 13 token gói chưa bật) — lượt nâng cấp vendor nào thêm/bớt token xanh
+sẽ làm ca này đỏ và buộc người sửa quyết định lại, thay vì âm thầm để lọt một màu nhấn xanh mới.
+
+**Bảy cổng, HEAD `2203d5f`, TẤT CẢ XANH, đo trực tiếp:** `tsc --noEmit` exit 0 · `kiem:vendor`
+2.782 file lệch 0 · `kiem:vendor-paths` 438 mục khớp · `npm test` **392/392, 43/43 file** ·
+`build` + `kiem:dist` xanh, **`vi.json` 264/264 có mặt**. `public/sw.js` bump **v11 → v12**.
+
+**Còn lại của critique 2026-08-27:** P2 (bảng mới tạo không có mục "Xuất ảnh" vì chưa có
+`anhXemTruoc`, im lặng không giải thích) và P3 (safe-area iPhone vá theo từng báo lỗi, chưa có công
+thức chung).
