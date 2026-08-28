@@ -102,6 +102,12 @@
         "value": "2px",
         "createdAt": "2026-08-26T05:00:22.853Z",
         "reason": "Claude: góc gần-vuông của tờ giấy ghim (.mind-note-card) — cố ý khác thang bo góc UI chuẩn (14px), vì đây là vật thể giấy vật lý theo ảnh tham chiếu, không phải card giao diện thường"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#f175a6",
+        "createdAt": "2026-08-28T04:00:00.000Z",
+        "reason": "Claude: giá trị dark-mode của --c-accent-2 (DESIGN.md phần Colors > Secondary, chưa vào frontmatter colors:); dùng làm fallback cho --c-toast-action trên dải Hoàn tác (nền tối cố định), cùng khuôn var(--c-*, #hex) như mọi nơi khác trong DanhSachBang.tsx"
       }
     ]
   }

@@ -178,6 +178,22 @@ function TheBang({
   const [tenNhap, setTenNhap] = useState(bang.ten)
   const [tagNhap, setTagNhap] = useState('')
   const nutRef = useRef<HTMLButtonElement>(null)
+  // Nút "⋯" — giữ ref để TRẢ FOCUS về đây khi đóng menu/panel bằng Escape (bàn phím/trình đọc màn
+  // hình mở sheet ra rồi thoát, con trỏ tiêu điểm phải quay lại đúng chỗ vừa bấm, không rơi về
+  // <body>). Đóng bằng bấm-ra-ngoài hoặc chọn một mục (Đổi tên/tag/Xoá) KHÔNG trả về đây — focus
+  // đi theo hành động (ô đổi tên tự autoFocus, v.v.), đúng như mong đợi.
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const tagPanelRef = useRef<HTMLDivElement>(null)
+  // Hue nhận diện của GHIM = hue của chuyên khoa bảng (không phải hash id như trước). mauOnDinh()
+  // vẫn băm ra một hue trong [260,330) — họ tím-hồng an toàn, tránh xa đỏ/hổ phách/lục (Untouchable
+  // Signal Rule) — nhưng giờ khoá theo chuyenKhoa nên MÀU GHIM và ICON CHUYÊN KHOA trên cùng một
+  // thẻ luôn NHẤT QUÁN (critique 2026-08-28 P1/P2: trước đây thẻ mang hai màu "nhận diện" độc lập
+  // có thể chọi nhau). Bảng cùng chuyên khoa dùng chung hue ghim — vẫn phân biệt được bằng icon
+  // (giống nhau), tên, và vị trí; ca trùng "cùng khoa + cùng tên mặc định" hiếm và luồng tạo mở
+  // ngay ô đổi tên. KHÔNG dùng spec.color trực tiếp: nhiều chuyên khoa mang sắc đỏ/cam/lục, ghim
+  // theo màu đó sẽ đọc như một tín hiệu an toàn lâm sàng.
+  const hueGhim = mauOnDinh(bang.chuyenKhoa ?? SPECIALTIES[0].id)
   // Tên chuyên khoa cho aria-label — huy hiệu chuyên khoa trong TheTrong là aria-hidden (nó lồng
   // vào artwork trang trí), nên người dùng trình đọc màn hình không có cách nào khác biết bảng này
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
@@ -212,6 +228,44 @@ function TheBang({
     if (dangSuaTen) setTenNhap(bang.ten)
   }, [dangSuaTen, bang.ten])
 
+  // Quản lý tiêu điểm cho sheet "⋯" và panel chuyên khoa/tag — cả hai là <div> thường, không có
+  // hành vi focus sẵn của control gốc (critique 2026-08-28 P2, persona Sam: mở sheet ra là focus
+  // vẫn kẹt ở đầu lưới đã cuộn, Tab lại xổ trang ra xa sheet). Mở → đưa focus vào phần tử focus
+  // được đầu tiên TRONG sheet. Đóng bằng Escape → trả về nút "⋯". Tab bị giam vòng trong sheet.
+  // Deps là HAI cờ riêng (không phải `dangMoMenu || dangSuaTag`) để lượt chuyển menu→panel — hai
+  // cờ đổi nhưng "có sheet nào mở" vẫn true — vẫn kích hoạt lại đúng ref mới.
+  useEffect(() => {
+    const el = dangMoMenu ? menuRef.current : dangSuaTag ? tagPanelRef.current : null
+    if (!el) return
+    const focusables = () =>
+      Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((n) => !n.hasAttribute('disabled'))
+    focusables()[0]?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        menuBtnRef.current?.focus()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const f = focusables()
+      if (f.length === 0) return
+      const first = f[0]
+      const last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    el.addEventListener('keydown', onKey)
+    return () => el.removeEventListener('keydown', onKey)
+  }, [dangMoMenu, dangSuaTag])
+
   const lopVaoMan = dangXoa ? 'card-slide-out' : vuaTao ? 'card-plop' : 'card-settle'
 
   return (
@@ -243,7 +297,10 @@ function TheBang({
                   height: r.height,
                   tilt: nghiengOnDinh(bang.id),
                   anhXemTruoc: bang.anhXemTruoc,
-                  mauNhanDien: mauOnDinh(bang.id),
+                  // Cùng hue với GHIM của thẻ (hueGhim = mauOnDinh(chuyenKhoa)) — continuity vật
+                  // liệu: màu giọt mực lúc chờ canvas khớp đúng màu ghim của bảng vừa bấm, không
+                  // phải một hash id riêng.
+                  mauNhanDien: mauOnDinh(bang.chuyenKhoa ?? SPECIALTIES[0].id),
                   chuyenKhoa: bang.chuyenKhoa,
                 }
               : undefined,
@@ -334,13 +391,13 @@ function TheBang({
                 nhỏ + giảm độ đục để thành một điểm sáng phụ, không còn là chi tiết áp đảo cả đầu ghim. */}
             <defs>
               <linearGradient id={`ghim-grad-${bang.id}`} x1="20%" y1="10%" x2="80%" y2="90%">
-                <stop offset="0%" stopColor={`hsl(${mauOnDinh(bang.id)} var(--chip-s) calc(var(--chip-l) + 12%))`} />
-                <stop offset="100%" stopColor={`hsl(${mauOnDinh(bang.id)} var(--chip-s) calc(var(--chip-l) - 10%))`} />
+                <stop offset="0%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) + 12%))`} />
+                <stop offset="100%" stopColor={`hsl(${hueGhim} var(--chip-s) calc(var(--chip-l) - 10%))`} />
               </linearGradient>
             </defs>
             <path
               d="M12 13.4 L12 19.4"
-              stroke={`hsl(${mauOnDinh(bang.id)} var(--chip-s) var(--chip-l))`}
+              stroke={`hsl(${hueGhim} var(--chip-s) var(--chip-l))`}
               strokeWidth="2.1"
               strokeLinecap="round"
               fill="none"
@@ -409,10 +466,13 @@ function TheBang({
       )}
 
       <button
+        ref={menuBtnRef}
         type="button"
         data-testid={`menu-bang-${bang.id}`}
         onClick={onBatMenu}
         aria-label="Tuỳ chọn bảng"
+        aria-haspopup="menu"
+        aria-expanded={dangMoMenu || dangSuaTag}
         className="mind-focus-ring"
         // Vùng chạm 44×44 (chuẩn tối thiểu cho ngón tay, WCAG 2.2 AA + khuyến nghị thực hành) — giữ
         // cùng gốc top/right:4 như cũ (không đẩy ra ngoài mép thẻ, tránh chồng lên khoảng gap của
@@ -450,6 +510,9 @@ function TheBang({
           // lại" của app (phản hồi thật 2026-08-27, taste review). Modifier này cho index.css tách
           // riêng: vẫn ghim đáy màn hình trong tầm ngón cái (lý do gốc của bottom-sheet, giữ nguyên
           // critique 2026-08-26), chỉ bỏ ép trải hết bề ngang.
+          ref={menuRef}
+          role="menu"
+          aria-label={`Tuỳ chọn bảng ${bang.ten}`}
           className="mind-menu-bang mind-menu-compact mind-sheet"
           style={{ position: 'absolute', top: 30, right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
         >
@@ -482,7 +545,8 @@ function TheBang({
             data-testid={`sua-tag-${bang.id}`}
             onClick={onBatSuaTag}
             className="mind-focus-ring"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
+            role="menuitem"
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
           >
             Chuyên khoa/tag
           </button>
@@ -491,7 +555,8 @@ function TheBang({
             data-testid={`doi-ten-${bang.id}`}
             onClick={onBatSuaTen}
             className="mind-focus-ring"
-            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
+            role="menuitem"
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 44, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
           >
             Đổi tên
           </button>
@@ -523,6 +588,7 @@ function TheBang({
             data-testid={`xoa-${bang.id}`}
             onClick={onXoa}
             className="mind-focus-ring"
+            role="menuitem"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -536,7 +602,7 @@ function TheBang({
               background: 'none',
               color: dangXacNhanXoa ? 'var(--c-danger, #c0392b)' : undefined,
               whiteSpace: 'nowrap',
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: 600,
             }}
           >
@@ -547,6 +613,9 @@ function TheBang({
 
       {dangSuaTag && (
         <div
+          ref={tagPanelRef}
+          role="dialog"
+          aria-label={`Chuyên khoa và tag cho bảng ${bang.ten}`}
           data-testid={`sua-chuyen-khoa-tag-${bang.id}`}
           // Cùng .mind-menu-bang/.mind-sheet với menu "⋯" ngay trên — cùng lý do (thẻ hàng trên
           // cùng, tầm ngón cái).
@@ -614,6 +683,96 @@ function TheBang({
           />
         </div>
       )}
+    </div>
+  )
+}
+
+// Thanh tiêu đề của tab Mindmap. Trước lượt này màn Mindmap là màn DUY NHẤT không có ScreenHeader
+// (critique 2026-08-28 P1): người dùng rơi thẳng vào ô tìm hoặc một lưới xám, không gì đặt tên
+// hay đóng khung "phòng não phải" mà hiến chương định giá ≥50% công sức thiết kế. Nút "+ Bảng mới"
+// nằm ngay đây để tạo bảng KHÔNG phải cuộn hết lưới tới ô "+" cuối (persona Casey, một tay). onTaoMoi
+// undefined = trạng thái đang tải (nút mờ, chưa bấm được).
+function ThanhTieuDe({ onTaoMoi }: { onTaoMoi?: () => void }) {
+  return (
+    <header
+      className="flex-none flex items-center justify-between gap-3"
+      style={{
+        padding: '14px 16px 10px',
+        borderBottom: '1px solid var(--c-line, #d9ddf4)',
+        background: 'var(--c-page, #f1f2fb)',
+      }}
+    >
+      <h1
+        style={{
+          fontSize: 17,
+          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          color: 'var(--c-text, #12142b)',
+          margin: 0,
+        }}
+      >
+        Sơ đồ tư duy
+      </h1>
+      <button
+        type="button"
+        data-testid="tao-bang-header"
+        onClick={onTaoMoi}
+        disabled={!onTaoMoi}
+        aria-label="Tạo bảng mới"
+        className="mind-focus-ring"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          minHeight: 44,
+          padding: '0 14px',
+          borderRadius: 999,
+          border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.35)',
+          background: 'rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.06)',
+          color: 'var(--c-accent-2, #b8196f)',
+          fontSize: 13,
+          fontWeight: 600,
+          opacity: onTaoMoi ? 1 : 0.5,
+        }}
+      >
+        <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1, marginTop: -1 }}>
+          +
+        </span>
+        Bảng mới
+      </button>
+    </header>
+  )
+}
+
+// Lưới giữ chỗ trong lúc useIdbCollection đọc lần đầu — trước đây `if (loading) return null` để
+// nguyên tab TRỐNG TRƠN suốt lượt đọc IndexedDB đầu (critique 2026-08-28 P3): trên máy có nhiều
+// bảng, mở app vội là một khung chết không gì neo vào. Tấm giấy ghim mờ "thở" nhẹ (empty-breathe
+// đã gate reduced-motion) cho biết nội dung đang tới.
+function LuoiChoTai() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 140px))',
+        justifyContent: 'center',
+        gap: 8,
+        padding: 16,
+      }}
+    >
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="empty-breathe"
+          style={{
+            aspectRatio: '4 / 3',
+            borderRadius: 2,
+            background: 'var(--c-note, #fbfaf7)',
+            boxShadow: '0 14px 22px -10px rgba(15, 15, 15, 0.16), 0 4px 8px rgba(15, 15, 15, 0.07)',
+            animationDelay: `${i * 90}ms`,
+          }}
+        />
+      ))}
     </div>
   )
 }
@@ -734,9 +893,19 @@ export function DanhSachBang({
     }
   }, [dangMoMenuId, dangSuaTagId])
 
-  // Chưa nạp xong lần đầu — không hiện gì (kể cả thẻ "+"), tránh nháy "rỗng" giả trước khi
-  // IndexedDB kịp trả dữ liệu thật (đúng lý do trường `loading` tồn tại trong hook).
-  if (loading) return null
+  // Chưa nạp xong lần đầu — hiện tiêu đề + lưới giấy giữ chỗ (KHÔNG còn `return null` để tab trống
+  // trơn, critique 2026-08-28 P3). Nút "+" ở tiêu đề mờ đi tới khi có dữ liệu thật.
+  if (loading)
+    return (
+      <div className="h-full flex flex-col">
+        <ThanhTieuDe />
+        <div className="scroll-ios flex-1">
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <LuoiChoTai />
+          </div>
+        </div>
+      </div>
+    )
 
   // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
   // Chip chuyên khoa lọc THÊM sau đó — bang thiếu chuyenKhoa (bản ghi cũ chưa backfill, xem
@@ -804,7 +973,9 @@ export function DanhSachBang({
 
   return (
     <>
-    <div className={`scroll-ios h-full${dungTuBang ? ' board-out' : ''}`}>
+    <div className="h-full flex flex-col">
+      <ThanhTieuDe onTaoMoi={taoBangMoi} />
+      <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
       {/* Bọc toàn bộ nội dung trong một cột co giãn tối đa 720px, CĂN GIỮA — lưới thẻ dùng
           minmax(110px,140px) nên với ít bảng (2-3 thẻ), trên màn rộng (PC/iPad ngang) chúng dồn hết
           về góc trái, để lại một khoảng trắng khổng lồ bên phải, đọc thành "không phủ hết màn, mất
@@ -813,14 +984,45 @@ export function DanhSachBang({
           giữ cảm giác "sổ tay cầm tay" thay vì trải hết bề ngang một màn desktop. KHÔNG ảnh hưởng
           màn hẹp (điện thoại) — max-width chỉ có tác dụng khi khung cha rộng hơn 720px. */}
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      {/* Ô tìm đứng TRƯỚC "Đã xoá gần đây" — công cụ tìm chính phải nằm trên affordance phục hồi
+          hiếm dùng (critique 2026-08-28: recovery-panel nằm trên ô tìm). Cổng hiện/ẩn gắn vào
+          danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danh sách đã lọc — gõ tới ký tự không khớp
+          bảng nào mà unmount chính ô đang gõ thì mất focus giữa chừng, không xoá bớt để quay lại được. */}
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
+        <div style={{ padding: '12px 16px 4px' }}>
+          <input
+            type="search"
+            data-testid="tim-kiem-bang"
+            value={truyVan}
+            onChange={(e) => setTruyVan(e.target.value)}
+            placeholder="Tìm bảng theo tên, tag, nội dung..."
+            aria-label="Tìm kiếm bảng"
+            className="mind-focus-ring"
+            // KHÔNG đặt fontSize ở đây: index.css có `input,select,textarea{font-size:16px !important}`
+            // (chặn iOS Safari tự zoom) — mọi giá trị đặt ở đây đều bị nuốt. minHeight 44 = vùng chạm
+            // tối thiểu, cùng chuẩn với nút "⋯" và mục menu trong file này.
+            style={{
+              width: '100%',
+              minHeight: 44,
+              padding: '8px 12px',
+              borderRadius: 12,
+              border: '1px solid var(--c-line, #d9ddf4)',
+              background: 'var(--c-surface, #fff)',
+            }}
+          />
+        </div>
+      )}
       {daXoaGanDay.length > 0 && (
-        <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ padding: '4px 16px 0' }}>
           <button
             type="button"
             data-testid="mo-da-xoa-gan-day"
             onClick={() => setHienDaXoaGanDay(!hienDaXoaGanDay)}
             className="mind-focus-ring"
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: 44,
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--c-text-muted, #6b6e96)',
@@ -878,6 +1080,9 @@ export function DanhSachBang({
                     onClick={() => khoiPhucBang(b)}
                     className="mind-focus-ring"
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 44,
                       fontSize: 12,
                       fontWeight: 600,
                       // --c-accent-2, KHÔNG --c-primary — cùng hành động "phục hồi bảng vừa xoá" với
@@ -898,43 +1103,8 @@ export function DanhSachBang({
           )}
         </div>
       )}
-      {/* Cổng hiện/ẩn dựa trên danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danhSachSapXep đã
-          lọc — nếu gắn vào danh sách đã lọc thì gõ tới ký tự không khớp bảng nào sẽ unmount chính ô
-          đang gõ: mất focus giữa chừng, không xoá bớt ký tự để quay lại được. Cùng lý do và cùng
-          điều kiện với dải chip chuyên khoa ngay dưới. */}
-      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
-        <div style={{ padding: '12px 16px 8px' }}>
-          <input
-            type="search"
-            data-testid="tim-kiem-bang"
-            value={truyVan}
-            onChange={(e) => setTruyVan(e.target.value)}
-            placeholder="Tìm bảng theo tên, tag, nội dung..."
-            aria-label="Tìm kiếm bảng"
-            className="mind-focus-ring"
-            // minHeight 44: vùng chạm tối thiểu cho ngón tay, cùng chuẩn đã áp cho nút "⋯" và các
-            // mục menu trong file này — chiều cao tự nhiên của input này (cỡ chữ 16 bị ép, xem chú
-            // thích dưới, + padding 8 + viền 1) chỉ khoảng 37px, chưa đủ. `input:focus{outline:none}` của index.css xoá sạch tín hiệu focus nên
-            // cần .mind-focus-ring; KHÔNG kèm .mind-search-pill — class đó dành cho khối BỌC NGOÀI
-            // của component SearchField dùng chung (quy tắc `:focus-within` + tắt outline của input
-            // CON bên trong), đặt thẳng lên một input trần thì rule thứ hai không khớp gì còn rule
-            // thứ nhất chỉ là một vòng focus thứ hai trùng lặp, thắng-thua tuỳ thứ tự dòng trong
-            // index.css.
-            // KHÔNG đặt fontSize ở đây: index.css có `input,select,textarea{font-size:16px
-            // !important}` (chặn iOS Safari tự zoom khi focus vào ô chữ nhỏ) — mọi giá trị đặt ở
-            // đây đều bị nuốt, đo trên trình duyệt thật vẫn ra 16px. Ghi 13 vào cho "khớp cỡ chữ
-            // các ô khác trong file" chỉ tạo dòng chết trông như đang có tác dụng.
-            style={{
-              width: '100%',
-              minHeight: 44,
-              padding: '8px 12px',
-              borderRadius: 12,
-              border: '1px solid var(--c-line, #d9ddf4)',
-              background: 'var(--c-surface, #fff)',
-            }}
-          />
-        </div>
-      )}
+      {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn
+          vào danh sách đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
         // 2 chip đầu luôn hiện; phần còn lại gấp sau nút "Thêm" — cộng "Tất cả" + "Thêm" là ĐÚNG 4
         // lựa chọn rời rạc tại điểm quyết định này (luật ≤4, Cognitive Load Checklist). Trước đây
@@ -963,6 +1133,9 @@ export function DanhSachBang({
             className="mind-focus-ring"
             style={{
               flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: 44,
               fontSize: 12,
               fontWeight: 600,
               padding: '6px 12px',
@@ -986,7 +1159,7 @@ export function DanhSachBang({
             // review lượt 1.
             role="group"
             aria-label="Lọc theo chuyên khoa"
-            style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
           >
             <button
               type="button"
@@ -996,6 +1169,9 @@ export function DanhSachBang({
               className="mind-focus-ring"
               style={{
                 flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: 44,
                 fontSize: 12,
                 fontWeight: 600,
                 padding: '6px 12px',
@@ -1015,9 +1191,13 @@ export function DanhSachBang({
                 type="button"
                 data-testid="chip-chuyen-khoa-them"
                 onClick={() => setHienHetChip((v) => !v)}
+                aria-expanded={hienHetChip}
                 className="mind-focus-ring"
                 style={{
                   flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 44,
                   fontSize: 12,
                   fontWeight: 600,
                   padding: '6px 12px',
@@ -1055,6 +1235,15 @@ export function DanhSachBang({
           <div className="empty-breathe" style={{ width: 96, height: 72, color: 'var(--c-text-muted, #6b6e96)' }}>
             <TheTrong khoa={chuyenKhoaLoc ?? undefined} />
           </div>
+          {/* Lưới THẬT SỰ trống: một câu nói thẳng giá trị của bề mặt (hiến chương: biến lý thuyết
+              thành bức tranh hành động được) TRƯỚC dòng mời cũ — người lần đầu không có cách nào
+              biết vì sao đây là "phòng não phải" ≥50% công sức thiết kế nếu chỉ thấy một dòng xám
+              (critique 2026-08-28 P3, persona Jordan). */}
+          {!rongDoBoLoc && (
+            <p style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--c-text, #12142b)', margin: 0, maxWidth: 260, lineHeight: 1.3 }}>
+              Biến kiến thức thành bức tranh để hành động
+            </p>
+          )}
           <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0 }}>
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
           </p>
@@ -1230,20 +1419,23 @@ export function DanhSachBang({
         </div>
       )}
       </div>
+      </div>
     </div>
     {vuaXoa && (
         <div
+          key={vuaXoa.id}
           role="status"
           aria-live="polite"
-          className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40"
-          // Thiếu var(--nav-pad-bottom, safe-area-inset-bottom) — ĐÚNG lỗi đã vá cho .mind-menu-bang
-          // (xem comment index.css tại rule đó, 2026-08-26: chỉ cộng --nav-body-h khiến panel đè lên
-          // safe-area thanh nav thật trên iPhone có notch/Face ID, không phát hiện ra trên giả lập vì
-          // --safe-bottom=0 ở đó) nhưng chưa lan sang toast này — dải "Hoàn tác" không nằm SÁT bottom
-          // nav như ý đồ, mà đè/lệch xuống dưới nó (phản hồi thật 2026-08-27, taste review).
-          style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px)', background: 'rgba(15,23,42,.94)' }}
+          className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40 overflow-hidden"
+          // bottom ĐÃ cộng var(--nav-pad-bottom) (= env(safe-area-inset-bottom)) — dải nằm SÁT trên
+          // thanh nav thật kể cả iPhone có home-indicator, cùng công thức .mind-menu-bang đã dùng.
+          // Nền + chữ + nút đọc từ token --c-toast-* (index.css): trước đây nền là rgba(15,23,42,.94)
+          // viết cứng (vi phạm "mọi màu là token") và nút "Hoàn tác" tô --c-accent-2 bản sáng chỉ đạt
+          // 2,90:1 trên nền tối này — dưới AA (critique 2026-08-28 P1). --c-toast-action là sắc
+          // magenta bản-tối, ~8,2:1 trên nền dải, vẫn thuộc "One Other Place Rule" của Mindmap.
+          style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px)', background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
         >
-          <span className="flex-1 text-[12.5px] text-white leading-snug">Đã xoá "{vuaXoa.ten}"</span>
+          <span className="flex-1 text-[12.5px] leading-snug" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>Đã xoá "{vuaXoa.ten}"</span>
           <button
             type="button"
             onClick={() => {
@@ -1252,11 +1444,12 @@ export function DanhSachBang({
             }}
             className="mind-focus-ring"
             style={{
-              // --c-accent-2 (magenta riêng Mindmap), KHÔNG --c-toast-green — token xanh lá đó dành
-              // cho ngữ nghĩa lâm sàng "thành công" (Untouchable Signal Rule, DESIGN.md); một hành
-              // động UI thường (hoàn tác xoá bảng) mượn nhầm màu đó làm mờ ranh giới "One Other Place
-              // Rule" của Mindmap (critique 2026-08-26, minor observation).
-              color: 'var(--c-accent-2, #b8196f)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
+              minWidth: 44,
+              color: 'var(--c-toast-action, #f175a6)',
               fontWeight: 600,
               fontSize: 13,
               background: 'none',
@@ -1267,6 +1460,23 @@ export function DanhSachBang({
           >
             Hoàn tác
           </button>
+          {/* Thanh đếm ngược — cho biết còn bao lâu trước khi dải tự tắt (critique 2026-08-28 P1:
+              "không có countdown ở khoảnh khắc căng nhất"). key={vuaXoa.id} ở div cha khiến cả dải
+              remount mỗi bảng bị xoá nên animation luôn chạy lại từ đầu. */}
+          <span
+            aria-hidden="true"
+            className="toast-countdown-bar"
+            style={{
+              position: 'absolute',
+              left: 0,
+              bottom: 0,
+              height: 2,
+              width: '100%',
+              background: 'var(--c-toast-action, #f175a6)',
+              opacity: 0.55,
+              '--toast-countdown-ms': `${HOAN_TAC_XOA_MS}ms`,
+            } as React.CSSProperties}
+          />
         </div>
       )}
     </>
