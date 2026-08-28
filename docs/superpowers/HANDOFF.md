@@ -571,7 +571,11 @@ Khoản này trước đây là một nửa mốc nghiệm thu của kế hoạc
 ở mục 8 khỏi được coi là xác nhận. **Đừng đề xuất lại việc "cần iPad thật để đo"**; phần ghi chú kỹ thuật
 của mục 8 (hiệu ứng phụ của `SKIP_REFRESH_DURING_GESTURE`) vẫn giữ nguyên làm tài liệu, không phải nợ.
 
-> **GIỚI HẠN ĐÃ BIẾT, KHÔNG VÁ — chạm để gõ chữ không hiện bàn phím trên điện thoại/iPad.**
+> **ĐÃ CÀI HƯỚNG B (2026-08-28), CHỜ NGHIỆM THU TRÊN IPHONE THẬT — chạm để gõ chữ không hiện bàn phím.**
+> Xem mục 37 để biết cách vá và cách kiểm. Phần chẩn đoán bên dưới GIỮ NGUYÊN làm hồ sơ gốc rễ:
+> nó vẫn đúng, cây vendored không bị đụng, hướng B chỉ bọc ở tầng React.
+>
+> **(hồ sơ gốc rễ, 2026-08-18)**
 > Nguyên nhân gốc đã xác nhận (2026-08-18) — khoản này KHÔNG bị lượt nghiệm thu iPad đóng, nó là giới
 > hạn đã chấp nhận riêng. Chủ dự án tự kiểm trên máy: chạm vào bảng để soạn text, không có bàn phím ảo
 > nào hiện lên. Điều tra bằng `superpowers:systematic-debugging` (Phase 1-3, không sửa được vì
@@ -601,9 +605,18 @@ của mục 8 (hiệu ứng phụ của `SKIP_REFRESH_DURING_GESTURE`) vẫn gi�
 > sửa đúng nghĩa đòi hỏi hoặc (a) vá thượng nguồn và chấp nhận lệch D11 có kiểm soát, hoặc
 > (b) đợi bản vá từ chính dự án AFFiNE/BlockSuite. Chủ dự án đã chọn: **ghi lại làm giới hạn đã
 > biết, không vá** ở lượt này — quyết định ở đây nếu quay lại vấn đề này.
+>
+> **CẬP NHẬT 2026-08-28:** chủ dự án quay lại vấn đề này và chọn hướng B (bọc phía app, không đụng
+> vendor). Đã cài, 18 ca kiểm xanh, `kiem:vendor` vẫn 2.782 file lệch 0 — xem mục 37. Còn nợ đúng
+> một khoản: **nghiệm thu trên iPhone thật**, vì happy-dom không có bàn phím ảo để chứng minh
+> Safari chịu mở.
 
-**Vẽ hình bằng công cụ shape — CÒN NGUYÊN.** Chạy được bằng sự kiện tổng hợp bắn vào đúng phần tử canvas,
-**chưa phải input thật của hệ điều hành**. `ShapeViewExtension`, `BrushViewExtension`,
+**Vẽ hình bằng công cụ shape — ĐÃ ĐÓNG MỘT NỬA (2026-08-28).** Câu hỏi "công cụ vẽ có tạo ra phần tử
+thật không" giờ đã trả lời được bằng máy: `src/board/__tests__/edgeless-board-ve-hinh.spec.ts` đặt
+`gfx.tool` rồi bắn pointerdown/move/up lên canvas và khẳng định bằng SỐ PHẦN TỬ trong `surface` —
+công cụ Hình ra đúng một `shape`, công cụ Bút ra đúng một `brush`. Còn nguyên phần **input thật của
+hệ điều hành**: vẫn là PointerEvent tổng hợp trong happy-dom, không phải ngón tay trên kính.
+`ConnectorViewExtension`/`MindmapViewExtension` chưa có ca nào. `ShapeViewExtension`, `BrushViewExtension`,
 `ConnectorViewExtension`, `MindmapViewExtension` đều đã đăng ký nhưng chưa từng vẽ ra gì trên
 thiết bị thật.
 
@@ -3479,3 +3492,74 @@ gán `--safe-bottom: 34px` — công thức chạy đúng qua cả hai hình d�
 
 **Critique 2026-08-27 giờ đã đóng hoàn toàn** (P0/P1 ở mục 35, P2/P3 ở đây). Muốn biết điểm hiện
 tại phải chạy lại `/impeccable critique` — 30/40 là số ĐO TRƯỚC cả hai lượt sửa này.
+
+---
+
+## 37. BÀN PHÍM ẢO iOS — HƯỚNG B ĐÃ CÀI, CHỜ NGHIỆM THU TRÊN IPHONE THẬT
+
+Chủ dự án chọn hướng B (bọc phía app) thay vì A (vá thượng nguồn có kiểm soát). Lý do chọn B: không
+mang một vết lệch D11 vĩnh viễn phải rebase mỗi lần nâng cấp vendor, và thử được ngay vì chủ dự án
+có iPhone để nghiệm thu. Nếu B tranh chấp focus với chính BlockSuite trên máy thật thì mới tính A.
+
+**Gốc rễ không đổi** (chẩn đoán 2026-08-18, xác minh lại 2026-08-28): Safari iOS chỉ bật bàn phím ảo
+khi `.focus()` lên contenteditable được gọi ĐỒNG BỘ trong handler `touchend`/`pointerup`. Cây vendored
+hoãn qua hai tầng — `note-tool.ts:253-268` gọi `focusTextModel()` bên trong `requestAnimationFrame`,
+còn `focusTextModel()` (`rich-text/src/dom.ts:66-73`) tự nó không gọi `.focus()` mà chỉ đặt một
+`TextSelection`. Mỗi tầng hoãn cắt chuỗi user-gesture; Safari lặng lẽ từ chối.
+
+**Cách vá.** `src/board/ban-phim-ao-ios.ts` gắn một listener `pointerup` lên `.drt-edgeless-viewport`:
+
+- Chạm trúng vùng soạn thảo ĐÃ có sẵn → focus thẳng vào nó, không qua trung gian.
+- Chạm nền trong khi công cụ đang bật là công cụ TẠO CHỮ (`affine:note`, `affine:edgeless-text`,
+  `text`) → focus một **phần tử mồi** (contenteditable vô hình, `opacity:0`, `pointer-events:none`,
+  1×1px) đã nằm sẵn trong DOM. Đây là điểm mấu chốt: lúc pointerup phần tử soạn thảo THẬT chưa tồn
+  tại — nó chỉ ra đời sau khi công cụ chạy xong — nên "focus phần tử gần nhất" là bất khả. Mồi mở
+  bàn phím trong đúng cử chỉ, rồi tầng reactive của BlockSuite chuyển focus sang phần tử thật vài
+  nhịp sau. Safari GIỮ bàn phím khi focus chuyển giữa hai phần tử soạn thảo, nó chỉ khắt khe lúc MỞ.
+- Mọi công cụ khác (chọn/kéo/hình/bút) → không đụng gì. Bật bàn phím khi người ta chỉ muốn chọn thì
+  tệ hơn là không có bàn phím.
+- Không có gì nhận bàn giao trong `hanChoMs` (1200ms) → mồi tự buông để bàn phím đóng lại, và xoá
+  chữ người dùng lỡ gõ vào nó.
+- `pointerType === 'mouse'` → bỏ qua (iPad kèm bàn phím rời).
+- Chỉ gắn và chỉ render mồi trên iOS. Trên máy tính bàn DOM sạch y như trước lượt này.
+
+**Không đụng một dòng vendored nào** — `kiem:vendor` vẫn 2.782 file lệch 0.
+
+> **MỘT QUYẾT ĐỊNH BỊ CHÍNH CA KIỂM ÉP ĐỔI.** Cờ iOS ban đầu là hằng số cấp module (`const LA_IOS`),
+> cùng lối với `apDungViewportChoIOS()` ngay trên nó. Ca kiểm nối dây cần dựng CẢ HAI phía
+> (iPhone/máy bàn) nên phải nạp lại module với `navigator` khác — và lượt nạp lại làm
+> `customElements.define` của cây vendored ném `DOMException: the name "data-view-date-group-view"
+> has already been used`, 4/4 ca đỏ. Chuyển sang đo trong khởi tạo lười của `useState` (một lần mỗi
+> lượt mount, rẻ như nhau) thì kiểm được cả hai phía mà không nạp lại gì. Ghi lại vì cái bẫy
+> "hằng số cấp module + cây vendored đăng ký custom element" sẽ còn gặp lại.
+
+**18 ca kiểm, hai tầng.**
+- `src/board/__tests__/ban-phim-ao-ios.spec.ts` (14 ca) — logic, phụ thuộc bơm vào: không-iOS,
+  chuột, công cụ chọn, hai công cụ tạo chữ, vùng soạn có sẵn (chạm vào phần tử CON bên trong),
+  ưu tiên vùng soạn có sẵn khi công cụ Note đang bật, BlockSuite giành lại focus thì mồi không
+  giành lại, hết hạn thì mồi buông, dọn chữ sót, hai lượt chạm liên tiếp đặt lại hạn chờ, gỡ gắn
+  (cả khi mồi đang giữ focus), và `layTenCongCu` ném thì im lặng bỏ qua.
+- `src/board/__tests__/edgeless-board-ban-phim-ao-noi-day.spec.ts` (4 ca) — nối dây trên bảng THẬT,
+  canh ba mối nối mà ca đơn vị không chạm tới: đường đọc `gfx.tool.currentToolName$` (API nội bộ
+  vendored, ca đơn vị bơm hàm giả nên xanh vĩnh viễn dù đường thật đã mục), vị trí phần tử mồi
+  (trong viewport nhưng NGOÀI `editor-host`), và cờ iOS quyết định có render mồi hay không.
+
+**CHƯA NGHIỆM THU — happy-dom không có bàn phím ảo.** Bộ ca trên chứng minh "chạm → cái gì được
+focus, đồng bộ hay không, trong tình huống nào". Nó KHÔNG chứng minh Safari iOS chịu bật bàn phím,
+cũng không chứng minh việc bàn giao focus mồi → phần tử thật không nháy. Cần chủ dự án kiểm trên
+iPhone: (1) chọn công cụ Note, chạm nền → bàn phím phải hiện; (2) gõ chữ → chữ phải vào note, không
+rơi vào hư không; (3) chạm vào chữ của một note đã có → bàn phím hiện, con trỏ đúng chỗ; (4) chọn
+công cụ chọn, chạm/kéo quanh bảng → bàn phím KHÔNG được hiện. Nếu (2) hỏng (chữ mất) thì đó là
+tranh chấp focus — quay lại tính hướng A.
+
+**Bảy cổng đo trực tiếp:** `tsc --noEmit` exit 0 · `npm test` **440/440, 50/50 file** ·
+`kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục khớp · `build` + `kiem:dist` xanh,
+`vi.json` 265/265. `public/sw.js` bump **v14 → v15**.
+
+> **GHI CHÚ VỀ MỘT LƯỢT ĐỎ ĐÃ TRUY RA NGUYÊN NHÂN.** Lượt chạy full-suite đầu tiên sau khi thêm hai
+> file spec này đỏ 4 ca (`BoardGallery`, `dark-mode`, `database`, `reorder`) — ba trong số đó là
+> `Test timed out in 5000ms`. Chạy riêng bốn file: 12/12 xanh. Chạy lại full-suite: 440/440 xanh.
+> Đây đúng lớp flake đã ghi ở mục 6 — "thời gian đi theo tải máy còn ngân sách thì cố định" — và hai
+> file spec mới (mỗi file mount bảng thật nhiều lượt) làm tải nặng thêm nên nó bắn dễ hơn. KHÔNG
+> nâng ngân sách theo phản xạ: mục 6 đã dặn nếu flake quay lại thì quay về Phase 1 điều tra, đừng
+> nâng tiếp con số.

@@ -22,7 +22,8 @@ import { render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
-import { apDungViewportChoIOS } from './viewport-ios'
+import { ganMoBanPhimAoIOS } from './ban-phim-ao-ios'
+import { apDungViewportChoIOS, laThietBiIOS } from './viewport-ios'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
@@ -240,6 +241,14 @@ export function EdgelessBoard({
   onReady?: () => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
+  // Cơ chế bàn phím ảo iOS (xem ./ban-phim-ao-ios.ts và useEffect bên dưới).
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const moiBanPhimRef = useRef<HTMLDivElement>(null)
+  // Đo trong khởi tạo state, KHÔNG phải ở top-level module: một hằng số cấp module chỉ đo được một
+  // lần cho cả tiến trình, nên ca kiểm không thể dựng cả hai phía (iOS/máy bàn) mà không nạp lại
+  // module — và nạp lại module ở đây làm `customElements.define` của cây vendored ném vì trùng tên.
+  // Khởi tạo lười của useState đo đúng một lần cho mỗi lượt mount, đủ rẻ và kiểm được.
+  const [laIOS] = useState(() => typeof navigator !== 'undefined' && laThietBiIOS(navigator))
   const [dangMo, setDangMo] = useState(true)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
   // về bộ nhớ ở taoHoacMoBang() chứ không reject). Trước lượt sửa này, một promise reject ở đây
@@ -441,6 +450,33 @@ export function EdgelessBoard({
     }
   }, [boardId])
 
+  // ─── Bàn phím ảo iOS (HANDOFF mục 7, hướng B) ────────────────────────────────────────────────
+  // Cơ chế và lý do đầy đủ nằm ở ./ban-phim-ao-ios.ts. Ở đây chỉ nối dây: cấp lớp bọc viewport,
+  // phần tử mồi, và một cách đọc tên công cụ đang bật.
+  //
+  // Phụ thuộc chỉ `laIOS` (hằng suốt đời component): cả hai ref đều trỏ vào phần tử render ngay từ
+  // lượt đầu và sống suốt đời component, kể cả khi `boardId` đổi và cây Lit bên trong dựng lại —
+  // gắn lại theo `boardId` chỉ tháo/lắp cùng một listener trên cùng một phần tử.
+  useEffect(() => {
+    const viewport = viewportRef.current
+    const moi = moiBanPhimRef.current
+    if (!laIOS || !viewport || !moi) return
+    return ganMoBanPhimAoIOS({
+      viewport,
+      moi,
+      laIOS: true,
+      // API NỘI BỘ của cây vendored, không có kiểu công khai — cùng đường mà helpers/
+      // note-interaction.ts dùng để đặt công cụ trong ca kiểm. `ganMoBanPhimAoIOS` bọc lượt gọi
+      // này trong try/catch, nên thượng nguồn đổi hình dạng thì mất tính năng chứ không gãy thao tác.
+      layTenCongCu: () =>
+        (
+          viewport.querySelector('drt-edgeless-root') as unknown as
+            | { gfx?: { tool?: { currentToolName$?: { value?: string } } } }
+            | null
+        )?.gfx?.tool?.currentToolName$?.value,
+    })
+  }, [laIOS])
+
   // `ViewportElementExtension('.drt-edgeless-viewport')` (đăng ký trong extensions/view.ts của cây
   // vendor) tìm phần tử viewport bằng `std.host.closest(...)` — đi NGƯỢC LÊN từ editor host, nên
   // chính ứng dụng nhúng phải cấp sẵn tổ tiên mang đúng class này; cây Lit bên trong không tự tạo
@@ -465,6 +501,7 @@ export function EdgelessBoard({
   // màn hình lỗi đột ngột khác kiểu.
   return (
     <div
+      ref={viewportRef}
       className="drt-edgeless-viewport @container/viewport block h-full relative overflow-clip"
       data-theme={chuDe}
     >
@@ -504,6 +541,29 @@ export function EdgelessBoard({
         </div>
       )}
       <div ref={hostRef} className="absolute inset-0" />
+      {laIOS && (
+        // Phần tử MỒI của cơ chế bàn phím ảo iOS — xem ./ban-phim-ao-ios.ts.
+        //
+        // Nằm NGOÀI hostRef (anh em, không phải con) nên mọi truy vấn của BlockSuite bám theo
+        // `editor-host` không bao giờ thấy nó; ngược lại handler của ta cũng loại trừ nó tường minh.
+        //
+        // Vô hình bằng `opacity: 0` chứ KHÔNG phải `display:none`/`visibility:hidden`: hai cái sau
+        // làm phần tử không focus được, tức phá đúng công dụng duy nhất của nó. `pointerEvents:none`
+        // để ngón tay không bao giờ chạm trúng nó thật.
+        //
+        // `aria-hidden` trên một phần tử focus được vốn là điều nên tránh; ở đây chấp nhận có cân
+        // nhắc, vì phương án còn lại (để nó lộ ra cây trợ năng) sẽ đọc lên một ô soạn thảo trống
+        // không có nghĩa gì với người dùng. Nó chỉ giữ focus dưới 1,2 giây rồi tự buông.
+        <div
+          ref={moiBanPhimRef}
+          contentEditable
+          suppressContentEditableWarning
+          aria-hidden="true"
+          tabIndex={-1}
+          data-drt-moi-ban-phim=""
+          className="absolute bottom-0 left-0 w-px h-px opacity-0 pointer-events-none overflow-hidden"
+        />
+      )}
     </div>
   )
 }

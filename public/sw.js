@@ -36,7 +36,7 @@
 //      cài PWA vẫn phát chunk CŨ và không thấy gì đổi.
 // v13: mục "Xuất PNG" tắt kèm lý do cho bảng chưa mở (P2) + gom công thức vùng an toàn đáy màn
 //      hình về --nav-h/--above-nav/--above-safe (P3) — đổi cả CSS lẫn JS, bắt buộc bump.
-const CACHE = "drtrong-v14"
+const CACHE = "drtrong-v15"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
