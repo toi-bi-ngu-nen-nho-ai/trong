@@ -54,7 +54,15 @@ function chuaLanhIdb() {
 }
 
 function bangMau(id: string, ten: string): BangMeta {
-  return { id, ten, taoLuc: 1_700_000_000_000, capNhatLuc: 1_700_000_000_000, chuyenKhoa: 'cardiology', tags: [] }
+  return {
+    id,
+    ten,
+    taoLuc: 1_700_000_000_000,
+    capNhatLuc: 1_700_000_000_000,
+    chuyenKhoa: 'cardiology',
+    tags: [],
+    noiDungTimKiem: '',
+  }
 }
 
 describe('DanhSachBang — hỏng kho lưu trữ', () => {
