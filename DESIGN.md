@@ -20,6 +20,7 @@ colors:
   surface: "#ffffff"
   surface-alt: "#f6f7fd"
   note: "#faf3e4"
+  board-ground: "#d9c9a8"
   page: "#f1f2fb"
   text: "#12142b"
   text-muted: "#6b6e96"
@@ -97,6 +98,7 @@ The palette reads as one confident, cool-violet system: electric indigo as the s
 - **Cool Paper** (`#ffffff` surface / `#f1f2fb` page, light mode): a barely-tinted cool-violet neutral (same hue family as primary, near-zero chroma) so white cards visibly lift off a faintly-tinted page background without needing a border or shadow.
 - **Night Glass** (`#14162c` surface / `#0b0c1c` page, dark mode): near-OLED indigo-black, independently tuned — text/background pairs were re-measured for AA rather than assumed to transfer, and pushed noticeably darker than the old teal-gray dark surface for a more premium, more dramatic night identity.
 - **Note Paper** (`--c-note`, `#fbfaf7` light / `#efece3` dark, both near-white — the paper does not theme-swap to dark): reserved exclusively for the Mindmap board-card surface (`.mind-note-card`, `DanhSachBang.tsx`) — same "One Other Place Rule" as Mindmap Magenta above, scoped to material rather than hue. Revised 2026-08-26 from a second, more literal user-supplied reference (a white sticky note, curled bottom-left corner, drop shadow, pinned by a round-head pin): the card now carries a real `box-shadow` and a curled-corner pseudo-element (`.mind-note-card::before`) to read as a physical object lifted off the page. This is a deliberate, scoped exception to the Floating-Layer-Only Rule below — the Mindmap surface brief calls for literal material realism, so its resting cards are allowed a permanent shadow that the rest of the app's resting cards are not.
+- **Board Ground** (`--c-board-ground` / `--c-board-ground-2`, `#d9c9a8`/`#c7ad81` light, `#1a1712`/`#2a2318` dark — a warm cork/desk tone, the one warm surface in an otherwise cool-indigo product): the material behind the Mindmap board grid (`.mind-board-ground`, `DanhSachBang.tsx` scroll region), added 2026-08-28 (critique). Same "One Other Place Rule" as Note Paper and Mindmap Magenta — it appears on this one surface and nowhere else — and the same scoped material-realism exception: the note cards read as paper *pinned to a real cork board* rather than cards floating on the app page. Carries a faint two-layer speckle and a top inset-shadow board lip; unlike Note Paper it *does* theme-swap (a lit board by day, a dark desk at 2am) so the near-white cards keep lifting off it in both themes.
 
 ### Named Rules
 **The Untouchable Signal Rule.** `--c-danger*`, `--c-warn*`, and `--c-green*` are a separate token family from `--c-primary*`/`--c-accent*` and are never restyled, retinted, or animated as part of a brand refresh — confirmed by surviving the 2026-08 Azure→Indigo rebrand completely unchanged, byte-for-byte. Red is always danger, amber is always caution, and neither one gets the bounce/pop/glow treatment the rest of the UI uses for delight — a flat, serious presentation at the exact moment a clinician needs to trust the color without a second thought.

@@ -899,7 +899,7 @@ export function DanhSachBang({
     return (
       <div className="h-full flex flex-col">
         <ThanhTieuDe />
-        <div className="scroll-ios flex-1">
+        <div className="scroll-ios flex-1 mind-board-ground">
           <div style={{ maxWidth: 720, margin: '0 auto' }}>
             <LuoiChoTai />
           </div>
@@ -975,7 +975,7 @@ export function DanhSachBang({
     <>
     <div className="h-full flex flex-col">
       <ThanhTieuDe onTaoMoi={taoBangMoi} />
-      <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
+      <div className={`scroll-ios flex-1 mind-board-ground${dungTuBang ? ' board-out' : ''}`}>
       {/* Bọc toàn bộ nội dung trong một cột co giãn tối đa 720px, CĂN GIỮA — lưới thẻ dùng
           minmax(110px,140px) nên với ít bảng (2-3 thẻ), trên màn rộng (PC/iPad ngang) chúng dồn hết
           về góc trái, để lại một khoảng trắng khổng lồ bên phải, đọc thành "không phủ hết màn, mất
