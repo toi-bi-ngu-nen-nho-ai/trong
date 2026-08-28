@@ -1,0 +1,53 @@
+/* ─── Cầu nối token: thương hiệu app → bảng vẽ vendored ──────────────────────────────────────────
+   Cây BlockSuite tiêu thụ token `--drt-*` (định nghĩa nằm ở `.vendor-build/theme/style.css`, import
+   ngay trên file này trong EdgelessBoard.tsx). Trước lượt này KHÔNG có một chỗ nào trong `src/` ghi
+   đè chúng, nên mọi màu nhấn trên bảng vẽ là xanh AFFiNE `#1E96EB` — trong khi `--c-accent-2`
+   (magenta) tồn tại CHỈ để Sơ đồ tư duy có một màu không màn nào khác chạm tới ("One Other Place
+   Rule", xem src/index.css). Màu được lặp lại NHIỀU NHẤT trên màn hình bác sĩ dùng lâu nhất lại là
+   màu của thượng nguồn: đó là toàn bộ lý do file này tồn tại (critique 2026-08-27, P0/P1).
+
+   Vì sao là file riêng chứ không nằm trong src/index.css: đây là luật CHỈ dùng cho bảng vẽ. Import
+   nó ở EdgelessBoard.tsx (nạp qua React.lazy) giữ nó trong chunk bảng vẽ, đúng ranh giới mà chú
+   thích ở đầu EdgelessBoard.tsx đã dựng cho `.vendor-build/theme/style.css`.
+
+   ĐỘ ĐẶC HIỆU LÀ CÓ CHỦ Ý. Theme vendor khai token ở `:root`, `[data-theme=light]` và
+   `[data-theme=dark]`; EdgelessBoard gắn `data-theme` lên CHÍNH thẻ `.drt-edgeless-viewport` này.
+   Một luật `.drt-edgeless-viewport` trần (0,1,0) HOÀ điểm với `[data-theme=dark]` (0,1,0) và thua
+   theo thứ tự nếu stylesheet vendor được chèn sau. Thêm `[data-theme]` đẩy lên (0,2,0) để thắng
+   chắc chắn ở cả hai chiều. */
+
+.drt-edgeless-viewport,
+.drt-edgeless-viewport[data-theme] {
+  /* Ba token này là toàn bộ nguồn xanh dương ĐI QUA BIẾN CSS còn sống trong bản dựng (đo trên
+     dist/: --drt-primary-color 70 lượt dùng, --drt-brand-color 7, --drt-blue 3). Khung chọn phần
+     tử (`widgets/edgeless-selected-rect`) dùng cả primary-color lẫn blue; brand-color là màu nhấn
+     của nút thanh công cụ và menu gạch chéo. Bốn token dưới đây là TOÀN BỘ tập token mang đúng
+     giá trị xanh vendor (#1E96EB) mà bản dựng thật còn dùng — 13 token xanh còn lại của theme
+     (danh sách ghim ở cau-noi-thuong-hieu.spec.ts) đo được 0 lượt dùng trong dist/. */
+  --drt-primary-color: var(--c-accent-2);
+  --drt-brand-color: var(--c-accent-2);
+  --drt-blue: var(--c-accent-2);
+  /* Tay cầm đường nối trên canvas + đầu cột bảng dữ liệu (8 lượt dùng trong dist/) — cùng vai trò
+     "đang hoạt động/được nhấn" như ba token trên, nên phải đi cùng chúng, nếu không màn hình có
+     hai màu nhấn cạnh nhau. */
+  --drt-text-emphasis-color: var(--c-accent-2);
+  /* Bản 4% của primary (nền mờ lúc di chuột/chọn). Dựng lại từ --c-accent-2-rgb thay vì để nguyên
+     rgba(30,150,235,.04) — nếu bỏ sót, mọi vệt nền mờ vẫn ám xanh dưới lớp viền magenta. */
+  --drt-primary-color-04: rgba(var(--c-accent-2-rgb), 0.04);
+}
+
+/* GIẤY — chỉ ở bản SÁNG, và đây là một giới hạn có chủ đích, không phải bỏ sót.
+   `--drt-v2-edgeless-note-white` là nền của khối ghi chú mặc định (DefaultTheme.noteBackgrounColor
+   = NoteBackgroundColorMap.White): #ffffff ở bản sáng, #252525 ở bản tối.
+
+   Vì sao KHÔNG ghi đè ở bản tối: mực trên khối ghi chú là `--drt-text-primary-color`, LẬT sang gần
+   trắng ở bản tối. Thẻ bảng ở DanhSachBang giải được bài này vì nó ghim mực riêng (--c-on-note,
+   xem src/index.css) — trên bảng vẽ thì KHÔNG ghim được: màu nền mỗi khối do người dùng chọn và
+   được áp bằng inline style (blocks/note/.../edgeless-note-background.js), không để lại thuộc tính
+   DOM nào cho CSS bám vào, nên không có cách nào ghim mực cho ĐÚNG những khối đang dùng nền trắng
+   mà không phá các khối nền vàng/xanh/tím (ở bản tối chúng là các sắc TỐI). Đổi giấy sang kem ở
+   bản tối mà không ghim được mực = chữ gần trắng trên giấy sáng — đúng lỗi P0 của critique
+   2026-08-28 đã phải vá một lần trên thẻ bảng. Bản sáng không có rủi ro đó (mực vốn đã tối). */
+.drt-edgeless-viewport:not([data-theme='dark']) {
+  --drt-v2-edgeless-note-white: var(--c-note);
+}

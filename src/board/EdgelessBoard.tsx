@@ -40,6 +40,10 @@ import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBa
 // vỏ app là bắt mọi người dùng tải bảng màu của một màn hình họ có thể không bao giờ mở.
 import '../../.vendor-build/theme/style.css'
 
+// Ghi đè token vendor bằng màu thương hiệu của app — PHẢI đứng SAU import theme ở trên (cùng độ
+// đặc hiệu thì luật khai sau thắng; xem chú thích trong chính file đó về lý do chọn độ đặc hiệu).
+import './cau-noi-thuong-hieu.css'
+
 import { viewExtensions } from './extensions'
 
 // Phải chạy Ở ĐÂY — top-level module, trước khi bất kỳ Viewport nào được dựng (bên trong

@@ -31,7 +31,10 @@
 //      khi vào-ra bảng vẽ; menu "⋯"/"Khung" mất sạch padding nên chữ dán mép trái màn hình). Sửa
 //      nằm hoàn toàn trong src/index.css — đúng loại thay đổi mà comment đầu file cảnh báo: không
 //      bump thì máy đã cài PWA vẫn phát bản CSS CŨ trong cache, người dùng không thấy gì đổi.
-const CACHE = "drtrong-v11"
+// v12: cầu nối token thương hiệu vào bảng vẽ (src/board/cau-noi-thuong-hieu.css) — màu chọn/thanh công cụ
+//      đổi từ xanh AFFiNE sang magenta Mindmap. CSS mới nằm trong chunk bảng vẽ; không bump thì máy đã
+//      cài PWA vẫn phát chunk CŨ và không thấy gì đổi.
+const CACHE = "drtrong-v12"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
