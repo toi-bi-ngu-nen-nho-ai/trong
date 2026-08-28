@@ -96,6 +96,7 @@ import { forgetRead, formatReadTime, loadRecentReads, recordRead, type ReadEntry
 import { COMMON_DOSE_UNITS, doseToRate, doseUnitOptions, formatDoseNumber, massFactor, massOfConcUnit, parseDoseUnit, rateToDose } from "./lib/infusion"
 import { BlockEditor, type LinkTarget } from "./components/BlockEditor"
 import { BlockContent } from "./components/BlockContent"
+import { ScreenHeader } from "./components/ScreenHeader"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
 import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, PROSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
@@ -1006,49 +1007,8 @@ function SpecialtyPicker({ onSelect, currentId }: { onSelect: (id: string, isFin
   )
 }
 
-// ─── Tiêu đề màn hình dùng chung ──────────────────────────────────────────────
-//
-// Trước đây mỗi màn (Thư viện / Mindmap / Dùng thuốc / Ôn tập) tự viết tiêu đề riêng: cỡ chữ lúc
-// 24px lúc 20px, khoảng đệm trên mỗi nơi một số (pt-1 / pt-2), và hàng nào có nút phụ đứng cạnh thì
-// `items-center` kéo chữ lệch xuống theo chiều cao nút đó — đo được chênh nhau tới 9px giữa các
-// màn. Thư viện còn nặng hơn: tiêu đề nằm CHUNG một vùng cuộn với danh sách bên dưới, nên cuộn vài
-// trăm pixel là tiêu đề biến mất hẳn, còn ba màn kia thì tiêu đề đứng yên phía trên khi cuộn — cùng
-// là "tiêu đề màn hình" mà bốn cách cư xử khác nhau.
-//
-// `ScreenHeader` chốt lại MỘT cách duy nhất: đệm cố định, cỡ chữ cố định, hàng tiêu đề có chiều cao
-// tối thiểu bằng đúng chiều cao nút phụ (kể cả khi không có nút phụ) nên chữ không bao giờ nhảy vị
-// trí, và bản thân nó luôn là `flex-none` — nơi gọi chỉ cần đặt nó ngoài vùng `scroll-ios` là tiêu
-// đề tự động đứng yên khi cuộn.
-function ScreenHeader({
-  title,
-  subtitle,
-  actions,
-}: {
-  title: React.ReactNode
-  subtitle?: React.ReactNode
-  actions?: React.ReactNode
-}) {
-  return (
-    <div className="flex-none px-5 pt-3 pb-3">
-      {/* min-h-9 (36px) = đúng chiều cao mọi nút phụ (h-9) trong các màn này — có nút hay không thì
-          hàng vẫn cao như nhau, nên `items-center` không kéo chữ lệch theo chiều cao nút. */}
-      <div className="min-h-9 flex items-center justify-between gap-3">
-        {/* flex-1 min-w-0: flex item mặc định min-width:auto theo nội dung, nên `truncate` không
-            có tác dụng khi tiêu đề đủ dài đứng cạnh cụm nút "Tìm"/"Nhật ký" — chữ tràn ra ngoài
-            hàng thay vì bị cắt gọn. Cùng lỗi min-width đã gặp ở PatientPanel (ô Creatinin). */}
-        <h1 className="flex-1 min-w-0 text-[20px] font-bold leading-[1.3] truncate" style={{ color: C.text }}>
-          {title}
-        </h1>
-        {actions && <div className="flex-none flex items-center gap-1.5">{actions}</div>}
-      </div>
-      {subtitle && (
-        <p className={`${T.meta} mt-0.5 truncate`} style={{ color: C.textSoft }}>
-          {subtitle}
-        </p>
-      )}
-    </div>
-  )
-}
+// `ScreenHeader` (tiêu đề màn hình dùng chung) đã tách ra ./components/ScreenHeader.tsx — MỘT nguồn
+// sự thật cho mọi màn cấp-tab (Thư viện / Dùng thuốc / Ôn tập / Mindmap). Xem chú thích trong file đó.
 
 // ─── Screens ──────────────────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { specialtyIcon } from '../components/SpecialtyIcons'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
@@ -687,62 +688,9 @@ function TheBang({
   )
 }
 
-// Thanh tiêu đề của tab Mindmap. Trước lượt này màn Mindmap là màn DUY NHẤT không có ScreenHeader
-// (critique 2026-08-28 P1): người dùng rơi thẳng vào ô tìm hoặc một lưới xám, không gì đặt tên
-// hay đóng khung "phòng não phải" mà hiến chương định giá ≥50% công sức thiết kế. Nút "+ Bảng mới"
-// nằm ngay đây để tạo bảng KHÔNG phải cuộn hết lưới tới ô "+" cuối (persona Casey, một tay). onTaoMoi
-// undefined = trạng thái đang tải (nút mờ, chưa bấm được).
-function ThanhTieuDe({ onTaoMoi }: { onTaoMoi?: () => void }) {
-  return (
-    <header
-      className="flex-none flex items-center justify-between gap-3"
-      style={{
-        padding: '14px 16px 10px',
-        borderBottom: '1px solid var(--c-line, #d9ddf4)',
-        background: 'var(--c-page, #f1f2fb)',
-      }}
-    >
-      <h1
-        style={{
-          fontSize: 17,
-          fontWeight: 700,
-          letterSpacing: '-0.02em',
-          color: 'var(--c-text, #12142b)',
-          margin: 0,
-        }}
-      >
-        Sơ đồ tư duy
-      </h1>
-      <button
-        type="button"
-        data-testid="tao-bang-header"
-        onClick={onTaoMoi}
-        disabled={!onTaoMoi}
-        aria-label="Tạo bảng mới"
-        className="mind-focus-ring"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 5,
-          minHeight: 44,
-          padding: '0 14px',
-          borderRadius: 999,
-          border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.35)',
-          background: 'rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.06)',
-          color: 'var(--c-accent-2, #b8196f)',
-          fontSize: 13,
-          fontWeight: 600,
-          opacity: onTaoMoi ? 1 : 0.5,
-        }}
-      >
-        <span aria-hidden="true" style={{ fontSize: 18, lineHeight: 1, marginTop: -1 }}>
-          +
-        </span>
-        Bảng mới
-      </button>
-    </header>
-  )
-}
+// Tiêu đề tab Mindmap dùng ScreenHeader chung (../components/ScreenHeader) — thống nhất với Thư viện/
+// Dùng thuốc/Ôn tập (2026-08-28, phản hồi chủ dự án). KHÔNG còn header tự chế 17px + viền + nền, và
+// KHÔNG còn nút "+ Bảng mới" trên header — ô "+" trong lưới (và ở trạng thái rỗng) đã đủ.
 
 // Lưới giữ chỗ trong lúc useIdbCollection đọc lần đầu — trước đây `if (loading) return null` để
 // nguyên tab TRỐNG TRƠN suốt lượt đọc IndexedDB đầu (critique 2026-08-28 P3): trên máy có nhiều
@@ -898,8 +846,8 @@ export function DanhSachBang({
   if (loading)
     return (
       <div className="h-full flex flex-col">
-        <ThanhTieuDe />
-        <div className="scroll-ios flex-1 mind-board-ground">
+        <ScreenHeader title="Sơ đồ tư duy" />
+        <div className="scroll-ios flex-1">
           <div style={{ maxWidth: 720, margin: '0 auto' }}>
             <LuoiChoTai />
           </div>
@@ -974,8 +922,8 @@ export function DanhSachBang({
   return (
     <>
     <div className="h-full flex flex-col">
-      <ThanhTieuDe onTaoMoi={taoBangMoi} />
-      <div className={`scroll-ios flex-1 mind-board-ground${dungTuBang ? ' board-out' : ''}`}>
+      <ScreenHeader title="Sơ đồ tư duy" />
+      <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
       {/* Bọc toàn bộ nội dung trong một cột co giãn tối đa 720px, CĂN GIỮA — lưới thẻ dùng
           minmax(110px,140px) nên với ít bảng (2-3 thẻ), trên màn rộng (PC/iPad ngang) chúng dồn hết
           về góc trái, để lại một khoảng trắng khổng lồ bên phải, đọc thành "không phủ hết màn, mất

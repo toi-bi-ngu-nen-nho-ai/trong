@@ -139,12 +139,6 @@
      ảnh tham chiếu lần 2, 2026-08-26, không còn tông kem ấm của ảnh lần 1). Cùng tinh thần "One
      Other Place Rule" đã áp cho --c-accent-2 — Mindmap có vật liệu riêng. */
   --c-note: #fbfaf7;
-  /* Mặt BẢNG GHIM (nền vùng lưới thẻ Mindmap, .mind-board-ground) — sắc nút bần (cork) ấm, CỐ TÌNH
-     lệch khỏi bảng màu indigo lạnh của phần còn lại app: đây là "phòng não phải", một bề mặt vật
-     liệu riêng (surface brief) — tờ giấy trắng ghim LÊN một tấm bảng bần thật, không phải card nổi
-     trên nền giao diện. -2 là sắc lốm đốm hạt bần. */
-  --c-board-ground: #d9c9a8;
-  --c-board-ground-2: #c7ad81;
   --c-page: #f1f2fb;
   --c-line-soft: #e9ebf9;
   --c-line: #d9ddf4;
@@ -312,10 +306,6 @@
     /* Bản tối của --c-note CHỈ dịu bớt một chút (không đổi hẳn sang tối) — giấy vẫn là giấy trắng
        dưới ánh đèn ban đêm, không phải một bề mặt tối riêng như --c-surface-alt dark. */
     --c-note: #efece3;
-    /* Mặt bảng ghim bản tối = mặt bàn gỗ tối ẤM, tách khỏi --c-page (indigo gần đen, lạnh) để tờ
-       giấy sáng vẫn nổi hẳn lên lúc 2 giờ sáng. */
-    --c-board-ground: #1a1712;
-    --c-board-ground-2: #2a2318;
     --c-page: #0b0c1c;
     --c-line-soft: #23264a;
     --c-line: #2e3260;
@@ -395,8 +385,6 @@
   --c-surface: #14162c;
   --c-surface-alt: #1b1e3d;
   --c-note: #efece3;
-  --c-board-ground: #1a1712;
-  --c-board-ground-2: #2a2318;
   --c-page: #0b0c1c;
   --c-line-soft: #23264a;
   --c-line: #2e3260;
@@ -749,25 +737,6 @@ html.theme-shift * {
   background: linear-gradient(135deg, #d3d1c8 30%, #fcfbf8 68%, #fcfbf8 100%);
   clip-path: path('M0,16 C0,25 5,30 15,30 L0,30 Z');
   filter: drop-shadow(-1px 1.5px 2px rgba(0, 0, 0, 0.28));
-}
-
-/* Mặt BẢNG GHIM đằng sau lưới thẻ (DanhSachBang.tsx, vùng cuộn) — critique 2026-08-28 P1: trước
-   đây các "tờ giấy ghim" nổi trên nền --c-page indigo lạnh, đọc như card giao diện, không phải giấy
-   ghim lên một tấm bảng. Giờ có một mặt bần (cork) ấm thật sự: màu nền + hai lớp lốm đốm hạt bần
-   (radial-gradient tile nhỏ, alpha thấp) + gờ lõm phía trên (inset shadow) như mép một tấm bảng
-   gắn tường. background-attachment: local để hạt bần cuộn CÙNG giấy (giấy ghim CHẶT vào bảng, không
-   trượt trên một lớp nền cố định). Là ngoại lệ vật liệu có chủ đích của bề mặt Mindmap (cùng luật
-   riêng với .mind-note-card / --c-note), không áp cho phần còn lại app. */
-.mind-board-ground {
-  background-color: var(--c-board-ground);
-  background-image:
-    radial-gradient(circle at 20% 30%, var(--c-board-ground-2) 0 1.1px, transparent 1.6px),
-    radial-gradient(circle at 75% 65%, var(--c-board-ground-2) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 40% 85%, rgba(255, 255, 255, 0.32) 0 0.9px, transparent 1.4px);
-  background-size: 22px 22px, 34px 30px, 27px 25px;
-  background-attachment: local;
-  box-shadow: inset 0 9px 14px -10px rgba(0, 0, 0, 0.35);
-  animation: fadeIn 0.3s ease;
 }
 
 /* Thẻ "rơi vào chỗ" lúc lưới vào màn — biến thể của .rise-in nhưng dừng ở góc nghiêng NGHỈ của

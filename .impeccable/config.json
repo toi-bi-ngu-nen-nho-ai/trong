@@ -110,18 +110,6 @@
         "reason": "Claude: giá trị dark-mode của --c-accent-2 (DESIGN.md phần Colors > Secondary, chưa vào frontmatter colors:); dùng làm fallback cho --c-toast-action trên dải Hoàn tác (nền tối cố định), cùng khuôn var(--c-*, #hex) như mọi nơi khác trong DanhSachBang.tsx"
       },
       {
-        "rule": "design-system-color",
-        "value": "rgba(0, 0, 0, 0.35)",
-        "createdAt": "2026-08-28T04:34:50.034Z",
-        "reason": "Claude: alpha bóng đổ gờ lõm mép bảng ghim (.mind-board-ground inset shadow) — cùng họ với các rgba bóng vật liệu Mindmap đã có (.mind-note-card 0.38/0.28, ghim 0.35); không phải màu bảng màu"
-      },
-      {
-        "rule": "design-system-color",
-        "value": "rgba(255, 255, 255, 0.32)",
-        "createdAt": "2026-08-28T04:34:50.161Z",
-        "reason": "Claude: điểm sáng hạt bần trên mặt .mind-board-ground — highlight vật liệu, cùng họ rgba(255,255,255,0.4) của gloss đầu ghim"
-      },
-      {
         "rule": "bounce-easing",
         "value": "minddotbounce",
         "createdAt": "2026-08-28T04:48:09.988Z",
