@@ -76,6 +76,30 @@
      tự phủ nốt 34px đó thì dải kia trở thành phần thân của thanh, không còn khoảng trống nào. */
   --nav-pad-bottom: var(--safe-bottom);
 
+  /* ─── MỘT CÔNG THỨC DUY NHẤT cho mọi thứ nổi trên đáy màn hình ────────────────────────────────
+     Vì sao tồn tại (critique 2026-08-27, P3): trước lượt này mỗi nơi tự viết lại phép tính, và
+     phép tính ĐÚNG có hai vế (`--nav-body-h + --nav-pad-bottom`) trong khi phép tính SAI chỉ có
+     một vế — hai bản chỉ khác nhau một từ, nên bản sai đọc vẫn thấy hợp lý. Nó đã sinh lỗi thật
+     ÍT NHẤT hai lần: menu bảng đè lên vùng thanh gạt Home (đã vá 2026-08-26, xem chú thích ở
+     `.mind-menu-bang` bên dưới), và dải "Có bản cập nhật"/dải lỗi đọc/toast ở App.tsx vẫn còn
+     thiếu vế thứ hai cho tới lượt này. Cả hai lần đều KHÔNG lộ ra khi đo trên máy không có thanh
+     gạt Home (`--safe-bottom = 0px` thì hai phép tính cho cùng một số) — đó là lý do lỗi cứ quay
+     lại theo từng hình dạng thiết bị mới thay vì được đóng một lần.
+
+     Từ đây: đừng viết `calc(var(--nav-body-h) …)` ở bất cứ đâu nữa, dùng ba biến dưới. Ca kiểm
+     `src/__tests__/cong-thuc-vung-an-toan.spec.ts` canh đúng điều đó.
+
+     Cách thử tay không cần iPhone: DevTools gán `--safe-bottom: 34px` lên :root. */
+
+  /* Chiều cao THẬT của thanh nav = thân bấm được + vùng thanh gạt Home nó tự phủ nốt. */
+  --nav-h: calc(var(--nav-body-h) + var(--nav-pad-bottom));
+  /* Neo cho thứ nổi ngay trên thanh nav (toast, dải cập nhật, menu bottom-sheet) — 18px là khoảng
+     hở thị giác giữa vật nổi và mép trên thanh nav, đã dùng thống nhất từ trước. */
+  --above-nav: calc(var(--nav-h) + 18px);
+  /* Neo cho MÀN CHI TIẾT: không có thanh nav nào tự "nuốt" giùm vùng thanh gạt, nên phải cộng tay
+     --safe-bottom; 24px là khoảng hở tới đáy khung nhìn. */
+  --above-safe: calc(24px + var(--safe-bottom));
+
   /* Khối token cũ (--background/--primary/--accent...) đã bị xoá: không còn chỗ nào trong mã nguồn
      dùng tới, và nó từng là một NGUỒN SỰ THẬT THỨ HAI cho primary/accent — mang giá trị #e8007d cho
      --accent trong khi --c-accent-2 (nguồn thật) đã đổi khác, chỉ chờ ai đó sửa nhầm chỗ. Giữ lại
@@ -1103,7 +1127,7 @@ html.theme-shift * {
     top: auto !important;
     left: 12px !important;
     right: 12px !important;
-    bottom: calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px) !important;
+    bottom: var(--above-nav) !important;
     width: auto !important;
   }
 
@@ -1119,7 +1143,7 @@ html.theme-shift * {
     top: auto !important;
     left: auto !important;
     right: 12px !important;
-    bottom: calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px) !important;
+    bottom: var(--above-nav) !important;
     width: max-content !important;
     max-width: calc(100vw - 24px);
   }

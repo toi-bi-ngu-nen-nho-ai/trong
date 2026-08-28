@@ -652,13 +652,11 @@ function TheBang({
           >
             Đổi tên
           </button>
-          {bang.anhXemTruoc && (
+          {bang.anhXemTruoc ? (
             // Xuất ẢNH XEM TRƯỚC đã lưu sẵn (data URL JPEG, ghi lúc rời bảng — capNhatAnhXemTruoc(),
             // boardMeta.ts) — KHÔNG mở bảng để xuất bằng ExportManager thật. Đây là điểm "chuyển ra
             // board" người dùng yêu cầu (phản hồi thật 2026-08-27, lần 3: xoá hẳn menu xuất trong
-            // màn vẽ, dồn về đúng menu "..." sẵn có của thẻ ở lưới cùng Đổi tên/Chuyên khoa). Ẩn hẳn
-            // mục này khi bảng chưa từng có ảnh xem trước (mới tạo/còn trống, chưa từng mở) — không
-            // có gì để xuất (capNhatAnhXemTruoc() cố ý KHÔNG chụp bảng trống, xem boardMeta.ts).
+            // màn vẽ, dồn về đúng menu "..." sẵn có của thẻ ở lưới cùng Đổi tên/Chuyên khoa).
             // Nhãn "Xuất PNG" (2026-08-28, phản hồi thật: "thiếu nút xuất PNG" — trước đây đặt tên
             // "Xuất ảnh" vì file gốc là JPEG, nhãn phải khớp định dạng thật). Vẽ lại ảnh JPEG lên một
             // <canvas> rồi toDataURL('image/png') để tệp xuất ra ĐÚNG LÀ PNG thật (không chỉ đổi đuôi
@@ -666,6 +664,7 @@ function TheBang({
             <button
               type="button"
               data-testid={`xuat-anh-${bang.id}`}
+              role="menuitem"
               onClick={() => {
                 const anh = new Image()
                 anh.onload = () => {
@@ -683,10 +682,30 @@ function TheBang({
                 anh.src = bang.anhXemTruoc as string
               }}
               className="mind-focus-ring"
-              style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 600 }}
+              style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
             >
               Xuất PNG
             </button>
+          ) : (
+            // BẢNG CHƯA TỪNG MỞ — mục xuất VẪN HIỆN, ở trạng thái tắt kèm lý do một dòng.
+            //
+            // Trước đây mục này bị ẩn hẳn khi thiếu `anhXemTruoc`, nên người tạo một loạt bảng trước
+            // ca trực thấy menu chỉ có 2 mục và không có gì giải thích — họ không thể biết là "chưa
+            // xuất được" hay "app không có tính năng xuất" (critique 2026-08-27, P2). Ẩn một khả năng
+            // mà không nói vì sao thì người dùng kết luận nó không tồn tại.
+            //
+            // `disabled` + `aria-disabled`: trình đọc màn hình đọc ra là mục menu đang tắt thay vì bỏ
+            // qua im lặng. Lý do đặt trong CHÍNH nút (không phải tooltip/title) vì trên cảm ứng không
+            // có hành vi di chuột để lộ tooltip — đây là app dùng bằng ngón tay.
+            <div
+              data-testid={`xuat-anh-tat-${bang.id}`}
+              role="menuitem"
+              aria-disabled="true"
+              style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, width: '100%', minHeight: 40, textAlign: 'left', padding: '4px 10px', opacity: 0.55 }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>Xuất PNG</span>
+              <span style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap' }}>Mở bảng một lần để có ảnh</span>
+            </div>
           )}
           <button
             type="button"
@@ -1554,7 +1573,7 @@ export function DanhSachBang({
         style={{
           left: 12,
           right: 12,
-          bottom: 'calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px)',
+          bottom: 'var(--above-nav)',
           background: 'var(--c-danger-soft, #fef2f2)',
           border: '1px solid var(--c-danger-line, #fecaca)',
           color: 'var(--c-danger-deep, #991b1b)',
@@ -1638,7 +1657,7 @@ export function DanhSachBang({
           // viết cứng (vi phạm "mọi màu là token") và nút "Hoàn tác" tô --c-accent-2 bản sáng chỉ đạt
           // 2,90:1 trên nền tối này — dưới AA (critique 2026-08-28 P1). --c-toast-action là sắc
           // magenta bản-tối, ~8,2:1 trên nền dải, vẫn thuộc "One Other Place Rule" của Mindmap.
-          style={{ left: 12, right: 12, bottom: 'calc(var(--nav-body-h, 0px) + var(--nav-pad-bottom, 0px) + 18px)', background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
+          style={{ left: 12, right: 12, bottom: 'var(--above-nav)', background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
         >
           <span className="flex-1 text-[12.5px] leading-snug" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>Đã xoá "{vuaXoa.ten}"</span>
           <button

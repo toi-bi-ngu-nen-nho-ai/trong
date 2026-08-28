@@ -11731,7 +11731,7 @@ function DungThuocScreen({
           // aria-live="assertive": đây là toast duy nhất của app đi kèm hành động PHÁ HỦY (reset
           // bệnh nhân) — người dùng đọc màn hình cần biết ngay cửa sổ hoàn tác 20s vừa mở, không thể
           // chờ ngắt quãng lượt đọc như các aria-live="polite" khác trong file.
-          style={{ bottom: "calc(var(--nav-body-h) + 18px)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow), var(--c-shadow-glow)" }}
+          style={{ bottom: "var(--above-nav)", background: "var(--c-pill-dark)", boxShadow: "0 8px 24px var(--c-shadow), var(--c-shadow-glow)" }}
         >
           <p className="flex-1 text-[13px] font-semibold" style={{ color: "var(--c-pill-dark-text)" }}>
             Đã xoá bệnh nhân{resetUndo.running.length > 0 ? ` và ${resetUndo.running.length} thuốc đang dùng` : ""}
@@ -12496,7 +12496,7 @@ export default function App() {
         {/* Ở màn chi tiết KHÔNG có thanh nav để tự "nuốt" giùm vùng thanh gạt Home, nên phải cộng
             tay `--safe-bottom` vào đây — nếu không, dải này sẽ nổi quá thấp, lấn vào đúng vùng
             thanh gạt trên iPhone toàn màn hình. */}
-        <UpdateBanner offsetBottom={isDetailScreen ? "calc(24px + var(--safe-bottom))" : "calc(var(--nav-body-h) + 18px)"} />
+        <UpdateBanner offsetBottom={isDetailScreen ? "var(--above-safe)" : "var(--above-nav)"} />
 
         {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: cả bài viết lẫn bài học ECG dùng
             CHUNG một IndexedDB, hỏng thì hỏng cùng lúc, và người dùng có thể đang ở bất kỳ tab nào.
@@ -12510,7 +12510,7 @@ export default function App() {
             data-testid="dai-loi-doc-idb"
             className="absolute left-3 right-3 z-40 flex items-start gap-2.5 px-4 py-3 rounded-2xl"
             style={{
-              bottom: isDetailScreen ? "calc(24px + var(--safe-bottom))" : "calc(var(--nav-body-h) + 18px)",
+              bottom: isDetailScreen ? "var(--above-safe)" : "var(--above-nav)",
               background: "var(--c-warn-soft, #fffbeb)",
               border: "1px solid var(--c-warn-line, #fde68a)",
               color: "var(--c-warn, #92400e)",
@@ -12566,8 +12566,8 @@ export default function App() {
             className="toast-in absolute left-1/2 z-40 px-4 py-2.5 rounded-full text-[13px] font-semibold text-white pointer-events-none flex items-center gap-2"
             style={{
               bottom: updateBannerVisible
-                ? (isDetailScreen ? "calc(24px + var(--safe-bottom) + 52px)" : "calc(var(--nav-body-h) + 18px + 52px)")
-                : (isDetailScreen ? "calc(24px + var(--safe-bottom))" : "calc(var(--nav-body-h) + 18px)"),
+                ? (isDetailScreen ? "calc(var(--above-safe) + 52px)" : "calc(var(--above-nav) + 52px)")
+                : (isDetailScreen ? "var(--above-safe)" : "var(--above-nav)"),
               transform: "translateX(-50%)",
               background: "rgba(15,23,42,.92)",
               boxShadow: "0 8px 24px rgba(15,23,42,.28)",
@@ -12591,7 +12591,7 @@ export default function App() {
             style={{
               left: 12,
               right: 12,
-              bottom: `calc(${isDetailScreen ? "24px + var(--safe-bottom)" : "var(--nav-body-h) + 18px"} + ${
+              bottom: `calc(${isDetailScreen ? "var(--above-safe)" : "var(--above-nav)"} + ${
                 (updateBannerVisible ? 52 : 0) + (toast ? 52 : 0)
               }px)`,
               background: "rgba(15,23,42,.94)",

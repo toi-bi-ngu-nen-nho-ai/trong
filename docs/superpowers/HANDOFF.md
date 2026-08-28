@@ -1,6 +1,6 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-28** (mục 35, chặng thiết kế/lưu trữ Mindmap 27-28/8 + cầu nối token thương hiệu).
+Cập nhật: **2026-08-28** (mục 36, trả nốt P2+P3 critique 2026-08-27 — mục xuất tắt kèm lý do + một công thức vùng an toàn).
 Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
 > **CÁCH TRẢ LỜI — chủ dự án yêu cầu trực tiếp, 2026-08-28.** Trả lời **ngắn gọn, đúng trọng tâm**: không
@@ -9,7 +9,12 @@ Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 > (root cause, lý do thiết kế, số đo bảy cổng) đẩy vào **commit message và chính file này**, không đổ vào
 > câu trả lời trong phiên.
 
-> **ĐÍNH CHÍNH bản 2026-08-28 (mục 35, mới nhất).** Mười hai commit trực tiếp lên `main` trong hai
+> **ĐÍNH CHÍNH bản 2026-08-28 (mục 36, mới nhất).** Critique 2026-08-27 ĐÃ ĐÓNG HOÀN TOÀN — P0/P1
+> ở mục 35, P2/P3 ở **mục 36**. Làm P3 thì bắt được năm chỗ ở `App.tsx` vẫn thiếu vế vùng thanh gạt Home
+> trong phép tính đáy màn hình (đè lên thanh nav 16px trên iPhone) — loại lỗi `index.css` tưởng đã vá xong
+> từ 2026-08-26. Nay gom về ba biến `--nav-h`/`--above-nav`/`--above-safe`, có ca kiểm cấm viết tay lại.
+>
+> **ĐÍNH CHÍNH bản 2026-08-28 (mục 35).** Mười hai commit trực tiếp lên `main` trong hai
 > ngày 27-28/8, không qua worktree: dọn thiết kế Board Gallery, vá hai lỗ hổng thác đổ CSS, phân
 > biệt "đọc hỏng" với "chưa có gì" cho IndexedDB, và nối token thương hiệu vào bảng vẽ (magenta
 > thay xanh AFFiNE). **Tất cả đã push.** `main` tại `2203d5f` hoặc mới hơn. Xem **mục 35**.
@@ -229,7 +234,7 @@ hướng và làm tiếp mà không cần giải thích lại từ đầu.
 TRẢ LỜI NGẮN GỌN, ĐÚNG TRỌNG TÂM — không dài dòng, không mơ hồ, không giải thích phức tạp. Chi tiết
 dài viết vào commit message và HANDOFF, đừng đổ vào câu trả lời.
 
-Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 35 (mới nhất). Đây là bàn
+Đọc docs/superpowers/HANDOFF.md trước khi làm bất cứ gì, đặc biệt mục 36 (mới nhất). Đây là bàn
 giao dự án Bs Trọng từ một phiên Claude Code khác đã dừng. Đừng đoán trạng thái repo — file đó ghi
 mọi lệnh git cần chạy để xác nhận.
 
@@ -3423,3 +3428,54 @@ sẽ làm ca này đỏ và buộc người sửa quyết định lại, thay v�
 **Còn lại của critique 2026-08-27:** P2 (bảng mới tạo không có mục "Xuất ảnh" vì chưa có
 `anhXemTruoc`, im lặng không giải thích) và P3 (safe-area iPhone vá theo từng báo lỗi, chưa có công
 thức chung).
+
+---
+
+## 36. TRẢ NỐT P2 + P3 CỦA CRITIQUE 2026-08-27 — ĐÃ XONG, ĐÃ PUSH
+
+Chủ dự án: "sửa toàn bộ P2 + P3". Không còn vấn đề nào của critique 2026-08-27 chưa sửa.
+
+**P2 — mục "Xuất PNG" không còn biến mất.** Trước đây `{bang.anhXemTruoc && (...)}` ẩn HẲN mục
+xuất khi bảng chưa từng mở, nên người tạo một loạt bảng trước ca trực thấy menu chỉ có 2 mục và
+không thể biết là "chưa xuất được" hay "app không có tính năng xuất" — ẩn một khả năng mà không nói
+vì sao thì người dùng kết luận nó không tồn tại. Giờ hiện một mục TẮT (`aria-disabled="true"`,
+`role="menuitem"`, minHeight 40) kèm lý do một dòng "Mở bảng một lần để có ảnh". Lý do đặt trong
+CHÍNH mục chứ không phải `title`/tooltip: trên cảm ứng không có hành vi di chuột để lộ tooltip.
+Nhân tiện vá hai lệch nhỏ của nút xuất thật: thiếu `role="menuitem"` (hai nút anh em đều có) và
+`fontSize: 10` giữa hai nút 12.
+
+**P3 — gom về MỘT công thức vùng an toàn đáy màn hình.** Ba biến mới ở `:root` (`src/index.css`):
+
+```
+--nav-h:      calc(var(--nav-body-h) + var(--nav-pad-bottom))   /* chiều cao THẬT của thanh nav */
+--above-nav:  calc(var(--nav-h) + 18px)                          /* vật nổi trên thanh nav */
+--above-safe: calc(24px + var(--safe-bottom))                    /* màn chi tiết, không có nav */
+```
+
+> **PHÁT HIỆN: lỗi cũ tưởng đã vá vẫn còn sống ở chỗ khác.** `index.css` từ 2026-08-26 đã ghi rõ
+> "chiều cao THẬT của thanh nav = `--nav-body-h` + `--nav-pad-bottom`" và vá cho menu bảng — nhưng
+> **năm chỗ ở `App.tsx` vẫn viết `calc(var(--nav-body-h) + 18px)`**: dải "Có bản cập nhật", dải lỗi
+> đọc IndexedDB, toast xác nhận, dải nhắc sao lưu, và một dải nữa ở dòng 11734. Trên iPhone có
+> thanh gạt Home (34px) cả năm đè lên thanh nav 16px. Lý do lỗi sống sót: phép tính đúng và phép
+> tính sai chỉ khác nhau MỘT VẾ, và trên máy `--safe-bottom: 0px` hai bên cho CÙNG MỘT SỐ — nên mọi
+> lượt đo trên giả lập đều xanh. Đây chính là "lớp lỗi lặp lại" mà P3 của critique chỉ ra.
+
+Ca kiểm `src/__tests__/cong-thuc-vung-an-toan.spec.ts` (3 ca) cấm viết lại phép tính bằng tay:
+quét `App.tsx`/`DanhSachBang.tsx`/`BoardGallery.tsx`/`index.css` theo TỪNG DÒNG, bỏ qua dòng chú
+thích (chú thích được phép nhắc công thức để giải thích), báo đỏ nếu gặp `--nav-body-h) + 18px`
+hoặc `24px + var(--safe-bottom)` trong mã thật. Bằng chứng đỏ thật: nhét lại công thức thiếu vế
+vào `DanhSachBang.tsx` → đỏ đúng dòng đó, trả về → xanh.
+
+**Cách thử tay không cần iPhone:** DevTools gán `--safe-bottom: 34px` lên `:root`.
+
+**Kiểm tay thật trên Browser pane, khung 375px:** mục "Xuất PNG" tắt hiện đúng (cao 40px,
+`aria-disabled=true`, đủ hai dòng chữ), nút xuất thật vắng mặt đúng lúc chưa có ảnh. Menu bảng
+dạng bottom-sheet: `bottom` = **69px** khi `--safe-bottom: 0` và **103px** (= 51 + 34 + 18) sau khi
+gán `--safe-bottom: 34px` — công thức chạy đúng qua cả hai hình dạng thiết bị.
+
+**Bảy cổng, TẤT CẢ XANH, đo trực tiếp:** `tsc --noEmit` exit 0 · `kiem:vendor` 2.782 file lệch 0 ·
+`kiem:vendor-paths` 438 mục khớp · `npm test` **397/397, 44/44 file** · `build` + `kiem:dist` xanh,
+**`vi.json` 264/264**. `public/sw.js` bump **v12 → v13**.
+
+**Critique 2026-08-27 giờ đã đóng hoàn toàn** (P0/P1 ở mục 35, P2/P3 ở đây). Muốn biết điểm hiện
+tại phải chạy lại `/impeccable critique` — 30/40 là số ĐO TRƯỚC cả hai lượt sửa này.

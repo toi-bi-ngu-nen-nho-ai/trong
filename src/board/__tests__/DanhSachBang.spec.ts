@@ -742,6 +742,57 @@ describe('DanhSachBang', () => {
     expect(huyHieu?.getAttribute('data-khoa')).toBe(SPECIALTIES[0].id)
   })
 
+  // P2 critique 2026-08-27: trước đây mục "Xuất PNG" bị ẨN HẲN khi bảng chưa từng mở, nên người
+  // tạo một loạt bảng trước ca trực thấy menu chỉ có 2 mục và không biết app có xuất ảnh hay không.
+  it('bảng CHƯA có anhXemTruoc → mục "Xuất PNG" VẪN hiện, ở trạng thái tắt kèm lý do', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-chua-anh', ten: 'Bảng chưa mở', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-bang-chua-anh"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-chua-anh"]') as HTMLButtonElement).click()
+    })
+
+    // Không có nút xuất thật (không có gì để xuất)…
+    expect(container.querySelector('[data-testid="xuat-anh-bang-chua-anh"]')).toBeNull()
+    // …nhưng mục tắt PHẢI có mặt, kèm lý do đọc được và cờ a11y đúng.
+    const muc = container.querySelector('[data-testid="xuat-anh-tat-bang-chua-anh"]')
+    expect(muc, 'mục "Xuất PNG" tắt phải hiện thay vì biến mất không giải thích').not.toBeNull()
+    expect(muc?.getAttribute('aria-disabled')).toBe('true')
+    expect(muc?.getAttribute('role')).toBe('menuitem')
+    expect(muc?.textContent).toContain('Xuất PNG')
+    expect(muc?.textContent).toContain('Mở bảng một lần để có ảnh')
+  })
+
+  it('bảng ĐÃ có anhXemTruoc → nút "Xuất PNG" thật thay chỗ mục tắt', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-xuat-duoc', ten: 'Bảng xuất được', taoLuc: bayGio, capNhatLuc: bayGio,
+      anhXemTruoc: 'data:image/png;base64,iVBORw0KGgo=', chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-bang-xuat-duoc"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-bang-xuat-duoc"]') as HTMLButtonElement).click()
+    })
+
+    expect(container.querySelector('[data-testid="xuat-anh-bang-xuat-duoc"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="xuat-anh-tat-bang-xuat-duoc"]')).toBeNull()
+  })
+
   it('bảng ĐÃ có anhXemTruoc (ảnh thật) → KHÔNG hiện huy hiệu, tránh đè lên nét vẽ thật', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
