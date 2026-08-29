@@ -3694,9 +3694,20 @@ Kiểm chứng lại từng phát hiện trong mã nguồn trước khi sửa, v
   khác hẳn việc người dùng vừa cố làm. Vá: trong nhánh `rongDoBoLoc`, chính cái nút to đó đổi thành
   **"Xoá bộ lọc"** (`setTruyVan(''); setChuyenKhoaLoc(null)`); nhánh rỗng thật giữ nút "+".
 - **[P2] Placeholder ô tìm dưới sàn AA** (4,30:1 tối / ~3,31:1 sáng, sàn 4,5:1). Gốc rễ: app **chưa
-  bao giờ** tô placeholder này — nó rơi về mặc định preflight của Tailwind v4. Vá:
-  `.mind-search-pill input::placeholder { color: var(--c-text-muted) }` (đo được 4,89:1). Sửa ở
+  bao giờ** tô placeholder này — nó rơi về mặc định preflight của Tailwind v4. Sửa ở
   `.mind-search-pill` nên áp cho MỌI ô tìm của app, không riêng Mindmap.
+
+  > **BẢN VÁ ĐẦU CỦA CHÍNH LƯỢT NÀY VẪN THIẾU — đọc kỹ, đây là bẫy dễ lặp.** Vá lần một dùng
+  > `--c-text-muted` theo đúng con số 4,89:1 mà báo cáo critique nêu. Đo lại **trên trình duyệt
+  > thật** sau khi vá: bản tối 4,56:1 (đạt) nhưng **bản sáng chỉ 4,12:1 — vẫn dưới sàn**. Lý do:
+  > con số 4,89:1 đo trên nền **thẻ trắng** `--c-surface`, còn ô tìm ngồi trên pill `--c-line-soft`
+  > (`#e9ebf9` bản sáng). Cùng lớp bẫy "đo tương phản trên nền không phải nền thật" đã ghi ở bộ nhớ
+  > dự án. Vá lần hai: token riêng `--c-text-placeholder` khai đủ **cả ba** khối chủ đề (`:root`,
+  > `@media (prefers-color-scheme: dark)`, `[data-theme="dark"]`), giá trị đo TRÊN PILL — kiểm lại
+  > trên trình duyệt thật: **4,92:1 bản sáng, 5,28:1 bản tối**. Có ca kiểm đếm đủ ba khối.
+  >
+  > **Bài học:** một con số tương phản chỉ có nghĩa kèm theo NỀN nó được đo trên. Chép con số từ
+  > báo cáo mà không chép nền là chép một nửa dữ kiện.
 - **[P3] Ô "+" lạc ngôn ngữ thị giác** (bo 8px, viền đứt kiểu vùng-thả-file, giữa những tờ giấy bo
   2px). Vá: cho nó là **một tờ giấy chưa viết** — nền `--c-note`, bo 2px, viền liền mảnh màu
   `--c-accent-2`, bóng nhẹ hơn thẻ thật, không có góc cong (góc cong là dấu tờ đã được lật).
@@ -3711,6 +3722,21 @@ Python, không thuộc bản dựng app và không nằm trong cổng `kiem:*` n
 file trên đĩa. Hai báo cáo critique untracked (2026-08-27, 2026-08-29) thì **commit**, đúng quy ước
 sẵn có của repo (`.impeccable/critique/*.md` xưa nay đều được theo dõi; chỉ `.impeccable/live/` bị
 bỏ qua).
+
+### 39.5 Kiểm mắt thật trên trình duyệt (375×812, dev server, không suy luận)
+
+Cả bốn thay đổi nhìn thấy được đều đã đo trên trang thật, không chỉ qua ca kiểm:
+
+| Kiểm | Kết quả đo |
+|---|---|
+| Ô "+" ở đầu lưới | `[...luoi.children].indexOf(o) === 0`, trên tổng 7 ô |
+| Mặt giấy của ô "+" | `border-radius: 2px`, nền `rgb(239,236,227)` (= `--c-note`), viền `0.67px solid rgba(241,117,166,.42)`, không nét đứt |
+| Ô đổi tên chọn sẵn | mở bảng mới → `selectionStart 0 / selectionEnd 17` trên `"Bảng chưa đặt tên"`; gõ "Sốc nhiễm khuẩn" ra **đúng** `"Sốc nhiễm khuẩn"`, không nối đuôi |
+| Rỗng-do-lọc | gõ từ khoá không khớp → `tao-bang` biến mất, `xoa-bo-loc` xuất hiện; bấm vào là danh sách trở lại đủ |
+| Placeholder | 4,92:1 bản sáng / 5,28:1 bản tối, `opacity: 1` |
+
+Bảng thử do lượt kiểm này tạo ra đã **xoá khỏi IndexedDB thật** sau khi đo xong; dev server đã tắt
+(server thừa từng làm worker vitest timeout ở lượt trước).
 
 ### CÒN NỢ SAU LƯỢT NÀY — đúng ba khoản, cả ba đều cần THIẾT BỊ THẬT
 

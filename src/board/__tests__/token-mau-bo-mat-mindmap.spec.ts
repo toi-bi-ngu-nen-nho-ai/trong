@@ -30,12 +30,25 @@ describe('màu chữ mờ ô tìm kiếm (P2 critique 2026-08-29)', () => {
   // chữ thường 16px. Nguyên nhân: app CHƯA BAO GIỜ tô placeholder này, nên nó rơi về mặc định
   // preflight của Tailwind v4 (`color-mix(in oklab, currentColor 50%, transparent)`). Trong một hệ
   // thống mà DESIGN.md tuyên bố "một hex cứng trong component là bug", để framework tự quyết màu
-  // cũng là cùng một lỗi. `--c-text-muted` đo được 4,89:1 — đúng token cần dùng.
-  it('placeholder của SearchField tô bằng --c-text-muted, không để mặc định framework quyết', () => {
+  // cũng là cùng một lỗi.
+  //
+  // BẢN VÁ ĐẦU DÙNG `--c-text-muted` VÀ VẪN THIẾU — ghi lại vì đây là bẫy dễ lặp: con số 4,89:1 mà
+  // báo cáo critique nêu là đo trên nền THẺ TRẮNG (`--c-surface`), nhưng ô tìm ngồi trên pill
+  // `--c-line-soft`. Đo lại trên trình duyệt thật sau khi vá: bản tối 4,56:1 (đạt) nhưng bản sáng
+  // chỉ 4,12:1 — VẪN dưới sàn. Nên mới có token riêng `--c-text-placeholder`, hai giá trị đo TRÊN
+  // PILL: 4,98:1 bản sáng, 5,33:1 bản tối.
+  it('placeholder của SearchField tô bằng token riêng --c-text-placeholder', () => {
     const than = thanQuyTac('.mind-search-pill input::placeholder')
-    expect(than).toContain('--c-text-muted')
+    expect(than).toContain('--c-text-placeholder')
     // Không có `opacity` kéo tương phản tụt lại sau khi đã đặt màu đúng.
     expect(than).not.toMatch(/opacity\s*:/)
+  })
+
+  it('token khai đủ cả ba khối chủ đề — thiếu một khối là một bản có màu rơi về giá trị dự phòng', () => {
+    // :root (bản sáng), @media (prefers-color-scheme: dark), và [data-theme="dark"] — ba nơi mọi
+    // token màu của file này phải có mặt (xem các cặp --c-text-muted ngay cạnh).
+    const soLan = CSS.match(/--c-text-placeholder:/g)?.length ?? 0
+    expect(soLan).toBe(3)
   })
 })
 

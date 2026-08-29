@@ -42,7 +42,11 @@
 // v16: gỡ hướng B bàn phím ảo + vá lệch toạ độ chạm sau hiệu ứng vào màn (HANDOFF mục 37-38), và
 //      bốn khoản critique 2026-08-29 của Board Gallery (ô đổi tên chọn sẵn, ô "+" lên đầu lưới,
 //      trạng thái rỗng-do-lọc mời gỡ lọc, màu placeholder + mặt giấy cho ô "+"). Đổi cả CSS lẫn JS.
-const CACHE = "drtrong-v16"
+// v17: vá lần hai cho màu placeholder — bản v16 dùng --c-text-muted vẫn để bản sáng ở 4,12:1
+//      (con số 4,89:1 của báo cáo đo trên nền thẻ trắng, không phải nền pill). Nay là token riêng
+//      --c-text-placeholder. Bump vì v16 ĐÃ được đẩy lên trước khi phát hiện: máy nào kịp lấy v16
+//      sẽ giữ bản CSS thiếu đó vĩnh viễn nếu không đổi số.
+const CACHE = "drtrong-v17"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]

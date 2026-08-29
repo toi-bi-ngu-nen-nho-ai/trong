@@ -202,6 +202,12 @@
   --c-text-2: #2e314f;
   --c-text-soft: #454870;
   --c-text-muted: #6b6e96;
+  /* Chữ mờ trong ô tìm. KHÔNG dùng lại --c-text-muted như bản vá đầu của critique 2026-08-29 (P2):
+     token đó đo 4,89:1 trên nền THẺ TRẮNG (--c-surface), nhưng ô tìm ngồi trên pill --c-line-soft
+     (#e9ebf9 bản sáng) — cùng màu chữ trên nền đó chỉ còn 4,12:1, vẫn dưới sàn AA 4,5:1. Đo lại
+     trên trình duyệt thật mới lộ ra, đúng cái bẫy "đo tương phản trên nền không phải nền thật".
+     Hai giá trị dưới đo TRÊN PILL: #5f628a/#e9ebf9 = 4,98:1, #939ac2/#23264a = 5,33:1. */
+  --c-text-placeholder: #5f628a;
   /* #9497be ban đầu chỉ đạt 2,83:1 trên trắng — thấp hơn cả --c-muted CŨ (~3,32:1) mà một vài nơi
      ngoài màn Dùng thuốc (vd HomeScreen "Sắp ra mắt") lại dùng cho chữ mô tả thật, không chỉ icon.
      Đậm lại còn #8084ac (~3,6:1) — vẫn là bậc dưới AA có chủ đích (icon/placeholder), nhưng không
@@ -377,6 +383,7 @@
     --c-text-2: #d2d6f0;
     --c-text-soft: #a8aeda;
     --c-text-muted: #888eb8;
+    --c-text-placeholder: #939ac2; /* 5,33:1 trên pill --c-line-soft #23264a — xem ghi chú bản sáng */
     --c-muted: #7379a3; /* #5a5f86 ban đầu chỉ 2,89:1 trên nền mới — thấp hơn mức cũ (~4,08:1); nâng lại cho tương đương */
     --c-faint: #363a5e;
 
@@ -463,6 +470,7 @@
   --c-text-2: #d2d6f0;
   --c-text-soft: #a8aeda;
   --c-text-muted: #888eb8;
+  --c-text-placeholder: #939ac2; /* 5,33:1 trên pill --c-line-soft #23264a — xem ghi chú bản sáng */
   --c-muted: #7379a3; /* #5a5f86 ban đầu chỉ 2,89:1 trên nền mới — thấp hơn mức cũ (~4,08:1); nâng lại cho tương đương */
   --c-faint: #363a5e;
 
@@ -1290,10 +1298,13 @@ html.theme-shift * {
    (`color-mix(in oklab, currentColor 50%, transparent)`): đo trên trang thật ra 4,30:1 bản tối và
    ~3,31:1 bản sáng — dưới sàn AA 4,5:1 cho chữ thường 16px. Trong một hệ thống mà DESIGN.md tuyên
    bố "một hex cứng trong component là bug, không phải lựa chọn style", để framework tự chọn màu
-   cũng là cùng lỗi đó. `--c-text-muted` đo được 4,89:1 trên nền pill — đúng thứ cần dùng.
+   cũng là cùng lỗi đó. Token riêng `--c-text-placeholder` (khai ở :root, có bản ghi đè bản tối) —
+   KHÔNG phải `--c-text-muted`: token đó đo 4,89:1 trên nền THẺ TRẮNG, còn ô tìm ngồi trên pill
+   `--c-line-soft`, nơi cùng màu ấy chỉ còn 4,12:1. Đo lại trên trình duyệt thật sau lượt vá đầu mới
+   lộ ra. Giá trị hiện tại đo TRÊN PILL: 4,98:1 bản sáng, 5,33:1 bản tối.
    KHÔNG kèm `opacity`: mọi lớp mờ thêm sẽ kéo tụt lại đúng con số vừa sửa. */
 .mind-search-pill input::placeholder {
-  color: var(--c-text-muted, #6b6e96);
+  color: var(--c-text-placeholder, #5f628a);
 }
 
 /* Lưới danh sách bảng (DanhSachBang.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng
