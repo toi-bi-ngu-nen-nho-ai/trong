@@ -190,16 +190,22 @@
   --c-note-edge: #e6e4dc;        /* mép đáy tờ giấy, tối hơn mặt giấy một bậc */
   --c-note-back: #fcfbf8;        /* mặt SAU tờ giấy lộ ra ở góc cong — sáng hơn mặt trước */
   --c-note-back-shade: #d3d1c8;  /* chân nếp gấp, nơi mặt sau chui vào bóng */
-  /* Bóng đổ của tờ giấy. Ở bản sáng, bóng đen trên nền trắng là đủ để giấy "nổi" khỏi trang. Ở bản
-     tối, nền app là #0b0c1c gần đen — bóng ĐEN trên nền đen thì VÔ HÌNH, nên thẻ mất hẳn cảm giác
-     nằm trên mặt bàn, đúng triệu chứng "chưa có đổ bóng ở bản tối" (phản hồi chủ dự án 2026-08-28,
-     mục 5; nhắc lại 2026-08-29: "qua chế độ dark lại không tương thích"). Trên nền tối thứ tách một
-     vật thể khỏi nền là ÁNH SÁNG viền chứ không phải bóng — nên bản tối để VIỀN SÁNG ẤM quanh mép
-     giấy gánh việc tách thẻ khỏi trang (lượt trước chỉ 0.07 alpha nên vẫn đọc thành thẻ dán phẳng),
-     hai lớp bóng đen chỉ còn nhiệm vụ tạo chân bóng nơi các thẻ chồng mép nhau. */
+  /* Bóng đổ của tờ giấy — MỘT CÔNG THỨC BA KHE cho cả hai bản, chỉ đổi giá trị, không đổi cấu trúc
+     (phản hồi 2026-08-30: "đổ bóng/cắt xén/độ cong khác biệt LỚN dark≠light"). Trước đây bản tối có
+     4 lớp (2 bóng đen + viền ấm + vòng toả 0.05) còn bản sáng 2 lớp — hai hiệu ứng KHÁC HẲN nhau,
+     không thể "giống". Nay cùng ba khe, cùng offset/blur/spread:
+       1. bóng toả (offset lớn, blur lớn) — chân bóng xa
+       2. bóng tiếp xúc (offset nhỏ) — mép giấy chạm mặt bàn
+       3. VIỀN 1px định hình mép — vai trò ĐẢO theo bản: bản sáng là chỉ đen mờ (mép giấy sẫm hơn
+          mặt, như giấy thật trên nền sáng); bản tối là viền ẤM mờ (mép giấy bắt sáng trên nền gần
+          đen — bóng đen vô hình ở #0b0c1c nên ánh sáng viền mới là thứ tách thẻ khỏi trang). Đây
+          đúng nghĩa "hai bản là hai lần THỂ HIỆN cùng một vật, không phải đảo màu" của DESIGN.md.
+     Bỏ hẳn vòng toả 0.05 của bản tối cũ — chính nó làm góc cong (::before) rối vì thêm một lớp
+     nữa chồng lên vùng cắt xén. */
   --c-note-shadow:
-    0 14px 22px -10px rgba(15, 15, 15, 0.38),
-    0 4px 8px rgba(15, 15, 15, 0.14);
+    0 12px 20px -8px rgba(15, 15, 15, 0.3),
+    0 3px 6px rgba(15, 15, 15, 0.13),
+    0 0 0 1px rgba(15, 15, 15, 0.06);
   --c-page: #f1f2fb;
   --c-line-soft: #e9ebf9;
   --c-line: #d9ddf4;
@@ -377,11 +383,12 @@
     --c-note-edge: #dbd8cf;
     --c-note-back: #f4f1e9;
     --c-note-back-shade: #c6c3ba;
+    /* Cùng ba khe với bản sáng (xem chú thích ở :root) — chỉ khe 3 đổi vai: viền ẤM mờ thay chỉ
+       đen, vì bóng đen vô hình trên nền #0b0c1c. Bỏ vòng toả 0.05 cũ (làm rối góc cong). */
     --c-note-shadow:
-      0 18px 30px -10px rgba(0, 0, 0, 0.66),
-      0 6px 14px rgba(0, 0, 0, 0.5),
-      0 0 0 1px rgba(255, 247, 237, 0.22),
-      0 0 0 4px rgba(255, 247, 237, 0.05);
+      0 12px 20px -8px rgba(0, 0, 0, 0.6),
+      0 3px 6px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 247, 237, 0.18);
     --c-page: #0b0c1c;
     --c-line-soft: #23264a;
     --c-line: #2e3260;
@@ -465,11 +472,12 @@
   --c-note-edge: #dbd8cf;
   --c-note-back: #f4f1e9;
   --c-note-back-shade: #c6c3ba;
+  /* Cùng ba khe với bản sáng (xem chú thích ở :root) — chỉ khe 3 đổi vai: viền ẤM mờ thay chỉ
+     đen, vì bóng đen vô hình trên nền #0b0c1c. Bỏ vòng toả 0.05 cũ (làm rối góc cong). */
   --c-note-shadow:
-    0 18px 30px -10px rgba(0, 0, 0, 0.66),
-    0 6px 14px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 247, 237, 0.22),
-    0 0 0 4px rgba(255, 247, 237, 0.05);
+    0 12px 20px -8px rgba(0, 0, 0, 0.6),
+    0 3px 6px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 247, 237, 0.18);
   --c-page: #0b0c1c;
   --c-line-soft: #23264a;
   --c-line: #2e3260;
