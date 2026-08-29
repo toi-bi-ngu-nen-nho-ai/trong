@@ -1,7 +1,14 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-28** (mục 36, trả nốt P2+P3 critique 2026-08-27 — mục xuất tắt kèm lý do + một công thức vùng an toàn).
+Cập nhật: **2026-08-29** (mục 37-39 — gỡ hướng B bàn phím ảo, vá lệch toạ độ chạm, trả nốt nợ vặt mục 6 + critique Board Gallery 2026-08-29).
 Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **ĐÍNH CHÍNH bản 2026-08-29 (mục 39, mới nhất).** Chủ dự án: *"giải quyết hết đi"*. Đã đóng:
+> nợ vặt còn thật của **mục 6** (thứ tự widget nay có ca kiểm), khoản "chưa có ca nào cho
+> Connector/Mindmap" của **mục 7**, và **cả 5 phát hiện** của critique Board Gallery 2026-08-29
+> (2×P1, 2×P2, 1×P3). Ba mục khác của mục 6 hoá ra ĐÃ được vá từ trước mà không ai cập nhật lại
+> danh sách — xem mục 39. Nợ duy nhất còn mở là thứ máy không kiểm được: **bàn phím ảo iOS**
+> (mục 37) và **hai lượt nghiệm thu trên iPhone thật** nêu ở mục 38 và 39.
 
 > **CÁCH TRẢ LỜI — chủ dự án yêu cầu trực tiếp, 2026-08-28.** Trả lời **ngắn gọn, đúng trọng tâm**: không
 > dài dòng, không mơ hồ, không giải thích phức tạp — nguyên văn: *"tôi hoang mang"*. Mở bằng kết luận, mỗi mục
@@ -509,10 +516,22 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
 
 ## 6. NỢ CÒN LẠI, ĐÃ PHÂN LOẠI LÀ HOÃN ĐƯỢC
 
-- `kiem-vendor.mjs`: dòng thống kê bỏ sót `gocThua.length`; in đường dẫn theo dấu phân cách HĐH.
-- `test:watch` không có cổng `pretest:watch`.
-- Bằng chứng đỏ của hai ca board không bắt được **đổi thứ tự** widget, mà `extensions.ts` nói thứ
-  tự quyết định z-index. Hiện đã kiểm tay: mảng 22 mục đúng là dãy con giữ thứ tự của thượng nguồn.
+> **RÀ LẠI 2026-08-29 (mục 39): ba khoản đầu của danh sách này ĐÃ ĐÓNG.** Hai khoản đầu đóng từ
+> trước mà không ai cập nhật lại danh sách; khoản thứ ba đóng ở chính lượt 2026-08-29. Giữ nguyên
+> văn bản cũ bên dưới kèm dấu ĐÃ ĐÓNG thay vì xoá, để lượt sau đọc HANDOFF cũ không tưởng là bỏ sót.
+
+- ~~`kiem-vendor.mjs`: dòng thống kê bỏ sót `gocThua.length`; in đường dẫn theo dấu phân cách HĐH.~~
+  **ĐÃ ĐÓNG (kiểm lại 2026-08-29):** dòng chữ và mã thoát nay ra khỏi cùng một `tomTatDoiChieu()`
+  có nhận `gocThua` (`scripts/kiem-vendor.mjs:186-194`), và mọi đường dẫn in ra đều qua `duongDep()`
+  — tương đối, luôn dấu `/` (`:113`).
+- ~~`test:watch` không có cổng `pretest:watch`.~~ **ĐÃ ĐÓNG:** `package.json` có `pretest:watch`
+  chạy đúng hai script `kiem-vendor-build`/`kiem-vendor-paths` như `pretest`.
+- ~~Bằng chứng đỏ của hai ca board không bắt được **đổi thứ tự** widget, mà `extensions.ts` nói thứ
+  tự quyết định z-index. Hiện đã kiểm tay: mảng 22 mục đúng là dãy con giữ thứ tự của thượng nguồn.~~
+  **ĐÃ ĐÓNG (2026-08-29):** `src/board/__tests__/thu-tu-view-extension.spec.ts` đọc mảng của cả hai
+  file rồi khẳng định mảng dự án là **dãy con giữ nguyên thứ tự** của thượng nguồn (bỏ bớt mục vẫn
+  hợp lệ, đổi chỗ thì không) — kèm một ca ĐỐI CHỨNG đảo đúng hai widget để chứng minh phép kiểm
+  thật sự đỏ được, không xanh vì rỗng.
 - `src/board/vi.json` vẫn 5 chuỗi, nhưng cơ chế đã an toàn ở quy mô lớn (spec
   `2026-08-14-bo-sung-vi-json-design.md`, kế hoạch `2026-08-14-bo-sung-vi-json.md`). Chặng tiếp là
   nội dung dịch: chốt bảng thuật ngữ rồi dịch. Số chuỗi và số từ phải ĐO LẠI — xem cảnh báo mục 12.
@@ -554,8 +573,9 @@ app (`src/index.css` chỉ có hai bộ chọn liên quan, cả hai vẫn khớp
   >
   > **Chạy bộ test để lấy bằng chứng: KHÔNG BAO GIỜ nối `| tail`.** Ghi ra file rồi đọc:
   > `npx vitest run --reporter=verbose > kq.txt 2>&1`, đọc `kq.txt` TRƯỚC khi làm gì khác.
-- `public/sw.js` còn `CACHE = "drtrong-v8"` dù bundle đã đổi; chính file đó ghi việc tăng số là
-  BẮT BUỘC.
+- ~~`public/sw.js` còn `CACHE = "drtrong-v8"` dù bundle đã đổi; chính file đó ghi việc tăng số là
+  BẮT BUỘC.~~ **ĐÃ ĐÓNG:** nay là `drtrong-v16`. Lượt 2026-08-29 cũng ghi bù hai dòng chú thích
+  v14/v15 bị bỏ trống trong nhật ký đầu file đó, để dãy số không có lỗ hổng không giải thích được.
 - **Deploy Vercel giờ tốn thêm vài phút mỗi lần** vì `postinstall` phải dựng lại `.vendor-build/`
   từ đầu (checkout CI luôn sạch, không có gì để tái sử dụng). Nếu thời gian build trở thành vấn đề,
   cân nhắc cache `.vendor-build/` qua Vercel Build Cache API — chưa làm, chưa cần thiết ở quy mô này.
@@ -571,8 +591,9 @@ Khoản này trước đây là một nửa mốc nghiệm thu của kế hoạc
 ở mục 8 khỏi được coi là xác nhận. **Đừng đề xuất lại việc "cần iPad thật để đo"**; phần ghi chú kỹ thuật
 của mục 8 (hiệu ứng phụ của `SKIP_REFRESH_DURING_GESTURE`) vẫn giữ nguyên làm tài liệu, không phải nợ.
 
-> **ĐÃ CÀI HƯỚNG B (2026-08-28), CHỜ NGHIỆM THU TRÊN IPHONE THẬT — chạm để gõ chữ không hiện bàn phím.**
-> Xem mục 37 để biết cách vá và cách kiểm. Phần chẩn đoán bên dưới GIỮ NGUYÊN làm hồ sơ gốc rễ:
+> **ĐÃ THỬ HƯỚNG B (2026-08-28), NGHIỆM THU TRÊN IPHONE: KHÔNG ĐƯỢC, ĐÃ GỠ (2026-08-29).**
+> Xem mục 37. Phần chẩn đoán bên dưới GIỮ NGUYÊN — nó vẫn đúng, và giờ có thêm ba giả thuyết đã
+> bị loại bằng phép đo thật.
 > nó vẫn đúng, cây vendored không bị đụng, hướng B chỉ bọc ở tầng React.
 >
 > **(hồ sơ gốc rễ, 2026-08-18)**
@@ -606,10 +627,15 @@ của mục 8 (hiệu ứng phụ của `SKIP_REFRESH_DURING_GESTURE`) vẫn gi�
 > (b) đợi bản vá từ chính dự án AFFiNE/BlockSuite. Chủ dự án đã chọn: **ghi lại làm giới hạn đã
 > biết, không vá** ở lượt này — quyết định ở đây nếu quay lại vấn đề này.
 >
-> **CẬP NHẬT 2026-08-28:** chủ dự án quay lại vấn đề này và chọn hướng B (bọc phía app, không đụng
-> vendor). Đã cài, 18 ca kiểm xanh, `kiem:vendor` vẫn 2.782 file lệch 0 — xem mục 37. Còn nợ đúng
-> một khoản: **nghiệm thu trên iPhone thật**, vì happy-dom không có bàn phím ảo để chứng minh
-> Safari chịu mở.
+> **CẬP NHẬT 2026-08-29:** chủ dự án quay lại vấn đề này, chọn hướng B, đã cài rồi **nghiệm thu
+> trên iPhone thật: KHÔNG mở được bàn phím**. Đã gỡ toàn bộ. Mục 37 ghi lại những gì phép đo loại
+> trừ được, để lượt sau đừng thử lại đúng con đường đó.
+
+> **CẬP NHẬT 2026-08-29 (mục 39): phần "chưa có ca nào" bên dưới ĐÃ ĐÓNG.**
+> `ConnectorViewExtension` và `MindmapViewExtension` nay đều có ca kiểm khẳng định bằng SỐ PHẦN TỬ
+> trên `surface` (`edgeless-board-ve-hinh.spec.ts`). Và làm việc đó lộ ra rằng hai ca "kéo" cũ
+> (shape/brush) thật ra chưa bao giờ chạy qua đường KÉO — xem mục 39, đây là phần đáng đọc nhất của
+> lượt đó. Phần "input thật của hệ điều hành" thì vẫn còn nguyên là giới hạn.
 
 **Vẽ hình bằng công cụ shape — ĐÃ ĐÓNG MỘT NỬA (2026-08-28).** Câu hỏi "công cụ vẽ có tạo ra phần tử
 thật không" giờ đã trả lời được bằng máy: `src/board/__tests__/edgeless-board-ve-hinh.spec.ts` đặt
@@ -3495,71 +3521,202 @@ tại phải chạy lại `/impeccable critique` — 30/40 là số ĐO TRƯỚC
 
 ---
 
-## 37. BÀN PHÍM ẢO iOS — HƯỚNG B ĐÃ CÀI, CHỜ NGHIỆM THU TRÊN IPHONE THẬT
+## 37. BÀN PHÍM ẢO iOS HƯỚNG B — ĐÃ THỬ, KHÔNG ĐƯỢC, ĐÃ GỠ. VÀ MỘT LỖI KHÁC TÌM RA NHỜ ĐÓ
 
-Chủ dự án chọn hướng B (bọc phía app) thay vì A (vá thượng nguồn có kiểm soát). Lý do chọn B: không
-mang một vết lệch D11 vĩnh viễn phải rebase mỗi lần nâng cấp vendor, và thử được ngay vì chủ dự án
-có iPhone để nghiệm thu. Nếu B tranh chấp focus với chính BlockSuite trên máy thật thì mới tính A.
+Chủ dự án nghiệm thu trên iPhone thật: **"không được"** — bàn phím vẫn không hiện. Kèm một triệu
+chứng thứ hai chưa từng được báo: **"chạm tay vào thì hiển thị con trỏ bị lệch một khoảng"**.
 
-**Gốc rễ không đổi** (chẩn đoán 2026-08-18, xác minh lại 2026-08-28): Safari iOS chỉ bật bàn phím ảo
-khi `.focus()` lên contenteditable được gọi ĐỒNG BỘ trong handler `touchend`/`pointerup`. Cây vendored
-hoãn qua hai tầng — `note-tool.ts:253-268` gọi `focusTextModel()` bên trong `requestAnimationFrame`,
-còn `focusTextModel()` (`rich-text/src/dom.ts:66-73`) tự nó không gọi `.focus()` mà chỉ đặt một
-`TextSelection`. Mỗi tầng hoãn cắt chuỗi user-gesture; Safari lặng lẽ từ chối.
+Toàn bộ phần cài đặt hướng B đã **GỠ** (`src/board/ban-phim-ao-ios.ts` + 18 ca kiểm + phần nối dây
+trong `EdgelessBoard.tsx`). Để lại mã không chạy được chỉ tạo ảo giác vấn đề đã có người lo.
 
-**Cách vá.** `src/board/ban-phim-ao-ios.ts` gắn một listener `pointerup` lên `.drt-edgeless-viewport`:
+### Ba giả thuyết đã bị LOẠI bằng phép đo, đừng thử lại
 
-- Chạm trúng vùng soạn thảo ĐÃ có sẵn → focus thẳng vào nó, không qua trung gian.
-- Chạm nền trong khi công cụ đang bật là công cụ TẠO CHỮ (`affine:note`, `affine:edgeless-text`,
-  `text`) → focus một **phần tử mồi** (contenteditable vô hình, `opacity:0`, `pointer-events:none`,
-  1×1px) đã nằm sẵn trong DOM. Đây là điểm mấu chốt: lúc pointerup phần tử soạn thảo THẬT chưa tồn
-  tại — nó chỉ ra đời sau khi công cụ chạy xong — nên "focus phần tử gần nhất" là bất khả. Mồi mở
-  bàn phím trong đúng cử chỉ, rồi tầng reactive của BlockSuite chuyển focus sang phần tử thật vài
-  nhịp sau. Safari GIỮ bàn phím khi focus chuyển giữa hai phần tử soạn thảo, nó chỉ khắt khe lúc MỞ.
-- Mọi công cụ khác (chọn/kéo/hình/bút) → không đụng gì. Bật bàn phím khi người ta chỉ muốn chọn thì
-  tệ hơn là không có bàn phím.
-- Không có gì nhận bàn giao trong `hanChoMs` (1200ms) → mồi tự buông để bàn phím đóng lại, và xoá
-  chữ người dùng lỡ gõ vào nó.
-- `pointerType === 'mouse'` → bỏ qua (iPad kèm bàn phím rời).
-- Chỉ gắn và chỉ render mồi trên iOS. Trên máy tính bàn DOM sạch y như trước lượt này.
+Đo trên trình duyệt thật (Browser pane, 375×812, giả lập cảm ứng), không suy luận:
 
-**Không đụng một dòng vendored nào** — `kiem:vendor` vẫn 2.782 file lệch 0.
+1. **"BlockSuite chặn lan truyền nên listener không chạy" — SAI.** Gắn probe cả pha capture lẫn
+   bubble lên `.drt-edgeless-viewport`, bắn chuỗi pointer lên canvas: cả hai đều nhận được
+   (`{capture:1, bubble:1}`). Không ai gọi `stopPropagation`. Đổi sang capture cũng vô ích.
+2. **"Sai tên công cụ nên nhánh tạo chữ không chạy" — SAI (nhưng có một tên thừa).** Danh sách thật
+   đọc từ `gfx.tool._tools`: `empty, pan, affine:note, brush, eraser, highlighter, shape, connector,
+   text, template, frame, frameNavigator, default`. Hai tên dùng trong bản đã gỡ (`affine:note`,
+   `text`) đều có thật; `affine:edgeless-text` KHÔNG tồn tại — thừa, vô hại.
+3. **"Thượng nguồn có sẵn dịch vụ bàn phím, chỉ cần đăng ký" — KHÔNG DÙNG ĐƯỢC.**
+   `affine/shared/src/services/virtual-keyboard-service.ts` có `VirtualKeyboardProvider`, nhưng đó
+   là một khe DI để ứng dụng nhúng **cung cấp** (bản mobile của AFFiNE cắm cầu nối native vào đó),
+   không phải thứ tự mở bàn phím. Bốn nơi tiêu thụ (`keyboard-toolbar`, `embed-iframe-block`,
+   `embed-card-create-modal`, `mobile-linked-doc-menu`) đều chỉ **phản ứng theo** chiều cao bàn
+   phím. Không có chỗ nào gọi `show()` lúc chạm, nên cắm provider vào cũng không đẻ ra bàn phím.
 
-> **MỘT QUYẾT ĐỊNH BỊ CHÍNH CA KIỂM ÉP ĐỔI.** Cờ iOS ban đầu là hằng số cấp module (`const LA_IOS`),
-> cùng lối với `apDungViewportChoIOS()` ngay trên nó. Ca kiểm nối dây cần dựng CẢ HAI phía
-> (iPhone/máy bàn) nên phải nạp lại module với `navigator` khác — và lượt nạp lại làm
-> `customElements.define` của cây vendored ném `DOMException: the name "data-view-date-group-view"
-> has already been used`, 4/4 ca đỏ. Chuyển sang đo trong khởi tạo lười của `useState` (một lần mỗi
-> lượt mount, rẻ như nhau) thì kiểm được cả hai phía mà không nạp lại gì. Ghi lại vì cái bẫy
-> "hằng số cấp module + cây vendored đăng ký custom element" sẽ còn gặp lại.
+### Còn lại gì cho lượt sau
 
-**18 ca kiểm, hai tầng.**
-- `src/board/__tests__/ban-phim-ao-ios.spec.ts` (14 ca) — logic, phụ thuộc bơm vào: không-iOS,
-  chuột, công cụ chọn, hai công cụ tạo chữ, vùng soạn có sẵn (chạm vào phần tử CON bên trong),
-  ưu tiên vùng soạn có sẵn khi công cụ Note đang bật, BlockSuite giành lại focus thì mồi không
-  giành lại, hết hạn thì mồi buông, dọn chữ sót, hai lượt chạm liên tiếp đặt lại hạn chờ, gỡ gắn
-  (cả khi mồi đang giữ focus), và `layTenCongCu` ném thì im lặng bỏ qua.
-- `src/board/__tests__/edgeless-board-ban-phim-ao-noi-day.spec.ts` (4 ca) — nối dây trên bảng THẬT,
-  canh ba mối nối mà ca đơn vị không chạm tới: đường đọc `gfx.tool.currentToolName$` (API nội bộ
-  vendored, ca đơn vị bơm hàm giả nên xanh vĩnh viễn dù đường thật đã mục), vị trí phần tử mồi
-  (trong viewport nhưng NGOÀI `editor-host`), và cờ iOS quyết định có render mồi hay không.
+Giả thuyết chưa loại được, xếp theo mức khả tín:
+- **Safari từ chối mở bàn phím cho một phần tử `opacity:0` / 1×1px / `pointer-events:none`.** Đây
+  là nghi can số một còn sống. Lượt sau nếu thử lại phải cho phần tử mồi kích thước thật và
+  `font-size: 16px` (dưới 16px Safari tự phóng to trang), chỉ giấu bằng cách đẩy ra ngoài khung
+  nhìn — KHÔNG giấu bằng `opacity`.
+- **`pointerup` không mang "user activation" theo cách Safari đòi.** Lượt sau nghe thẳng `touchend`.
+- Cả hai đều **không kiểm được bằng máy ở đây** — happy-dom lẫn Chrome giả lập đều không có bàn
+  phím ảo. Muốn thử lại thì phải nghiệm thu từng lượt trên iPhone thật, mỗi lượt một biến số.
 
-**CHƯA NGHIỆM THU — happy-dom không có bàn phím ảo.** Bộ ca trên chứng minh "chạm → cái gì được
-focus, đồng bộ hay không, trong tình huống nào". Nó KHÔNG chứng minh Safari iOS chịu bật bàn phím,
-cũng không chứng minh việc bàn giao focus mồi → phần tử thật không nháy. Cần chủ dự án kiểm trên
-iPhone: (1) chọn công cụ Note, chạm nền → bàn phím phải hiện; (2) gõ chữ → chữ phải vào note, không
-rơi vào hư không; (3) chạm vào chữ của một note đã có → bàn phím hiện, con trỏ đúng chỗ; (4) chọn
-công cụ chọn, chạm/kéo quanh bảng → bàn phím KHÔNG được hiện. Nếu (2) hỏng (chữ mất) thì đó là
-tranh chấp focus — quay lại tính hướng A.
+> **BÀI HỌC THAO TÁC.** Lượt vừa rồi có 18 ca kiểm xanh cho một tính năng **không chạy trên thiết bị
+> thật**. Các ca đó không sai — chúng canh đúng thứ chúng tuyên bố canh ("cái gì được focus, đồng bộ
+> hay không") và file spec có ghi rõ giới hạn. Nhưng số ca kiểm xanh đã tạo cảm giác chắc chắn không
+> tương xứng với bằng chứng thật. Với thứ mà **cơ chế quyết định nằm ngoài DOM** (bàn phím ảo, cử
+> chỉ hệ điều hành, quyền), thứ tự đúng là: kiểm trên thiết bị thật TRƯỚC bằng bản dựng nhỏ nhất,
+> rồi mới bọc ca kiểm quanh cái đã biết là chạy.
 
-**Bảy cổng đo trực tiếp:** `tsc --noEmit` exit 0 · `npm test` **440/440, 50/50 file** ·
-`kiem:vendor` 2.782 file lệch 0 · `kiem:vendor-paths` 438 mục khớp · `build` + `kiem:dist` xanh,
-`vi.json` 265/265. `public/sw.js` bump **v14 → v15**.
+---
 
-> **GHI CHÚ VỀ MỘT LƯỢT ĐỎ ĐÃ TRUY RA NGUYÊN NHÂN.** Lượt chạy full-suite đầu tiên sau khi thêm hai
-> file spec này đỏ 4 ca (`BoardGallery`, `dark-mode`, `database`, `reorder`) — ba trong số đó là
-> `Test timed out in 5000ms`. Chạy riêng bốn file: 12/12 xanh. Chạy lại full-suite: 440/440 xanh.
-> Đây đúng lớp flake đã ghi ở mục 6 — "thời gian đi theo tải máy còn ngân sách thì cố định" — và hai
-> file spec mới (mỗi file mount bảng thật nhiều lượt) làm tải nặng thêm nên nó bắn dễ hơn. KHÔNG
-> nâng ngân sách theo phản xạ: mục 6 đã dặn nếu flake quay lại thì quay về Phase 1 điều tra, đừng
-> nâng tiếp con số.
+## 38. LỆCH CON TRỎ KHI CHẠM — ĐÃ TÌM RA GỐC RỄ VÀ VÁ, KIỂM CHỨNG TRÊN TRÌNH DUYỆT THẬT
+
+Triệu chứng thứ hai chủ dự án báo cùng lượt. **Không liên quan gì tới bàn phím** — nó có sẵn từ
+trước, do hiệu ứng FLIP vào màn (mục 35), và sẽ còn nguyên sau khi gỡ hướng B nếu không vá.
+
+**Bằng chứng.** Mở một bảng rồi hỏi hai bên cùng một câu:
+
+```
+DOM thật  (`.drt-edgeless-viewport`.getBoundingClientRect()) → left 0,  top 0,   375×760
+BlockSuite (`gfx.viewport`)                                  → left 19, top 199, 186×168
+```
+
+Đo thẳng hệ quả: chạm tại `x=117` thì note ra đời tại `x=154`.
+
+**Cơ chế.** `Viewport.setShellElement()` (vendored `framework/std/src/gfx/viewport.ts:749-763`) đo
+`getBoundingClientRect()` **đúng một lần** lúc gắn, sau đó chỉ đo lại khi `ResizeObserver` bắn.
+`ResizeObserver` theo dõi **kích thước hộp** — `transform` không đổi kích thước hộp nên nó **không
+bao giờ** bắn vì transform. Nhưng `getBoundingClientRect()` thì **có** tính transform. Bảng mount
+bên trong lớp bọc đang chạy `board-flip-run` (transform sống ~380ms): bảng nào mount kịp trong cửa
+sổ đó đóng đinh số đo méo **vĩnh viễn**. Mọi lượt chạm sau đó đi qua
+`toModelCoord(clientX - _left, clientY - _top)` nên lệch nguyên khối, cộng sai tỉ lệ.
+
+Lớp bọc lại **không bao giờ gỡ** hai class `board-flip-start board-flip-run` (BoardGallery.tsx chỉ
+tắt cờ `dangPhongTo` để bỏ lớp phủ ảnh) — nên không có sự kiện DOM nào khác đánh thức phép đo.
+
+**Vì sao lỗi này sống sót lâu:** transform kết thúc thì nhìn vẫn đúng — chỉ **toạ độ chạm** sai, mà
+trên chuột người ta hay bấm rồi kéo lại nên khó nhận ra; trên cảm ứng thì thấy ngay. Và nó chỉ bắn
+khi bảng mount **kịp** trong 380ms — tức lần mở SAU (chunk đã cache, IndexedDB nóng), không phải
+lần đầu. Đúng lớp "phép đo đúng và phép đo sai chỉ khác nhau ở lúc nào chụp" của mục 36.
+
+**Cách vá** (`src/board/dong-bo-toa-do-viewport.ts`, không đụng vendor): nghe `transitionend` và
+`animationend` ở **pha capture trên `window`** (lớp bọc là TỔ TIÊN của viewport nên sự kiện của nó
+không bao giờ đi qua viewport), so số của BlockSuite với DOM thật, lệch quá 0,5px thì buộc đo lại
+bằng hai lệnh **công khai** `clearViewportElement()` + `setShellElement(el)`.
+`clearViewportElement()` bắt buộc phải đứng trước, không phải cho gọn: nó huỷ `ResizeObserver` cũ,
+thiếu nó thì mỗi lượt đồng bộ rò một observer.
+
+Không đặt hẹn giờ dự phòng: **không có hiệu ứng thì không có transform làm méo phép đo**, tức đúng
+cái ca không cần vá. Bỏ qua khi phần tử 0×0 (bảng đang tháo) — đóng đinh một khung 0×0 còn tệ hơn
+số cũ.
+
+**Kiểm chứng trên trình duyệt thật, không phải suy luận.** Mở lại bảng để dựng đúng trạng thái xấu,
+rồi mô phỏng đúng lúc hiệu ứng kết thúc trên máy thật (transform về identity + `transitionend` bắn):
+
+```
+trước: BlockSuite (19,199,186,168)  ≠  DOM (0,0,375,760)
+sau:   BlockSuite (0,0,375,760)     =  DOM (0,0,375,760)
+```
+
+13 ca kiểm ở `src/board/__tests__/dong-bo-toa-do-viewport.spec.ts`, gồm ca dựng lại **đúng con số
+đo được thật**, ca canh thứ tự `clearViewportElement` trước `setShellElement`, ca no-op khi đã khớp,
+và ca canh việc nghe ở capture-trên-window (nghe trên chính viewport là hụt hết).
+
+**CẦN CHỦ DỰ ÁN XÁC NHẬN LẠI TRÊN IPHONE:** mở một bảng **đã từng mở** (để chunk đã cache, đúng ca
+lỗi), chạm vào bảng — con trỏ/note phải rơi đúng chỗ ngón tay. Nếu vẫn lệch thì lệch còn nguồn khác
+(nghi tiếp: `CANVAS_DPR_CAP_BY_ZOOM`/`ZOOM_MIN` ở mục 8, cả hai chưa từng đo trên thiết bị thật).
+
+---
+
+## 39. "GIẢI QUYẾT HẾT" — NỢ VẶT MỤC 6, CA KIỂM CONNECTOR/MINDMAP, VÀ 5 KHOẢN CRITIQUE 2026-08-29
+
+Chủ dự án đọc bản kiểm kê nợ rồi nói đúng bốn chữ: *"giải quyết hết đi"*. Lượt này đóng mọi khoản
+máy kiểm được. Bốn nhóm việc, nhóm thứ hai là nhóm đáng đọc nhất.
+
+### 39.1 Rà lại mục 6 — ba trong năm khoản đã đóng từ trước, danh sách thì chưa ai cập nhật
+
+Đọc thẳng mã nguồn thay vì tin danh sách: `kiem-vendor.mjs` đã gom dòng chữ và mã thoát về cùng một
+`tomTatDoiChieu()` có nhận `gocThua`, và mọi đường dẫn in ra đã đi qua `duongDep()`; `package.json`
+đã có `pretest:watch`; `public/sw.js` đã ở `v16` chứ không còn `v8`. **Bài học nhỏ nhưng lặp lại:**
+một danh sách nợ không tự già đi cùng mã nguồn — mỗi lượt đọc mục 6 phải kiểm lại từng dòng, đừng
+lập kế hoạch dựa trên nó.
+
+Khoản còn thật — "không có gì canh THỨ TỰ widget" — nay có
+`src/board/__tests__/thu-tu-view-extension.spec.ts`: đọc mảng `viewExtensions` của dự án và mảng
+`getInternalViewExtensions()` của thượng nguồn từ **văn bản** hai file, rồi khẳng định mảng dự án là
+**dãy con giữ nguyên thứ tự** của thượng nguồn. Phép so đúng ở đây là dãy con chứ không phải bằng
+nhau, vì D13 cố ý bỏ 21 mục. Kèm một ca ĐỐI CHỨNG đảo đúng hai widget cạnh nhau để chứng minh phép
+kiểm đỏ được thật. Một bẫy đã vấp khi viết: cây vendored trên máy Windows nằm trên đĩa với **CRLF**,
+nên mọi mốc neo viết bằng LF đều trượt — phải chuẩn hoá trước khi tìm, cùng bẫy mà `chuanHoa()` của
+`kiem-vendor.mjs` đã phải vá.
+
+### 39.2 Ca kiểm Connector/Mindmap — và phát hiện rằng hai ca "kéo" cũ chưa bao giờ KÉO
+
+Mục 7 ghi `ConnectorViewExtension`/`MindmapViewExtension` "đã đăng ký nhưng chưa có ca nào". Viết ca
+cho Connector thì nó **đỏ**: kéo trên canvas không sinh ra đường nối nào. Điều tra bằng cách bọc
+từng hook của công cụ và từng runner của dispatcher (không suy luận, đo từng bước):
+
+1. **happy-dom không cài hai bí danh `x`/`y` của `MouseEvent`.** `isFarEnough()`
+   (`framework/std/src/event/utils.ts:3-7`) đo quãng kéo bằng ĐÚNG hai thuộc tính đó — thiếu chúng
+   thì phép trừ ra `NaN`, `NaN > 4` là false, nên `DragController` **không bao giờ** chuyển sang
+   trạng thái kéo. Hệ quả ngược đời: hai ca "kéo" cũ (Hình, Bút) vẫn XANH suốt — vì cả `shape-tool`
+   lẫn `brush-tool` đều có nhánh `click()` cũng tạo ra phần tử. Chúng chứng minh đúng thứ chúng
+   khẳng định ("công cụ tạo ra phần tử") nhưng **không** chứng minh đường kéo như lời bình luận nói.
+2. **`UIEventDispatcher` khởi động ở trạng thái `active === false`.** `run()` thoát ngay khi chưa
+   active (`dispatcher.ts:433`), và cờ đó chỉ bật khi có `focus`/`pointerenter`/`dragstart`/`drop`
+   trên host. Trên trình duyệt thật, ngón tay/chuột LUÔN đi vào host trước khi nhấn. Bắn thẳng
+   `pointerdown` lên canvas làm mất **riêng** hook `pointerDown` của công cụ — các sự kiện sau đó vẫn
+   tới vì `focus` kịp bật active. Vô hại với shape/brush; **giết hẳn** connector-tool, thứ đặt điểm
+   nguồn của đường nối trong `pointerDown`.
+
+Vá cả hai trong `keoTren()`/`bienCo()` của `edgeless-board-ve-hinh.spec.ts` (bắn `pointerenter` lên
+`editor-host` trước, và gắn `x`/`y` vào PointerEvent). Bốn ca nay xanh và ba trong bốn đi qua đúng
+đường sản phẩm. Mindmap thì **không có công cụ nào** — nó ra đời qua
+`EdgelessCRUDIdentifier.addElement('mindmap', …)` mà nút toolbar gọi khi thả thẻ
+(`gfx/mindmap/src/toolbar/basket-elements.ts`), nên ca của nó đi đúng đường đó và đếm cả các nút con
+là `shape` thật. Bắn pointer với công cụ tên `'mindmap'` sẽ không bao giờ tạo ra gì.
+
+> **BÀI HỌC.** Hai ca kiểm xanh trong nhiều chặng liền vẫn có thể đang chứng minh một đường đi
+> KHÁC với đường ghi trong lời bình luận của chính chúng. Thứ phát hiện ra là ca kiểm cho một tính
+> năng **thứ ba** — cùng lớp với bài học mục 37 (18 ca xanh cho thứ không chạy trên máy thật).
+
+### 39.3 Năm khoản critique Board Gallery 2026-08-29 — sửa cả 5
+
+`.impeccable/critique/2026-08-29T00-38-34Z__src-board-boardgallery-tsx.md` (33/40, 0×P0, 2×P1).
+Kiểm chứng lại từng phát hiện trong mã nguồn trước khi sửa, viết ca kiểm ĐỎ trước rồi mới vá:
+
+- **[P1] Ô đổi tên đặt con trỏ ở CUỐI chuỗi.** `autoFocus` không kèm `select()`, nên luồng phổ biến
+  nhất (bấm "+" rồi gõ tên ngay) nối chữ vào tên mặc định — `"Bảng chưa đặt tênSuy tim cấp"` — rồi
+  `onBlur` lưu thẳng. Vá: `onFocus={(e) => e.currentTarget.select()}` (phủ cả lượt focus do
+  `autoFocus` sinh ra lẫn lượt người dùng tự bấm vào ô).
+- **[P1] Ô "+" là ô CUỐI lưới.** Lưới sắp theo `capNhatLuc` giảm dần nên vị trí nút DỊCH CHUYỂN mỗi
+  lần thêm bảng; ở 2 cột trên iPhone thì 20 bảng = 10 hàng cuộn mới tới hành động chính của màn. Vá:
+  đưa lên **ô lưới đầu tiên**, ngôn ngữ thị giác giữ nguyên.
+- **[P2] Rỗng-do-lọc lại mời tạo bảng mới.** Phần tử to nhất, màu nhất của khung nhìn mời làm việc
+  khác hẳn việc người dùng vừa cố làm. Vá: trong nhánh `rongDoBoLoc`, chính cái nút to đó đổi thành
+  **"Xoá bộ lọc"** (`setTruyVan(''); setChuyenKhoaLoc(null)`); nhánh rỗng thật giữ nút "+".
+- **[P2] Placeholder ô tìm dưới sàn AA** (4,30:1 tối / ~3,31:1 sáng, sàn 4,5:1). Gốc rễ: app **chưa
+  bao giờ** tô placeholder này — nó rơi về mặc định preflight của Tailwind v4. Vá:
+  `.mind-search-pill input::placeholder { color: var(--c-text-muted) }` (đo được 4,89:1). Sửa ở
+  `.mind-search-pill` nên áp cho MỌI ô tìm của app, không riêng Mindmap.
+- **[P3] Ô "+" lạc ngôn ngữ thị giác** (bo 8px, viền đứt kiểu vùng-thả-file, giữa những tờ giấy bo
+  2px). Vá: cho nó là **một tờ giấy chưa viết** — nền `--c-note`, bo 2px, viền liền mảnh màu
+  `--c-accent-2`, bóng nhẹ hơn thẻ thật, không có góc cong (góc cong là dấu tờ đã được lật).
+
+Bốn phát hiện khác trong cùng báo cáo đã bị chính agent cha **bác** sau khi đo lại (xem mục "Minor
+Observations" của báo cáo) — không sửa gì theo chúng.
+
+### 39.4 Dọn
+
+`.env.browser-use`, `browser_use_test.py`, `BROWSER_USE_SETUP.md` — thử nghiệm browser-use bằng
+Python, không thuộc bản dựng app và không nằm trong cổng `kiem:*` nào — đưa vào `.gitignore`, giữ
+file trên đĩa. Hai báo cáo critique untracked (2026-08-27, 2026-08-29) thì **commit**, đúng quy ước
+sẵn có của repo (`.impeccable/critique/*.md` xưa nay đều được theo dõi; chỉ `.impeccable/live/` bị
+bỏ qua).
+
+### CÒN NỢ SAU LƯỢT NÀY — đúng ba khoản, cả ba đều cần THIẾT BỊ THẬT
+
+1. **Bàn phím ảo iOS** (mục 37) — hai giả thuyết còn sống, mỗi lượt thử một biến số trên iPhone thật.
+2. **Nghiệm thu lệch con trỏ** (mục 38) — mở một bảng ĐÃ TỪNG MỞ rồi chạm.
+3. **Nghiệm thu 5 khoản critique ở trên** — nhất là ô "+" ở đầu lưới và mặt giấy mới của nó, hai thứ
+   đổi hình dáng nhìn thấy được.
+
+Không còn khoản nào máy kiểm được mà đang để mở.

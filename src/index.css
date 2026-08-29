@@ -899,9 +899,20 @@ html.theme-shift * {
    thêm gì (cùng phản hồi, "chỉnh theo màu của chế độ Dark/Light"). Alpha nền nhích 0.05 → 0.06 vì
    viền mảnh đi thì mảng nền phải gánh thêm một chút để ô vẫn đọc ra là vùng bấm được. */
 .mind-o-tao-bang {
-  border: 1px dashed var(--c-accent-2, #b8196f);
-  border-radius: 8px;
-  background: rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.06);
+  /* LÀ MỘT TỜ GIẤY, không phải vùng-thả-file (critique 2026-08-29, P3). Bản trước bo 8px với viền
+     đứt nét: trên màn này chỉ có đúng hai loại bo góc — giấy `.mind-note-card` bo 2px và hệ thống
+     chung bo 14px (`--radius`, DESIGN.md) — nên 8px không khớp cái nào, và nó là phần tử duy nhất
+     trong lưới không mang vật liệu giấy, đứng cạnh những tờ giấy kem có bóng đổ và góc cong. Trong
+     ẩn dụ bàn giấy, "tờ mới" phải trông như tờ giấy CHƯA VIẾT.
+     Giữ lại từ bản cũ: dấu "+" và vòng viền vẫn đọc từ --c-accent-2 (magenta riêng của Mindmap,
+     DESIGN.md "The One Other Place Rule") nên vẫn tự đổi theo sáng/tối và vẫn khác hẳn thẻ bảng
+     thật ở cái nhìn đầu tiên. Viền LIỀN mảnh thay nét đứt: nét đứt là quy ước "thả gì đó vào đây",
+     không phải "tờ giấy trắng". Bóng đổ nhẹ hơn `.mind-note-card` (tờ chưa dùng nằm phẳng hơn tờ
+     đã ghim), và KHÔNG có góc cong ::before — góc cong là dấu hiệu tờ giấy đã được lật/đọc. */
+  border: 1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.42);
+  border-radius: 2px;
+  background: var(--c-note, #fbfaf7);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   color: var(--c-accent-2, #b8196f);
 }
 
@@ -1273,6 +1284,16 @@ html.theme-shift * {
 }
 .mind-search-pill input:focus-visible {
   outline: none;
+}
+/* Chữ mờ trong ô tìm — TÔ BẰNG TOKEN, không để framework quyết (critique 2026-08-29, P2).
+   Trước lượt này app chưa bao giờ tô placeholder, nên nó rơi về mặc định preflight của Tailwind v4
+   (`color-mix(in oklab, currentColor 50%, transparent)`): đo trên trang thật ra 4,30:1 bản tối và
+   ~3,31:1 bản sáng — dưới sàn AA 4,5:1 cho chữ thường 16px. Trong một hệ thống mà DESIGN.md tuyên
+   bố "một hex cứng trong component là bug, không phải lựa chọn style", để framework tự chọn màu
+   cũng là cùng lỗi đó. `--c-text-muted` đo được 4,89:1 trên nền pill — đúng thứ cần dùng.
+   KHÔNG kèm `opacity`: mọi lớp mờ thêm sẽ kéo tụt lại đúng con số vừa sửa. */
+.mind-search-pill input::placeholder {
+  color: var(--c-text-muted, #6b6e96);
 }
 
 /* Lưới danh sách bảng (DanhSachBang.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng

@@ -489,6 +489,13 @@ function TheBang({
           // aria-label TĨNH, không dựa vào `value` — nếu không, người dùng đọc màn hình xoá trắng ô
           // để gõ lại sẽ mất tên truy cập giữa chừng (critique lượt 3, 2026-08-24).
           aria-label="Đổi tên bảng"
+          // CHỌN SẴN toàn bộ khi ô nhận focus. Không phải tiện nghi: luồng phổ biến nhất là bấm "+"
+          // rồi gõ tên ngay, mà `autoFocus` đặt con trỏ ở CUỐI chuỗi — ký tự đầu tiên nối vào tên
+          // mặc định, ra "Bảng chưa đặt tênSuy tim cấp", rồi `onBlur` lưu thẳng (critique
+          // 2026-08-29, P1, tái hiện được trên trang thật). Đúng mục đích tự mở ô này là để ĐẶT tên
+          // trước khi vẽ, nên phép chọn-sẵn khôi phục đúng ý định đó. Đặt ở `onFocus` chứ không ở
+          // một effect: nó phủ cả lượt focus do `autoFocus` sinh ra lẫn lượt người dùng tự bấm vào ô.
+          onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => setTenNhap(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onLuuTen(tenNhap)
@@ -1421,20 +1428,40 @@ export function DanhSachBang({
               Thử từ khoá khác hoặc bỏ bớt bộ lọc.
             </p>
           )}
-          <button
-            type="button"
-            data-testid="tao-bang"
-            onClick={taoBangMoi}
-            // .mind-o-tao-bang (index.css): viền đứt mảnh + nền tint, cả hai đọc từ --c-accent-2
-            // (magenta riêng của Mindmap, xem DESIGN.md "The One Other Place Rule") nên tự đổi theo
-            // sáng/tối. Trước đây viền/nền viết nội tuyến ở ĐÂY và ở ô "+" cuối lưới — hai bản chép
-            // tay phải nhớ sửa song song.
-            className="mind-focus-ring mind-o-tao-bang"
-            style={{ width: 104, height: 78, fontSize: 28 }}
-            aria-label="Tạo bảng mới"
-          >
-            +
-          </button>
+          {rongDoBoLoc ? (
+            // Rỗng DO LỌC thì lối thoát đúng là GỠ BỘ LỌC, không phải tạo bảng mới (critique
+            // 2026-08-29, P2). Ô tìm và dải chip vẫn hiện phía trên nên người dùng VỚI TỚI được
+            // đường thoát — nhưng phần tử lớn nhất, màu nhất của khung nhìn lại đang mời làm một
+            // việc KHÁC hẳn việc họ vừa cố làm; người vội bấm vào là có một bảng rác. Đổi đích của
+            // đúng cái nút to đó, không thêm nút mới.
+            <button
+              type="button"
+              data-testid="xoa-bo-loc"
+              onClick={() => {
+                setTruyVan('')
+                setChuyenKhoaLoc(null)
+              }}
+              className="mind-focus-ring mind-o-tao-bang"
+              style={{ padding: '10px 16px', fontSize: 14, fontWeight: 600 }}
+            >
+              Xoá bộ lọc
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-testid="tao-bang"
+              onClick={taoBangMoi}
+              // .mind-o-tao-bang (index.css): mặt giấy + dấu "+" mảnh, màu đọc từ --c-accent-2
+              // (magenta riêng của Mindmap, xem DESIGN.md "The One Other Place Rule") nên tự đổi
+              // theo sáng/tối. Trước đây nền/viền viết nội tuyến ở ĐÂY và ở ô "+" trong lưới — hai
+              // bản chép tay phải nhớ sửa song song.
+              className="mind-focus-ring mind-o-tao-bang"
+              style={{ width: 104, height: 78, fontSize: 28 }}
+              aria-label="Tạo bảng mới"
+            >
+              +
+            </button>
+          )}
         </div>
       ) : (
         // .mind-board-grid (index.css) — 4 cột 1fr cố định trên PC/iPad, rút về 2 cột dưới
@@ -1449,6 +1476,23 @@ export function DanhSachBang({
         // từ auto-fill dò RA THÊM cột rỗng vô hình để lấp hết bề ngang một container rộng trong khi
         // mỗi cột bị ghim cỡ nhỏ cố định — vấn đề gốc đã biến mất cùng với chính cơ chế auto-fill).
         <div className="mind-board-grid">
+          {/* Ô "+" là ô ĐẦU TIÊN của lưới, không phải ô cuối (critique 2026-08-29, P1). Lưới sắp
+              theo `capNhatLuc` giảm dần nên vị trí ô cuối DỊCH CHUYỂN mỗi lần thêm bảng, và ở 2 cột
+              trên iPhone thì 20 bảng = 10 hàng: hành động chính của màn trôi xuống sau ~10 hàng
+              cuộn, ngày càng xa theo mức độ dùng app. Đưa lên đầu vừa ghim vị trí cố định vừa đưa
+              nó về vùng ngón cái với tới ngay khi mở màn. Ngôn ngữ thị giác giữ nguyên. */}
+          <button
+            type="button"
+            data-testid="tao-bang"
+            onClick={taoBangMoi}
+            // Cùng .mind-o-tao-bang với ô "+" ở trạng thái rỗng phía trên — một nguồn sự thật cho
+            // viền/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
+            className="mind-focus-ring mind-o-tao-bang"
+            style={{ aspectRatio: '4 / 3', fontSize: 24 }}
+            aria-label="Tạo bảng mới"
+          >
+            +
+          </button>
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}
@@ -1536,18 +1580,6 @@ export function DanhSachBang({
               }}
             />
           ))}
-          <button
-            type="button"
-            data-testid="tao-bang"
-            onClick={taoBangMoi}
-            // Cùng .mind-o-tao-bang với ô "+" ở trạng thái rỗng phía trên — một nguồn sự thật cho
-            // viền/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
-            className="mind-focus-ring mind-o-tao-bang"
-            style={{ aspectRatio: '4 / 3', fontSize: 24 }}
-            aria-label="Tạo bảng mới"
-          >
-            +
-          </button>
         </div>
       )}
       </div>

@@ -824,7 +824,10 @@ describe('DanhSachBang', () => {
     expect(container.querySelector('[data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
   })
 
-  it('lưới rỗng do LỌC hết (chip chuyên khoa) → vẫn hiện biểu tượng mindmap + lời mời tạo bảng', async () => {
+  // Đổi kỳ vọng 2026-08-29 (critique P2): rỗng DO LỌC nay mời GỠ BỘ LỌC chứ không mời tạo bảng
+  // mới — ca này giữ nguyên phần nó vốn canh (minh hoạ mindmap thay huy hiệu doc phẳng), chỉ đổi
+  // nút được chờ. Kỳ vọng đầy đủ về đường thoát nằm ở ca "[P2] lưới rỗng DO LỌC…" cuối file.
+  it('lưới rỗng do LỌC hết (chip chuyên khoa) → vẫn hiện biểu tượng mindmap + đường thoát bộ lọc', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
@@ -843,7 +846,7 @@ describe('DanhSachBang', () => {
     })
 
     await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="xoa-bo-loc"]')).not.toBeNull()
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
     })
 
@@ -1590,5 +1593,122 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
 
     expect(container.textContent).toContain('Không tìm thấy bảng nào khớp')
     expect(container.textContent).not.toContain('Bắt đầu một sơ đồ tư duy mới')
+  })
+})
+
+// ─── Critique 2026-08-29 (.impeccable/critique/…__src-board-boardgallery-tsx.md) ────────────────
+//
+// Ba phát hiện đã kiểm chứng lại trong mã nguồn trước khi viết ca kiểm (không tin thẳng báo cáo):
+// hai P1 (con trỏ ô đổi tên nằm CUỐI chuỗi; ô "+" là ô CUỐI lưới) và một P2 (trạng thái rỗng do lọc
+// vẫn mời tạo bảng mới). Cả ba đều là lỗi TRẠNG THÁI/THỨ TỰ, kiểm được bằng máy — khác hai phát
+// hiện còn lại của cùng lượt critique (màu placeholder, hình dáng ô "+") vốn thuần CSS, canh ở
+// `token-mau-bo-mat-mindmap.spec.ts`.
+describe('DanhSachBang — nợ critique 2026-08-29', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  it('[P1] tạo bảng mới → ô đổi tên CHỌN SẴN toàn bộ tên mặc định, gõ là THAY chứ không nối đuôi', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    let o!: HTMLInputElement
+    await choDenKhi(() => {
+      o = container.querySelector('input[data-testid^="input-ten-"]') as HTMLInputElement
+      expect(o).not.toBeNull()
+    })
+
+    // happy-dom KHÔNG tự chạy `autoFocus` lúc gắn phần tử (khác trình duyệt thật), nên gọi focus()
+    // tay — đúng lượt focus mà autoFocus tạo ra trên máy thật, và là nơi phép chọn-sẵn phải xảy ra.
+    await act(async () => {
+      o.focus()
+    })
+
+    expect(o.value.length).toBeGreaterThan(0)
+    expect(o.selectionStart).toBe(0)
+    expect(o.selectionEnd).toBe(o.value.length)
+  })
+
+  it('[P1] ô "+" là ô ĐẦU TIÊN của lưới, đứng trước mọi thẻ bảng', async () => {
+    const bayGio = Date.now()
+    for (const [id, ten] of [
+      ['a', 'Bảng một'],
+      ['b', 'Bảng hai'],
+    ]) {
+      await idbPut(IDB_STORES.boards, {
+        id, ten, taoLuc: bayGio, capNhatLuc: bayGio,
+        chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+      })
+    }
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    // So theo THỨ TỰ TÀI LIỆU thay vì chỉ số con trong lưới: lưới còn có thể chèn phần tử khác
+    // (giữ chỗ, dải trạng thái) mà không phá kỳ vọng thật ở đây — "nút tạo đứng trước thẻ đầu tiên".
+    const nutTao = container.querySelector('[data-testid="tao-bang"]')!
+    const theDau = container.querySelector('[data-testid="the-bang"]')!
+    expect(nutTao.compareDocumentPosition(theDau) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('[P2] lưới rỗng DO LỌC → nút "Xoá bộ lọc" thay cho ô "+"; bấm vào là thấy lại bảng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
+    })
+
+    // Phần tử to nhất, màu nhất của khung nhìn không được mời làm việc KHÁC việc người dùng vừa cố
+    // làm: họ đang tìm bảng, không đang muốn tạo bảng rác.
+    expect(container.querySelector('[data-testid="tao-bang"]')).toBeNull()
+    const nutXoaLoc = container.querySelector('[data-testid="xoa-bo-loc"]') as HTMLButtonElement | null
+    expect(nutXoaLoc).not.toBeNull()
+
+    await act(async () => {
+      nutXoaLoc!.click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
   })
 })
