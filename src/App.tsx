@@ -12304,7 +12304,13 @@ export default function App() {
             // TÂM LOGO Ở MÀN TRANG CHỦ = 38px khi --safe-top=0, cộng từ chính các lớp đang có
             // (HomeScreen, chỗ render icons.logo):
             //     pt-2 của .scroll-ios (8) + pt-2 của div header (8) + translate-y-2 của span (8)
-            //     → mép trên logo y=24;  logo h-7 (28px) → tâm = 24 + 14 = 38.
+            //     → mép trên logo y=24;  logo h-7 (28px) → tâm HÌNH HỌC = 24 + 14 = 38.
+            // Nhưng dùng 35, KHÔNG phải 38: 38 khớp tâm HỘP của logo, còn mắt căn chữ-với-chữ theo
+            // DẢI CHỮ ĐỌC ĐƯỢC (cap→baseline), mà dải đó của "Bs Trọng" nằm cao hơn tâm hộp ~3px vì
+            // đuôi chữ "g"/"ọ" kéo hộp xuống. Đo thật (getBBox + rect ở 375px): dải cap của logo tâm
+            // ~34,8px trong khi nhãn "Trang chủ" trong pill tâm 38px — lệch 3,2px, đúng triệu chứng
+            // "hai button lệch so với logo" (phản hồi thật 2026-08-29). 35 kéo cụm nút lên khớp dải
+            // cap. Chỉ sửa nhánh home; màn "specialty" (31) không có logo nên giữ nguyên.
             // Con số cũ ở đây là 24, tính theo giả định logo cao h-8 (32px) và KHÔNG có
             // translate-y-2. Cả hai giả định đó đã lỗi thời: logo hiện là h-7 và span bọc nó CÓ
             // translate-y-2. Hậu quả đo được thật (2026-08-26, người dùng báo): cụm nút nằm CAO HƠN
@@ -12330,7 +12336,7 @@ export default function App() {
             // trim, header bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG MỘT LƯỢNG
             // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
             style={{
-              top: `calc(var(--safe-top-trim) + ${screen === "home" ? 38 : 31}px)`,
+              top: `calc(var(--safe-top-trim) + ${screen === "home" ? 35 : 31}px)`,
               right: 18,
               transform: "translateY(-50%)",
             }}

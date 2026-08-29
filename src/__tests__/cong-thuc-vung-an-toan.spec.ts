@@ -44,9 +44,11 @@ describe('công thức vùng an toàn đáy màn hình', () => {
     }
   })
 
-  it('thanh nav tự phủ nốt vùng thanh gạt Home — --nav-pad-bottom bám --safe-bottom', () => {
+  it('thanh nav tự phủ nốt vùng thanh gạt Home — --nav-pad-bottom bám --safe-bottom (sàn 5px)', () => {
     const css = readFileSync(CSS, 'utf8')
-    expect(css).toContain('--nav-pad-bottom: var(--safe-bottom)')
+    // max(5px, …): giữ nguyên quan hệ "phủ đủ vùng thanh gạt" (iPhone: --safe-bottom ~34 thắng),
+    // thêm 5px hở tối thiểu cho máy không home-indicator (--safe-bottom=0) — xem chú thích ở token.
+    expect(css).toContain('--nav-pad-bottom: max(5px, var(--safe-bottom))')
     expect(css).toContain('--safe-bottom: env(safe-area-inset-bottom, 0px)')
   })
 })

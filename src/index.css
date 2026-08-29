@@ -69,12 +69,17 @@
      chỉnh gì thêm khi đổi con số này. */
   --nav-body-h: 51px;
   /* Khoảng chừa dưới đáy các thanh dính đáy (thanh nav dưới, thanh nút "Lưu" ở màn soạn bài).
-     PHẢI bằng đúng vùng thanh gạt Home, không được để 0.
+     PHẢI phủ đủ vùng thanh gạt Home, không được để 0.
      Trước đây để 0 với lý do "cho nội dung xuống sát cạnh máy". Trên iPhone X chạy toàn màn hình
      điều đó tạo ra đúng cái lỗi ngược lại: thân thanh nav cao 52px kết thúc TRƯỚC vạch thanh gạt,
      34px còn lại lộ nền trang phía sau — thành một dải tối hõm sâu ngay dưới thanh nav. Cho thanh
-     tự phủ nốt 34px đó thì dải kia trở thành phần thân của thanh, không còn khoảng trống nào. */
-  --nav-pad-bottom: var(--safe-bottom);
+     tự phủ nốt 34px đó thì dải kia trở thành phần thân của thanh, không còn khoảng trống nào.
+     max(5px, …): trên máy KHÔNG có thanh gạt Home (--safe-bottom=0: desktop/Android/PWA), nhãn nav
+     căn giữa trong --nav-body-h chỉ còn ~2,5px hở tới mép màn — "hơi sát" (phản hồi thật
+     2026-08-29). 5px là khoảng thở tối thiểu; trên iPhone có home-indicator thì --safe-bottom (~34)
+     vẫn thắng nên hành vi phủ vùng thanh gạt không đổi. Padding này là NỀN của chính thanh nav
+     (--c-nav-bg-solid) nên không lộ dải nền trang như lỗi cũ. */
+  --nav-pad-bottom: max(5px, var(--safe-bottom));
 
   /* ─── MỘT CÔNG THỨC DUY NHẤT cho mọi thứ nổi trên đáy màn hình ────────────────────────────────
      Vì sao tồn tại (critique 2026-08-27, P3): trước lượt này mỗi nơi tự viết lại phép tính, và
@@ -924,7 +929,13 @@ html.theme-shift * {
   border: 1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.42);
   border-radius: 2px;
   background: var(--c-note, #fbfaf7);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  /* --c-shadow, KHÔNG phải literal: token đó là rgba(18,20,43,.1) ở bản sáng nhưng rgba(0,0,0,.55)
+     ở bản TỐI. Literal `rgba(0,0,0,.1)` viết cứng trước đây vì thế chỉ đúng một bản — sang bản tối
+     bóng gần như biến mất và ô "+" phẳng lì giữa những tờ giấy CÓ bóng thật quanh nó, mất đúng thứ
+     làm nó đọc thành "tờ giấy chưa viết". Vẫn nhẹ hơn .mind-note-card (tờ chưa dùng nằm phẳng hơn
+     tờ đã ghim) — nhẹ hơn theo TỈ LỆ, không phải nhẹ tới mức không còn. Cùng lớp lỗi đã sửa cho nút
+     quay lại của BoardGallery (critique 2026-08-25). */
+  box-shadow: 0 1px 2px var(--c-shadow);
   color: var(--c-accent-2, #b8196f);
 }
 
