@@ -46,6 +46,10 @@ export type BoardOpenOrigin = {
 // tới mức dải xác nhận cảm giác bị kẹt trên màn hình.
 const HOAN_TAC_XOA_MS = 5000
 
+// Panel "Đã xoá gần đây" hiện tối đa ngần này dòng khi CHƯA bấm "Xem tất cả" — đủ để bắt lại một
+// hai bảng vừa lỡ tay mà không đổ nguyên danh sách thùng rác ra giữa màn (phản hồi 2026-08-30).
+const RUT_GON_DA_XOA = 4
+
 // Nhấn-giữ trên thẻ mở CÙNG menu mà nút "⋯" mở — lối vào THỨ HAI, không thay thế nút. Trước đây
 // "⋯" là cửa duy nhất tới đổi tên/gắn khoa/xuất PNG/xoá, nên toàn bộ khả năng quản lý bảng dồn rủi
 // ro vào việc người dùng tự tìm ra một glyph nhỏ ở góc thẻ (critique 2026-08-28, P2). Nhấn-giữ là
@@ -852,6 +856,10 @@ export function DanhSachBang({
     thuLaiGhi,
     add,
     update,
+    // XOÁ VĨNH VIỄN — đường DUY NHẤT trong app gọi idbDelete thật (xoá mềm cố tình không gọi, xem
+    // effect dangChoXoa). Chỉ panel "Đã xoá gần đây" bên dưới dùng: tích chọn kiểu Recycle Bin rồi
+    // xoá hẳn hoặc khôi phục hàng loạt. Không hoàn tác được nên có bước xác nhận riêng.
+    remove,
   } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
@@ -868,6 +876,14 @@ export function DanhSachBang({
   // mềm, phục hồi được". Panel này là lưới an toàn tối thiểu: không phải màn "thùng rác" đầy đủ (dọn
   // vĩnh viễn, sắp xếp theo ngày...), chỉ để mở lại được những gì vuaXoa đã bỏ lỡ.
   const [hienDaXoaGanDay, setHienDaXoaGanDay] = useState(false)
+  // Panel "Đã xoá gần đây" — mặc định rút gọn còn RUT_GON_DA_XOA dòng mới nhất. "Xem tất cả" mở
+  // toàn bộ + hiện ô tìm; tích chọn (checkbox) rồi khôi phục / xoá vĩnh viễn hàng loạt.
+  const [xemTatCaDaXoa, setXemTatCaDaXoa] = useState(false)
+  const [timDaXoa, setTimDaXoa] = useState('')
+  const [chonDaXoa, setChonDaXoa] = useState<Set<string>>(() => new Set())
+  // Xác nhận hai bước cho xoá VĨNH VIỄN (không hoàn tác) — cùng khuôn "Chắc chắn xoá?" + tự tắt sau
+  // XAC_NHAN_XOA_MS mà nút xoá từng-bảng đã dùng.
+  const [xacNhanXoaVinhVien, setXacNhanXoaVinhVien] = useState(false)
   // null = "Tất cả" (không lọc). Không đưa vào URL/localStorage — lọc chỉ có ý nghĩa trong phiên
   // đang xem lưới, giống các bộ lọc tạm thời khác của app (SearchScreen.activeFilter).
   const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(null)
@@ -885,6 +901,14 @@ export function DanhSachBang({
     const id = setTimeout(() => setDangXacNhanXoaId(null), XAC_NHAN_XOA_MS)
     return () => clearTimeout(id)
   }, [dangXacNhanXoaId])
+
+  // Cùng khuôn tự-huỷ với dangXacNhanXoaId: nếu người dùng bị gọi đi giữa lúc dải đỏ "Chắc chắn xoá
+  // vĩnh viễn?" đang mở, nó tự rút lại sau XAC_NHAN_XOA_MS thay vì nằm chờ một cú bấm nhầm.
+  useEffect(() => {
+    if (!xacNhanXoaVinhVien) return
+    const id = setTimeout(() => setXacNhanXoaVinhVien(false), XAC_NHAN_XOA_MS)
+    return () => clearTimeout(id)
+  }, [xacNhanXoaVinhVien])
 
   // Đánh dấu XOÁ MỀM (daXoaLuc) sau khi .card-slide-out chạy xong — KHÔNG gọi idbDelete/remove()
   // nữa (trước đây xoá vĩnh viễn ngay, không hoàn tác được, ngược với lời hứa "xoá mềm" của
@@ -1071,6 +1095,33 @@ export function DanhSachBang({
     if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
   }
 
+  // ─── Thao tác hàng loạt trong panel "Đã xoá gần đây" (kiểu Recycle Bin) ───────────────────────
+  // Nhận id (không phải object) vì checkbox chỉ giữ id; lọc lại theo daXoaLuc để bỏ qua id đã rớt
+  // trạng thái giữa lúc chọn (vd người dùng bấm "Hoàn tác" một dòng trong khi vẫn còn tích dòng khác).
+  const bangDaXoaTheoId = (ids: Iterable<string>) => {
+    const tap = new Set(ids)
+    return danhSach.filter((b) => b.daXoaLuc && tap.has(b.id))
+  }
+  const khoiPhucNhieu = (ids: Iterable<string>) => {
+    for (const b of bangDaXoaTheoId(ids)) update({ ...b, daXoaLuc: undefined })
+    setChonDaXoa(new Set())
+    setXacNhanXoaVinhVien(false)
+  }
+  const xoaVinhVienNhieu = (ids: Iterable<string>) => {
+    for (const b of bangDaXoaTheoId(ids)) remove(b.id)
+    setChonDaXoa(new Set())
+    setXacNhanXoaVinhVien(false)
+  }
+  const chuyenChon = (id: string) =>
+    setChonDaXoa((truoc) => {
+      const sau = new Set(truoc)
+      if (sau.has(id)) sau.delete(id)
+      else sau.add(id)
+      // Rời khỏi trạng thái chọn thì dải xác nhận đỏ (nếu đang mở) không còn ngữ cảnh — rút lại.
+      if (sau.size === 0) setXacNhanXoaVinhVien(false)
+      return sau
+    })
+
   const taoBangMoi = () => {
     const luc = Date.now()
     const meta: BangMeta = {
@@ -1205,72 +1256,196 @@ export function DanhSachBang({
           >
             {hienDaXoaGanDay ? '▾' : '▸'} Đã xoá gần đây ({daXoaGanDay.length})
           </button>
-          {hienDaXoaGanDay && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, marginBottom: 8 }}>
-              {daXoaGanDay.map((b) => (
-                <div
-                  key={b.id}
-                  data-testid={`da-xoa-gan-day-${b.id}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '6px 10px',
-                    background: 'var(--c-surface-alt, #f6f7fd)',
-                    borderRadius: 8,
-                  }}
-                >
-                  {/* Cùng chấm màu ổn định theo id với lưới chính — hai bảng "Bảng chưa đặt tên"
-                      trong panel này giờ phân biệt được TRƯỚC KHI bấm Hoàn tác nhầm (critique lượt 3). */}
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      background: `hsl(${mauOnDinh(b.id)} var(--chip-s) var(--chip-l))`,
-                    }}
-                  />
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 12.5,
-                      color: 'var(--c-text-muted, #6b6e96)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {b.ten}
-                  </span>
-                  <button
-                    type="button"
-                    data-testid={`hoan-tac-gan-day-${b.id}`}
-                    onClick={() => khoiPhucBang(b)}
+          {hienDaXoaGanDay && (() => {
+            // Rút gọn RUT_GON_DA_XOA dòng mới nhất; "Xem tất cả" mở toàn bộ + ô tìm + cuộn trong hộp.
+            const daLoc = xemTatCaDaXoa
+              ? daXoaGanDay.filter((b) => bangKhopTimKiem(b, timDaXoa))
+              : daXoaGanDay
+            const hienThi = xemTatCaDaXoa ? daLoc : daXoaGanDay.slice(0, RUT_GON_DA_XOA)
+            const soChon = chonDaXoa.size
+            const conAn = daXoaGanDay.length - RUT_GON_DA_XOA
+            const nutPhu: React.CSSProperties = {
+              minHeight: 40, padding: '4px 10px', fontSize: 12, fontWeight: 700,
+              borderRadius: 9999, border: 0, background: 'none', whiteSpace: 'nowrap',
+            }
+            return (
+              <div style={{ marginTop: 6, marginBottom: 8 }}>
+                {/* Ô tìm — CHỈ ở chế độ "Xem tất cả" (tìm trong ≤4 dòng rút gọn là thừa). type=search
+                    dùng chung khuôn với các ô tìm khác của app (index.css bỏ appearance + nút xoá OS). */}
+                {xemTatCaDaXoa && (
+                  <input
+                    type="search"
+                    data-testid="tim-da-xoa"
+                    value={timDaXoa}
+                    onChange={(e) => setTimDaXoa(e.target.value)}
+                    placeholder="Tìm trong bảng đã xoá…"
+                    aria-label="Tìm trong bảng đã xoá"
                     className="mind-focus-ring"
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      minHeight: 44,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      // --c-accent-2, KHÔNG --c-primary — cùng hành động "phục hồi bảng vừa xoá" với
-                      // nút Hoàn tác trong toast (ngay dưới, đã đổi màu ở lượt vá trước); hai nút cho
-                      // cùng một hành động phải đọc cùng một ngôn ngữ màu (critique 2026-08-26 P2, lượt 2).
-                      color: 'var(--c-accent-2, #b8196f)',
-                      background: 'none',
-                      border: 0,
-                      padding: '4px 6px',
-                      whiteSpace: 'nowrap',
+                      width: '100%', marginBottom: 6, padding: '8px 12px', borderRadius: 8,
+                      border: '1px solid var(--c-line, #d9ddf4)', background: 'var(--c-surface, #fff)',
+                      color: 'var(--c-text, #12142b)',
+                    }}
+                  />
+                )}
+
+                {/* Dải hành động hàng loạt — chỉ khi có ≥1 tích chọn. Bước xác nhận đỏ theo Untouchable
+                    Signal Rule của DESIGN.md: nền/chữ họ --c-danger-*, PHẲNG, không bounce/glow. */}
+                {soChon > 0 && (
+                  <div
+                    data-testid="dai-chon-da-xoa"
+                    style={{
+                      marginBottom: 6, borderRadius: 8, padding: '8px 10px',
+                      background: xacNhanXoaVinhVien
+                        ? 'var(--c-danger-soft, #fef2f2)'
+                        : 'var(--c-primary-soft, #eceefa)',
                     }}
                   >
-                    Hoàn tác
-                  </button>
+                    {xacNhanXoaVinhVien ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'var(--c-danger-deep, #991b1b)' }}>
+                          Xoá vĩnh viễn {soChon} bảng? Không khôi phục lại được.
+                        </span>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => setXacNhanXoaVinhVien(false)}
+                            className="mind-focus-ring"
+                            style={{ ...nutPhu, color: 'var(--c-text-muted, #6b6e96)' }}
+                          >
+                            Huỷ
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="xoa-vinh-vien-chon"
+                            onClick={() => xoaVinhVienNhieu(chonDaXoa)}
+                            className="mind-focus-ring"
+                            style={{ ...nutPhu, padding: '4px 14px', background: 'var(--c-danger, #b91c1c)', color: 'var(--c-on-bright, #fff)' }}
+                          >
+                            Xoá vĩnh viễn
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ flex: 1, minWidth: 70, fontSize: 12, fontWeight: 700, color: 'var(--c-text-soft, #454870)' }}>
+                          {soChon} đã chọn
+                        </span>
+                        <button
+                          type="button"
+                          data-testid="khoi-phuc-chon"
+                          onClick={() => khoiPhucNhieu(chonDaXoa)}
+                          className="mind-focus-ring"
+                          style={{ ...nutPhu, color: 'var(--c-accent-2, #b8196f)' }}
+                        >
+                          Khôi phục
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="hoi-xoa-vinh-vien"
+                          onClick={() => setXacNhanXoaVinhVien(true)}
+                          className="mind-focus-ring"
+                          style={{ ...nutPhu, color: 'var(--c-danger, #b91c1c)' }}
+                        >
+                          Xoá vĩnh viễn
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: 4,
+                    ...(xemTatCaDaXoa ? { maxHeight: 240, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : null),
+                  }}
+                >
+                  {hienThi.map((b) => {
+                    const daChon = chonDaXoa.has(b.id)
+                    return (
+                      <div
+                        key={b.id}
+                        data-testid={`da-xoa-gan-day-${b.id}`}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '4px 6px 4px 4px', borderRadius: 8,
+                          background: daChon ? 'var(--c-primary-soft, #eceefa)' : 'var(--c-surface-alt, #f6f7fd)',
+                        }}
+                      >
+                        {/* Vùng chạm 40px quanh checkbox 17px — ngón cái không cần nhắm. */}
+                        <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, flexShrink: 0, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            data-testid={`chon-da-xoa-${b.id}`}
+                            checked={daChon}
+                            onChange={() => chuyenChon(b.id)}
+                            aria-label={`Chọn bảng ${b.ten}`}
+                            style={{ width: 17, height: 17, accentColor: 'var(--c-primary, #2d3a94)' }}
+                          />
+                        </label>
+                        {/* Chấm màu ổn định theo id — cùng chấm với lưới chính, phân biệt hai bảng
+                            trùng tên "Bảng chưa đặt tên" TRƯỚC khi bấm nhầm (critique lượt 3). */}
+                        <span
+                          aria-hidden="true"
+                          style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: `hsl(${mauOnDinh(b.id)} var(--chip-s) var(--chip-l))` }}
+                        />
+                        <span style={{ flex: 1, fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {b.ten}
+                        </span>
+                        {/* Nút "Hoàn tác" từng-dòng chỉ khi CHƯA chọn gì — có tích chọn thì dải hàng
+                            loạt ở trên tiếp quản, hai đường phục hồi song song là nhiễu. --c-accent-2
+                            đồng ngôn ngữ màu với nút Hoàn tác ở toast (critique 2026-08-26 P2). */}
+                        {soChon === 0 && (
+                          <button
+                            type="button"
+                            data-testid={`hoan-tac-gan-day-${b.id}`}
+                            onClick={() => khoiPhucBang(b)}
+                            className="mind-focus-ring"
+                            style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, fontSize: 12, fontWeight: 600, color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, padding: '4px 6px', whiteSpace: 'nowrap' }}
+                          >
+                            Hoàn tác
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {xemTatCaDaXoa && daLoc.length === 0 && (
+                    <p style={{ fontSize: 12, color: 'var(--c-text-muted, #6b6e96)', padding: '8px 6px', margin: 0 }}>
+                      Không có bảng đã xoá nào khớp “{timDaXoa}”.
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+
+                {!xemTatCaDaXoa && conAn > 0 && (
+                  <button
+                    type="button"
+                    data-testid="xem-tat-ca-da-xoa"
+                    onClick={() => setXemTatCaDaXoa(true)}
+                    className="mind-focus-ring"
+                    style={{ minHeight: 40, marginTop: 2, padding: '4px 2px', fontSize: 12, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', background: 'none', border: 0 }}
+                  >
+                    Xem tất cả ({daXoaGanDay.length}) →
+                  </button>
+                )}
+                {xemTatCaDaXoa && (
+                  <button
+                    type="button"
+                    data-testid="thu-gon-da-xoa"
+                    onClick={() => {
+                      setXemTatCaDaXoa(false)
+                      setTimDaXoa('')
+                      setChonDaXoa(new Set())
+                      setXacNhanXoaVinhVien(false)
+                    }}
+                    className="mind-focus-ring"
+                    style={{ minHeight: 40, marginTop: 2, padding: '4px 2px', fontSize: 12, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', background: 'none', border: 0 }}
+                  >
+                    Thu gọn
+                  </button>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
       {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn

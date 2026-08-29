@@ -518,6 +518,90 @@ describe('DanhSachBang', () => {
     })
   })
 
+  // Panel "Đã xoá gần đây" bản dựng lại 2026-08-30: rút gọn 4 dòng + "Xem tất cả" + ô tìm + tích
+  // chọn kiểu Recycle Bin (khôi phục / xoá vĩnh viễn hàng loạt).
+  describe('panel "Đã xoá gần đây" — rút gọn + tích chọn', () => {
+    async function seedXoaMem(n: number) {
+      const bayGio = Date.now()
+      for (let i = 0; i < n; i++) {
+        await idbPut(IDB_STORES.boards, {
+          id: `xm-${i}`,
+          ten: `Bảng xoá ${i}`,
+          taoLuc: bayGio - 100_000 - i * 1000,
+          capNhatLuc: bayGio - 100_000 - i * 1000,
+          daXoaLuc: bayGio - 50_000 - i * 1000,
+        })
+      }
+      await act(async () => {
+        root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      })
+      await choDenKhi(() => {
+        expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).not.toBeNull()
+      })
+      await act(async () => {
+        ;(container.querySelector('[data-testid="mo-da-xoa-gan-day"]') as HTMLButtonElement).click()
+      })
+    }
+    const rows = () => container.querySelectorAll('[data-testid^="da-xoa-gan-day-xm-"]').length
+
+    it('6 bảng đã xoá → chỉ hiện 4 dòng + nút "Xem tất cả"; bấm mở ra đủ 6 + ô tìm', async () => {
+      await seedXoaMem(6)
+      expect(rows()).toBe(4)
+      expect(container.querySelector('[data-testid="tim-da-xoa"]')).toBeNull()
+      const xem = container.querySelector('[data-testid="xem-tat-ca-da-xoa"]') as HTMLButtonElement
+      expect(xem?.textContent).toContain('(6)')
+      await act(async () => xem.click())
+      expect(rows()).toBe(6)
+      expect(container.querySelector('[data-testid="tim-da-xoa"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="thu-gon-da-xoa"]')).not.toBeNull()
+    })
+
+    it('tích 2 dòng → xoá vĩnh viễn (2 bước xác nhận) → biến mất khỏi IndexedDB', async () => {
+      await seedXoaMem(3)
+      await act(async () => {
+        ;(container.querySelector('[data-testid="chon-da-xoa-xm-0"]') as HTMLInputElement).click()
+        ;(container.querySelector('[data-testid="chon-da-xoa-xm-1"]') as HTMLInputElement).click()
+      })
+      // Có tích chọn thì nút "Hoàn tác" từng-dòng biến mất, dải hàng loạt tiếp quản.
+      expect(container.querySelector('[data-testid="hoan-tac-gan-day-xm-0"]')).toBeNull()
+      expect(container.querySelector('[data-testid="dai-chon-da-xoa"]')?.textContent).toContain('2 đã chọn')
+      // Bước 1: chỉ hỏi, chưa xoá.
+      await act(async () => {
+        ;(container.querySelector('[data-testid="hoi-xoa-vinh-vien"]') as HTMLButtonElement).click()
+      })
+      expect(container.textContent).toContain('Không khôi phục lại được')
+      expect((await idbGetAll(IDB_STORES.boards)).length).toBe(3)
+      // Bước 2: xoá thật.
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xoa-vinh-vien-chon"]') as HTMLButtonElement).click()
+      })
+      await choDom(async () => {
+        const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+        expect(ds.map((b) => b.id).sort()).toEqual(['xm-2'])
+      })
+    })
+
+    it('tích 2 dòng → "Khôi phục" → cả hai gỡ daXoaLuc và hiện lại trong lưới', async () => {
+      await seedXoaMem(3)
+      await act(async () => {
+        ;(container.querySelector('[data-testid="chon-da-xoa-xm-0"]') as HTMLInputElement).click()
+        ;(container.querySelector('[data-testid="chon-da-xoa-xm-2"]') as HTMLInputElement).click()
+      })
+      await act(async () => {
+        ;(container.querySelector('[data-testid="khoi-phuc-chon"]') as HTMLButtonElement).click()
+      })
+      await choDenKhi(() => {
+        expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+      })
+      await choDom(async () => {
+        const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+        expect(ds.find((b) => b.id === 'xm-0')?.daXoaLuc).toBeUndefined()
+        expect(ds.find((b) => b.id === 'xm-2')?.daXoaLuc).toBeUndefined()
+        expect(ds.find((b) => b.id === 'xm-1')?.daXoaLuc).toBeDefined()
+      })
+    })
+  })
+
   it('xoá thẻ A (đang chạy card-slide-out) không đóng menu "⋯" đang mở của thẻ B', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-a', ten: 'Bảng A', taoLuc: bayGio - 20_000, capNhatLuc: bayGio - 20_000 })
