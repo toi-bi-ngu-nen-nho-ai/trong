@@ -7,3 +7,10 @@ dist-probe/
 .vendor-build/
 .tmp-test-*/
 .impeccable/live/
+
+# Thử nghiệm browser-use (tự động hoá trình duyệt bằng Python) — dụng cụ riêng của máy đang phát
+# triển, không thuộc bản dựng app và không có trong bất kỳ cổng `kiem:*` nào. Giữ file trên đĩa,
+# chỉ không theo dõi: `.env.browser-use` là cấu hình theo máy, hai file kia là kịch bản/ghi chú thử.
+.env.browser-use
+browser_use_test.py
+BROWSER_USE_SETUP.md
