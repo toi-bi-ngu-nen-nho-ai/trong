@@ -59,9 +59,17 @@ describe('EdgelessBoard — kéo-thả đổi thứ tự khối trong Note (spec
 
     await act(async () => {
       slashMenuEl._handleClickItem(tableViewItem)
-      await vi.waitFor(() => {
-        expect(document.querySelector('drt-database')).not.toBeNull()
-      })
+      // Hạn giờ TƯỜNG MINH 5000ms thay cho mặc định 1000ms của `vi.waitFor`. KHÔNG phải nới lỏng
+      // khẳng định — `drt-database` vẫn PHẢI xuất hiện, chỉ là được chờ lâu hơn. Ca này chập chờn
+      // ĐO ĐƯỢC (2026-08-29): chạy riêng file thì xanh 1/1, chạy `vitest run` đầy đủ thì đỏ đúng
+      // dòng này (51 file spec tranh CPU, lượt dựng khối Database vượt 1000ms). Chọn 5000 để khớp
+      // `testTimeout` mặc định của vitest, nên waitFor không bao giờ là thứ hết giờ TRƯỚC cả test.
+      await vi.waitFor(
+        () => {
+          expect(document.querySelector('drt-database')).not.toBeNull()
+        },
+        { timeout: 5000 },
+      )
     })
 
     const eh = document.querySelector('editor-host') as unknown as { std: { store: StoreLike } }

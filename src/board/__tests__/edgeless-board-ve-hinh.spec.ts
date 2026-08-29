@@ -42,7 +42,16 @@ if (!('elementsFromPoint' in document)) {
 type SurfaceLike = { elementModels: ReadonlyArray<{ type: string }> }
 // `std` chỉ dùng cho ca Mindmap (đường tạo của nó không đi qua `gfx.tool`) — khai ở đây thay vì
 // nới `GfxLike` dùng chung, để helper giữ đúng bề mặt tối thiểu nó cần.
-type StdLike = { get<T>(id: { identifierName: string } | unknown): T }
+// Bề mặt tối thiểu của `EdgelessCRUDExtension` mà ca Mindmap dùng tới — khai tại đây thay vì import
+// kiểu thật từ cây vendored (giữ file test ngoài ranh giới D11, cùng lý do `SurfaceLike`/`GfxLike`
+// bên trên tồn tại). Chữ ký khớp crud-extension.ts: `addElement(type, props)`.
+type CrudLike = { addElement(type: string, props: Record<string, unknown>): unknown }
+// `T` PHẢI được truyền tường minh ở chỗ gọi (`std.get<CrudLike>(...)`), không suy ra từ đối số:
+// `EdgelessCRUDIdentifier` đi qua alias package nên kiểu `ServiceIdentifier<EdgelessCRUDExtension>`
+// không tới được đây, không còn chỗ nào để `T` neo vào. Bản trước khai tham số là
+// `{ identifierName: string } | unknown` — hợp `X | unknown` rút gọn thành `unknown`, nên `T` rơi
+// về `unknown` và gọi `.addElement()` lên nó là lỗi tsc TS2571 "Object is of type 'unknown'".
+type StdLike = { get<T>(id: { identifierName: string }): T }
 type RootLike = { gfx: GfxLike & { surface: SurfaceLike; std: StdLike } }
 
 function bienCo(ten: string, x: number, y: number): PointerEvent {
@@ -216,7 +225,7 @@ describe('EdgelessBoard — Connector và Mindmap tạo ra phần tử thật tr
 
     // Cùng hình dạng cây mà `getMindmapRender()` dựng khi thả thẻ: một gốc + ba nhánh.
     await act(async () => {
-      edgeless.gfx.std.get(EdgelessCRUDIdentifier).addElement('mindmap', {
+      edgeless.gfx.std.get<CrudLike>(EdgelessCRUDIdentifier).addElement('mindmap', {
         children: {
           text: 'Gốc',
           xywh: '[0,0,100,32]',
