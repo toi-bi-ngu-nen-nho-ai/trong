@@ -3,6 +3,11 @@
 Cập nhật: **2026-08-29** (mục 37-40 — gỡ hướng B bàn phím ảo, vá lệch toạ độ chạm, trả nốt nợ vặt mục 6 + critique Board Gallery 2026-08-29, rồi dựng lại cổng kiểm quanh chúng).
 Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
 
+> **NGHIỆM THU 2026-08-29 — MỤC 38 ĐÓNG.** Chủ dự án đã kiểm trên thiết bị thật: *"test không còn
+> sai sót"*. Phép vá lệch toạ độ chạm (`dong-bo-toa-do-viewport.ts`) **chạy đúng trên iPhone**.
+> Khoản này KHÔNG còn là nợ — đừng đề xuất kiểm lại, và đừng nghi `CANVAS_DPR_CAP_BY_ZOOM`/`ZOOM_MIN`
+> (nghi can dự phòng ghi ở mục 38) nữa: không còn triệu chứng để quy kết.
+
 > **ĐÍNH CHÍNH bản 2026-08-29 (mục 40, MỚI NHẤT — đọc trước mục 39).** Ba commit message của mục 39
 > (`7e15278`, `5654c07`, `733450f`) đều ghi *"tsc --noEmit exit 0"*. **SAI.** Cổng tsc ĐỎ từ chính commit đó (TS2571) và đỏ suốt tới
 > `4244254`. Lỗi thao tác: lệnh chạy nền kết thúc bằng `echo "tsc exit=$?"`, nên **mã thoát của cả
@@ -3627,7 +3632,11 @@ sau:   BlockSuite (0,0,375,760)     =  DOM (0,0,375,760)
 đo được thật**, ca canh thứ tự `clearViewportElement` trước `setShellElement`, ca no-op khi đã khớp,
 và ca canh việc nghe ở capture-trên-window (nghe trên chính viewport là hụt hết).
 
-**CẦN CHỦ DỰ ÁN XÁC NHẬN LẠI TRÊN IPHONE:** mở một bảng **đã từng mở** (để chunk đã cache, đúng ca
+> **ĐÃ NGHIỆM THU, ĐÓNG (2026-08-29).** Chủ dự án kiểm trên thiết bị thật: *"test không còn sai
+> sót"*. Con trỏ rơi đúng chỗ ngón tay. Đoạn dưới giữ nguyên làm hồ sơ cách kiểm, không còn là việc
+> phải làm.
+
+**~~CẦN CHỦ DỰ ÁN XÁC NHẬN LẠI TRÊN IPHONE:~~ (đã xong)** mở một bảng **đã từng mở** (để chunk đã cache, đúng ca
 lỗi), chạm vào bảng — con trỏ/note phải rơi đúng chỗ ngón tay. Nếu vẫn lệch thì lệch còn nguồn khác
 (nghi tiếp: `CANVAS_DPR_CAP_BY_ZOOM`/`ZOOM_MIN` ở mục 8, cả hai chưa từng đo trên thiết bị thật).
 
@@ -3745,12 +3754,13 @@ Cả bốn thay đổi nhìn thấy được đều đã đo trên trang thật,
 Bảng thử do lượt kiểm này tạo ra đã **xoá khỏi IndexedDB thật** sau khi đo xong; dev server đã tắt
 (server thừa từng làm worker vitest timeout ở lượt trước).
 
-### CÒN NỢ SAU LƯỢT NÀY — đúng ba khoản, cả ba đều cần THIẾT BỊ THẬT
+### CÒN NỢ SAU LƯỢT NÀY — cập nhật 2026-08-29 sau nghiệm thu
 
-1. **Bàn phím ảo iOS** (mục 37) — hai giả thuyết còn sống, mỗi lượt thử một biến số trên iPhone thật.
-2. **Nghiệm thu lệch con trỏ** (mục 38) — mở một bảng ĐÃ TỪNG MỞ rồi chạm.
-3. **Nghiệm thu 5 khoản critique ở trên** — nhất là ô "+" ở đầu lưới và mặt giấy mới của nó, hai thứ
-   đổi hình dáng nhìn thấy được.
+1. **Bàn phím ảo iOS** (mục 37) — CÒN MỞ. Hai giả thuyết còn sống, mỗi lượt thử một biến số trên
+   iPhone thật.
+2. ~~**Nghiệm thu lệch con trỏ** (mục 38)~~ — **ĐÃ NGHIỆM THU, ĐÓNG**: *"test không còn sai sót"*.
+3. **Nghiệm thu 5 khoản critique ở trên** — CÒN MỞ, nhất là ô "+" ở đầu lưới và mặt giấy mới của nó,
+   hai thứ đổi hình dáng nhìn thấy được.
 
 Không còn khoản nào máy kiểm được mà đang để mở.
 
@@ -3874,10 +3884,35 @@ Hai worktree khác còn "file chưa commit" nhưng **không phải việc**: `ba
 `tsconfig.vendor-paths.json` — cả hai đều là file SINH RA bởi `npm run dung:vendor`, khác nhau giữa
 các worktree là chuyện bình thường.
 
-Còn **9 nhánh cũ + 8 worktree** trong `.claude/worktrees/` từ các chặng đã gộp xong từ lâu
-(`p1b-vi-json-vi-tri`, `p1c-…`, `p1d-…`, `p1e-…`, `probe-nhung-lit`, `worktree-blockkit-edgeless`,
-`worktree-board-gallery`, `worktree-critique-dungthuocscreen-fixes`, `worktree-database-note-day-du`,
-`worktree-luu-tru-noi-dung-bang`, `worktree-p0b-gfx-model`, `worktree-p0c-gfx-khong-gian`,
-`worktree-p1a-nhung-edgeless`). Chúng **không chặn gì** và không phải nợ kỹ thuật — nhưng cũng không
-còn việc gì đang chạy trên đó. Dọn hay giữ là **quyết định của chủ dự án**, không tự làm: gỡ một
-worktree là xoá một thư mục làm việc có thể còn thứ chưa commit bên trong.
+### 40.5 DỌN CÂY GIT — 8 worktree + 13 nhánh cục bộ, theo yêu cầu "dọn sạch" (2026-08-29)
+
+Trước: 8 worktree trong `.claude/worktrees/` + 13 nhánh cục bộ từ các chặng đã gộp xong từ lâu.
+Sau: **đúng một worktree (`main`), đúng một nhánh (`main`)**, `.claude/worktrees/` rỗng.
+
+**Trước khi xoá đã kiểm ba thứ, không xoá mù:**
+
+1. **File chưa commit trong từng worktree.** 6/8 sạch. Hai worktree còn `bang-bam-vendor.json` +
+   `tsconfig.vendor-paths.json` — cả hai là file SINH RA bởi `npm run dung:vendor`, khác nhau giữa
+   worktree là chuyện bình thường. Một file THẬT sự có giá trị (`plans/2026-08-15-critique-
+   dungthuocscreen-fixes.md`) đã được chép về `main` ở commit này TRƯỚC khi gỡ worktree.
+2. **Nhánh nào chưa gộp vào `main`.** 11/13 đã gộp (`git branch --merged main`). **Hai nhánh CHƯA
+   gộp** — và đây là phần đáng ghi:
+   - `probe-nhung-lit` — 1 commit thử nghiệm nhúng editor AFFiNE để đo bundle, không có remote.
+   - `worktree-critique-dungthuocscreen-fixes` — **9 commit vá critique DungThuocScreen 2026-08-15
+     KHÔNG có trong `main`**. Kiểm chứng bằng dấu vết cụ thể: `main` không có `roving`,
+     `ArrowRight` (điều hướng bàn phím hàng tab nhóm thuốc) hay `badge-pop-in`. So với điểm rẽ
+     `71ff410`, nhánh này sửa `src/App.tsx` (+88) và `src/index.css` (+23).
+
+     **Chưa kết luận là việc BỊ MẤT:** `main` đã đi rất xa từ 2026-08-15 và DungThuocScreen còn qua
+     hơn 10 lượt critique sau đó (xem `.impeccable/critique/`), nên phần lớn có thể đã bị thay thế
+     bằng cách làm khác. Nhưng **chưa ai đối chiếu từng mục**, nên đừng coi đây là đã đóng.
+3. **Cách giữ lại thay vì mất.** Hai nhánh chưa gộp được ghim thành tag trước khi xoá:
+   `luu/probe-nhung-lit` và `luu/critique-dungthuocscreen-2026-08-15`. Tag giữ commit còn với tới
+   được vĩnh viễn mà không hiện trong danh sách nhánh — lấy lại bằng
+   `git switch -c <ten-moi> luu/critique-dungthuocscreen-2026-08-15`.
+
+**CÒN LẠI TRÊN `origin` (chưa đụng, cần chủ dự án quyết):** 8 nhánh từ xa —
+`p1b-vi-json-vi-tri`, `p1c-chuoi-khong-toi-dist`, `p1d-siet-so-khop`, `p1e-noi-dung-dich`,
+`worktree-board-gallery`, `worktree-critique-dungthuocscreen-fixes`, `worktree-p0b-gfx-model`,
+`worktree-p1a-nhung-edgeless`. Xoá nhánh từ xa là thao tác **hướng ra ngoài**, không nằm trong uỷ
+quyền push sẵn có (AGENTS.md chỉ uỷ quyền push `origin main`), nên không tự làm.
