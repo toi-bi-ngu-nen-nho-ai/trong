@@ -1,7 +1,14 @@
 # BÀN GIAO — đọc file này đầu tiên
 
-Cập nhật: **2026-08-29** (mục 37-39 — gỡ hướng B bàn phím ảo, vá lệch toạ độ chạm, trả nốt nợ vặt mục 6 + critique Board Gallery 2026-08-29).
+Cập nhật: **2026-08-29** (mục 37-40 — gỡ hướng B bàn phím ảo, vá lệch toạ độ chạm, trả nốt nợ vặt mục 6 + critique Board Gallery 2026-08-29, rồi dựng lại cổng kiểm quanh chúng).
 Dự án: **Bs Trọng** — PWA y khoa tiếng Việt.
+
+> **ĐÍNH CHÍNH bản 2026-08-29 (mục 40, MỚI NHẤT — đọc trước mục 39).** Ba commit message của mục 39
+> (`7e15278`, `5654c07`, `733450f`) đều ghi *"tsc --noEmit exit 0"*. **SAI.** Cổng tsc ĐỎ từ chính commit đó (TS2571) và đỏ suốt tới
+> `4244254`. Lỗi thao tác: lệnh chạy nền kết thúc bằng `echo "tsc exit=$?"`, nên **mã thoát của cả
+> lệnh bash luôn là 0** — thông báo "completed (exit code 0)" là mã của `echo`, không phải của
+> `tsc`. File log CÓ ghi đúng dòng lỗi, nhưng không ai mở ra đọc. Hai commit `4244254` + `e9b84af`
+> (chủ dự án) đã vá cổng và đóng cả lớp lỗi "hạn giờ chờ không có nguồn sự thật". Xem **mục 40**.
 
 > **ĐÍNH CHÍNH bản 2026-08-29 (mục 39, mới nhất).** Chủ dự án: *"giải quyết hết đi"*. Đã đóng:
 > nợ vặt còn thật của **mục 6** (thứ tự widget nay có ca kiểm), khoản "chưa có ca nào cho
@@ -3746,3 +3753,131 @@ Bảng thử do lượt kiểm này tạo ra đã **xoá khỏi IndexedDB thật
    đổi hình dáng nhìn thấy được.
 
 Không còn khoản nào máy kiểm được mà đang để mở.
+
+---
+
+## 40. DỰNG LẠI CỔNG KIỂM QUANH MỤC 39 — VÀ MỘT CỔNG XANH GIẢ
+
+Hai commit của chủ dự án tiếp ngay sau mục 39, **không đụng mã sản phẩm**, chỉ sửa cổng kiểm và
+bộ test: `4244254` (vá điểm) rồi `e9b84af` (đóng cả lớp lỗi).
+
+### 40.1 Cổng tsc ĐỎ suốt ba commit, mà commit message lại ghi "exit 0"
+
+`7e15278` đưa vào `edgeless-board-ve-hinh.spec.ts` một kiểu hỏng:
+
+```ts
+type StdLike = { get<T>(id: { identifierName: string } | unknown): T }
+```
+
+Hợp `X | unknown` rút gọn thành `unknown`, nên tham số mất sạch kiểu, `T` không còn chỗ nào để suy
+ra và rơi về `unknown` — gọi `.addElement()` lên nó là **TS2571**. Cổng đỏ từ đó tới `4244254`.
+
+**Vì sao lượt viết mục 39 không thấy.** Lệnh chạy nền có dạng:
+
+```
+npx tsc --noEmit -p tsconfig.json > /tmp/tsc.txt 2>&1; echo "tsc exit=$?"
+```
+
+`echo` luôn thành công, nên **mã thoát của cả lệnh bash luôn là 0**. Thông báo "completed (exit
+code 0)" của trình chạy nền là mã của `echo`, KHÔNG phải của `tsc`. File `/tmp/tsc.txt` có ghi đúng
+dòng lỗi (`edgeless-board-ve-hinh.spec.ts(219,7): error TS2571`) nhưng lượt đó chỉ đọc thông báo,
+không mở file. Ba commit message vì thế mang một con số **sai** — thân mục 39 không nêu số nên
+không phải sửa, nhưng ai đọc lịch sử commit sẽ gặp con số đó.
+
+> **LUẬT THAO TÁC — cùng họ với luật "KHÔNG BAO GIỜ nối `| tail`" ở mục 6.** Mã thoát của một lệnh
+> chạy nền chỉ có nghĩa khi **lệnh cuối cùng trong chuỗi chính là thứ cần đo**. Đặt `echo`,
+> `tail`, `grep` sau nó là vứt mã thoát đi. Đúng cách:
+>
+> ```
+> npx tsc --noEmit -p tsconfig.json > log.txt 2>&1; MA=$?; echo "MÃ THOÁT THẬT = $MA"; cat log.txt
+> ```
+>
+> và **luôn đọc nội dung log**, đừng tin mỗi con số. Cùng một bài học ba lần rồi: mục 6 (vitest qua
+> `tail`), mục 37 (18 ca xanh cho thứ không chạy), nay là mục 40. Bằng chứng chỉ có giá trị khi
+> thứ tạo ra nó được đọc tận nơi.
+
+Cách vá của `4244254`: bỏ `StdLike`, truyền tham số kiểu **tường minh** tại chỗ gọi
+(`std.get<CrudLike>(...)`) với `CrudLike` khai bề mặt tối thiểu đúng chữ ký `crud-extension.ts` —
+giữ file test ngoài ranh giới D11 như `SurfaceLike`/`GfxLike` sẵn có. (Đã thử khai `__TYPE__: T`
+theo hình dạng `ServiceIdentifier<T>` của cây vendored: VẪN đỏ, vì `EdgelessCRUDIdentifier` đi qua
+alias package nên kiểu thật không tới được file spec.)
+
+### 40.2 "Hạn giờ chờ không có nguồn sự thật" — đóng cả lớp, không vá một chỗ
+
+`4244254` còn vá một ca chập chờn: `edgeless-board-reorder.spec.ts` xanh 1/1 khi chạy riêng, đỏ khi
+`vitest run` cả 51 file (tranh CPU) đúng dòng chờ `drt-database`. `e9b84af` mở rộng thành lớp:
+
+- `choDenKhi` bị **chép tay vào 4 spec** (DanhSachBang, BoardGallery, DanhSachBang-loi-luu-tru,
+  SearchScreen), thân hàm gần y hệt nhưng mặc định đã trôi lệch 3000/3000/4000/3000, và chỉ MỘT bản
+  nhận điều kiện async.
+- **42 lời gọi `vi.waitFor()` trần** rải rác 13 spec, tất cả ăn hạn ẩn 1000ms của vitest — đủ khi
+  chạy riêng một file, không đủ khi chạy cả bộ. 41 chỗ còn lại là cùng quả mìn, chưa nổ.
+
+Vá: `src/__tests__/helpers/cho-den-khi.ts` — MỘT nguồn sự thật, `HAN_GIO_CHO_MS = 8000`, hai hàm cho
+hai cơ chế chờ thật sự khác nhau (có React / không React). Nguyên tắc chọn số ghi ngay trong file:
+hạn chờ phải **lớn hơn** lượt chờ chậm nhất đo dưới tải đầy đủ nhưng **nhỏ hơn** `testTimeout` — để
+khi có hồi quy thật, thứ hết giờ trước là lượt chờ (ném đúng câu `expect` đã hỏng) chứ không phải cả
+test (chỉ nói "timeout"). Nâng số này thì phải nâng `testTimeout` trong `vite.config.ts` theo, giữ
+nguyên khoảng cách. Vitest **không** có tuỳ chọn toàn cục cho hạn mặc định của `vi.waitFor` — hàm
+bọc là cách duy nhất.
+
+### 40.3 MỘT KIỂU ĐỎ MỚI — `UNKNOWN: unknown error, read`, ĐỎ Ở CẤP FILE
+
+Lượt chạy `vitest run` để xác nhận HEAD `e9b84af` cho:
+
+```
+FAIL  src/board/__tests__/edgeless-board-inline-format.spec.ts [ …inline-format.spec.ts ]
+Error: UNKNOWN: unknown error, read
+ Test Files  1 failed | 50 passed (51)
+      Tests  445 passed (445)
+```
+
+**KHÁC HẲN ca chập chờn của mục 6 và của `4244254`** — cả hai kiểu kia đều là `Test timed out` /
+`waitFor` hết giờ, tức file có chạy và một khẳng định thua. Đây là lỗi **I/O của Windows khi ĐỌC
+file**, ném lúc nạp module: file **không chạy ca nào**, nên `445` chứ không phải `448` — thiếu đúng
+3 ca của file đó, không phải 3 ca đỏ. Ai chỉ liếc dòng "Tests 445 passed" sẽ tưởng suite xanh.
+
+Chạy lại riêng file đó: **3/3 xanh, mã thoát 0**. 445 + 3 = 448 = đúng con số của lượt trước. Lượt
+đỏ chạy 464 s (so với 223 s lượt sạch) vì có `tsc` chạy song song — đúng dạng tải nặng.
+
+> **Cách đọc kết quả vitest cho đúng, bổ sung cho luật mục 6.** Ba thứ phải nhìn, thiếu một là đọc
+> sai: (1) **mã thoát thật** (xem 40.1), (2) dòng **`Test Files`** — chứ không phải chỉ dòng
+> `Tests`, vì đỏ-cấp-file không hiện ở dòng `Tests`, (3) **tổng số ca** so với lượt trước — tụt số
+> ca mà không có ca đỏ nào nghĩa là có file không nạp được.
+>
+> Chưa đủ dữ liệu để nói `UNKNOWN: unknown error, read` là flake môi trường hay có nguyên nhân
+> thật. Lần đầu gặp, và chỉ gặp khi chạy song song với `tsc`. **Nếu nó quay lại thì đó là tin tức**
+> — ghi lại lượt đó (file nào, có chạy song song gì không) thay vì chạy lại cho tới khi xanh.
+
+**Lượt chạy SẠCH (không có gì chạy song song), đọc mã thoát thật và cả ba con số:**
+
+```
+Test Files  51 passed (51)
+     Tests  448 passed (448)
+MÃ THOÁT VITEST = 0
+```
+
+Cộng `tsc --noEmit -p tsconfig.json` — **mã thoát thật = 0, log rỗng** (lần này có mở log ra đọc).
+`kiem:vendor`: 2.782 file, lệch 0. HEAD `e9b84af` **thật sự xanh**.
+
+### 40.4 Trạng thái cây git lúc bàn giao
+
+`main` = `e9b84af`, đã push, **working tree sạch, không có stash, không có commit nào chưa đẩy**.
+
+**Một khoản THẬT SỰ chưa commit, đã tìm ra và đưa về `main` ở lượt này:**
+`docs/superpowers/plans/2026-08-15-critique-dungthuocscreen-fixes.md` — kế hoạch của chặng mục 15,
+nằm untracked trong worktree `critique-dungthuocscreen-fixes` từ 2026-08-15. Repo theo dõi kế hoạch
+của **mọi** chặng khác (17 file trong `docs/superpowers/plans/`), riêng file này bị bỏ sót; gỡ
+worktree kia là mất luôn. Nay đã chép về `main`.
+
+Hai worktree khác còn "file chưa commit" nhưng **không phải việc**: `bang-bam-vendor.json` và
+`tsconfig.vendor-paths.json` — cả hai đều là file SINH RA bởi `npm run dung:vendor`, khác nhau giữa
+các worktree là chuyện bình thường.
+
+Còn **9 nhánh cũ + 8 worktree** trong `.claude/worktrees/` từ các chặng đã gộp xong từ lâu
+(`p1b-vi-json-vi-tri`, `p1c-…`, `p1d-…`, `p1e-…`, `probe-nhung-lit`, `worktree-blockkit-edgeless`,
+`worktree-board-gallery`, `worktree-critique-dungthuocscreen-fixes`, `worktree-database-note-day-du`,
+`worktree-luu-tru-noi-dung-bang`, `worktree-p0b-gfx-model`, `worktree-p0c-gfx-khong-gian`,
+`worktree-p1a-nhung-edgeless`). Chúng **không chặn gì** và không phải nợ kỹ thuật — nhưng cũng không
+còn việc gì đang chạy trên đó. Dọn hay giữ là **quyết định của chủ dự án**, không tự làm: gỡ một
+worktree là xoá một thư mục làm việc có thể còn thứ chưa commit bên trong.
