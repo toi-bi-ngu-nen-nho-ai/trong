@@ -69,4 +69,17 @@ describe('ô "+" tạo bảng là MỘT TỜ GIẤY (P3 critique 2026-08-29)', (
     expect(than).toContain('--c-note')
     expect(than).not.toContain('dashed')
   })
+
+  it('bóng đổ đi qua --c-shadow, không phải một literal chỉ đúng ở bản sáng', () => {
+    // `--c-shadow` là rgba(18,20,43,.1) ở bản sáng nhưng rgba(0,0,0,.55) ở bản TỐI — chênh nhau hơn
+    // năm lần độ đục. Một literal `rgba(0,0,0,.1)` viết cứng vì thế chỉ đúng ở bản sáng: sang bản
+    // tối bóng gần như biến mất, ô "+" phẳng lì giữa những tờ giấy có bóng thật quanh nó — mất đúng
+    // cái làm nó đọc thành "một tờ giấy chưa viết". Cùng lớp lỗi đã sửa cho nút quay lại của
+    // BoardGallery (critique 2026-08-25, "Chrome chung chung phá vỡ ảo giác vật liệu"), chỉ sót lại
+    // đúng chỗ này.
+    const than = thanQuyTac('.mind-o-tao-bang')
+    const bong = /box-shadow:\s*([^;]+);/.exec(than)?.[1] ?? ''
+    expect(bong).toContain('--c-shadow')
+    expect(bong).not.toMatch(/rgba?\(/)
+  })
 })
