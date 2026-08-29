@@ -142,7 +142,10 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
     expect(oNhap).not.toBeNull()
-    expect(oNhap.value).toBe('Bảng chưa đặt tên')
+    // Ô để RỖNG, tên mặc định lùi về làm placeholder — xem ca "ô đổi tên của bảng VỪA TẠO" bên dưới
+    // để biết vì sao (vùng chọn không sống nổi qua cú chạm mở bàn phím trên iOS).
+    expect(oNhap.value).toBe('')
+    expect(oNhap.placeholder).toBe('Bảng chưa đặt tên')
     const idMoi = oNhap.getAttribute('data-testid')!.replace('input-ten-', '')
     expect(idMoi).toMatch(/^bang-/)
 
@@ -184,6 +187,68 @@ describe('DanhSachBang', () => {
       ;(container.querySelector('[data-testid="the-bang"] button.the-bang-vat') as HTMLButtonElement).click()
     })
     expect(onMoBang).toHaveBeenCalledTimes(1)
+  })
+
+  it('ô đổi tên của bảng VỪA TẠO để RỖNG + placeholder — gõ ngay không nối vào tên mặc định', async () => {
+    // Chủ dự án báo trên iPhone (2026-08-29): bấm "+" rồi gõ tên ra `"Bảng chưa đặt tênSốc nhiễm
+    // khuẩn"`. Bản vá cũ (`onFocus` → `select()`) KHÔNG cứu được ca đó trên iOS, và lý do đáng ghi:
+    // Safari không mở bàn phím cho một `focus()` do script gọi (xem HANDOFF 1.1), nên người dùng
+    // BUỘC phải chạm vào ô mới gõ được — và chính cú chạm đó đặt lại caret, huỷ vùng vừa chọn. Vùng
+    // chọn không sống nổi tới lúc phím đầu tiên được gõ.
+    //
+    // Nên cách vá đúng là bỏ hẳn chỗ dựa vào vùng chọn: ô để RỖNG, tên mặc định chỉ là placeholder.
+    // Gõ ở bất kỳ vị trí caret nào cũng ra đúng thứ người dùng gõ.
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    expect(oNhap.value).toBe('')
+    expect(oNhap.placeholder).toBe('Bảng chưa đặt tên')
+
+    // Mô phỏng đúng iOS: caret về CUỐI, không có vùng chọn nào — rồi mới gõ.
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      oNhap.setSelectionRange(oNhap.value.length, oNhap.value.length)
+      if (datGiaTriGoc) datGiaTriGoc.call(oNhap, oNhap.value + 'Sốc nhiễm khuẩn')
+      else oNhap.value += 'Sốc nhiễm khuẩn'
+      oNhap.dispatchEvent(new Event('input', { bubbles: true }))
+      oNhap.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+
+    expect(container.textContent).toContain('Sốc nhiễm khuẩn')
+    expect(container.textContent).not.toContain('Bảng chưa đặt tênSốc nhiễm khuẩn')
+  })
+
+  it('ô đổi tên bỏ trống rồi rời đi → giữ nguyên tên mặc định, không lưu một cái tên RỖNG', async () => {
+    // Mặt trái của ca trên: ô rỗng nghĩa là `onBlur` có thể lưu chuỗi rỗng đè lên tên bảng, để lại
+    // một thẻ không nhãn không cách nào phân biệt trong lưới. Bấm "+" rồi đổi ý là luồng có thật.
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    expect(oNhap.value).toBe('')
+    // `focusout` chứ không phải `blur`: React gắn onBlur qua sự kiện NỔI BỌT `focusout` ở gốc cây,
+    // còn `blur` thuần không nổi bọt nên handler của React không bao giờ chạy — ca kiểm sẽ xanh giả
+    // (không có gì xảy ra, mà tên mặc định thì vẫn còn nguyên trên thẻ vì chưa ai ghi đè).
+    await act(async () => {
+      oNhap.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    })
+    expect(container.textContent).toContain('Bảng chưa đặt tên')
+    expect(container.querySelector('[data-testid^="input-ten-"]')).toBeNull()
   })
 
   it('bấm "⋯" rồi "Đổi tên", sửa ô nhập, Enter → tên cập nhật trên thẻ NGAY, rồi trong metadata', async () => {
@@ -1681,16 +1746,25 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
     for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
   })
 
-  it('[P1] tạo bảng mới → ô đổi tên CHỌN SẴN toàn bộ tên mặc định, gõ là THAY chứ không nối đuôi', async () => {
+  it('[P1] đổi tên một bảng ĐÃ có tên thật → vẫn CHỌN SẴN toàn bộ, gõ là thay chứ không nối đuôi', async () => {
+    // Ca này TRƯỚC ĐÂY canh bảng vừa tạo (P1 critique 2026-08-29). Cơ chế đó nay đã thay: bảng mới
+    // có ô RỖNG + placeholder, nên không còn gì để "chọn sẵn" — xem ca "ô đổi tên của bảng VỪA TẠO".
+    // Phép chọn-sẵn vẫn đúng và vẫn cần cho luồng CÒN LẠI: đổi tên một bảng đã có tên thật, nơi tên
+    // cũ là giá trị thật trong ô và gõ đè lên nó mới là điều người dùng muốn.
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="menu-bang-bang-1"]')).not.toBeNull()
     })
 
     await act(async () => {
-      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="doi-ten-bang-1"]') as HTMLButtonElement).click()
     })
 
     let o!: HTMLInputElement
@@ -1705,7 +1779,7 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
       o.focus()
     })
 
-    expect(o.value.length).toBeGreaterThan(0)
+    expect(o.value).toBe('Suy tim EF giảm')
     expect(o.selectionStart).toBe(0)
     expect(o.selectionEnd).toBe(o.value.length)
   })

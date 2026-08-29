@@ -19,6 +19,11 @@ const XAC_NHAN_XOA_MS = 5000
 // Ngưỡng coi một thẻ là "vừa tạo" (dùng .card-plop thay vì .card-settle êm) — xem §3.2/§3.3 spec.
 const VUA_TAO_NGUONG_MS = 3000
 
+// Tên gán cho bảng mới tạo. Trước đây chuỗi này viết cứng ở `taoBangMoi`, còn ô đổi tên thì so
+// bằng mắt người đọc mã — hai chỗ phải khớp nhau mới đúng, và không gì bắt chúng khớp. Nay ô đổi
+// tên dùng chính hằng số này để quyết định hiện RỖNG hay hiện tên thật (xem `TheBang`).
+const TEN_MAC_DINH = 'Bảng chưa đặt tên'
+
 // Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi đánh dấu
 // xoá mềm (daXoaLuc) chạy, để animation kịp chạy hết trước khi thẻ biến mất khỏi lưới. PHẢI khớp
 // đúng thời lượng animation CSS (0.4s, tăng từ 0.2s cũ — debug 2026-08-26, "xoá quá nhanh, có như
@@ -223,7 +228,14 @@ function TheBang({
   onThemTag: (tag: string) => void
   onXoaTag: (tag: string) => void
 }) {
-  const [tenNhap, setTenNhap] = useState(bang.ten)
+  // Bảng còn mang tên MẶC ĐỊNH thì ô nhập để rỗng (tên mặc định lùi về làm placeholder) — xem chú
+  // thích dài ở chính ô nhập bên dưới.
+  const tenBanDau = (ten: string) => (ten === TEN_MAC_DINH ? '' : ten)
+  const [tenNhap, setTenNhap] = useState(() => tenBanDau(bang.ten))
+  // Ô rỗng KHÔNG được lưu thành tên rỗng: bấm "+" rồi đổi ý (chạm ra ngoài, Enter luôn) là luồng có
+  // thật, và một thẻ không nhãn thì không cách nào phân biệt trong lưới — đúng lý do tên mặc định
+  // tồn tại. Rỗng hoặc chỉ toàn khoảng trắng đều lùi về tên mặc định.
+  const tenCanLuu = () => tenNhap.trim() || TEN_MAC_DINH
   const [tagNhap, setTagNhap] = useState('')
   const nutRef = useRef<HTMLButtonElement>(null)
   // Nút "⋯" — giữ ref để TRẢ FOCUS về đây khi đóng menu/panel bằng Escape (bàn phím/trình đọc màn
@@ -282,7 +294,9 @@ function TheBang({
   // lỡ tay blur ra ngoài thì `onLuuTen(tenNhap)` ÂM THẦM ghi đè tên bảng bằng bản nháp cũ — mất
   // dữ liệu thật, không chỉ hiển thị sai. Đồng bộ lại mỗi khi `dangSuaTen` chuyển sang true.
   useEffect(() => {
-    if (dangSuaTen) setTenNhap(bang.ten)
+    if (dangSuaTen) setTenNhap(tenBanDau(bang.ten))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `tenBanDau` là hàm thuần dựng lại mỗi
+    // lượt render; đưa nó vào deps sẽ chạy effect mỗi render và xoá sạch bản nháp đang gõ dở.
   }, [dangSuaTen, bang.ten])
 
   // Quản lý tiêu điểm cho sheet "⋯" và panel chuyên khoa/tag — cả hai là <div> thường, không có
@@ -493,19 +507,26 @@ function TheBang({
           // aria-label TĨNH, không dựa vào `value` — nếu không, người dùng đọc màn hình xoá trắng ô
           // để gõ lại sẽ mất tên truy cập giữa chừng (critique lượt 3, 2026-08-24).
           aria-label="Đổi tên bảng"
-          // CHỌN SẴN toàn bộ khi ô nhận focus. Không phải tiện nghi: luồng phổ biến nhất là bấm "+"
-          // rồi gõ tên ngay, mà `autoFocus` đặt con trỏ ở CUỐI chuỗi — ký tự đầu tiên nối vào tên
-          // mặc định, ra "Bảng chưa đặt tênSuy tim cấp", rồi `onBlur` lưu thẳng (critique
-          // 2026-08-29, P1, tái hiện được trên trang thật). Đúng mục đích tự mở ô này là để ĐẶT tên
-          // trước khi vẽ, nên phép chọn-sẵn khôi phục đúng ý định đó. Đặt ở `onFocus` chứ không ở
-          // một effect: nó phủ cả lượt focus do `autoFocus` sinh ra lẫn lượt người dùng tự bấm vào ô.
+          // Tên mặc định là PLACEHOLDER, ô để rỗng — không phải giá trị thật trong ô.
+          //
+          // Luồng phổ biến nhất là bấm "+" rồi gõ tên ngay. Bản vá trước dùng `onFocus` → `select()`
+          // để ký tự đầu tiên ghi đè tên mặc định thay vì nối vào đuôi nó. Cách đó đủ trên máy có
+          // chuột nhưng KHÔNG cứu được iPhone, và lý do đáng ghi lại: Safari không mở bàn phím cho
+          // một `focus()` do script gọi (xem HANDOFF 1.1), nên người dùng BUỘC phải chạm vào ô mới
+          // gõ được — chính cú chạm đó đặt lại caret và huỷ vùng vừa chọn. Vùng chọn không sống nổi
+          // tới lúc phím đầu tiên được gõ, nên tên vẫn ra `"Bảng chưa đặt tênSốc nhiễm khuẩn"`
+          // (chủ dự án báo trên máy thật 2026-08-29).
+          //
+          // Ô rỗng bỏ hẳn chỗ dựa vào vùng chọn: gõ ở bất kỳ vị trí caret nào cũng ra đúng thứ
+          // người dùng gõ. `select()` vẫn giữ cho luồng đổi tên một bảng ĐÃ có tên thật.
+          placeholder={TEN_MAC_DINH}
           onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => setTenNhap(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') onLuuTen(tenNhap)
+            if (e.key === 'Enter') onLuuTen(tenCanLuu())
             if (e.key === 'Escape') onLuuTen(bang.ten)
           }}
-          onBlur={() => onLuuTen(tenNhap)}
+          onBlur={() => onLuuTen(tenCanLuu())}
           className="mind-focus-ring"
           // `input:focus{outline:none}` (index.css, reset toàn app) + Tailwind preflight đưa border
           // về 0 cộng lại xoá sạch MỌI tín hiệu đây là ô nhập — .mind-focus-ring chỉ bù lại lúc
@@ -1126,7 +1147,7 @@ export function DanhSachBang({
     const luc = Date.now()
     const meta: BangMeta = {
       id: taoIdBang(),
-      ten: 'Bảng chưa đặt tên',
+      ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,
       chuyenKhoa: SPECIALTIES[0].id,
