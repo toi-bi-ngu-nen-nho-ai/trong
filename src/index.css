@@ -1487,10 +1487,28 @@ select {
   animation-delay: calc(min(var(--i, 0), 8) * 28ms);
 }
 
+/* Badge "✓ Trong khoảng" (InfusionCalculator) bung một nhịp lúc mới xuất hiện — CỐ Ý không dùng lại
+   .pulse-scale hay .dose-press: hai class đó đã mang nghĩa "vừa được BẤM CHỌN" / "tay vừa chạm"
+   (lõm xuống rồi bật lại), tức phản ứng với hành động của người dùng. Badge này ngược lại: HỆ THỐNG
+   tự xác nhận "liều vừa tính nằm trong ngưỡng an toàn". Mượn hoạt ảnh của "vừa bấm" cho một xác
+   nhận không do bấm sẽ xoá đúng sự phân biệt mà nhịp này sinh ra để tạo. .flash-ok cũng không hợp:
+   nó mờ dần rồi biến mất sau 1.8s (đúng cho dải toast tạm), còn badge này ở lại chừng nào liều còn
+   "ok". Nảy từ nhỏ lên rồi đứng yên ở scale 1, 240ms, không lặp. */
+@keyframes badgePopIn {
+  0%   { opacity: 0; transform: scale(0.6); }
+  65%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.badge-pop-in {
+  animation: badgePopIn 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pop-value,
   .flash-ok,
-  .rise-in {
+  .rise-in,
+  .badge-pop-in {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transform: none !important;

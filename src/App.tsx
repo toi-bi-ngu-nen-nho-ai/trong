@@ -10353,9 +10353,29 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               {resultDisplay}
             </span>
             <span className={T.body} style={{ color: C.textSoft }}>{mode === "doseToRate" ? "mL/giờ" : unitId}</span>
-            {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai */}
+            {/* Xác nhận tích cực: liều nằm đúng khoảng thì nói ra, không chỉ im lặng khi không sai.
+                Màu XANH LÁ, KHÔNG phải C.accent: `--c-accent` trỏ thẳng vào `--c-primary`, tức
+                badge này đang đọc bằng đúng màu thương hiệu — trong khi con số liều ngay bên trái
+                nó đã cố ý bỏ màu đó vì DESIGN.md ("thứ ồn nhất trên màn liều luôn là tín hiệu nguy
+                hiểm, không bao giờ là thương hiệu", xem chú thích `ok:` của SEVERITY_STYLE,
+                lib/doseSafety.ts). Bỏ sót đúng badge nằm cạnh con số đó là một chỗ lệch nội bộ.
+                "Xanh lá = xác nhận an toàn" đã là quy ước dùng lại nhiều nơi trong app.
+
+                `--c-green-deep` chứ KHÔNG phải `--c-green`: đo trên nền thật của badge
+                (`--c-primary-soft`, khối kết quả bao quanh — không phải nền thẻ trắng),
+                `--c-green` chỉ cho 4,34:1 ở bản sáng, DƯỚI sàn AA 4,5:1 cho chữ 12px thường;
+                `--c-green-deep` cho 7,89:1 sáng / 12,4:1 tối. Cùng bẫy "đo tương phản trên nền
+                không phải nền thật" đã ghi ở HANDOFF mục 39.3 — và `--c-green-deep` vốn đã là
+                token CHỮ xanh của hệ (xem hai chỗ dùng khác trong file này), còn `--c-green` là
+                token nền/viền/icon.
+                `badge-pop-in` (index.css) chỉ chạy MỘT LẦN lúc span này được mount — span chỉ tồn
+                tại khi severity === "ok" nên đổi số liều trong lúc vẫn "ok" không remount, hoạt ảnh
+                không lặp lại theo từng phím gõ. */}
             {severity === "ok" && result != null && check != null && (
-              <span className={`${T.meta} ml-auto flex items-center gap-1 flex-none`} style={{ color: C.accent }}>
+              <span
+                className={`${T.meta} ml-auto flex items-center gap-1 flex-none badge-pop-in`}
+                style={{ color: "var(--c-green-deep)" }}
+              >
                 <span className="scale-75">{icons.check()}</span>
                 Trong khoảng
               </span>
@@ -11124,7 +11144,9 @@ const TAB_REORDER_HINT_KEY = "drtrong:tabReorderHintSeen"
 // này sau một khoảng nghỉ thật sự.
 const TAB_ORDER_REFRESH_MS = 15 * 60 * 1000
 
-function DungThuocScreen({
+// Xuất ra để ca kiểm dựng thẳng màn này (cùng lý do đã xuất SearchScreen) — DosingContext.Provider
+// nằm BÊN TRONG component nên không cần bọc thêm gì ở phía ca kiểm.
+export function DungThuocScreen({
   customAntibiotics,
   diseases,
   customInfusions,
@@ -11280,6 +11302,22 @@ function DungThuocScreen({
     activeTabRef.current?.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // MỘT đường "chọn tab" cho cả chạm lẫn bàn phím (Trái/Phải, xem onKeyDown của hàng tab). Trước
+  // đây thân hàm này nằm thẳng trong onClick — thêm nhánh bàn phím bên cạnh nó sẽ rất dễ chỉ gọi
+  // setTab và bỏ quên hai việc còn lại, dựng lại đúng lỗi mà /impeccable critique 2026-08-18 đã vá
+  // cho đường chạm (tab mới thừa hưởng vị trí cuộn của tab cũ nên mở ra ở giữa danh sách).
+  const chonTab = useCallback(
+    (id: MixingTab) => {
+      recordTabUse(id)
+      setTab(id)
+      // Đổi tab đổi luôn nội dung bên dưới (danh sách thuốc khác hẳn) nhưng vùng cuộn dùng CHUNG cho
+      // mọi tab (xem scrollRef bên dưới) — không reset thì tab mới thừa hưởng vị trí cuộn của tab
+      // cũ, có thể rơi thẳng vào giữa danh sách, qua luôn cả khung bệnh nhân.
+      scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+    },
+    [setTab],
+  )
 
   // Tìm xuyên tab: một thuốc (vd adrenaline) có thể nằm ở nhiều nhóm — ô tìm riêng của từng tab
   // không thấy được. Mở bằng nút kính lúp trên tiêu đề, không chiếm hàng riêng.
@@ -11634,21 +11672,33 @@ function DungThuocScreen({
           style={{ scrollbarWidth: "none" }}
           role="tablist"
           aria-label="Nhóm thuốc"
+          // Trái/Phải, không phải Lên/Xuống: hàng này cuộn NGANG, phím phải khớp hướng đi thật của
+          // mắt và của thanh cuộn. DỪNG ở hai đầu thay vì chạy vòng — hai dải mờ ở mép hàng là tín
+          // hiệu "còn cuộn được theo hướng này"; nhảy vòng về đầu kia làm chính tín hiệu đó nói dối.
+          // Đi qua `chonTab` như đường chạm, không gọi thẳng setTab (xem chú thích ở chonTab).
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
+            const i = orderedTabs.findIndex((t) => t.id === tab)
+            if (i === -1) return
+            const j = e.key === "ArrowRight" ? Math.min(i + 1, orderedTabs.length - 1) : Math.max(i - 1, 0)
+            if (j === i) return
+            e.preventDefault()
+            chonTab(orderedTabs[j].id)
+            // Nút đích luôn có sẵn trong DOM (mọi tab render đồng thời, chỉ đổi style/aria-selected)
+            // nên focus được ngay, không phải đợi lượt render kế.
+            document.getElementById(`mixing-tab-${orderedTabs[j].id}`)?.focus()
+          }}
         >
           {orderedTabs.map((t) => (
             <button
               key={t.id}
               id={`mixing-tab-${t.id}`}
               ref={tab === t.id ? activeTabRef : null}
-              onClick={() => {
-                recordTabUse(t.id)
-                setTab(t.id)
-                // Đổi tab đổi luôn nội dung bên dưới (danh sách thuốc khác hẳn) nhưng vùng cuộn
-                // dùng CHUNG cho mọi tab (xem scrollRef bên dưới) — không reset thì tab mới thừa
-                // hưởng vị trí cuộn của tab cũ, có thể rơi thẳng vào giữa danh sách, qua luôn cả
-                // khung bệnh nhân (/impeccable critique 2026-08-18).
-                scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
-              }}
+              onClick={() => chonTab(t.id)}
+              // Roving tabindex (ARIA APG): chỉ tab đang chọn nằm trong thứ tự Tab của trình duyệt,
+              // các tab khác chỉ tới được bằng Trái/Phải — Tab-key không phải lướt qua cả 10 nút mới
+              // ra khỏi hàng.
+              tabIndex={tab === t.id ? 0 : -1}
               // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
               // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
               className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}

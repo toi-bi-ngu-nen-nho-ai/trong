@@ -3916,3 +3916,141 @@ Sau: **đúng một worktree (`main`), đúng một nhánh (`main`)**, `.claude/
 `worktree-board-gallery`, `worktree-critique-dungthuocscreen-fixes`, `worktree-p0b-gfx-model`,
 `worktree-p1a-nhung-edgeless`. Xoá nhánh từ xa là thao tác **hướng ra ngoài**, không nằm trong uỷ
 quyền push sẵn có (AGENTS.md chỉ uỷ quyền push `origin main`), nên không tự làm.
+
+---
+
+## 41. ĐỐI CHIẾU TỪNG MỤC NHÁNH LƯU 2026-08-15 — 3 ĐÃ THAY THẾ, 2 PORT, 4 BÁC
+
+Mục 40.5 để lại một khoản mở: 9 commit vá critique DungThuocScreen 2026-08-15 nằm trong tag
+`luu/critique-dungthuocscreen-2026-08-15`, **chưa ai đối chiếu từng mục**. Lượt này đối chiếu xong
+cả 9 khoản của diff (`71ff410..luu/critique-dungthuocscreen-2026-08-15`, +88 `App.tsx` / +23
+`index.css`). Kết luận: **không có việc nào BỊ MẤT**, nhưng có hai khoản thật sự chưa ai làm.
+
+| # | Khoản | Kết luận |
+|---|---|---|
+| 1 | `SourceLine` thêm `py-1` khi `bare` | **BÁC** — dương tính giả, xem 41.3 |
+| 2 | `PATIENT_RESET_CONFIRM_MS = 10s` | **ĐÃ THAY THẾ, tốt hơn** — `main` có `CONFIRM_PATIENT_RESET_MS` = **20s**, khớp đúng `undoWindow` 20 giây hiện hành (nhánh cũ khớp với con số 10s của thời đó) |
+| 3 | Sửa comment `disc-body` lạc hậu (`grid-template-rows` → `max-height`) | **ĐÃ SỬA** trên `main` từ lâu, kèm cả đoạn giải thích vì sao `0fr→1fr` không dùng được |
+| 4 | `DrugWarnings` thêm `py-1` | **BÁC** — cùng lý do #1 |
+| 5 | `NUM_DOSE` cho 4 chỗ trong `AntibioticDoseCard` | **ĐÃ THAY THẾ, tốt hơn** — `main` dùng `highlightDoseNumbers()` (`lib/ui.ts`) bọc mono riêng **các cụm số** trong câu thay vì monospace hoá cả câu; chú thích của chính hàm đó nêu đích danh `tier.dose`/`autoUsage.text` |
+| 6 | `drug.preparation` thêm `py-1` (2 chỗ) | **BÁC** — cùng lý do #1 |
+| 7 | `opacity-90` cho khối chip khi chưa chọn (2 màn) | **BÁC** — xem 41.4 |
+| 8 | Badge "Trong khoảng" → xanh lá + `badge-pop-in` | **PORT** (có sửa màu, xem 41.2) |
+| 9 | Roving tabindex + Trái/Phải cho hàng tab | **PORT** (xem 41.1) |
+
+**Bài học lặp lại lần thứ hai trong repo này:** một nhánh "chưa gộp" không đồng nghĩa với "việc bị
+mất". 3/9 khoản đã được `main` giải bằng cách **tốt hơn** trong 14 ngày sau đó, 4/9 là phát hiện
+sai ngay từ đầu. Chỉ 2/9 là nợ thật. Đối chiếu từng mục rẻ hơn nhiều so với gộp mù hay bỏ mù.
+
+### 41.1 Roving tabindex + Trái/Phải — và một hàm `chonTab` để không sinh hai đường đi
+
+Hàng 10 tab khai đủ `role="tablist"`/`role="tab"`/`aria-selected` nhưng không có điều hướng bàn
+phím: người dùng bàn phím phải bấm Tab qua đủ 10 nút mới ra khỏi hàng, và không có cách nào đi
+trong hàng. Nay có `tabIndex={tab === t.id ? 0 : -1}` + `onKeyDown` Trái/Phải trên `tablist`,
+**dừng ở hai đầu** (không chạy vòng: hai dải mờ ở mép hàng là tín hiệu "còn cuộn được theo hướng
+này", nhảy vòng làm chính tín hiệu đó nói dối).
+
+**Khác bản 2026-08-15 ở hai điểm, cả hai đều quan trọng:**
+
+1. Bản cũ điều hướng trên `MIXING_TABS` (thứ tự **khai báo**). `main` từ đó đã đổi sang
+   `orderedTabs` (thứ tự **hiển thị** theo tần suất dùng, `lib/tabUsage.ts`) — chép nguyên bản cũ
+   sẽ cho Phải nhảy sang một tab **không đứng cạnh** tab đang chọn trên màn.
+2. Bản cũ gọi thẳng `setTab` + `focus`. Nhưng `onClick` của nút tab làm **ba** việc: `recordTabUse`,
+   `setTab`, và reset vị trí cuộn của vùng nội dung dùng CHUNG cho mọi tab. Một nhánh bàn phím chỉ
+   gọi `setTab` sẽ dựng lại đúng lỗi mà critique 2026-08-18 đã vá cho đường chạm (tab mới thừa
+   hưởng vị trí cuộn của tab cũ, mở ra ở giữa danh sách). Nay cả hai đường đi qua **một** hàm
+   `chonTab`, và có ca kiểm canh riêng việc đó.
+
+`DungThuocScreen` được `export` để ca kiểm dựng thẳng — theo đúng tiền lệ `SearchScreen`;
+`DosingContext.Provider` nằm bên trong component nên không phải bọc gì thêm.
+
+> **Ca kiểm bắt được một thứ không ai nhắm tới.** `document.activeElement` sau `.focus()` hoá ra là
+> nút **"Tôi đã hiểu"** của `DisclaimerGate` — tấm phủ đó bẫy focus và đặt `inert` lên toàn bộ nội
+> dung phía sau khi chưa xác nhận. Đúng thiết kế, và là bằng chứng bẫy focus thật sự chạy. Ca kiểm
+> nay đặt sẵn dấu đã-xác-nhận để đứng ở màn hình bình thường.
+
+### 41.2 Badge "Trong khoảng" — port, nhưng MÀU của bản 2026-08-15 KHÔNG ĐẠT AA
+
+Lý do gốc còn nguyên giá trị: `--c-accent` trỏ thẳng vào `--c-primary`, tức badge đang đọc bằng
+đúng **màu thương hiệu**, trong khi con số liều nằm ngay bên trái nó đã cố ý bỏ màu đó theo
+DESIGN.md ("thứ ồn nhất trên màn liều luôn là tín hiệu nguy hiểm, không bao giờ là thương hiệu" —
+`SEVERITY_STYLE.ok.text = var(--c-text)`, `lib/doseSafety.ts`). Bỏ sót đúng cái badge cạnh con số
+đó là một chỗ lệch nội bộ.
+
+**Nhưng `--c-green` mà bản cũ đề xuất thì trượt sàn.** Đo trên trình duyệt thật, trên **nền thật**
+của badge (`--c-primary-soft` — khối kết quả bao quanh, KHÔNG phải nền thẻ trắng):
+
+| Màu | Bản sáng | Bản tối |
+|---|---|---|
+| `--c-green` (bản cũ đề xuất) | **4,34:1 — TRƯỢT** sàn AA 4,5:1 (chữ 12px thường) | 9,06:1 |
+| `--c-green-deep` (đã dùng) | **7,89:1** | **11,24:1** |
+| `--c-accent` (màu cũ, vi phạm luật màu) | 8,48:1 | — |
+
+`--c-green-deep` cũng đúng vai trò hơn: nó vốn đã là token **CHỮ** xanh của hệ (2 chỗ dùng khác
+trong `App.tsx`), còn `--c-green` là token nền/viền/icon.
+
+> **Lần thứ ba cùng một bẫy** (mục 39.3, bộ nhớ dự án, nay là đây): một con số tương phản chỉ có
+> nghĩa kèm theo NỀN nó được đo trên. Bản vá 2026-08-15 chưa từng được đo trên nền thật của nó.
+
+`badge-pop-in` (240ms, `cubic-bezier(.34,1.56,.64,1)`, `both`) port nguyên, có nối vào khối
+`prefers-reduced-motion` và có ca kiểm canh đúng chỗ đó — nơi dễ quên nhất khi thêm hoạt ảnh mới.
+
+### 41.3 Ba khoản `py-1` — DƯƠNG TÍNH GIẢ, và một phép đo suýt xác nhận nhầm chúng
+
+Ba khoản #1/#4/#6 đều dựa trên cùng một câu trong bản 2026-08-15: *"đo được padding dọc 0px"*, kết
+luận dòng đầu trong `Disclosure` "chạm thẳng vào nút gấp/mở". Đo lại trên trình duyệt thật:
+
+```
+padding của <p> dòng đầu        : 0px  ← đúng như bản cũ nói
+margin-top của .disc-body[open] : 10px ← bản cũ không đo cái này
+khoảng cách THẬT đáy chữ nhãn → đỉnh chữ dòng đầu : 13,6px
+```
+
+Khoảng thở có sẵn 13,6px, do `margin-top` của `.disc-body` tạo ra chứ không phải padding của `<p>`.
+Thêm `py-1` chỉ nới lên ~17,6px — một chỉnh thẩm mỹ, không phải vá lỗi. Bác cả ba.
+
+> **BẪY ĐO SUÝT XÁC NHẬN NHẦM — ghi lại vì rất dễ lặp.** Lượt đo ĐẦU cho ra `marginTop: 0px` và
+> khoảng cách `3,6px`, tức là **suýt xác nhận** bản vá cũ là đúng. Nguyên nhân: đo chỉ 500ms sau
+> khi bấm mở, trong khi `.disc-body` có `transition: max-height .28s, margin-top .22s` — phép đo
+> rơi vào GIỮA CHỪNG hoạt ảnh, `margin-top` khi đó thật sự đang là 0. Chờ tới 1200ms thì ra
+> 10px/13,6px. **Luật: đo hình học trên phần tử có transition thì phải chờ quá thời lượng
+> transition dài nhất của nó, và in kèm giá trị đang chuyển động ra để tự soi.**
+
+### 41.4 `opacity-90` — bác, có lý do
+
+Ba lý do, không phải một:
+
+1. **Vấn đề gốc đã được giải bằng cách mạnh hơn.** Critique 2026-08-15 muốn giảm cạnh tranh chú ý
+   giữa lưới chip A-Z và khối "Đang dùng cho bệnh nhân". `main` nay **gấp cả danh sách lại, chỉ còn
+   ĐÚNG chip đang chọn** khi đã chọn hoạt chất — giảm nhiễu triệt để, không phải làm mờ 10%.
+2. **`opacity` trên container hạ tương phản của mọi chữ bên trong.** Đo được: chip chưa chọn từ
+   8,24:1 xuống **6,82:1**. Vẫn trên sàn AA, nhưng là trả một khoản có thật để đổi lấy hiệu ứng.
+3. **Ngược hướng.** Bản cũ làm mờ khối chip đúng lúc **chưa chọn gì** — tức đúng lúc lưới chip là
+   hành động chính của màn. Làm mờ thứ người dùng cần bấm nhất là sai chiều ưu tiên.
+
+### 41.5 Kiểm chứng và cổng
+
+Đo trên trình duyệt thật (375×812), gồm cả **chuỗi vào-ra**: đi bằng phím sang tab 4 → rời sang
+Trang chủ → quay lại (giữ đúng tab 4, đúng một `tabIndex=0`) → sang Mindmap → Trang chủ → quay lại
+(vẫn đúng tab 4, "Loạn nhịp"). Không rò rỉ trạng thái, console sạch. Dữ liệu thử đã xoá khỏi
+`localStorage`, dev server đã tắt trước khi chạy suite.
+
+Ba cổng, đọc **mã thoát thật** và mở log ra đọc (luật mục 40.1):
+
+```
+tsc --noEmit        : mã thoát 0, log RỖNG
+vitest run          : mã thoát 0, Test Files 53/53, Tests 456/456
+kiem:vendor         : mã thoát 0, 2.782 file, lệch 0
+```
+
+456 = 448 (mục 40.3) + 8 ca mới; 53 = 51 + 2 file mới. Phép cộng khớp — không có file nào âm thầm
+không nạp được (luật ba-con-số của mục 40.3).
+
+### CÒN NỢ SAU LƯỢT NÀY
+
+1. **Bàn phím ảo iOS** (mục 37) — CÒN MỞ.
+2. **Nghiệm thu 5 khoản critique mục 39.3 + 2 khoản port ở trên** — CÒN MỞ, cần chủ dự án nhìn trên
+   iPhone thật.
+3. ~~**8 nhánh từ xa trên `origin`** (mục 40.5)~~ — **ĐÃ ĐÓNG**: `git fetch --prune` cho thấy
+   `origin` nay chỉ còn `main`. Không còn gì để quyết.
+4. ~~**Đối chiếu nhánh lưu 2026-08-15**~~ — **ĐÃ ĐÓNG** bởi chính mục này.
