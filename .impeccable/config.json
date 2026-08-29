@@ -138,6 +138,12 @@
         "value": "#5f628a",
         "createdAt": "2026-08-29T09:02:16.188Z",
         "reason": "false positive: gia tri du phong cua --c-text-placeholder, token DA CO o src/index.css:210 (ban toi 386/473), duoc them co chu dich o commit 733450f kem so do tuong phan 4,98:1 sang / 5,33:1 toi; DESIGN.md frontmatter khong liet ke du ho --c-text*"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px')",
+        "createdAt": "2026-08-29T12:47:11.651Z",
+        "reason": "false positive: matches a Vitest assertion string (expect(bo).toBe('2px')); 2px is the documented paper-card radius in DESIGN.md"
       }
     ]
   }

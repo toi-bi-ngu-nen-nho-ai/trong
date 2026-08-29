@@ -1451,11 +1451,10 @@ export function DanhSachBang({
               type="button"
               data-testid="tao-bang"
               onClick={taoBangMoi}
-              // .mind-o-tao-bang (index.css): mặt giấy + dấu "+" mảnh, màu đọc từ --c-accent-2
-              // (magenta riêng của Mindmap, xem DESIGN.md "The One Other Place Rule") nên tự đổi
-              // theo sáng/tối. Trước đây nền/viền viết nội tuyến ở ĐÂY và ở ô "+" trong lưới — hai
-              // bản chép tay phải nhớ sửa song song.
-              className="mind-focus-ring mind-o-tao-bang"
+              // .mind-o-tao-bang + .mind-o-moi (index.css): viền ĐỨT nét ngắn + nền phớt --c-accent-2
+              // nhạt, dấu "+" magenta (DESIGN.md "The One Other Place Rule") — tự đổi sáng/tối.
+              // .mind-o-moi CHỈ trên ô "+", không trên nút "Xoá bộ lọc" cũng mượn .mind-o-tao-bang.
+              className="mind-focus-ring mind-o-tao-bang mind-o-moi"
               style={{ width: 104, height: 78, fontSize: 28 }}
               aria-label="Tạo bảng mới"
             >
@@ -1485,9 +1484,9 @@ export function DanhSachBang({
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
-            // Cùng .mind-o-tao-bang với ô "+" ở trạng thái rỗng phía trên — một nguồn sự thật cho
-            // viền/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
-            className="mind-focus-ring mind-o-tao-bang"
+            // Cùng .mind-o-tao-bang + .mind-o-moi với ô "+" ở trạng thái rỗng phía trên — một nguồn
+            // sự thật cho viền đứt/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
+            className="mind-focus-ring mind-o-tao-bang mind-o-moi"
             style={{ aspectRatio: '4 / 3', fontSize: 24 }}
             aria-label="Tạo bảng mới"
           >

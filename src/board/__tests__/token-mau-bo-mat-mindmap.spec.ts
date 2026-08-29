@@ -52,11 +52,13 @@ describe('màu chữ mờ ô tìm kiếm (P2 critique 2026-08-29)', () => {
   })
 })
 
-describe('ô "+" tạo bảng là MỘT TỜ GIẤY (P3 critique 2026-08-29)', () => {
-  // Màn này có đúng hai loại bo góc: giấy `.mind-note-card` bo 2px và hệ thống chung bo 14px
-  // (`--radius`, DESIGN.md). Ô tạo bảng từng bo 8px — không khớp cái nào — và là phần tử duy nhất
-  // trong lưới không phải "giấy": một khung đứt nét kiểu vùng-thả-file đứng cạnh những tờ giấy kem
-  // có bóng đổ và góc cong. Trong ẩn dụ bàn giấy, "tờ mới" phải trông như tờ giấy chưa viết.
+describe('ô "+" tạo bảng — viền đứt nét, nền phớt nhạt (chủ dự án 2026-08-30, đảo P3 2026-08-29)', () => {
+  // Lịch sử: P3 (2026-08-29) đổi ô "+" từ viền ĐỨT sang viền LIỀN với lý do "nét đứt = vùng-thả-file".
+  // Chủ dự án đảo lại 2026-08-30: nét đứt + nền nhạt "dễ chịu hơn", và nét đứt ở ĐÂY đọc đúng nghĩa
+  // "thêm mới" (quy ước Drive/Notion/Figma) chứ không phải drop-zone. Ghi rõ: đây là SỞ THÍCH có thể
+  // sửa, KHÔNG bất di bất dịch — ca kiểm này canh "đừng vô tình hồi quy", không phải "cấm đổi".
+  // Bo góc: màn này có đúng hai loại — giấy `.mind-note-card` bo 2px, hệ thống chung bo 14px
+  // (`--radius`, DESIGN.md). Ô "+" giữ 2px (khớp họ giấy), CHỈ đổi kiểu viền + nền qua `.mind-o-moi`.
   it('bo góc 2px như .mind-note-card, không phải 8px lạc loài', () => {
     const than = thanQuyTac('.mind-o-tao-bang')
     const bo = /border-radius:\s*([^;]+);/.exec(than)?.[1].trim()
@@ -64,10 +66,14 @@ describe('ô "+" tạo bảng là MỘT TỜ GIẤY (P3 critique 2026-08-29)', (
     expect(thanQuyTac('.mind-note-card')).toContain('border-radius: 2px')
   })
 
-  it('mặt là giấy (--c-note), không còn khung đứt nét kiểu vùng-thả-file', () => {
-    const than = thanQuyTac('.mind-o-tao-bang')
-    expect(than).toContain('--c-note')
-    expect(than).not.toContain('dashed')
+  it('ô "+" (.mind-o-moi) là viền ĐỨT nét + nền phớt --c-accent-2, không mượn mặt giấy --c-note', () => {
+    // Lấy đúng luật modifier — KHÔNG phải `.mind-o-tao-bang` gốc (gốc vẫn viền liền, dùng cho nút
+    // "Xoá bộ lọc" cũng mượn class đó).
+    const than = thanQuyTac('.mind-o-tao-bang.mind-o-moi')
+    expect(than).toContain('dashed')
+    // Nền là lớp phớt accent-2 tự đổi sáng/tối, không phải mặt giấy kem --c-note của thẻ thật.
+    expect(than).toMatch(/background:\s*rgba\(var\(--c-accent-2-rgb/)
+    expect(than).not.toContain('--c-note')
   })
 
   it('bóng đổ đi qua --c-shadow, không phải một literal chỉ đúng ở bản sáng', () => {

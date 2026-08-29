@@ -939,6 +939,22 @@ html.theme-shift * {
   color: var(--c-accent-2, #b8196f);
 }
 
+/* Ô "+" tạo bảng MỚI — CHỈ ô này, KHÔNG áp cho nút "Xoá bộ lọc" cũng mượn .mind-o-tao-bang
+   (nút reset khác hẳn hành động "tạo mới"). Viền ĐỨT nét ngắn + nền phớt nhạt.
+   Đảo lại quyết định P3 (2026-08-29) từng đổi sang viền liền: chủ dự án thấy nét đứt + nền nhạt
+   "dễ chịu hơn" (2026-08-30). Đây là SỞ THÍCH có lý do, chủ dự án nói rõ KHÔNG bất di bất dịch —
+   đừng để một lượt critique sau tự "sửa" ngược lại. Lý do đứng được: nét đứt là quy ước "thêm mới"
+   quen thuộc (Drive/Notion/Figma), ở đây đọc đúng nghĩa "tạo bảng", không phải "thả file vào đây".
+   1px → nét ~3px, nhiều nét ngắn đều trên chu vi. Nền là lớp phớt --c-accent-2 alpha 0.05 (tự đổi
+   sáng/tối, cùng cách các token *-rgb khác trong file), nhạt hơn HẲN mặt giấy kem --c-note của thẻ
+   bảng thật nên ô "+" lùi về sau, không tranh chú ý. Giữ nguyên từ .mind-o-tao-bang: bo 2px,
+   box-shadow qua --c-shadow, dấu "+" màu --c-accent-2. */
+.mind-o-tao-bang.mind-o-moi {
+  border-style: dashed;
+  border-color: rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.5);
+  background: rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.05);
+}
+
 /* Lưới thẻ Board Gallery (DanhSachBang.tsx: cả lưới thật lẫn LuoiChoTai giữ chỗ lúc tải dùng chung
    lớp này, để bộ khung không nhảy cỡ khi dữ liệu thật thay thế). Cột dùng 1fr (không phải minmax cố
    định như trước) nên thẻ DÃN theo bề ngang khung chứa thay vì đứng yên ở cỡ tối đa 140px — phản hồi
