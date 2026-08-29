@@ -312,6 +312,18 @@ export default defineConfig(({ mode }) => {
       // công khai của 'vitest/config' (đã import ở đầu file) — dùng trực tiếp rồi spread thêm
       // thư mục vendor, để mặc định luôn đi theo đúng bản vitest đang cài.
       exclude: [...defaultExclude, 'src/vendor/**'],
+      // Hạn giờ cho MỘT ca kiểm / MỘT hook. Mặc định của vitest là 5000ms — quá sát với hạn giờ
+      // chờ chuẩn của dự án (HAN_GIO_CHO_MS = 8000ms, src/__tests__/helpers/cho-den-khi.ts), và
+      // thứ tự hai con số này QUAN TRỌNG: hạn chờ phải hết TRƯỚC hạn test. Khi có hồi quy thật,
+      // lượt chờ hết giờ trước sẽ ném ra đúng câu `expect` đã hỏng (đọc là biết sai ở đâu); còn
+      // nếu cả test hết giờ trước thì vitest chỉ báo "test timed out", không nói được vì sao.
+      // 20000 cho khoảng đệm 12 giây trên hạn chờ — đủ rộng cho những ca có NHIỀU lượt chờ nối
+      // tiếp nhau (edgeless-board-mount.spec.ts có tới 8 lượt trong cùng một file) mà vẫn không
+      // biến một ca treo thật thành một lượt chờ nửa phút.
+      // Vì sao KHÔNG đặt luôn hạn chờ mặc định ở đây: vitest không có tuỳ chọn toàn cục cho
+      // `vi.waitFor` — đó chính là lý do `choDom()` trong helper nói trên tồn tại.
+      testTimeout: 20000,
+      hookTimeout: 20000,
     },
   }
 })

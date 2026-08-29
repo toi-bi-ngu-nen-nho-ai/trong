@@ -8,27 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../lib/idb'
 import { SPECIALTIES } from '../data/specialties'
 import { SearchScreen } from '../App'
+import { choDenKhi } from './helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-
-// Chờ qua NHIỀU lượt act() rời nhau thay vì một act() bọc ngoài vi.waitFor — cùng lý do đã ghi kỹ
-// trong src/board/__tests__/DanhSachBang.spec.ts: act() chỉ flush hàng đợi cập nhật SAU KHI callback
-// của chính nó resolve, nên poll BÊN TRONG một act() duy nhất sẽ treo vô hạn khi điều kiện chờ phụ
-// thuộc chính cú flush đó (ở đây là `loading`/`items` của useIdbCollection sau khi idbGetAll xong).
-async function choDenKhi(dieuKien: () => void, timeoutMs = 3000, buocMs = 50) {
-  const hetHan = Date.now() + timeoutMs
-  for (;;) {
-    try {
-      dieuKien()
-      return
-    } catch (loi) {
-      if (Date.now() >= hetHan) throw loi
-    }
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, buocMs))
-    })
-  }
-}
 
 // happy-dom: gán thẳng `.value` KHÔNG đi qua setter React đã vá (_valueTracker) nên onChange im
 // lặng không bắn, ô tìm kiếm đứng yên ở trạng thái rỗng. Phải gọi setter GỐC của

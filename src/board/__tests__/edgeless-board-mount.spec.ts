@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDB_STORES, idbGetAll, idbPut } from '../../lib/idb'
 import * as boardMeta from '../boardMeta'
 import { EdgelessBoard } from '../EdgelessBoard'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 // React 19 yêu cầu cờ này để `act()` không cảnh báo; vitest không tự đặt.
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -86,7 +87,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     // báo "not wrapped in act(...)" và div loading vẫn còn nằm trước div gắn Lit, khiến phép kiểm
     // `:scope > div` bên dưới chọn nhầm div loading (không có editor-host) thay vì div hostRef.
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('drt-edgeless-root')).not.toBeNull()
       })
     })
@@ -146,7 +147,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     expect(container.textContent).toContain('Đang mở bảng…')
 
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -160,7 +161,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -184,7 +185,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -252,7 +253,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'bang-chup-anh' }))
     })
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -285,7 +286,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'bang-co-sua' }))
     })
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -330,7 +331,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'bang-trich-chu' }))
     })
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -362,7 +363,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.unmount()
     })
 
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
       expect(ds.find((b) => b.id === 'bang-trich-chu')?.noiDungTimKiem).toContain(
         'Ghi chú suy tim EF giảm',

@@ -14,9 +14,10 @@
 // "tay cầm hiện ra khi rê chuột" cần chủ dự án tự kiểm trên thiết bị thật — xem báo cáo cuối.
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { moBangVaTaoNoteCoNoiDung, moSlashMenuTuNote } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type BlockModelLike = { id: string; flavour: string }
 
@@ -59,17 +60,13 @@ describe('EdgelessBoard — kéo-thả đổi thứ tự khối trong Note (spec
 
     await act(async () => {
       slashMenuEl._handleClickItem(tableViewItem)
-      // Hạn giờ TƯỜNG MINH 5000ms thay cho mặc định 1000ms của `vi.waitFor`. KHÔNG phải nới lỏng
-      // khẳng định — `drt-database` vẫn PHẢI xuất hiện, chỉ là được chờ lâu hơn. Ca này chập chờn
-      // ĐO ĐƯỢC (2026-08-29): chạy riêng file thì xanh 1/1, chạy `vitest run` đầy đủ thì đỏ đúng
-      // dòng này (51 file spec tranh CPU, lượt dựng khối Database vượt 1000ms). Chọn 5000 để khớp
-      // `testTimeout` mặc định của vitest, nên waitFor không bao giờ là thứ hết giờ TRƯỚC cả test.
-      await vi.waitFor(
-        () => {
-          expect(document.querySelector('drt-database')).not.toBeNull()
-        },
-        { timeout: 5000 },
-      )
+      // ĐÂY là lượt chờ đã lộ ra cả lớp nợ hạn giờ (2026-08-29): chạy riêng file thì xanh 1/1,
+      // chạy `vitest run` đầy đủ thì đỏ đúng dòng này — 51 file spec tranh CPU nên lượt dựng khối
+      // Database vượt hạn ẩn 1000ms của `vi.waitFor`. Giờ dùng `choDom` (hạn chuẩn của dự án,
+      // src/__tests__/helpers/cho-den-khi.ts) nên không cần con số riêng ở đây nữa.
+      await choDom(() => {
+        expect(document.querySelector('drt-database')).not.toBeNull()
+      })
     })
 
     const eh = document.querySelector('editor-host') as unknown as { std: { store: StoreLike } }
@@ -91,12 +88,12 @@ describe('EdgelessBoard — kéo-thả đổi thứ tự khối trong Note (spec
       store.moveBlocks([databaseModel!], noteModel, paragraphModel!, true)
     })
 
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(noteModel.children.map((c) => c.flavour)).toEqual(['affine:database', 'affine:paragraph'])
     })
 
     // DOM phải phản ánh đúng thứ tự mới — spec: "xác nhận DOM đổi thứ tự đúng sau khi thả".
-    await vi.waitFor(() => {
+    await choDom(() => {
       // Con trực tiếp của <drt-edgeless-note> chỉ có MỘT <div> bọc (đo bằng tay lúc viết ca kiểm
       // này) — các khối thật (paragraph/database) nằm SÂU hơn bên trong, nên phải querySelectorAll
       // đệ quy theo [data-block-id] thay vì chỉ .children, thứ tự DOM vẫn đúng thứ tự tài liệu.

@@ -44,6 +44,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { applyTheme, watchResolvedTheme } from '../../lib/theme'
 import { moBangVaTaoNoteCoNoiDung, moSlashMenuTuNote } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 describe('EdgelessBoard — dark mode với Note có nội dung thật (spec §7 Step 6)', () => {
   let container: HTMLDivElement
@@ -73,7 +74,7 @@ describe('EdgelessBoard — dark mode với Note có nội dung thật (spec §7
     const tableViewItem = slashMenuEl.items.find((i) => i.name === 'Table View')!
     await act(async () => {
       slashMenuEl._handleClickItem(tableViewItem)
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('drt-database')).not.toBeNull()
       })
     })
@@ -93,7 +94,7 @@ describe('EdgelessBoard — dark mode với Note có nội dung thật (spec §7
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
     // Xem ghi chú đầu file: đây là mục từng chập chờn — đo lại sau 4 lượt chạy liên tiếp không tái
     // hiện được nữa, giữ khẳng định thật thay vì bỏ qua.
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(document.querySelector('.drt-edgeless-viewport')?.getAttribute('data-theme')).toBe('dark')
     })
     expect(consoleErrorSpy).not.toHaveBeenCalled()

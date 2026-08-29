@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { DanhSachBang, nghiengOnDinh } from '../DanhSachBang'
+import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -29,32 +30,6 @@ describe('nghiengOnDinh', () => {
     expect(Number.isFinite(nghiengOnDinh(''))).toBe(true)
   })
 })
-
-// `act(async () => { await vi.waitFor(() => { expect(...) }) })` — một act() DUY NHẤT bọc ngoài
-// toàn bộ vòng lặp poll — TREO VÔ THỜI HẠN khi điều kiện chờ phụ thuộc một cập nhật state React
-// (như `loading` của useIdbCollection sau khi idbGetAll xong). Lý do (đã xác nhận bằng cách đọc
-// thẳng exports.act trong node_modules/react/cjs/react.development.js, rồi đo thật với hạn tới
-// 8000ms vẫn treo): act() chỉ flush hàng đợi cập nhật đã lên lịch SAU KHI promise callback của
-// chính nó resolve — nhưng vi.waitFor bên trong không resolve cho tới khi điều kiện (chính là kết
-// quả của cú flush đó) trở thành true. Hai bên chờ nhau vô hạn. Mẫu này vẫn ổn ở nơi khác trong dự
-// án (edgeless-board-mount.spec.ts) vì ở đó điều kiện chờ là một node DOM do Lit gắn trực tiếp
-// (ngoài vòng render/commit của React) — không đụng tới act queue nên không kẹt.
-// Khắc phục: chờ qua NHIỀU lượt act() rời nhau, mỗi lượt chỉ ngủ một khoảng ngắn — mỗi lượt tự
-// flush xong TRƯỚC KHI lượt sau kiểm tra lại điều kiện.
-async function choDenKhi(dieuKien: () => void, timeoutMs = 3000, buocMs = 50) {
-  const hetHan = Date.now() + timeoutMs
-  for (;;) {
-    try {
-      dieuKien()
-      return
-    } catch (loi) {
-      if (Date.now() >= hetHan) throw loi
-    }
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, buocMs))
-    })
-  }
-}
 
 describe('DanhSachBang', () => {
   let container: HTMLDivElement
@@ -174,7 +149,7 @@ describe('DanhSachBang', () => {
     // Bền vững thật xuống IndexedDB xảy ra NỀN (useIdbCollection.add không await idbPut) — chờ
     // bằng vi.waitFor (đọc thẳng bằng idbGetAll, không đụng state React nên không kẹt như trên)
     // thay vì đọc ngay, tránh ca kiểm chập chờn theo tốc độ máy.
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
       expect(ds.map((b) => b.id)).toContain(idMoi)
     })
@@ -246,7 +221,7 @@ describe('DanhSachBang', () => {
 
     expect(container.textContent).toContain('Tên mới')
 
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string; ten: string }>(IDB_STORES.boards)
       expect(ds.find((b) => b.id === 'bang-1')?.ten).toBe('Tên mới')
     })
@@ -337,7 +312,7 @@ describe('DanhSachBang', () => {
       'data:image/jpeg;base64,anh-that',
     )
 
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string; ten: string; anhXemTruoc?: string }>(IDB_STORES.boards)
       const sau = ds.find((b) => b.id === 'bang-1')
       expect(sau?.ten).toBe('Tên mới')
@@ -379,11 +354,11 @@ describe('DanhSachBang', () => {
     // Sau khoảng chờ animation (400ms, xem XOA_TRE_MS), thẻ mới thật sự biến mất khỏi state + IndexedDB.
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
-    }, 3000)
+    })
 
     // Xoá MỀM: bản ghi vẫn còn thật trong IndexedDB (id vẫn có mặt), chỉ được đánh dấu daXoaLuc —
     // khác hành vi cũ (idbDelete thẳng, xoá vĩnh viễn không hoàn tác được).
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
       const bang1 = ds.find((b) => b.id === 'bang-1')
       expect(bang1).not.toBeUndefined()
@@ -430,7 +405,7 @@ describe('DanhSachBang', () => {
     })
     expect(container.textContent).toContain('Xoá rồi hoàn tác')
 
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
       expect(ds.find((b) => b.id === 'bang-1')?.daXoaLuc).toBeUndefined()
     })
@@ -537,7 +512,7 @@ describe('DanhSachBang', () => {
     })
     expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).toBeNull()
 
-    await vi.waitFor(async () => {
+    await choDom(async () => {
       const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
       expect(ds.find((b) => b.id === 'bang-mo-coi')?.daXoaLuc).toBeUndefined()
     })

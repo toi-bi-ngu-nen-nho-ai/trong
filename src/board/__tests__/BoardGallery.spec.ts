@@ -9,6 +9,7 @@ import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { capNhatAnhXemTruoc, type BangMeta } from '../boardMeta'
 import { BoardGallery } from '../BoardGallery'
+import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
 // Ghi thẳng qua idb.ts thay vì đi qua UI/hook — file này canh hành vi ĐIỀU HƯỚNG của BoardGallery
 // (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở DanhSachBang.spec.ts).
@@ -49,26 +50,6 @@ vi.mock('../index', () => ({
     return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')
   },
 }))
-
-// `act(async () => { await vi.waitFor(() => { expect(...) } ) })` — một act() DUY NHẤT bọc ngoài
-// toàn bộ vòng lặp poll — TREO VÔ THỜI HẠN khi điều kiện chờ phụ thuộc một cập nhật state React
-// (đã xác nhận đúng nguyên nhân này ở DanhSachBang.spec.ts, cùng gốc: `loading` của
-// useIdbCollection bên trong DanhSachBang mà BoardGallery render). Khắc phục giống hệt: chờ qua
-// NHIỀU lượt act() rời nhau, mỗi lượt tự flush xong TRƯỚC KHI lượt sau kiểm tra lại điều kiện.
-async function choDenKhi(dieuKien: () => void, timeoutMs = 3000, buocMs = 50) {
-  const hetHan = Date.now() + timeoutMs
-  for (;;) {
-    try {
-      dieuKien()
-      return
-    } catch (loi) {
-      if (Date.now() >= hetHan) throw loi
-    }
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, buocMs))
-    })
-  }
-}
 
 describe('BoardGallery', () => {
   let container: HTMLDivElement
@@ -238,7 +219,7 @@ describe('BoardGallery', () => {
     // Sau ~220ms, cờ tự tắt — class board-out biến mất khỏi lượt render kế tiếp.
     await choDenKhi(() => {
       expect(container.querySelector('.scroll-ios')?.className).not.toContain('board-out')
-    }, 3000)
+    })
   })
 
   it('truyền moBangYeuCau khớp một bảng đã lưu → mở thẳng bảng đó, không cần bấm qua danh sách', async () => {

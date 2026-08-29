@@ -11,10 +11,11 @@
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { EdgelessBoard } from '../EdgelessBoard'
 import { moBangVaTaoNoteCoNoiDung, taoNoteQuaCongCuThat } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 describe('EdgelessBoard — chữ mờ trong đoạn văn rỗng đã sang tiếng Việt', () => {
   let container: HTMLDivElement
@@ -38,7 +39,7 @@ describe('EdgelessBoard — chữ mờ trong đoạn văn rỗng đã sang tiế
       root.render(createElement(EdgelessBoard, { boardId: 'bang-placeholder' }))
     })
     await act(async () => {
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('editor-host')).not.toBeNull()
       })
     })
@@ -46,7 +47,7 @@ describe('EdgelessBoard — chữ mờ trong đoạn văn rỗng đã sang tiế
       await taoNoteQuaCongCuThat(container)
     })
 
-    const chuMo = await vi.waitFor(() => {
+    const chuMo = await choDom(() => {
       const el = document.querySelector('.drt-paragraph-placeholder')
       expect(el, 'không tìm thấy phần tử chữ mờ của đoạn văn rỗng').not.toBeNull()
       return el as HTMLElement

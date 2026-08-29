@@ -8,27 +8,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { BangMeta } from '../boardMeta'
 import { DanhSachBang } from '../DanhSachBang'
+import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-
-// Cùng lý do (và cùng cách vá) với choDenKhi trong DanhSachBang.spec.ts: một act() DUY NHẤT bọc cả
-// vòng poll sẽ TREO khi điều kiện chờ phụ thuộc một cập nhật state React — act() chỉ flush sau khi
-// callback của nó resolve, còn vòng poll không resolve tới khi cú flush đó xảy ra. Khắc phục: chờ
-// qua NHIỀU lượt act() rời nhau. Ở đây điều kiện nhận cả hàm async (cần đọc lại IndexedDB).
-async function choDenKhi(dieuKien: () => void | Promise<void>, timeoutMs = 4000, buocMs = 50) {
-  const hetHan = Date.now() + timeoutMs
-  for (;;) {
-    try {
-      await dieuKien()
-      return
-    } catch (loi) {
-      if (Date.now() >= hetHan) throw loi
-    }
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, buocMs))
-    })
-  }
-}
 
 const txGoc = IDBDatabase.prototype.transaction
 

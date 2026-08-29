@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from '@blocksuite/store'
 
 import { moBangVaTaoNoteCoNoiDung, moSlashMenuTuNote } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type DataSourceLike = {
   propertyAdd(pos: string, ops?: { type?: string; name?: string }): string | undefined
@@ -57,7 +58,7 @@ describe('EdgelessBoard — chọn "Table View" trong SlashMenu chèn khối Dat
 
     await act(async () => {
       slashMenuEl._handleClickItem(tableViewItem!)
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('drt-database')).not.toBeNull()
       })
     })

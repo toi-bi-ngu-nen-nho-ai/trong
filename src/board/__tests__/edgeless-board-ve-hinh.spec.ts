@@ -17,7 +17,7 @@
 import { act } from 'react'
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { EdgelessCRUDIdentifier } from '@blocksuite/affine-block-surface'
 import { ConnectorMode } from '@blocksuite/affine-model'
@@ -26,6 +26,7 @@ import { EdgelessBoard } from '../EdgelessBoard'
 import type { GfxLike } from './helpers/note-interaction'
 // Import vì tác dụng phụ: dựng proxy canvas + các polyfill happy-dom mà cây Lit cần lúc mount.
 import './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 // happy-dom chưa cài `document.elementsFromPoint()` — `std/src/event/dispatcher` gọi thẳng nó để
 // biết con trỏ đang nằm trên phần tử nào, nên MỌI sự kiện pointer ném TypeError trước khi tới công
@@ -99,7 +100,7 @@ async function moBang(root: Root, boardId: string) {
     root.render(createElement(EdgelessBoard, { boardId }))
   })
   await act(async () => {
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(document.querySelector('editor-host')).not.toBeNull()
     })
   })
@@ -140,7 +141,7 @@ describe('EdgelessBoard — công cụ vẽ tạo ra phần tử thật trên su
       keoTren(container.querySelector('canvas')!, 120, 120, 260, 220)
     })
 
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(surface.elementModels.length).toBe(truoc + 1)
     })
     expect(surface.elementModels.at(-1)?.type).toBe('shape')
@@ -159,7 +160,7 @@ describe('EdgelessBoard — công cụ vẽ tạo ra phần tử thật trên su
       keoTren(container.querySelector('canvas')!, 140, 140, 300, 240)
     })
 
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(surface.elementModels.length).toBe(truoc + 1)
     })
     expect(surface.elementModels.at(-1)?.type).toBe('brush')
@@ -212,7 +213,7 @@ describe('EdgelessBoard — Connector và Mindmap tạo ra phần tử thật tr
       keoTren(container.querySelector('canvas')!, 120, 120, 320, 260)
     })
 
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(surface.elementModels.length).toBe(truoc + 1)
     })
     expect(surface.elementModels.at(-1)?.type).toBe('connector')
@@ -238,7 +239,7 @@ describe('EdgelessBoard — Connector và Mindmap tạo ra phần tử thật tr
       })
     })
 
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(surface.elementModels.length).toBeGreaterThan(truoc)
     })
 

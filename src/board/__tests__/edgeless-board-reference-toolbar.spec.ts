@@ -30,11 +30,12 @@
 // console.error vô hại "Reference node must be initialized with..." (không chặn test, chỉ dọn log).
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ToolbarRegistryIdentifier } from '@blocksuite/affine-shared/services'
 
 import { moBangVaTaoNoteCoNoiDung } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type ToolbarMessage = {
   flavour: string
@@ -98,7 +99,7 @@ describe('EdgelessBoard — toolbar Card/Embed/Inline view của tham chiếu đ
       ;(ie as unknown as InlineEditorVoiThuocTinh).insertText({ index: 5, length: 0 }, ' ', {
         reference: { type: 'LinkedPage', pageId: 'lien-ket-gia' },
       })
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('drt-reference')).not.toBeNull()
       })
     })
@@ -109,10 +110,10 @@ describe('EdgelessBoard — toolbar Card/Embed/Inline view của tham chiếu đ
 
     await act(async () => {
       registry.message$.value = { flavour: 'affine:reference', element: refEl, setFloating: () => {} }
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('drt-toolbar-widget')).not.toBeNull()
       })
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(locNhanToolbar().length).toBeGreaterThan(0)
       })
     })

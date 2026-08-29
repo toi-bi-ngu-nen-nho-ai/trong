@@ -28,11 +28,12 @@
 // sẵn nào.
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { PresentTool } from '@blocksuite/affine-block-frame'
 
 import { moBangVaTaoNoteCoNoiDung } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type ToolLike = { setTool(ctor: unknown, options?: unknown): void }
 type GfxLike = { tool: ToolLike }
@@ -81,7 +82,7 @@ describe('EdgelessBoard — toolbar trình chiếu Enter/Exit Full Screen đã d
 
     await act(async () => {
       rootEl.gfx.tool.setTool(PresentTool, { mode: 'fit' })
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(locTatCaTooltip()).toContain('Vào toàn màn hình')
       })
     })
@@ -107,7 +108,7 @@ describe('EdgelessBoard — toolbar trình chiếu Enter/Exit Full Screen đã d
 
     await act(async () => {
       rootEl.gfx.tool.setTool(PresentTool, { mode: 'fit' })
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(locTatCaTooltip()).toContain('Thoát toàn màn hình')
       })
     })

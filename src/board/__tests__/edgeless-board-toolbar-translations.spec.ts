@@ -30,11 +30,12 @@
 // — nội dung vẫn render đúng, xem điều tra đầy đủ trước khi viết file này).
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { BlockSelection } from '@blocksuite/std'
 
 import { moBangVaTaoNoteCoNoiDung, moSlashMenuTuNote } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type BlockModelLike = { id: string; flavour: string }
 type StoreLike = {
@@ -98,10 +99,10 @@ describe('EdgelessBoard — toolbar khối ảnh + caption SlashMenu đã dịch
     await act(async () => {
       const sel = std.selection.create(BlockSelection, { blockId: imageId })
       std.selection.setGroup('note', [sel])
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(document.querySelector('drt-toolbar-widget')).not.toBeNull()
       })
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(locTooltipToolbar().length).toBeGreaterThan(0)
       })
     })

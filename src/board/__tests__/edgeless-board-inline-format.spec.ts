@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toggleBold } from '@blocksuite/affine-inline-preset'
 
 import { chonDoanVanTrucTiep, datConTroCuoiDoanVan, moBangVaTaoNoteCoNoiDung, type StdSelectionLike } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type StdLike = StdSelectionLike & {
   command: { chain(): { pipe(...args: unknown[]): { run(): unknown } } }
@@ -42,7 +43,7 @@ describe('EdgelessBoard — định dạng inline trong Note (spec §7 Step 4)',
 
     await act(async () => {
       chonDoanVanTrucTiep(eh.std, 0, 5)
-      await vi.waitFor(() => {
+      await choDom(() => {
         const textSel = eh.std.selection.value.find((s) => s.type === 'text')
         expect(textSel?.from?.index).toBe(0)
         expect(textSel?.from?.length).toBe(5)
@@ -56,7 +57,7 @@ describe('EdgelessBoard — định dạng inline trong Note (spec §7 Step 4)',
 
     await act(async () => {
       chonDoanVanTrucTiep(eh.std, 0, 5)
-      await vi.waitFor(() => {
+      await choDom(() => {
         const textSel = eh.std.selection.value.find((s) => s.type === 'text')
         expect(textSel?.from?.length).toBe(5)
       })
@@ -69,7 +70,7 @@ describe('EdgelessBoard — định dạng inline trong Note (spec §7 Step 4)',
     const yText = (
       ie as unknown as { yText: { toDelta(): Array<{ insert: string; attributes?: { bold?: boolean } }> } }
     ).yText
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(yText.toDelta()).toEqual([
         { insert: 'hello', attributes: { bold: true } },
         { insert: ' world' },
@@ -93,7 +94,7 @@ describe('EdgelessBoard — định dạng inline trong Note (spec §7 Step 4)',
           data: '@',
         }),
       )
-      await vi.waitFor(() => {
+      await choDom(() => {
         const vText = document.querySelector('[data-v-text]')
         expect(vText?.textContent).toBe('hello@')
       })

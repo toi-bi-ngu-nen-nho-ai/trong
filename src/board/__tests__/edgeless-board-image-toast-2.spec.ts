@@ -61,11 +61,12 @@
 // lại ngay sau) để trả `data:` URL thay vì `blob:`, né hẳn nhánh treo.
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { addSiblingImageBlocks } from '@blocksuite/affine-block-image'
 
 import { moBangVaTaoNoteCoNoiDung } from './helpers/note-interaction'
+import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 type BlockModelLike = { id: string; flavour: string }
 type StoreLike = {
@@ -127,7 +128,7 @@ describe('copyImageBlob/buildPropsWith — 2 toast tiếng Việt còn lại c�
     const sourceId = await std.store.blobSync.set(anhGia)
     std.store.addBlock('affine:image', { sourceId }, noteRef.id)
 
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(document.querySelector('drt-image')).not.toBeNull()
     })
 
@@ -135,7 +136,7 @@ describe('copyImageBlob/buildPropsWith — 2 toast tiếng Việt còn lại c�
 
     await act(async () => {
       imgEl.copy()
-      await vi.waitFor(() => {
+      await choDom(() => {
         expect(coToastVoiText('Đã sao chép ảnh vào bộ nhớ tạm')).toBe(true)
       })
     })
