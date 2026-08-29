@@ -18,10 +18,12 @@
 // AFFiNE là LF. `cmp` so byte-for-byte nên báo khác trên toàn bộ file dù nội dung giống hệt —
 // một cổng đỏ giả, và cổng đỏ vô nghĩa nguy hiểm hơn không có cổng nào.
 // So sau khi chuẩn hoá xuống dòng là phép kiểm đúng duy nhất.
+import { execFileSync } from 'node:child_process'
 import { readFileSync, existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 
+import { doiChieuCommitThuongNguon } from './doi-chieu-commit-thuong-nguon.mjs'
 import { BANG_BAM, VENDOR, dangDoiChieu, docCayVendor } from './tao-bam-vendor.mjs'
 import { tomTatDoiChieu } from './tom-tat-doi-chieu.mjs'
 
@@ -97,6 +99,40 @@ if (!existsSync(UPSTREAM)) {
   )
   process.exit(loiBam === 0 ? 0 : 1)
 }
+
+// Checkout thượng nguồn có còn ở đúng bản mà cây vendored được chép từ đó không?
+//
+// In cảnh báo NGAY ĐÂY, TRƯỚC danh sách `LỆCH:` bên dưới — không phải sau. Thứ tự là toàn bộ giá
+// trị của khối này: khi cổng đổ ra 84 dòng LỆCH, dòng người đọc thấy đầu tiên phải là dòng giải
+// thích, không phải dòng thứ 85. Đặt sau là gần như không ai đọc tới.
+//
+// `git rev-parse` chạy trong CHÍNH thư mục thượng nguồn. Mọi lỗi đều nuốt về null (không phải repo
+// git, không có git trên PATH, submodule lạ...) — `doiChieuCommitThuongNguon` khi đó im lặng, và
+// đó là hành vi đúng: cổng vẫn còn phép so nguyên văn của chính nó, một cảnh báo dựng trên dữ kiện
+// không có chỉ dạy người đọc bỏ qua cảnh báo.
+const commitPin = (() => {
+  try {
+    return readFileSync(path.resolve(import.meta.dirname, '..', 'commit-thuong-nguon.txt'), 'utf8').trim()
+  } catch {
+    return ''
+  }
+})()
+const commitThucTe = (() => {
+  try {
+    return execFileSync('git', ['-C', UPSTREAM, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch {
+    return null
+  }
+})()
+const { canhBao: canhBaoCommit } = doiChieuCommitThuongNguon({
+  pin: commitPin,
+  thucTe: commitThucTe,
+  duongDan: UPSTREAM,
+})
+if (canhBaoCommit) console.error(canhBaoCommit)
 
 // Một ngoại lệ ánh xạ, và nó có lý do: `src/vendor/blocksuite/LICENSE` KHÔNG đến từ
 // `AFFiNE/blocksuite/LICENSE` — thư mục con đó không có file LICENSE nào. Giấy phép của

@@ -57,58 +57,62 @@ bằng ô nhập thật rồi chuyển chữ vào canvas.
 tên dùng `autoFocus` rồi `select()` trong `onFocus`, đúng loại thao tác Safari iOS hạn chế. Nếu E ✗
 thì hai chuyện là một, và cách sửa cũng là một.
 
-### 1.2 Ba khoản Board Gallery chủ dự án báo sai trên iPhone — có mâu thuẫn chưa gỡ
+### 1.2 Ba khoản Board Gallery chủ dự án báo sai trên iPhone — ĐÃ XỬ LÝ, còn một mảnh chờ xác nhận
 
 Nghiệm thu 2026-08-29, ba mục **không đạt**: ô "+" không ở đầu lưới; ô "+" không trông như tờ giấy;
-tạo bảng mới rồi gõ tên thì bị nối đuôi (`"Bảng chưa đặt tênSốc nhiễm khuẩn"`).
+tạo bảng mới rồi gõ tên thì bị nối đuôi (`"Bảng chưa đặt tênSốc nhiễm khuẩn"`). Ba kết cục khác hẳn
+nhau:
 
-**Đã kiểm trên `main`, cả ba đều ĐÚNG ở đây** (đo trên trình duyệt thật 375×812): ô "+" ở
-`indexOf === 0` của lưới, `border-style: solid`, `border-radius: 2px`, nền `--c-note` (kem ở **cả
-hai** bản: `#fbfaf7` sáng / `#efece3` tối).
+**① Ô "+" không trông như tờ giấy → KHÔNG phải lỗi, là bất đồng thiết kế.** Chủ dự án muốn nét đứt +
+nền phớt nhạt, ngược với P3 của critique 2026-08-29 (vốn đổi sang viền liền vì "nét đứt = vùng thả
+file"). Đã đảo lại ở `0bef733` qua modifier `.mind-o-moi`; nét đứt **ở đây** đọc đúng nghĩa "thêm
+mới" (quy ước Drive/Notion/Figma). Ghi rõ trong ca kiểm: đây là **sở thích có thể sửa**, ca kiểm
+canh "đừng vô tình hồi quy", không phải "cấm đổi".
 
-> **MÂU THUẪN CHƯA GỠ — đây là chỗ phải bắt đầu ở lượt sau.** Mục "Xoá bộ lọc" mà chủ dự án tick
-> ĐẠT nằm **cùng commit, cùng file** với ô "+" ([`DanhSachBang.tsx`](../../src/board/DanhSachBang.tsx),
-> nút "Xoá bộ lọc" dòng ~1437, ô "+" dòng ~1484, cả hai vào ở `5654c07`). Không bản build nào có
-> cái này mà thiếu cái kia. Nên hoặc bản trên máy là bản cũ (và mục kia tick nhầm), hoặc bản mới
-> (và ô "+" hỏng vì lý do khác hẳn).
+**② Gõ tên bị nối đuôi → LỖI THẬT, đã vá, và cùng gốc với 1.1.** Bản vá cũ (`onFocus` → `select()`)
+đủ cho máy có chuột nhưng không cứu được iPhone: Safari không mở bàn phím cho `focus()` do script
+gọi, nên người dùng **buộc phải chạm vào ô** mới gõ được — chính cú chạm đó đặt lại caret và huỷ
+vùng vừa chọn. Vùng chọn không sống nổi tới phím đầu tiên. Cách vá bỏ hẳn chỗ dựa vào vùng chọn:
+ô để **RỖNG**, tên mặc định lùi về làm `placeholder`, ô rỗng khi rời đi thì lùi về tên mặc định
+(không lưu tên trắng). Có 2 ca kiểm, một trong đó mô phỏng đúng ca iOS (caret cuối, không vùng
+chọn). Đo lại trên trang thật: gõ ra đúng `"Sốc nhiễm khuẩn"`.
 
-Chủ dự án mở app qua **Safari như trang web**, tức đang xem **bản deploy Vercel**, không phải `main`.
-Đã loại trừ service worker: `public/sw.js` là stale-while-revalidate trên tên file có hash, bản mới
-không kẹt được.
+**③ Ô "+" không ở đầu lưới → không tái hiện được.** Đo trên trình duyệt thật 375×812:
+`indexOf === 0` trên lưới 9 ô. Nhiều khả năng chủ dự án xem bản deploy cũ (mở qua Safari như trang
+web, tức bản Vercel chứ không phải `main`). Đã loại trừ service worker — `public/sw.js` là
+stale-while-revalidate trên tên file có hash. **Chưa đóng**: cần một lượt nhìn lại trên máy thật
+sau khi bản mới deploy xong.
 
-**Phép phân biệt rẻ nhất, chưa ai chạy:** nhìn ô "+" trong lưới — viền **nét đứt** + nằm cuối = bản
-cũ, vấn đề ở deploy; viền **liền mảnh hồng** + ô đầu tiên = bản mới, đào tiếp phía code.
+> **Lưu ý cho lượt sau:** phép phân biệt "nét đứt = bản cũ" mà HANDOFF từng ghi nay **đã đảo** —
+> bản mới nhất chính là nét đứt (`0bef733`). Dùng dấu hiệu khác để nhận bản: ô "+" ở **đầu** lưới và
+> ô đổi tên **rỗng + placeholder** khi tạo bảng mới.
 
-**Một khoản trong nhóm này đã tìm ra và vá:** `.mind-o-tao-bang` viết cứng `box-shadow: rgba(0,0,0,.1)`
-thay vì token `--c-shadow` — mà token đó là `rgba(18,20,43,.1)` bản sáng nhưng **`rgba(0,0,0,.55)`
-bản tối**. Ở bản tối ô "+" gần như mất bóng, phẳng lì giữa những tờ giấy có bóng thật quanh nó, mất
-đúng thứ làm nó đọc thành "tờ giấy chưa viết". Đã vá + có ca kiểm (`2f84880`).
+Một khoản phụ tìm ra trong lúc điều tra và đã vá (`2f84880`): `.mind-o-tao-bang` viết cứng
+`box-shadow: rgba(0,0,0,.1)` thay vì token `--c-shadow` — token đó là `rgba(18,20,43,.1)` bản sáng
+nhưng **`rgba(0,0,0,.55)` bản tối**, nên ở bản tối ô "+" gần như mất bóng.
 
-### 1.3 Cổng `kiem:vendor` ĐANG ĐỎ — thượng nguồn nhảy, cây vendored không hỏng
+### 1.3 Cổng `kiem:vendor` — ĐÃ SỬA, và cổng nay tự nói ra khi tái diễn
 
-```
-Đã so 2782 file với thượng nguồn, lệch 84, không đối chiếu được 0
-```
+Trạng thái cũ: lệch 84 file. Nguyên nhân: thượng nguồn của cổng là **một checkout AFFiNE trên đĩa**
+(`BLOCKSUITE_UPSTREAM`, mặc định `C:/Users/LENOVO/Downloads/AFFiNE/blocksuite`), và checkout đó được
+clone mới lúc 2026-08-29 18:14 nên rơi vào `canary`, đi xa hơn bản cây vendored được pin. **Cây
+vendored không hỏng** — `dung:vendor` chạy lại mã thoát 0, `git status` sạch.
 
-**Không phải cây vendored hỏng.** `git status` sạch, `npm run dung:vendor` chạy lại mã thoát 0.
-Thượng nguồn của cổng là **một checkout AFFiNE trên đĩa**
-(`BLOCKSUITE_UPSTREAM`, mặc định `C:/Users/LENOVO/Downloads/AFFiNE/blocksuite`) — và checkout đó
-**vừa được clone mới lúc 2026-08-29 18:14, đang ở `canary`**, đã đi xa hơn bản mà cây vendored được
-pin.
+**Bản đã pin, tìm ra bằng phép đo:** `0c7b20dc18759dc63adbd93df491eba556baa6fe`
+("chore: migrate oxlint & oxfmt (#15464)"), tức ngay trước `6375f5ab8c` (2026-08-11, "bump
+typescript 7" — commit gỡ hai dòng `@ts-expect-error` khỏi `framework/global/src/utils/function.ts`
+mà cây vendored còn giữ). Checkout đã đưa về đó, cổng **xanh, lệch 0**.
 
-Bằng chứng dứt điểm: thượng nguồn có commit `6375f5ab8c` (2026-08-11, "bump typescript 7") gỡ hai
-dòng `@ts-expect-error` khỏi `framework/global/src/utils/function.ts`; cây vendored còn giữ chúng.
-84 file lệch = 70 `package.json` + 14 file mã nguồn.
+**Để không phải điều tra lại lần sau**, SHA nay được ghi vào `commit-thuong-nguon.txt` (gốc repo) và
+cổng đối chiếu nó với `git rev-parse HEAD` của checkout. Lệch thì in cảnh báo **TRƯỚC** danh sách
+`LỆCH:` — thứ tự là toàn bộ giá trị: khi cổng đổ ra 84 dòng, dòng đọc đầu tiên phải là dòng giải
+thích, không phải dòng thứ 85. Cảnh báo nêu cả hai SHA và một lệnh **dán-là-chạy** (đường dẫn thật,
+không placeholder). Logic nằm ở `scripts/doi-chieu-commit-thuong-nguon.mjs` — hàm thuần, 6 ca kiểm
+phủ cả tổ hợp "không đọc được SHA" (im lặng, không đoán).
 
-**Cần chủ dự án quyết, hai đường:**
-
-1. **Pin lại thượng nguồn** — `git checkout` checkout AFFiNE về đúng commit mà cây vendored được tạo
-   ra, hoặc trỏ `BLOCKSUITE_UPSTREAM` sang bản đó. Rẻ, khôi phục cổng ngay, không đụng mã.
-2. **Nâng cây vendored lên canary mới** — việc lớn: dựng lại toàn bộ, chạy lại pipeline dịch/đổi
-   tên, kiểm hồi quy cả màn Mindmap. Chỉ làm khi thật sự cần tính năng/bản vá mới của thượng nguồn.
-
-Cho tới khi quyết: cổng này đỏ **không chặn** `tsc`/`vitest` (cả hai xanh), nhưng đừng coi nó là
-nhiễu — nó đang làm đúng việc nó sinh ra để làm.
+**Còn để ngỏ, cần chủ dự án quyết:** có nâng cây vendored lên `canary` mới không. Đó là việc lớn
+(dựng lại toàn bộ, chạy lại pipeline đổi tên/dịch, kiểm hồi quy cả màn Mindmap) và chỉ nên làm khi
+thật sự cần một bản vá của thượng nguồn. Hiện tại pin ở bản cũ là lựa chọn đúng.
 
 ### 1.4 Còn lại, mức thấp
 
@@ -188,8 +192,8 @@ edit dở dang của phiên này trong cùng file.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | Cả `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **53 file / 457 ca** ở `2f84880` |
-| D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn — **đang đỏ, xem 1.3** |
+| Test | `npx vitest run` | **54 file / 468 ca** |
+| D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout thượng nguồn còn ở SHA trong `commit-thuong-nguon.txt` (xem 1.3) |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 
 `npm run dung:vendor` dựng lại `.vendor-build/` + `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`
