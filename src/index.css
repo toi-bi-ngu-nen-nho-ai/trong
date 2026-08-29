@@ -188,8 +188,10 @@
   /* Bóng đổ của tờ giấy. Ở bản sáng, bóng đen trên nền trắng là đủ để giấy "nổi" khỏi trang. Ở bản
      tối, nền app là #0b0c1c gần đen — bóng ĐEN trên nền đen thì VÔ HÌNH, nên thẻ mất hẳn cảm giác
      nằm trên mặt bàn, đúng triệu chứng "chưa có đổ bóng ở bản tối" (phản hồi chủ dự án 2026-08-28,
-     mục 5). Bản tối vì thế đậm bóng lên VÀ thêm một viền sáng mảnh quanh mép giấy: trên nền tối,
-     thứ tách một vật thể khỏi nền là ÁNH SÁNG viền, không phải bóng. */
+     mục 5; nhắc lại 2026-08-29: "qua chế độ dark lại không tương thích"). Trên nền tối thứ tách một
+     vật thể khỏi nền là ÁNH SÁNG viền chứ không phải bóng — nên bản tối để VIỀN SÁNG ẤM quanh mép
+     giấy gánh việc tách thẻ khỏi trang (lượt trước chỉ 0.07 alpha nên vẫn đọc thành thẻ dán phẳng),
+     hai lớp bóng đen chỉ còn nhiệm vụ tạo chân bóng nơi các thẻ chồng mép nhau. */
   --c-note-shadow:
     0 14px 22px -10px rgba(15, 15, 15, 0.38),
     0 4px 8px rgba(15, 15, 15, 0.14);
@@ -371,9 +373,10 @@
     --c-note-back: #f4f1e9;
     --c-note-back-shade: #c6c3ba;
     --c-note-shadow:
-      0 18px 28px -12px rgba(0, 0, 0, 0.8),
-      0 6px 14px rgba(0, 0, 0, 0.55),
-      0 0 0 1px rgba(255, 255, 255, 0.07);
+      0 18px 30px -10px rgba(0, 0, 0, 0.66),
+      0 6px 14px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 247, 237, 0.22),
+      0 0 0 4px rgba(255, 247, 237, 0.05);
     --c-page: #0b0c1c;
     --c-line-soft: #23264a;
     --c-line: #2e3260;
@@ -458,9 +461,10 @@
   --c-note-back: #f4f1e9;
   --c-note-back-shade: #c6c3ba;
   --c-note-shadow:
-    0 18px 28px -12px rgba(0, 0, 0, 0.8),
-    0 6px 14px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.07);
+    0 18px 30px -10px rgba(0, 0, 0, 0.66),
+    0 6px 14px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 247, 237, 0.22),
+    0 0 0 4px rgba(255, 247, 237, 0.05);
   --c-page: #0b0c1c;
   --c-line-soft: #23264a;
   --c-line: #2e3260;

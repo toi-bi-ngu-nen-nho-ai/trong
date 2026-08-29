@@ -1599,10 +1599,13 @@ export function DanhSachBang({
       <div
         role="alert"
         className="absolute flex items-start gap-2.5 px-4 py-3 rounded-2xl z-50"
+        // bottom: 10 (KHÔNG var(--above-nav)) — cùng lý do dải "Hoàn tác" ngay dưới: dải này
+        // position:absolute trong <main class="has-nav">, mà <main> đã dừng ở mép trên thanh nav.
+        // var(--above-nav) chỉ đúng cho thứ neo vào khung nhìn / #app-shell (dùng ở đây trừ nav 2 lần).
         style={{
           left: 12,
           right: 12,
-          bottom: 'var(--above-nav)',
+          bottom: 10,
           background: 'var(--c-danger-soft, #fef2f2)',
           border: '1px solid var(--c-danger-line, #fecaca)',
           color: 'var(--c-danger-deep, #991b1b)',
@@ -1680,13 +1683,18 @@ export function DanhSachBang({
           role="status"
           aria-live="polite"
           className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40 overflow-hidden"
-          // bottom ĐÃ cộng var(--nav-pad-bottom) (= env(safe-area-inset-bottom)) — dải nằm SÁT trên
-          // thanh nav thật kể cả iPhone có home-indicator, cùng công thức .mind-menu-bang đã dùng.
+          // bottom: 10 (KHÔNG var(--above-nav)) — dải này `position: absolute` bên trong
+          // <main class="has-nav"> (App.tsx), mà <main> đã kết thúc ĐÚNG ở mép trên thanh nav rồi
+          // (flex-1, thanh nav là flex-none ngay dưới). var(--above-nav) = nguyên chiều cao nav + 18px
+          // là công thức cho thứ neo vào KHUNG NHÌN / #app-shell (vd .mind-menu-bang position:fixed) —
+          // dùng ở đây thì TRỪ nav HAI LẦN, đo được dải nổi 56px trên nav (iPhone có home-indicator:
+          // ~103px), đúng triệu chứng "thanh thông báo xóa bị tràn lên giữa" (phản hồi thật
+          // 2026-08-29). 10px là khoảng hở thị giác tới mép nav, trong khoảng 5-10px chủ dự án yêu cầu.
           // Nền + chữ + nút đọc từ token --c-toast-* (index.css): trước đây nền là rgba(15,23,42,.94)
           // viết cứng (vi phạm "mọi màu là token") và nút "Hoàn tác" tô --c-accent-2 bản sáng chỉ đạt
           // 2,90:1 trên nền tối này — dưới AA (critique 2026-08-28 P1). --c-toast-action là sắc
           // magenta bản-tối, ~8,2:1 trên nền dải, vẫn thuộc "One Other Place Rule" của Mindmap.
-          style={{ left: 12, right: 12, bottom: 'var(--above-nav)', background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
+          style={{ left: 12, right: 12, bottom: 10, background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
         >
           <span className="flex-1 text-[12.5px] leading-snug" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>Đã xoá "{vuaXoa.ten}"</span>
           <button
