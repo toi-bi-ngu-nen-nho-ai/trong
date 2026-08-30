@@ -52,14 +52,6 @@ import { SPECIALTIES } from '../data/specialties'
 // 2,5s ở máy thật nhưng có thể ngắn hơn nhiều. Nhịp cũ 2800ms khiến nhiều lượt mở chỉ kịp thấy
 // một mẩu nét rồi lớp phủ đã tan. Nhịp mới chạy trọn cung vẽ→ăn mực→giữ→tan trong 1,8s.
 const CHU_KY_MS = 1800
-// Mỗi nét chiếm MỘT KHUNG GIỜ RIÊNG trong quãng vẽ, nối đuôi nhau — không phải cùng khởi động so
-// le rồi cùng khép lại ở VE_XONG. Bản chồng-lấn trước đó cho ra 4-5 mẩu nét dở dang rải rác khắp
-// hình ở đầu chu kỳ (đo 2026-08-30, chụp ở mốc 200ms): đọc thành "mấy vệt rời rạc" — đúng chế độ
-// hỏng của 4 vòng phản hồi trước, không ra MỘT cây bút đang đi. Tuần tự thì bút chỉ ở một chỗ tại
-// một thời điểm; đó mới là line-drawing.
-// GOI_LEN: nét kéo dài thêm sang khung giờ kế bấy nhiêu lần, để hai nét liên tiếp giao nhau một
-// chút cho liền mạch thay vì giật cục từng nét.
-const GOI_LEN = 1.35
 const VE_XONG = 0.52 // mọi nét cùng khép lại ở đây (936ms)
 const AN_MUC = 0.64 // icon đặc hiện xong (1152ms)
 const GIU_XONG = 0.86 // giữ nguyên hình tới đây (1548ms) rồi mờ đi
@@ -128,11 +120,20 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
     if (manh.length === 0) return
     boc.appendChild(lopNet)
 
-    // Chia thời gian theo ĐỘ DÀI nét, không phải theo SỐ nét — để bút chạy đều một tốc độ.
-    // Đo 2026-08-30 trên icon Tim mạch: chia đều 12 nét thì ở mốc 200ms đã có 2 nét xong và hình
-    // gần như đủ, vì `d` của bộ icon này là MỘT path khổng lồ mà subpath đầu ôm trọn đường bao còn
-    // 10 subpath sau chỉ là chi tiết li ti. Nét dài nhất phóng vèo trong 78ms rồi 860ms còn lại
-    // dành cho mấy chấm nhỏ — đọc thành "vẽ xong ngay rồi lấm tấm chấm", không phải một cây bút.
+    // MỘT NÉT DUY NHẤT — chủ dự án chốt 2026-08-30: "vẽ 1 nét line là hoàn thiện, không muốn có
+    // nét phụ họa theo sau". Trong lớp nét chỉ giữ lại subpath DÀI NHẤT (hình chủ đạo); mọi mảnh
+    // còn lại bị gỡ khỏi DOM ngay, không bao giờ được stroke. Bút đặt xuống một lần, đi một mạch,
+    // nhấc lên là xong — rồi khoảnh khắc ăn mực mới đưa icon ĐẦY ĐỦ (kể cả chi tiết trong) hiện lên.
+    //
+    // Vì sao nét DÀI NHẤT chứ không phải nét ĐẦU TIÊN: thứ tự subpath trong `d` là thứ tự tác giả
+    // vẽ, không đảm bảo mảnh đầu là hình chủ đạo. Đo cả 13 icon 2026-08-30: tỉ lệ nét dài nhất trải
+    // từ 28% (Dược lâm sàng) tới 100% (Huyết học, Cấp cứu), và ở mọi icon nó chính là hình chính.
+    //
+    // Hai bản trước đều vẽ HẾT mọi mảnh và đều hỏng theo cách riêng: chồng-lấn thì đầu chu kỳ ra
+    // 4-5 mẩu nét trôi rải rác (chế độ hỏng của 4 vòng phản hồi cũ); nối-đuôi-theo-độ-dài thì bút
+    // chạy đúng nhưng sau khi khép hình chính vẫn còn một chuỗi chấm/mẩu nhỏ lẽo đẽo — đúng thứ
+    // "nét phụ họa" bị bác.
+    //
     // getTotalLength() an toàn ở ĐÂY vì nhánh này chỉ chạy SAU guard thiếu-WAAPI (happy-dom không
     // cài hàm đó và cũng không có Element.animate nên đã return từ trước — đúng chỗ bản 2026-08-28
     // từng vỡ do gọi sớm hơn guard).
@@ -143,23 +144,15 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
         return 0
       }
     })
-    const tongDai = dai.reduce((a, b) => a + b, 0) || 1
-    let congDon = 0
-    const mocBatDau = dai.map((d) => {
-      const truoc = congDon
-      congDon += d
-      return truoc / tongDai
-    })
+    let iChinh = 0
+    for (let i = 1; i < dai.length; i++) if (dai[i] > dai[iChinh]) iChinh = i
+    for (let i = 0; i < manh.length; i++) if (i !== iChinh) manh[i].remove()
 
-    const anims = manh.map((p, i) => {
-      // Khung giờ của nét i tỉ lệ với độ dài của chính nó, nối đuôi nhau trong quãng 0→VE_XONG.
-      const batDau = mocBatDau[i] * VE_XONG
-      const ketThuc = Math.min(VE_XONG, batDau + (dai[i] / tongDai) * VE_XONG * GOI_LEN)
-      return p.animate(
+    const anims = [
+      manh[iChinh].animate(
         [
-          { strokeDashoffset: 1, offset: 0, easing: 'linear' },
-          { strokeDashoffset: 1, offset: batDau, easing: easeVe },
-          { strokeDashoffset: 0, offset: ketThuc, easing: 'linear' },
+          { strokeDashoffset: 1, offset: 0, easing: easeVe },
+          { strokeDashoffset: 0, offset: VE_XONG, easing: 'linear' },
           { strokeDashoffset: 0, opacity: 1, offset: AN_MUC - 0.06, easing: 'ease-out' },
           // Nét mờ đi ĐÚNG NHỊP mảng đặc hiện lên. Hai lớp CỐ Ý chồng nhau trong quãng giao thoa
           // ngắn này: nét nằm khít trên đường bao của mảng đặc nên mắt đọc thành "nét dày dần lên
@@ -168,8 +161,8 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
           { strokeDashoffset: 0, opacity: 0, offset: 1 },
         ],
         { duration: CHU_KY_MS, iterations: Infinity },
-      )
-    })
+      ),
+    ]
 
     // Icon THẬT: nằm im ở opacity 0 tới lúc nét khép lại, rồi "ăn mực" hiện ra nguyên bản.
     const animThat = iconThat.animate(
