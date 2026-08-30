@@ -21,39 +21,50 @@ có thể nó đã được thử và đã hỏng, kèm phép đo chứng minh.
 
 ## 1. ĐANG MỞ
 
-### 1.1 Bàn phím ảo iOS — CÓ KẾT QUẢ: thủ phạm là `contenteditable`, hướng sửa đã rõ, chưa cài
+### 1.1 Bàn phím ảo iOS — VIỆC CẦN LÀM: chủ dự án chạy bàn thử lượt 2 trên iPhone
 
-Chạm vào bảng vẽ trên iPhone không hiện bàn phím. Chẩn đoán 2026-08-18 (nhật ký mục 7) đổ cho cơ
-chế hoãn `focusTextModel()` qua `requestAnimationFrame`/`.then()` — **bàn thử lượt 2 bác bỏ điều
-này**.
+> **→ Mở trên iPhone thật:** https://claude.ai/code/artifact/d571d1fa-39fb-473e-b0cd-783b7685d72b
+> Cuộn lên phần các phép thử (phía TRÊN "Bảng luận giải"). Bấm chạy từng phép, xem bàn phím có
+> bật lên không, báo **G / E / F / H** mỗi phép ✓ hay ✗. **G TRƯỚC** — G ✗ thì dừng, chụp bảng
+> "Máy anh báo gì" ở cuối trang, mọi ✗ khác vô nghĩa.
+>
+> ⚠️ 2026-08-30: hai ảnh chủ dự án gửi đầu tiên là **"Bảng luận giải"** (phần *giải thích nếu*
+> mỗi tổ hợp ra thế nào thì nghĩa gì) + probe môi trường, **không phải kết quả thật**. Chưa có
+> phép nào được chạy. `visualViewport` CÓ trong probe chỉ nói API tồn tại — G mới là đối chứng
+> dương thật.
 
-**Bàn thử lượt 2 — chủ dự án chạy trên iPhone thật, Safari, 2026-08-30 (artifact
-`d571d1fa-39fb-473e-b0cd-783b7685d72b`):**
+Chạm vào bảng vẽ trên iPhone không hiện bàn phím. Gốc rễ đã xác định từ 2026-08-18 (nhật ký mục 7):
+mọi lệnh gọi `focusTextModel()` trong cây vendored đều bị hoãn qua `requestAnimationFrame`/`.then()`,
+mà Safari iOS chỉ mở bàn phím khi `.focus()` chạy **đồng bộ trong handler cử chỉ**. Đây là kiến trúc
+xuyên suốt thượng nguồn, không phải một dòng lệch vá được — nên đụng vào là đụng luật D11.
 
-| Phép | Biến số | Kết quả | Rút ra |
-|---|---|---|---|
-| **G** | chạm thẳng `<input>` hiện rõ, không script | ✓ | phép đo **KHÔNG mù** — `visualViewport` trên máy này bắt được bàn phím |
-| **E** | `<input>` hiện rõ, `focus()` script trong `touchend` | ✓ | Safari **không** cấm mở bàn phím bằng script trong handler cử chỉ |
-| **F** | `<input>` đẩy ngoài khung nhìn, `focus()` script | ✓ | việc **giấu** phần tử không phải thủ phạm |
-| **H** | `<input>` trong suốt **dưới ngón tay**, trong khung nhìn | ✓ | hình dạng app cần — và nó chạy |
+Hướng B (bọc ở tầng React, ô mồi `contenteditable` ẩn) đã cài, nghiệm thu trên iPhone: **không
+được**, đã gỡ sạch (nhật ký mục 37). Ba giả thuyết bị loại bằng phép đo, đừng thử lại.
 
-Bảng "Máy anh báo gì": `visualViewport` CÓ, cao khung nhìn/cửa sổ 796px, tỉ lệ 3×, 5 điểm chạm,
-Safari/iPhone, tab trình duyệt. (Screenshot chủ dự án gửi thấy rõ H ✓ + dòng verdict "thủ phạm là
-`contenteditable`, không phải cách giấu hay sự kiện nghe" — dòng đó chỉ hiện khi G✓ E✓ F✓.)
+**Trạng thái:** bàn thử lượt 1 (4 phép A/B/C/D) cho **cả bốn đều ✗** — nhưng KHÔNG kết luận được gì
+vì lượt 1 thiếu **đối chứng dương**: không phép nào chứng minh phép đo *có khả năng* bắt được bàn
+phím trên máy đó. "Cả bốn ✗" có hai cách đọc không phân biệt được — thật sự không mở được, hoặc
+phép đo mù. Cùng lớp lỗi với "18 ca kiểm xanh cho thứ không chạy trên máy thật" (mục 37).
 
-**Kết luận:** thủ phạm của lượt 1 (A/B/C/D — bốn phép đều `contenteditable` + đều giấu, đều ✗) là
-**`contenteditable`**. Không phải cơ chế hoãn qua `rAF`/`.then()`, không phải cách giấu. Trên một
-`<input>` thật, `focus()` do script gọi đồng bộ trong `touchend` **mở được** bàn phím iOS — kể cả
-khi ô ngoài khung nhìn (F) hoặc trong suốt dưới ngón tay (H). Trùng khớp: hướng B cũ (ô mồi
-`contenteditable` ẩn) đã nghiệm thu **không được** và gỡ sạch (nhật ký mục 37) — vì `contenteditable`.
-**Đừng thử lại `contenteditable` dưới bất kỳ hình thức nào.**
+Bàn thử lượt 2 thêm đối chứng dương **G** và tách ba biến chưa ai đụng: cả bốn phép lượt 1 đều dùng
+`contenteditable` **và** đều giấu phần tử — hai thứ dính nhau nên không biết cái nào có tội.
 
-**Hướng sửa — CHƯA CÀI, cần brainstorm + chủ dự án duyệt:** một `<input>`/`<textarea>` THẬT, trong
-suốt, đặt đúng điểm chạm dưới ngón tay khi người dùng chạm vào node text trên canvas; để chính cú
-chạm mở bàn phím (nếu cần `focus()` thì gọi **đồng bộ trong `touchend`**, phép E cho thấy được); gõ
-xong đồng bộ nội dung sang text model BlockSuite. Toàn bộ ở `src/board/` — không đụng cây vendored
-(D11 OK). Cùng nguyên tắc với bản vá ô đổi tên bảng (bỏ chỗ dựa `select()`, ô rỗng + `placeholder`,
-2026-08-29).
+| Phép | Biến số | Nếu ✗ nghĩa là |
+|---|---|---|
+| **G** | chạm thẳng `<input>` hiện rõ, không script | phép đo mù — mọi kết quả khác vô nghĩa, kể cả lượt 1 |
+| **E** | `<input>` hiện rõ, `focus()` script trong `touchend` | Safari cấm hẳn mở bàn phím bằng script |
+| **F** | `<input>` đẩy ngoài khung nhìn, `focus()` script | phần tử phải nằm trong khung nhìn mới focus được |
+| **H** | `<input>` trong suốt **dưới ngón tay**, trong khung nhìn | hình dạng app thật sự cần cũng không chạy |
+
+**Nếu G ✓ E ✓ F ✓** → thủ phạm lượt 1 là **`contenteditable`**, không phải cách giấu — cài lại bằng
+ô nhập thật rồi chuyển chữ vào canvas.
+**Nếu G ✓ E ✗** → Safari cấm hẳn `focus()` script; đường còn lại vẫn là ô nhập THẬT dưới ngón tay để
+chính cú chạm của người dùng mở bàn phím, không nhờ script.
+
+**Tiền lệ cùng gốc:** ô đổi tên bảng ("gõ tên bị nối đuôi" trên iOS, đã đóng 2026-08-29) vá bằng
+đúng nguyên tắc này — bỏ chỗ dựa `select()`, ô **RỖNG** + `placeholder`, vì cú chạm mở bàn phím của
+người dùng đặt lại caret và huỷ vùng chọn do script tạo. Dù E ✓ hay ✗, hướng cài lại bàn phím ảo
+đều là: một ô nhập THẬT dưới ngón tay, để chính cú chạm mở bàn phím.
 
 ### 1.2 Thẻ ghi chú không vào được PNG xuất ra
 
