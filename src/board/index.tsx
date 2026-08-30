@@ -31,6 +31,9 @@ import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 // không dựng lại (và không tháo/lắp lại) bảng vẽ đang chạy.
 type PropsBang = {
   boardId: string
+  // Chuyên khoa của bảng đang mở — chỉ để màn chờ vẽ đúng icon nét-đơn + màu nhận diện. Đi thẳng
+  // qua cả hai màn chờ nối tiếp: Suspense fallback (tải chunk) và "Đang mở bảng…" trong EdgelessBoard.
+  khoa?: string
   onReady?: () => void
 }
 const kho = new Map<number, ComponentType<PropsBang>>()
@@ -100,21 +103,19 @@ export class EdgelessBoard extends Component<PropsBang, State> {
     return (
       <Suspense
         fallback={
-          // Cùng VeChuyenKhoaDangTai (ba chấm nhảy so le) với màn "Đang mở bảng…" của
+          // Cùng VeChuyenKhoaDangTai (line-drawing icon chuyên khoa) với màn "Đang mở bảng…" của
           // EdgelessBoard.tsx NGAY SAU đây trong cùng một thao tác mở bảng — trước đây hai màn chờ
           // nối tiếp nhau đọc như hai UI khác nhau (chữ xám tĩnh → giọt mực có thương hiệu), đúng lúc
           // bước vào "phòng thư giãn" của app (critique 2026-08-26 P2, persona Casey: mạng bệnh viện
-          // chậm dễ đọc nhầm màn tĩnh là app treo).
-          <div
-            className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
-            style={{ color: 'var(--c-text-muted, #6b6e96)' }}
-          >
-            <VeChuyenKhoaDangTai />
-            <span>Đang tải bảng vẽ…</span>
+          // chậm dễ đọc nhầm màn tĩnh là app treo). Bản vẽ chạy vòng KHÔNG bao giờ đứng im nên không
+          // đọc nhầm là treo; dòng chữ giữ ở .sr-only.
+          <div className="h-full flex flex-col items-center justify-center" role="status" aria-live="polite">
+            <VeChuyenKhoaDangTai khoa={this.props.khoa} />
+            <span className="sr-only">Đang tải bảng vẽ…</span>
           </div>
         }
       >
-        <Bang boardId={this.props.boardId} onReady={this.props.onReady} />
+        <Bang boardId={this.props.boardId} khoa={this.props.khoa} onReady={this.props.onReady} />
       </Suspense>
     )
   }

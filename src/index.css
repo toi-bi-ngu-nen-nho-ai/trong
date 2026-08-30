@@ -1071,48 +1071,32 @@ html.theme-shift * {
   animation: emptyBreathe 2.4s ease-in-out infinite;
 }
 
-/* Màn chờ mở bảng — BA CHẤM nhảy lên xuống so le ("typing indicator" phổ thông). Trước đây chỗ này
-   là hiệu ứng tự vẽ icon chuyên khoa của bảng đang mở (4 vòng phản hồi: chữ xám → chấm tròn phập
-   phồng → tự vẽ nét trên silhouette → nét đơn + hạt đầu bút) — mọi bản đều đọc sai ("line sáng
-   light lên", không ra "đang vẽ"). Bỏ hẳn 2026-08-28 theo yêu cầu chủ dự án: chỉ cần "..." nhảy
-   theo trình tự như template thế giới.
-   Markup: <div class="mind-loading-dots"><i/><i/><i/></div> (VeChuyenKhoaDangTai.tsx). Ba chấm LUÔN
-   ăn currentColor (EdgelessBoard/index.tsx đặt --c-text-muted ở div bọc) — bản trước từng tô riêng
-   theo hue nhận diện bảng (luôn rơi vào họ hồng/tím), bỏ hẳn 2026-08-28 vì đọc như "màu hồng cố
-   định", không đổi thật theo dark/light (xem comment đầu VeChuyenKhoaDangTai.tsx). animation-delay
-   so le 0 / .16s / .32s cho hiệu ứng "sóng".
-   LẶP VÔ HẠN → reduced-motion xử lý ở khối @media chung phía dưới (cùng .empty-breathe...): tắt
-   nhún, ba chấm vẫn hiện mờ đều để biết "đang chờ". */
-.mind-loading-dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 16px;
+/* Màn chờ mở bảng — LINE-DRAWING trên CHÍNH icon chuyên khoa có sẵn. VeChuyenKhoaDangTai.tsx
+   render đúng `specialtyIcon(khoa)` (.mind-loading-that) rồi nhân bản nó thành một lớp nét
+   (.mind-loading-net) phủ khít lên trên: lớp nét phác dần đường viền, xong thì tan đi đúng lúc
+   icon đặc thật hiện lên ("ăn mực"), giữ một nhịp rồi vẽ lại. Màu = spec.color của khoa, đặt
+   inline ở .mind-loading-ve; hai lớp đều ăn currentColor.
+   TRẠNG THÁI NỀN ở đây = icon THẬT, đặc, tĩnh (opacity 1, không có lớp nét). Không JS/WAAPI hoặc
+   prefers-reduced-motion (guard trong .tsx — WAAPI không nghe @media CSS) → người dùng vẫn thấy
+   nguyên icon khoa. Mọi thứ còn lại do Web Animations API đặt lúc chạy. */
+.mind-loading-ve {
+  position: relative;
+  width: 72px;
+  height: 72px;
 }
-.mind-loading-dots i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: mindDotBounce 1.2s ease-in-out infinite;
+.mind-loading-that,
+.mind-loading-net {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
-.mind-loading-dots i:nth-child(2) {
-  animation-delay: 0.16s;
-}
-.mind-loading-dots i:nth-child(3) {
-  animation-delay: 0.32s;
-}
-@keyframes mindDotBounce {
-  0%,
-  70%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.45;
-  }
-  35% {
-    transform: translateY(-7px);
-    opacity: 1;
-  }
+/* Lớp nét chồng KHÍT lên icon thật — cùng viewBox nên hai hình trùng nhau tuyệt đối. overflow
+   visible để đầu nét tròn ở sát mép khung không bị cắt. */
+.mind-loading-net {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
 }
 
 /* LỚP C — nghiêng nhẹ theo vị trí con trỏ khi hover, chỉ bật với chuột thật (không giả trên cảm
@@ -1287,16 +1271,15 @@ html.theme-shift * {
   .card-settle,
   .card-plop,
   .card-slide-out,
-  .empty-breathe,
-  .mind-loading-dots i {
+  .empty-breathe {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transform: none !important;
   }
-  /* .mind-loading-dots i nằm trong danh sách trên: sau 1 "iteration" 0.01ms nó nằm ở keyframe
-     100% (translateY 0, opacity .45) và transform:none chặn mọi nhún — ba chấm hiện mờ đều,
-     tĩnh. Người dùng vẫn biết "đang chờ" mà không có chuyển động. */
+  /* Màn chờ line-drawing (.drt-stroke) KHÔNG có ở đây: nó chạy bằng Web Animations API, vốn không
+     chịu ảnh hưởng của @media này. Guard prefers-reduced-motion nằm trong VeChuyenKhoaDangTai.tsx
+     — bỏ qua WAAPI, để nguyên trạng thái nền CSS = icon khoa đã vẽ xong, tĩnh. */
 }
 
 /* Vòng focus khi điều hướng bằng bàn phím (Tab), áp cho màn "Dùng thuốc" (`.scr-dose`, gán ở gốc

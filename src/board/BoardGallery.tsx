@@ -270,7 +270,11 @@ export function BoardGallery({
             if (e.target === e.currentTarget) setDangPhongTo(false)
           }}
         >
-          <EdgelessBoard boardId={openBoardId} onReady={() => setDangChoCanvas(false)} />
+          <EdgelessBoard
+            boardId={openBoardId}
+            khoa={openOrigin?.chuyenKhoa}
+            onReady={() => setDangChoCanvas(false)}
+          />
           {/* Lớp phủ mặt thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho tới khi CẢ HAI đều
               xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ animation phóng to thẻ
               đã chạy hết (dangPhongTo) — thiếu điều kiện thứ hai, canvas tải nhanh sẽ lộ ra giữa

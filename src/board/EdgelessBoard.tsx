@@ -342,9 +342,14 @@ async function moBangThat(boardId: string, tuyChon?: {
 // luôn nút ... của đổi tên/chuyên khoa xuất file" ở màn vẽ).
 export function EdgelessBoard({
   boardId,
+  khoa,
   onReady,
 }: {
   boardId: string
+  // Chuyên khoa của bảng đang mở — chỉ để màn chờ (VeChuyenKhoaDangTai) vẽ đúng icon nét-đơn và
+  // lấy đúng màu nhận diện. undefined khi mở không qua một thẻ trong lưới (kết quả tìm kiếm toàn
+  // app) → màn chờ tự rơi về icon "trang giấy" trung tính.
+  khoa?: string
   // Báo cho BoardGallery.tsx biết canvas thật đã gắn xong (đúng lúc setDangMo(false) chạy) — dùng
   // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
   // thời lượng cố định không khớp tốc độ mạng/máy thật.
@@ -585,14 +590,17 @@ export function EdgelessBoard({
       )}
       {dangMo && !loi && (
         // Chữ xám tĩnh cũ (khoảng chờ ~5-7s không tín hiệu, critique 2026-08-25) → chấm tròn
-        // ink-bloom → 4 vòng hiệu ứng tự vẽ icon chuyên khoa (đều đọc sai) → nay BA CHẤM nhảy so
-        // le kiểu template phổ thông (VeChuyenKhoaDangTai), ăn currentColor của div bọc ngay dưới.
+        // ink-bloom → 4 vòng tự vẽ icon (đọc sai) → ba chấm nhảy → nay LINE-DRAWING: tự phác dần
+        // icon nét-đơn của khoa `khoa`, đơn sắc theo màu nhận diện khoa (VeChuyenKhoaDangTai).
+        // KHÔNG còn dòng chữ hiện trên màn — bản vẽ đang chạy là tín hiệu "đang chờ"; chữ giữ ở
+        // .sr-only cho trình đọc màn hình + ca kiểm edgeless-board-mount (đọc container.textContent).
         <div
-          className="h-full flex flex-col items-center justify-center gap-3 text-[13px]"
-          style={{ color: 'var(--c-text-muted, #6b6e96)' }}
+          className="h-full flex flex-col items-center justify-center"
+          role="status"
+          aria-live="polite"
         >
-          <VeChuyenKhoaDangTai />
-          <span>Đang mở bảng…</span>
+          <VeChuyenKhoaDangTai khoa={khoa} />
+          <span className="sr-only">Đang mở bảng…</span>
         </div>
       )}
       <div ref={hostRef} className="absolute inset-0" />
