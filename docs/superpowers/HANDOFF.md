@@ -55,6 +55,19 @@ Bàn thử lượt 2 thêm đối chứng dương **G** và tách ba biến chư
 | **E** | `<input>` hiện rõ, `focus()` script trong `touchend` | Safari cấm hẳn mở bàn phím bằng script |
 | **F** | `<input>` đẩy ngoài khung nhìn, `focus()` script | phần tử phải nằm trong khung nhìn mới focus được |
 | **H** | `<input>` trong suốt **dưới ngón tay**, trong khung nhìn | hình dạng app thật sự cần cũng không chạy |
+<<<<<<< Updated upstream
+
+**Nếu G ✓ E ✓ F ✓** → thủ phạm lượt 1 là **`contenteditable`**, không phải cách giấu — cài lại bằng
+ô nhập thật rồi chuyển chữ vào canvas.
+**Nếu G ✓ E ✗** → Safari cấm hẳn `focus()` script; đường còn lại vẫn là ô nhập THẬT dưới ngón tay để
+chính cú chạm của người dùng mở bàn phím, không nhờ script.
+
+**Tiền lệ cùng gốc:** ô đổi tên bảng ("gõ tên bị nối đuôi" trên iOS, đã đóng 2026-08-29) vá bằng
+đúng nguyên tắc này — bỏ chỗ dựa `select()`, ô **RỖNG** + `placeholder`, vì cú chạm mở bàn phím của
+người dùng đặt lại caret và huỷ vùng chọn do script tạo. Dù E ✓ hay ✗, hướng cài lại bàn phím ảo
+đều là: một ô nhập THẬT dưới ngón tay, để chính cú chạm mở bàn phím.
+=======
+>>>>>>> Stashed changes
 
 **Nếu G ✓ E ✓ F ✓** → thủ phạm lượt 1 là **`contenteditable`**, không phải cách giấu — cài lại bằng
 ô nhập thật rồi chuyển chữ vào canvas.
@@ -66,36 +79,61 @@ chính cú chạm của người dùng mở bàn phím, không nhờ script.
 người dùng đặt lại caret và huỷ vùng chọn do script tạo. Dù E ✓ hay ✗, hướng cài lại bàn phím ảo
 đều là: một ô nhập THẬT dưới ngón tay, để chính cú chạm mở bàn phím.
 
-### 1.2 Thẻ ghi chú không vào được PNG xuất ra
+### 1.2 Thẻ ghi chú không vào được PNG xuất ra — ĐÃ ĐÀO TỚI ĐÁY, chặn ở tầng kiến trúc
 
 `src/board/xuatAnhBang.ts` dựng ảnh từ tài liệu CRDT và **chỉ vẽ phần tử canvas** (nét vẽ, hình,
 đường nối, chữ, node mindmap). Khối edgeless (thẻ ghi chú, ảnh chèn) là DOM thật, muốn vào ảnh phải
-qua `html2canvas`.
+qua `html2canvas`. Ba lượt đào, tất cả 2026-08-30. **Đừng lặp lại** — mọi giả thuyết dễ nghĩ ra đều
+đã bị loại bằng phép đo.
 
-**Hai phát hiện, đã đo 2026-08-30 — đừng lặp lại việc đo:**
+**1. `ExportManager.edgelessToCanvas()` của cây vendored trả `undefined` 100% lượt gọi.** Nó mở đầu
+bằng `rootComponent.querySelector('.affine-block-children-container')` (sau đổi tên D16 là
+`.drt-block-children-container`) và `return` ngay nếu không thấy — mà root edgeless bản này KHÔNG
+BAO GIỜ dựng phần tử đó (`<drt-edgeless-root>` chỉ có `.edgeless-background`,
+`.drt-edgeless-surface-block-container`, `.edgeless-mount-point`, `.widgets-container`, kể cả khi
+đã có khối note). Phần tử đó chỉ dùng để đọc một màu nền. **Vá được** qua pipeline
+`scripts/doi-ten-vendor.mjs` (D11 cho phép sửa hành vi ở pipeline) — nhưng vá xong chỉ dẫn vào
+đúng đường html2canvas dưới đây, nên không giải quyết gì.
 
-1. **`ExportManager.edgelessToCanvas()` của cây vendored trả `undefined` 100% lượt gọi.** Nó mở đầu
-   bằng `rootComponent.querySelector('.affine-block-children-container')` (sau đổi tên D16 là
-   `.drt-block-children-container`) và `return` ngay nếu không thấy — mà root edgeless bản này
-   KHÔNG BAO GIỜ dựng phần tử đó (`<drt-edgeless-root>` chỉ có `.edgeless-background`,
-   `.drt-edgeless-surface-block-container`, `.edgeless-mount-point`, `.widgets-container`, kể cả
-   khi đã có khối note). Phần tử đó chỉ dùng để đọc một màu nền. **Vá được** qua pipeline
-   `scripts/doi-ten-vendor.mjs` (D11 cho phép sửa hành vi ở pipeline) — nhưng xem điểm 2.
+**2. Mỗi khối một lượt html2canvas: quá đắt.** Đo trên một thẻ ghi chú THẬT (tạo bằng thanh công cụ,
+400×92, dev build, máy để bàn): **7,9s → 6,9s → 4,6s** cho ba lượt liên tiếp, chạm đáy ~5 giây MỖI
+KHỐI. `foreignObjectRendering: true` không cứu (8,6s). Nguyên nhân: html2canvas nhân bản cả tài liệu
+kèm **~298 thẻ `<style>`** mà chunk bảng vẽ tiêm vào `<head>`, cho mỗi lượt gọi.
 
-2. **Vá xong cũng không dùng được, vì html2canvas quá chậm.** Đo trên một thẻ ghi chú THẬT (tạo
-   bằng thanh công cụ, 400×92, dev build, máy để bàn): **7,9s → 6,9s → 4,6s** cho ba lượt liên
-   tiếp — ấm dần rồi chạm đáy **~5 giây MỖI KHỐI**. `foreignObjectRendering: true` không cứu được
-   (8,6s). Nguyên nhân: html2canvas nhân bản cả tài liệu kèm **~298 thẻ `<style>`** mà chunk bảng
-   vẽ tiêm vào `<head>`, cho mỗi lượt gọi. Một sơ đồ 5 thẻ ≈ 25 giây cho một mục menu.
+**3. MỘT lượt html2canvas cho cả lớp khối: rẻ, nhưng không có gì để chụp.**
+Phần chi phí giải quyết xong hẳn: một lượt chụp phần tử viewport kèm `ignoreElements` cắt `<canvas>`
+và mọi cây widget/toolbar đo được **1272ms nguội, 387–568ms ấm** — rẻ hơn một bậc; và trên BẢNG ĐANG
+MỞ, ảnh chụp chứa đúng thẻ ghi chú kèm chữ, không dính widget.
+Nhưng đường xuất mở bảng NGẦM, và **trình soạn thảo ngầm không bao giờ render khối note**:
+`<drt-edgeless-note>` lên `block-active` nhưng `offsetWidth` vẫn **0 và `children.length` = 0** suốt
+cả 1,5 giây chờ — không phải chuyện thời gian. `.block-idle` mang `contain: size layout style`
+(framework/std/src/gfx/viewport-element.ts) nên khối chưa kích hoạt đo ra đúng 0×0 và html2canvas
+trên cây đó cho ảnh trống.
+**Đã loại bằng phép đo:** hộp chứa đặt ở `left:-20000px` (đưa vào trong khung nhìn, `opacity:0` —
+không đổi); chờ lâu hơn; pane trình duyệt bị ẩn (đưa ra trước — không đổi); `setViewportByBound`
+chưa chạy (đã chạy, khối nằm trong `viewportBounds` — vẫn idle).
 
-**Hai bẫy khi đo lại:** (a) khối tạo bằng `store.addBlock()` trần **không render**
-(`visibility:hidden`, rỗng) nên mọi số đo trên nó vô nghĩa — phải tạo thẻ bằng thanh công cụ thật;
-(b) edgeless **cull** khối ngoài khung nhìn, khối bị cull đo ra 0×0 và html2canvas trả canvas rỗng.
+**Ba ngõ cụt phụ, cũng đã đo:**
+- `.edgeless-mount-point` cao ĐÚNG 0px — khối là con định vị tuyệt đối thoát ra ngoài nó, không có
+  hộp chung nào bọc riêng lớp khối để chụp.
+- Không loại được `.edgeless-background` khỏi ảnh chụp: nó là TỔ TIÊN của lớp khối, loại nó thì ảnh
+  ra rỗng hoàn toàn (0,00% pixel đục). May là vô hại — html2canvas không dựng lưới chấm
+  (`radial-gradient`), vùng nền phẳng đúng một màu và bằng đúng `backgroundColor` mà lượt tô nền
+  hiện tại đang dùng (mẫu 300×200: đúng 1 màu). Không có đường ghép.
+- Khối tạo bằng `store.addBlock()` trần **không render** (`visibility:hidden`, rỗng) — mọi số đo
+  trên nó vô nghĩa, phải tạo thẻ bằng thanh công cụ thật.
+
+**Kết luận:** chặn KHÔNG nằm ở chi phí html2canvas (đã giải xong) mà ở chỗ một trình soạn thảo
+edgeless dựng ngầm không kích hoạt khối note. Muốn đóng hẳn phải đổi KIẾN TRÚC. Hai hướng còn lại,
+mỗi hướng một cái giá:
+1. Chụp lớp khối **lúc người dùng đang mở bảng** (nơi khối render thật — đã đo), lưu làm lớp phụ rồi
+   ghép vào lúc xuất. Giá: ảnh thẻ ghi chú có thể cũ hơn nét vẽ nếu sửa xong không mở lại bảng, và
+   tốn thêm chỗ lưu cho lớp raster đó — đúng loại nợ mà cơ chế `anhXemTruoc` cũ từng sinh ra.
+2. Đưa mục xuất trở lại MÀN VẼ (bảng đang mở, khối đã render). Giá: đảo ngược yêu cầu 2026-08-27 của
+   chủ dự án là dồn xuất về menu "⋯" ở lưới.
 
 Hiện app **báo thẳng** khi bảng có khối ("Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi chú chưa vào
-được ảnh."), không im lặng. **Hướng còn bỏ ngỏ:** gọi html2canvas đúng MỘT LẦN trên tổ tiên chung
-của mọi khối thay vì mỗi khối một lượt — chi phí thành ~5s cho cả sơ đồ thay vì 5s × số thẻ. Đáng
-làm nếu chấp nhận một mục menu riêng "Xuất PNG kèm thẻ ghi chú (chậm)"; quyết định của chủ dự án.
+được ảnh."), không im lặng.
 
 ### 1.3 Deploy Vercel chậm thêm vài phút mỗi lần
 
