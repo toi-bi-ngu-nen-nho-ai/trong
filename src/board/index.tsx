@@ -21,8 +21,12 @@
 // tham số `screen`).
 import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
+import type { XuatBangFn } from './EdgelessBoard'
 import { batLopCssVendor } from './lop-css-vendor'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
+
+export type { XuatBangFn } from './EdgelessBoard'
+export type { KetQuaXuat } from './xuatAnhBang'
 
 // `React.lazy` NHỚ VĨNH VIỄN kết quả lượt gọi factory đầu tiên — kể cả một promise BỊ TỪ CHỐI.
 // Nghĩa là bấm "Thử lại" trên cùng một đối tượng lazy sẽ ném lại đúng lỗi cũ mà không hề chạm
@@ -35,6 +39,8 @@ type PropsBang = {
   // qua cả hai màn chờ nối tiếp: Suspense fallback (tải chunk) và "Đang mở bảng…" trong EdgelessBoard.
   khoa?: string
   onReady?: () => void
+  // Chuyển thẳng xuống EdgelessBoard thật — nhận hàm xuất PNG khi cây Lit gắn xong, null khi tháo.
+  onXuatSanSang?: (xuat: XuatBangFn | null) => void
 }
 const kho = new Map<number, ComponentType<PropsBang>>()
 function layBang(lan: number): ComponentType<PropsBang> {
@@ -117,7 +123,12 @@ export class EdgelessBoard extends Component<PropsBang, State> {
           </div>
         }
       >
-        <Bang boardId={this.props.boardId} khoa={this.props.khoa} onReady={this.props.onReady} />
+        <Bang
+          boardId={this.props.boardId}
+          khoa={this.props.khoa}
+          onReady={this.props.onReady}
+          onXuatSanSang={this.props.onXuatSanSang}
+        />
       </Suspense>
     )
   }

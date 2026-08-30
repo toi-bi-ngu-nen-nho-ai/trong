@@ -3,11 +3,11 @@
 // thừa đúng lý do ResizeObserver đã đo ở hack "mount vĩnh viễn" cũ — xem
 // docs/superpowers/specs/2026-08-19-board-gallery-design.md §1) — khác hack cũ ở chỗ giờ CÓ unmount
 // thật khi người dùng bấm quay lại danh sách, vì D4 đã đảm bảo không mất nội dung.
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { doiGhiAnhXongNeuCo } from './boardMeta'
 import { DanhSachBang, TheTrong, type BoardOpenOrigin } from './DanhSachBang'
-import { EdgelessBoard } from './index'
+import { EdgelessBoard, type KetQuaXuat, type XuatBangFn } from './index'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
 // không. Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board'
@@ -51,6 +51,9 @@ export function BoardGallery({
   // null khi bảng được mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn app, moBangYeuCau
   // ngay dưới): không có thẻ nào để đo, chuyển cảnh rơi về .board-in cũ (scale-fade chung chung).
   const [openOrigin, setOpenOrigin] = useState<BoardOpenOrigin | null>(null)
+  // Tên bảng đang mở — chỉ để đặt tên tệp khi bấm "Xuất PNG". Tách khỏi `openOrigin` (thuần hình
+  // học + chuyên khoa, và null khi rect thẻ đo ra 0): tên phải sống kể cả khi không có FLIP.
+  const [openTen, setOpenTen] = useState<string | null>(null)
   // true từ lúc mở một bảng tới khi EdgelessBoard báo canvas thật đã sẵn sàng (onReady) — điều khiển
   // lớp phủ ảnh xem trước (bocRef bên dưới): người dùng thấy đúng tấm ảnh của thẻ vừa bấm PHÓNG TO
   // liền mạch theo chuyển động FLIP, rồi mới mờ dần lộ ra canvas thật bên dưới, thay vì canvas trống
@@ -94,6 +97,55 @@ export function BoardGallery({
   // hiện. KHÔNG dùng chung với dangDong (dangDong canh cuộc đua ảnh xem trước, không liên quan
   // animation) — hai mối quan tâm tách biệt dù cùng bật/tắt gần nhau trong thời gian.
   const [vuaDongBang, setVuaDongBang] = useState(false)
+
+  // ─── Xuất PNG từ MÀN VẼ ─────────────────────────────────────────────────────────────────────
+  // EdgelessBoard đẩy lên một `XuatBangFn` khi cây Lit gắn xong (đủ `std` + host để dựng ảnh) và
+  // `null` khi tháo. Giữ trong ref để `chayXuat` luôn gọi bản mới nhất mà không cần vào deps; một
+  // cờ state riêng để nút biết khi nào bật.
+  const xuatRef = useRef<XuatBangFn | null>(null)
+  const [xuatSanSang, setXuatSanSang] = useState(false)
+  const [dangXuat, setDangXuat] = useState(false)
+  const [thongBaoXuat, setThongBaoXuat] = useState<string | null>(null)
+  const nhanXuatSanSang = useCallback((fn: XuatBangFn | null) => {
+    xuatRef.current = fn
+    setXuatSanSang(Boolean(fn))
+  }, [])
+  // Dòng kết quả tự tắt sau ~4s — KHÔNG đếm giờ trong lúc đang xuất ("Đang dựng ảnh…" là tín hiệu
+  // tiến trình, tắt giữa chừng thì người dùng tưởng thao tác trượt).
+  useEffect(() => {
+    if (!thongBaoXuat || dangXuat) return
+    const id = setTimeout(() => setThongBaoXuat(null), 4000)
+    return () => clearTimeout(id)
+  }, [thongBaoXuat, dangXuat])
+  // Đổi bảng / đóng bảng: dọn mọi trạng thái xuất của bảng cũ.
+  useEffect(() => {
+    setDangXuat(false)
+    setThongBaoXuat(null)
+  }, [openBoardId])
+  const chayXuat = async () => {
+    const xuat = xuatRef.current
+    if (!xuat || dangXuat) return
+    setDangXuat(true)
+    setThongBaoXuat('Đang dựng ảnh…')
+    try {
+      const kq: KetQuaXuat = await xuat(openTen ?? 'so-do')
+      setThongBaoXuat(
+        kq === 'trong'
+          ? 'Sơ đồ chưa có nội dung để xuất.'
+          : kq === 'dang-ban'
+            ? 'Đang có một lượt xuất khác chạy dở.'
+            : kq === 'xong-thieu-the-ghi-chu'
+              ? 'Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi chú chưa vào được ảnh.'
+              : null,
+      )
+    } catch (loi) {
+      console.error('Xuất PNG thất bại:', loi)
+      setThongBaoXuat('Không xuất được ảnh. Hãy thử lại.')
+    } finally {
+      setDangXuat(false)
+    }
+  }
+
   useEffect(() => {
     // Chỉ thử di trú lần đầu người dùng THẬT SỰ mở tab Mindmap — không phải ngay lúc BoardGallery
     // mount (nó luôn mount cùng app shell, kể cả khi người dùng chưa từng chạm tab này).
@@ -229,8 +281,9 @@ export function BoardGallery({
     <>
       {!openBoardId && !dangDong && dangHienTab && (
         <DanhSachBang
-          onMoBang={(id, origin) => {
+          onMoBang={(id, origin, ten) => {
             setOpenOrigin(origin ?? null)
+            setOpenTen(ten ?? null)
             setDangChoCanvas(true)
             setDangPhongTo(true)
             setOpenBoardId(id)
@@ -274,6 +327,7 @@ export function BoardGallery({
             boardId={openBoardId}
             khoa={openOrigin?.chuyenKhoa}
             onReady={() => setDangChoCanvas(false)}
+            onXuatSanSang={nhanXuatSanSang}
           />
           {/* Lớp phủ mặt thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho tới khi CẢ HAI đều
               xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ animation phóng to thẻ
@@ -322,6 +376,7 @@ export function BoardGallery({
               setVuaDongBang(true)
               setOpenBoardId(null)
               setOpenOrigin(null)
+              setOpenTen(null)
 
               // Nhường một nhịp macrotask cho React thật sự CHẠY cleanup effect vừa lên lịch ở trên
               // (passive effect — không chạy đồng bộ ngay sau setState). `setTimeout(0)` chứ không
@@ -382,6 +437,67 @@ export function BoardGallery({
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
+
+          {/* Nút "Xuất PNG" — CHẤM TRÒN đối xứng nút quay lại qua trục dọc giữa màn: cùng `top`,
+              cùng 44×44/bo tròn/viền/nền/bóng, chỉ đổi `left` → `right` (dùng --safe-right cho iPhone
+              xoay ngang, cùng lý do --safe-left ở nút back). Icon là glyph "xuất/tải lên" (khay hở
+              nắp + mũi tên chỉ lên) vẽ CÙNG NGÔN NGỮ với chevron của nút back: stroke, 24-grid,
+              strokeWidth 2, currentColor, đầu nét bo tròn — nên hai nút đọc thành một cặp. Màu tự
+              đúng dark/light qua currentColor + token nền/viền dùng chung. */}
+          <button
+            type="button"
+            data-testid="xuat-anh"
+            onClick={chayXuat}
+            disabled={!xuatSanSang || dangXuat}
+            aria-disabled={!xuatSanSang || dangXuat}
+            aria-label="Xuất PNG sơ đồ"
+            className="mind-focus-ring"
+            style={{
+              position: 'absolute',
+              top: 'calc(var(--safe-top, 0px) + 4px)',
+              right: 'calc(var(--safe-right, 0px) + 9px)',
+              zIndex: 20,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
+              background: 'var(--c-surface, #fff)',
+              boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: !xuatSanSang || dangXuat ? 0.5 : 1,
+              cursor: dangXuat ? 'wait' : !xuatSanSang ? 'default' : 'pointer',
+              transition: 'opacity .15s ease',
+            }}
+          >
+            {dangXuat ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="animate-spin" style={{ width: 20, height: 20 }} aria-hidden="true">
+                <path strokeLinecap="round" d="M12 3a9 9 0 1 0 9 9" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 8l4-4 4 4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11" />
+              </svg>
+            )}
+          </button>
+
+          {/* Dòng kết quả xuất — cùng token/hình dạng dải "Hoàn tác" của DanhSachBang (--c-toast-*,
+              bottom 10, left/right 12, rounded-2xl). Không nút hành động, không thanh đếm. */}
+          {thongBaoXuat && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl overflow-hidden"
+              style={{ left: 12, right: 12, bottom: 10, zIndex: 40, background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
+            >
+              <span className="flex-1 text-[12.5px] leading-snug" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>
+                {thongBaoXuat}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </>

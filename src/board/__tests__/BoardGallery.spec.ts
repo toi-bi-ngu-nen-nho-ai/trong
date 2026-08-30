@@ -44,13 +44,27 @@ function taoBangGia(ten: string): BangMeta {
 // nên tìm thấy nó nghĩa là lượt mount lại của DanhSachBang đã đọc được bản ghi MỚI.
 const NOI_DUNG_SAU_KHI_ROI = 'suy tim ef giam'
 
+// Hàm xuất giả mà "EdgelessBoard giả" đẩy lên BoardGallery qua onXuatSanSang — module-scope để ca
+// kiểm quan sát lời gọi và điều khiển giá trị trả về.
+const xuatGia = vi.fn<(tenBang: string) => Promise<'xong' | 'xong-thieu-the-ghi-chu' | 'trong' | 'dang-ban'>>(
+  async () => 'xong',
+)
+
 vi.mock('../index', () => ({
-  EdgelessBoard: ({ boardId }: { boardId: string }) => {
+  EdgelessBoard: ({
+    boardId,
+    onXuatSanSang,
+  }: {
+    boardId: string
+    onXuatSanSang?: (xuat: ((tenBang: string) => Promise<string>) | null) => void
+  }) => {
     useEffect(() => {
+      onXuatSanSang?.(xuatGia)
       return () => {
+        onXuatSanSang?.(null)
         void capNhatSauKhiRoiBang(boardId, true, NOI_DUNG_SAU_KHI_ROI)
       }
-    }, [boardId])
+    }, [boardId, onXuatSanSang])
     return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')
   },
 }))
@@ -63,6 +77,8 @@ describe('BoardGallery', () => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
+    xuatGia.mockReset()
+    xuatGia.mockResolvedValue('xong')
   })
 
   afterEach(async () => {
@@ -319,5 +335,97 @@ describe('BoardGallery', () => {
       expect(container.querySelector('[data-testid="bang-gia"]')?.getAttribute('data-board-id')).toBe('muc-tieu')
     })
     expect(onMoBangYeuCauXong).toHaveBeenCalledTimes(1)
+  })
+
+  // ─── Nút "Xuất PNG" ở màn vẽ ───────────────────────────────────────────────────────────────
+  async function moBang(ten = 'Bảng xuất'): Promise<void> {
+    await idbPut(IDB_STORES.boards, taoBangGia(ten))
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="bang-gia"]')).not.toBeNull()
+    })
+  }
+  const nutXuat = () => container.querySelector('[data-testid="xuat-anh"]') as HTMLButtonElement | null
+  const nutBack = () => container.querySelector('[data-testid="quay-lai"]') as HTMLButtonElement | null
+
+  it('mở bảng → có nút "Xuất PNG", cùng hình chấm tròn với nút quay lại', async () => {
+    await moBang()
+    const xuat = nutXuat()
+    const back = nutBack()
+    expect(xuat, 'nút xuất phải có mặt ở màn vẽ').not.toBeNull()
+    expect(back).not.toBeNull()
+    expect(xuat).not.toBe(back)
+    // Cùng hình chấm tròn: 44×44, bo tròn hoàn toàn, cùng lớp z. (Việc neo trái/phải đối xứng
+    // dùng calc(var(--safe-*)) mà happy-dom lược bỏ — kiểm mắt trên trình duyệt thật.)
+    for (const nut of [xuat!, back!]) {
+      expect(nut.style.width).toBe('44px')
+      expect(nut.style.height).toBe('44px')
+      expect(nut.style.borderRadius).toBe('50%')
+      expect(nut.style.zIndex).toBe('20')
+      expect(nut.style.position).toBe('absolute')
+    }
+    // Icon là SVG (không phải chữ Unicode) — cùng ngôn ngữ với chevron của nút back.
+    expect(xuat!.querySelector('svg')).not.toBeNull()
+    expect(xuat!.getAttribute('aria-label')).toBe('Xuất PNG sơ đồ')
+  })
+
+  it('bấm nút xuất → gọi hàm xuất với TÊN BẢNG, hiện dòng "Đang dựng ảnh…"', async () => {
+    let giaiXuat: ((kq: 'xong') => void) | undefined
+    xuatGia.mockImplementation(() => new Promise((r) => { giaiXuat = r as (kq: 'xong') => void }))
+    await moBang('Sốc nhiễm khuẩn')
+    await act(async () => {
+      nutXuat()!.click()
+    })
+    expect(xuatGia).toHaveBeenCalledTimes(1)
+    expect(xuatGia.mock.calls[0][0]).toBe('Sốc nhiễm khuẩn')
+    expect(container.textContent).toContain('Đang dựng ảnh…')
+    expect(nutXuat()!.disabled).toBe(true)
+    await act(async () => {
+      giaiXuat?.('xong')
+    })
+    expect(nutXuat()!.disabled).toBe(false)
+  })
+
+  it('xuất trả "xong-thieu-the-ghi-chu" → hiện dòng cảnh báo thiếu thẻ', async () => {
+    xuatGia.mockResolvedValue('xong-thieu-the-ghi-chu')
+    await moBang()
+    await act(async () => {
+      nutXuat()!.click()
+    })
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Thẻ ghi chú chưa vào được ảnh')
+    })
+  })
+
+  it('xuất ném lỗi → nút bật lại, hiện dòng "Không xuất được ảnh"', async () => {
+    xuatGia.mockRejectedValue(new Error('canvas hỏng'))
+    await moBang()
+    await act(async () => {
+      nutXuat()!.click()
+    })
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Không xuất được ảnh')
+    })
+    expect(nutXuat()!.disabled).toBe(false)
+  })
+
+  it('quay lại danh sách → nút xuất biến mất cùng màn vẽ', async () => {
+    await moBang()
+    expect(nutXuat()).not.toBeNull()
+    await act(async () => {
+      nutBack()!.click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    expect(nutXuat()).toBeNull()
   })
 })

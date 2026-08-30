@@ -25,6 +25,7 @@ import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
+import type { KetQuaXuat } from './xuatAnhBang'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { capNhatSauKhiRoiBang, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
@@ -334,16 +335,20 @@ async function moBangThat(boardId: string, tuyChon?: {
   }
 }
 
-// Xuất file (giờ dùng ảnh xem trước đã lưu) sống hẳn ở menu "⋯" của THẺ bảng trong
-// DanhSachBang.tsx, và rename/đổi chuyên khoa cũng vốn đã ở đó từ trước — component này KHÔNG cần
-// biết BoardGallery.tsx làm gì với chrome của nó (đúng tinh thần "file phải nhỏ" ghi ở đầu file).
-// Hai lượt trước từng thêm forwardRef + useImperativeHandle riêng cho việc xuất PNG — bỏ hẳn (không
-// phải giữ lại dead code): không còn nơi nào gọi qua ref nữa (phản hồi thật 2026-08-27, lần 3: "xoá
-// luôn nút ... của đổi tên/chuyên khoa xuất file" ở màn vẽ).
+/** Hàm xuất PNG bảng đang mở — trả về mã kết quả để BoardGallery chọn thông báo. */
+export type XuatBangFn = (tenBang: string) => Promise<KetQuaXuat>
+
+// Nút "Xuất PNG" sống Ở MÀN VẼ (BoardGallery.tsx), đối xứng với nút quay lại — component này chỉ
+// góp phần THỰC THI: sau khi cây Lit gắn xong, nó dựng một `XuatBangFn` đóng gói `std` + host rồi
+// đẩy lên BoardGallery qua `onXuatSanSang`. Vẫn giữ tinh thần "file phải nhỏ": không biết
+// BoardGallery vẽ nút thế nào, chỉ cấp đúng một hàm.
+// (Trước 2026-08-31 nút xuất nằm ở menu "⋯" của THẺ trong lưới và mở một bảng ngầm để dựng ảnh —
+// bỏ vì trình soạn thảo ngầm không render khối note, xem ./xuatAnhBang.ts và HANDOFF §1.1.)
 export function EdgelessBoard({
   boardId,
   khoa,
   onReady,
+  onXuatSanSang,
 }: {
   boardId: string
   // Chuyên khoa của bảng đang mở — chỉ để màn chờ (VeChuyenKhoaDangTai) vẽ đúng icon nét-đơn và
@@ -354,6 +359,9 @@ export function EdgelessBoard({
   // để mờ dần lớp phủ ảnh xem trước (FLIP continuity, xem BoardGallery.tsx) thay vì tự đoán một
   // thời lượng cố định không khớp tốc độ mạng/máy thật.
   onReady?: () => void
+  // Nhận một hàm xuất PNG khi cây Lit đã gắn (đủ `std` + host để dựng ảnh), `null` khi tháo. Ổn
+  // định qua vòng đời một bảng; BoardGallery cầm nó cho nút "Xuất PNG".
+  onXuatSanSang?: (xuat: XuatBangFn | null) => void
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   // Ref lớp bọc viewport — dùng cho phép đồng bộ lại toạ độ sau hiệu ứng vào màn (useEffect bên dưới).
@@ -412,6 +420,13 @@ export function EdgelessBoard({
         // Xem ./ban-phim-ios.ts và HANDOFF §1.1.
         huyDangKyThayDoi.push(ganMoiBanPhimIOS(el))
 
+        // Cấp hàm xuất PNG cho BoardGallery (nút "Xuất PNG" ở màn vẽ). Import ĐỘNG: xuatAnhBang.ts
+        // kéo theo html2canvas — không được vào chunk bảng vẽ cho người chưa bao giờ bấm xuất.
+        // `std`/`el` đóng gói trong closure; hàm ổn định suốt vòng đời bảng này.
+        onXuatSanSang?.((tenBang) =>
+          import('./xuatAnhBang').then((m) => m.xuatPngBang(std, el, tenBang)),
+        )
+
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
         onReady?.()
@@ -459,6 +474,9 @@ export function EdgelessBoard({
     // IndexedDB còn chạy nền.
     return () => {
       huyBo = true
+      // Thu hồi hàm xuất TRƯỚC khi tháo cây Lit — sau `litRender(null, el)` bên dưới thì `std` trỏ
+      // vào một scope đã chết, gọi xuất trên đó chỉ ra lỗi khó hiểu.
+      onXuatSanSang?.(null)
       huyDangKyThayDoi.forEach((huy) => huy())
       // Cập nhật metadata của bảng vừa đóng TRƯỚC khi tháo — `workspaceHienTai.forceStop()` ngay
       // dưới đóng DocEngine, sau đó không còn gì để đọc. Best-effort tuyệt đối: lỗi ở đây KHÔNG

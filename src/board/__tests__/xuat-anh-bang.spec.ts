@@ -12,7 +12,7 @@
 // happy-dom KHÔNG rasterize: mọi phép vẽ pixel ở đây là no-op, nên file này canh HỢP ĐỒNG và
 // VÒNG ĐỜI (đóng khung theo nội dung, tỉ lệ pixel, dọn dẹp) chứ không canh pixel. Độ trung thực
 // hình ảnh được kiểm bằng trình duyệt thật.
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   CANH_TOI_DA,
@@ -79,121 +79,127 @@ describe('voiTiLePixel — cần lấy lại devicePixelRatio gốc bằng mọi
   })
 })
 
-// Bộ giả tối thiểu cho phần điều phối: đủ hình dạng để xuatPngBang() chạy hết vòng đời, không cần
-// BlockSuite thật (cây Lit thật đã có ca kiểm riêng ở edgeless-board-mount.spec.ts).
-function dungPhuThuocGia(ghiDe: Record<string, unknown> = {}) {
+// happy-dom KHÔNG dựng ngữ cảnh 2D — `ghepCanvas` bên trong `xuatPngBang` gọi thật
+// `canvas.getContext('2d')` / `toDataURL`. Stub một ctx tối thiểu: đủ để phép toán toạ độ +
+// `drawImage` chạy mà không ném. Không canh pixel (không có rasterize), canh HỢP ĐỒNG và TOẠ ĐỘ.
+const ctxGia = () => ({
+  fillStyle: '',
+  scale: vi.fn(),
+  fillRect: vi.fn(),
+  drawImage: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  translate: vi.fn(),
+})
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    ctxGia() as unknown as CanvasRenderingContext2D,
+  )
+  vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AA==')
+})
+afterEach(() => vi.restoreAllMocks())
+
+// Bộ giả tối thiểu cho phần điều phối: đủ hình dạng để xuatPngBang() chạy hết vòng đời trên một
+// `std` giả — cây BlockSuite thật đã có ca kiểm riêng (edgeless-board-mount.spec.ts).
+function dungPhuThuocGia(ghiDe: { gfx?: Record<string, unknown>; pt?: Record<string, unknown> } = {}) {
+  const getCanvasByBound = vi.fn((_b: unknown, _els: unknown[]) => ({ width: 900, height: 700 }))
+  const gfx = {
+    elementsBound: { x: 0, y: 0, w: 800, h: 600 },
+    getElementsByBound: vi.fn(() => [] as unknown[]),
+    surfaceComponent: { getCanvasByBound },
+    ...ghiDe.gfx,
+  }
   return {
-    moBang: vi.fn(async () => ({ workspace: { forceStop: vi.fn() }, store: {}, doc: { loaded: true } })),
-    dungStd: vi.fn(async () => ({
-      hopBaoNoiDung: { x: 0, y: 0, w: 800, h: 600 },
-      veRaCanvas: vi.fn(async () => {
-        const c = document.createElement('canvas')
-        c.width = 1800
-        c.height = 1400
-        return { canvas: c, soKhoi: 0 }
-      }),
-      thao: vi.fn(),
-    })),
-    taiVe: vi.fn(),
-    ...ghiDe,
+    _gfx: gfx,
+    _getCanvasByBound: getCanvasByBound,
+    pt: {
+      layGfx: vi.fn(() => gfx),
+      layRenderer: vi.fn(() => gfx.surfaceComponent),
+      taiVe: vi.fn(),
+      ...ghiDe.pt,
+    },
   }
 }
 
-describe('xuatPngBang — vòng đời của lượt mở bảng ngầm', () => {
-  it('đóng khung theo HỘP BAO NỘI DUNG, không theo khung nhìn', async () => {
-    const pt = dungPhuThuocGia()
-    await xuatPngBang('bang-1', 'So do', pt as never)
-    const may = await (pt.dungStd as ReturnType<typeof vi.fn>).mock.results[0].value
-    // veRaCanvas nhận đúng hộp bao mà máy xuất báo cáo — không tham số nào lấy từ viewport.
-    expect(may.veRaCanvas).toHaveBeenCalledWith(may.hopBaoNoiDung, expect.any(Number))
+describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
+  const HOST = document.createElement('div')
+  HOST.innerHTML = '<div class="edgeless-background"></div>'
+
+  it('đóng khung theo HỘP BAO NỘI DUNG (gfx.elementsBound), không đọc khung nhìn một dòng nào', async () => {
+    const g = dungPhuThuocGia()
+    await xuatPngBang({}, HOST, 'So do', g.pt as never)
+    for (const call of (g._gfx.getElementsByBound as ReturnType<typeof vi.fn>).mock.calls) {
+      expect(call[0]).toEqual(g._gfx.elementsBound)
+    }
+    // getCanvasByBound cũng đóng khung theo đúng elementsBound.
+    expect(g._getCanvasByBound.mock.calls[0][0]).toEqual(g._gfx.elementsBound)
   })
 
-  it('gọi taiVe với data URL PNG thật và tên tệp đã làm sạch', async () => {
-    const pt = dungPhuThuocGia()
-    await xuatPngBang('bang-1', 'Suy tim/EF <40%', pt as never)
-    expect(pt.taiVe).toHaveBeenCalledTimes(1)
-    const [duLieu, ten] = (pt.taiVe as ReturnType<typeof vi.fn>).mock.calls[0]
+  it('gọi taiVe với data URL PNG và tên tệp đã làm sạch', async () => {
+    const g = dungPhuThuocGia()
+    await xuatPngBang({}, HOST, 'Suy tim/EF <40%', g.pt as never)
+    expect(g.pt.taiVe).toHaveBeenCalledTimes(1)
+    const [duLieu, ten] = (g.pt.taiVe as ReturnType<typeof vi.fn>).mock.calls[0]
     expect(String(duLieu).startsWith('data:image/png')).toBe(true)
     expect(ten).toBe('Suy tim_EF _40%.png')
   })
 
-  it('bảng TRỐNG (hộp bao 0×0) → trả "trong", không tải tệp rỗng về', async () => {
-    // Xuất một PNG toàn màu nền cho bảng chưa vẽ gì còn tệ hơn không xuất: người dùng tưởng đã
-    // lưu được sơ đồ. Bên gọi dùng giá trị trả về này để hiện thông báo tử tế.
-    const pt = dungPhuThuocGia({
-      dungStd: vi.fn(async () => ({
-        hopBaoNoiDung: { x: 0, y: 0, w: 0, h: 0 },
-        veRaCanvas: vi.fn(),
-        thao: vi.fn(),
-      })),
-    })
-    expect(await xuatPngBang('bang-trong', 'Trong', pt as never)).toBe('trong')
-    expect(pt.taiVe).not.toHaveBeenCalled()
+  it('tên rỗng/toàn khoảng trắng → rơi về tên mặc định, không tải tệp ".png"', async () => {
+    const g = dungPhuThuocGia()
+    await xuatPngBang({}, HOST, '   ', g.pt as never)
+    expect((g.pt.taiVe as ReturnType<typeof vi.fn>).mock.calls[0][1]).toBe('so-do.png')
   })
 
-  it('dọn SẠCH (tháo cây Lit, đóng workspace, gỡ hộp chứa khỏi DOM) kể cả khi vẽ ném lỗi', async () => {
-    // Bỏ sót bước này thì mỗi lượt xuất hỏng để lại một trình soạn thảo ngoài màn hình còn sống
-    // kèm một DocEngine chạy nền vô thời hạn — không còn ai giữ tham chiếu để đóng nó nữa.
-    const thao = vi.fn()
-    const forceStop = vi.fn()
-    const pt = dungPhuThuocGia({
-      moBang: vi.fn(async () => ({ workspace: { forceStop }, store: {}, doc: { loaded: true } })),
-      dungStd: vi.fn(async () => ({
-        hopBaoNoiDung: { x: 0, y: 0, w: 800, h: 600 },
-        veRaCanvas: vi.fn(async () => {
-          throw new Error('renderer hỏng')
-        }),
-        thao,
-      })),
-    })
-    const soHopTruoc = document.querySelectorAll('[data-drt-xuat-anh]').length
-    await expect(xuatPngBang('bang-1', 'So do', pt as never)).rejects.toThrow('renderer hỏng')
-    expect(thao).toHaveBeenCalledTimes(1)
-    expect(forceStop).toHaveBeenCalledTimes(1)
-    expect(document.querySelectorAll('[data-drt-xuat-anh]').length).toBe(soHopTruoc)
+  it('bảng TRỐNG (elementsBound 0×0) → "trong", không tải tệp, không vẽ', async () => {
+    const g = dungPhuThuocGia({ gfx: { elementsBound: { x: 0, y: 0, w: 0, h: 0 } } })
+    expect(await xuatPngBang({}, HOST, 'Trong', g.pt as never)).toBe('trong')
+    expect(g.pt.taiVe).not.toHaveBeenCalled()
+    expect(g._getCanvasByBound).not.toHaveBeenCalled()
   })
 
-  it('bảng có thẻ ghi chú → vẫn tải ảnh về NHƯNG báo là thiếu, không im lặng', async () => {
-    // Khối edgeless (thẻ ghi chú, ảnh chèn) không vào được ảnh — lý do đo đạc nằm ở giữa
-    // `veRaCanvasThat` trong xuatAnhBang.ts. Điều ca kiểm này khoá là phần CƯ XỬ: người dùng phải
-    // được BÁO ngay lúc bấm, thay vì tự phát hiện thiếu khi mở tệp ra giữa ca trực.
-    const pt = dungPhuThuocGia({
-      dungStd: vi.fn(async () => ({
-        hopBaoNoiDung: { x: 0, y: 0, w: 800, h: 600 },
-        veRaCanvas: vi.fn(async () => {
-          const c = document.createElement('canvas')
-          c.width = 1800
-          c.height = 1400
-          return { canvas: c, soKhoi: 2 }
-        }),
-        thao: vi.fn(),
-      })),
-    })
-    expect(await xuatPngBang('bang-co-note', 'Co note', pt as never)).toBe('xong-thieu-the-ghi-chu')
-    // Ảnh VẪN được tải về — báo thiếu không có nghĩa là bỏ lượt xuất.
-    expect(pt.taiVe).toHaveBeenCalledTimes(1)
+  it('KHÔNG có khối → "xong" trơn', async () => {
+    const g = dungPhuThuocGia()
+    expect(await xuatPngBang({}, HOST, 'So do', g.pt as never)).toBe('xong')
+    expect(g.pt.taiVe).toHaveBeenCalledTimes(1)
   })
 
-  it('bảng KHÔNG có khối nào → trả "xong" trơn, không có cảnh báo thừa', async () => {
-    const pt = dungPhuThuocGia()
-    expect(await xuatPngBang('bang-1', 'So do', pt as never)).toBe('xong')
+  it('CÓ khối (thẻ ghi chú / ảnh) → "xong-thieu-the-ghi-chu": vẫn tải ảnh về, nhưng BÁO là thiếu', async () => {
+    // Lớp khối DOM không vào được ảnh (html2canvas treo luồng chính — xem đầu xuatAnhBang.ts).
+    // Điều ca kiểm này khoá là phần CƯ XỬ: người dùng phải được BÁO ngay lúc bấm.
+    const g = dungPhuThuocGia({
+      gfx: { getElementsByBound: vi.fn((_b: unknown, o: { type: string }) => (o.type === 'block' ? [{ id: 'a' }, { id: 'b' }] : [])) },
+    })
+    expect(await xuatPngBang({}, HOST, 'Co note', g.pt as never)).toBe('xong-thieu-the-ghi-chu')
+    expect(g.pt.taiVe).toHaveBeenCalledTimes(1)
   })
 
-  it('hai lượt xuất chồng nhau: lượt sau bị từ chối thay vì mở hai bảng ngầm cùng lúc', async () => {
-    // Hai TestWorkspace cùng chạm một CSDL IndexedDB là công thức cho ghi đè chéo. Bấm nút hai
-    // lần liên tiếp là thao tác bình thường của người dùng, không phải ca hiếm.
-    let giai: (() => void) | undefined
-    const pt = dungPhuThuocGia({
-      moBang: vi.fn(async () => {
-        await new Promise<void>((r) => {
-          giai = r
-        })
-        return { workspace: { forceStop: vi.fn() }, store: {}, doc: { loaded: true } }
-      }),
+  it('surface không có CanvasRenderer → ném lỗi rõ, và khoá được mở cho lượt sau', async () => {
+    const g = dungPhuThuocGia({ gfx: { surfaceComponent: null }, pt: { layRenderer: vi.fn(() => null) } })
+    await expect(xuatPngBang({}, HOST, 'X', g.pt as never)).rejects.toThrow('CanvasRenderer')
+    // Khoá `dangXuat` đã mở: lượt kế tiếp (bảng lành) chạy được.
+    const g2 = dungPhuThuocGia()
+    expect(await xuatPngBang({}, HOST, 'Y', g2.pt as never)).toBe('xong')
+  })
+
+  it('devicePixelRatio được trả lại nguyên trạng KỂ CẢ khi getCanvasByBound ném lỗi', async () => {
+    const goc = window.devicePixelRatio
+    const g = dungPhuThuocGia({
+      pt: {
+        layRenderer: vi.fn(() => ({
+          getCanvasByBound: vi.fn(() => {
+            throw new Error('renderer hỏng')
+          }),
+        })),
+      },
     })
-    const dau = xuatPngBang('bang-1', 'So do', pt as never)
-    expect(await xuatPngBang('bang-2', 'So do 2', pt as never)).toBe('dang-ban')
-    giai?.()
-    await dau
+    await expect(xuatPngBang({}, HOST, 'X', g.pt as never)).rejects.toThrow('renderer hỏng')
+    expect(window.devicePixelRatio).toBe(goc)
+  })
+
+  it('hai lượt chồng nhau: lượt thứ hai (gọi trước khi lượt đầu xong) bị từ chối ("dang-ban")', async () => {
+    const g = dungPhuThuocGia()
+    const dau = xuatPngBang({}, HOST, 'A', g.pt as never) // chưa await — khoá `dangXuat` đang giữ
+    expect(await xuatPngBang({}, HOST, 'B', dungPhuThuocGia().pt as never)).toBe('dang-ban')
+    expect(await dau).toBe('xong')
   })
 })

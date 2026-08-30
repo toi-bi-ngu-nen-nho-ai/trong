@@ -840,11 +840,10 @@ describe('DanhSachBang', () => {
     expect(huyHieu?.getAttribute('data-khoa')).toBe(SPECIALTIES[0].id)
   })
 
-  it('bảng CHƯA từng mở → mục "Xuất PNG" vẫn BẬT (không còn trạng thái tắt)', async () => {
-    // Trạng thái tắt kèm lý do "Mở bảng một lần để có ảnh" (P2 critique 2026-08-27) tồn tại vì lượt
-    // xuất cũ đọc `anhXemTruoc` — không có ảnh thì thật sự không xuất được gì. Điều kiện đó chết
-    // cùng cơ chế ảnh chụp: ./xuatAnhBang.ts đọc thẳng tài liệu CRDT, nên bảng chưa từng mở vẫn
-    // xuất được. Bảng THẬT SỰ trống thì nói sau khi bấm, không đoán trước hộ người dùng.
+  it('menu "⋯" KHÔNG còn mục "Xuất PNG" — đã chuyển ra nút tròn ở màn vẽ', async () => {
+    // "Xuất PNG" rời menu lưới 2026-08-31: xuất từ lưới phải mount một bảng ngầm, mà trình soạn
+    // thảo ngầm không bao giờ render khối note nên thẻ ghi chú không vào được ảnh (HANDOFF §1.1).
+    // Nút xuất giờ sống ở màn vẽ (BoardGallery), đối xứng nút quay lại, dựng ảnh từ cây đang render.
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-chua-anh', ten: 'Bảng chưa mở', taoLuc: bayGio, capNhatLuc: bayGio,
@@ -861,13 +860,11 @@ describe('DanhSachBang', () => {
       ;(container.querySelector('[data-testid="menu-bang-bang-chua-anh"]') as HTMLButtonElement).click()
     })
 
-    const nut = container.querySelector('[data-testid="xuat-anh-bang-chua-anh"]') as HTMLButtonElement | null
-    expect(nut, 'mục "Xuất PNG" phải có mặt và bấm được').not.toBeNull()
-    expect(nut?.disabled).toBe(false)
-    expect(nut?.getAttribute('role')).toBe('menuitem')
-    expect(nut?.textContent).toContain('Xuất PNG')
-    // Mục tắt cũ phải biến mất hẳn — còn sót nghĩa là nhánh cũ vẫn sống ở đâu đó.
+    // Menu vẫn mở (đổi tên / chuyên khoa-tag / xoá vẫn còn), chỉ "Xuất PNG" biến mất.
+    expect(container.querySelector('[data-testid="doi-ten-bang-chua-anh"]')).not.toBeNull()
+    expect(container.querySelector('[data-testid="xuat-anh-bang-chua-anh"]')).toBeNull()
     expect(container.querySelector('[data-testid="xuat-anh-tat-bang-chua-anh"]')).toBeNull()
+    expect(container.textContent).not.toContain('Xuất PNG')
   })
 
   it('lưới rỗng toàn bộ → hiện BIỂU TƯỢNG mindmap, KHÔNG còn huy hiệu doc phẳng', async () => {
