@@ -127,6 +127,9 @@ export function BoardGallery({
     if (!xuat || dangXuat) return
     setDangXuat(true)
     setThongBaoXuat('Đang dựng ảnh…')
+    // Nhường một nhịp macrotask cho React sơn xong LỚP CHE trước khi lượt xuất có thể dời khung
+    // nhìn. Thiếu nhịp này thì lớp che tới sau cú nhảy — đúng thứ nó sinh ra để giấu.
+    await new Promise((r) => setTimeout(r, 0))
     try {
       const kq: KetQuaXuat = await xuat(openTen ?? 'so-do')
       setThongBaoXuat(
@@ -483,6 +486,26 @@ export function BoardGallery({
               </svg>
             )}
           </button>
+
+          {/* LỚP CHE suốt lượt xuất. Khi còn thẻ ghi chú chưa render (bị cull vì nằm ngoài khung),
+              lượt xuất phải fit khung nhìn rồi trả lại — bảng thu nhỏ hết cỡ rồi nhảy về, đọc
+              thành "màn hình cứ nhấp nháy" (phản hồi thật 2026-08-31). Lớp này ĐỤC (không phải mờ)
+              nên cú nhảy đó không lọt ra ngoài; nó cũng chặn thao tác trong lúc đang đọc DOM.
+              Dưới hai nút tròn (z 20) để nút xuất vẫn thấy được trạng thái đang chạy. */}
+          {dangXuat && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ zIndex: 12, background: 'var(--c-surface, #fff)' }}
+            >
+              <span
+                className="text-[12.5px] font-semibold"
+                style={{ color: 'var(--c-text-muted, #6b6e96)' }}
+              >
+                Đang dựng ảnh…
+              </span>
+            </div>
+          )}
 
           {/* Dòng kết quả xuất — cùng token/hình dạng dải "Hoàn tác" của DanhSachBang (--c-toast-*,
               bottom 10, left/right 12, rounded-2xl). Không nút hành động, không thanh đếm. */}

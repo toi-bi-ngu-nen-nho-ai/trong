@@ -203,7 +203,11 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
     expect(g._setViewport).not.toHaveBeenCalled()
   })
 
-  it('CÓ khối đọc được → "xong": fit khung nhìn ôm nội dung rồi TRẢ LẠI khung cũ', async () => {
+  it('mọi khối ĐÃ render sẵn → KHÔNG đụng khung nhìn của người dùng, không chờ', async () => {
+    // Đường thường gặp nhất: người dùng xuất đúng thứ đang nhìn, nên khối đã render rồi. Dời khung
+    // nhìn lúc này là thừa VÀ thấy được — bảng thu nhỏ hết cỡ rồi nhảy về, đọc thành "nhấp nháy"
+    // (phản hồi thật 2026-08-31). Khối đã render thì `getBoundingClientRect()` đọc được ngay, kể cả
+    // phần nằm ngoài màn hình, nên không có lý do gì phải fit.
     const note = noteGiaDocDuoc()
     const g = dungPhuThuocGia({
       gfx: {
@@ -214,7 +218,25 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
       pt: { layPhanTuKhoi: vi.fn(() => note) },
     })
     expect(await xuatPngBang({}, HOST, 'Co note', g.pt as never)).toBe('xong')
-    // Khối bị cull khi ngoài khung nhìn → phải fit TRƯỚC khi đọc, và chờ trình duyệt sơn xong.
+    expect(g._setViewportByBound).not.toHaveBeenCalled()
+    expect(g._setViewport).not.toHaveBeenCalled()
+    expect(g.pt.choKhoiHien).not.toHaveBeenCalled()
+    note.remove()
+  })
+
+  it('có khối CHƯA render → mới fit khung nhìn, chờ, rồi TRẢ LẠI khung cũ', async () => {
+    // Chỉ ở ca này mới đáng dời khung nhìn: khối ngoài khung bị cull nên không đọc được gì.
+    const chuaRender = document.createElement('drt-edgeless-note') // không có nền → chưa render
+    document.body.appendChild(chuaRender)
+    const g = dungPhuThuocGia({
+      gfx: {
+        getElementsByBound: vi.fn((_b: unknown, o: { type: string }) =>
+          o.type === 'block' ? [{ id: 'n1' }] : [],
+        ),
+      },
+      pt: { layPhanTuKhoi: vi.fn(() => chuaRender) },
+    })
+    await xuatPngBang({}, HOST, 'Co note', g.pt as never)
     expect(g._setViewportByBound).toHaveBeenCalledTimes(1)
     expect(g._setViewportByBound.mock.calls[0][0]).toEqual(g._gfx.elementsBound)
     expect(g.pt.choKhoiHien).toHaveBeenCalledTimes(1)
@@ -224,7 +246,7 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
     // MẢNG [x, y], không phải {x, y}: thượng nguồn đọc `newCenter[0]`/`[1]`, truyền object thì
     // tâm khung nhìn thành undefined và hỏng ÂM THẦM (đo được trên trình duyệt thật 2026-08-31).
     expect(g._setViewport.mock.calls[0][1]).toEqual([400, 300])
-    note.remove()
+    chuaRender.remove()
   })
 
   it('CÓ khối nhưng KHÔNG đọc được thân thẻ nào → "xong-thieu-the-ghi-chu", vẫn tải ảnh về', async () => {
@@ -241,8 +263,10 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
     expect(g.pt.taiVe).toHaveBeenCalledTimes(1)
   })
 
-  it('khung nhìn được TRẢ LẠI kể cả khi lượt vẽ ném lỗi', async () => {
-    const note = noteGiaDocDuoc()
+  it('đã fit khung nhìn thì phải TRẢ LẠI kể cả khi lượt vẽ ném lỗi', async () => {
+    // Dùng khối CHƯA render để đi vào nhánh có fit — chỉ nhánh đó mới có gì để trả lại.
+    const chuaRender = document.createElement('drt-edgeless-note')
+    document.body.appendChild(chuaRender)
     const g = dungPhuThuocGia({
       gfx: {
         getElementsByBound: vi.fn((_b: unknown, o: { type: string }) =>
@@ -250,7 +274,7 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
         ),
       },
       pt: {
-        layPhanTuKhoi: vi.fn(() => note),
+        layPhanTuKhoi: vi.fn(() => chuaRender),
         layRenderer: vi.fn(() => ({
           getCanvasByBound: vi.fn(() => {
             throw new Error('renderer hỏng')
@@ -260,7 +284,7 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
     })
     await expect(xuatPngBang({}, HOST, 'X', g.pt as never)).rejects.toThrow('renderer hỏng')
     expect(g._setViewport).toHaveBeenCalledTimes(1)
-    note.remove()
+    chuaRender.remove()
   })
 
   it('surface không có CanvasRenderer → ném lỗi rõ, và khoá được mở cho lượt sau', async () => {

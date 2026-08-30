@@ -200,6 +200,16 @@ async function phuThuocThat(): Promise<PhuThuocXuat> {
   }
 }
 
+/**
+ * Khối đã dựng xong thân thẻ hay chưa. `edgeless-note-background` chỉ có mặt sau khi component Lit
+ * hoàn tất lượt render đầu — mà lượt đó bị BlockSuite hoãn qua rAF và chia lô theo khung hình
+ * (`framework/std/src/gfx/viewport-element.ts`, `scheduleUpdateChildren`), nên đây là tín hiệu
+ * THẬT duy nhất, không suy ra được từ lớp CSS hay số khung hình đã trôi qua.
+ */
+function daRender(el: Element): boolean {
+  return el.querySelector('edgeless-note-background') !== null
+}
+
 // Khoá một-lượt-một-lúc: bấm nút hai lần liên tiếp là thao tác bình thường, và hai lượt vẽ chồng
 // nhau cùng động vào `window.devicePixelRatio` (voiTiLePixel) là công thức cho ảnh hỏng.
 let dangXuat = false
@@ -207,10 +217,11 @@ let dangXuat = false
 /**
  * Xuất PNG của bảng ĐANG MỞ. `std` + `host` là của cây Lit mà EdgelessBoard vừa mount.
  *
- * Đóng khung theo `gfx.elementsBound` (nội dung, không phải khung nhìn). Nếu bảng có khối DOM thì
- * FIT khung nhìn ôm trọn nội dung trước khi ĐỌC lớp khối (edgeless cull khối ngoài khung — khối bị
- * cull không render nên không đọc được gì), rồi TRẢ LẠI khung nhìn cũ ngay. Việc VẼ xảy ra sau, từ
- * bản mô tả bằng số — nên khung nhìn của người dùng chỉ lệch trong đúng một nhịp.
+ * Đóng khung theo `gfx.elementsBound` (nội dung, không phải khung nhìn).
+ *
+ * KHÔNG đụng khung nhìn của người dùng khi mọi khối đã render — đó là đường thường gặp nhất (xuất
+ * đúng thứ đang nhìn) và khối đã render thì đọc được rect ngay. Chỉ khi còn khối CHƯA render (bị
+ * cull vì nằm ngoài khung) mới fit tạm rồi trả lại khung cũ.
  *
  * `pt` CHỈ để ca kiểm tiêm — app thật gọi ba đối số.
  */
@@ -242,16 +253,24 @@ export async function xuatPngBang(
     let moTaKhoi: MoTaLopKhoi | undefined
     let soKhoiThieu = 0
     if (khoiModels.length > 0) {
-      vp = gfx.viewport
-      // `centerX`/`centerY` là getter — chụp GIÁ TRỊ ngay bây giờ, không giữ tham chiếu.
-      khungCu = { zoom: vp.zoom, x: vp.centerX, y: vp.centerY }
-      vp.setViewportByBound(bao, [DEM_MOI_PHIA, DEM_MOI_PHIA, DEM_MOI_PHIA, DEM_MOI_PHIA], false)
-
       const els = khoiModels
         .map((m) => p.layPhanTuKhoi(std, m.id))
         .filter((el): el is Element => el !== null)
-      // Chờ tới khi khối THẬT SỰ đã dựng xong thân thẻ — không đoán theo số khung hình.
-      await p.choKhoiHien(() => els.every((el) => el.querySelector('edgeless-note-background')))
+      const daRenderHet = els.length === khoiModels.length && els.every(daRender)
+
+      // CHỈ dời khung nhìn khi THẬT SỰ cần. Khối đã render thì `getBoundingClientRect()` đọc được
+      // ngay — kể cả phần đang nằm ngoài màn hình — nên fit lúc đó là dời bảng của người dùng mà
+      // chẳng được gì. Bản trước fit VÔ ĐIỀU KIỆN: bảng thu nhỏ hết cỡ, đứng đó tới 1,5 giây chờ
+      // một lượt render đã xong từ lâu, rồi nhảy về — đọc thành "màn hình cứ nhấp nháy" (phản hồi
+      // thật 2026-08-31). Đo được: zoom 3,23 → 0,38 suốt 1445ms → 3,23.
+      if (!daRenderHet) {
+        vp = gfx.viewport
+        // `centerX`/`centerY` là getter — chụp GIÁ TRỊ ngay bây giờ, không giữ tham chiếu.
+        khungCu = { zoom: vp.zoom, x: vp.centerX, y: vp.centerY }
+        vp.setViewportByBound(bao, [DEM_MOI_PHIA, DEM_MOI_PHIA, DEM_MOI_PHIA, DEM_MOI_PHIA], false)
+        // Chờ tới khi khối THẬT SỰ dựng xong thân thẻ — không đoán theo số khung hình.
+        await p.choKhoiHien(() => els.every(daRender))
+      }
 
       moTaKhoi = docLopKhoi(els, (x, y) => gfx.viewport.toModelCoord(x, y))
       // Khối có trong mô hình mà không đọc ra được thân thẻ nào = không vào được ảnh. Báo, đừng im.
