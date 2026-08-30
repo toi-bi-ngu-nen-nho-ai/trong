@@ -21,38 +21,7 @@ có thể nó đã được thử và đã hỏng, kèm phép đo chứng minh.
 
 ## 1. ĐANG MỞ
 
-### 1.1 Thẻ ghi chú (khối DOM) không vào được PNG xuất ra — html2canvas không dùng được
-
-Nút "Xuất PNG" đã chuyển ra MÀN VẼ (`da80d33`, 2026-08-31, theo yêu cầu chủ dự án — đảo yêu cầu
-2026-08-27 dồn về menu "⋯"): chấm tròn đối xứng nút quay lại, xuất từ chính `std`/host của bảng
-đang mở qua `CanvasRenderer.getCanvasByBound`, đóng khung theo `gfx.elementsBound` (độc lập
-pan/zoom). Nét vẽ / hình / đường nối / chữ / node mindmap: ĐỦ. Đã gỡ hẳn nhánh mở bảng ngầm.
-
-**Còn mở:** thẻ ghi chú + ảnh chèn (khối edgeless = DOM thật) vẫn KHÔNG vào ảnh. Bảng có khối →
-`xuatPngBang` trả `'xong-thieu-the-ghi-chu'` → app báo thẳng "Thẻ ghi chú chưa vào được ảnh".
-
-**Bốn lượt đào, ĐỪNG lặp lại** (mọi giả thuyết dễ nghĩ đều đã loại bằng phép đo):
-
-1. **`ExportManager.edgelessToCanvas()` trả `undefined` 100% lượt gọi.** Mở đầu bằng
-   `rootComponent.querySelector('.drt-block-children-container')` rồi `return` nếu không thấy — mà
-   root edgeless bản này KHÔNG BAO GIỜ dựng phần tử đó.
-2. **Mỗi khối một lượt html2canvas: quá đắt.** Thẻ 400×92, dev: 7,9s → 6,9s → 4,6s, chạm đáy ~5s
-   MỖI KHỐI. `foreignObjectRendering: true` không cứu (8,6s). Nguyên nhân: html2canvas nhân bản cả
-   tài liệu + **~298 thẻ `<style>`** mỗi lượt.
-3. **MỘT lượt html2canvas trên bảng NGẦM: không có gì để chụp.** Trình soạn thảo ngầm không render
-   khối note — `<drt-edgeless-note>` kẹt `block-idle`, `contain: size layout style`, đo ra 0×0.
-4. **MỘT lượt html2canvas trên `.edgeless-background` của BẢNG ĐANG MỞ (2026-08-31): TREO.** Đây là
-   nơi khối render THẬT, nên "không có gì để chụp" ở lượt 3 hết đúng. Nhưng html2canvas làm phần
-   lớn việc ĐỒNG BỘ trên luồng chính — đo: **treo >36s** cho một note, không tự xong. `Promise.race`
-   với `setTimeout` KHÔNG cứu được (`setTimeout` không chạy khi luồng chính bị chẹn). `xuatAnhBang.ts`
-   không còn gọi html2canvas.
-
-**Hướng còn lại (chưa thử):** rasterize lớp khối bằng một cách KHÔNG phải html2canvas —
-`SVG <foreignObject>` + `new Image()` trên serialized DOM, hoặc dựng canvas thủ công. Hoặc chấp
-nhận vĩnh viễn: sơ đồ tư duy là chất liệu canvas, thẻ ghi chú là phụ. Cần chủ dự án quyết có đáng
-đầu tư tiếp không.
-
-### 1.2 Deploy Vercel chậm thêm vài phút mỗi lần
+### 1.1 Deploy Vercel chậm thêm vài phút mỗi lần
 
 `postinstall` dựng lại `.vendor-build/` từ đầu mỗi lần (checkout CI luôn sạch). Cân nhắc cache qua
 Vercel Build Cache API **nếu** độ chậm thành vấn đề thật — hiện chưa cần, chỉ theo dõi.
@@ -107,6 +76,17 @@ trước khi được viết ra.
 - **Khối tạo bằng `store.addBlock()` trần KHÔNG render** (`visibility:hidden`, rỗng, không vào
   `.edgeless-mount-point`). Mọi số đo trên nó vô nghĩa — muốn đo thẻ ghi chú thật thì phải tạo bằng
   thanh công cụ. Và edgeless **cull** khối ngoài khung nhìn: khối bị cull đo ra 0×0.
+- **Hàm hình học của cây vendored nhận `IVec` — MẢNG `[x, y]`, không phải `{x, y}`.**
+  `viewport.setViewport(zoom, center)` đọc thẳng `newCenter[0]`/`newCenter[1]`, nên truyền object
+  gán `_center.x = undefined` mà **không ném lỗi nào**: `centerX`/`centerY`/`viewportBounds` thành
+  undefined và khung nhìn hỏng âm thầm sau mỗi lượt gọi. Chỉ lộ ra khi ĐO LẠI khung nhìn sau thao
+  tác — `zoom` vẫn đúng nên nhìn qua tưởng lành. Đọc chữ ký trong `framework/std/src/gfx/viewport.ts`
+  trước khi gọi, đừng suy từ tên tham số.
+- **Sau khi đổi khung nhìn, ĐỪNG đếm khung hình để chờ khối hiện ra.** BlockSuite hoãn lượt render
+  ĐẦU TIÊN của mỗi khối qua rAF và chia lô `maxConcurrentRenders` khối mỗi khung
+  (`framework/std/src/gfx/viewport-element.ts`, `scheduleUpdateChildren`) — sơ đồ nhiều thẻ cần vài
+  chục khung, số đó không đoán trước được. Kiểm THẲNG trạng thái muốn có (`querySelector` ra thân
+  thẻ) với một hạn giờ, đúng cách `doiNoiDungToi()` ở EdgelessBoard.tsx làm cho subdoc.
 - **Dọn sau khi đo:** xoá bảng/dữ liệu thử khỏi IndexedDB và localStorage, tắt dev server.
 
 ### 2.3 Tin vào ca kiểm tới đâu
@@ -143,7 +123,7 @@ edit dở dang của phiên này trong cùng file.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | Cả `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **54 file / 468 ca** |
+| Test | `npx vitest run` | **57 file / 513 ca** (2026-08-31) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout thượng nguồn (`BLOCKSUITE_UPSTREAM`) còn ở SHA pin trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy **TRƯỚC** danh sách `LỆCH:` (logic: `scripts/doi-chieu-commit-thuong-nguon.mjs`). Đừng nâng cây vendored lên `canary` trừ khi thật sự cần một bản vá thượng nguồn — đó là việc lớn (dựng lại toàn bộ + pipeline dịch + kiểm hồi quy Mindmap). |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 
