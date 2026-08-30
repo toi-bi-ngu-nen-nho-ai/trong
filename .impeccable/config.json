@@ -144,6 +144,21 @@
         "value": "2px')",
         "createdAt": "2026-08-29T12:47:11.651Z",
         "reason": "false positive: matches a Vitest assertion string (expect(bo).toBe('2px')); 2px is the documented paper-card radius in DESIGN.md"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "8px",
+        "createdAt": "2026-08-30T17:44:39.547Z",
+        "reason": "Claude: giá trị BlockSuite trả về cho borderRadius của edgeless-note-background, được assert trong ca kiểm docLopKhoi — số đo đọc từ vendored, không phải lựa chọn thiết kế của app"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/board/__tests__/ve-khoi-len-canvas.spec.ts"
+        ],
+        "createdAt": "2026-08-30T17:44:47.128Z",
+        "reason": "Claude: <img> KHÔNG src là fixture CỐ Ý — ca kiểm canh đúng việc docLopKhoi bỏ qua ảnh chưa tải xong (img.complete false), không phải ảnh hiển thị cho người dùng"
       }
     ]
   }

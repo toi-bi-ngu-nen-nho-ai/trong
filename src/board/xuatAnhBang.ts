@@ -14,18 +14,15 @@
 // ảnh. Nút xuất nay sống Ở MÀN VẼ (BoardGallery.tsx), xuất từ chính `std`/host của bảng người dùng
 // đang mở.
 //
-// ─── Vì sao lớp KHỐI (thẻ ghi chú, ảnh chèn) KHÔNG vào được ảnh ──────────────────────────────
-// Khối edgeless là DOM thật, không phải nội dung canvas — cách duy nhất đưa chúng vào ảnh là
-// `html2canvas`. Đã thử NHIỀU hướng (mở bảng ngầm, chụp lớp nền bảng đang mở) và BỎ:
-//   • html2canvas nhân bản cả tài liệu kèm ~298 thẻ <style> mà chunk bảng vẽ tiêm vào <head> cho
-//     MỖI lượt gọi, và làm phần lớn việc đó ĐỒNG BỘ trên luồng chính — đo 2026-08-31 trên bảng
-//     đang mở có 1 note: TREO >36s, một `Promise.race` với timeout cũng không cứu được vì
-//     `setTimeout` không chạy khi luồng chính bị chẹn.
-//   • `foreignObjectRendering: true` không cứu (8,6s, đo 2026-08-30).
-// Chọn ĐÚNG-VÀ-NHANH cho phần LÀM ĐƯỢC: phần tử canvas (nét vẽ, hình, đường nối, chữ, node mindmap)
-// là toàn bộ chất liệu của một sơ đồ tư duy và vẽ được từ mô hình trong vài chục ms. Bảng CÓ khối
-// thì `xuatPngBang` trả `'xong-thieu-the-ghi-chu'` để người dùng được BÁO ngay lúc bấm, thay vì tự
-// phát hiện thiếu khi mở tệp ra giữa ca trực. Xem HANDOFF §1.1 cho lịch sử đầy đủ.
+// ─── Lớp KHỐI (thẻ ghi chú, ảnh chèn) ────────────────────────────────────────────────────────
+// Khối edgeless là DOM thật, không phải nội dung canvas. Bốn lượt đầu đều cố đưa chúng vào ảnh
+// bằng `html2canvas` và đều tắc — lượt cuối (chụp lớp nền của bảng ĐANG MỞ) treo >36 giây cho đúng
+// một thẻ ghi chú, vì html2canvas nhân bản cả tài liệu kèm ~298 thẻ <style> và làm phần lớn việc
+// đó ĐỒNG BỘ trên luồng chính. Bỏ hẳn hướng đó.
+// Cách đang dùng: `./ve-khoi-len-canvas.ts` ĐỌC LẠI layout mà trình duyệt đã tính xong (rect của
+// nền thẻ, `Range` cho từng dòng chữ, `<img>` đã tải) rồi vẽ thẳng lên canvas xuất — vài mili-giây,
+// không nhân bản gì. Khối chỉ render khi nằm TRONG khung nhìn (edgeless cull khối ngoài khung), nên
+// lượt xuất fit khung nhìn ôm trọn nội dung, ĐỌC, rồi TRẢ LẠI khung cũ.
 //
 // ─── Vì sao KHÔNG gọi thẳng `ExportManager.edgelessToCanvas()` ───────────────────────────────
 // Cây vendored CÓ sẵn `ExportManager`, nhưng `edgelessToCanvas()` mở đầu bằng
@@ -37,6 +34,8 @@
 // `edgelessToCanvas` để nếu thượng nguồn sửa lỗi kia thì quay lại dùng hàm gốc là phép thay thế thẳng.
 //
 // D11: KHÔNG sửa gì trong src/vendor/. Module này chỉ GỌI API công khai của cây vendored.
+
+import { docLopKhoi, veLopKhoi, type MoTaLopKhoi } from './ve-khoi-len-canvas'
 
 export type HopBao = { x: number; y: number; w: number; h: number }
 
@@ -63,6 +62,12 @@ const BIEN_AN_TOAN = 0.995
 
 // Đệm quanh nội dung, mỗi phía. Giữ đúng 50px như `ExportManager._createCanvas`.
 const DEM_MOI_PHIA = 50
+
+// Trần chờ lớp khối hiện ra sau khi fit khung nhìn. BlockSuite chia lô `maxConcurrentRenders` khối
+// mỗi khung hình, nên một sơ đồ nhiều thẻ cần vài chục khung — 1,5 giây là hào phóng cho ca đó.
+// Hết giờ vẫn ĐỌC tiếp: xấu nhất là thiếu thẻ ghi chú VÀ người dùng được báo, còn hơn treo nút.
+const HAN_CHO_KHOI_HIEN_MS = 1500
+const NHIP_CHO_MS = 32
 
 /**
  * Tỉ lệ pixel dùng được cho một hộp bao, đã kẹp xuống dưới cả hai trần canvas. Không bao giờ NÂNG
@@ -118,10 +123,27 @@ function taiVeThat(duLieu: string, tenTep: string): void {
 
 type CanvasRendererLike = { getCanvasByBound(b: HopBao, els: unknown[]): HTMLCanvasElement }
 
+/** Phần `Viewport` cần cho lượt fit-rồi-trả-lại. Tên khớp `framework/std/src/gfx/viewport.ts`. */
+export type ViewportXuat = {
+  readonly zoom: number
+  readonly centerX: number
+  readonly centerY: number
+  toModelCoord(x: number, y: number): [number, number]
+  setViewportByBound(bound: HopBao, padding?: [number, number, number, number], smooth?: boolean): void
+  /**
+   * `center` là `IVec` — MẢNG `[x, y]`, KHÔNG phải `{x, y}`. Thượng nguồn đọc thẳng `newCenter[0]`
+   * / `newCenter[1]` (`framework/std/src/gfx/viewport.ts`), nên truyền object sẽ gán
+   * `_center.x = undefined` mà KHÔNG ném lỗi: `centerX`/`centerY`/`viewportBounds` thành undefined
+   * và khung nhìn của người dùng hỏng âm thầm sau mỗi lượt xuất. Đã đo đúng lỗi này 2026-08-31.
+   */
+  setViewport(zoom: number, center: [number, number], smooth?: boolean): void
+}
+
 export type GfxXuat = {
   readonly elementsBound: HopBao
   getElementsByBound(b: HopBao, tuyChon: { type: 'block' | 'canvas' }): unknown[]
   readonly surfaceComponent: (CanvasRendererLike & { renderer?: unknown }) | null
+  readonly viewport: ViewportXuat
 }
 
 /** Bộ phụ thuộc — CHỈ để ca kiểm tiêm bản giả. App thật gọi `xuatPngBang(std, host, tenBang)`. */
@@ -129,6 +151,18 @@ export type PhuThuocXuat = {
   layGfx: (std: unknown) => GfxXuat
   /** `CanvasRenderer` của bảng đang mở, để `getCanvasByBound`. */
   layRenderer: (gfx: GfxXuat) => CanvasRendererLike | null
+  /** Phần tử DOM của một khối theo id — `std.view.getBlock(id)`. */
+  layPhanTuKhoi: (std: unknown, id: string) => Element | null
+  /**
+   * Chờ tới khi `xong()` đúng, hoặc hết hạn giờ. Ca kiểm tiêm bản trả về ngay.
+   *
+   * KHÔNG phải "chờ N khung hình": BlockSuite hoãn lượt render ĐẦU TIÊN của mỗi khối qua
+   * `requestAnimationFrame` và chia lô `maxConcurrentRenders` khối mỗi khung
+   * (`framework/std/src/gfx/viewport-element.ts`, `scheduleUpdateChildren`). Một sơ đồ nhiều thẻ
+   * cần NHIỀU khung hình mới hiện đủ, và số khung đó không đoán trước được — nên phải kiểm THẲNG
+   * trạng thái muốn có, đúng cách `doiNoiDungToi()` ở EdgelessBoard.tsx đã làm cho subdoc.
+   */
+  choKhoiHien: (xong: () => boolean) => Promise<void>
   taiVe: (duLieu: string, tenTep: string) => void
 }
 
@@ -145,6 +179,23 @@ async function phuThuocThat(): Promise<PhuThuocXuat> {
   return {
     layGfx: (std) => (std as { get(id: unknown): GfxXuat }).get(GfxControllerIdentifier),
     layRenderer: layRendererTuGfx,
+    layPhanTuKhoi: (std, id) =>
+      (std as { view: { getBlock(id: string): Element | null } }).view.getBlock(id),
+    // Nhịp chờ đi bằng `setTimeout`, KHÔNG bằng `requestAnimationFrame`: rAF không chạy khi tài
+    // liệu đang ẩn (tab ở nền, cửa sổ thu nhỏ, pane bị giấu — Page Visibility tạm dừng vòng lặp
+    // render). Chờ bằng rAF thì lượt xuất treo VĨNH VIỄN đúng ở đó: nút kẹt ở "Đang dựng ảnh…",
+    // không lỗi nào được ném, không gì để gỡ. Đo được 2026-08-31 (rAF im lặng suốt 1007ms).
+    // Trên tài liệu đang ẩn, khối cũng không bao giờ render được — nên hết hạn giờ ta ĐI TIẾP và
+    // báo "thiếu thẻ ghi chú", thay vì đứng chờ một điều không thể tới.
+    choKhoiHien: (xong) =>
+      new Promise((r) => {
+        const hetHan = Date.now() + HAN_CHO_KHOI_HIEN_MS
+        const nhip = () => {
+          if (xong() || Date.now() >= hetHan) return r()
+          setTimeout(nhip, NHIP_CHO_MS)
+        }
+        nhip()
+      }),
     taiVe: taiVeThat,
   }
 }
@@ -156,8 +207,10 @@ let dangXuat = false
 /**
  * Xuất PNG của bảng ĐANG MỞ. `std` + `host` là của cây Lit mà EdgelessBoard vừa mount.
  *
- * Đóng khung theo `gfx.elementsBound` (nội dung, không phải khung nhìn). Vẽ nhanh (~vài chục ms),
- * không chờ, không đụng khung nhìn của người dùng.
+ * Đóng khung theo `gfx.elementsBound` (nội dung, không phải khung nhìn). Nếu bảng có khối DOM thì
+ * FIT khung nhìn ôm trọn nội dung trước khi ĐỌC lớp khối (edgeless cull khối ngoài khung — khối bị
+ * cull không render nên không đọc được gì), rồi TRẢ LẠI khung nhìn cũ ngay. Việc VẼ xảy ra sau, từ
+ * bản mô tả bằng số — nên khung nhìn của người dùng chỉ lệch trong đúng một nhịp.
  *
  * `pt` CHỈ để ca kiểm tiêm — app thật gọi ba đối số.
  */
@@ -169,6 +222,8 @@ export async function xuatPngBang(
 ): Promise<KetQuaXuat> {
   if (dangXuat) return 'dang-ban'
   dangXuat = true
+  let vp: ViewportXuat | undefined
+  let khungCu: { zoom: number; x: number; y: number } | undefined
   try {
     const p = pt ?? (await phuThuocThat())
     const gfx = p.layGfx(std)
@@ -181,26 +236,51 @@ export async function xuatPngBang(
     if (!renderer || typeof renderer.getCanvasByBound !== 'function') {
       throw new Error('xuatPngBang: khối surface không có CanvasRenderer để vẽ')
     }
-    const soKhoi = (gfx.getElementsByBound(bao, { type: 'block' }) as unknown[]).length
 
-    const canvas = await voiTiLePixel(tinhTiLeXuat(bao), () => ghepCanvas(bao, gfx, renderer, host))
+    // ── Đọc lớp khối (thẻ ghi chú, ảnh) ────────────────────────────────────────────────────
+    const khoiModels = gfx.getElementsByBound(bao, { type: 'block' }) as Array<{ id: string }>
+    let moTaKhoi: MoTaLopKhoi | undefined
+    let soKhoiThieu = 0
+    if (khoiModels.length > 0) {
+      vp = gfx.viewport
+      // `centerX`/`centerY` là getter — chụp GIÁ TRỊ ngay bây giờ, không giữ tham chiếu.
+      khungCu = { zoom: vp.zoom, x: vp.centerX, y: vp.centerY }
+      vp.setViewportByBound(bao, [DEM_MOI_PHIA, DEM_MOI_PHIA, DEM_MOI_PHIA, DEM_MOI_PHIA], false)
+
+      const els = khoiModels
+        .map((m) => p.layPhanTuKhoi(std, m.id))
+        .filter((el): el is Element => el !== null)
+      // Chờ tới khi khối THẬT SỰ đã dựng xong thân thẻ — không đoán theo số khung hình.
+      await p.choKhoiHien(() => els.every((el) => el.querySelector('edgeless-note-background')))
+
+      moTaKhoi = docLopKhoi(els, (x, y) => gfx.viewport.toModelCoord(x, y))
+      // Khối có trong mô hình mà không đọc ra được thân thẻ nào = không vào được ảnh. Báo, đừng im.
+      soKhoiThieu = Math.max(0, khoiModels.length - moTaKhoi.the.length)
+    }
+
+    const canvas = await voiTiLePixel(tinhTiLeXuat(bao), () =>
+      ghepCanvas(bao, gfx, renderer, host, moTaKhoi),
+    )
     p.taiVe(canvas.toDataURL('image/png'), `${lamSachTenTep(tenBang)}.png`)
-    return soKhoi > 0 ? 'xong-thieu-the-ghi-chu' : 'xong'
+    return soKhoiThieu > 0 ? 'xong-thieu-the-ghi-chu' : 'xong'
   } finally {
+    // Trả khung nhìn về đúng chỗ người dùng đang đứng, kể cả khi lượt vẽ ném lỗi.
+    if (vp && khungCu) vp.setViewport(khungCu.zoom, [khungCu.x, khungCu.y], false)
     dangXuat = false
   }
 }
 
 /**
- * Ghép canvas cuối: nền → lớp canvas (nét vẽ, hình, đường nối, chữ, node mindmap, qua
- * `getCanvasByBound`). Gọi BÊN TRONG `voiTiLePixel` nên `window.devicePixelRatio` ở đây đã là tỉ lệ
- * xuất.
+ * Ghép canvas cuối: nền → lớp khối (thẻ ghi chú, ảnh) → lớp canvas (nét vẽ, hình, đường nối, chữ,
+ * node mindmap, qua `getCanvasByBound`). Thứ tự này giữ đúng như `edgelessToCanvas` thượng nguồn.
+ * Gọi BÊN TRONG `voiTiLePixel` nên `window.devicePixelRatio` ở đây đã là tỉ lệ xuất.
  */
 function ghepCanvas(
   bao: HopBao,
   gfx: GfxXuat,
   renderer: CanvasRendererLike,
   host: HTMLElement,
+  moTaKhoi?: MoTaLopKhoi,
 ): HTMLCanvasElement {
   const tiLe = window.devicePixelRatio || 1
   const rongLogic = bao.w + DEM_MOI_PHIA * 2
@@ -220,6 +300,11 @@ function ghepCanvas(
   const mauNen = nen ? getComputedStyle(nen).backgroundColor : ''
   ctx.fillStyle = mauNen && mauNen !== 'rgba(0, 0, 0, 0)' ? mauNen : '#ffffff'
   ctx.fillRect(0, 0, rongLogic, caoLogic)
+
+  // Điểm MÔ HÌNH → điểm trên canvas xuất: dời về gốc hộp bao rồi cộng đệm.
+  if (moTaKhoi) {
+    veLopKhoi(ctx, moTaKhoi, (x, y) => [x - bao.x + DEM_MOI_PHIA, y - bao.y + DEM_MOI_PHIA])
+  }
 
   const phanTu = gfx.getElementsByBound(bao, { type: 'canvas' })
   const canvasSurface = renderer.getCanvasByBound(bao, phanTu)

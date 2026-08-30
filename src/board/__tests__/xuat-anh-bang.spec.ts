@@ -84,12 +84,25 @@ describe('voiTiLePixel — cần lấy lại devicePixelRatio gốc bằng mọi
 // `drawImage` chạy mà không ném. Không canh pixel (không có rasterize), canh HỢP ĐỒNG và TOẠ ĐỘ.
 const ctxGia = () => ({
   fillStyle: '',
+  strokeStyle: '',
+  lineWidth: 0,
+  font: '',
+  textBaseline: '',
   scale: vi.fn(),
   fillRect: vi.fn(),
   drawImage: vi.fn(),
   save: vi.fn(),
   restore: vi.fn(),
   translate: vi.fn(),
+  // Lớp khối vẽ thẻ bằng đường bo góc tự dựng (xem ve-khoi-len-canvas.ts) rồi tô chữ.
+  beginPath: vi.fn(),
+  closePath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  quadraticCurveTo: vi.fn(),
+  fill: vi.fn(),
+  stroke: vi.fn(),
+  fillText: vi.fn(),
 })
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
@@ -101,20 +114,45 @@ afterEach(() => vi.restoreAllMocks())
 
 // Bộ giả tối thiểu cho phần điều phối: đủ hình dạng để xuatPngBang() chạy hết vòng đời trên một
 // `std` giả — cây BlockSuite thật đã có ca kiểm riêng (edgeless-board-mount.spec.ts).
+/** Một `<drt-edgeless-note>` giả ĐỌC ĐƯỢC: có nền với kích thước thật. */
+function noteGiaDocDuoc(): HTMLElement {
+  const el = document.createElement('drt-edgeless-note')
+  el.innerHTML = '<edgeless-note-background></edgeless-note-background>'
+  const nen = el.querySelector('edgeless-note-background')!
+  nen.getBoundingClientRect = () =>
+    ({ x: 0, y: 0, width: 100, height: 60, left: 0, top: 0, right: 100, bottom: 60 }) as DOMRect
+  document.body.appendChild(el)
+  return el
+}
+
 function dungPhuThuocGia(ghiDe: { gfx?: Record<string, unknown>; pt?: Record<string, unknown> } = {}) {
   const getCanvasByBound = vi.fn((_b: unknown, _els: unknown[]) => ({ width: 900, height: 700 }))
+  const setViewportByBound = vi.fn()
+  const setViewport = vi.fn()
   const gfx = {
     elementsBound: { x: 0, y: 0, w: 800, h: 600 },
     getElementsByBound: vi.fn(() => [] as unknown[]),
     surfaceComponent: { getCanvasByBound },
+    viewport: {
+      zoom: 1,
+      centerX: 400,
+      centerY: 300,
+      toModelCoord: (x: number, y: number) => [x, y] as [number, number],
+      setViewportByBound,
+      setViewport,
+    },
     ...ghiDe.gfx,
   }
   return {
     _gfx: gfx,
     _getCanvasByBound: getCanvasByBound,
+    _setViewportByBound: setViewportByBound,
+    _setViewport: setViewport,
     pt: {
       layGfx: vi.fn(() => gfx),
       layRenderer: vi.fn(() => gfx.surfaceComponent),
+      layPhanTuKhoi: vi.fn(() => null as Element | null),
+      choKhoiHien: vi.fn(async () => {}),
       taiVe: vi.fn(),
       ...ghiDe.pt,
     },
@@ -157,20 +195,72 @@ describe('xuatPngBang — xuất từ bảng ĐANG MỞ', () => {
     expect(g._getCanvasByBound).not.toHaveBeenCalled()
   })
 
-  it('KHÔNG có khối → "xong" trơn', async () => {
+  it('KHÔNG có khối → "xong" trơn, và KHÔNG đụng khung nhìn của người dùng', async () => {
     const g = dungPhuThuocGia()
     expect(await xuatPngBang({}, HOST, 'So do', g.pt as never)).toBe('xong')
     expect(g.pt.taiVe).toHaveBeenCalledTimes(1)
+    expect(g._setViewportByBound).not.toHaveBeenCalled()
+    expect(g._setViewport).not.toHaveBeenCalled()
   })
 
-  it('CÓ khối (thẻ ghi chú / ảnh) → "xong-thieu-the-ghi-chu": vẫn tải ảnh về, nhưng BÁO là thiếu', async () => {
-    // Lớp khối DOM không vào được ảnh (html2canvas treo luồng chính — xem đầu xuatAnhBang.ts).
-    // Điều ca kiểm này khoá là phần CƯ XỬ: người dùng phải được BÁO ngay lúc bấm.
+  it('CÓ khối đọc được → "xong": fit khung nhìn ôm nội dung rồi TRẢ LẠI khung cũ', async () => {
+    const note = noteGiaDocDuoc()
     const g = dungPhuThuocGia({
-      gfx: { getElementsByBound: vi.fn((_b: unknown, o: { type: string }) => (o.type === 'block' ? [{ id: 'a' }, { id: 'b' }] : [])) },
+      gfx: {
+        getElementsByBound: vi.fn((_b: unknown, o: { type: string }) =>
+          o.type === 'block' ? [{ id: 'n1' }] : [],
+        ),
+      },
+      pt: { layPhanTuKhoi: vi.fn(() => note) },
+    })
+    expect(await xuatPngBang({}, HOST, 'Co note', g.pt as never)).toBe('xong')
+    // Khối bị cull khi ngoài khung nhìn → phải fit TRƯỚC khi đọc, và chờ trình duyệt sơn xong.
+    expect(g._setViewportByBound).toHaveBeenCalledTimes(1)
+    expect(g._setViewportByBound.mock.calls[0][0]).toEqual(g._gfx.elementsBound)
+    expect(g.pt.choKhoiHien).toHaveBeenCalledTimes(1)
+    // Trả lại ĐÚNG khung nhìn đã chụp trước lúc fit (zoom 1, tâm 400/300).
+    expect(g._setViewport).toHaveBeenCalledTimes(1)
+    expect(g._setViewport.mock.calls[0][0]).toBe(1)
+    // MẢNG [x, y], không phải {x, y}: thượng nguồn đọc `newCenter[0]`/`[1]`, truyền object thì
+    // tâm khung nhìn thành undefined và hỏng ÂM THẦM (đo được trên trình duyệt thật 2026-08-31).
+    expect(g._setViewport.mock.calls[0][1]).toEqual([400, 300])
+    note.remove()
+  })
+
+  it('CÓ khối nhưng KHÔNG đọc được thân thẻ nào → "xong-thieu-the-ghi-chu", vẫn tải ảnh về', async () => {
+    // Người dùng phải được BÁO ngay lúc bấm, thay vì tự phát hiện thiếu khi mở tệp giữa ca trực.
+    const g = dungPhuThuocGia({
+      gfx: {
+        getElementsByBound: vi.fn((_b: unknown, o: { type: string }) =>
+          o.type === 'block' ? [{ id: 'a' }, { id: 'b' }] : [],
+        ),
+      },
+      pt: { layPhanTuKhoi: vi.fn(() => null) },
     })
     expect(await xuatPngBang({}, HOST, 'Co note', g.pt as never)).toBe('xong-thieu-the-ghi-chu')
     expect(g.pt.taiVe).toHaveBeenCalledTimes(1)
+  })
+
+  it('khung nhìn được TRẢ LẠI kể cả khi lượt vẽ ném lỗi', async () => {
+    const note = noteGiaDocDuoc()
+    const g = dungPhuThuocGia({
+      gfx: {
+        getElementsByBound: vi.fn((_b: unknown, o: { type: string }) =>
+          o.type === 'block' ? [{ id: 'n1' }] : [],
+        ),
+      },
+      pt: {
+        layPhanTuKhoi: vi.fn(() => note),
+        layRenderer: vi.fn(() => ({
+          getCanvasByBound: vi.fn(() => {
+            throw new Error('renderer hỏng')
+          }),
+        })),
+      },
+    })
+    await expect(xuatPngBang({}, HOST, 'X', g.pt as never)).rejects.toThrow('renderer hỏng')
+    expect(g._setViewport).toHaveBeenCalledTimes(1)
+    note.remove()
   })
 
   it('surface không có CanvasRenderer → ném lỗi rõ, và khoá được mở cho lượt sau', async () => {
