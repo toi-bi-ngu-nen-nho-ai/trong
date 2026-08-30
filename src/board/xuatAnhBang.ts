@@ -209,12 +209,17 @@ async function veRaCanvasThat(
 
   // ─── Vì sao KHÔNG rasterize khối (thẻ ghi chú, ảnh chèn) ────────────────────────────────────
   // Khối edgeless là DOM thật, không phải nội dung canvas, nên cách duy nhất đưa chúng vào ảnh là
-  // `html2canvas` — chính thứ `ExportManager` dùng. Đã thử và BỎ sau khi đo (2026-08-30, bản build
-  // thật): một lượt xuất bảng có 2 thẻ ghi chú chạy quá 85 GIÂY mà không kết thúc, hộp chứa ngầm
-  // không bao giờ được dọn. Nguyên nhân là html2canvas phải nhân bản toàn bộ ~190 thẻ <style> mà
-  // chunk bảng vẽ tiêm vào <head> cho MỖI khối. Kèm theo đó, edgeless CULL khối ngoài khung nhìn
-  // nên component của chúng đo ra 0×0 và html2canvas trả canvas rỗng — đã thử vá bằng
-  // `setViewportByBound` rồi vẫn treo.
+  // `html2canvas` — chính thứ `ExportManager` dùng. Đã thử và BỎ vì GIÁ THỜI GIAN, không phải vì
+  // nó sai: đo trên một thẻ ghi chú THẬT (tạo bằng thanh công cụ, 400×92, dev build, máy để bàn)
+  // được 7,9s → 6,9s → 4,6s cho ba lượt liên tiếp — ấm dần rồi chạm đáy khoảng 5 GIÂY MỖI KHỐI.
+  // Một sơ đồ 5 thẻ ghi chú là ~25 giây cho một mục menu; trên điện thoại còn tệ hơn.
+  // `foreignObjectRendering: true` KHÔNG cứu được (8,6s, đo cùng lượt). Nguyên nhân là html2canvas
+  // nhân bản cả tài liệu kèm ~298 thẻ <style> mà chunk bảng vẽ tiêm vào <head>, cho MỖI lượt gọi.
+  // Bẫy khi đo lại: (a) khối tạo bằng `store.addBlock()` trần KHÔNG render (`visibility:hidden`,
+  // rỗng) nên mọi số đo trên nó đều vô nghĩa — phải tạo thẻ bằng thanh công cụ thật; (b) edgeless
+  // CULL khối ngoài khung nhìn, khối bị cull đo ra 0×0 và html2canvas trả canvas rỗng.
+  // Hướng còn bỏ ngỏ nếu sau này cần: gọi html2canvas ĐÚNG MỘT LẦN trên tổ tiên chung của mọi
+  // khối thay vì mỗi khối một lượt — chi phí thành ~5s cho cả sơ đồ thay vì 5s × số thẻ.
   // Chọn ĐÚNG-VÀ-NHANH thay vì ĐỦ-NHƯNG-TREO: phần tử canvas (nét vẽ, hình, đường nối, chữ, node
   // mindmap) là toàn bộ chất liệu của một sơ đồ tư duy và vẽ được từ mô hình trong vài chục ms.
   // Bảng CÓ khối thì `xuatPngBang` trả 'xong-thieu-the-ghi-chu' để người dùng được BÁO, không phải

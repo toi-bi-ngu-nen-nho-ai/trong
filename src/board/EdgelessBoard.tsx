@@ -99,6 +99,33 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
   return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
 }
 
+// Hạn giờ đợi NỘI DUNG của một doc ĐÃ ĐĂNG KÝ hiện ra sau `doc.load()`. Xem `doiNoiDungToi`.
+const HAN_GIO_NOI_DUNG_MAC_DINH_MS = 3000
+
+/**
+ * Đợi tới khi `store` có khối gốc KÈM con `affine:surface`, hoặc hết giờ.
+ *
+ * Tồn tại vì nội dung subdoc tới BẤT ĐỒNG BỘ: `workspace.waitForSynced()` chỉ nói doc GỐC đã đồng
+ * bộ, còn subdoc chỉ được yêu cầu khi `doc.load()` chạy — `TestDoc._initSubDoc` đặt `_loaded=false`
+ * rồi đợi sự kiện 'subdocs' (framework/store/src/test/test-doc.ts:22-33). Trong cửa sổ đó
+ * `store.root` là `null` CHO MỘT BẢNG CÓ NỘI DUNG.
+ *
+ * KHÔNG dùng được `waitForSynced()` cho việc này: nó `return` ngay khi trạng thái đang là `Synced`
+ * (framework/sync/src/doc/engine.ts:268), mà ngay sau `doc.load()` engine thường vẫn đang ở Synced
+ * vì chưa kịp xếp subdoc vào hàng đợi — nên lượt await đó trả về tức thì và không đợi gì cả.
+ * Kiểm THẲNG trạng thái muốn có là cách duy nhất không phải đoán nội bộ của engine.
+ */
+async function doiNoiDungToi(
+  store: { root?: { children: Array<{ flavour: string }> } | null },
+  hanGioMs: number,
+): Promise<void> {
+  const batDau = Date.now()
+  while (Date.now() - batDau < hanGioMs) {
+    if (store.root?.children.some((khoi) => khoi.flavour === 'affine:surface')) return
+    await new Promise((r) => setTimeout(r, 30))
+  }
+}
+
 // Xuất PNG/PDF KHÔNG có UI trong màn vẽ này (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của
 // đổi tên/chuyên khoa xuất file" ở màn vẽ, "tính năng xuất file chuyển ra board") — nút xuất sống
 // trong menu "⋯" của THẺ bảng ở lưới danh sách (DanhSachBang.tsx).
@@ -122,15 +149,62 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
  * dựng lại ở chế độ chỉ-trong-bộ-nhớ — bên gọi (EdgelessBoard()) dùng cờ này để hiện một băng cảnh
  * báo thay vì im lặng để người dùng mất nội dung mà không biết.
  */
+// Nối tiếp các lượt mở CÙNG một `boardId` — mỗi lượt đợi lượt trước xong mới bắt đầu.
+//
+// Vì sao cần: hai lượt `taoHoacMoBang()` chạy CHỒNG NHAU trên cùng một bảng MỚI đều thấy
+// `getDoc()` trả null (lượt kia chưa kịp đẩy metadata), nên cả hai cùng `createDoc` + seed, rồi
+// CRDT hợp nhất cả hai lượt ghi → doc có 2 `affine:page` và 2 `affine:surface`. Bản trùng không
+// lộ ra ngay: mỗi lượt chỉ thấy seed của chính nó, phải tới lần mở KẾ TIẾP mới thấy cả hai.
+// Hậu quả khi đó: `gfx.surface` bám vào surface MỒ CÔI (không phải con của `store.root`) nên
+// `gfx.surfaceComponent` null vĩnh viễn — bảng vẽ không render được gì.
+// Đo được 2026-08-30 ở dev: React StrictMode mount-rồi-remount tạo đúng cặp lượt chồng nhau này,
+// và một bảng vừa tạo xong đã hỏng ngay. Bản build production không bật StrictMode nên hiếm gặp,
+// nhưng cửa sổ đua vẫn thật (mở app ở hai tab cùng lúc).
+//
+// Sau khi nối tiếp, lượt thứ hai thấy `getDoc()` khác null nên đi nhánh "doc đã đăng ký": đợi nội
+// dung tới rồi mới quyết seed, và nội dung đã có sẵn nhờ lượt đầu — không seed nữa.
+//
+// GIỚI HẠN đã biết: khoá này ở module-scope nên chỉ phủ được cùng một ngữ cảnh JS. Hai TAB trình
+// duyệt cùng mở một bảng mới vẫn đua được với nhau — muốn đóng hẳn phải là khoá liên-tab (Web
+// Locks API), chưa cần tới mức đó.
+const luotMoDangCho = new Map<string, Promise<void>>()
+
 export async function taoHoacMoBang(boardId: string, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
   khongSeed?: boolean
+  hanGioNoiDungMs?: number
+}) {
+  const cho = luotMoDangCho.get(boardId)
+  let bao!: () => void
+  const luotCuaToi = new Promise<void>((giai) => {
+    bao = giai
+  })
+  luotMoDangCho.set(boardId, luotCuaToi)
+  // `cho` có thể đã bị từ chối — lượt trước hỏng KHÔNG được kéo lượt này hỏng theo, nó chỉ cần
+  // biết lượt kia đã kết thúc.
+  if (cho) await cho.catch(() => {})
+  try {
+    return await moBangThat(boardId, tuyChon)
+  } finally {
+    bao()
+    // Chỉ xoá nếu mình vẫn là lượt cuối — nếu đã có lượt khác xếp hàng sau, để nguyên cho nó.
+    if (luotMoDangCho.get(boardId) === luotCuaToi) luotMoDangCho.delete(boardId)
+  }
+}
+
+async function moBangThat(boardId: string, tuyChon?: {
+  docSources?: { main: DocSource }
+  blobSources?: { main: BlobSource }
+  hanGioMs?: number
+  khongSeed?: boolean
+  hanGioNoiDungMs?: number
 }) {
   const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
   const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
+  const hanGioNoiDungMs = tuyChon?.hanGioNoiDungMs ?? HAN_GIO_NOI_DUNG_MAC_DINH_MS
 
   // KHÔNG truyền `idGenerator` — để TestWorkspace tự rơi về mặc định của nó (`nanoid`, ngẫu nhiên).
   // Từng có `createAutoIncrementIdGenerator()` ở đây: bộ đếm bắt đầu lại từ 0 ở MỖI lần hàm này
@@ -174,53 +248,60 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
     }
 
     let doc = workspace.getDoc(boardId)
+    // `getDoc()` trả null = doc CHƯA ĐĂNG KÝ trong metadata workspace, tức chưa từng có nội dung —
+    // tín hiệu DUY NHẤT đáng tin để phân biệt "bảng mới tinh" với "bảng có nội dung đang trên đường
+    // tới". Xem khối quyết định seed bên dưới.
+    const laDocMoi = !doc
     if (!doc) {
       doc = workspace.createDoc(boardId)
     }
     const store = doc.getStore({ extensions: storeManager.get('store') })
     doc.load()
 
-    // Tự hồi phục khi doc đã ĐĂNG KÝ trong metadata IndexedDB (nên `getDoc(boardId)` khác null) nhưng
-    // khối gốc (`affine:page`/`affine:surface`) chưa bao giờ được ghi xong — vd tab bị đóng đúng vào
-    // khe vài mili-giây giữa lượt ghi metadata và lượt ghi khối lúc mở app lần đầu, hai tab cùng mở
-    // app lần đầu và đua nhau, hoặc (ở dev) React StrictMode mount-rồi-remount hai lần tạo ra hai
-    // `TestWorkspace` cùng chạm một IndexedDB. Điều kiện seed dưới đây kiểm THẲNG `!store.root` (và,
-    // cho nhánh hẹp hơn, thiếu `affine:surface`) thay vì "đây có phải lần đầu mở doc" — trước lượt
-    // sửa này điều kiện là `laLanDau || !store.root`, tưởng an toàn hơn nhưng thực ra NGƯỢC lại:
-    // `createDoc()` luôn khởi tạo một store RỖNG (`!store.root` đã tự đúng ở mọi lần đầu thật), nên
-    // `laLanDau` không thêm được ca nào `!store.root` chưa phủ — nó chỉ THÊM một đường seed giả nếu
-    // metadata workspace từng bị mất trong khi nội dung subdoc vẫn còn nguyên: khi đó `laLanDau` có
-    // thể là `true` dù `store.root` đã có nội dung thật, và vế `||` sẽ seed CHỒNG LÊN nội dung có
-    // sẵn — đúng thứ guard này phải ngăn. Bỏ hẳn `laLanDau` khỏi điều kiện vừa đơn giản hơn vừa an
-    // toàn hơn. Không kiểm điều kiện này thì lần mở kế tiếp gặp đúng doc hỏng này sẽ ném
-    // `BlockSuiteError: This doc is missing surface/root block` sâu trong `EditorHost.connectedCallback`
-    // — một unhandled rejection không ai bắt — và bảng vẽ hỏng vĩnh viễn từ đó về sau, âm thầm.
-    // `khongSeed`: mở CHỈ ĐỌC, tuyệt đối không tạo nội dung (dùng bởi ./xuatAnhBang.ts).
+    // ─── Quyết định có SEED khối gốc hay không ────────────────────────────────────────────────
     //
-    // Vì sao cần: nội dung subdoc nạp BẤT ĐỒNG BỘ. `waitForSynced()` ở trên chỉ nói doc GỐC đã
-    // đồng bộ; `doc.load()` mới yêu cầu subdoc, và `TestDoc._initSubDoc` đặt `_loaded = false` rồi
-    // ĐỢI sự kiện 'subdocs' (framework/store/src/test/test-doc.ts:22-33). Trong cửa sổ đó
-    // `store.root` là null cho một bảng CÓ nội dung — và nhánh seed bên dưới sẽ ghi một
-    // `affine:page` + `affine:surface` THỨ HAI vào chính doc đó.
-    // Hậu quả đo được (kiểm tay 2026-08-30, sau 3 lượt xuất): doc có 2 root và 2 surface;
-    // `gfx.surface` bám vào surface MỒ CÔI nên `gfx.surfaceComponent` null vĩnh viễn và không gì
-    // render được nữa. Đường xuất không có việc gì phải tạo nội dung, nên cách vá đúng tầng là
-    // KHÔNG BAO GIỜ để nó chạm nhánh seed — thay vì nới hạn giờ và hy vọng.
-    // Bên gọi tự kiểm `store.root` sau đó (null = chưa nạp xong hoặc bảng không tồn tại).
+    // Nhánh này tự hồi phục doc đã ĐĂNG KÝ trong metadata nhưng khối gốc (`affine:page`/
+    // `affine:surface`) chưa bao giờ ghi xong — vd tab bị đóng đúng khe vài mili-giây giữa lượt ghi
+    // metadata và lượt ghi khối. Không có nó thì lần mở kế tiếp ném `BlockSuiteError: This doc is
+    // missing surface/root block` sâu trong `EditorHost.connectedCallback` — unhandled rejection
+    // không ai bắt — và bảng hỏng vĩnh viễn từ đó, âm thầm.
+    //
+    // NHƯNG `!store.root` MỘT MÌNH KHÔNG ĐỦ để kết luận "doc này rỗng": nội dung subdoc tới bất
+    // đồng bộ, nên `store.root` cũng là null trong cửa sổ vài trăm ms đầu của một bảng ĐẦY nội
+    // dung (xem `doiNoiDungToi`). Seed trong cửa sổ đó ghi một `affine:page` + `affine:surface`
+    // THỨ HAI vào chính doc đang có nội dung.
+    // Đo được 2026-08-30 ở dev (React StrictMode mount hai lượt, hai `TestWorkspace` cùng chạm một
+    // IndexedDB): bảng vừa tạo có 2 root và 2 surface; `gfx.surface` bám vào surface MỒ CÔI nên
+    // `gfx.surfaceComponent` null vĩnh viễn — thanh công cụ vẽ ra nhưng không gì render được, và
+    // lượt xuất PNG báo "sơ đồ chưa có nội dung" cho một sơ đồ đầy nội dung.
+    //
+    // Cách phân biệt: `laDocMoi` (`getDoc()` trả null ⇒ chưa đăng ký ⇒ chưa từng có nội dung).
+    //   • Doc MỚI → seed NGAY, không đợi gì. Tạo bảng mới không phải trả thêm một mili-giây nào.
+    //   • Doc ĐÃ ĐĂNG KÝ → ĐỢI nội dung tới trước đã. Chỉ khi hết giờ mà vẫn trống mới seed — đúng
+    //     ca tự hồi phục mà nhánh này sinh ra để phục vụ, không phải một cuộc đua.
+    // Đây KHÔNG phải `laLanDau` từng bị gỡ trước đây: cờ cũ được OR vào điều kiện seed (`laLanDau
+    // || !store.root`) nên nó THÊM một đường seed đè lên nội dung có sẵn. Cờ này đi hướng ngược
+    // lại — nó chỉ dùng để quyết định CÓ ĐỢI HAY KHÔNG, không bao giờ tự nó cho phép seed.
     let daGhiKhoiMoi = false
     if (tuyChon?.khongSeed) {
-      // Không seed, không đợi lượt đẩy nào — trả store ngay để bên gọi tự chờ nội dung tới.
-    } else if (!store.root) {
-      const rootId = store.addBlock('affine:page', {})
-      store.addBlock('affine:surface', {}, rootId)
-      daGhiKhoiMoi = true
-    } else if (!store.root.children.some((khoi) => khoi.flavour === 'affine:surface')) {
-      // Nhánh hẹp hơn: đã có `store.root` nhưng thiếu hẳn con `affine:surface` — trong thực tế khó
-      // xảy ra ĐỘC LẬP với nhánh trên vì hai addBlock ở đó luôn nằm cùng một giao dịch/lượt đẩy Yjs,
-      // nhưng đây chính là điều kiện literal mà lỗi runtime thật kiểm tra trực tiếp
-      // (`EdgelessRootService`, "missing surface block"), nên rẻ để bọc thêm cho chắc.
-      store.addBlock('affine:surface', {}, store.root.id)
-      daGhiKhoiMoi = true
+      // `khongSeed`: mở CHỈ ĐỌC, tuyệt đối không tạo nội dung (dùng bởi ./xuatAnhBang.ts). Bên gọi
+      // tự đợi và tự kiểm `store.root`.
+    } else {
+      if (!laDocMoi && !store.root?.children.some((khoi) => khoi.flavour === 'affine:surface')) {
+        await doiNoiDungToi(store, hanGioNoiDungMs)
+      }
+      if (!store.root) {
+        const rootId = store.addBlock('affine:page', {})
+        store.addBlock('affine:surface', {}, rootId)
+        daGhiKhoiMoi = true
+      } else if (!store.root.children.some((khoi) => khoi.flavour === 'affine:surface')) {
+        // Nhánh hẹp hơn: đã có `store.root` nhưng thiếu hẳn con `affine:surface`. Khó xảy ra ĐỘC
+        // LẬP với nhánh trên vì hai addBlock luôn nằm cùng một giao dịch Yjs, nhưng đây chính là
+        // điều kiện literal mà lỗi runtime thật kiểm tra (`EdgelessRootService`, "missing surface
+        // block"), nên rẻ để bọc thêm cho chắc.
+        store.addBlock('affine:surface', {}, store.root.id)
+        daGhiKhoiMoi = true
+      }
     }
 
     if (daGhiKhoiMoi) {

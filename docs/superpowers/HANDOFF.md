@@ -67,34 +67,34 @@ xác nhận muộn: hướng cài lại bàn phím ảo phải theo cùng nguyê
 
 `src/board/xuatAnhBang.ts` dựng ảnh từ tài liệu CRDT và **chỉ vẽ phần tử canvas** (nét vẽ, hình,
 đường nối, chữ, node mindmap). Khối edgeless (thẻ ghi chú, ảnh chèn) là DOM thật, muốn vào ảnh phải
-qua `html2canvas` — đã thử và **bỏ** sau khi đo trên bản build thật (2026-08-30): một lượt xuất bảng
-có 2 thẻ ghi chú **chạy quá 85 giây không kết thúc**, vì html2canvas phải nhân bản toàn bộ ~190 thẻ
-`<style>` mà chunk bảng vẽ tiêm vào `<head>`, cho **mỗi** khối. Kèm theo đó edgeless **cull** khối
-ngoài khung nhìn nên component của chúng đo ra 0×0 và html2canvas trả canvas rỗng; vá bằng
-`setViewportByBound` rồi vẫn treo.
+qua `html2canvas`.
 
-Hiện app **báo thẳng** cho người dùng khi bảng có khối ("Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi
-chú chưa vào được ảnh."), không im lặng. Nếu cần đóng hẳn: hướng khả dĩ là vẽ thẻ ghi chú bằng
-primitive canvas thay vì rasterize DOM, hoặc dựng một clone DOM **tối giản** (chỉ vài luật CSS cần
-thiết) cho html2canvas thay vì để nó nuốt cả `<head>`.
+**Hai phát hiện, đã đo 2026-08-30 — đừng lặp lại việc đo:**
 
-### 1.3 `taoHoacMoBang()` seed root TRÙNG khi subdoc chưa nạp xong — dev/StrictMode
+1. **`ExportManager.edgelessToCanvas()` của cây vendored trả `undefined` 100% lượt gọi.** Nó mở đầu
+   bằng `rootComponent.querySelector('.affine-block-children-container')` (sau đổi tên D16 là
+   `.drt-block-children-container`) và `return` ngay nếu không thấy — mà root edgeless bản này
+   KHÔNG BAO GIỜ dựng phần tử đó (`<drt-edgeless-root>` chỉ có `.edgeless-background`,
+   `.drt-edgeless-surface-block-container`, `.edgeless-mount-point`, `.widgets-container`, kể cả
+   khi đã có khối note). Phần tử đó chỉ dùng để đọc một màu nền. **Vá được** qua pipeline
+   `scripts/doi-ten-vendor.mjs` (D11 cho phép sửa hành vi ở pipeline) — nhưng xem điểm 2.
 
-Nội dung subdoc nạp **bất đồng bộ**: `waitForSynced()` chỉ nói doc GỐC đã đồng bộ, còn
-`TestDoc._initSubDoc` đặt `_loaded = false` rồi đợi sự kiện `subdocs`
-(`framework/store/src/test/test-doc.ts:22-33`). Trong cửa sổ đó `store.root` là **null cho một bảng
-CÓ nội dung**, và nhánh seed ghi thêm một `affine:page` + `affine:surface` THỨ HAI vào chính doc đó.
+2. **Vá xong cũng không dùng được, vì html2canvas quá chậm.** Đo trên một thẻ ghi chú THẬT (tạo
+   bằng thanh công cụ, 400×92, dev build, máy để bàn): **7,9s → 6,9s → 4,6s** cho ba lượt liên
+   tiếp — ấm dần rồi chạm đáy **~5 giây MỖI KHỐI**. `foreignObjectRendering: true` không cứu được
+   (8,6s). Nguyên nhân: html2canvas nhân bản cả tài liệu kèm **~298 thẻ `<style>`** mà chunk bảng
+   vẽ tiêm vào `<head>`, cho mỗi lượt gọi. Một sơ đồ 5 thẻ ≈ 25 giây cho một mục menu.
 
-**Đo được 2026-08-30:** ở dev (React StrictMode mount hai lượt), một bảng vừa tạo có **2 root, 2
-surface**; `gfx.surface` bám vào surface **mồ côi** nên `gfx.surfaceComponent` null vĩnh viễn.
-Trên **bản build production thì sạch** (1 root, 1 surface) — StrictMode tắt, chỉ mount một lượt.
+**Hai bẫy khi đo lại:** (a) khối tạo bằng `store.addBlock()` trần **không render**
+(`visibility:hidden`, rỗng) nên mọi số đo trên nó vô nghĩa — phải tạo thẻ bằng thanh công cụ thật;
+(b) edgeless **cull** khối ngoài khung nhìn, khối bị cull đo ra 0×0 và html2canvas trả canvas rỗng.
 
-Chưa vá vì rủi ro thật thấp và vùng chạm là đường mount nóng của bảng vẽ. Đường xuất đã **miễn
-nhiễm** nhờ tuỳ chọn `khongSeed` (xem chú thích tại chính chỗ đó trong `EdgelessBoard.tsx`). Nếu
-sau này vá: điều kiện seed phải đợi `doc.loaded`, không chỉ `!store.root`. Ca có thể gặp ở
-production: hai tab cùng mở app lần đầu và đua nhau.
+Hiện app **báo thẳng** khi bảng có khối ("Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi chú chưa vào
+được ảnh."), không im lặng. **Hướng còn bỏ ngỏ:** gọi html2canvas đúng MỘT LẦN trên tổ tiên chung
+của mọi khối thay vì mỗi khối một lượt — chi phí thành ~5s cho cả sơ đồ thay vì 5s × số thẻ. Đáng
+làm nếu chấp nhận một mục menu riêng "Xuất PNG kèm thẻ ghi chú (chậm)"; quyết định của chủ dự án.
 
-### 1.4 Deploy Vercel chậm thêm vài phút mỗi lần
+### 1.3 Deploy Vercel chậm thêm vài phút mỗi lần
 
 `postinstall` dựng lại `.vendor-build/` từ đầu mỗi lần (checkout CI luôn sạch). Cân nhắc cache qua
 Vercel Build Cache API **nếu** độ chậm thành vấn đề thật — hiện chưa cần, chỉ theo dõi.
@@ -138,6 +138,17 @@ trước khi được viết ra.
   token nền bằng cách đi ngược cây cha tìm màu đục thật.
 - **Kiểm phải VÀO RỒI RA.** Bấm vào, thoát ra, sang màn khác, quay lại — xem trạng thái có bị biến
   đổi vĩnh viễn không. "Mở lên chạy đúng" không đủ.
+- **Kiểm bản build thì phải GỠ SERVICE WORKER trước.** `public/sw.js` đi cache-first cho chunk nạp
+  chậm: `index.html` có hash mới nhưng chunk lazy vẫn lấy từ cache `drtrong-vNN`, nên đang đo mã CŨ.
+  Đã mất hai lượt đo vì tin vào kết quả đó; dấu hiệu lộ ra là "lượt chạy kết thúc NHANH HƠN cả hạn
+  giờ vừa thêm vào mã". Chạy trước mỗi lượt:
+  `for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();`
+  `for (const k of await caches.keys()) await caches.delete(k);` rồi mới nạp lại trang.
+- **Đừng đợi `requestAnimationFrame` trong mã có thể chạy ở tab nền.** Trình duyệt ngừng bắn rAF khi
+  tab ẩn — một lượt xuất ảnh treo vĩnh viễn ở đúng dòng đó. Dùng `setTimeout` cho các nhịp chờ layout.
+- **Khối tạo bằng `store.addBlock()` trần KHÔNG render** (`visibility:hidden`, rỗng, không vào
+  `.edgeless-mount-point`). Mọi số đo trên nó vô nghĩa — muốn đo thẻ ghi chú thật thì phải tạo bằng
+  thanh công cụ. Và edgeless **cull** khối ngoài khung nhìn: khối bị cull đo ra 0×0.
 - **Dọn sau khi đo:** xoá bảng/dữ liệu thử khỏi IndexedDB và localStorage, tắt dev server.
 
 ### 2.3 Tin vào ca kiểm tới đâu
@@ -148,6 +159,11 @@ trước khi được viết ra.
 - **Với thứ mà cơ chế quyết định nằm NGOÀI DOM** (bàn phím ảo, cử chỉ hệ điều hành, quyền): kiểm
   trên thiết bị thật **TRƯỚC** bằng bản dựng nhỏ nhất, rồi mới bọc ca kiểm quanh cái đã biết là
   chạy. Đã có lượt 18 ca kiểm xanh cho một tính năng không chạy trên máy thật.
+- **Ca kiểm cho một cuộc đua phải được CHỨNG MINH LÀ ĐỎ trước khi vá.** Lượt đầu của ca "seed root
+  trùng" xanh cả khi guard bị vô hiệu hoá — hai lần liền, vì hai lý do khác nhau: (a) độ trễ `pull`
+  giả bị `waitForSynced()` nuốt trọn; (b) đếm ngay trên hai store vừa dựng, mà mỗi store chỉ thấy
+  seed CỦA CHÍNH NÓ — bản trùng chỉ lộ ra ở lượt mở THỨ BA, sau khi CRDT hợp nhất. Ca kiểm không
+  chứng minh được là đỏ thì không phải ca kiểm.
 - **Xác minh finding trước khi sửa.** Đọc mã/đo DOM thật trước khi implement báo cáo của critique
   hay máy dò — tỉ lệ dương tính giả đã đo được là cao (2/6 một lượt; 4/9 một lượt khác).
 

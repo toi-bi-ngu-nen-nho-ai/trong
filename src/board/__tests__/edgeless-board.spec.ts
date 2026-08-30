@@ -113,6 +113,65 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     lanHai.workspace.forceStop()
   })
 
+  it('HAI lượt mở ĐỒNG THỜI cùng một bảng mới → đúng 1 page, 1 surface (HANDOFF 1.3)', async () => {
+    // Đây là cơ chế THẬT của lỗi seed trùng, đo trên máy 2026-08-30 ở dev: React StrictMode mount
+    // rồi remount, hai lượt `taoHoacMoBang()` chạy CHỒNG NHAU trên cùng một CSDL. Cả hai đều thấy
+    // `getDoc()` trả null (lượt kia chưa kịp đẩy metadata), cả hai đều `createDoc` + seed, rồi CRDT
+    // hợp nhất cả hai lượt ghi → doc có 2 `affine:page` và 2 `affine:surface`.
+    // Hậu quả: `gfx.surface` bám vào surface MỒ CÔI (không phải con của `store.root`) nên
+    // `gfx.surfaceComponent` null vĩnh viễn — bảng vẽ không render được gì, và lượt xuất PNG báo
+    // "sơ đồ chưa có nội dung" cho một sơ đồ đầy nội dung.
+    //
+    // ĐÃ THỬ VÀ KHÔNG ĐỦ: chỉ làm chậm lượt `pull` của subdoc để tái hiện cửa sổ "nội dung chưa
+    // tới". Ca đó XANH cả khi guard bị vô hiệu hoá — vì `waitForSynced()` đầu hàm đã nuốt trọn độ
+    // trễ đó (peer xếp subdoc vào hàng đợi ngay ở bước 2, trước khi engine báo Synced). Đừng viết
+    // lại ca kiểm theo hướng ấy: nó không có răng.
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const [motA, motB] = await Promise.all([
+      taoHoacMoBang('board', { docSources, blobSources }),
+      taoHoacMoBang('board', { docSources, blobSources }),
+    ])
+
+    await Promise.all([motA.workspace.waitForSynced(), motB.workspace.waitForSynced()])
+    motA.workspace.forceStop()
+    motB.workspace.forceStop()
+
+    // Phải kiểm ở lượt mở THỨ BA, không phải trên chính hai store vừa dựng: mỗi lượt chỉ thấy seed
+    // CỦA CHÍNH NÓ (lượt kia chưa được kéo về), nên đếm tại chỗ luôn ra 1 và ca kiểm mất răng. Chỉ
+    // sau khi cả hai lượt ghi đã đẩy xong và được hợp nhất lại thì bản trùng mới lộ ra — đúng cách
+    // người dùng gặp nó: lần mở kế tiếp.
+    const lanBa = await taoHoacMoBang('board', { docSources, blobSources })
+    // Đếm qua getBlocksByFlavour, KHÔNG qua `store.root.children`: một root thứ hai bị seed nhầm
+    // nằm NGOÀI cây của root thứ nhất nên `children` không bao giờ nhìn thấy nó — đúng lý do lỗi
+    // này sống sót qua mọi ca kiểm cũ trong chính file này.
+    expect(lanBa.store.getBlocksByFlavour('affine:page')).toHaveLength(1)
+    expect(lanBa.store.getBlocksByFlavour('affine:surface')).toHaveLength(1)
+    lanBa.workspace.forceStop()
+  })
+
+  it('doc ĐÃ đăng ký nhưng nội dung KHÔNG BAO GIỜ tới → vẫn tự hồi phục sau hạn giờ, không treo', async () => {
+    // Mặt kia của cùng một guard: đợi là để tránh seed nhầm, KHÔNG phải để chờ vô hạn. Doc đăng ký
+    // trong metadata mà khối chưa từng ghi xong (tab đóng giữa hai lượt ghi) vẫn phải mở được.
+    const docSources = { main: dungDocSourceGia() }
+    const blobSources = { main: dungBlobSourceGia() }
+
+    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    lanMot.workspace.forceStop()
+    docSources.main.kho.delete('board')
+
+    const lanHai = await taoHoacMoBang('board', {
+      docSources,
+      blobSources,
+      // Hạn giờ ngắn để ca kiểm không phải đứng chờ 3 giây mặc định.
+      hanGioNoiDungMs: 120,
+    })
+    expect(lanHai.store.root).not.toBeNull()
+    expect(lanHai.store.getBlocksByFlavour('affine:surface')).toHaveLength(1)
+    lanHai.workspace.forceStop()
+  })
+
   it('nội dung thêm SAU khi mở lần đầu còn nguyên khi mở lại (spec §6.2 ca 6) — không chỉ seed không nhân đôi', async () => {
     // Hai ca kiểm ở trên chứng minh "mở lại không tạo trùng seed" — một tính chất LIÊN QUAN nhưng
     // YẾU hơn thứ spec §6.2 ca 6 thật sự đòi: nội dung người dùng TỰ THÊM (không phải seed) phải
