@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { specialtyIcon } from '../components/SpecialtyIcons'
+import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
@@ -131,7 +132,7 @@ function chuTrenNen(hexNen: string): string {
 // là đúng thứ người dùng vừa bấm, và từ 2026-08-30 thứ đó luôn là huy hiệu chuyên khoa. Dựng lại
 // một bản sao ở đó là mở đường cho hai hình khác nhau trôi dạt khỏi nhau — đúng lúc chúng phải
 // khớp từng pixel thì chuyển cảnh mới liền mạch.
-export function TheTrong({ khoa }: { khoa?: string }) {
+export function TheTrong({ khoa, dangVe = false }: { khoa?: string; dangVe?: boolean }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
     <div className="relative w-full h-full" aria-hidden="true">
@@ -161,7 +162,14 @@ export function TheTrong({ khoa }: { khoa?: string }) {
           color: spec ? spec.color : 'var(--c-on-note-muted, #5c5f7a)',
         }}
       >
-        {specialtyIcon(khoa, 'w-full h-full')}
+        {/* `dangVe`: lớp phủ FLIP lúc MỞ bảng dùng nhánh này. Lớp phủ đó CHÍNH LÀ màn chờ ở đường
+            mở-qua-thẻ — đo trên trình duyệt thật 2026-08-30: nó đứng opacity 1 suốt 2,5s rồi mới mở
+            ra đúng lúc màn chờ bên dưới bị gỡ, nên mọi hoạt ảnh đặt DƯỚI nó không bao giờ thấy
+            được (phản hồi thật: "tôi ấn mở thì bị che bởi một màn hình"). Huy hiệu tự vẽ ngay tại
+            đây thì chỉ còn MỘT màn, và nó hạ cánh đúng chỗ cú FLIP phóng tới.
+            Hai nhánh vẽ CÙNG một icon, cùng ô 34%, cùng màu — chỉ khác tĩnh/động. Mặc định (lưới,
+            lớp phủ "gập lại" lúc đóng) vẫn tĩnh: cú gập chỉ dài 260ms, không đủ để vẽ gì. */}
+        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} /> : specialtyIcon(khoa, 'w-full h-full')}
       </div>
     </div>
   )

@@ -599,7 +599,9 @@ export function EdgelessBoard({
           role="status"
           aria-live="polite"
         >
-          <VeChuyenKhoaDangTai khoa={khoa} />
+          <div style={{ width: 72, height: 72 }}>
+            <VeChuyenKhoaDangTai khoa={khoa} />
+          </div>
           <span className="sr-only">Đang mở bảng…</span>
         </div>
       )}

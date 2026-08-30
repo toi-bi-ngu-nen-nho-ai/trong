@@ -121,6 +121,44 @@ describe('BoardGallery', () => {
     expect(boc?.className).toContain('board-in')
   })
 
+  // Ca kiểm ghim ĐÚNG con bug đo được 2026-08-30 (phản hồi thật: "tôi ấn mở thì bị che bởi một
+  // màn hình"). Máy ghi DOM trên trình duyệt thật cho thấy .board-flip-cover đứng ở opacity 1 suốt
+  // 2,5s — trọn khoảng màn chờ tồn tại — rồi mới mở ra ĐÚNG LÚC màn chờ bị gỡ khỏi DOM. Nghĩa là
+  // hoạt ảnh line-drawing nằm DƯỚI lớp phủ nên không bao giờ thấy được ở đường mở-qua-thẻ (đường
+  // thường dùng nhất). Lớp phủ CHÍNH LÀ màn chờ ở đường này, nên nó phải là thứ đang vẽ.
+  it('bấm một thẻ bảng → lớp phủ FLIP tự vẽ icon khoa (màn chờ), không phải huy hiệu tĩnh', async () => {
+    // happy-dom không có engine layout nên getBoundingClientRect() trả 0×0, mà DanhSachBang CHỈ
+    // dựng origin khi rect có kích thước thật (>0) — không giả rect thì openOrigin là undefined và
+    // lớp phủ FLIP không bao giờ render, ca kiểm sẽ đỏ vì lý do sai. Giả đúng một rect có thật.
+    const rectThat = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 10, left: 20, width: 260, height: 195, right: 280, bottom: 205, x: 20, y: 10,
+      toJSON: () => ({}),
+    } as DOMRect)
+    try {
+    const meta = taoBangGia('Bảng test')
+    await idbPut(IDB_STORES.boards, meta)
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true }))
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
+    await act(async () => {
+      ;(container.querySelector('[data-testid="the-bang"] button') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => expect(container.querySelector('[data-testid="bang-gia"]')).not.toBeNull())
+
+    const phu = container.querySelector('.board-flip-cover')
+    expect(phu).not.toBeNull()
+    // Lớp phủ đang HIỆN (chưa gắn class ẩn) — tức người dùng đang nhìn đúng nó lúc chờ.
+    expect(phu!.className).not.toContain('board-flip-cover-hide')
+    // Và thứ nó vẽ là màn chờ đang-vẽ, mang đúng chuyên khoa của bảng vừa bấm.
+    const dangVe = phu!.querySelector('.mind-loading-ve')
+    expect(dangVe).not.toBeNull()
+    expect(dangVe!.getAttribute('data-khoa')).toBe(meta.chuyenKhoa)
+    } finally {
+      rectThat.mockRestore()
+    }
+  })
+
   it('dangHienTab=false trong khi có bảng mở → EdgelessBoard VẪN mount (không unmount), chỉ ẩn', async () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.boards, meta)

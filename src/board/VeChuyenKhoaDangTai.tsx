@@ -26,6 +26,9 @@
 // Bốn vòng phản hồi trước đều hỏng vì lộ dần MỘT path liền mạch (đọc thành "vệt sáng bò dọc dây")
 // và không bao giờ kết thúc ở icon thật. Hai điểm đó là thứ bản này sửa.
 //
+// KÍCH THƯỚC do NƠI GỌI cấp (component chỉ lấp đầy khung cha) — nó được dùng ở hai cỡ rất khác
+// nhau: một ô 72px giữa màn chờ trần, và ô huy hiệu 34% bề rộng tấm thẻ trong lớp phủ FLIP.
+//
 // giảm-chuyển-động / thiếu Web Animations API (happy-dom, trình duyệt cũ): KHÔNG dựng lớp nét,
 // chỉ hiện icon chuyên khoa thật, tĩnh, đủ nhận ra bảng nào đang mở. WAAPI không nghe
 // @media (prefers-reduced-motion) nên guard bắt buộc nằm ở JS này.
@@ -40,6 +43,12 @@ const VE_XONG = 0.58 // mọi nét cùng khép lại ở đây
 const AN_MUC = 0.72 // icon đặc hiện xong
 const GIU_XONG = 0.9 // giữ nguyên hình tới đây rồi mờ đi
 const easeVe = 'cubic-bezier(0.65, 0.05, 0.36, 1)'
+// Chu kỳ KHÔNG bắt đầu ở mốc 0 (nét chưa đặt bút = màn hình trống) mà nhảy thẳng vào mốc AN_MUC —
+// khung hình đầu tiên là ICON ĐẶC HOÀN CHỈNH. Bắt buộc cho lớp phủ FLIP: thẻ trong lưới đang hiện
+// icon tĩnh, cú phóng to phải khớp TỪNG PIXEL với nó (xem chú thích TheTrong, DanhSachBang.tsx).
+// Đo được 2026-08-30 trước lượt sửa này: khung đầu có thatOp=0, netDash=1px — icon chớp tắt đúng
+// lúc bấm rồi mới vẽ lại, đọc thành một cú giật. Giờ: giữ hình một nhịp → tan → vẽ lại → ăn mực.
+const BAT_DAU_TU_MS = -CHU_KY_MS * AN_MUC
 
 export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
   const bocRef = useRef<HTMLDivElement>(null)
@@ -119,7 +128,7 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
           { strokeDashoffset: 0, opacity: 0, offset: AN_MUC },
           { strokeDashoffset: 0, opacity: 0, offset: 1 },
         ],
-        { duration: CHU_KY_MS, iterations: Infinity },
+        { duration: CHU_KY_MS, iterations: Infinity, delay: BAT_DAU_TU_MS },
       )
     })
 
@@ -133,7 +142,7 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
         { opacity: 0, offset: 0.99 },
         { opacity: 0, offset: 1 },
       ],
-      { duration: CHU_KY_MS, iterations: Infinity },
+      { duration: CHU_KY_MS, iterations: Infinity, delay: BAT_DAU_TU_MS },
     )
 
     return () => {
@@ -146,7 +155,13 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
   }, [khoa])
 
   return (
-    <div ref={bocRef} aria-hidden="true" className="mind-loading-ve" style={{ color: mau }}>
+    <div
+      ref={bocRef}
+      aria-hidden="true"
+      data-khoa={khoa ?? ''}
+      className="mind-loading-ve"
+      style={{ color: mau }}
+    >
       {specialtyIcon(khoa, 'mind-loading-that')}
     </div>
   )

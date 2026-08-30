@@ -292,7 +292,10 @@ export function BoardGallery({
               className={`absolute inset-0 board-flip-cover${dangChoCanvas || dangPhongTo ? '' : ' board-flip-cover-hide'}`}
               style={{ background: 'var(--c-surface-alt, #f6f7fd)' }}
             >
-              <TheTrong khoa={openOrigin.chuyenKhoa} />
+              {/* dangVe: lớp phủ này che trọn màn chờ bên dưới (đo được 2,5s ở opacity 1), nên
+                  chính nó phải là thứ đang vẽ — xem TheTrong. Lớp phủ "gập lại" lúc ĐÓNG ở trên
+                  KHÔNG bật cờ này: cú gập chỉ 260ms. */}
+              <TheTrong khoa={openOrigin.chuyenKhoa} dangVe />
             </div>
           )}
           <button

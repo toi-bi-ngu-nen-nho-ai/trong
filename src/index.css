@@ -1081,8 +1081,10 @@ html.theme-shift * {
    nguyên icon khoa. Mọi thứ còn lại do Web Animations API đặt lúc chạy. */
 .mind-loading-ve {
   position: relative;
-  width: 72px;
-  height: 72px;
+  /* Lấp đầy khung cha — nơi gọi cấp kích thước. Dùng ở hai cỡ: ô 72px của màn chờ trần
+     (EdgelessBoard/board/index.tsx) và ô huy hiệu 34% bề rộng thẻ trong lớp phủ FLIP (TheTrong). */
+  width: 100%;
+  height: 100%;
 }
 .mind-loading-that,
 .mind-loading-net {

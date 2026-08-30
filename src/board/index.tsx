@@ -110,7 +110,9 @@ export class EdgelessBoard extends Component<PropsBang, State> {
           // chậm dễ đọc nhầm màn tĩnh là app treo). Bản vẽ chạy vòng KHÔNG bao giờ đứng im nên không
           // đọc nhầm là treo; dòng chữ giữ ở .sr-only.
           <div className="h-full flex flex-col items-center justify-center" role="status" aria-live="polite">
-            <VeChuyenKhoaDangTai khoa={this.props.khoa} />
+            <div style={{ width: 72, height: 72 }}>
+              <VeChuyenKhoaDangTai khoa={this.props.khoa} />
+            </div>
             <span className="sr-only">Đang tải bảng vẽ…</span>
           </div>
         }
