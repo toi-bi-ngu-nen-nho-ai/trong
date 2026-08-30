@@ -21,17 +21,25 @@ có thể nó đã được thử và đã hỏng, kèm phép đo chứng minh.
 
 ## 1. ĐANG MỞ
 
-### 1.1 Bàn phím ảo iOS — VIỆC CẦN LÀM: chủ dự án chạy bàn thử lượt 2 trên iPhone
+### 1.1 Bàn phím ảo iOS — ĐÃ CÀI bản mồi `<input>`, chờ nghiệm thu trên iPhone thật
 
-> **→ Mở trên iPhone thật:** https://claude.ai/code/artifact/d571d1fa-39fb-473e-b0cd-783b7685d72b
-> Cuộn lên phần các phép thử (phía TRÊN "Bảng luận giải"). Bấm chạy từng phép, xem bàn phím có
-> bật lên không, báo **G / E / F / H** mỗi phép ✓ hay ✗. **G TRƯỚC** — G ✗ thì dừng, chụp bảng
-> "Máy anh báo gì" ở cuối trang, mọi ✗ khác vô nghĩa.
+> **→ Việc cần làm:** chủ dự án mở bản Vercel mới trên iPhone, chạm vào một node text / thẻ ghi
+> chú trên bảng vẽ → bàn phím có bật lên và gõ được không? Báo được/không.
 >
-> ⚠️ 2026-08-30: hai ảnh chủ dự án gửi đầu tiên là **"Bảng luận giải"** (phần *giải thích nếu*
-> mỗi tổ hợp ra thế nào thì nghĩa gì) + probe môi trường, **không phải kết quả thật**. Chưa có
-> phép nào được chạy. `visualViewport` CÓ trong probe chỉ nói API tồn tại — G mới là đối chứng
-> dương thật.
+> **Đã cài 2026-08-30 (`7be7344`):** `src/board/ban-phim-ios.ts` — nghe `touchend` trên host cây
+> Lit, focus một `<input>` thật vô hình ĐỒNG BỘ trong cử chỉ (bàn phím bật), rồi khi editor thật
+> của BlockSuite nhận focus (~1 frame sau) thì bỏ focus phần tử mồi; iOS giữ bàn phím khi chuyển
+> focus editor→editor lúc bàn phím đang hiện. No-op ngoài iOS. 6 ca kiểm happy-dom, tsc xanh.
+> **Chưa nghiệm thu trên thiết bị thật** — cơ chế nằm ngoài DOM (nhật ký mục 37, luật 2.3).
+>
+> Bàn thử lượt 2 (artifact `d571d1fa`) **bỏ** — chủ dự án báo **G ✗**, tức phép đo mù (gần như
+> chắc vì bench chạy trong iframe artifact: `visualViewport` trong iframe iOS không phản ánh bàn
+> phím). Bench không trả lời được câu hỏi. Nhưng HANDOFF đã ghi sẵn: dù bench ra gì, hướng sửa
+> vẫn là "`<input>` thật dưới ngón tay" — nên cứ cài và test thẳng trên app.
+>
+> **Nếu vẫn không được:** bước tiếp là shim đầy đủ — `<input>`/`<textarea>` trong suốt đặt đúng
+> điểm chạm, tự nhận cú gõ, đồng bộ text sang model BlockSuite (không nhờ editor vendored). Lớn
+> hơn nhiều; cần brainstorm.
 
 Chạm vào bảng vẽ trên iPhone không hiện bàn phím. Gốc rễ đã xác định từ 2026-08-18 (nhật ký mục 7):
 mọi lệnh gọi `focusTextModel()` trong cây vendored đều bị hoãn qua `requestAnimationFrame`/`.then()`,
