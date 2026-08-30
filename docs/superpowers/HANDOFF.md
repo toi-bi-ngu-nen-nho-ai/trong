@@ -21,7 +21,11 @@ có thể nó đã được thử và đã hỏng, kèm phép đo chứng minh.
 
 ## 1. ĐANG MỞ
 
-### 1.1 Bàn phím ảo iOS — chưa kết luận được, và lý do đáng đọc
+### 1.1 Bàn phím ảo iOS — VIỆC CẦN LÀM: chủ dự án chạy bàn thử lượt 2 trên iPhone
+
+> **→ Mở trên iPhone thật:** https://claude.ai/code/artifact/d571d1fa-39fb-473e-b0cd-783b7685d72b
+> Chạy **G TRƯỚC**. Nếu G ✗ thì chụp bảng "Máy anh báo gì" ở cuối trang và dừng — mọi ✗ khác vô
+> nghĩa. Kết quả 4 phép (G/E/F/H) quyết định hướng sửa; xem bảng bên dưới.
 
 Chạm vào bảng vẽ trên iPhone không hiện bàn phím. Gốc rễ đã xác định từ 2026-08-18 (nhật ký mục 7):
 mọi lệnh gọi `focusTextModel()` trong cây vendored đều bị hoãn qua `requestAnimationFrame`/`.then()`,
@@ -39,11 +43,9 @@ Hướng B (bọc ở tầng React, ô mồi `contenteditable` ẩn) đã cài, 
 > phép đo mù (bàn phím có mở mà `visualViewport` không đổi, hoặc máy đang cắm bàn phím ngoài). Đây
 > là cùng một lớp lỗi với "18 ca kiểm xanh cho thứ không chạy trên máy thật" ở mục 37.
 
-**Bàn thử lượt 2 đã dựng, đang chờ chủ dự án chạy.** Trang:
-https://claude.ai/code/artifact/d571d1fa-39fb-473e-b0cd-783b7685d72b — chạy G TRƯỚC; nếu G ✗ thì
-chụp bảng "Máy anh báo gì" ở cuối trang, mọi ✗ khác đều vô nghĩa. Bàn thử thêm đối chứng dương G
-(chạm thẳng vào một `<input>` thật) và tách ba biến số chưa ai đụng: cả bốn phép lượt 1 đều dùng
-`contenteditable` **và** đều giấu phần tử, hai thứ dính vào nhau nên không biết cái nào có tội.
+Bàn thử lượt 2 thêm đối chứng dương **G** (chạm thẳng vào một `<input>` thật) và tách ba biến số
+chưa ai đụng: cả bốn phép lượt 1 đều dùng `contenteditable` **và** đều giấu phần tử, hai thứ dính
+vào nhau nên không biết cái nào có tội.
 
 | Phép | Biến số | Nếu ✗ nghĩa là |
 |---|---|---|
@@ -55,75 +57,16 @@ chụp bảng "Máy anh báo gì" ở cuối trang, mọi ✗ khác đều vô n
 Nếu G ✓ mà E ✓ F ✓ thì thủ phạm của lượt 1 là **`contenteditable`**, không phải cách giấu — cài lại
 bằng ô nhập thật rồi chuyển chữ vào canvas.
 
-**Ghi chú nối hai vấn đề:** khoản 1.2 mục "gõ tên bị nối đuôi" ĐÃ vá bằng đúng giả thuyết này — bỏ
-hẳn chỗ dựa vào `select()`, ô để rỗng (xem 1.2 ②). Nếu phép **E** của bàn thử ra ✗ thì đó là xác
-nhận muộn cho chẩn đoán đó, và hướng cài lại bàn phím ảo phải theo cùng nguyên tắc: một ô nhập THẬT
-dưới ngón tay, để chính cú chạm của người dùng mở bàn phím, không nhờ `focus()` của script.
+**Tiền lệ cùng gốc:** ô đổi tên bảng ("gõ tên bị nối đuôi" trên iOS, đã đóng 2026-08-29) vá bằng
+đúng giả thuyết này — bỏ hẳn chỗ dựa vào `select()`, để ô **RỖNG** + `placeholder`, vì cú chạm mở
+bàn phím của người dùng đặt lại caret và huỷ vùng chọn do script tạo. Nếu phép **E** ra ✗ thì đó là
+xác nhận muộn: hướng cài lại bàn phím ảo phải theo cùng nguyên tắc — một ô nhập THẬT dưới ngón tay,
+để chính cú chạm mở bàn phím, không nhờ `focus()` của script.
 
-### 1.2 Ba khoản Board Gallery chủ dự án báo sai trên iPhone — ĐÃ XỬ LÝ, còn một mảnh chờ xác nhận
+### 1.2 Deploy Vercel chậm thêm vài phút mỗi lần
 
-Nghiệm thu 2026-08-29, ba mục **không đạt**: ô "+" không ở đầu lưới; ô "+" không trông như tờ giấy;
-tạo bảng mới rồi gõ tên thì bị nối đuôi (`"Bảng chưa đặt tênSốc nhiễm khuẩn"`). Ba kết cục khác hẳn
-nhau:
-
-**① Ô "+" không trông như tờ giấy → KHÔNG phải lỗi, là bất đồng thiết kế.** Chủ dự án muốn nét đứt +
-nền phớt nhạt, ngược với P3 của critique 2026-08-29 (vốn đổi sang viền liền vì "nét đứt = vùng thả
-file"). Đã đảo lại ở `0bef733` qua modifier `.mind-o-moi`; nét đứt **ở đây** đọc đúng nghĩa "thêm
-mới" (quy ước Drive/Notion/Figma). Ghi rõ trong ca kiểm: đây là **sở thích có thể sửa**, ca kiểm
-canh "đừng vô tình hồi quy", không phải "cấm đổi".
-
-**② Gõ tên bị nối đuôi → LỖI THẬT, đã vá, và cùng gốc với 1.1.** Bản vá cũ (`onFocus` → `select()`)
-đủ cho máy có chuột nhưng không cứu được iPhone: Safari không mở bàn phím cho `focus()` do script
-gọi, nên người dùng **buộc phải chạm vào ô** mới gõ được — chính cú chạm đó đặt lại caret và huỷ
-vùng vừa chọn. Vùng chọn không sống nổi tới phím đầu tiên. Cách vá bỏ hẳn chỗ dựa vào vùng chọn:
-ô để **RỖNG**, tên mặc định lùi về làm `placeholder`, ô rỗng khi rời đi thì lùi về tên mặc định
-(không lưu tên trắng). Có 2 ca kiểm, một trong đó mô phỏng đúng ca iOS (caret cuối, không vùng
-chọn). Đo lại trên trang thật: gõ ra đúng `"Sốc nhiễm khuẩn"`.
-
-**③ Ô "+" không ở đầu lưới → không tái hiện được.** Đo trên trình duyệt thật 375×812:
-`indexOf === 0` trên lưới 9 ô. Nhiều khả năng chủ dự án xem bản deploy cũ (mở qua Safari như trang
-web, tức bản Vercel chứ không phải `main`). Đã loại trừ service worker — `public/sw.js` là
-stale-while-revalidate trên tên file có hash. **Chưa đóng**: cần một lượt nhìn lại trên máy thật
-sau khi bản mới deploy xong.
-
-> **Lưu ý cho lượt sau:** phép phân biệt "nét đứt = bản cũ" mà HANDOFF từng ghi nay **đã đảo** —
-> bản mới nhất chính là nét đứt (`0bef733`). Dùng dấu hiệu khác để nhận bản: ô "+" ở **đầu** lưới và
-> ô đổi tên **rỗng + placeholder** khi tạo bảng mới.
-
-Một khoản phụ tìm ra trong lúc điều tra và đã vá (`2f84880`): `.mind-o-tao-bang` viết cứng
-`box-shadow: rgba(0,0,0,.1)` thay vì token `--c-shadow` — token đó là `rgba(18,20,43,.1)` bản sáng
-nhưng **`rgba(0,0,0,.55)` bản tối**, nên ở bản tối ô "+" gần như mất bóng.
-
-### 1.3 Cổng `kiem:vendor` — ĐÃ SỬA, và cổng nay tự nói ra khi tái diễn
-
-Trạng thái cũ: lệch 84 file. Nguyên nhân: thượng nguồn của cổng là **một checkout AFFiNE trên đĩa**
-(`BLOCKSUITE_UPSTREAM`, mặc định `C:/Users/LENOVO/Downloads/AFFiNE/blocksuite`), và checkout đó được
-clone mới lúc 2026-08-29 18:14 nên rơi vào `canary`, đi xa hơn bản cây vendored được pin. **Cây
-vendored không hỏng** — `dung:vendor` chạy lại mã thoát 0, `git status` sạch.
-
-**Bản đã pin, tìm ra bằng phép đo:** `0c7b20dc18759dc63adbd93df491eba556baa6fe`
-("chore: migrate oxlint & oxfmt (#15464)"), tức ngay trước `6375f5ab8c` (2026-08-11, "bump
-typescript 7" — commit gỡ hai dòng `@ts-expect-error` khỏi `framework/global/src/utils/function.ts`
-mà cây vendored còn giữ). Checkout đã đưa về đó, cổng **xanh, lệch 0**.
-
-**Để không phải điều tra lại lần sau**, SHA nay được ghi vào `commit-thuong-nguon.txt` (gốc repo) và
-cổng đối chiếu nó với `git rev-parse HEAD` của checkout. Lệch thì in cảnh báo **TRƯỚC** danh sách
-`LỆCH:` — thứ tự là toàn bộ giá trị: khi cổng đổ ra 84 dòng, dòng đọc đầu tiên phải là dòng giải
-thích, không phải dòng thứ 85. Cảnh báo nêu cả hai SHA và một lệnh **dán-là-chạy** (đường dẫn thật,
-không placeholder). Logic nằm ở `scripts/doi-chieu-commit-thuong-nguon.mjs` — hàm thuần, 6 ca kiểm
-phủ cả tổ hợp "không đọc được SHA" (im lặng, không đoán).
-
-**Còn để ngỏ, cần chủ dự án quyết:** có nâng cây vendored lên `canary` mới không. Đó là việc lớn
-(dựng lại toàn bộ, chạy lại pipeline đổi tên/dịch, kiểm hồi quy cả màn Mindmap) và chỉ nên làm khi
-thật sự cần một bản vá của thượng nguồn. Hiện tại pin ở bản cũ là lựa chọn đúng.
-
-### 1.4 Còn lại, mức thấp
-
-- **`src/board/vi.json` mới có 5 chuỗi.** Cơ chế thay chuỗi đã xong và an toàn ở quy mô lớn (nhật ký
-  mục 10-13); chặng còn thiếu là **nội dung dịch**: chốt bảng thuật ngữ rồi dịch. Số chuỗi/số từ
-  phải **đo lại**, đừng tin con số cũ.
-- **Deploy Vercel chậm thêm vài phút mỗi lần** vì `postinstall` dựng lại `.vendor-build/` từ đầu
-  (checkout CI luôn sạch). Cân nhắc cache qua Vercel Build Cache API nếu thành vấn đề — chưa cần.
+`postinstall` dựng lại `.vendor-build/` từ đầu mỗi lần (checkout CI luôn sạch). Cân nhắc cache qua
+Vercel Build Cache API **nếu** độ chậm thành vấn đề thật — hiện chưa cần, chỉ theo dõi.
 
 ---
 
@@ -196,11 +139,12 @@ edit dở dang của phiên này trong cùng file.
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | Cả `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
 | Test | `npx vitest run` | **54 file / 468 ca** |
-| D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout thượng nguồn còn ở SHA trong `commit-thuong-nguon.txt` (xem 1.3) |
+| D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout thượng nguồn (`BLOCKSUITE_UPSTREAM`) còn ở SHA pin trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy **TRƯỚC** danh sách `LỆCH:` (logic: `scripts/doi-chieu-commit-thuong-nguon.mjs`). Đừng nâng cây vendored lên `canary` trừ khi thật sự cần một bản vá thượng nguồn — đó là việc lớn (dựng lại toàn bộ + pipeline dịch + kiểm hồi quy Mindmap). |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 
 `npm run dung:vendor` dựng lại `.vendor-build/` + `bang-bam-vendor.json` + `tsconfig.vendor-paths.json`
-(vài phút). Nó **không** kéo lại từ thượng nguồn, nên không sửa được lệch kiểu 1.3.
+(vài phút). Nó **không** kéo lại từ thượng nguồn, nên không sửa được lệch do checkout thượng nguồn
+trôi khỏi SHA pin — cái đó phải `git -C "$BLOCKSUITE_UPSTREAM" checkout <SHA>` theo lệnh cổng in ra.
 
 **Hạn giờ chờ trong test có MỘT nguồn sự thật:** `src/__tests__/helpers/cho-den-khi.ts`,
 `HAN_GIO_CHO_MS = 8000`. Nâng số này thì phải nâng `testTimeout` trong `vite.config.ts` theo, giữ
