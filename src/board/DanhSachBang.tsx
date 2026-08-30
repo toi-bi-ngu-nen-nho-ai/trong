@@ -1,7 +1,7 @@
 // Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. KHÔNG phụ thuộc BlockSuite (không import ./index hay
 // ./EdgelessBoard) — giữ file này nhẹ, tách hẳn khỏi ranh giới nạp chậm 994 kB. BoardGallery.tsx
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
@@ -255,6 +255,9 @@ function TheBang({
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const tagPanelRef = useRef<HTMLDivElement>(null)
+  // Menu "⋯" mở LÊN TRÊN thay vì xuống dưới, khi dưới thẻ không còn chỗ. Xem useLayoutEffect ngay
+  // dưới phần khai báo state — mặc định false (mở xuống) để lượt render đầu không nhấp nháy.
+  const [menuMoLen, setMenuMoLen] = useState(false)
   // Hẹn giờ nhấn-giữ (xem NHAN_GIU_MS) + toạ độ điểm chạm đầu để đo trượt. `daNhanGiuRef` là cờ
   // "lượt chạm này ĐÃ mở menu bằng nhấn-giữ" — onClick đọc nó để KHÔNG mở luôn cả bảng ngay sau đó
   // (pointerup vẫn sinh ra một click bình thường, không có cờ này thì giữ tay = vừa mở menu vừa mở
@@ -308,6 +311,52 @@ function TheBang({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `tenBanDau` là hàm thuần dựng lại mỗi
     // lượt render; đưa nó vào deps sẽ chạy effect mỗi render và xoá sạch bản nháp đang gõ dở.
   }, [dangSuaTen, bang.ten])
+
+  // ─── Menu "⋯" luôn NEO VÀO THẺ, chỉ lật hướng khi hết chỗ ────────────────────────────────────
+  //
+  // Trước 2026-08-30, trên màn ≤640px index.css ghim menu này xuống ĐÁY MÀN HÌNH (bottom sheet), với
+  // lý do "luôn trong tầm ngón cái" (critique 2026-08-26). Đo lại trên iPhone 375×812 cho thấy cái
+  // giá của nó: bấm "⋯" của thẻ hàng đầu (nút ở y=196) thì menu hiện ở y=585 — CÁCH NÚT 345px, mép
+  // dưới chạm đúng mép trên thanh nav (755). Menu mất hẳn liên hệ với thẻ đã mở nó: trên một lưới
+  // nhiều thẻ, không có gì cho biết "Xoá" sắp xoá bảng nào. Chủ dự án gọi đây là lỗi RẤT NẶNG
+  // (2026-08-30) và đúng: với một menu có mục phá huỷ, mất liên hệ chỉ-định nguy hiểm hơn hẳn việc
+  // phải với xa vài centimet.
+  // Neo vào thẻ giữ được liên hệ đó ở mọi bề rộng. Vấn đề mà bottom-sheet từng giải — thẻ ở HÀNG
+  // CUỐI mở menu tràn xuống dưới màn — được xử lý đúng chỗ hơn: LẬT LÊN TRÊN khi phía dưới không đủ
+  // chỗ, đúng cách mọi menu ngữ cảnh gốc của hệ điều hành làm.
+  //
+  // `useLayoutEffect` chứ không phải `useEffect`: đo rồi lật phải xong TRƯỚC lượt sơn, nếu không
+  // người dùng thấy menu nhảy một nhịp từ dưới lên trên.
+  useLayoutEffect(() => {
+    if (!dangMoMenu) {
+      setMenuMoLen(false)
+      return
+    }
+    const el = menuRef.current
+    const nut = menuBtnRef.current
+    if (!el || !nut) return
+    const cao = el.offsetHeight
+    const nutR = nut.getBoundingClientRect()
+    // Đáy dùng được = mép dưới khung nhìn trừ thanh nav (và safe-area của nó). `--above-nav` là
+    // cùng token mà mọi thứ neo trên thanh nav trong app này dùng — không tự chế lại phép tính.
+    //
+    // Phải ĐO qua một phần tử thật, không `parseFloat` giá trị token: `--above-nav` là một
+    // `calc(calc(51px + max(5px, 0px)) + 18px)` (có `env(safe-area-inset-bottom)` bên trong), và
+    // `getPropertyValue` trả về nguyên văn chuỗi calc chứ không phải số đã giải — `parseFloat` trên
+    // đó ra `NaN` (đo được 2026-08-30). Một div ẩn cao đúng bằng token buộc trình duyệt giải calc,
+    // kể cả phần `env()` chỉ máy thật mới có giá trị khác 0.
+    const thuoc = document.createElement('div')
+    thuoc.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;height:var(--above-nav)'
+    document.body.appendChild(thuoc)
+    const aboveNav = thuoc.offsetHeight
+    thuoc.remove()
+    const dayAnToan = window.innerHeight - (aboveNav > 0 ? aboveNav : 76)
+    const duChoDuoi = nutR.bottom + cao <= dayAnToan
+    // Chỉ lật khi phía dưới thiếu chỗ VÀ phía trên đủ chỗ — thiếu cả hai thì mở xuống như cũ và để
+    // vùng cuộn lo phần còn lại, thay vì đẩy menu lên khuất sau tiêu đề màn.
+    const duChoTren = nutR.top - cao >= 0
+    setMenuMoLen(!duChoDuoi && duChoTren)
+  }, [dangMoMenu])
 
   // Quản lý tiêu điểm cho sheet "⋯" và panel chuyên khoa/tag — cả hai là <div> thường, không có
   // hành vi focus sẵn của control gốc (critique 2026-08-28 P2, persona Sam: mở sheet ra là focus
@@ -615,7 +664,7 @@ function TheBang({
           role="menu"
           aria-label={`Tuỳ chọn bảng ${bang.ten}`}
           className="mind-menu-bang mind-menu-compact mind-sheet"
-          style={{ position: 'absolute', top: 30, right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
+          style={{ position: 'absolute', top: menuMoLen ? 'auto' : 30, bottom: menuMoLen ? 30 : 'auto', right: 4, width: 'max-content', background: 'var(--c-surface, #fff)', boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)', border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.2)', borderRadius: 8, padding: 4, zIndex: 1 }}
         >
           {/* Vùng chạm 40px (display:flex+minHeight, không phải padding trần) + khoảng cách/đường
               phân trước mục xoá — trước đây hai dòng cao ~30.6px, cách nhau 0px, hành động phá huỷ
@@ -996,7 +1045,11 @@ export function DanhSachBang({
   if (loading)
     return (
       <div className="h-full flex flex-col">
-        <ScreenHeader title="Sơ đồ tư duy" />
+        {/* Cùng lớp bọc cột nội dung với trạng thái lưới đầy đủ bên dưới — xem chú thích ở đó,
+            gồm cả lý do cần `w-full` khi lớp bọc là con của flex column. */}
+        <div className="mind-board-wrap w-full">
+          <ScreenHeader title="Sơ đồ tư duy" />
+        </div>
         <div className="scroll-ios flex-1">
           <div className="mind-board-wrap">
             <LuoiChoTai />
@@ -1014,7 +1067,11 @@ export function DanhSachBang({
   if (loiDoc)
     return (
       <div className="h-full flex flex-col">
-        <ScreenHeader title="Sơ đồ tư duy" />
+        {/* Cùng lớp bọc cột nội dung với trạng thái lưới đầy đủ bên dưới — xem chú thích ở đó,
+            gồm cả lý do cần `w-full` khi lớp bọc là con của flex column. */}
+        <div className="mind-board-wrap w-full">
+          <ScreenHeader title="Sơ đồ tư duy" />
+        </div>
         <div className="scroll-ios flex-1">
           <div className="mind-board-wrap">
             <div
@@ -1170,7 +1227,19 @@ export function DanhSachBang({
         dự án 2026-08-28). Chỉ chạy khi vào từ tab khác — lượt quay lại từ một bảng đang mở
         (`dungTuBang`) đã có `.board-out` riêng ở vùng cuộn bên dưới, chồng hai hiệu ứng là thừa. */}
     <div className={`h-full flex flex-col${dungTuBang ? '' : ' screen-transition'}`}>
-      <ScreenHeader title="Sơ đồ tư duy" />
+      {/* Tiêu đề màn nằm TRONG cùng cột nội dung với ô tìm/dải chip/lưới (.mind-board-wrap, trần
+          1040px căn giữa). ScreenHeader vốn trải full-bleed, nên trên PC 1280 nó đứng ở x=20 trong
+          khi cả phần còn lại của màn bắt đầu ở x=140 — lệch 120px, đo trên trang thật 2026-08-30:
+          tiêu đề trôi hẳn ra ngoài, không thuộc về khối nào bên dưới nó.
+          Bọc tại CHỖ GỌI, không sửa ScreenHeader: component đó dùng chung cho mọi màn, phần lớn
+          không có cột giới hạn bề ngang. Trên điện thoại lớp bọc rộng bằng màn nên không đổi gì. */}
+      {/* `w-full`: lớp bọc này là con của một flex COLUMN, khác với lượt dùng .mind-board-wrap bên
+          trong vùng cuộn (khối thường). Với flex item, `margin: 0 auto` tự co phần tử về bề rộng nội
+          dung thay vì trải rồi căn giữa — đo được 162px và tiêu đề nhảy sang x=579. width:100% trả
+          lại đúng hành vi "trải hết rồi kẹp ở 1040px". */}
+      <div className="mind-board-wrap w-full">
+        <ScreenHeader title="Sơ đồ tư duy" />
+      </div>
       <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
       {/* .mind-board-wrap (index.css) — bọc toàn bộ nội dung trong một cột co giãn tối đa, CĂN GIỮA.
           Trần nới từ 720px lên 1040px (2026-08-28, phản hồi thật: "không gian bảng bị ép hẹp hai
@@ -1185,8 +1254,15 @@ export function DanhSachBang({
           hiếm dùng (critique 2026-08-28: recovery-panel nằm trên ô tìm). Cổng hiện/ẩn gắn vào
           danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danh sách đã lọc — gõ tới ký tự không khớp
           bảng nào mà unmount chính ô đang gõ thì mất focus giữa chừng, không xoá bớt để quay lại được. */}
+      {/* Lề ngang 20px = ĐÚNG lề của ScreenHeader (`px-5`) ngay trên và của mọi tiêu đề mục ở Trang
+          chủ — đo trên trang thật 2026-08-30: tiêu đề màn đứng ở x=20 còn cả cụm này trước đây ở
+          x=16, một bậc lệch 4px chạy suốt chiều cao màn. Cả màn giờ dùng MỘT mép trái.
+          Đáy 4px → 10px: đo được ô tìm cách tiêu đề 29px nhưng chỉ cách dải chip 4px — nhịp NGƯỢC,
+          dải chip đọc thành dính vào đáy ô tìm thay vì là mục kế tiếp cùng nhóm (phản hồi chủ dự án:
+          "căn chỉnh quá sát, nhìn đang ở không gian chật hẹp"). 10px đủ tách hai hàng mà vẫn giữ
+          chúng trong cùng một cụm "thu hẹp danh sách", vẫn nhỏ hơn hẳn khoảng hở tới lưới bên dưới. */}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
-        <div style={{ padding: '12px 16px 4px' }}>
+        <div style={{ padding: '12px 20px 10px' }}>
           {/* CÙNG khuôn "pill" với ô tìm toàn app (HomeScreen / SearchScreen): nền --c-line-soft, bo
               2xl, icon kính lúp bên trái, nút × xoá nhanh khi có chữ. Trước đây là ô viền mảnh nền
               --c-surface, không khớp phần còn lại của app (phản hồi chủ dự án 2026-08-28) — chỉ đổi
@@ -1246,7 +1322,7 @@ export function DanhSachBang({
         </div>
       )}
       {daXoaGanDay.length > 0 && (
-        <div style={{ padding: '4px 16px 0' }}>
+        <div style={{ padding: '4px 20px 0' }}>
           <button
             type="button"
             data-testid="mo-da-xoa-gan-day"
@@ -1516,7 +1592,7 @@ export function DanhSachBang({
             // review lượt 1.
             role="group"
             aria-label="Lọc theo chuyên khoa"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 16px 8px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 20px 8px' }}
           >
             <button
               type="button"
@@ -1589,7 +1665,24 @@ export function DanhSachBang({
             textAlign: 'center',
           }}
         >
-          <div className="empty-breathe" style={{ width: 92, height: 92, color: 'var(--c-text-muted, #6b6e96)' }}>
+          {/* Kích thước CO GIÃN theo không gian, không phải một số px cố định.
+              92px cố định đo ra 7,3% bề ngang trên PC 1280 (cân đối) nhưng 24,5% trên iPhone 375 —
+              gấp 3,4 lần về tỉ lệ, nên cùng một hình đọc thành "vừa vặn" ở màn rộng và "chiếm chỗ"
+              ở màn hẹp (phản hồi chủ dự án 2026-08-30). clamp giữ nguyên cỡ đã đúng ở PC (8vw của
+              1280 = 102 → chạm trần 96, gần y hệt 92 cũ) và kéo iPhone xuống sàn 56px (14,9% bề
+              ngang). Vế `min(...,14vh)` là chốt cho màn NGANG thấp (điện thoại xoay ngang): ở đó
+              8vw sẽ lớn hơn cả chiều cao khối rỗng, vh mới là chiều thật sự khan hiếm.
+              Sàn 56px là mức icon còn đọc được ra hình cái đầu có các nút nối — dưới nữa thì nét
+              trong hình dính vào nhau. */}
+          <div
+            className="empty-breathe"
+            style={{
+              width: 'clamp(56px, min(8vw, 14vh), 96px)',
+              aspectRatio: '1 / 1',
+              flexShrink: 0,
+              color: 'var(--c-text-muted, #6b6e96)',
+            }}
+          >
             <BieuTuongMindmap />
           </div>
           {/* Lưới THẬT SỰ trống: một câu nói thẳng giá trị của bề mặt (hiến chương: biến lý thuyết

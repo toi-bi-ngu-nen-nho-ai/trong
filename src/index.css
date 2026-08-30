@@ -975,11 +975,17 @@ html.theme-shift * {
    phình vô hạn trên màn siêu rộng. Corner-curl tuyệt đối 30×30px của .mind-note-card::before phía
    trên KHÔNG scale theo — vẫn đọc tốt ở tỉ lệ nhỏ hơn so với thẻ to hơn (một góc giấy cong thật cũng
    không phình theo cỡ ảnh in), không cần đổi sang % cho lượt này. */
+/* padding-inline 20px = ĐÚNG lề của ScreenHeader (`px-5`) và của mọi tiêu đề mục ở Trang chủ. Đo
+   trên trang thật 2026-08-30: tiêu đề màn đứng ở x=20 còn ô tìm/dải chip/lưới đều ở x=16 — một bậc
+   lệch 4px chạy suốt chiều cao màn, đọc thành "căn chỉnh quá sát" (phản hồi chủ dự án). Giữ
+   padding-block 16px: khoảng hở trên/dưới lưới là chuyện nhịp dọc, không liên quan mép trái.
+   Giá cho 4px lề thêm ở mỗi bên: thẻ mobile 2 cột hẹp đi 4px (đo được 161px → 157px) — đổi lại cả
+   màn có MỘT mép trái duy nhất. */
 .mind-board-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  padding: 16px;
+  padding: 16px 20px;
 }
 /* 1fr một mình tương đương minmax(auto,1fr) — 'auto' kéo theo phần đóng góp min-content THẬT của
    từng ô vào phép tính bề rộng cột. Đo trực tiếp trên Browser pane (2026-08-28, 6 bảng + ô "+"):
@@ -1249,22 +1255,16 @@ html.theme-shift * {
     width: auto !important;
   }
 
-  /* .mind-menu-compact (menu "⋯" của DanhSachBang.tsx: chỉ 3 dòng chữ ngắn) — GIỮ vị trí ghim đáy
-     màn hình trong tầm ngón cái (lý do gốc của bottom-sheet, critique 2026-08-26) nhưng KHÔNG ép
-     trải full-bleed left/right:12px như panel chuyên khoa/tag (đủ nội dung để cần bề rộng đó). Neo
-     bên PHẢI (khớp nút "⋯" luôn ở góc phải mỗi thẻ) và co theo nội dung bằng width:max-content —
-     kỹ thuật ĐÃ DÙNG đúng cho bản desktop của chính menu này (xem inline style DanhSachBang.tsx),
-     không mixed với minWidth cố định nên không lặp lại lỗi ngắt dòng đã vá 2026-08-26 (xem comment
-     tại JSX: minWidth cố định từng đè lên width:auto!important, ép menu hẹp hơn nội dung thật). */
-  .mind-menu-bang.mind-menu-compact {
-    position: fixed !important;
-    top: auto !important;
-    left: auto !important;
-    right: 12px !important;
-    bottom: var(--above-nav) !important;
-    width: max-content !important;
-    max-width: calc(100vw - 24px);
-  }
+  /* KHÔNG có luật bottom-sheet cho `.mind-menu-compact` (menu "⋯" của DanhSachBang.tsx). Ở đây
+     TỪNG có một luật ghim nó xuống đáy màn hình như panel chuyên khoa/tag ngay trên, với lý do "luôn
+     trong tầm ngón cái" (critique 2026-08-26). Gỡ hẳn 2026-08-30 sau khi đo trên iPhone 375×812:
+     bấm "⋯" của thẻ hàng đầu (nút ở y=196) thì menu hiện ở y=585 — cách nút 345px, mép dưới chạm
+     đúng mép trên thanh nav. Menu mất liên hệ với thẻ đã mở nó, mà đây là menu CÓ mục "Xoá": trên
+     lưới nhiều thẻ, không còn gì cho biết sắp xoá bảng nào (phản hồi chủ dự án: lỗi RẤT NẶNG).
+     Menu giờ neo vào thẻ ở mọi bề rộng và tự LẬT LÊN TRÊN khi dưới hết chỗ — logic đo nằm ở
+     `useLayoutEffect` trong DanhSachBang.tsx, không phải ở CSS, vì nó cần chiều cao thật của menu.
+     Panel chuyên khoa/tag phía trên GIỮ bottom-sheet: nó có select + dải chip + ô nhập, thật sự cần
+     bề ngang mà một menu neo-vào-thẻ 161px không cấp được. */
 }
 
 /* Người bật "Giảm chuyển động" ở hệ điều hành thường vì lý do sức khoẻ (rối loạn tiền đình, dễ say
