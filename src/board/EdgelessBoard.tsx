@@ -22,6 +22,7 @@ import { render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
+import { ganMoiBanPhimIOS } from './ban-phim-ios'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
@@ -399,6 +400,13 @@ export function EdgelessBoard({
         workspaceHienTai = workspace
         const std = new BlockStdScope({ store, extensions: viewManager.get('edgeless') })
         litRender(std.render(), el)
+
+        // Mồi bàn phím ảo iOS: BlockSuite hoãn mọi `focusTextModel()` qua rAF nên Safari iOS không
+        // mở bàn phím khi chạm vào node text. Phép mồi focus một `<input>` thật đồng bộ trong
+        // `touchend` để bàn phím bật lên trong cử chỉ, rồi trao lại cho editor. No-op ngoài iOS.
+        // Xem ./ban-phim-ios.ts và HANDOFF §1.1.
+        huyDangKyThayDoi.push(ganMoiBanPhimIOS(el))
+
         setKhongLuuDuoc(khongLuuDuocKetQua)
         setDangMo(false)
         onReady?.()
