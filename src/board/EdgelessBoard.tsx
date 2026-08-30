@@ -15,6 +15,7 @@ import { type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
+import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
@@ -418,7 +419,20 @@ export function EdgelessBoard({
         // mở bàn phím khi chạm vào node text. Phép mồi focus một `<input>` thật đồng bộ trong
         // `touchend` để bàn phím bật lên trong cử chỉ, rồi trao lại cho editor. No-op ngoài iOS.
         // Xem ./ban-phim-ios.ts và HANDOFF §1.1.
-        huyDangKyThayDoi.push(ganMoiBanPhimIOS(el))
+        //
+        // Tham số thứ ba: công cụ "Chữ" tạo chữ bằng MỘT cú chạm (affine/gfx/text/src/tool.ts,
+        // `override click()`), khác mọi công cụ còn lại vốn cần chạm-đôi. Không nói cho phép mồi
+        // biết thì đúng cú chạm đó mất bàn phím. Đọc `peek()` (không phải `.value`) để không tạo
+        // đăng ký signal nào — đây chỉ là một phép hỏi tại chỗ trong handler chạm.
+        const dangDungCongCuChu = () => {
+          try {
+            return std.get(GfxControllerIdentifier).tool.currentToolName$.peek() === 'text'
+          } catch {
+            // Thượng nguồn đổi hình dạng API thì mất đúng đường công cụ Chữ, không gãy cả bảng vẽ.
+            return false
+          }
+        }
+        huyDangKyThayDoi.push(ganMoiBanPhimIOS(el, undefined, dangDungCongCuChu))
 
         // Cấp hàm xuất PNG cho BoardGallery (nút "Xuất PNG" ở màn vẽ). Import ĐỘNG: xuatAnhBang.ts
         // kéo theo html2canvas — không được vào chunk bảng vẽ cho người chưa bao giờ bấm xuất.
