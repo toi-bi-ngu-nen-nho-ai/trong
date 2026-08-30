@@ -21,7 +21,8 @@
 //   • các nét khởi động SO LE nhưng cùng kết thúc ở mốc VE_XONG: hình tụ lại thành một, không phải
 //     30 nét nhấp nháy rời rạc.
 // Vẽ xong: icon THẬT (bản đặc, đang opacity 0 bên dưới) hiện lên trong lúc lớp nét tan đi — khoảnh
-// khắc "ăn mực". Giữ hình một nhịp rồi cả cụm mờ đi và vẽ lại từ đầu.
+// khắc "ăn mực". Giữ hình một nhịp rồi cả cụm mờ đi và vẽ lại từ đầu. Trọn cung:
+// tự vẽ → ăn mực → đứng nguyên → tan → (lớp phủ mở ra canvas).
 //
 // Bốn vòng phản hồi trước đều hỏng vì lộ dần MỘT path liền mạch (đọc thành "vệt sáng bò dọc dây")
 // và không bao giờ kết thúc ở icon thật. Hai điểm đó là thứ bản này sửa.
@@ -37,18 +38,32 @@ import { useLayoutEffect, useRef } from 'react'
 import { specialtyIcon } from '../components/SpecialtyIcons'
 import { SPECIALTIES } from '../data/specialties'
 
-const CHU_KY_MS = 2800
-const BAT_DAU_TRE = 0.34 // nét cuối cùng bắt đầu ở mốc này của chu kỳ
-const VE_XONG = 0.58 // mọi nét cùng khép lại ở đây
-const AN_MUC = 0.72 // icon đặc hiện xong
-const GIU_XONG = 0.9 // giữ nguyên hình tới đây rồi mờ đi
+// Chu kỳ bắt đầu ĐÚNG Ở MỐC 0 — tức nét đặt bút ngay khung hình đầu. Thứ tự chủ dự án chốt
+// (2026-08-30): tự vẽ → ăn mực → đứng nguyên → tan → mở ra canvas.
+//
+// Một lượt trước từng cho chu kỳ khởi động ở mốc AN_MUC (delay âm) để khung đầu là icon đặc, khớp
+// từng pixel với thẻ trong lưới lúc cú FLIP phóng to. Bỏ theo yêu cầu: nó đẩy "đứng nguyên → tan"
+// lên trước phần vẽ, đúng thứ tự ngược lại. Cái giá còn lại của việc bỏ là một khoảng rất ngắn đầu
+// chu kỳ chưa có nét nào — nhịp mới rút xuống 1800ms (vẽ xong ở 936ms, nhanh gấp ~1,74× so với
+// 1624ms cũ) nên khoảng đó ngắn hơn cú phóng to 0,38s, người dùng thấy tim ĐANG ĐƯỢC PHÁC trong
+// lúc thẻ bay ra chứ không thấy một ô trống.
+//
+// Vì sao rút ngắn: bảng có thể mở rất nhanh (chunk đã cache, IndexedDB đồng bộ tức thì) — đo được
+// 2,5s ở máy thật nhưng có thể ngắn hơn nhiều. Nhịp cũ 2800ms khiến nhiều lượt mở chỉ kịp thấy
+// một mẩu nét rồi lớp phủ đã tan. Nhịp mới chạy trọn cung vẽ→ăn mực→giữ→tan trong 1,8s.
+const CHU_KY_MS = 1800
+// Mỗi nét chiếm MỘT KHUNG GIỜ RIÊNG trong quãng vẽ, nối đuôi nhau — không phải cùng khởi động so
+// le rồi cùng khép lại ở VE_XONG. Bản chồng-lấn trước đó cho ra 4-5 mẩu nét dở dang rải rác khắp
+// hình ở đầu chu kỳ (đo 2026-08-30, chụp ở mốc 200ms): đọc thành "mấy vệt rời rạc" — đúng chế độ
+// hỏng của 4 vòng phản hồi trước, không ra MỘT cây bút đang đi. Tuần tự thì bút chỉ ở một chỗ tại
+// một thời điểm; đó mới là line-drawing.
+// GOI_LEN: nét kéo dài thêm sang khung giờ kế bấy nhiêu lần, để hai nét liên tiếp giao nhau một
+// chút cho liền mạch thay vì giật cục từng nét.
+const GOI_LEN = 1.35
+const VE_XONG = 0.52 // mọi nét cùng khép lại ở đây (936ms)
+const AN_MUC = 0.64 // icon đặc hiện xong (1152ms)
+const GIU_XONG = 0.86 // giữ nguyên hình tới đây (1548ms) rồi mờ đi
 const easeVe = 'cubic-bezier(0.65, 0.05, 0.36, 1)'
-// Chu kỳ KHÔNG bắt đầu ở mốc 0 (nét chưa đặt bút = màn hình trống) mà nhảy thẳng vào mốc AN_MUC —
-// khung hình đầu tiên là ICON ĐẶC HOÀN CHỈNH. Bắt buộc cho lớp phủ FLIP: thẻ trong lưới đang hiện
-// icon tĩnh, cú phóng to phải khớp TỪNG PIXEL với nó (xem chú thích TheTrong, DanhSachBang.tsx).
-// Đo được 2026-08-30 trước lượt sửa này: khung đầu có thatOp=0, netDash=1px — icon chớp tắt đúng
-// lúc bấm rồi mới vẽ lại, đọc thành một cú giật. Giờ: giữ hình một nhịp → tan → vẽ lại → ăn mực.
-const BAT_DAU_TU_MS = -CHU_KY_MS * AN_MUC
 
 export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
   const bocRef = useRef<HTMLDivElement>(null)
@@ -113,14 +128,38 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
     if (manh.length === 0) return
     boc.appendChild(lopNet)
 
-    const n = manh.length
+    // Chia thời gian theo ĐỘ DÀI nét, không phải theo SỐ nét — để bút chạy đều một tốc độ.
+    // Đo 2026-08-30 trên icon Tim mạch: chia đều 12 nét thì ở mốc 200ms đã có 2 nét xong và hình
+    // gần như đủ, vì `d` của bộ icon này là MỘT path khổng lồ mà subpath đầu ôm trọn đường bao còn
+    // 10 subpath sau chỉ là chi tiết li ti. Nét dài nhất phóng vèo trong 78ms rồi 860ms còn lại
+    // dành cho mấy chấm nhỏ — đọc thành "vẽ xong ngay rồi lấm tấm chấm", không phải một cây bút.
+    // getTotalLength() an toàn ở ĐÂY vì nhánh này chỉ chạy SAU guard thiếu-WAAPI (happy-dom không
+    // cài hàm đó và cũng không có Element.animate nên đã return từ trước — đúng chỗ bản 2026-08-28
+    // từng vỡ do gọi sớm hơn guard).
+    const dai = manh.map((p) => {
+      try {
+        return p.getTotalLength() || 0
+      } catch {
+        return 0
+      }
+    })
+    const tongDai = dai.reduce((a, b) => a + b, 0) || 1
+    let congDon = 0
+    const mocBatDau = dai.map((d) => {
+      const truoc = congDon
+      congDon += d
+      return truoc / tongDai
+    })
+
     const anims = manh.map((p, i) => {
-      const batDau = n === 1 ? 0 : (i / (n - 1)) * BAT_DAU_TRE
+      // Khung giờ của nét i tỉ lệ với độ dài của chính nó, nối đuôi nhau trong quãng 0→VE_XONG.
+      const batDau = mocBatDau[i] * VE_XONG
+      const ketThuc = Math.min(VE_XONG, batDau + (dai[i] / tongDai) * VE_XONG * GOI_LEN)
       return p.animate(
         [
           { strokeDashoffset: 1, offset: 0, easing: 'linear' },
           { strokeDashoffset: 1, offset: batDau, easing: easeVe },
-          { strokeDashoffset: 0, offset: VE_XONG, easing: 'linear' },
+          { strokeDashoffset: 0, offset: ketThuc, easing: 'linear' },
           { strokeDashoffset: 0, opacity: 1, offset: AN_MUC - 0.06, easing: 'ease-out' },
           // Nét mờ đi ĐÚNG NHỊP mảng đặc hiện lên. Hai lớp CỐ Ý chồng nhau trong quãng giao thoa
           // ngắn này: nét nằm khít trên đường bao của mảng đặc nên mắt đọc thành "nét dày dần lên
@@ -128,7 +167,7 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
           { strokeDashoffset: 0, opacity: 0, offset: AN_MUC },
           { strokeDashoffset: 0, opacity: 0, offset: 1 },
         ],
-        { duration: CHU_KY_MS, iterations: Infinity, delay: BAT_DAU_TU_MS },
+        { duration: CHU_KY_MS, iterations: Infinity },
       )
     })
 
@@ -142,7 +181,7 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
         { opacity: 0, offset: 0.99 },
         { opacity: 0, offset: 1 },
       ],
-      { duration: CHU_KY_MS, iterations: Infinity, delay: BAT_DAU_TU_MS },
+      { duration: CHU_KY_MS, iterations: Infinity },
     )
 
     return () => {
