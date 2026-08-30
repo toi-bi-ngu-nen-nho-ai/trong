@@ -1226,9 +1226,15 @@ export function DanhSachBang({
           Đáy 4px → 10px: đo được ô tìm cách tiêu đề 29px nhưng chỉ cách dải chip 4px — nhịp NGƯỢC,
           dải chip đọc thành dính vào đáy ô tìm thay vì là mục kế tiếp cùng nhóm (phản hồi chủ dự án:
           "căn chỉnh quá sát, nhìn đang ở không gian chật hẹp"). 10px đủ tách hai hàng mà vẫn giữ
-          chúng trong cùng một cụm "thu hẹp danh sách", vẫn nhỏ hơn hẳn khoảng hở tới lưới bên dưới. */}
+          chúng trong cùng một cụm "thu hẹp danh sách", vẫn nhỏ hơn hẳn khoảng hở tới lưới bên dưới.
+          Đỉnh 12px → 4px (2026-08-31, phản hồi thật: "thanh tìm kiếm ở vị trí quá thấp", cụ thể hoá
+          qua hỏi lại: "khoảng cách title→ô tìm quá rộng"). ScreenHeader NGAY TRÊN đã tự mang `pb-3`
+          (12px) của chính nó — cộng thêm 12px nữa ở đây ra 29px đo được, gần gấp ba khoảng 10px
+          xuống dải chip ngay dưới, kéo cụm "tiêu đề → ô tìm" rời khỏi nhóm "thu hẹp danh sách" mà nó
+          thuộc về. 4px đủ để hai viền không dính nhau mà không lặp lại đúng khoảng đệm ScreenHeader
+          vừa cấp — gap còn lại đo được ~21px, dưới hẳn 29px cũ, vẫn trên hẳn 10px xuống dải chip. */}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
-        <div style={{ padding: '12px 20px 10px' }}>
+        <div style={{ padding: '4px 20px 10px' }}>
           {/* CÙNG khuôn "pill" với ô tìm toàn app (HomeScreen / SearchScreen): nền --c-line-soft, bo
               2xl, icon kính lúp bên trái, nút × xoá nhanh khi có chữ. Trước đây là ô viền mảnh nền
               --c-surface, không khớp phần còn lại của app (phản hồi chủ dự án 2026-08-28) — chỉ đổi
@@ -1950,11 +1956,17 @@ export function DanhSachBang({
               setVuaXoa(null)
             }}
             className="mind-focus-ring"
+            // minHeight 44 → 36 (2026-08-31, phản hồi thật: "thanh thông báo khi xóa chiếm không gian
+            // màn hình nhiều"). Toast này là `flex items-center` nên chiều cao CẢ HÀNG bị ép theo
+            // chính nút này — đo được 62,7px cho một dòng chữ 12,5px, gần hết là khoảng đệm rỗng do
+            // 44px là mức khuyến nghị AAA/HIG, không phải sàn bắt buộc (WCAG 2.5.8 AA chỉ cần 24px —
+            // cùng lý lẽ mà `menu-bang` phía trên đã áp dụng để hạ 44→40). 36 vẫn cách xa sàn 24px,
+            // toast co còn ~54px — nhỏ hơn hẳn nhưng "Hoàn tác" vẫn dễ bấm trên di động.
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              minHeight: 44,
+              minHeight: 36,
               minWidth: 44,
               color: 'var(--c-toast-action, #f175a6)',
               fontWeight: 600,
