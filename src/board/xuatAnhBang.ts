@@ -218,8 +218,13 @@ async function veRaCanvasThat(
   // Bẫy khi đo lại: (a) khối tạo bằng `store.addBlock()` trần KHÔNG render (`visibility:hidden`,
   // rỗng) nên mọi số đo trên nó đều vô nghĩa — phải tạo thẻ bằng thanh công cụ thật; (b) edgeless
   // CULL khối ngoài khung nhìn, khối bị cull đo ra 0×0 và html2canvas trả canvas rỗng.
-  // Hướng còn bỏ ngỏ nếu sau này cần: gọi html2canvas ĐÚNG MỘT LẦN trên tổ tiên chung của mọi
-  // khối thay vì mỗi khối một lượt — chi phí thành ~5s cho cả sơ đồ thay vì 5s × số thẻ.
+  // Hướng "MỘT lượt html2canvas cho cả lớp khối" ĐÃ THỬ và bỏ (cùng ngày): phần chi phí thì giải
+  // xong hẳn — một lượt chụp phần tử viewport kèm `ignoreElements` cắt <canvas> và mọi cây widget
+  // đo được 1272ms nguội / 387-568ms ấm, và trên BẢNG ĐANG MỞ nó chụp đúng thẻ ghi chú kèm chữ.
+  // Nhưng đường xuất mở bảng NGẦM, và trình soạn thảo ngầm KHÔNG BAO GIỜ render khối note:
+  // `<drt-edgeless-note>` lên `block-active` mà `offsetWidth` vẫn 0 và `children.length` = 0 suốt
+  // 1,5 giây. Đã loại: hộp chứa ngoài màn, chờ lâu hơn, pane bị ẩn, viewport chưa khớp hộp bao.
+  // Chặn nằm ở KIẾN TRÚC, không phải tham số — xem HANDOFF mục 1.2 cho hai hướng còn lại.
   // Chọn ĐÚNG-VÀ-NHANH thay vì ĐỦ-NHƯNG-TREO: phần tử canvas (nét vẽ, hình, đường nối, chữ, node
   // mindmap) là toàn bộ chất liệu của một sơ đồ tư duy và vẽ được từ mô hình trong vài chục ms.
   // Bảng CÓ khối thì `xuatPngBang` trả 'xong-thieu-the-ghi-chu' để người dùng được BÁO, không phải
