@@ -25,7 +25,7 @@ import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
-import { capNhatAnhXemTruoc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
+import { capNhatSauKhiRoiBang, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -54,6 +54,20 @@ apDungViewportChoIOS()
 
 const viewManager = new ViewExtensionManager(viewExtensions)
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
+
+/**
+ * Bộ extension cho chế độ edgeless, lấy từ ĐÚNG `viewManager` singleton của module này.
+ *
+ * Có hàm này vì `xuatAnhBang.ts` cũng cần mount một cây Lit (bảng ngầm để xuất PNG) và KHÔNG được
+ * phép tự dựng một `ViewExtensionManager` thứ hai: `.get('edgeless')` chạy chuỗi
+ * `ViewExtensionProvider.setup() → effect() → effects()`, tức là `customElements.define(...)` cho
+ * toàn bộ thẻ Lit — gọi lần hai trên cùng tên thẻ là `NotSupportedError` ném thẳng ra, hỏng cả
+ * bảng vẽ lẫn lượt xuất. Xuất một hàm rẻ hơn xuất chính `viewManager` (bên ngoài không cần biết
+ * manager tồn tại, chỉ cần đúng mảng extension).
+ */
+export function layExtensionsEdgeless() {
+  return viewManager.get('edgeless')
+}
 
 // Tên CSDL IndexedDB riêng cho NỘI DUNG bảng (CRDT nhị phân + blob ảnh) — tách hẳn khỏi
 // "drtrong-ecg" của src/lib/idb.ts (bản ghi JSON cho danh sách bảng/ECG/bài viết, hai bản chất dữ
@@ -85,14 +99,13 @@ function doiCoHanGio<T>(hua: Promise<T>, hanGioMs: number): Promise<T | 'het-gio
   return Promise.race([hua, homHanGio]).finally(() => clearTimeout(idTimer))
 }
 
-// Xuất PNG/PDF từng sống ở đây qua ExportManager (BlockStdScope chỉ mount SAU khi mở bảng) — đã bỏ
-// HẲN khỏi màn vẽ này (không phải ẩn UI): tính năng xuất giờ dùng ẢNH XEM TRƯỚC đã lưu sẵn
-// (BangMeta.anhXemTruoc, một JPEG chụp lúc rời bảng gần nhất) và sống trong menu "⋯" của THẺ bảng ở
-// lưới danh sách (DanhSachBang.tsx) — không cần mở bảng, không cần ExportManager/std/store nào ở
-// đây nữa (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của đổi tên/chuyên khoa xuất file" ở
-// màn vẽ, "tính năng xuất file chuyển ra board"). Đánh đổi: ảnh xem trước vốn để làm thumbnail thẻ,
-// không phải bản xuất tươi từ canvas hiện tại — nếu cần đúng bản mới nhất, mở bảng, rời ra (ảnh xem
-// trước tự ghi lại) rồi mới xuất từ menu thẻ.
+// Xuất PNG/PDF KHÔNG có UI trong màn vẽ này (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của
+// đổi tên/chuyên khoa xuất file" ở màn vẽ, "tính năng xuất file chuyển ra board") — nút xuất sống
+// trong menu "⋯" của THẺ bảng ở lưới danh sách (DanhSachBang.tsx).
+// Từ 2026-08-30 lượt xuất đó KHÔNG còn đóng gói lại ảnh chụp khung nhìn nữa: ./xuatAnhBang.ts mở
+// bảng NGẦM rồi dựng ảnh từ tài liệu CRDT qua ExportManager, đóng khung theo `gfx.elementsBound`.
+// Nó dùng chung `taoHoacMoBang()` và `layExtensionsEdgeless()` của file này — đó là toàn bộ quan hệ
+// giữa hai module; component bên dưới không biết gì về việc xuất và không cần biết.
 
 /**
  * Dựng hoặc mở lại bảng đã lưu. Bền vững qua IndexedDB (mặc định) — nếu không đồng bộ xong trong
@@ -113,6 +126,7 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
+  khongSeed?: boolean
 }) {
   const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
@@ -181,8 +195,22 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
     // toàn hơn. Không kiểm điều kiện này thì lần mở kế tiếp gặp đúng doc hỏng này sẽ ném
     // `BlockSuiteError: This doc is missing surface/root block` sâu trong `EditorHost.connectedCallback`
     // — một unhandled rejection không ai bắt — và bảng vẽ hỏng vĩnh viễn từ đó về sau, âm thầm.
+    // `khongSeed`: mở CHỈ ĐỌC, tuyệt đối không tạo nội dung (dùng bởi ./xuatAnhBang.ts).
+    //
+    // Vì sao cần: nội dung subdoc nạp BẤT ĐỒNG BỘ. `waitForSynced()` ở trên chỉ nói doc GỐC đã
+    // đồng bộ; `doc.load()` mới yêu cầu subdoc, và `TestDoc._initSubDoc` đặt `_loaded = false` rồi
+    // ĐỢI sự kiện 'subdocs' (framework/store/src/test/test-doc.ts:22-33). Trong cửa sổ đó
+    // `store.root` là null cho một bảng CÓ nội dung — và nhánh seed bên dưới sẽ ghi một
+    // `affine:page` + `affine:surface` THỨ HAI vào chính doc đó.
+    // Hậu quả đo được (kiểm tay 2026-08-30, sau 3 lượt xuất): doc có 2 root và 2 surface;
+    // `gfx.surface` bám vào surface MỒ CÔI nên `gfx.surfaceComponent` null vĩnh viễn và không gì
+    // render được nữa. Đường xuất không có việc gì phải tạo nội dung, nên cách vá đúng tầng là
+    // KHÔNG BAO GIỜ để nó chạm nhánh seed — thay vì nới hạn giờ và hy vọng.
+    // Bên gọi tự kiểm `store.root` sau đó (null = chưa nạp xong hoặc bảng không tồn tại).
     let daGhiKhoiMoi = false
-    if (!store.root) {
+    if (tuyChon?.khongSeed) {
+      // Không seed, không đợi lượt đẩy nào — trả store ngay để bên gọi tự chờ nội dung tới.
+    } else if (!store.root) {
       const rootId = store.addBlock('affine:page', {})
       store.addBlock('affine:surface', {}, rootId)
       daGhiKhoiMoi = true
@@ -273,7 +301,7 @@ export function EdgelessBoard({
     if (!el) return
     let huyBo = false
     let workspaceHienTai: TestWorkspace | null = null
-    // Có sửa NỘI DUNG thật trong phiên mở bảng này hay không — xem chú thích ở capNhatAnhXemTruoc
+    // Có sửa NỘI DUNG thật trong phiên mở bảng này hay không — xem chú thích ở capNhatSauKhiRoiBang
     // (boardMeta.ts). Đăng ký lúc mount xong (sau seed, xem taoHoacMoBang), nên chỉ đếm thay đổi
     // PHÁT SINH TỪ đây trở đi, không tính lượt hydrate/seed đã xảy ra trước khi effect này chạy.
     let coThayDoiNoiDung = false
@@ -338,106 +366,58 @@ export function EdgelessBoard({
     return () => {
       huyBo = true
       huyDangKyThayDoi.forEach((huy) => huy())
-      // Chụp ảnh xem trước TRƯỚC khi tháo cây Lit — sau litRender(null, el) canvas không còn.
-      // Best-effort tuyệt đối: lỗi ở đây KHÔNG được chặn dọn dẹp thật (forceStop() vẫn phải chạy).
+      // Cập nhật metadata của bảng vừa đóng TRƯỚC khi tháo — `workspaceHienTai.forceStop()` ngay
+      // dưới đóng DocEngine, sau đó không còn gì để đọc. Best-effort tuyệt đối: lỗi ở đây KHÔNG
+      // được chặn dọn dẹp thật (forceStop() vẫn phải chạy).
+      //
+      // Ở ĐÂY TỪNG CÓ một lượt chụp ảnh xem trước: lấy `el.querySelector('canvas')` (canvas KHUNG
+      // NHÌN), ép xuống 480×360, quét kênh alpha để phân biệt bảng trống, lấp nền theo --c-surface
+      // rồi ghi `toDataURL('image/jpeg', 0.6)` vào `BangMeta.anhXemTruoc`. Gỡ HẲN 2026-08-30 (phản
+      // hồi thật của chủ dự án): ảnh đó là NGUỒN GỐC của cả ba lỗi cùng lúc — thẻ ở lưới tái hiện
+      // nét vẽ thay vì giữ icon chuyên khoa, "Xuất PNG" cho ra khung ảnh đổi theo pan/zoom (vì ảnh
+      // CHÍNH LÀ khung nhìn), và chất lượng bệt (0,17 MP + JPEG 0.6, sau đó bọc PNG chỉ đóng đinh
+      // artefact lại). Thẻ giờ luôn dùng huy hiệu chuyên khoa; xuất PNG dựng lại từ tài liệu CRDT
+      // qua ./xuatAnhBang.ts. Không còn ai đọc `anhXemTruoc`, nên tiếp tục ghi nó chỉ là bơm hàng
+      // trăm kB rác vào IndexedDB mỗi lần rời bảng — capNhatSauKhiRoiBang() còn chủ động bóc trường
+      // đó ra để dọn dữ liệu đã ghi từ trước.
+      //
+      // Lượt gọi capNhatSauKhiRoiBang() thì Ở LẠI, và giờ chạy VÔ ĐIỀU KIỆN (trước đây nó nằm lồng
+      // trong `if (canvasGoc && canvasGoc.width > 0 ...)` — điều kiện của việc CHỤP, không phải của
+      // việc cập nhật): nó gánh bump capNhatLuc, backfill chuyenKhoa/tags và ghi noiDungTimKiem.
       try {
-        const canvasGoc = el.querySelector('canvas')
-        if (canvasGoc && canvasGoc.width > 0 && canvasGoc.height > 0) {
-          const nho = document.createElement('canvas')
-          nho.width = 480
-          nho.height = 360
-          const ctx = nho.getContext('2d')
-          if (ctx) {
-            // Tô nền TRƯỚC drawImage — bảng TRỐNG (chưa vẽ gì) chỉ có canvasGoc trong suốt hoàn
-            // toàn (nền chấm lưới người dùng thấy trên màn là một lớp CSS riêng phủ NGOÀI canvas,
-            // không phải nội dung canvas thật). toDataURL('image/jpeg', ...) không có kênh alpha nên
-            // vùng trong suốt đó tự động tô ĐEN khi xuất — kết quả là một ô đen thay hẳn icon chuyên
-            // khoa mặc định vốn đang hiện tốt cho bảng chưa có anhXemTruoc (phản hồi thật 2026-08-26:
-            // mở một bảng mới trống rồi quay lại, thẻ hoá ô đen). ĐÃ THỬ bỏ hẳn lượt ghi khi canvas
-            // trống (quét kênh alpha rồi return sớm) — vỡ 3 test edgeless-board-mount.spec.ts đang
-            // khoá cứng "unmount LUÔN gọi capNhatAnhXemTruoc kể cả khi không tương tác gì" (đúng hợp
-            // đồng đã ghi ở đầu capNhatAnhXemTruoc trong boardMeta.ts: "Ảnh xem trước LUÔN được ghi
-            // lại... kể cả khi họ chỉ pan/zoom mà không sửa gì"), plus happy-dom không rasterize
-            // drawImage() thật nên getImageData() luôn ra toàn số 0 trong môi trường test dù canvas
-            // "có nội dung" theo kịch bản test — không có cách nào phân biệt hai ca đó qua pixel
-            // trong happy-dom. Tô nền là fix ĐÚNG TẦNG: giữ nguyên hợp đồng "luôn ghi", chỉ đổi màu
-            // nền JPEG-hoá-đen thành đúng màu nền thật của theme đang áp — cùng kỹ thuật
-            // getComputedStyle('--c-surface') + fallback hex mà src/lib/theme.ts đã dùng cho
-            // <meta name="theme-color">, tránh một nguồn sự thật thứ hai cho màu nền theme.
-            ctx.drawImage(canvasGoc, 0, 0, 480, 360)
-
-            // Bảng TRỐNG (chưa vẽ gì) cho canvas TRONG SUỐT HOÀN TOÀN — nền chấm lưới người dùng
-            // thấy trên màn là một lớp CSS phủ NGOÀI canvas, không phải nội dung canvas. Quét kênh
-            // alpha để phân biệt "trống thật" với "có nội dung": thoát ở pixel đục ĐẦU TIÊN nên
-            // bảng có nội dung gần như không tốn gì, chỉ bảng trống mới quét hết 480×360.
-            let coNoiDung = false
-            const duLieu = ctx.getImageData(0, 0, 480, 360).data
-            for (let i = 3; i < duLieu.length; i += 4) {
-              if (duLieu[i] !== 0) {
-                coNoiDung = true
-                break
-              }
-            }
-
-            // Chỉ lấp nền khi THẬT SỰ có nội dung. `destination-over` vẽ màu nền XUỐNG DƯỚI phần đã
-            // vẽ (không đè lên), nên không cần drawImage lần hai. Cần lấp vì toDataURL('jpeg') không
-            // có kênh alpha: vùng trong suốt quanh nét vẽ sẽ tự hoá ĐEN nếu để nguyên.
-            // Màu nền lấy từ --c-surface đang áp — cùng nguồn sự thật mà src/lib/theme.ts dùng cho
-            // <meta name="theme-color">, không tự chế bảng màu thứ hai.
-            if (coNoiDung) {
-              ctx.globalCompositeOperation = 'destination-over'
-              ctx.fillStyle =
-                getComputedStyle(document.documentElement).getPropertyValue('--c-surface').trim() ||
-                (resolveTheme() === 'dark' ? '#14162c' : '#ffffff')
-              ctx.fillRect(0, 0, 480, 360)
-              ctx.globalCompositeOperation = 'source-over'
-            }
-            // Trích văn bản NGAY TRƯỚC KHI workspaceHienTai.forceStop() chạy (mấy dòng dưới) — store
-            // vẫn còn sống tới đó, forceStop() đóng DocEngine và không còn gì để đọc sau đó. Tự lấy
-            // lại store qua `workspaceHienTai.getDoc(boardId).getStore(...)` — con đường CHẮC CHẮN
-            // sống nếu tới được đây (chỉ chạy khi canvasGoc đã có nội dung, tức taoHoacMoBang đã
-            // resolve xong), không phụ thuộc bất kỳ state React nào có thể lệch nhịp lúc unmount.
-            let noiDungTimKiemMoi: string | undefined
-            try {
-              const rootHienTai = workspaceHienTai
-                ?.getDoc(boardId)
-                ?.getStore({ extensions: storeManager.get('store') }).root
-              if (rootHienTai) {
-                const surfaceHienTai = rootHienTai.children.find(
-                  (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
-                )
-                noiDungTimKiemMoi = ghepNoiDungTimKiem(
-                  trichVanBanTuKhoi(rootHienTai),
-                  // Ép kiểu về hình dạng tối thiểu mà trichVanBanTuCanvas cần (`{ text?: unknown }[]`)
-                  // — elementModels là union các lớp GfxPrimitiveElementModel cụ thể (shape/connector/
-                  // text/mindmap...), không lớp nào khai `text` ở kiểu CHUNG nên TypeScript từ chối
-                  // gán thẳng dù đúng ở runtime cho những lớp có field đó (đã xác nhận qua chính
-                  // element-model/{text,shape,connector}.ts của cây vendored, xem chú thích tại định
-                  // nghĩa trichVanBanTuCanvas trong boardMeta.ts).
-                  surfaceHienTai
-                    ? trichVanBanTuCanvas(surfaceHienTai.elementModels as unknown as Array<{ text?: unknown }>)
-                    : '',
-                )
-              }
-            } catch {
-              // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng
-              // lượt ghi ảnh xem trước hay thao tác quay lại danh sách của người dùng.
-            }
-            // Bảng trống truyền CHUỖI RỖNG chứ không phải ảnh ô-màu-phẳng: boardMeta.ts hiểu đó là
-            // "giữ nguyên ảnh cũ", nhờ vậy thẻ bảng chưa vẽ gì vẫn hiện icon chuyên khoa thay vì một
-            // ô đặc. Vẫn GỌI (không bỏ qua) vì lượt gọi này còn gánh bump capNhatLuc + backfill
-            // chuyenKhoa/tags/noiDungTimKiem — bỏ qua là mất luôn mấy việc đó (đã thử và vỡ 3 ca
-            // kiểm trong edgeless-board-mount.spec.ts).
-            void capNhatAnhXemTruoc(
-              boardId,
-              coNoiDung ? nho.toDataURL('image/jpeg', 0.6) : '',
-              coThayDoiNoiDung,
-              noiDungTimKiemMoi,
+        // Trích văn bản NGAY TRƯỚC forceStop(). Tự lấy lại store qua
+        // `workspaceHienTai.getDoc(boardId).getStore(...)` — con đường CHẮC CHẮN sống nếu
+        // taoHoacMoBang đã resolve, không phụ thuộc bất kỳ state React nào có thể lệch nhịp lúc
+        // unmount.
+        let noiDungTimKiemMoi: string | undefined
+        try {
+          const rootHienTai = workspaceHienTai
+            ?.getDoc(boardId)
+            ?.getStore({ extensions: storeManager.get('store') }).root
+          if (rootHienTai) {
+            const surfaceHienTai = rootHienTai.children.find(
+              (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
+            )
+            noiDungTimKiemMoi = ghepNoiDungTimKiem(
+              trichVanBanTuKhoi(rootHienTai),
+              // Ép kiểu về hình dạng tối thiểu mà trichVanBanTuCanvas cần (`{ text?: unknown }[]`)
+              // — elementModels là union các lớp GfxPrimitiveElementModel cụ thể (shape/connector/
+              // text/mindmap...), không lớp nào khai `text` ở kiểu CHUNG nên TypeScript từ chối gán
+              // thẳng dù đúng ở runtime cho những lớp có field đó (đã xác nhận qua chính
+              // element-model/{text,shape,connector}.ts của cây vendored, xem chú thích tại định
+              // nghĩa trichVanBanTuCanvas trong boardMeta.ts).
+              surfaceHienTai
+                ? trichVanBanTuCanvas(surfaceHienTai.elementModels as unknown as Array<{ text?: unknown }>)
+                : '',
             )
           }
+        } catch {
+          // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng lượt
+          // cập nhật metadata hay thao tác quay lại danh sách của người dùng.
         }
+        void capNhatSauKhiRoiBang(boardId, coThayDoiNoiDung, noiDungTimKiemMoi)
       } catch {
-        // Chụp ảnh là tiện ích phụ — không được làm hỏng thao tác quay lại danh sách của người dùng.
+        // Cập nhật metadata là tiện ích phụ — không được làm hỏng thao tác quay lại của người dùng.
       }
       litRender(null, el)
       workspaceHienTai?.forceStop()

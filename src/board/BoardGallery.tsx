@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { doiGhiAnhXongNeuCo } from './boardMeta'
-import { DanhSachBang, type BoardOpenOrigin } from './DanhSachBang'
+import { DanhSachBang, TheTrong, type BoardOpenOrigin } from './DanhSachBang'
 import { EdgelessBoard } from './index'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
@@ -72,7 +72,7 @@ export function BoardGallery({
   // là một cuộc đua ĐÃ ĐO ĐƯỢC THẬT (xem chú thích ở nút "quay lại"), giữ nguyên timing hiện tại là
   // bắt buộc; lớp phủ này chỉ là trang trí CHẠY SONG SONG, không chặn hay trì hoãn bất cứ bước nào
   // của chuỗi đó.
-  const [dangGapLai, setDangGapLai] = useState<{ anhXemTruoc?: string } | null>(null)
+  const [dangGapLai, setDangGapLai] = useState<{ chuyenKhoa?: string } | null>(null)
   // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app — xem App.tsx
   // navigate()). Gọi onMoBangYeuCauXong() ngay sau khi tiêu thụ để App.tsx reset state về undefined
   // — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó lần hai (cùng id, state App.tsx không đổi giá trị)
@@ -243,11 +243,13 @@ export function BoardGallery({
           đã về null (canvas thật đã tháo thật sự, đúng timing cũ). Chỉ trang trí, aria-hidden. */}
       {dangGapLai && (
         <div className="absolute inset-0 board-collapse pointer-events-none" aria-hidden="true">
-          {dangGapLai.anhXemTruoc ? (
-            <img src={dangGapLai.anhXemTruoc} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0" style={{ background: 'var(--c-surface-alt, #f6f7fd)' }} />
-          )}
+          {/* Huy hiệu chuyên khoa trên nền giấy — ĐÚNG thứ thẻ trong lưới đang hiện, nên cú gập
+              lại hạ cánh khớp với ô mà nó gập về. Trước 2026-08-30 chỗ này vẽ `anhXemTruoc` (ảnh
+              chụp khung nhìn); ảnh đó đã bị gỡ khỏi thẻ nên giữ lại ở đây là gập về một hình mà
+              lưới không còn hiện. */}
+          <div className="absolute inset-0" style={{ background: 'var(--c-surface-alt, #f6f7fd)' }}>
+            <TheTrong khoa={dangGapLai.chuyenKhoa} />
+          </div>
         </div>
       )}
       {openBoardId && (
@@ -269,19 +271,25 @@ export function BoardGallery({
           }}
         >
           <EdgelessBoard boardId={openBoardId} onReady={() => setDangChoCanvas(false)} />
-          {/* Lớp phủ ảnh xem trước của đúng thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho
-              tới khi CẢ HAI đều xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ
-              animation phóng to thẻ đã chạy hết (dangPhongTo) — thiếu điều kiện thứ hai, canvas tải
-              nhanh sẽ lộ ra giữa chừng lúc thẻ còn đang phóng to (bug thật, debug 2026-08-26: "full
-              tờ giấy trước, rồi mới tới ghim"). Không hiện gì nếu bảng chưa từng có ảnh xem trước
-              (bảng mới tạo) — không có gì để phủ lên. */}
-          {openOrigin?.anhXemTruoc && (
-            <img
-              src={openOrigin.anhXemTruoc}
-              alt=""
+          {/* Lớp phủ mặt thẻ vừa bấm — che canvas trống/màn "Đang mở bảng…" cho tới khi CẢ HAI đều
+              xong: EdgelessBoard báo sẵn sàng thật (onReady/dangChoCanvas) VÀ animation phóng to thẻ
+              đã chạy hết (dangPhongTo) — thiếu điều kiện thứ hai, canvas tải nhanh sẽ lộ ra giữa
+              chừng lúc thẻ còn đang phóng to (bug thật, debug 2026-08-26: "full tờ giấy trước, rồi
+              mới tới ghim").
+              Từ 2026-08-30 phủ bằng huy hiệu chuyên khoa thay cho `anhXemTruoc`: thẻ trong lưới giờ
+              LUÔN là huy hiệu, nên đây mới là hình khớp với thứ vừa được bấm. Đổi lại lớp phủ hiện
+              cho MỌI bảng mở qua thẻ, kể cả bảng mới tạo — nhánh "không có gì để phủ" cũ chỉ tồn tại
+              vì bảng chưa mở lần nào thì chưa có ảnh chụp, một giới hạn không còn nữa.
+              `openOrigin &&` (không phải `openOrigin?.chuyenKhoa &&`): bảng chưa gắn chuyên khoa vẫn
+              cần được phủ — TheTrong đã tự lo icon "trang giấy" mặc định cho khoa undefined. */}
+          {openOrigin && (
+            <div
               aria-hidden="true"
-              className={`absolute inset-0 w-full h-full object-cover board-flip-cover${dangChoCanvas || dangPhongTo ? '' : ' board-flip-cover-hide'}`}
-            />
+              className={`absolute inset-0 board-flip-cover${dangChoCanvas || dangPhongTo ? '' : ' board-flip-cover-hide'}`}
+              style={{ background: 'var(--c-surface-alt, #f6f7fd)' }}
+            >
+              <TheTrong khoa={openOrigin.chuyenKhoa} />
+            </div>
           )}
           <button
             type="button"
@@ -294,7 +302,7 @@ export function BoardGallery({
               // không giao tiếp gì với chuỗi bên dưới (overdrive 2026-08-26, Hướng 2).
               const giamChuyenDong =
                 typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-              setDangGapLai({ anhXemTruoc: openOrigin?.anhXemTruoc })
+              setDangGapLai({ chuyenKhoa: openOrigin?.chuyenKhoa })
               setTimeout(() => setDangGapLai(null), giamChuyenDong ? 10 : 260)
 
               // Tháo EdgelessBoard TRƯỚC (kích hoạt cleanup effect của nó — nơi bắt đầu lượt ghi ảnh

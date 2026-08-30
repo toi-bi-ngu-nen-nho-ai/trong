@@ -333,14 +333,21 @@ describe('DanhSachBang', () => {
     expect(input2.value).toBe('Tên thật')
   })
 
-  it('bảng ĐÃ có ảnh xem trước → đổi tên → ảnh xem trước không bị mất (không bị update() đè bằng bản ghi thiếu anhXemTruoc)', async () => {
+  it('đổi tên → tags/noiDungTimKiem KHÔNG bị update() đánh rơi', async () => {
+    // update() ghi ĐÈ TOÀN BỘ bản ghi bằng { ...bang, ten, capNhatLuc } — `bang` là snapshot cục bộ
+    // của hook lúc render, nên mọi trường nó KHÔNG mang theo sẽ biến mất khỏi IndexedDB. Ca kiểm
+    // này từng canh `anhXemTruoc` (gỡ 2026-08-30 cùng cơ chế ảnh chụp khung nhìn); nó chuyển sang
+    // canh `tags` + `noiDungTimKiem` — hai trường phái sinh hiện tại, cùng phơi ra đúng lớp lỗi đó,
+    // và mất chúng thì bảng lặng lẽ rơi khỏi cả chip lọc lẫn ô tìm kiếm.
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-1',
       ten: 'Tên cũ',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
-      anhXemTruoc: 'data:image/jpeg;base64,anh-that',
+      chuyenKhoa: 'cardiology',
+      tags: ['trực đêm'],
+      noiDungTimKiem: 'suy tim ef giảm',
     })
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
@@ -348,10 +355,6 @@ describe('DanhSachBang', () => {
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
     })
-    // Trước khi đổi tên: ảnh xem trước đã hiện đúng trên thẻ (không phải ô trống TheTrong).
-    expect(container.querySelector('[data-testid="the-bang"] img')?.getAttribute('src')).toBe(
-      'data:image/jpeg;base64,anh-that',
-    )
 
     await act(async () => {
       ;(container.querySelector('[data-testid="menu-bang-bang-1"]') as HTMLButtonElement).click()
@@ -370,18 +373,15 @@ describe('DanhSachBang', () => {
     })
 
     expect(container.textContent).toContain('Tên mới')
-    // update() ghi ĐÈ TOÀN BỘ bản ghi bằng { ...bang, ten, capNhatLuc } — `bang` ở đây là snapshot
-    // cục bộ CỦA HOOK lúc render này, nếu nó đã có anhXemTruoc thì trường đó phải sống sót nguyên
-    // vẹn qua lượt ghi đè, cả trên thẻ NGAY lẫn trong IndexedDB sau đó.
-    expect(container.querySelector('[data-testid="the-bang"] img')?.getAttribute('src')).toBe(
-      'data:image/jpeg;base64,anh-that',
-    )
 
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string; ten: string; anhXemTruoc?: string }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string; ten: string; tags: string[]; noiDungTimKiem: string }>(
+        IDB_STORES.boards,
+      )
       const sau = ds.find((b) => b.id === 'bang-1')
       expect(sau?.ten).toBe('Tên mới')
-      expect(sau?.anhXemTruoc).toBe('data:image/jpeg;base64,anh-that')
+      expect(sau?.tags).toEqual(['trực đêm'])
+      expect(sau?.noiDungTimKiem).toBe('suy tim ef giảm')
     })
   })
 
@@ -797,7 +797,7 @@ describe('DanhSachBang', () => {
     expect(container.querySelector('[data-testid^="input-ten-"]')).not.toBeNull()
   })
 
-  it('bảng CHƯA có anhXemTruoc → huy hiệu chuyên khoa khớp bang.chuyenKhoa', async () => {
+  it('thẻ hiện huy hiệu chuyên khoa khớp bang.chuyenKhoa', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-khoa-1', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
@@ -810,50 +810,22 @@ describe('DanhSachBang', () => {
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
     })
-
     const huyHieu = container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')
-    expect(huyHieu).not.toBeNull()
-    expect(huyHieu?.getAttribute('data-khoa')).toBe('cardiology')
+    expect(huyHieu?.getAttribute('data-khoa')).toBe(SPECIALTIES[0].id)
   })
 
-  it('đổi chuyên khoa qua popover "Chuyên khoa/tag" → huy hiệu đổi theo NGAY, không cần mở lại thẻ', async () => {
+  it('bản ghi CŨ còn anhXemTruoc → thẻ VẪN là huy hiệu chuyên khoa, KHÔNG render ảnh chụp', async () => {
+    // Đây là lỗi chủ dự án gọi là "RẤT NẶNG" (2026-08-30): bảng có nội dung thì thẻ thay huy hiệu
+    // chuyên khoa bằng một ảnh chụp CANVAS KHUNG NHÌN (480×360 JPEG q=0.6) — thẻ mất danh tính
+    // chuyên khoa đúng lúc bảng bắt đầu có việc, thay bằng một hình bệt phụ thuộc chỗ khung nhìn
+    // tình cờ dừng lại.
+    // Ca kiểm ĐỌC TỪ IndexedDB một bản ghi CÒN NGUYÊN `anhXemTruoc` (đúng thứ có thật trên máy
+    // người dùng đã cài bản cũ): dữ liệu tồn đọng đó không được phép làm thẻ đổi hình dạng.
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
-      id: 'bang-khoa-2', ten: 'Bảng chờ đổi khoa', taoLuc: bayGio, capNhatLuc: bayGio,
-      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
-    })
-
-    await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
-    })
-    await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="menu-bang-bang-khoa-2"]')).not.toBeNull()
-    })
-
-    expect(
-      container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')?.getAttribute('data-khoa'),
-    ).toBe('cardiology')
-
-    await act(async () => {
-      ;(container.querySelector('[data-testid="menu-bang-bang-khoa-2"]') as HTMLButtonElement).click()
-    })
-    await act(async () => {
-      ;(container.querySelector('[data-testid="sua-tag-bang-khoa-2"]') as HTMLButtonElement).click()
-    })
-    const chon = container.querySelector('[data-testid="chon-chuyen-khoa-bang-khoa-2"]') as HTMLSelectElement
-    await act(async () => {
-      chon.value = 'pulmonology'
-      chon.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-
-    expect(
-      container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')?.getAttribute('data-khoa'),
-    ).toBe('pulmonology')
-  })
-
-  it('bảng THIẾU chuyenKhoa (bản ghi cũ) → huy hiệu coi như chuyên khoa đầu tiên, không NHẢY xuống icon mặc định', async () => {
-    const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-khoa-cu', ten: 'Bảng cũ', taoLuc: bayGio, capNhatLuc: bayGio })
+      id: 'bang-co-anh', ten: 'Bảng có ảnh', taoLuc: bayGio, capNhatLuc: bayGio,
+      anhXemTruoc: 'data:image/png;base64,iVBORw0KGgo=', chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
+    } as unknown as Parameters<typeof idbPut>[1])
 
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
@@ -862,13 +834,17 @@ describe('DanhSachBang', () => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
     })
 
+    expect(container.querySelector('[data-testid="the-bang"] img')).toBeNull()
     const huyHieu = container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')
+    expect(huyHieu, 'thẻ phải giữ huy hiệu chuyên khoa dù bản ghi cũ còn ảnh chụp').not.toBeNull()
     expect(huyHieu?.getAttribute('data-khoa')).toBe(SPECIALTIES[0].id)
   })
 
-  // P2 critique 2026-08-27: trước đây mục "Xuất PNG" bị ẨN HẲN khi bảng chưa từng mở, nên người
-  // tạo một loạt bảng trước ca trực thấy menu chỉ có 2 mục và không biết app có xuất ảnh hay không.
-  it('bảng CHƯA có anhXemTruoc → mục "Xuất PNG" VẪN hiện, ở trạng thái tắt kèm lý do', async () => {
+  it('bảng CHƯA từng mở → mục "Xuất PNG" vẫn BẬT (không còn trạng thái tắt)', async () => {
+    // Trạng thái tắt kèm lý do "Mở bảng một lần để có ảnh" (P2 critique 2026-08-27) tồn tại vì lượt
+    // xuất cũ đọc `anhXemTruoc` — không có ảnh thì thật sự không xuất được gì. Điều kiện đó chết
+    // cùng cơ chế ảnh chụp: ./xuatAnhBang.ts đọc thẳng tài liệu CRDT, nên bảng chưa từng mở vẫn
+    // xuất được. Bảng THẬT SỰ trống thì nói sau khi bấm, không đoán trước hộ người dùng.
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-chua-anh', ten: 'Bảng chưa mở', taoLuc: bayGio, capNhatLuc: bayGio,
@@ -885,53 +861,13 @@ describe('DanhSachBang', () => {
       ;(container.querySelector('[data-testid="menu-bang-bang-chua-anh"]') as HTMLButtonElement).click()
     })
 
-    // Không có nút xuất thật (không có gì để xuất)…
-    expect(container.querySelector('[data-testid="xuat-anh-bang-chua-anh"]')).toBeNull()
-    // …nhưng mục tắt PHẢI có mặt, kèm lý do đọc được và cờ a11y đúng.
-    const muc = container.querySelector('[data-testid="xuat-anh-tat-bang-chua-anh"]')
-    expect(muc, 'mục "Xuất PNG" tắt phải hiện thay vì biến mất không giải thích').not.toBeNull()
-    expect(muc?.getAttribute('aria-disabled')).toBe('true')
-    expect(muc?.getAttribute('role')).toBe('menuitem')
-    expect(muc?.textContent).toContain('Xuất PNG')
-    expect(muc?.textContent).toContain('Mở bảng một lần để có ảnh')
-  })
-
-  it('bảng ĐÃ có anhXemTruoc → nút "Xuất PNG" thật thay chỗ mục tắt', async () => {
-    const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
-      id: 'bang-xuat-duoc', ten: 'Bảng xuất được', taoLuc: bayGio, capNhatLuc: bayGio,
-      anhXemTruoc: 'data:image/png;base64,iVBORw0KGgo=', chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
-    })
-
-    await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
-    })
-    await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="menu-bang-bang-xuat-duoc"]')).not.toBeNull()
-    })
-    await act(async () => {
-      ;(container.querySelector('[data-testid="menu-bang-bang-xuat-duoc"]') as HTMLButtonElement).click()
-    })
-
-    expect(container.querySelector('[data-testid="xuat-anh-bang-xuat-duoc"]')).not.toBeNull()
-    expect(container.querySelector('[data-testid="xuat-anh-tat-bang-xuat-duoc"]')).toBeNull()
-  })
-
-  it('bảng ĐÃ có anhXemTruoc (ảnh thật) → KHÔNG hiện huy hiệu, tránh đè lên nét vẽ thật', async () => {
-    const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
-      id: 'bang-co-anh', ten: 'Bảng có ảnh', taoLuc: bayGio, capNhatLuc: bayGio,
-      anhXemTruoc: 'data:image/png;base64,iVBORw0KGgo=', chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
-    })
-
-    await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
-    })
-    await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="the-bang"] img')).not.toBeNull()
-    })
-
-    expect(container.querySelector('[data-testid="the-bang"] [data-testid="huy-hieu-chuyen-khoa"]')).toBeNull()
+    const nut = container.querySelector('[data-testid="xuat-anh-bang-chua-anh"]') as HTMLButtonElement | null
+    expect(nut, 'mục "Xuất PNG" phải có mặt và bấm được').not.toBeNull()
+    expect(nut?.disabled).toBe(false)
+    expect(nut?.getAttribute('role')).toBe('menuitem')
+    expect(nut?.textContent).toContain('Xuất PNG')
+    // Mục tắt cũ phải biến mất hẳn — còn sót nghĩa là nhánh cũ vẫn sống ở đâu đó.
+    expect(container.querySelector('[data-testid="xuat-anh-tat-bang-chua-anh"]')).toBeNull()
   })
 
   it('lưới rỗng toàn bộ → hiện BIỂU TƯỢNG mindmap, KHÔNG còn huy hiệu doc phẳng', async () => {

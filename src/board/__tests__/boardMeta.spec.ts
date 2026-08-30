@@ -7,7 +7,7 @@ import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { BangMeta } from '../boardMeta'
 import {
   bangKhopTimKiem,
-  capNhatAnhXemTruoc,
+  capNhatSauKhiRoiBang,
   ghepNoiDungTimKiem,
   taoIdBang,
   trichVanBanTuCanvas,
@@ -28,41 +28,62 @@ describe('taoIdBang', () => {
   })
 })
 
-describe('capNhatAnhXemTruoc', () => {
-  it('coThayDoiNoiDung=true → ghi ảnh xem trước VÀ cập nhật capNhatLuc', async () => {
+describe('capNhatSauKhiRoiBang', () => {
+  it('coThayDoiNoiDung=true → cập nhật capNhatLuc', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
-    await capNhatAnhXemTruoc('x', 'data:image/jpeg;base64,xyz', true)
+    await capNhatSauKhiRoiBang('x', true)
 
-    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string; capNhatLuc: number }>(IDB_STORES.boards)
-    const sau = ds.find((b) => b.id === 'x')
-    expect(sau?.anhXemTruoc).toBe('data:image/jpeg;base64,xyz')
-    expect(sau!.capNhatLuc).toBeGreaterThan(bayGio)
+    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'x')!.capNhatLuc).toBeGreaterThan(bayGio)
   })
 
-  it('coThayDoiNoiDung=false → VẪN ghi ảnh xem trước, nhưng capNhatLuc giữ nguyên (mở xem, không sửa)', async () => {
+  it('coThayDoiNoiDung=false → capNhatLuc giữ nguyên (mở xem, không sửa)', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'y', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
-    await capNhatAnhXemTruoc('y', 'data:image/jpeg;base64,moi', false)
+    await capNhatSauKhiRoiBang('y', false)
 
-    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string; capNhatLuc: number }>(IDB_STORES.boards)
-    const sau = ds.find((b) => b.id === 'y')
-    expect(sau?.anhXemTruoc).toBe('data:image/jpeg;base64,moi')
-    expect(sau!.capNhatLuc).toBe(bayGio)
+    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'y')!.capNhatLuc).toBe(bayGio)
+  })
+
+  it('bản ghi CŨ còn anhXemTruoc → lượt rời bảng kế tiếp DỌN HẲN trường đó', async () => {
+    // Cơ chế ảnh chụp khung nhìn đã bị gỡ 2026-08-30, nhưng máy người dùng thật vẫn còn hàng trăm kB
+    // data URL JPEG cho MỖI bảng trong IndexedDB. Không ai đọc chúng nữa, nên giữ lại chỉ là rác
+    // chiếm quota. Đây là đường di trú: hook này vốn đã chạy ở MỌI lượt rời bảng, không cần script
+    // riêng. Nếu ai đó sau này khôi phục `...hienCo` nguyên khối, ca kiểm này đỏ.
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'con-anh',
+      ten: 'Bảng cũ',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      anhXemTruoc: 'data:image/jpeg;base64,rac-cu',
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    } as unknown as Parameters<typeof idbPut>[1])
+
+    await capNhatSauKhiRoiBang('con-anh', false)
+
+    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string }>(IDB_STORES.boards)
+    const sau = ds.find((b) => b.id === 'con-anh')
+    expect(sau).toBeDefined()
+    expect(sau).not.toHaveProperty('anhXemTruoc')
   })
 
   it('bảng KHÔNG tồn tại → không ném lỗi, không tạo mục mới', async () => {
-    await expect(capNhatAnhXemTruoc('khong-ton-tai', 'x', false)).resolves.toBeUndefined()
+    await expect(capNhatSauKhiRoiBang('khong-ton-tai', false)).resolves.toBeUndefined()
     const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
   })
 })
 
-describe('capNhatAnhXemTruoc — backfill trường mới + noiDungTimKiemMoi', () => {
+describe('capNhatSauKhiRoiBang — backfill trường mới + noiDungTimKiemMoi', () => {
   it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định', async () => {
     const bayGio = Date.now()
     // Mô phỏng bản ghi tạo TRƯỚC khi có ba trường mới — ép kiểu vì TS sẽ chặn thiếu trường bắt buộc.
@@ -73,7 +94,7 @@ describe('capNhatAnhXemTruoc — backfill trường mới + noiDungTimKiemMoi', 
       capNhatLuc: bayGio,
     } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
 
-    await capNhatAnhXemTruoc('cu', 'data:image/jpeg;base64,x', false)
+    await capNhatSauKhiRoiBang('cu', false)
 
     const ds = await idbGetAll<{
       id: string
@@ -99,7 +120,7 @@ describe('capNhatAnhXemTruoc — backfill trường mới + noiDungTimKiemMoi', 
       noiDungTimKiem: 'cũ',
     })
 
-    await capNhatAnhXemTruoc('z', 'data:image/jpeg;base64,x', false, 'nội dung mới')
+    await capNhatSauKhiRoiBang('z', false, 'nội dung mới')
 
     const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'z')?.noiDungTimKiem).toBe('nội dung mới')
@@ -117,7 +138,7 @@ describe('capNhatAnhXemTruoc — backfill trường mới + noiDungTimKiemMoi', 
       noiDungTimKiem: 'giữ nguyên',
     })
 
-    await capNhatAnhXemTruoc('w', 'data:image/jpeg;base64,x', false)
+    await capNhatSauKhiRoiBang('w', false)
 
     const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'w')?.noiDungTimKiem).toBe('giữ nguyên')

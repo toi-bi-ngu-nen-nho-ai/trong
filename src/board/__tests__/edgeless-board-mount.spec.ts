@@ -246,11 +246,11 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     expect(coLoiSetStateSauUnmount).toBe(false)
   })
 
-  it('unmount → gọi capNhatAnhXemTruoc với đúng boardId và một chuỗi data URL', async () => {
-    const spy = vi.spyOn(boardMeta, 'capNhatAnhXemTruoc').mockResolvedValue(undefined)
+  it('unmount → gọi capNhatSauKhiRoiBang với đúng boardId, KHÔNG phụ thuộc canvas', async () => {
+    const spy = vi.spyOn(boardMeta, 'capNhatSauKhiRoiBang').mockResolvedValue(undefined)
 
     await act(async () => {
-      root.render(createElement(EdgelessBoard, { boardId: 'bang-chup-anh' }))
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-roi-ra' }))
     })
     await act(async () => {
       await choDom(() => {
@@ -258,29 +258,25 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       })
     })
 
-    // Trong happy-dom, canvas luôn có kích thước 0×0 vì không có layout thật. Để kích hoạt nhánh
-    // "có dữ liệu để chụp" trong code thực, phải gán trực tiếp kích thước khác 0 lên canvas
-    // TRƯỚC khi unmount. canvas.width/height là property ghi được bình thường, không cần layout.
-    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
-    if (canvasThat) {
-      canvasThat.width = 800
-      canvasThat.height = 600
-    }
-
+    // KHÔNG gán kích thước cho canvas ở đây — và đó chính là điều ca kiểm này canh. Trước
+    // 2026-08-30 lượt gọi cập nhật metadata nằm LỒNG trong `if (canvasGoc && canvasGoc.width > 0)`,
+    // tức điều kiện của việc CHỤP ẢNH; happy-dom cho canvas 0×0 nên ca kiểm cũ phải tự gán
+    // width/height giả chỉ để lượt cập nhật chịu chạy. Cơ chế chụp ảnh đã bị gỡ, nên bump
+    // capNhatLuc / backfill chuyenKhoa-tags / ghi noiDungTimKiem giờ VÔ ĐIỀU KIỆN — nếu ai đó lại
+    // buộc nó vào trạng thái canvas lần nữa, ca kiểm này đỏ.
     await act(async () => {
       root.unmount()
     })
 
-    // Giờ code chụp ảnh đã có canvas với kích thước thật để chạy, nên spy PHẢI được gọi. Không
-    // tương tác gì với bảng ở ca này (chỉ mount rồi unmount ngay) nên coThayDoiNoiDung phải là
+    // Không tương tác gì với bảng ở ca này (mount rồi unmount ngay) nên coThayDoiNoiDung phải là
     // false — xem cơ chế theo dõi blockUpdated/element{Added,Updated,Removed} ở EdgelessBoard.tsx.
-    // Tham số thứ 4 (noiDungTimKiemMoi, Task 6) là chuỗi rỗng — bảng không có chữ nào để trích.
-    expect(spy).toHaveBeenCalledWith('bang-chup-anh', expect.any(String), false, expect.any(String))
+    // Tham số thứ 3 (noiDungTimKiemMoi) là chuỗi rỗng — bảng không có chữ nào để trích.
+    expect(spy).toHaveBeenCalledWith('bang-roi-ra', false, expect.any(String))
     spy.mockRestore()
   })
 
-  it('có thêm khối THẬT (store.addBlock) trong phiên mở → unmount gọi capNhatAnhXemTruoc với coThayDoiNoiDung=true', async () => {
-    const spy = vi.spyOn(boardMeta, 'capNhatAnhXemTruoc').mockResolvedValue(undefined)
+  it('có thêm khối THẬT (store.addBlock) trong phiên mở → unmount gọi capNhatSauKhiRoiBang với coThayDoiNoiDung=true', async () => {
+    const spy = vi.spyOn(boardMeta, 'capNhatSauKhiRoiBang').mockResolvedValue(undefined)
 
     await act(async () => {
       root.render(createElement(EdgelessBoard, { boardId: 'bang-co-sua' }))
@@ -302,24 +298,18 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       if (store.root) store.addBlock('affine:note', {}, store.root.id)
     })
 
-    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
-    if (canvasThat) {
-      canvasThat.width = 800
-      canvasThat.height = 600
-    }
-
     await act(async () => {
       root.unmount()
     })
 
-    // Tham số thứ 4 (noiDungTimKiemMoi, Task 6): khối thêm vào là note trống (không paragraph/text),
-    // nên chuỗi trích ra vẫn rỗng — chỉ `coThayDoiNoiDung` mới đổi thành true ở ca này.
-    expect(spy).toHaveBeenCalledWith('bang-co-sua', expect.any(String), true, expect.any(String))
+    // Tham số thứ 3 (noiDungTimKiemMoi): khối thêm vào là note trống (không paragraph/text), nên
+    // chuỗi trích ra vẫn rỗng — chỉ `coThayDoiNoiDung` mới đổi thành true ở ca này.
+    expect(spy).toHaveBeenCalledWith('bang-co-sua', true, expect.any(String))
     spy.mockRestore()
   })
 
   it('rời bảng có ghi chú thật → noiDungTimKiem trong BangMeta chứa đúng chữ đó', async () => {
-    // Seed một BangMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatAnhXemTruoc()
+    // Seed một BangMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatSauKhiRoiBang()
     // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem boardMeta.ts, `if (!hienCo) return`).
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
@@ -350,15 +340,8 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       }
     })
 
-    // Canvas cần kích thước khác 0 để nhánh "có dữ liệu để chụp" (bao gồm cả trích văn bản, đặt
-    // NGAY TRƯỚC lượt gọi capNhatAnhXemTruoc) chạy trong happy-dom — cùng kỹ thuật các ca kiểm
-    // capNhatAnhXemTruoc khác trong file này đã dùng.
-    const canvasThat = container.querySelector('canvas') as HTMLCanvasElement
-    if (canvasThat) {
-      canvasThat.width = 800
-      canvasThat.height = 600
-    }
-
+    // KHÔNG cần dựng kích thước canvas giả nữa: lượt trích văn bản + ghi metadata đã tách khỏi
+    // nhánh chụp ảnh (cơ chế chụp bị gỡ 2026-08-30) nên nó chạy vô điều kiện lúc unmount.
     await act(async () => {
       root.unmount()
     })

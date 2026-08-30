@@ -12,14 +12,13 @@ export type BangMeta = {
   ten: string
   taoLuc: number
   capNhatLuc: number
-  anhXemTruoc?: string
   // Xoá MỀM — mốc thời gian đánh dấu "đã xoá", KHÔNG xoá bản ghi khỏi IndexedDB. DanhSachBang.tsx
   // lọc bỏ mọi bang có trường này khỏi lưới hiển thị; "Hoàn tác" chỉ cần xoá lại trường này (set
   // undefined) để bang tái xuất hiện, không cần dựng lại object từ đầu. Không có cơ chế dọn vĩnh
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
   // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), DanhSachBang.tsx). Bảng cũ
-  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatAnhXemTruoc() bên dưới
+  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatSauKhiRoiBang() bên dưới
   // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
   // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
   // ĐỌC ba trường này trước khi bảng đó từng được mở lại (chip lọc, tìm kiếm) phải tự
@@ -33,26 +32,35 @@ export function taoIdBang(): string {
   return `bang-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-// Gọi lúc rời một bảng (xem EdgelessBoard.tsx). Ảnh xem trước LUÔN được ghi lại (phản ánh đúng
-// khung nhìn cuối cùng người dùng thấy, kể cả khi họ chỉ pan/zoom mà không sửa gì) — nhưng
-// `capNhatLuc` CHỈ bump khi `coThayDoiNoiDung` true. Trước đây (tới mục 30 của HANDOFF.md) hai
-// việc này gộp làm một vì "chặng đó chưa dựng cơ chế phát hiện thay đổi thật" — hệ quả là MỞ bảng
-// ra xem rồi quay lại (không sửa gì) vẫn khiến nhãn "cập nhật lần cuối" nhảy thành "Vừa xong", ghi
-// nợ ở mục 30 (P2). Mục 31 vá phần sâu: EdgelessBoard.tsx giờ theo dõi
-// `store.slots.blockUpdated`/`surface.element{Added,Updated,Removed}` (chỉ đếm sự kiện có
-// `isLocal`/`local` true — bỏ qua sự kiện đến từ đồng bộ/hydrate) trong suốt phiên mở bảng, rồi
-// truyền kết quả vào đây lúc unmount.
-// Đọc-sửa-ghi trực tiếp qua idb.ts (không qua hook, vì gọi từ ngoài React) — fire-and-forget, gọi
-// lúc EdgelessBoard UNMOUNT nên không có instance hook nào đang sống để báo lại. DanhSachBang.tsx
-// đọc lại giá trị mới nhất mỗi lần MOUNT (useIdbCollection tự fetch khi mount) — NHƯNG lượt đọc đó
-// có thể chạy TRƯỚC KHI lượt ghi này kịp xong (đua giữa "rời bảng" và "mount lại danh sách" ngay
-// sau đó, cùng lúc). Đó là lý do có `doiGhiAnhXongNeuCo()` ngay dưới đây: BoardGallery.tsx đợi nó
-// trước khi cho DanhSachBang mount lại, thay vì tin lượt đọc-lúc-mount luôn thấy dữ liệu mới nhất.
+// Lượt ghi metadata đang chờ — tên biến giữ nguyên chữ "ghi" chung chung vì nó canh CUỘC ĐUA,
+// không canh nội dung được ghi (xem doiGhiAnhXongNeuCo bên dưới).
 let ghiAnhDangCho: Promise<void> | null = null
 
-export function capNhatAnhXemTruoc(
+/**
+ * Gọi lúc RỜI một bảng (xem EdgelessBoard.tsx). Cập nhật metadata của bảng vừa đóng:
+ * `capNhatLuc` (CHỈ khi có sửa nội dung thật), `noiDungTimKiem`, và backfill chuyenKhoa/tags cho
+ * bản ghi cũ.
+ *
+ * `capNhatLuc` chỉ bump khi `coThayDoiNoiDung` — trước đây (tới mục 30 của HANDOFF.md) hai việc
+ * này gộp làm một vì "chặng đó chưa dựng cơ chế phát hiện thay đổi thật", hệ quả là MỞ bảng ra xem
+ * rồi quay lại (không sửa gì) vẫn khiến nhãn "cập nhật lần cuối" nhảy thành "Vừa xong". Mục 31 vá
+ * phần sâu: EdgelessBoard.tsx theo dõi `store.slots.blockUpdated` /
+ * `surface.element{Added,Updated,Removed}` (chỉ đếm sự kiện `isLocal`/`local` — bỏ qua đồng bộ/
+ * hydrate) suốt phiên mở bảng rồi truyền kết quả vào đây lúc unmount.
+ *
+ * Đọc-sửa-ghi thẳng qua idb.ts (không qua hook, vì gọi từ NGOÀI cây React) — fire-and-forget, lúc
+ * unmount không còn instance hook nào sống để báo lại. DanhSachBang.tsx đọc lại khi MOUNT, nhưng
+ * lượt đọc đó có thể chạy TRƯỚC khi lượt ghi này xong (đua giữa "rời bảng" và "mount lại danh
+ * sách"); `doiGhiAnhXongNeuCo()` ngay dưới tồn tại vì cuộc đua đó.
+ *
+ * ĐỔI TÊN 2026-08-30 (trước là `capNhatAnhXemTruoc`, có thêm tham số `anhXemTruoc: string`): hàm
+ * này không còn ghi ảnh nào. Ảnh xem trước từng là một ảnh chụp CANVAS KHUNG NHÌN 480×360 JPEG
+ * q=0.6 làm thumbnail thẻ kiêm nguồn cho "Xuất PNG" — cả hai vai trò đó đã đi (thẻ luôn dùng huy
+ * hiệu chuyên khoa, xuất PNG dựng lại từ tài liệu qua ./xuatAnhBang.ts), nên giữ tên cũ chỉ là một
+ * lời nói dối về việc hàm này làm gì.
+ */
+export function capNhatSauKhiRoiBang(
   id: string,
-  anhXemTruoc: string,
   coThayDoiNoiDung: boolean,
   noiDungTimKiemMoi?: string,
 ): Promise<void> {
@@ -60,19 +68,16 @@ export function capNhatAnhXemTruoc(
     const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
     const hienCo = ds.find((b) => b.id === id)
     if (!hienCo) return
+    // Bóc `anhXemTruoc` RA KHỎI bản ghi trước khi ghi lại. Không có bước này thì spread `...hienCo`
+    // chép nguyên data URL JPEG cũ (hàng trăm kB mỗi bảng) sang bản ghi mới và giữ nó trong
+    // IndexedDB vĩnh viễn dù không còn ai đọc — người dùng đang hỏi thẳng "lưu trữ sơ đồ đã đạt
+    // chất lượng chưa", nên để lại rác của cơ chế vừa gỡ là câu trả lời sai. Mỗi bảng tự dọn ở lần
+    // đóng kế tiếp, không cần script di trú riêng: đây vốn là hook DUY NHẤT chạy ở mọi lượt rời
+    // bảng. Kiểu `BangMeta` không còn khai trường này, nên phải đọc qua một kiểu nới rộng.
+    const { anhXemTruoc: _anhCu, ...conLai } = hienCo as BangMeta & { anhXemTruoc?: string }
+    void _anhCu
     await idbPut(IDB_STORES.boards, {
-      ...hienCo,
-      // Chuỗi RỖNG = "bảng không có gì để chụp, đừng đụng vào ảnh cũ" (xem EdgelessBoard.tsx). Cần
-      // một quy ước như vậy vì lượt gọi này KHÔNG được phép bỏ qua khi bảng trống: nó còn gánh việc
-      // bump capNhatLuc và backfill chuyenKhoa/tags/noiDungTimKiem cho bản ghi cũ.
-      // Vì sao KHÔNG ghi đè: bảng trống chụp ra một ô MÀU PHẲNG (canvas trong suốt, xuất JPEG thành
-      // một mảng đặc màu nền) — ghi đè là thay icon chuyên khoa đang hiện đẹp bằng một ô đặc vô
-      // nghĩa, và hỏng vĩnh viễn vì lần sau mở lại vẫn trống nên vẫn ghi đè tiếp (lỗi thật
-      // 2026-08-26: thẻ bảng mới hoá ô xanh đen trên máy người dùng, đo được ảnh 480×360 chỉ có
-      // ĐÚNG MỘT màu rgb(20,22,43) = --c-surface bản tối).
-      // Giữ ảnh CŨ chứ không xoá: một lượt mở-rồi-thoát-ngay có thể bắt được canvas chưa kịp vẽ,
-      // xoá thì mất trắng ảnh đúng của bảng có nội dung — giữ ảnh hơi cũ ít hại hơn nhiều.
-      anhXemTruoc: anhXemTruoc || hienCo.anhXemTruoc,
+      ...conLai,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
       chuyenKhoa: hienCo.chuyenKhoa ?? SPECIALTIES[0].id,
       tags: hienCo.tags ?? [],

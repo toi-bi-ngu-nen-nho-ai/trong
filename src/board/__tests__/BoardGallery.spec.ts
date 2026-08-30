@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { capNhatAnhXemTruoc, type BangMeta } from '../boardMeta'
+import { capNhatSauKhiRoiBang, type BangMeta } from '../boardMeta'
 import { BoardGallery } from '../BoardGallery'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
@@ -32,19 +32,23 @@ function taoBangGia(ten: string): BangMeta {
 // Giả EdgelessBoard thật (chunk nặng, cần DOM canvas) bằng một component tối giản có thể quan sát
 // được prop boardId — đủ để canh ĐÚNG hành vi điều hướng/ẩn-hiện mà file này chịu trách nhiệm,
 // không lặp lại phạm vi của edgeless-board-mount.spec.ts. Cleanup effect gọi thẳng
-// capNhatAnhXemTruoc() thật (cùng module boardMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
-// mô phỏng ĐÚNG thời điểm lượt ghi ảnh xem trước bắt đầu (lúc unmount, xem EdgelessBoard.tsx thật),
+// capNhatSauKhiRoiBang() thật (cùng module boardMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
+// mô phỏng ĐÚNG thời điểm lượt ghi metadata bắt đầu (lúc unmount, xem EdgelessBoard.tsx thật),
 // để các ca kiểm dưới đây canh được đúng cuộc đua giữa lượt ghi đó và lượt đọc-lúc-mount của
 // DanhSachBang — không cần dựng canvas/BlockSuite thật.
 // `../diTruBangCu` KHÔNG mock ở đây (vẫn đúng như trước) — giờ nó chỉ tự `import()` khi
 // `dangHienTab` true VÀ cờ localStorage "đã chạy" chưa được đặt (xem BoardGallery.tsx), nên chunk
 // nặng đó chỉ thật sự tải NHIỀU NHẤT một lần cho cả file này, không phải mỗi lượt mount như trước
 // lượt sửa D13. Không thêm mock riêng vì các ca kiểm dưới đây vẫn xanh và đủ nhanh mà không cần.
+// Chuỗi mà "bảng giả" ghi vào noiDungTimKiem lúc unmount — cố ý KHÔNG xuất hiện trong tên bảng,
+// nên tìm thấy nó nghĩa là lượt mount lại của DanhSachBang đã đọc được bản ghi MỚI.
+const NOI_DUNG_SAU_KHI_ROI = 'suy tim ef giam'
+
 vi.mock('../index', () => ({
   EdgelessBoard: ({ boardId }: { boardId: string }) => {
     useEffect(() => {
       return () => {
-        void capNhatAnhXemTruoc(boardId, 'data:image/jpeg;base64,gia', true)
+        void capNhatSauKhiRoiBang(boardId, true, NOI_DUNG_SAU_KHI_ROI)
       }
     }, [boardId])
     return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')
@@ -167,7 +171,12 @@ describe('BoardGallery', () => {
     expect(container.querySelector('[data-testid="bang-gia"]')).toBeNull()
   })
 
-  it('bấm quay lại → ảnh xem trước đã hiện NGAY trên thẻ (không phải chờ lượt mount sau)', async () => {
+  it('bấm quay lại → metadata vừa ghi đã thấy NGAY trên lưới (không phải chờ lượt mount sau)', async () => {
+    // Ca kiểm này canh CUỘC ĐUA giữa lượt ghi fire-and-forget lúc rời bảng và lượt đọc-lúc-mount
+    // của DanhSachBang — `doiGhiAnhXongNeuCo()` trong BoardGallery.tsx tồn tại vì nó.
+    // Trước 2026-08-30 nó quan sát cuộc đua qua ảnh xem trước trên thẻ; ảnh đó đã bị gỡ, nên giờ
+    // quan sát qua `noiDungTimKiem` — cũng do đúng lượt ghi đó sinh ra, và vẫn thấy được từ ngoài
+    // (ô tìm kiếm). Bản chất cuộc đua không đổi, chỉ đổi cái kính soi.
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.boards, meta)
     await act(async () => {
@@ -185,13 +194,19 @@ describe('BoardGallery', () => {
 
     await choDenKhi(() => expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull())
 
-    // useIdbCollection chỉ đọc MỘT LẦN lúc mount (không tự đọc lại) — nên nếu lượt mount này đọc
-    // phải bản ghi CŨ (chưa có ảnh, đúng lỗi đua đã sửa), việc `choDenKhi` chờ thêm KHÔNG giúp ích
-    // gì: state cục bộ của DanhSachBang đã "đông cứng" ở bản ghi cũ, ca kiểm này sẽ FAIL đúng nghĩa
-    // thay vì tự chập chờn qua nhờ đợi lâu hơn.
-    const anh = container.querySelector('[data-testid="the-bang"] img')
-    expect(anh).not.toBeNull()
-    expect(anh?.getAttribute('src')).toBe('data:image/jpeg;base64,gia')
+    // Gõ một chuỗi CHỈ khớp được qua noiDungTimKiem vừa ghi (không nằm trong tên bảng). Nếu lượt
+    // mount đọc phải bản ghi CŨ (noiDungTimKiem rỗng — đúng lỗi đua đã sửa), thẻ bị lọc mất.
+    // useIdbCollection chỉ đọc MỘT LẦN lúc mount nên chờ lâu hơn KHÔNG cứu được: state cục bộ đã
+    // đông cứng ở bản ghi cũ, ca kiểm FAIL đúng nghĩa thay vì tự chập chờn qua.
+    const oTim = container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(oTim, NOI_DUNG_SAU_KHI_ROI)
+      else oTim.value = NOI_DUNG_SAU_KHI_ROI
+      oTim.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+
+    expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
   })
 
   it('bấm quay lại → DanhSachBang tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {

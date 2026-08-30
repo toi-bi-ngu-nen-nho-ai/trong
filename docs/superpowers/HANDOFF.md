@@ -63,7 +63,38 @@ bàn phím của người dùng đặt lại caret và huỷ vùng chọn do scr
 xác nhận muộn: hướng cài lại bàn phím ảo phải theo cùng nguyên tắc — một ô nhập THẬT dưới ngón tay,
 để chính cú chạm mở bàn phím, không nhờ `focus()` của script.
 
-### 1.2 Deploy Vercel chậm thêm vài phút mỗi lần
+### 1.2 Thẻ ghi chú không vào được PNG xuất ra
+
+`src/board/xuatAnhBang.ts` dựng ảnh từ tài liệu CRDT và **chỉ vẽ phần tử canvas** (nét vẽ, hình,
+đường nối, chữ, node mindmap). Khối edgeless (thẻ ghi chú, ảnh chèn) là DOM thật, muốn vào ảnh phải
+qua `html2canvas` — đã thử và **bỏ** sau khi đo trên bản build thật (2026-08-30): một lượt xuất bảng
+có 2 thẻ ghi chú **chạy quá 85 giây không kết thúc**, vì html2canvas phải nhân bản toàn bộ ~190 thẻ
+`<style>` mà chunk bảng vẽ tiêm vào `<head>`, cho **mỗi** khối. Kèm theo đó edgeless **cull** khối
+ngoài khung nhìn nên component của chúng đo ra 0×0 và html2canvas trả canvas rỗng; vá bằng
+`setViewportByBound` rồi vẫn treo.
+
+Hiện app **báo thẳng** cho người dùng khi bảng có khối ("Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi
+chú chưa vào được ảnh."), không im lặng. Nếu cần đóng hẳn: hướng khả dĩ là vẽ thẻ ghi chú bằng
+primitive canvas thay vì rasterize DOM, hoặc dựng một clone DOM **tối giản** (chỉ vài luật CSS cần
+thiết) cho html2canvas thay vì để nó nuốt cả `<head>`.
+
+### 1.3 `taoHoacMoBang()` seed root TRÙNG khi subdoc chưa nạp xong — dev/StrictMode
+
+Nội dung subdoc nạp **bất đồng bộ**: `waitForSynced()` chỉ nói doc GỐC đã đồng bộ, còn
+`TestDoc._initSubDoc` đặt `_loaded = false` rồi đợi sự kiện `subdocs`
+(`framework/store/src/test/test-doc.ts:22-33`). Trong cửa sổ đó `store.root` là **null cho một bảng
+CÓ nội dung**, và nhánh seed ghi thêm một `affine:page` + `affine:surface` THỨ HAI vào chính doc đó.
+
+**Đo được 2026-08-30:** ở dev (React StrictMode mount hai lượt), một bảng vừa tạo có **2 root, 2
+surface**; `gfx.surface` bám vào surface **mồ côi** nên `gfx.surfaceComponent` null vĩnh viễn.
+Trên **bản build production thì sạch** (1 root, 1 surface) — StrictMode tắt, chỉ mount một lượt.
+
+Chưa vá vì rủi ro thật thấp và vùng chạm là đường mount nóng của bảng vẽ. Đường xuất đã **miễn
+nhiễm** nhờ tuỳ chọn `khongSeed` (xem chú thích tại chính chỗ đó trong `EdgelessBoard.tsx`). Nếu
+sau này vá: điều kiện seed phải đợi `doc.loaded`, không chỉ `!store.root`. Ca có thể gặp ở
+production: hai tab cùng mở app lần đầu và đua nhau.
+
+### 1.4 Deploy Vercel chậm thêm vài phút mỗi lần
 
 `postinstall` dựng lại `.vendor-build/` từ đầu mỗi lần (checkout CI luôn sạch). Cân nhắc cache qua
 Vercel Build Cache API **nếu** độ chậm thành vấn đề thật — hiện chưa cần, chỉ theo dõi.

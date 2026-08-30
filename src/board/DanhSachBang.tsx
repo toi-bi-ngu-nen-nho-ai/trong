@@ -40,9 +40,11 @@ export type BoardOpenOrigin = {
   width: number
   height: number
   tilt: number
-  anhXemTruoc?: string
   // Chuyên khoa của bảng — undefined khi mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn
-  // app).
+  // app). Từ 2026-08-30 đây là NGUỒN DUY NHẤT cho hình ảnh của lớp phủ chuyển cảnh: trường
+  // `anhXemTruoc` (ảnh chụp khung nhìn) đã bị gỡ khỏi đây cùng lượt gỡ nó khỏi thẻ, nên lớp phủ
+  // FLIP morph đúng thứ người dùng vừa bấm — icon chuyên khoa — thay vì một ảnh chụp mà thẻ không
+  // còn hiện nữa (xem BoardGallery.tsx).
   chuyenKhoa?: string
 }
 
@@ -125,7 +127,11 @@ function chuTrenNen(hexNen: string): string {
 // khoa nào (lưới rỗng toàn bộ, chưa lọc gì). specialtyIcon() đã tự xử lý id lạ/undefined bằng icon
 // "trang giấy" mặc định (xem SpecialtyIcons.tsx), TheTrong không cần thêm nhánh dự phòng cho icon —
 // chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
-function TheTrong({ khoa }: { khoa?: string }) {
+// Export vì BoardGallery.tsx dùng CHÍNH component này cho lớp phủ chuyển cảnh FLIP: lớp phủ phải
+// là đúng thứ người dùng vừa bấm, và từ 2026-08-30 thứ đó luôn là huy hiệu chuyên khoa. Dựng lại
+// một bản sao ở đó là mở đường cho hai hình khác nhau trôi dạt khỏi nhau — đúng lúc chúng phải
+// khớp từng pixel thì chuyển cảnh mới liền mạch.
+export function TheTrong({ khoa }: { khoa?: string }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
     <div className="relative w-full h-full" aria-hidden="true">
@@ -201,11 +207,13 @@ function TheBang({
   dangMoMenu,
   dangXacNhanXoa,
   dangSuaTag,
+  dangXuatAnh,
   onMo,
   onBatMenu,
   onBatSuaTen,
   onLuuTen,
   onXoa,
+  onXuatAnh,
   onBatSuaTag,
   onDoiChuyenKhoa,
   onThemTag,
@@ -218,11 +226,13 @@ function TheBang({
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
   dangSuaTag: boolean
+  dangXuatAnh: boolean
   onMo: (origin?: BoardOpenOrigin) => void
   onBatMenu: () => void
   onBatSuaTen: () => void
   onLuuTen: (tenMoi: string) => void
   onXoa: () => void
+  onXuatAnh: () => void
   onBatSuaTag: () => void
   onDoiChuyenKhoa: (id: string) => void
   onThemTag: (tag: string) => void
@@ -372,7 +382,6 @@ function TheBang({
                   width: r.width,
                   height: r.height,
                   tilt: nghiengOnDinh(bang.id),
-                  anhXemTruoc: bang.anhXemTruoc,
                   chuyenKhoa: bang.chuyenKhoa,
                 }
               : undefined,
@@ -443,30 +452,24 @@ function TheBang({
           <div
             style={{
               position: 'absolute',
-              // Ảnh thật (anhXemTruoc) chừa mép giấy 6px đều bốn phía — ẢNH KHÔNG PHỦ KÍN sát viền
-              // thẻ như trước. Lượt trước ảnh tràn hết inset:0 xoá mất toàn bộ chất liệu "giấy ghim"
-              // của .mind-note-card ngay khi bảng có nội dung: nền canvas tối gần trùng nền app khiến
-              // thẻ đọc thành một khối màu phẳng nổi trơ trên nền — đúng cảm giác "ảnh placeholder AI"
-              // generic, không còn là MỘT TẤM ẢNH ĐƯỢC GHIM LÊN GIẤY THẬT (phản hồi thật 2026-08-27,
-              // taste review). Giấy giờ LUÔN lộ ra như đường viền Polaroid, bất kể bảng trống hay có
-              // nội dung — nhất quán với TheTrong (bảng trống, vẫn tràn kín vì đó là icon trang trí
-              // của CHÍNH tờ giấy, không phải một tấm ảnh dán lên trên).
-              inset: bang.anhXemTruoc ? 6 : 0,
+              // Thẻ LUÔN mang icon chuyên khoa — không bao giờ tái hiện nét vẽ bên trong bảng.
+              //
+              // Trước 2026-08-30, khi bảng đã có nội dung thì ô này thay icon bằng `bang.anhXemTruoc`
+              // — một ảnh chụp CANVAS KHUNG NHÌN lúc rời bảng (480×360, JPEG q=0.6). Chủ dự án gọi
+              // đó là "lỗi RẤT NẶNG": thẻ mất danh tính chuyên khoa ngay khi bảng bắt đầu có việc,
+              // và cái thay vào là một hình bệt phụ thuộc chỗ người dùng vô tình dừng khung nhìn.
+              // Nay lưới đọc được bằng MỘT ngôn ngữ thị giác duy nhất (icon + màu chuyên khoa), ổn
+              // định qua mọi lần mở/đóng bảng.
+              // Bỏ luôn `inset: 6` + viền trong: hai thứ đó tồn tại để tấm ảnh trông như được ghim
+              // lên giấy, mà giờ không còn tấm ảnh nào. Icon là hoạ tiết của CHÍNH tờ giấy nên tràn
+              // kín, đúng như nhánh TheTrong vẫn làm cho bảng trống từ trước tới nay.
+              inset: 0,
               overflow: 'hidden',
               borderRadius: 2,
               color: 'var(--c-text-muted, #6b6e96)',
-              boxShadow: bang.anhXemTruoc ? 'inset 0 0 0 1px rgba(0,0,0,0.08)' : undefined,
             }}
           >
-            {bang.anhXemTruoc ? (
-              <img
-                src={bang.anhXemTruoc}
-                alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
-            )}
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
           </div>
           {/* Không còn cây ghim vẽ trên thẻ — chủ dự án yêu cầu bỏ hẳn (2026-08-29: "xóa ghim").
               Phân biệt bảng cùng tên mặc định vẫn còn: icon + màu chuyên khoa trong TheTrong, tên,
@@ -664,61 +667,28 @@ function TheBang({
           >
             Đổi tên
           </button>
-          {bang.anhXemTruoc ? (
-            // Xuất ẢNH XEM TRƯỚC đã lưu sẵn (data URL JPEG, ghi lúc rời bảng — capNhatAnhXemTruoc(),
-            // boardMeta.ts) — KHÔNG mở bảng để xuất bằng ExportManager thật. Đây là điểm "chuyển ra
-            // board" người dùng yêu cầu (phản hồi thật 2026-08-27, lần 3: xoá hẳn menu xuất trong
-            // màn vẽ, dồn về đúng menu "..." sẵn có của thẻ ở lưới cùng Đổi tên/Chuyên khoa).
-            // Nhãn "Xuất PNG" (2026-08-28, phản hồi thật: "thiếu nút xuất PNG" — trước đây đặt tên
-            // "Xuất ảnh" vì file gốc là JPEG, nhãn phải khớp định dạng thật). Vẽ lại ảnh JPEG lên một
-            // <canvas> rồi toDataURL('image/png') để tệp xuất ra ĐÚNG LÀ PNG thật (không chỉ đổi đuôi
-            // .png lên byte JPEG) — data: URL không dính CORS/taint nên canvas đọc lại được an toàn.
-            <button
-              type="button"
-              data-testid={`xuat-anh-${bang.id}`}
-              role="menuitem"
-              onClick={() => {
-                const anh = new Image()
-                anh.onload = () => {
-                  const canvas = document.createElement('canvas')
-                  canvas.width = anh.naturalWidth
-                  canvas.height = anh.naturalHeight
-                  const ctx = canvas.getContext('2d')
-                  if (!ctx) return
-                  ctx.drawImage(anh, 0, 0)
-                  const a = document.createElement('a')
-                  a.href = canvas.toDataURL('image/png')
-                  a.download = `${bang.ten.replace(/[\\/:*?"<>|]/g, '_')}.png`
-                  a.click()
-                }
-                anh.src = bang.anhXemTruoc as string
-              }}
-              className="mind-focus-ring"
-              style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600 }}
-            >
-              Xuất PNG
-            </button>
-          ) : (
-            // BẢNG CHƯA TỪNG MỞ — mục xuất VẪN HIỆN, ở trạng thái tắt kèm lý do một dòng.
-            //
-            // Trước đây mục này bị ẩn hẳn khi thiếu `anhXemTruoc`, nên người tạo một loạt bảng trước
-            // ca trực thấy menu chỉ có 2 mục và không có gì giải thích — họ không thể biết là "chưa
-            // xuất được" hay "app không có tính năng xuất" (critique 2026-08-27, P2). Ẩn một khả năng
-            // mà không nói vì sao thì người dùng kết luận nó không tồn tại.
-            //
-            // `disabled` + `aria-disabled`: trình đọc màn hình đọc ra là mục menu đang tắt thay vì bỏ
-            // qua im lặng. Lý do đặt trong CHÍNH nút (không phải tooltip/title) vì trên cảm ứng không
-            // có hành vi di chuột để lộ tooltip — đây là app dùng bằng ngón tay.
-            <div
-              data-testid={`xuat-anh-tat-${bang.id}`}
-              role="menuitem"
-              aria-disabled="true"
-              style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, width: '100%', minHeight: 40, textAlign: 'left', padding: '4px 10px', opacity: 0.55 }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>Xuất PNG</span>
-              <span style={{ fontSize: 10, fontWeight: 500, whiteSpace: 'nowrap' }}>Mở bảng một lần để có ảnh</span>
-            </div>
-          )}
+          {/* Xuất PNG THẬT — dựng lại ảnh từ tài liệu CRDT đã lưu (xem ./xuatAnhBang.ts), không còn
+              đóng gói lại ảnh chụp khung nhìn.
+              Mục này giờ LUÔN bật, không còn nhánh "tắt kèm lý do" theo `anhXemTruoc`: điều kiện cũ
+              ("phải mở bảng một lần để có ảnh") không còn đúng — đường xuất mới đọc thẳng tài liệu
+              nên bảng chưa từng mở vẫn xuất được, miễn là nó có nội dung. Bảng THẬT SỰ trống thì
+              xuatPngBang() trả 'trong' và bên gọi hiện một dòng giải thích, đúng chỗ và đúng lúc
+              người dùng vừa thao tác — tốt hơn một mục tắt vĩnh viễn đoán trước hộ họ.
+              `disabled` trong lúc đang xuất: lượt xuất phải mount một bảng ngầm, bấm chồng lượt là
+              hai TestWorkspace cùng chạm một CSDL IndexedDB (xuatAnhBang.ts đã tự khoá, đây là nửa
+              còn lại — nói cho người dùng biết vì sao nút không phản hồi). */}
+          <button
+            type="button"
+            data-testid={`xuat-anh-${bang.id}`}
+            role="menuitem"
+            onClick={onXuatAnh}
+            disabled={dangXuatAnh}
+            aria-disabled={dangXuatAnh}
+            className="mind-focus-ring"
+            style={{ display: 'flex', alignItems: 'center', width: '100%', minHeight: 40, textAlign: 'left', padding: '0 10px', border: 0, background: 'none', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600, opacity: dangXuatAnh ? 0.55 : 1 }}
+          >
+            {dangXuatAnh ? 'Đang xuất…' : 'Xuất PNG'}
+          </button>
           <button
             type="button"
             data-testid={`xoa-${bang.id}`}
@@ -886,6 +856,15 @@ export function DanhSachBang({
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
+  // Bảng đang được xuất PNG. Lượt xuất phải mount một bảng NGẦM (xem ./xuatAnhBang.ts) nên tốn vài
+  // trăm ms tới vài giây — không có tín hiệu này thì nút im lặng và người dùng bấm lại, đúng thao
+  // tác mà khoá trong xuatAnhBang.ts phải chặn. Giữ ID (không phải boolean) để chỉ ĐÚNG thẻ đang
+  // xuất đổi nhãn, không phải cả lưới.
+  const [dangXuatAnhId, setDangXuatAnhId] = useState<string | null>(null)
+  // Một dòng kết quả sau lượt xuất — chỉ hiện khi có gì đó cần nói (bảng trống, hoặc xuất hỏng).
+  // Lượt xuất THÀNH CÔNG không cần thông báo: trình duyệt đã tự báo bằng thanh tải tệp của nó, thêm
+  // một dải nữa là nhiễu.
+  const [thongBaoXuat, setThongBaoXuat] = useState<string | null>(null)
   // Mang cả OBJECT (không chỉ id) — cần đủ dữ liệu gốc để đánh dấu daXoaLuc rồi đưa thẳng cho dải
   // "Hoàn tác" mà không phải tra lại danhSach sau khi bang đã bị lọc khỏi danh sách hiển thị.
   const [dangChoXoa, setDangChoXoa] = useState<BangMeta | null>(null)
@@ -922,6 +901,18 @@ export function DanhSachBang({
     const id = setTimeout(() => setDangXacNhanXoaId(null), XAC_NHAN_XOA_MS)
     return () => clearTimeout(id)
   }, [dangXacNhanXoaId])
+
+  // Cùng khuôn tự-huỷ: dòng kết quả xuất PNG là thông tin thoáng qua, không có hành động nào đi kèm
+  // (khác dải "Hoàn tác" của xoá) nên không được nằm lại chiếm chỗ. Dùng chính HOAN_TAC_XOA_MS để
+  // hai dải cùng nhịp, không sinh thêm một hằng thời lượng thứ ba cho cùng một loại thông báo.
+  useEffect(() => {
+    // Không đếm giờ trong lúc lượt xuất còn chạy: dòng "Đang dựng ảnh…" là tín hiệu tiến trình, tự
+    // tắt giữa chừng thì màn hình im lặng đúng lúc người dùng đang chờ — họ sẽ tưởng thao tác trượt.
+    // Nó được thay bằng kết quả (hoặc dọn về null) ở nhánh finally của onXuatAnh.
+    if (!thongBaoXuat || dangXuatAnhId) return
+    const id = setTimeout(() => setThongBaoXuat(null), HOAN_TAC_XOA_MS)
+    return () => clearTimeout(id)
+  }, [thongBaoXuat, dangXuatAnhId])
 
   // Cùng khuôn tự-huỷ với dangXacNhanXoaId: nếu người dùng bị gọi đi giữa lúc dải đỏ "Chắc chắn xoá
   // vĩnh viễn?" đang mở, nó tự rút lại sau XAC_NHAN_XOA_MS thay vì nằm chờ một cú bấm nhầm.
@@ -1698,6 +1689,43 @@ export function DanhSachBang({
               dangMoMenu={dangMoMenuId === bang.id}
               dangXacNhanXoa={dangXacNhanXoaId === bang.id}
               dangSuaTag={dangSuaTagId === bang.id}
+              dangXuatAnh={dangXuatAnhId === bang.id}
+              onXuatAnh={async () => {
+                // Menu đóng NGAY: lượt xuất mất vài trăm ms tới vài giây, để menu treo mở suốt thời
+                // gian đó che mất chính thẻ đang được xuất. Trạng thái "đang xuất" vẫn thấy được qua
+                // dải thông báo bên dưới lưới, không cần giữ menu lại để làm chỗ hiển thị.
+                setDangMoMenuId(null)
+                setDangXuatAnhId(bang.id)
+                setThongBaoXuat('Đang dựng ảnh…')
+                try {
+                  // Nạp chậm: module xuất kéo theo cả BlockStdScope, cây extension edgeless và
+                  // html2canvas. Import tĩnh là bắt mọi người mở tab Mindmap phải tải đống đó dù
+                  // không bao giờ bấm xuất — đúng ranh giới D13 mà ./index.tsx đã dựng cho bảng vẽ.
+                  const { xuatPngBang } = await import('./xuatAnhBang')
+                  const ketQua = await xuatPngBang(bang.id, bang.ten)
+                  setThongBaoXuat(
+                    ketQua === 'trong'
+                      ? 'Sơ đồ chưa có nội dung để xuất.'
+                      : ketQua === 'dang-ban'
+                        ? 'Đang có một lượt xuất khác chạy dở.'
+                        : ketQua === 'xong-thieu-the-ghi-chu'
+                          ? // NÓI RÕ thay vì im lặng: ảnh vẫn tải về, nhưng thẻ ghi chú không vào
+                            // được (xem lý do đo đạc trong ./xuatAnhBang.ts). Người dùng phát hiện
+                            // thiếu khi mở tệp ra giữa ca trực thì tệ hơn nhiều so với đọc một dòng
+                            // ngay lúc bấm.
+                            'Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi chú chưa vào được ảnh.'
+                          : null,
+                  )
+                } catch (loi) {
+                  // Nuốt lỗi ở ĐÂY chứ không để nổi lên: một lượt xuất hỏng không được phép làm sập
+                  // cả lưới bảng. Vẫn ghi console cho lượt gỡ lỗi sau, và vẫn NÓI cho người dùng —
+                  // im lặng là đúng thứ khiến họ bấm lại năm lần rồi kết luận app hỏng.
+                  console.error('Xuất PNG thất bại:', loi)
+                  setThongBaoXuat('Không xuất được ảnh. Hãy thử lại.')
+                } finally {
+                  setDangXuatAnhId(null)
+                }
+              }}
               onMo={(origin) => onMoBang(bang.id, origin)}
               onBatMenu={() => {
                 const dangMo = dangMoMenuId === bang.id
@@ -1870,6 +1898,26 @@ export function DanhSachBang({
             <path d="M3.5 3.5l9 9m0-9l-9 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </button>
+      </div>
+    )}
+    {/* Dải kết quả xuất PNG. Dùng lại NGUYÊN bộ token + hình dạng của dải "Hoàn tác" ngay dưới
+        (--c-toast-*, bottom:10, left/right:12, rounded-2xl) — cùng một loại thông báo thì phải là
+        cùng một vật, không phải một kiểu dải thứ hai. Khác đúng hai điểm có lý do: không có nút
+        hành động (không có gì để hoàn tác) và không có thanh đếm ngược (lúc đang xuất thì đồng hồ
+        chưa chạy, một thanh đếm đứng im còn khó hiểu hơn là không có).
+        Hai dải không bao giờ chồng nhau trong thực tế: xoá xong thì thẻ rời lưới nên không còn nút
+        xuất nào để bấm. Nếu có, dải xuất render TRƯỚC nên nằm dưới — đúng thứ tự ưu tiên, vì
+        "Hoàn tác" có hạn giờ còn dòng này thì không. */}
+    {thongBaoXuat && (
+      <div
+        role="status"
+        aria-live="polite"
+        className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40 overflow-hidden"
+        style={{ left: 12, right: 12, bottom: 10, background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
+      >
+        <span className="flex-1 text-[12.5px] leading-snug" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>
+          {thongBaoXuat}
+        </span>
       </div>
     )}
     {vuaXoa && (
