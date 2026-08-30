@@ -21,61 +21,36 @@ có thể nó đã được thử và đã hỏng, kèm phép đo chứng minh.
 
 ## 1. ĐANG MỞ
 
-### 1.1 Thẻ ghi chú không vào được PNG xuất ra — ĐÃ ĐÀO TỚI ĐÁY, chặn ở tầng kiến trúc
+### 1.1 Thẻ ghi chú (khối DOM) không vào được PNG xuất ra — html2canvas không dùng được
 
-`src/board/xuatAnhBang.ts` dựng ảnh từ tài liệu CRDT và **chỉ vẽ phần tử canvas** (nét vẽ, hình,
-đường nối, chữ, node mindmap). Khối edgeless (thẻ ghi chú, ảnh chèn) là DOM thật, muốn vào ảnh phải
-qua `html2canvas`. Ba lượt đào, tất cả 2026-08-30. **Đừng lặp lại** — mọi giả thuyết dễ nghĩ ra đều
-đã bị loại bằng phép đo.
+Nút "Xuất PNG" đã chuyển ra MÀN VẼ (`da80d33`, 2026-08-31, theo yêu cầu chủ dự án — đảo yêu cầu
+2026-08-27 dồn về menu "⋯"): chấm tròn đối xứng nút quay lại, xuất từ chính `std`/host của bảng
+đang mở qua `CanvasRenderer.getCanvasByBound`, đóng khung theo `gfx.elementsBound` (độc lập
+pan/zoom). Nét vẽ / hình / đường nối / chữ / node mindmap: ĐỦ. Đã gỡ hẳn nhánh mở bảng ngầm.
 
-**1. `ExportManager.edgelessToCanvas()` của cây vendored trả `undefined` 100% lượt gọi.** Nó mở đầu
-bằng `rootComponent.querySelector('.affine-block-children-container')` (sau đổi tên D16 là
-`.drt-block-children-container`) và `return` ngay nếu không thấy — mà root edgeless bản này KHÔNG
-BAO GIỜ dựng phần tử đó (`<drt-edgeless-root>` chỉ có `.edgeless-background`,
-`.drt-edgeless-surface-block-container`, `.edgeless-mount-point`, `.widgets-container`, kể cả khi
-đã có khối note). Phần tử đó chỉ dùng để đọc một màu nền. **Vá được** qua pipeline
-`scripts/doi-ten-vendor.mjs` (D11 cho phép sửa hành vi ở pipeline) — nhưng vá xong chỉ dẫn vào
-đúng đường html2canvas dưới đây, nên không giải quyết gì.
+**Còn mở:** thẻ ghi chú + ảnh chèn (khối edgeless = DOM thật) vẫn KHÔNG vào ảnh. Bảng có khối →
+`xuatPngBang` trả `'xong-thieu-the-ghi-chu'` → app báo thẳng "Thẻ ghi chú chưa vào được ảnh".
 
-**2. Mỗi khối một lượt html2canvas: quá đắt.** Đo trên một thẻ ghi chú THẬT (tạo bằng thanh công cụ,
-400×92, dev build, máy để bàn): **7,9s → 6,9s → 4,6s** cho ba lượt liên tiếp, chạm đáy ~5 giây MỖI
-KHỐI. `foreignObjectRendering: true` không cứu (8,6s). Nguyên nhân: html2canvas nhân bản cả tài liệu
-kèm **~298 thẻ `<style>`** mà chunk bảng vẽ tiêm vào `<head>`, cho mỗi lượt gọi.
+**Bốn lượt đào, ĐỪNG lặp lại** (mọi giả thuyết dễ nghĩ đều đã loại bằng phép đo):
 
-**3. MỘT lượt html2canvas cho cả lớp khối: rẻ, nhưng không có gì để chụp.**
-Phần chi phí giải quyết xong hẳn: một lượt chụp phần tử viewport kèm `ignoreElements` cắt `<canvas>`
-và mọi cây widget/toolbar đo được **1272ms nguội, 387–568ms ấm** — rẻ hơn một bậc; và trên BẢNG ĐANG
-MỞ, ảnh chụp chứa đúng thẻ ghi chú kèm chữ, không dính widget.
-Nhưng đường xuất mở bảng NGẦM, và **trình soạn thảo ngầm không bao giờ render khối note**:
-`<drt-edgeless-note>` lên `block-active` nhưng `offsetWidth` vẫn **0 và `children.length` = 0** suốt
-cả 1,5 giây chờ — không phải chuyện thời gian. `.block-idle` mang `contain: size layout style`
-(framework/std/src/gfx/viewport-element.ts) nên khối chưa kích hoạt đo ra đúng 0×0 và html2canvas
-trên cây đó cho ảnh trống.
-**Đã loại bằng phép đo:** hộp chứa đặt ở `left:-20000px` (đưa vào trong khung nhìn, `opacity:0` —
-không đổi); chờ lâu hơn; pane trình duyệt bị ẩn (đưa ra trước — không đổi); `setViewportByBound`
-chưa chạy (đã chạy, khối nằm trong `viewportBounds` — vẫn idle).
+1. **`ExportManager.edgelessToCanvas()` trả `undefined` 100% lượt gọi.** Mở đầu bằng
+   `rootComponent.querySelector('.drt-block-children-container')` rồi `return` nếu không thấy — mà
+   root edgeless bản này KHÔNG BAO GIỜ dựng phần tử đó.
+2. **Mỗi khối một lượt html2canvas: quá đắt.** Thẻ 400×92, dev: 7,9s → 6,9s → 4,6s, chạm đáy ~5s
+   MỖI KHỐI. `foreignObjectRendering: true` không cứu (8,6s). Nguyên nhân: html2canvas nhân bản cả
+   tài liệu + **~298 thẻ `<style>`** mỗi lượt.
+3. **MỘT lượt html2canvas trên bảng NGẦM: không có gì để chụp.** Trình soạn thảo ngầm không render
+   khối note — `<drt-edgeless-note>` kẹt `block-idle`, `contain: size layout style`, đo ra 0×0.
+4. **MỘT lượt html2canvas trên `.edgeless-background` của BẢNG ĐANG MỞ (2026-08-31): TREO.** Đây là
+   nơi khối render THẬT, nên "không có gì để chụp" ở lượt 3 hết đúng. Nhưng html2canvas làm phần
+   lớn việc ĐỒNG BỘ trên luồng chính — đo: **treo >36s** cho một note, không tự xong. `Promise.race`
+   với `setTimeout` KHÔNG cứu được (`setTimeout` không chạy khi luồng chính bị chẹn). `xuatAnhBang.ts`
+   không còn gọi html2canvas.
 
-**Ba ngõ cụt phụ, cũng đã đo:**
-- `.edgeless-mount-point` cao ĐÚNG 0px — khối là con định vị tuyệt đối thoát ra ngoài nó, không có
-  hộp chung nào bọc riêng lớp khối để chụp.
-- Không loại được `.edgeless-background` khỏi ảnh chụp: nó là TỔ TIÊN của lớp khối, loại nó thì ảnh
-  ra rỗng hoàn toàn (0,00% pixel đục). May là vô hại — html2canvas không dựng lưới chấm
-  (`radial-gradient`), vùng nền phẳng đúng một màu và bằng đúng `backgroundColor` mà lượt tô nền
-  hiện tại đang dùng (mẫu 300×200: đúng 1 màu). Không có đường ghép.
-- Khối tạo bằng `store.addBlock()` trần **không render** (`visibility:hidden`, rỗng) — mọi số đo
-  trên nó vô nghĩa, phải tạo thẻ bằng thanh công cụ thật.
-
-**Kết luận:** chặn KHÔNG nằm ở chi phí html2canvas (đã giải xong) mà ở chỗ một trình soạn thảo
-edgeless dựng ngầm không kích hoạt khối note. Muốn đóng hẳn phải đổi KIẾN TRÚC. Hai hướng còn lại,
-mỗi hướng một cái giá:
-1. Chụp lớp khối **lúc người dùng đang mở bảng** (nơi khối render thật — đã đo), lưu làm lớp phụ rồi
-   ghép vào lúc xuất. Giá: ảnh thẻ ghi chú có thể cũ hơn nét vẽ nếu sửa xong không mở lại bảng, và
-   tốn thêm chỗ lưu cho lớp raster đó — đúng loại nợ mà cơ chế `anhXemTruoc` cũ từng sinh ra.
-2. Đưa mục xuất trở lại MÀN VẼ (bảng đang mở, khối đã render). Giá: đảo ngược yêu cầu 2026-08-27 của
-   chủ dự án là dồn xuất về menu "⋯" ở lưới.
-
-Hiện app **báo thẳng** khi bảng có khối ("Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi chú chưa vào
-được ảnh."), không im lặng.
+**Hướng còn lại (chưa thử):** rasterize lớp khối bằng một cách KHÔNG phải html2canvas —
+`SVG <foreignObject>` + `new Image()` trên serialized DOM, hoặc dựng canvas thủ công. Hoặc chấp
+nhận vĩnh viễn: sơ đồ tư duy là chất liệu canvas, thẻ ghi chú là phụ. Cần chủ dự án quyết có đáng
+đầu tư tiếp không.
 
 ### 1.2 Deploy Vercel chậm thêm vài phút mỗi lần
 
