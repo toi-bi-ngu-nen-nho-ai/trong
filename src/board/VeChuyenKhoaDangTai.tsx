@@ -44,14 +44,14 @@ import { SPECIALTIES } from '../data/specialties'
 // Một lượt trước từng cho chu kỳ khởi động ở mốc AN_MUC (delay âm) để khung đầu là icon đặc, khớp
 // từng pixel với thẻ trong lưới lúc cú FLIP phóng to. Bỏ theo yêu cầu: nó đẩy "đứng nguyên → tan"
 // lên trước phần vẽ, đúng thứ tự ngược lại. Cái giá còn lại của việc bỏ là một khoảng rất ngắn đầu
-// chu kỳ chưa có nét nào — nhịp mới rút xuống 1800ms (vẽ xong ở 936ms, nhanh gấp ~1,74× so với
+// chu kỳ chưa có nét nào — nhịp mới rút xuống 900ms (vẽ xong ở 468ms, nhanh gấp ~1,74× so với
 // 1624ms cũ) nên khoảng đó ngắn hơn cú phóng to 0,38s, người dùng thấy tim ĐANG ĐƯỢC PHÁC trong
 // lúc thẻ bay ra chứ không thấy một ô trống.
 //
 // Vì sao rút ngắn: bảng có thể mở rất nhanh (chunk đã cache, IndexedDB đồng bộ tức thì) — đo được
 // 2,5s ở máy thật nhưng có thể ngắn hơn nhiều. Nhịp cũ 2800ms khiến nhiều lượt mở chỉ kịp thấy
-// một mẩu nét rồi lớp phủ đã tan. Nhịp mới chạy trọn cung vẽ→ăn mực→giữ→tan trong 1,8s.
-const CHU_KY_MS = 1800
+// một mẩu nét rồi lớp phủ đã tan. Nhịp mới chạy trọn cung vẽ→ăn mực→giữ icon trong 0,9s.
+const CHU_KY_MS = 900
 // Mỗi nét chiếm MỘT KHUNG GIỜ RIÊNG trong quãng vẽ, nối đuôi nhau — không phải cùng khởi động so
 // le rồi cùng khép lại ở VE_XONG. Bản chồng-lấn trước đó cho ra 4-5 mẩu nét dở dang rải rác khắp
 // hình ở đầu chu kỳ (đo 2026-08-30, chụp ở mốc 200ms): đọc thành "mấy vệt rời rạc" — đúng chế độ
@@ -171,15 +171,13 @@ export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
       )
     })
 
-    // Icon THẬT: nằm im ở opacity 0 tới lúc nét khép lại, rồi "ăn mực" hiện ra nguyên bản.
+    // Icon THẬT: nằm im ở opacity 0 tới lúc nét khép lại, rồi "ăn mực" hiện ra nguyên bản và giữ lại.
     const animThat = iconThat.animate(
       [
         { opacity: 0, offset: 0 },
         { opacity: 0, offset: AN_MUC - 0.06, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
         { opacity: 1, offset: AN_MUC },
-        { opacity: 1, offset: GIU_XONG, easing: 'ease-in' },
-        { opacity: 0, offset: 0.99 },
-        { opacity: 0, offset: 1 },
+        { opacity: 1, offset: 1 },
       ],
       { duration: CHU_KY_MS, iterations: Infinity },
     )
