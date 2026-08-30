@@ -1,6 +1,6 @@
 # BÀN GIAO
 
-Cập nhật **2026-08-29**. Đọc hết file này trước khi làm bất cứ việc gì; nó dài đúng bằng những thứ
+Cập nhật **2026-08-30**. Đọc hết file này trước khi làm bất cứ việc gì; nó dài đúng bằng những thứ
 còn đang mở cộng những luật đã phải trả giá mới có.
 
 Hồ sơ 42 chặng đã xong nằm ở **[`NHAT-KY-CHANG.md`](NHAT-KY-CHANG.md)** (4.000+ dòng). Tra bên đó
@@ -39,9 +39,11 @@ Hướng B (bọc ở tầng React, ô mồi `contenteditable` ẩn) đã cài, 
 > phép đo mù (bàn phím có mở mà `visualViewport` không đổi, hoặc máy đang cắm bàn phím ngoài). Đây
 > là cùng một lớp lỗi với "18 ca kiểm xanh cho thứ không chạy trên máy thật" ở mục 37.
 
-**Bàn thử lượt 2 đã dựng, đang chờ chủ dự án chạy** — thêm đối chứng dương G (chạm thẳng vào một
-`<input>` thật) và tách ba biến số chưa ai đụng: cả bốn phép lượt 1 đều dùng `contenteditable`
-**và** đều giấu phần tử, hai thứ dính vào nhau nên không biết cái nào có tội.
+**Bàn thử lượt 2 đã dựng, đang chờ chủ dự án chạy.** Trang:
+https://claude.ai/code/artifact/d571d1fa-39fb-473e-b0cd-783b7685d72b — chạy G TRƯỚC; nếu G ✗ thì
+chụp bảng "Máy anh báo gì" ở cuối trang, mọi ✗ khác đều vô nghĩa. Bàn thử thêm đối chứng dương G
+(chạm thẳng vào một `<input>` thật) và tách ba biến số chưa ai đụng: cả bốn phép lượt 1 đều dùng
+`contenteditable` **và** đều giấu phần tử, hai thứ dính vào nhau nên không biết cái nào có tội.
 
 | Phép | Biến số | Nếu ✗ nghĩa là |
 |---|---|---|
@@ -53,9 +55,10 @@ Hướng B (bọc ở tầng React, ô mồi `contenteditable` ẩn) đã cài, 
 Nếu G ✓ mà E ✓ F ✓ thì thủ phạm của lượt 1 là **`contenteditable`**, không phải cách giấu — cài lại
 bằng ô nhập thật rồi chuyển chữ vào canvas.
 
-**Ghi chú nối hai vấn đề:** khoản 1.2 mục "gõ tên bị nối đuôi" nhiều khả năng **cùng gốc** — ô đổi
-tên dùng `autoFocus` rồi `select()` trong `onFocus`, đúng loại thao tác Safari iOS hạn chế. Nếu E ✗
-thì hai chuyện là một, và cách sửa cũng là một.
+**Ghi chú nối hai vấn đề:** khoản 1.2 mục "gõ tên bị nối đuôi" ĐÃ vá bằng đúng giả thuyết này — bỏ
+hẳn chỗ dựa vào `select()`, ô để rỗng (xem 1.2 ②). Nếu phép **E** của bàn thử ra ✗ thì đó là xác
+nhận muộn cho chẩn đoán đó, và hướng cài lại bàn phím ảo phải theo cùng nguyên tắc: một ô nhập THẬT
+dưới ngón tay, để chính cú chạm của người dùng mở bàn phím, không nhờ `focus()` của script.
 
 ### 1.2 Ba khoản Board Gallery chủ dự án báo sai trên iPhone — ĐÃ XỬ LÝ, còn một mảnh chờ xác nhận
 
