@@ -62,7 +62,9 @@ const CHU_KY_MS = 900
 const GOI_LEN = 1.35
 const VE_XONG = 0.52 // mọi nét cùng khép lại ở đây (936ms)
 const AN_MUC = 0.64 // icon đặc hiện xong (1152ms)
-const GIU_XONG = 0.86 // giữ nguyên hình tới đây (1548ms) rồi mờ đi
+// (Từng có `GIU_XONG = 0.86` cho quãng "giữ nguyên hình rồi mờ đi". Hoạt ảnh kết thúc ở AN_MUC,
+// còn quãng giữ hình do lớp phủ bên ngoài quyết định, nên hằng số đó không còn ai đọc — gỡ vì
+// `noUnusedLocals` làm ĐỎ cổng kiểu trên main.)
 const easeVe = 'cubic-bezier(0.65, 0.05, 0.36, 1)'
 
 export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
