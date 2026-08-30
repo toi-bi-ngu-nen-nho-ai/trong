@@ -21,25 +21,7 @@ có thể nó đã được thử và đã hỏng, kèm phép đo chứng minh.
 
 ## 1. ĐANG MỞ
 
-### 1.1 Bàn phím ảo iOS — ĐÓNG 2026-08-30
-
-Chạm vào node text trên bảng vẽ không mở bàn phím iOS: BlockSuite hoãn `focusTextModel()` qua
-`requestAnimationFrame`, mà Safari iOS chỉ mở bàn phím khi `.focus()` vào ô nhập THẬT chạy **đồng
-bộ trong cử chỉ chạm**. Không vá được trong cây vendored (D11).
-
-**Bản vá (`7be7344`):** `src/board/ban-phim-ios.ts` mồi một `<input>` thật, vô hình; nghe `touchend`
-trên host cây Lit và focus nó **đồng bộ trong cử chỉ** → bàn phím bật. Khi editor BlockSuite nhận
-focus (~1 frame sau) thì nhả phần tử mồi — iOS giữ bàn phím khi chuyển focus editor→editor lúc bàn
-phím đang hiện. No-op ngoài iOS; bỏ mồi nếu cú chạm là kéo (>10px) hoặc đang gõ sẵn. 6 ca kiểm
-`ban-phim-ios.spec.ts`. **Chủ dự án nghiệm thu trên iPhone thật 2026-08-30: bàn phím nảy lên, gõ
-được.**
-
-Lịch sử đầy đủ (bàn thử A/B/C/D lượt 1 đo mù vì thiếu đối chứng dương; hướng B mồi bằng
-`contenteditable` ẩn đã cài rồi gỡ; bàn thử artifact lượt 2 `d571d1fa` đo mù vì chạy trong iframe):
-nhật ký mục 7 và 37. **Đừng thử lại `contenteditable` để mồi bàn phím** — chỉ `<input>` trần mở
-được bàn phím iOS.
-
-### 1.2 Thẻ ghi chú không vào được PNG xuất ra — ĐÃ ĐÀO TỚI ĐÁY, chặn ở tầng kiến trúc
+### 1.1 Thẻ ghi chú không vào được PNG xuất ra — ĐÃ ĐÀO TỚI ĐÁY, chặn ở tầng kiến trúc
 
 `src/board/xuatAnhBang.ts` dựng ảnh từ tài liệu CRDT và **chỉ vẽ phần tử canvas** (nét vẽ, hình,
 đường nối, chữ, node mindmap). Khối edgeless (thẻ ghi chú, ảnh chèn) là DOM thật, muốn vào ảnh phải
@@ -95,7 +77,7 @@ mỗi hướng một cái giá:
 Hiện app **báo thẳng** khi bảng có khối ("Đã xuất PNG — nét vẽ và hình khối. Thẻ ghi chú chưa vào
 được ảnh."), không im lặng.
 
-### 1.3 Deploy Vercel chậm thêm vài phút mỗi lần
+### 1.2 Deploy Vercel chậm thêm vài phút mỗi lần
 
 `postinstall` dựng lại `.vendor-build/` từ đầu mỗi lần (checkout CI luôn sạch). Cân nhắc cache qua
 Vercel Build Cache API **nếu** độ chậm thành vấn đề thật — hiện chưa cần, chỉ theo dõi.
