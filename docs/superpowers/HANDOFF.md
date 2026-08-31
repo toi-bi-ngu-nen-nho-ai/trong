@@ -49,12 +49,17 @@ kho tài liệu để tìm.
   khi thả), `content` = `DocSnapshot` `affine:page > affine:surface > affine:image`. Kích thước lấy
   từ `viewBox`, nằm trong `mau-handy.sinh.ts` (tệp sinh, KHÔNG chứa byte SVG — D13). Một danh mục:
   "Mũi tên".
+- Mực: nguồn dùng `fill="black"` / `fill="currentColor"` → đen tịt trên canvas tối. `dung-mau-handy.mjs`
+  chèn `<style>*{fill:#808080}</style>` sau thẻ `<svg>` mỗi tệp (CSS thắng thuộc tính `fill=`, phủ cả
+  hai họ). #808080 ~3,95:1 trên nền trắng, ~4,55:1 trên `#14162c` — trên sàn 3:1 ở cả hai. Khối ảnh
+  render SVG qua `<img src="blob:">` (không kế thừa theme; theme app là công tắc trong-app, không
+  phải `prefers-color-scheme`) nên chọn MỘT mực trung tính thay vì hai biến thể.
 - Kiểm: `mau-handy.spec.ts` (185 mẫu qua `DocSnapshotSchema.parse`, asset khớp sourceId) +
   `mau-handy-chen.spec.ts` (chèn thật → `affine:image` dưới surface + blob vào kho). Cả hai xanh.
+  Rasterise 5 tệp (cả hai họ) trên canvas: mọi điểm đục = `#808080`, 0 điểm đen, hình vẫn ra.
 - CÒN NỢ: (a) kiểm mắt trên Browser pane HIỆN (pane bị giấu suốt lượt làm) — tab "Mũi tên" + lưới
-  preview, thả một mũi tên thấy hình trên canvas, vào-ra còn nguyên. (b) Arrow SVG là `fill="black"`
-  → mờ trên nền canvas tối; chưa xử. (c) `illustrations` (54 tệp, ~10MB) CỐ Ý BỎ — rủi ro phình
-  git + IndexedDB bảng.
+  preview, thả một mũi tên thấy hình trên canvas, vào-ra còn nguyên. (b) `illustrations` (54 tệp,
+  ~10MB) CỐ Ý BỎ — rủi ro phình git + IndexedDB bảng.
 - Placeholder "Search file or anything..." vẫn tiếng Anh — chuỗi vendored, thuộc pipeline D12, KHÔNG
   gộp vào lượt này.
 

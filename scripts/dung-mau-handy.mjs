@@ -6,8 +6,9 @@
 // mục 3). Script này là NỬA "dữ liệu" của việc bơm đó:
 //
 //   1. Sparse-clone `static/arrows/` của repo handy-arrows (chỉ vài MB, ~185 tệp .svg).
-//   2. Chép nguyên văn vào `public/static/templates/arrows/<id>.svg` — Vite phục vụ tĩnh, panel
-//      `fetch()` khi người dùng thả sticker; KHÔNG nhồi byte SVG vào chunk JS (giữ D13).
+//   2. Chép vào `public/static/templates/arrows/<id>.svg` (kèm bước đổi mực — xem `doiMauMuc`) —
+//      Vite phục vụ tĩnh, panel `fetch()` khi người dùng thả sticker; KHÔNG nhồi byte SVG vào chunk
+//      JS (giữ D13).
 //   3. Đọc `viewBox`/`width`/`height` từng tệp, ghi `src/board/mau-handy.sinh.ts` — chỉ mảng
 //      `{ id, w, h }` (~vài KB chữ). Nửa "logic" (HandyTemplateManager) đọc mảng này ở
 //      `src/board/mau-handy.ts`.
@@ -19,7 +20,7 @@
 // đúng một lần chép. Submodule sẽ là một phụ thuộc build vĩnh viễn cho một thao tác một lần.
 
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -29,6 +30,22 @@ const THU_MUC_NGUON_TRONG_REPO = 'static/arrows'
 const THU_MUC_DICH = path.join(GOC, 'public/static/templates/arrows')
 const TEP_SINH = path.join(GOC, 'src/board/mau-handy.sinh.ts')
 const KHI_HONG_DUNG = { w: 240, h: 240 } // SVG không parse được kích thước — hiếm, nhưng đừng ném cả lượt chạy.
+
+// Mực trung tính cho MỌI hình trong SVG. Nguồn dùng `fill="black"` (140 tệp) / `fill="currentColor"`
+// (45 tệp) — cả hai ra ĐEN khi khối ảnh render SVG qua `<img src="blob:">` (không kế thừa theme, và
+// theme của app là công tắc trong-app chứ không phải `prefers-color-scheme` nên `<style>` thích ứng
+// trong SVG cũng không bám theo). #808080 đạt ~3,95:1 trên nền thẻ trắng và ~4,6:1 trên nền canvas
+// tối (#14162c) — trên sàn 3:1 cho vật thể đồ hoạ ở CẢ HAI. Chèn bằng CSS `*{fill}` vì quy tắc CSS
+// thắng thuộc tính trình bày `fill=`, phủ được cả hai họ tệp trong một dòng.
+const MUC = '#808080'
+const STYLE_MUC = `<style>*{fill:${MUC}}</style>`
+
+/** Chèn `<style>` mực trung tính ngay sau thẻ `<svg …>`. Ném nếu không thấy thẻ mở — đừng ghi thầm tệp chưa đổi màu. */
+function doiMauMuc(noiDungSvg, tenTep) {
+  const m = noiDungSvg.match(/<svg\b[^>]*>/i)
+  if (!m) throw new Error(`Không thấy thẻ <svg> mở trong ${tenTep}`)
+  return noiDungSvg.slice(0, m.index + m[0].length) + STYLE_MUC + noiDungSvg.slice(m.index + m[0].length)
+}
 
 function chay(lenh, doiSo, cwd) {
   const kq = spawnSync(lenh, doiSo, { cwd, stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8', shell: false })
@@ -75,8 +92,6 @@ try {
 
   if (tepSvg.length === 0) throw new Error(`Không thấy .svg nào trong ${thuMucNguon}`)
 
-  // Xoá sạch thư mục đích trước khi chép — tệp bị gỡ ở thượng nguồn không được sót lại.
-  rmSync(THU_MUC_DICH, { recursive: true, force: true })
   mkdirSync(THU_MUC_DICH, { recursive: true })
 
   const nghiNgoNgoai = [] // SVG có tham chiếu ngoài miền / phông — cảnh báo, không chặn.
@@ -90,8 +105,22 @@ try {
       nghiNgoNgoai.push(tep)
     }
 
-    cpSync(path.join(thuMucNguon, tep), path.join(THU_MUC_DICH, `${id}.svg`))
+    writeFileSync(path.join(THU_MUC_DICH, `${id}.svg`), doiMauMuc(noiDung, tep))
     dsMau.push({ id, ...docKichThuoc(noiDung) })
+  }
+
+  // Dọn tệp .svg thừa (đã bị gỡ ở thượng nguồn). Ghi ĐÈ ở trên rồi mới xoá phần dư — không
+  // `rmSync` cả thư mục vì trình đánh chỉ mục (CodeGraph) hay giữ handle trên thư mục vừa có tệp
+  // mới → `EPERM`. Xoá từng tệp; kẹt tệp nào thì chỉ cảnh báo, không chặn lượt chạy.
+  const giuLai = new Set(dsMau.map((m) => `${m.id}.svg`))
+  for (const tep of readdirSync(THU_MUC_DICH)) {
+    if (tep.toLowerCase().endsWith('.svg') && !giuLai.has(tep)) {
+      try {
+        rmSync(path.join(THU_MUC_DICH, tep))
+      } catch (e) {
+        console.warn(`! không xoá được tệp thừa ${tep}: ${e.code ?? e.message}`)
+      }
+    }
   }
 
   const than =

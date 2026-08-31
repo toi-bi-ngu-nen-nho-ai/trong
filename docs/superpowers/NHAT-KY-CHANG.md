@@ -4116,8 +4116,16 @@ build+kiem:dist: 0, 323 file dist/, không "affine-", biến --drt-* đủ   (D1
    `navigate` bị từ chối), nên chỉ xác nhận được: asset serve `200 image/svg+xml`, hai integration
    test xanh. CHƯA thấy tận mắt: panel hiện tab "Mũi tên" + lưới preview, thả một mũi tên hiện hình
    trên canvas, thoát ra vào lại còn nguyên.
-2. **Arrow SVG `fill="black"`** — trên nền canvas tối sẽ mờ/khuất. Chưa xử (đổi màu 185 tệp là việc
-   riêng).
+2. ~~**Arrow SVG `fill="black"`**~~ — **ĐÃ XỬ (2026-09-01).** `dung-mau-handy.mjs` chèn
+   `<style>*{fill:#808080}</style>` sau thẻ `<svg>` mỗi tệp lúc chép (CSS thắng thuộc tính `fill=`;
+   một dòng phủ cả họ `fill="black"` lẫn họ `arrow-NN.svg` dùng `fill="currentColor"`). #808080 đạt
+   ~3,95:1 trên nền thẻ trắng và ~4,55:1 trên nền canvas tối `#14162c` — trên sàn 3:1 ở CẢ HAI.
+   Chọn MỘT mực cố định (không hai biến thể sáng/tối) vì khối ảnh render SVG qua `<img src="blob:">`
+   — không kế thừa theme, và theme app là công tắc trong-app chứ không phải `prefers-color-scheme`
+   nên `<style>` thích ứng trong SVG cũng không bám. Rasterise 5 tệp trên canvas: mọi điểm đục
+   `#808080`, 0 điểm đen, hình vẫn ra. Cổng: 2 spec mau-handy 6/6, `build`+`kiem:dist` xanh.
+   `dung-mau-handy.mjs` bỏ `rmSync` cả thư mục đích (CodeGraph giữ handle → `EPERM`) → nay ghi đè
+   từng tệp rồi dọn tệp thừa, kẹt tệp nào chỉ cảnh báo.
 3. **`illustrations`** (54 tệp, ~10MB, có tệp 300–900KB) — CỐ Ý BỎ: rủi ro phình git + phình
    IndexedDB mỗi bảng. Muốn thêm thì lọc riêng tệp nhỏ.
 4. **Placeholder "Search file or anything..."** — chuỗi vendored, chưa dịch; thuộc pipeline D12,
