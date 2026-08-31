@@ -17,6 +17,12 @@ Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trướ
 (checkout CI luôn sạch — cục bộ thì nó bỏ qua khi cổng đã xanh). Cân nhắc Vercel Build Cache API
 **nếu** thành vấn đề thật — chưa cần.
 
+**"Xoá vĩnh viễn" để lại nội dung bảng trong IndexedDB.** `xoaVinhVienNhieu` chỉ gọi `remove(id)`
+trên META bảng; doc BlockSuite vẫn nằm nguyên ở `drtrong-board` → store `collection`, cùng khoá
+`blocksuite:bang-*:edgelessViewport` trong localStorage. Đo 2026-08-31: xoá vĩnh viễn hết 4 bảng
+xong, store vẫn còn 5 bản ghi (4 doc bảng + doc gốc `bs-trong-board`). Người dùng tưởng đã xoá
+sạch, dung lượng thì không giảm. Sửa = cho đường xoá vĩnh viễn dọn luôn doc + khoá viewport.
+
 **Xuất PNG: còn các HỘP CSS ngoài thân thẻ.** Chấm/số/ô tick (2026-08-31) và gạch chân/gạch
 ngang/nền tô chữ (cùng ngày) đã vào ảnh. Còn lại: lượt đọc hộp chỉ nhìn `edgeless-note-background`,
 nên đường kẻ ngang, vạch trái trích dẫn, viền khối mã inline và lưới bảng vẫn không có. Đọc từ mã,
@@ -58,6 +64,13 @@ CHƯA đo trên trình duyệt; chưa ai báo.
   vẫn xuất ra, chỉ thiếu đúng thứ vừa thêm). Lọc theo `href=`/`url(`.
 - **Đừng chờ bằng `requestAnimationFrame`** — rAF không chạy khi tài liệu ẩn (tab nền, pane bị
   giấu). Một lượt xuất ảnh từng treo vĩnh viễn ở đúng đó. Nhịp chờ đi bằng `setTimeout`.
+- **Browser pane bị GIẤU thì không kiểm được gì cần render.** rAF im, ảnh chụp ra ĐEN, và
+  BlockSuite không bao giờ dựng khối note — trông y hệt mã hỏng. `tabs_select` và `preview_start`
+  KHÔNG mở pane ra được (đã thử, `tabs_context` vẫn báo hidden): phải nhờ chủ dự án bật. Kiểm
+  `document.visibilityState` + một lượt rAF có hạn giờ TRƯỚC khi kết luận bất cứ điều gì.
+- **Dải xác nhận hai bước tự rút sau 5 giây** (`XAC_NHAN_XOA_MS`). Bấm bước 1 rồi bước 2 ở HAI lượt
+  gọi công cụ khác nhau là thua: nhịp đầu đã hết hạn, cú bấm thứ hai chỉ mở lại dải. Cả hai cú phải
+  nằm trong CÙNG một lượt chạy JS.
 - **Khối tạo bằng `store.addBlock()` trần không render**; và edgeless **cull** khối ngoài khung nhìn
   (đo ra 0×0). Muốn đo thẻ ghi chú thật thì tạo bằng thanh công cụ.
 - **Hàm hình học vendored nhận `IVec` = MẢNG `[x, y]`, không phải `{x, y}`.**
