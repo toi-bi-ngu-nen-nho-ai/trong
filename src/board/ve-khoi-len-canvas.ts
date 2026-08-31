@@ -99,16 +99,26 @@ const CHON_CHU = '[data-v-text="true"]'
 // Cây con chỉ là lớp phủ thao tác, không phải nội dung: mặt nạ note (bắt chuột), khung chọn.
 const CHON_BO_QUA = 'edgeless-note-mask, drt-block-selection, .drt-note-mask'
 
-// Phần tử bọc một đoạn chữ CÓ ĐỊNH DẠNG. `affine-text` dựng
-// `<span style="..."><v-text><span data-v-text="true">` (nodes/affine-text.ts), và đặt TOÀN BỘ định
-// dạng lên span NGOÀI (shared/src/styles/text.ts).
+// Phần tử bọc một đoạn chữ CÓ ĐỊNH DẠNG. Lớp `AffineText` (nguồn thượng nguồn
+// `inlines/preset/src/nodes/affine-text.ts`) dựng `<span style="..."><v-text><span data-v-text="true">`
+// và đặt TOÀN BỘ định dạng lên span NGOÀI (shared/src/styles/text.ts).
 //
 // Màu và font tới được span trong vì chúng KẾ THỪA. `text-decoration` và `background-color` thì
 // KHÔNG: trình duyệt vẽ chúng từ phần tử cha phủ lên con, nên `getComputedStyle` ở span trong trả
 // "none" và "rgba(0, 0, 0, 0)". Đo trên Chrome thật 2026-08-31, đúng hình dạng DOM này. Vì thế phải
 // đi NGƯỢC lên tìm — và phải có CHẶN, nếu không vòng lặp trèo tiếp tới `edgeless-note-background`
 // rồi tô màu thân thẻ thành "nền chữ".
-const CHON_BOC_CHU = 'affine-text, drt-text'
+//
+// CHỈ `drt-text`, KHÔNG kèm `affine-text`. Bản đầu viết hai vế cho "chắc ăn", nhưng vế `affine-text`
+// vừa là mã chết vừa làm ĐỎ cổng: cây vendored đăng ký đúng MỘT tên thẻ —
+// `customElements.define('drt-text', AffineText)` ở
+// `.vendor-build/affine/inlines/preset/src/effects.js:3` (D11 đổi tiền tố affine-→drt- lúc dựng
+// vendor) — nên không DOM nào từng có thẻ `<affine-text>`; chuỗi "affine-text" còn sót trong cây
+// build chỉ là ĐƯỜNG DẪN module (`import … from './nodes/affine-text'`), bundler nuốt hết. Giữ vế
+// đó lại thì chuỗi "affine-" lọt vào bản phát hành và `kiem-dist` báo D16 ĐỎ (đỏ suốt từ f12c0c3
+// tới 2026-08-31). Thượng nguồn đổi tên thẻ thì `kiem:vendor`/`kiem:dist` báo trước — đừng thêm lại
+// vế dự phòng.
+const CHON_BOC_CHU = 'drt-text'
 
 // Những phần tử NGOÀI thân thẻ mà trình duyệt sơn bằng nền/viền, và vì thế không lọt vào lượt đọc
 // chữ lẫn lượt đọc ảnh: đường kẻ ngang (`<hr>` `border-top`, blocks/divider/src/styles.ts), ô bảng
