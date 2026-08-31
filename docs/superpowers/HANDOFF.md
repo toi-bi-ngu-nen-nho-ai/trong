@@ -20,6 +20,25 @@ Khoá cache thì đã có sẵn nếu sau này cần — `bang-bam-vendor.json` 
 đã commit, nên "khoá đổi ⇒ dựng lại" là đúng theo cấu tạo, không sợ phục vụ cây cũ. **Chỉ làm khi
 có một lượt deploy thật bị chặn vì nó**, và làm thì đo trước/sau.
 
+**Gõ "/" bằng TIẾNG ANH không còn tìm ra mục — hệ quả CÓ CHỦ Ý của chặng dịch menu lệnh
+(2026-08-31, commit `c528c38`).** `slash-menu-popover.ts:153` lọc bằng `[name, ...searchAlias].some(…)`,
+mà `searchAlias` thượng nguồn gần như rỗng (đo được đúng 3 chỗ: `checkbox`, `mathBlock/equationBlock/
+latexBlock`, `remove`). Từ khi `name` được dịch, `/code` `/h1` không ra kết quả nữa — phải gõ
+`/khối` `/tiêu`. Chủ dự án ĐÃ được báo và chưa yêu cầu sửa.
+Muốn khôi phục gõ tắt tiếng Anh thì KHÔNG dùng được bộ dịch D12: nó chỉ THAY chuỗi, không THÊM được
+thuộc tính `searchAlias` vào cây vendored — cần một bước dựng khác (hoặc một `SlashMenuConfig` phụ
+đăng ký từ phía app, hướng chưa khảo sát). Đừng bắt đầu bằng cách nới luật dịch.
+
+**Chữ tiếng Anh trong TRANH MINH HOẠ SVG của thẻ xem trước menu "/" — ĐÃ QUYẾT: không làm
+(2026-08-31).** Nhãn và tiêu đề nhóm đã dịch xong; phần còn lại là nội dung mẫu vẽ trong hình
+(`In a decentralized system…`, chữ "Heading 1" nằm trong SVG) ở các bảng `tooltips`.
+Vì sao bác: `viewBox` cố định 170×68, mỗi dòng là `<tspan>` ghim cứng `x`/`y`, `font-size: 10` —
+tiếng Việt dài hơn ~20–30% và có dấu nên sẽ tràn khung/cắt dấu, mà sửa toạ độ là sửa `src/vendor/`
+(D11 cấm). Cộng thêm một lớp luật dịch thứ 5 (text node trong SVG) và ~30 khoá văn xuôi trang trí.
+Đo được: ở khung 800×450 thẻ xem trước KHÔNG dựng ra (SVG 0×0), chỉ hiện khi cửa sổ rộng ~1600px —
+tức trên iPad/điện thoại gần như không thấy. **Nếu sau này vẫn muốn xử lý, cách rẻ và an toàn hơn
+nhiều là ẩn hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch chữ trong hình.**
+
 **Nút "Liên kết" trong menu Ghi chú không làm gì — CHỦ DỰ ÁN CHỌN ĐỂ NGUYÊN (2026-08-31).**
 `affine/gfx/note/src/toolbar/note-menu.ts` render một nút Liên kết gọi `insertLinkByQuickSearchCommand`
 (`affine/blocks/bookmark/src/commands/insert-link-by-quick-search.ts`). Dòng đầu của lệnh đó:
