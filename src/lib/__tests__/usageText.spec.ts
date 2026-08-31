@@ -64,7 +64,7 @@ describe("formatFixedUsage", () => {
       route: "TTM",
       dropsPerMin: 30,
     })
-    expect(text).toBe("Levofloxacin 750 mg/150 ml 1 chai (TTM) 30 giọt/phút")
+    expect(text).toBe("Levofloxacin 750 mg/150 mL 1 chai (TTM) 30 giọt/phút")
   })
 
   it("pools multiple bottles into the count", () => {
@@ -77,7 +77,7 @@ describe("formatFixedUsage", () => {
       route: "TTM",
       dropsPerMin: 30,
     })
-    expect(text).toBe("Levofloxacin 750 mg/150 ml 2 chai (TTM) 30 giọt/phút")
+    expect(text).toBe("Levofloxacin 750 mg/150 mL 2 chai (TTM) 30 giọt/phút")
   })
 
   it("omits the bottle count when drawing a partial dose from one bottle", () => {
@@ -90,6 +90,6 @@ describe("formatFixedUsage", () => {
       route: "TTM",
       rateMlPerHour: 100,
     })
-    expect(text).toBe("Levofloxacin 750 mg/150 ml lấy 500 mg (TTM) BTĐ 100 ml/h")
+    expect(text).toBe("Levofloxacin 750 mg/150 mL lấy 500 mg (TTM) BTĐ 100 mL/h")
   })
 })

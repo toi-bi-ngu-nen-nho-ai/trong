@@ -31,9 +31,10 @@ export function formatAmpouleUsage(params: {
   rateMlPerHour: number
 }): string {
   const { name, vialAmount, vialUnit, vialVolumeMl, vialsUsed, diluentName, finalVolumeMl, rateMlPerHour } = params
-  // Mọi con số trong câu này đi qua trim() để số tròn đọc "5 ml/h" đúng như mẫu chuẩn, không phải
-  // "5.00 ml/h" — formatDoseNumber() cố định số lẻ theo độ lớn nên không tự bỏ số 0 thừa.
-  return `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml ${trim(vialsUsed, 0)} ống với ${diluentName} đủ ${trim(finalVolumeMl)} ml BTĐ ${trim(rateMlPerHour)} ml/h`
+  // Mọi con số trong câu này đi qua trim() để số tròn đọc "5 mL/h" đúng như mẫu chuẩn, không phải
+  // "5.00 mL/h" — formatDoseNumber() cố định số lẻ theo độ lớn nên không tự bỏ số 0 thừa.
+  // Đơn vị mL viết hoa L nhất quán toàn màn (/impeccable critique 2026-08-31, P3: ml/mL lẫn lộn).
+  return `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} mL ${trim(vialsUsed, 0)} ống với ${diluentName} đủ ${trim(finalVolumeMl)} mL BTĐ ${trim(rateMlPerHour)} mL/h`
 }
 
 export function formatVialUsage(params: {
@@ -62,7 +63,7 @@ export function formatVialUsage(params: {
   rateMlPerHour?: number | null
 }): string {
   const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin, rateMlPerHour } = params
-  const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml` : formatMass(vialAmount, vialUnit)
+  const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} mL` : formatMass(vialAmount, vialUnit)
   const countPart = vialsUsed != null ? ` ${vialsUsed > 1 ? trim(vialsUsed, 0) : "1"} ${vialLabel ?? "ống"}` : ""
   // Ba trường hợp, không phải hai:
   //   - pha đủ X mL rồi RÚT một phần Y mL  → "đủ X ml lấy Y ml" (mẫu 4b)
@@ -73,12 +74,12 @@ export function formatVialUsage(params: {
   // (TTM)" — pha với bao nhiêu mL thì không ai biết. Với một kháng sinh bắt buộc pha loãng thì đó là
   // thiếu đúng con số quan trọng nhất của câu.
   const drawPart =
-    finalVolumeMl == null ? "" : drawMl != null ? ` đủ ${trim(finalVolumeMl)} ml lấy ${trim(drawMl)} ml` : ` đủ ${trim(finalVolumeMl)} ml`
+    finalVolumeMl == null ? "" : drawMl != null ? ` đủ ${trim(finalVolumeMl)} mL lấy ${trim(drawMl)} mL` : ` đủ ${trim(finalVolumeMl)} mL`
   const base = `${name} ${strength}${countPart} pha với ${diluentName}${drawPart} (${route})`
   // Chỉ đường TTM mới có tốc độ truyền (giọt/phút hoặc BTĐ) — TMC là tiêm thẳng một lần, IM/SC
   // không có khái niệm tốc độ truyền.
   if (route !== "TTM") return base
-  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
+  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} mL/h`
   if (dropsPerMin == null) return base
   return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
 }
@@ -100,7 +101,7 @@ export function formatFixedUsage(params: {
   rateMlPerHour?: number | null
 }): string {
   const { name, vialAmount, vialUnit, vialVolumeMl, vialsUsed, doseAmount, doseUnit, route, dropsPerMin, rateMlPerHour } = params
-  const bottle = `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} ml`
+  const bottle = `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} mL`
   const pooled = vialsUsed != null && vialsUsed > 1
   // Trước đây nhánh "dùng trọn chai" (doseAmount == null — trường hợp THƯỜNG GẶP NHẤT, vd Levofloxacin
   // dùng cả chai) return NGAY tại đây, không bao giờ chạy tới phần route/giọt-phút/BTĐ bên dưới — kết
@@ -110,7 +111,7 @@ export function formatFixedUsage(params: {
     ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : " 1 chai"}${route ? ` (${route})` : ""}`
     : `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : ""} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
   if (route !== "TTM") return base
-  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} ml/h`
+  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} mL/h`
   if (dropsPerMin == null) return base
   return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
 }

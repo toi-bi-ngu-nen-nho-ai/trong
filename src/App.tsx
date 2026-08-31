@@ -5430,6 +5430,12 @@ function DisclaimerGate({ ack, onAcknowledge }: { ack: boolean; onAcknowledge: (
           {icons.alert()}
           <p id="disclaimer-gate-title" className="text-[13px] font-bold">Trước khi dùng</p>
         </div>
+        {/* Dòng nhắc "công cụ tham khảo" gộp vào ĐÂY (trước đây là DisclaimerBar — một dải thường
+            trực trên đầu mọi lần mở màn, thứ đầu tiên bác sĩ vội nhìn thấy) — /impeccable critique
+            2026-08-31, P2: lần đầu chỉ còn MỘT modal, các lần sau không còn dải nhắc chiếm chỗ. */}
+        <p className="text-[13px] font-bold leading-[1.45] mb-2 max-w-[65ch]" style={{ color: "var(--c-text)" }}>
+          Công cụ tham khảo — luôn kiểm tra lại trước khi thực hiện.
+        </p>
         {/* max-w: sheet nền vẫn full-bleed (w-full ở div cha) đúng hình dạng bottom sheet, nhưng chữ
             đọc thì giới hạn measure — không giới hạn thì trên màn rộng (tablet/desktop) mỗi dòng kéo
             dài ~200 ký tự, quá ngưỡng đọc thoải mái (/impeccable critique 2026-08-18). */}
@@ -5449,55 +5455,9 @@ function DisclaimerGate({ ack, onAcknowledge }: { ack: boolean; onAcknowledge: (
   )
 }
 
-// Ẩn dải nhắc theo PHIÊN (sessionStorage — đóng tab/trình duyệt là thấy lại), KHÔNG vĩnh viễn như
-// DISCLAIMER_KEY của DisclaimerGate: đây chỉ là dải rút gọn một dòng, bản đầy đủ đã bắt đọc và xác
-// nhận một lần ở DisclaimerGate rồi. Dải này lặp lại y nguyên trên MỌI lần mở màn trong một ca trực
-// (có thể vào ra hàng chục lần/ngày) mà không có cách nào tắt, chiếm đúng vị trí đầu tiên bác sĩ vội
-// nhìn thấy phía trên khung bệnh nhân (/impeccable critique 2026-08-26, P3).
-const DISCLAIMER_BAR_DISMISS_KEY = "drtrong:disclaimerBarDismissed"
-
-// Dải nhắc thường trực — rút còn MỘT dòng. Bản đầy đủ đã hiện ở màn xác nhận lần đầu; ở đây chỉ
-// cần một lời nhắc không chiếm chỗ, vì nó nằm trên đầu mọi lần mở app.
-function DisclaimerBar() {
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      return sessionStorage.getItem(DISCLAIMER_BAR_DISMISS_KEY) === "1"
-    } catch {
-      return false
-    }
-  })
-  if (dismissed) return null
-  // Trước đây `truncate` trên một dòng pháp lý: máy hẹp cắt mất nửa câu, không cách nào đọc hết.
-  // Bỏ truncate, cho xuống tối đa hai dòng — đổi hình dạng từ viên (rounded-full, chỉ đẹp một
-  // dòng) sang khối bo góc mềm để hai dòng không trông méo.
-  return (
-    <div className={`flex items-start gap-2 px-3 py-1.5 ${R.box} mx-5 mb-2`} style={{ background: C.surfaceAlt }}>
-      <p className={`${T.meta} flex-1`} style={{ color: C.textSoft }}>
-        Công cụ tham khảo — luôn kiểm tra lại trước khi thực hiện.
-      </p>
-      <button
-        onClick={() => {
-          try {
-            sessionStorage.setItem(DISCLAIMER_BAR_DISMISS_KEY, "1")
-          } catch {
-            // Không lưu được thì lần dựng màn kế tiếp lại hiện — chấp nhận được, không chặn dùng app.
-          }
-          setDismissed(true)
-        }}
-        // 44px vùng chạm thật (w-11 h-11) nhưng -m-2 kéo lại gần bằng đúng footprint hình 24px cũ,
-        // không đẩy giãn hàng chứa nó — cùng kỹ thuật đã dùng cho nút xoá ảnh trong bảng pha
-        // (dòng ~10318: w-11 h-11 -m-2). Bản trước dùng w-6 h-6 -m-1 = vùng chạm thật chỉ 24×24px,
-        // dưới hẳn ngưỡng 44px chung của màn này — âm margin không nới KÍCH THƯỚC phần tử, chỉ kéo
-        // nó lại gần nội dung xung quanh (/impeccable critique 2026-08-26 lượt 2, P2).
-        className="flex-none w-11 h-11 -m-2 rounded-full flex items-center justify-center"
-        style={{ color: C.textSoft }}
-        aria-label="Ẩn dải nhắc này cho phiên hiện tại"
-      >
-        {icons.x()}
-      </button>
-    </div>
-  )
-}
+// (DisclaimerBar đã bị gỡ 2026-08-31: dải nhắc "công cụ tham khảo" thường trực trên đầu mọi lần mở
+// màn giờ gộp hẳn vào DisclaimerGate — xem dòng in đậm đầu thân sheet đó. Lần đầu chỉ còn một modal;
+// các lần sau không còn dải chiếm chỗ phía trên khung bệnh nhân.)
 
 // Dòng cảnh báo nhỏ cho một ô nhập (cân nặng gõ nhầm 700 kg, chiều cao 17 cm...).
 function InputWarning({ text, level }: { text: string; level: "check" | "implausible" }) {
@@ -5789,11 +5749,23 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
               không chặn đường xuống danh sách thuốc trên các tab đó; tự mở khi đã có dữ liệu liên
               quan HOẶC đang ở tab Kháng sinh (renalRelevantByDefault) — creatinin là ô nhập mà cả
               màn "theo CrCl" xoay quanh, giấu nó sau disclosure khiến dễ đọc thẻ liều khi CrCl chưa
-              tính (/impeccable critique 2026-08-31, P2). */}
+              tính (/impeccable critique 2026-08-31, P2).
+
+              `key` đổi theo renalRelevantByDefault: Disclosure chốt open-state lúc mount, không tự
+              đổi sau đó — nếu không có key, mở ở tab Kháng sinh rồi sang tab thuốc truyền nó vẫn
+              đứng mở, đẩy danh sách thuốc xuống bằng ~300px "Độ thanh thải thận" vô nghĩa ở đó
+              (/impeccable critique 2026-08-31 lượt 2, P3). Đổi key -> remount -> áp lại defaultOpen
+              đúng nhóm; trong cùng một nhóm key ổn định nên thao tác gấp/mở tay vẫn giữ. */}
           <Disclosure
+            key={renalRelevantByDefault ? "renal-open" : "renal-collapsed"}
             label="Creatinin · CrCl · Độ thanh thải thận"
             alert={!crclUsable}
-            defaultOpen={renalRelevantByDefault || patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
+            // Tab Kháng sinh: LUÔN mở (màn "theo CrCl" xoay quanh ô này). Tab thuốc truyền: mặc định
+            // GẤP kể cả khi đã nhập creatinin — 9 nhóm đó chỉnh liều theo đáp ứng/cân nặng, khối
+            // "Độ thanh thải thận" 296px chỉ đẩy danh sách thuốc xuống (/impeccable critique
+            // 2026-08-31 lượt 2, P3). Chỉ RRT/AKI (tín hiệu "bệnh nhân đang lọc máu", đáng thấy ở
+            // mọi tab) mới tự mở trên các tab đó.
+            defaultOpen={renalRelevantByDefault || patient.rrt !== "none" || patient.akiUnstable}
           >
             <PatientField label="Creatinin">
               {/* flex-wrap + min-w-[96px]: trên máy hẹp (iPhone SE, hoặc cỡ chữ hệ thống lớn), ô nhập
@@ -6866,6 +6838,8 @@ function VialCountWarning({ grade, show, onConfirm }: { grade: VialCountGrade; s
 // công tắc (trước đây công tắc xanh nằm trong ô hổ phách — trộn tín hiệu chrome/an toàn, phạm
 // Decoration/Diagnosis Split). Làm tròn nhỏ (≤1,3×) thì giữ nguyên nếp cũ: một công tắc toàn cục.
 function ToggleSwitch({ on, onToggle, ariaLabel }: { on: boolean; onToggle: () => void; ariaLabel: string }) {
+  // Nút cao 44px cho đủ ngưỡng chạm (/impeccable critique 2026-08-31, P2); rãnh công tắc nhìn thấy
+  // vẫn 52×32 theo quy ước iOS, căn giữa trong vùng chạm.
   return (
     <button
       role="switch"
@@ -6875,10 +6849,10 @@ function ToggleSwitch({ on, onToggle, ariaLabel }: { on: boolean; onToggle: () =
         onToggle()
         tickHaptic()
       }}
-      className="flex-none w-[52px] h-8 rounded-full relative transition-colors"
-      style={{ background: on ? "var(--c-accent)" : "var(--c-line-strong)" }}
+      className="flex-none w-[52px] h-11 flex items-center justify-center relative"
     >
-      <span className="absolute top-1 w-6 h-6 rounded-full transition-all" style={{ left: on ? 24 : 4, background: "var(--c-surface)" }} />
+      <span className="w-[52px] h-8 rounded-full transition-colors" style={{ background: on ? "var(--c-accent)" : "var(--c-line-strong)" }} />
+      <span className="absolute w-6 h-6 rounded-full transition-all" style={{ top: 10, left: on ? 24 : 4, background: "var(--c-surface)" }} />
     </button>
   )
 }
@@ -6891,6 +6865,7 @@ function RoundingControl({
   setUseHeavyRoundUp,
   excess,
   delivered,
+  calcTarget,
   roundedUpDelivered,
   roundedUpExcess,
   unit,
@@ -6904,7 +6879,10 @@ function RoundingControl({
   // excess/delivered của con số ĐANG hiển thị (usageDown khi chưa opt-in, usageUp khi đã opt-in).
   excess: number
   delivered: number
-  // Con số NẾU làm tròn lên — để nói "bật sẽ thành bao nhiêu" khi đang hiện liều tính được.
+  // Đích dược lý (mg/kg × cân nặng, đã cắt ngưỡng) — "liều tính được" CHỈ được gọi tên cho con số
+  // này, không bao giờ cho giá trị đã làm tròn (/impeccable critique 2026-08-31, P1: nhãn va chạm).
+  calcTarget: number | null
+  // Con số NẾU làm tròn lên — để nói "bật sẽ thành bao nhiêu" khi đang hiện liều làm tròn xuống.
   roundedUpDelivered: number | null
   roundedUpExcess: number | null
   unit: string
@@ -6943,7 +6921,9 @@ function RoundingControl({
         <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>
           {useHeavyRoundUp
             ? `Đang làm tròn lên cho thuốc này — thực nhận ${formatDoseNumber(delivered)} ${unit}, gấp ${trim(excess, 2)} lần liều tính được. Rút bớt dịch pha để bỏ phần dư.`
-            : `Làm tròn lên cho thuốc này sẽ cho thực nhận ${roundedUpDelivered != null ? formatDoseNumber(roundedUpDelivered) : "—"} ${unit}${roundedUpExcess != null ? `, gấp ${trim(roundedUpExcess, 2)} lần` : ""} liều tính được. Đang hiển thị LIỀU TÍNH ĐƯỢC — ${formatDoseNumber(delivered)} ${unit}, trong khoảng khuyến cáo.`}
+            : `Đang hiển thị liều theo mức làm tròn xuống — ${formatDoseNumber(delivered)} ${unit}${
+                calcTarget != null && calcTarget - delivered > 0.5 ? ` (thiếu ${formatDoseNumber(calcTarget - delivered)} ${unit} so với đích ${formatDoseNumber(calcTarget)})` : ""
+              }. Làm tròn lên cho thuốc này sẽ thành ${roundedUpDelivered != null ? formatDoseNumber(roundedUpDelivered) : "—"} ${unit}${roundedUpExcess != null ? `, gấp ${trim(roundedUpExcess, 2)} lần đích` : ""}.`}
         </p>
       </div>
       <div className="px-2.5 py-2 rounded-[14px]" style={{ background: neutral.bg, border: `1px solid ${neutral.border}` }}>
@@ -6959,7 +6939,7 @@ function RoundingControl({
         </div>
         <button
           onClick={() => setGlobalOn(false)}
-          className="text-[12px] font-semibold underline mt-1 leading-[1.45] text-left"
+          className="text-[12px] font-semibold underline leading-[1.45] text-left min-h-[44px] flex items-center"
           style={{ color: neutral.text }}
         >
           Tắt làm tròn lên cho mọi thuốc
@@ -8471,14 +8451,17 @@ function AntibioticDoseCard({
 
       <p className={T.body} style={{ color: "var(--c-text-2)" }} dangerouslySetInnerHTML={{ __html: highlightDoseNumbers(tier.dose) }} />
 
-      {/* Nhân sẵn mg/kg × cân nặng — phần trước đây bắt người dùng tự nhẩm */}
+      {/* Nhân sẵn mg/kg × cân nặng — DÒNG SUY DIỄN, không phải câu trả lời: nền/chữ trung tính
+          (--c-surface-alt / --c-text-2), không màu thương hiệu. Con số bệnh nhân THỰC NHẬN nằm ở
+          khối "Cách dùng" bên dưới với cỡ lớn hơn (/impeccable critique 2026-08-31, P2:
+          Decoration/Diagnosis Split — kết quả tính đọc bằng --c-text, không --c-primary). */}
       {perKgDoses.length > 0 && (
         <div
           className="mt-1.5 px-2.5 py-2 rounded-[14px]"
           style={
             weightImplausible
               ? { background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-icon)" }
-              : { background: "var(--c-accent-soft)", border: "1px solid var(--c-accent-line)" }
+              : { background: "var(--c-surface-alt)", border: "1px solid var(--c-line)" }
           }
         >
           {weightImplausible ? (
@@ -8495,7 +8478,7 @@ function AntibioticDoseCard({
           ) : dosingWeight.used != null ? (
             <>
               {perKgDoses.map((d, i) => (
-                <p key={i} className="text-[12px] leading-[1.45]" style={{ color: "var(--c-accent-deep)" }}>
+                <p key={i} className="text-[12px] leading-[1.45]" style={{ color: "var(--c-text-2)" }}>
                   <b className={NUM_DOSE}>{d.raw}</b> × <b className={NUM_DOSE}>{dosingWeight.used?.toFixed(1)}</b> kg
                   {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b className={NUM_DOSE}>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
                 </p>
@@ -8513,7 +8496,7 @@ function AntibioticDoseCard({
                   "Cách dùng"/gợi ý số lọ bên dưới cần) lại "theo nồng độ đo được" — không có con số
                   cố định để làm tròn. Nói rõ NGAY DƯỚI con số đó thay vì vẫn hứa "còn phải làm tròn"
                   rồi để "Cách dùng"/gợi ý số lọ lặng lẽ biến mất phía dưới không giải thích. */}
-              <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: notComputableDose ? "var(--c-warn)" : "var(--c-accent)" }}>
+              <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: notComputableDose ? "var(--c-warn)" : "var(--c-text-soft)" }}>
                 {notComputableDose
                   ? "Đây là liều NẠP — liều DUY TRÌ phải cá thể hoá theo nồng độ đo được, không có con số cố định để tự tính số lọ/ống hay \"Cách dùng\"."
                   : doseCapText
@@ -8546,18 +8529,21 @@ function AntibioticDoseCard({
         autoUsage &&
         !vialGuard.blocked && (
           <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary-line)" }}>
-            {/* Con số bác sĩ/điều dưỡng THẬT SỰ hành động theo (lượng rút ra sau làm tròn) hiện ở
-                cỡ mono-dose ngang với con số tính được — trước đây chỉ nằm chìm trong câu "rút X mL
-                = Y mg" 12px, thẻ có thể hiện hai "liều" khác nhau ở cái nhìn nguy hiểm nhất
-                (/impeccable critique 2026-08-31, P1). Chỉ hiện khi làm tròn tạo ra chênh lệch thật
-                (excess > 1,001) — khớp đúng thì con số trong câu đã đủ. */}
-            {!autoUsage.insufficient && autoUsage.excess > 1.001 && doseTargetMg && (
-              <p className="text-[12px] leading-[1.45] mb-1" style={{ color: "var(--c-text-soft)" }}>
-                Thực nhận{" "}
-                <b className={NUM_DOSE} style={{ color: "var(--c-text)" }}>
+            {/* Con số bệnh nhân THỰC NHẬN mở đầu khối, cỡ mono-dose 16px — figure to nhất trên thẻ
+                (hộp suy diễn "7.5 × 70 = 525" phía trên đã hạ xuống --c-text-2 12px). LUÔN hiện khi
+                đọc được liều (không chỉ khi có chênh lệch): người đọc vội cần đúng một con số để đưa
+                cho điều dưỡng (/impeccable critique 2026-08-31, P2). Kèm "đích Y" khi lệch >0,5. */}
+            {!autoUsage.insufficient && doseTargetMg && (
+              <p className="text-[13px] font-bold leading-[1.4] mb-1.5" style={{ color: "var(--c-text)" }}>
+                Cho{" "}
+                <b className={NUM_DOSE} style={{ fontSize: "16px" }}>
                   {formatDoseNumber(autoUsage.deliveredDose)} {doseTargetMg.unit}
-                </b>{" "}
-                · tính được <span className={NUM}>{formatDoseNumber(doseTargetMg.high ?? doseTargetMg.low)}</span> {doseTargetMg.unit}
+                </b>
+                {Math.abs(autoUsage.deliveredDose - (doseTargetMg.high ?? doseTargetMg.low)) > 0.5 && (
+                  <span className="font-normal text-[12px]" style={{ color: "var(--c-text-soft)" }}>
+                    {" "}· đích <span className={NUM}>{formatDoseNumber(doseTargetMg.high ?? doseTargetMg.low)}</span> {doseTargetMg.unit}
+                  </span>
+                )}
               </p>
             )}
             {/* Đây là hướng dẫn rút thuốc thật — điểm kiểm tra cuối trước khi kim chạm vào lọ —
@@ -8595,6 +8581,7 @@ function AntibioticDoseCard({
           setUseHeavyRoundUp={setUseHeavyRoundUp}
           excess={autoUsage.excess}
           delivered={autoUsage.deliveredDose}
+          calcTarget={doseTargetMg ? (doseTargetMg.high ?? doseTargetMg.low) : null}
           roundedUpDelivered={usageUp && !("insufficient" in usageUp) ? usageUp.deliveredDose : null}
           roundedUpExcess={usageUp && !("insufficient" in usageUp) ? usageUp.excess : null}
           unit={doseTargetMg?.unit ?? "mg"}
@@ -11867,25 +11854,34 @@ export function DungThuocScreen({
           </button>
         </div>
       )}
-      {/* Gợi ý một lần cho nút Tìm, biến mất vĩnh viễn khi mở ô tìm hoặc bấm "Đã hiểu". */}
+      {/* Gợi ý một lần cho nút "Tìm" — MỘT DÒNG chữ mờ ngay dưới hàng tab, không viền/nền/nút, không
+          màu thương hiệu: trước đây là banner primarySoft + nút "Đã hiểu" — thứ TO NHẤT trên màn
+          rỗng, đè lên nội dung lâm sàng (/impeccable critique 2026-08-31, P2). Tự biến mất vĩnh viễn
+          khi người dùng mở ô Tìm lần đầu (dismissTabHint trong onClick nút Tìm). */}
       {showTabHint && (
-        <div
-          className="fade-in flex-none mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-[14px]"
-          style={{ background: C.primarySoft, border: `1px solid ${C.primaryLine}` }}
-        >
-          <p className={`${T.meta} flex-1`} style={{ color: C.primary }}>
-            Không thấy thuốc cần tìm trong {MIXING_TABS.length} nhóm? Bấm "Tìm" ở trên để tìm xuyên tất cả.
-          </p>
-          <button onClick={dismissTabHint} className={`flex-none h-11 px-3 ${R.pill} dose-press text-[12px] font-bold`} style={{ background: C.primary, color: "var(--c-on-bright)" }}>
-            Đã hiểu
+        <p className="fade-in flex-none mx-5 mb-2 text-[11px] leading-[1.4]" style={{ color: C.textSoft }}>
+          Không thấy thuốc trong {MIXING_TABS.length} nhóm?{" "}
+          <button
+            onClick={() => {
+              setSearchOpen(true)
+              setGlobalQuery("")
+              dismissTabHint()
+            }}
+            className="underline font-semibold"
+            style={{ color: C.textSoft }}
+          >
+            Tìm xuyên tất cả
           </button>
-        </div>
+        </p>
       )}
       {/* Một vùng cuộn duy nhất cho cả khung bệnh nhân, bảng Đang truyền và danh sách thuốc —
           để khung bệnh nhân cuộn đi được thay vì chiếm chỗ cố định trên màn hình điện thoại. */}
       <div ref={scrollRef} className="scroll-ios flex-1">
-        <DisclaimerBar />
-        <PatientPanel open={patientOpen} onToggle={() => setPatientOpen((v) => !v)} renalRelevantByDefault={tab === "antibiotics"} />
+        <PatientPanel
+          open={patientOpen}
+          onToggle={() => setPatientOpen((v) => !v)}
+          renalRelevantByDefault={tab === "antibiotics"}
+        />
         <RunningPanel />
         <div
           key={`${tab}-${jumpKey}`}
