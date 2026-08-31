@@ -1293,68 +1293,81 @@ export function DanhSachBang({
           </div>
         </div>
       )}
-      {daXoaGanDay.length > 0 && (
-        <div style={{ padding: '4px 20px 0' }}>
+      {daXoaGanDay.length > 0 && (() => {
+        // Ô "Đã xoá gần đây" là lưới an toàn PHỤ, nằm dưới lưới bảng thật về mặt ưu tiên — nên nó phải
+        // ĐỌC RA là một khay để-riêng, không phải một bảng dữ liệu ngang hàng. Toàn bộ (tiêu đề + hành
+        // động + danh sách) gói trong MỘT khay --c-surface-alt bo góc, tách rõ khỏi ô tìm ở trên và
+        // dải chip ở dưới bằng lề rộng; các dòng bên trong để phẳng, chỉ ngăn nhau bằng đường mảnh —
+        // thay cho ngăn xếp thẻ pill giống hệt nhau trước đây (đọc thành bảng admin, hành động bị đẩy
+        // ra tận mép phải cách tên bảng cả một khoảng chết).
+        const chevron = (
+          <svg
+            width="11" height="11" viewBox="0 0 12 12" aria-hidden="true" focusable="false"
+            style={{ flexShrink: 0, transition: 'transform .18s cubic-bezier(0.34, 1.4, 0.64, 1)', transform: hienDaXoaGanDay ? 'rotate(90deg)' : 'none' }}
+          >
+            <path d="M4 2.4 8 6l-4 3.6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )
+        // Cùng nút toggle dùng ở CẢ hai trạng thái (thu gọn: đứng một mình; mở: là tiêu đề của khay).
+        const toggle = (
           <button
             type="button"
             data-testid="mo-da-xoa-gan-day"
             onClick={() => setHienDaXoaGanDay(!hienDaXoaGanDay)}
             className="mind-focus-ring"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 44,
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'var(--c-text-muted, #6b6e96)',
-              background: 'none',
-              border: 0,
-              padding: '4px 2px',
-              borderRadius: 4,
+              display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 32,
+              fontSize: 12.5, fontWeight: 700, color: 'var(--c-text-soft, #454870)',
+              background: 'none', border: 0, padding: '2px 2px', borderRadius: 6,
             }}
             aria-expanded={hienDaXoaGanDay}
           >
-            {hienDaXoaGanDay ? '▾' : '▸'} Đã xoá gần đây ({daXoaGanDay.length})
+            {chevron}
+            <span>Đã xoá gần đây</span>
+            <span style={{ fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>({daXoaGanDay.length})</span>
           </button>
-          {hienDaXoaGanDay && (() => {
-            // Rút gọn RUT_GON_DA_XOA dòng mới nhất; "Xem tất cả" mở toàn bộ + ô tìm + cuộn trong hộp.
-            const daLoc = xemTatCaDaXoa
-              ? daXoaGanDay.filter((b) => bangKhopTimKiem(b, timDaXoa))
-              : daXoaGanDay
-            const hienThi = xemTatCaDaXoa ? daLoc : daXoaGanDay.slice(0, RUT_GON_DA_XOA)
-            const soChon = chonDaXoa.size
-            const conAn = daXoaGanDay.length - RUT_GON_DA_XOA
-            // "Chọn tất cả" thao tác trên `daLoc` (ở chế độ rút gọn = TOÀN BỘ bảng đã xoá, không
-            // phải 4 dòng đang hiện; ở "Xem tất cả" = tập đã lọc theo ô tìm) — đúng nghĩa "xoá hết
-            // tất cả bảng" mà không phải tự tay tick từng ô. Đã chọn hết thì nút lật thành "Bỏ chọn".
-            const tatCaDaChon = daLoc.length > 0 && daLoc.every((b) => chonDaXoa.has(b.id))
-            const nutPhu: React.CSSProperties = {
-              minHeight: 40, padding: '4px 10px', fontSize: 12, fontWeight: 700,
-              borderRadius: 9999, border: 0, background: 'none', whiteSpace: 'nowrap',
-            }
-            return (
-              <div style={{ marginTop: 6, marginBottom: 8 }}>
-                {/* Ô tìm — CHỈ ở chế độ "Xem tất cả" (tìm trong ≤4 dòng rút gọn là thừa). type=search
-                    dùng chung khuôn với các ô tìm khác của app (index.css bỏ appearance + nút xoá OS). */}
-                {xemTatCaDaXoa && (
-                  <input
-                    type="search"
-                    data-testid="tim-da-xoa"
-                    value={timDaXoa}
-                    onChange={(e) => setTimDaXoa(e.target.value)}
-                    placeholder="Tìm trong bảng đã xoá…"
-                    aria-label="Tìm trong bảng đã xoá"
-                    className="mind-focus-ring"
-                    style={{
-                      width: '100%', marginBottom: 6, padding: '8px 12px', borderRadius: 8,
-                      border: '1px solid var(--c-line, #d9ddf4)', background: 'var(--c-surface, #fff)',
-                      color: 'var(--c-text, #12142b)',
-                    }}
-                  />
-                )}
+        )
 
-                {/* "Chọn tất cả / Bỏ chọn tất cả" — cùng khuôn nút-chữ mờ với "Xem tất cả"/"Thu gọn".
-                    Hiện khi có >1 bảng đã xoá (1 bảng thì tick thẳng ô nhanh hơn). Ở chế độ rút gọn,
+        if (!hienDaXoaGanDay) {
+          return <div style={{ padding: '6px 20px 0' }}>{toggle}</div>
+        }
+
+        // Rút gọn RUT_GON_DA_XOA dòng mới nhất; "Xem tất cả" mở toàn bộ + ô tìm + cuộn trong hộp.
+        const daLoc = xemTatCaDaXoa
+          ? daXoaGanDay.filter((b) => bangKhopTimKiem(b, timDaXoa))
+          : daXoaGanDay
+        const hienThi = xemTatCaDaXoa ? daLoc : daXoaGanDay.slice(0, RUT_GON_DA_XOA)
+        const soChon = chonDaXoa.size
+        const conAn = daXoaGanDay.length - RUT_GON_DA_XOA
+        // "Chọn tất cả" thao tác trên `daLoc` (ở chế độ rút gọn = TOÀN BỘ bảng đã xoá, không phải 4
+        // dòng đang hiện; ở "Xem tất cả" = tập đã lọc theo ô tìm) — đúng nghĩa "xoá hết tất cả bảng"
+        // mà không phải tự tay tick từng ô. Đã chọn hết thì nút lật thành "Bỏ chọn".
+        const tatCaDaChon = daLoc.length > 0 && daLoc.every((b) => chonDaXoa.has(b.id))
+        const nutPhu: React.CSSProperties = {
+          minHeight: 34, padding: '4px 10px', fontSize: 12, fontWeight: 700,
+          borderRadius: 9999, border: 0, background: 'none', whiteSpace: 'nowrap',
+        }
+        const nutFooter: React.CSSProperties = {
+          display: 'block', width: '100%', textAlign: 'left', minHeight: 34,
+          marginTop: 8, paddingTop: 8,
+          borderWidth: 0, borderTopWidth: 1, borderStyle: 'solid',
+          borderColor: 'var(--c-line-soft, #e9ebf9)', background: 'none',
+          fontSize: 12, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)',
+        }
+
+        return (
+          <div style={{ padding: '10px 20px 4px' }}>
+            <div
+              style={{
+                maxWidth: 560, borderRadius: 12, background: 'var(--c-surface-alt, #f6f7fd)',
+                padding: '6px 12px 12px',
+              }}
+            >
+              {/* Tiêu đề khay: toggle bên trái, "Chọn tất cả" bên phải — MỘT hàng, thay cho ba dòng
+                  chữ xám 12px xếp chồng trước đây (tiêu đề / chọn tất cả / xem tất cả nhìn y hệt nhau). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34 }}>
+                {toggle}
+                {/* Hiện khi có >1 bảng đã xoá (1 bảng thì tick thẳng ô nhanh hơn). Ở chế độ rút gọn,
                     bấm chọn hết cũng MỞ LUÔN "Xem tất cả" nếu còn dòng bị giấu — để người dùng thấy
                     đúng những gì vừa chọn thay vì dải "N đã chọn" trong khi chỉ 4 ô tick hiện ra. */}
                 {daLoc.length > 1 && (
@@ -1372,174 +1385,200 @@ export function DanhSachBang({
                     }}
                     className="mind-focus-ring"
                     style={{
-                      display: 'inline-flex', alignItems: 'center', minHeight: 36,
-                      marginBottom: 6, padding: '4px 2px', fontSize: 12, fontWeight: 600,
-                      color: 'var(--c-text-muted, #6b6e96)', background: 'none', border: 0,
+                      marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: 30,
+                      padding: '4px 6px', fontSize: 12, fontWeight: 600,
+                      color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, whiteSpace: 'nowrap',
                     }}
                   >
                     {tatCaDaChon ? 'Bỏ chọn tất cả' : `Chọn tất cả (${daLoc.length})`}
                   </button>
                 )}
+              </div>
 
-                {/* Dải hành động hàng loạt — chỉ khi có ≥1 tích chọn. Bước xác nhận đỏ theo Untouchable
-                    Signal Rule của DESIGN.md: nền/chữ họ --c-danger-*, PHẲNG, không bounce/glow. */}
-                {soChon > 0 && (
-                  <div
-                    data-testid="dai-chon-da-xoa"
-                    style={{
-                      marginBottom: 6, borderRadius: 8, padding: '8px 10px',
-                      background: xacNhanXoaVinhVien
-                        ? 'var(--c-danger-soft, #fef2f2)'
-                        : 'var(--c-primary-soft, #eceefa)',
-                    }}
-                  >
-                    {xacNhanXoaVinhVien ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'var(--c-danger-deep, #991b1b)' }}>
-                          Xoá vĩnh viễn {soChon} bảng? Không khôi phục lại được.
-                        </span>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            type="button"
-                            onClick={() => setXacNhanXoaVinhVien(false)}
-                            className="mind-focus-ring"
-                            style={{ ...nutPhu, color: 'var(--c-text-muted, #6b6e96)' }}
-                          >
-                            Huỷ
-                          </button>
-                          <button
-                            type="button"
-                            data-testid="xoa-vinh-vien-chon"
-                            onClick={() => xoaVinhVienNhieu(chonDaXoa)}
-                            className="mind-focus-ring"
-                            style={{ ...nutPhu, padding: '4px 14px', background: 'var(--c-danger, #b91c1c)', color: 'var(--c-on-bright, #fff)' }}
-                          >
-                            Xoá vĩnh viễn
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ flex: 1, minWidth: 70, fontSize: 12, fontWeight: 700, color: 'var(--c-text-soft, #454870)' }}>
-                          {soChon} đã chọn
-                        </span>
+              {/* Ô tìm — CHỈ ở chế độ "Xem tất cả" (tìm trong ≤4 dòng rút gọn là thừa). type=search
+                  dùng chung khuôn với các ô tìm khác của app (index.css bỏ appearance + nút xoá OS). */}
+              {xemTatCaDaXoa && (
+                <input
+                  type="search"
+                  data-testid="tim-da-xoa"
+                  value={timDaXoa}
+                  onChange={(e) => setTimDaXoa(e.target.value)}
+                  placeholder="Tìm trong bảng đã xoá…"
+                  aria-label="Tìm trong bảng đã xoá"
+                  className="mind-focus-ring"
+                  style={{
+                    width: '100%', marginTop: 8, marginBottom: 2, padding: '8px 12px', borderRadius: 8,
+                    border: '1px solid var(--c-line, #d9ddf4)', background: 'var(--c-surface, #fff)',
+                    color: 'var(--c-text, #12142b)',
+                  }}
+                />
+              )}
+
+              {/* Dải hành động hàng loạt — chỉ khi có ≥1 tích chọn. Không tô nền pill riêng (đọc thành
+                  "một dòng nữa"); chỉ đường kẻ mảnh trên/dưới + hành động XÚM sát nhãn "N đã chọn",
+                  không đẩy ra mép. Bước xác nhận đỏ giữ nền --c-danger-soft theo Untouchable Signal
+                  Rule của DESIGN.md: PHẲNG, không bounce/glow — đây là khoảnh khắc phá huỷ thật. */}
+              {soChon > 0 && (
+                <div
+                  data-testid="dai-chon-da-xoa"
+                  style={
+                    xacNhanXoaVinhVien
+                      ? { margin: '8px 0 2px', borderRadius: 8, padding: '8px 10px', background: 'var(--c-danger-soft, #fef2f2)' }
+                      : { margin: '6px 0 2px', padding: '8px 0', borderTop: '1px solid var(--c-line-soft, #e9ebf9)', borderBottom: '1px solid var(--c-line-soft, #e9ebf9)' }
+                  }
+                >
+                  {xacNhanXoaVinhVien ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: 'var(--c-danger-deep, #991b1b)' }}>
+                        Xoá vĩnh viễn {soChon} bảng? Không khôi phục lại được.
+                      </span>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         <button
                           type="button"
-                          data-testid="khoi-phuc-chon"
-                          onClick={() => khoiPhucNhieu(chonDaXoa)}
+                          onClick={() => setXacNhanXoaVinhVien(false)}
                           className="mind-focus-ring"
-                          style={{ ...nutPhu, color: 'var(--c-accent-2, #b8196f)' }}
+                          style={{ ...nutPhu, color: 'var(--c-text-muted, #6b6e96)' }}
                         >
-                          Khôi phục
+                          Huỷ
                         </button>
                         <button
                           type="button"
-                          data-testid="hoi-xoa-vinh-vien"
-                          onClick={() => setXacNhanXoaVinhVien(true)}
+                          data-testid="xoa-vinh-vien-chon"
+                          onClick={() => xoaVinhVienNhieu(chonDaXoa)}
                           className="mind-focus-ring"
-                          style={{ ...nutPhu, color: 'var(--c-danger, #b91c1c)' }}
+                          style={{ ...nutPhu, padding: '4px 14px', background: 'var(--c-danger, #b91c1c)', color: 'var(--c-on-bright, #fff)' }}
                         >
                           Xoá vĩnh viễn
                         </button>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    display: 'flex', flexDirection: 'column', gap: 4,
-                    ...(xemTatCaDaXoa ? { maxHeight: 240, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : null),
-                  }}
-                >
-                  {hienThi.map((b) => {
-                    const daChon = chonDaXoa.has(b.id)
-                    return (
-                      <div
-                        key={b.id}
-                        data-testid={`da-xoa-gan-day-${b.id}`}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '4px 6px 4px 4px', borderRadius: 8,
-                          background: daChon ? 'var(--c-primary-soft, #eceefa)' : 'var(--c-surface-alt, #f6f7fd)',
-                        }}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                      <span style={{ flexShrink: 0, marginRight: 4, fontSize: 12, fontWeight: 700, color: 'var(--c-text-soft, #454870)' }}>
+                        {soChon} đã chọn
+                      </span>
+                      <button
+                        type="button"
+                        data-testid="khoi-phuc-chon"
+                        onClick={() => khoiPhucNhieu(chonDaXoa)}
+                        className="mind-focus-ring"
+                        style={{ ...nutPhu, color: 'var(--c-accent-2, #b8196f)' }}
                       >
-                        {/* Vùng chạm 40px quanh checkbox 17px — ngón cái không cần nhắm. */}
-                        <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 40, minHeight: 40, flexShrink: 0, cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            data-testid={`chon-da-xoa-${b.id}`}
-                            checked={daChon}
-                            onChange={() => chuyenChon(b.id)}
-                            aria-label={`Chọn bảng ${b.ten}`}
-                            style={{ width: 17, height: 17, accentColor: 'var(--c-primary, #2d3a94)' }}
-                          />
-                        </label>
-                        {/* Chấm màu ổn định theo id — cùng chấm với lưới chính, phân biệt hai bảng
-                            trùng tên "Bảng chưa đặt tên" TRƯỚC khi bấm nhầm (critique lượt 3). */}
-                        <span
-                          aria-hidden="true"
-                          style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: `hsl(${mauOnDinh(b.id)} var(--chip-s) var(--chip-l))` }}
-                        />
-                        <span style={{ flex: 1, fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {b.ten}
-                        </span>
-                        {/* Nút "Hoàn tác" từng-dòng chỉ khi CHƯA chọn gì — có tích chọn thì dải hàng
-                            loạt ở trên tiếp quản, hai đường phục hồi song song là nhiễu. --c-accent-2
-                            đồng ngôn ngữ màu với nút Hoàn tác ở toast (critique 2026-08-26 P2). */}
-                        {soChon === 0 && (
-                          <button
-                            type="button"
-                            data-testid={`hoan-tac-gan-day-${b.id}`}
-                            onClick={() => khoiPhucBang(b)}
-                            className="mind-focus-ring"
-                            style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, fontSize: 12, fontWeight: 600, color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, padding: '4px 6px', whiteSpace: 'nowrap' }}
-                          >
-                            Hoàn tác
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                  {xemTatCaDaXoa && daLoc.length === 0 && (
-                    <p style={{ fontSize: 12, color: 'var(--c-text-muted, #6b6e96)', padding: '8px 6px', margin: 0 }}>
-                      Không có bảng đã xoá nào khớp “{timDaXoa}”.
-                    </p>
+                        Khôi phục
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="hoi-xoa-vinh-vien"
+                        onClick={() => setXacNhanXoaVinhVien(true)}
+                        className="mind-focus-ring"
+                        style={{ ...nutPhu, color: 'var(--c-danger, #b91c1c)' }}
+                      >
+                        Xoá vĩnh viễn
+                      </button>
+                    </div>
                   )}
                 </div>
+              )}
 
-                {!xemTatCaDaXoa && conAn > 0 && (
-                  <button
-                    type="button"
-                    data-testid="xem-tat-ca-da-xoa"
-                    onClick={() => setXemTatCaDaXoa(true)}
-                    className="mind-focus-ring"
-                    style={{ minHeight: 40, marginTop: 2, padding: '4px 2px', fontSize: 12, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', background: 'none', border: 0 }}
-                  >
-                    Xem tất cả ({daXoaGanDay.length}) →
-                  </button>
-                )}
-                {xemTatCaDaXoa && (
-                  <button
-                    type="button"
-                    data-testid="thu-gon-da-xoa"
-                    onClick={() => {
-                      setXemTatCaDaXoa(false)
-                      setTimDaXoa('')
-                      setChonDaXoa(new Set())
-                      setXacNhanXoaVinhVien(false)
-                    }}
-                    className="mind-focus-ring"
-                    style={{ minHeight: 40, marginTop: 2, padding: '4px 2px', fontSize: 12, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)', background: 'none', border: 0 }}
-                  >
-                    Thu gọn
-                  </button>
+              <div
+                style={{
+                  marginTop: 6,
+                  ...(xemTatCaDaXoa ? { maxHeight: 240, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } : null),
+                }}
+              >
+                {hienThi.map((b, i) => {
+                  const daChon = chonDaXoa.has(b.id)
+                  return (
+                    <div
+                      key={b.id}
+                      data-testid={`da-xoa-gan-day-${b.id}`}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 4px',
+                        borderTop: i === 0 ? 'none' : '1px solid var(--c-line-soft, #e9ebf9)',
+                        background: daChon ? 'var(--c-primary-soft, #eceefa)' : 'transparent',
+                      }}
+                    >
+                      {/* Vùng chạm 34px quanh checkbox 17px — vẫn xa ngưỡng WCAG 2.5.8 (24px), gọn hơn
+                          gutter 40px cũ vốn đọc thành một khoảng trống rộng trước một ô tí xíu. */}
+                      <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 34, minHeight: 34, flexShrink: 0, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          data-testid={`chon-da-xoa-${b.id}`}
+                          checked={daChon}
+                          onChange={() => chuyenChon(b.id)}
+                          aria-label={`Chọn bảng ${b.ten}`}
+                          style={{ width: 17, height: 17, accentColor: 'var(--c-primary, #2d3a94)' }}
+                        />
+                      </label>
+                      {/* Chấm màu ổn định theo id ÔM SÁT tên (cùng nhóm flex, gap 6) — phân biệt hai
+                          bảng trùng tên "Bảng chưa đặt tên" trước khi bấm nhầm (critique lượt 3) mà
+                          không còn trôi lửng giữa checkbox và tên. Cả cụm tên co được (flex 0 1 auto),
+                          "Hoàn tác" đứng NGAY sau, khoảng trống dồn về bên phải — không bắt mắt băng
+                          qua một khoảng chết như bố cục justify-between cũ. */}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '0 1 auto', minWidth: 0 }}>
+                        <span
+                          aria-hidden="true"
+                          style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: `hsl(${mauOnDinh(b.id)} var(--chip-s) var(--chip-l))` }}
+                        />
+                        <span style={{ minWidth: 0, fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {b.ten}
+                        </span>
+                      </span>
+                      {/* "Hoàn tác" từng-dòng chỉ khi CHƯA chọn gì — có tích chọn thì dải hàng loạt ở
+                          trên tiếp quản. --c-accent-2 đồng ngôn ngữ màu với nút Hoàn tác ở toast
+                          (critique 2026-08-26 P2); weight 600 để bốn dòng không hét lên cùng lúc. */}
+                      {soChon === 0 && (
+                        <button
+                          type="button"
+                          data-testid={`hoan-tac-gan-day-${b.id}`}
+                          onClick={() => khoiPhucBang(b)}
+                          className="mind-focus-ring"
+                          style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', minHeight: 32, fontSize: 12, fontWeight: 600, color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, padding: '4px 6px', whiteSpace: 'nowrap' }}
+                        >
+                          Hoàn tác
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+                {xemTatCaDaXoa && daLoc.length === 0 && (
+                  <p style={{ fontSize: 12, color: 'var(--c-text-muted, #6b6e96)', padding: '8px 4px', margin: 0 }}>
+                    Không có bảng đã xoá nào khớp “{timDaXoa}”.
+                  </p>
                 )}
               </div>
-            )
-          })()}
-        </div>
-      )}
+
+              {!xemTatCaDaXoa && conAn > 0 && (
+                <button
+                  type="button"
+                  data-testid="xem-tat-ca-da-xoa"
+                  onClick={() => setXemTatCaDaXoa(true)}
+                  className="mind-focus-ring"
+                  style={nutFooter}
+                >
+                  Xem tất cả ({daXoaGanDay.length}) →
+                </button>
+              )}
+              {xemTatCaDaXoa && (
+                <button
+                  type="button"
+                  data-testid="thu-gon-da-xoa"
+                  onClick={() => {
+                    setXemTatCaDaXoa(false)
+                    setTimDaXoa('')
+                    setChonDaXoa(new Set())
+                    setXacNhanXoaVinhVien(false)
+                  }}
+                  className="mind-focus-ring"
+                  style={nutFooter}
+                >
+                  Thu gọn
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })()}
       {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn
           vào danh sách đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
