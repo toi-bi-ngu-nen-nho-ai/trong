@@ -36,7 +36,8 @@ export const DOSE_OK: DoseCheck = { severity: "ok", factor: null, headline: null
 
 function fmtFactor(f: number): string {
   if (f >= 10) return String(Math.round(f))
-  return f.toFixed(1).replace(/\.0$/, "")
+  // Dấu thập phân "," tiếng Việt (/impeccable critique 2026-08-31, P3).
+  return f.toFixed(1).replace(/\.0$/, "").replace(".", ",")
 }
 
 // So liều người dùng nhập (theo `unit` đang chọn) với khoảng liều khai báo của thuốc (theo `ownUnit`).
@@ -101,7 +102,7 @@ export function checkInfusionDose(
 
   if (inOwn > doseMax) {
     const factor = inOwn / doseMax
-    const asOwn = `${formatDoseNumber(inOwn)} ${ownUnit.id} · khoảng thường dùng ${doseMin}–${doseMax} ${ownUnit.id}`
+    const asOwn = `${formatDoseNumber(inOwn)} ${ownUnit.id} · khoảng thường dùng ${String(doseMin).replace(".", ",")}–${String(doseMax).replace(".", ",")} ${ownUnit.id}`
     return {
       severity: "above",
       factor,
@@ -115,7 +116,7 @@ export function checkInfusionDose(
 
   if (inOwn < doseMin && doseMin > 0) {
     const factor = doseMin / inOwn
-    const asOwn = `${formatDoseNumber(inOwn)} ${ownUnit.id} · khoảng khuyến cáo ${doseMin}–${doseMax} ${ownUnit.id}`
+    const asOwn = `${formatDoseNumber(inOwn)} ${ownUnit.id} · khoảng khuyến cáo ${String(doseMin).replace(".", ",")}–${String(doseMax).replace(".", ",")} ${ownUnit.id}`
     if (factor >= 10) {
       return {
         severity: "far-below",

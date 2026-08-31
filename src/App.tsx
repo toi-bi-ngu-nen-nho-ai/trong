@@ -5871,7 +5871,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
               )}
               {crclWeight.ibw != null && crclWeight.used != null && (
                 <p className={`${T.meta} ${NUM} truncate`} style={{ color: C.textSoft }}>
-                  IBW {crclWeight.ibw.toFixed(0)} kg · tính theo {crclWeight.usedLabel} {crclWeight.used.toFixed(1)} kg
+                  IBW {crclWeight.ibw.toFixed(0)} kg · tính theo {crclWeight.usedLabel} {crclWeight.used.toFixed(1).replace(".", ",")} kg
                 </p>
               )}
             </div>
@@ -6920,10 +6920,10 @@ function RoundingControl({
       <div className="px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
         <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>
           {useHeavyRoundUp
-            ? `Đang làm tròn lên cho thuốc này — thực nhận ${formatDoseNumber(delivered)} ${unit}, gấp ${trim(excess, 2)} lần liều tính được. Rút bớt dịch pha để bỏ phần dư.`
+            ? `Đang làm tròn lên cho thuốc này — thực nhận ${formatDoseNumber(delivered)} ${unit}, gấp ${trim(excess, 2).replace(".", ",")} lần liều tính được. Rút bớt dịch pha để bỏ phần dư.`
             : `Đang hiển thị liều theo mức làm tròn xuống — ${formatDoseNumber(delivered)} ${unit}${
                 calcTarget != null && calcTarget - delivered > 0.5 ? ` (thiếu ${formatDoseNumber(calcTarget - delivered)} ${unit} so với đích ${formatDoseNumber(calcTarget)})` : ""
-              }. Làm tròn lên cho thuốc này sẽ thành ${roundedUpDelivered != null ? formatDoseNumber(roundedUpDelivered) : "—"} ${unit}${roundedUpExcess != null ? `, gấp ${trim(roundedUpExcess, 2)} lần đích` : ""}.`}
+              }. Làm tròn lên cho thuốc này sẽ thành ${roundedUpDelivered != null ? formatDoseNumber(roundedUpDelivered) : "—"} ${unit}${roundedUpExcess != null ? `, gấp ${trim(roundedUpExcess, 2).replace(".", ",")} lần đích` : ""}.`}
         </p>
       </div>
       <div className="px-2.5 py-2 rounded-[14px]" style={{ background: neutral.bg, border: `1px solid ${neutral.border}` }}>
@@ -8342,7 +8342,7 @@ function AntibioticDoseCard({
       {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used != null && dosingWeight.heightMissingForBasis && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
           <p className={`text-[12px] font-bold ${PROSE}`} style={{ color: "var(--c-warn)" }}>
-            Thiếu chiều cao — đang tạm dùng cân nặng thực ({dosingWeight.used.toFixed(1)} kg) để tính liều này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
+            Thiếu chiều cao — đang tạm dùng cân nặng thực ({dosingWeight.used.toFixed(1).replace(".", ",")} kg) để tính liều này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
           </p>
         </div>
       )}
@@ -8479,7 +8479,7 @@ function AntibioticDoseCard({
             <>
               {perKgDoses.map((d, i) => (
                 <p key={i} className="text-[12px] leading-[1.45]" style={{ color: "var(--c-text-2)" }}>
-                  <b className={NUM_DOSE}>{d.raw}</b> × <b className={NUM_DOSE}>{dosingWeight.used?.toFixed(1)}</b> kg
+                  <b className={NUM_DOSE}>{d.raw}</b> × <b className={NUM_DOSE}>{dosingWeight.used?.toFixed(1).replace(".", ",")}</b> kg
                   {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} = <b className={NUM_DOSE}>{computePerKgText(d, dosingWeight.used)}</b> mỗi lần dùng
                 </p>
               ))}
@@ -8644,12 +8644,12 @@ function AntibioticDoseCard({
           {drug.doseWeightBasis && drug.doseWeightBasis !== "actual" && dosingWeight.used != null && dosingWeight.usedLabel && (
             <div className={showStandardDose ? "mb-2" : undefined}>
               <p className="text-[12px] font-bold" style={{ color: "var(--c-warn)" }}>
-                Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1)} kg
+                Liều mg/kg dùng {weightLabelVi[dosingWeight.usedLabel]}: {dosingWeight.used.toFixed(1).replace(".", ",")} kg
               </p>
               <p className="text-[12px] mt-0.5" style={{ color: "var(--c-warn-icon)" }}>
-                ABW {dosingWeight.abw?.toFixed(1)} kg
-                {dosingWeight.ibw != null && ` · IBW ${dosingWeight.ibw.toFixed(1)} kg`}
-                {dosingWeight.adjBw != null && ` · AdjBW ${dosingWeight.adjBw.toFixed(1)} kg`}
+                ABW {dosingWeight.abw?.toFixed(1)?.replace(".", ",")} kg
+                {dosingWeight.ibw != null && ` · IBW ${dosingWeight.ibw.toFixed(1).replace(".", ",")} kg`}
+                {dosingWeight.adjBw != null && ` · AdjBW ${dosingWeight.adjBw.toFixed(1).replace(".", ",")} kg`}
               </p>
             </div>
           )}
@@ -9268,7 +9268,7 @@ function BolusList({
       {doseWeightBasis && doseWeightBasis !== "actual" && weightKg != null && dosingWeight.heightMissingForBasis && hasPerKgBolus && (
         <div className="mb-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
           <p className={`text-[12px] font-bold ${PROSE}`} style={{ color: "var(--c-warn)" }}>
-            Thiếu chiều cao — đang tạm dùng cân nặng thực ({weightKg.toFixed(1)} kg) để tính liều nạp này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
+            Thiếu chiều cao — đang tạm dùng cân nặng thực ({weightKg.toFixed(1).replace(".", ",")} kg) để tính liều nạp này, chưa phải cân nặng lý tưởng/hiệu chỉnh thuốc yêu cầu.
           </p>
         </div>
       )}
@@ -10248,7 +10248,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
       <div aria-live="polite">
       {needWeight && weightKg != null && (
         <p className={`text-[12px] mb-2 px-2.5 py-1.5 rounded-lg leading-[1.45] ${PROSE}`} style={{ background: "var(--c-accent-soft)", color: "var(--c-accent-deep)" }}>
-          Cân nặng dùng để tính: <b>{weightKg.toFixed(1)} kg</b>
+          Cân nặng dùng để tính: <b>{weightKg.toFixed(1).replace(".", ",")} kg</b>
           {dosingWeight.usedLabel && dosingWeight.usedLabel !== "ABW" ? ` (${dosingWeight.usedLabel})` : ""} — lấy từ khung "Bệnh nhân hiện tại".
         </p>
       )}

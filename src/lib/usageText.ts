@@ -20,6 +20,12 @@
 import { trim, type AdminRoute } from "./ui"
 import { formatMass } from "./perKgDose"
 
+// trim() (lib/ui) dùng chung cả cho toạ độ/CSS bên board nên KHÔNG địa phương hoá tại gốc — viNum()
+// bọc riêng ở đây cho các con số hiện trong câu "Cách dùng" (thể tích mL, tốc độ mL/h, số lọ): dấu
+// thập phân "," tiếng Việt, nhất quán với formatDoseNumber/formatMass và "NaCl 0,9%" (/impeccable
+// critique 2026-08-31, P3).
+const viNum = (v: number, max?: number) => trim(v, max).replace(".", ",")
+
 export function formatAmpouleUsage(params: {
   name: string
   vialAmount: number
@@ -31,10 +37,10 @@ export function formatAmpouleUsage(params: {
   rateMlPerHour: number
 }): string {
   const { name, vialAmount, vialUnit, vialVolumeMl, vialsUsed, diluentName, finalVolumeMl, rateMlPerHour } = params
-  // Mọi con số trong câu này đi qua trim() để số tròn đọc "5 mL/h" đúng như mẫu chuẩn, không phải
+  // Mọi con số trong câu này đi qua viNum() để số tròn đọc "5 mL/h" đúng như mẫu chuẩn, không phải
   // "5.00 mL/h" — formatDoseNumber() cố định số lẻ theo độ lớn nên không tự bỏ số 0 thừa.
   // Đơn vị mL viết hoa L nhất quán toàn màn (/impeccable critique 2026-08-31, P3: ml/mL lẫn lộn).
-  return `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} mL ${trim(vialsUsed, 0)} ống với ${diluentName} đủ ${trim(finalVolumeMl)} mL BTĐ ${trim(rateMlPerHour)} mL/h`
+  return `${name} ${viNum(vialAmount)} ${vialUnit}/${viNum(vialVolumeMl)} mL ${viNum(vialsUsed, 0)} ống với ${diluentName} đủ ${viNum(finalVolumeMl)} mL BTĐ ${viNum(rateMlPerHour)} mL/h`
 }
 
 export function formatVialUsage(params: {
@@ -63,8 +69,8 @@ export function formatVialUsage(params: {
   rateMlPerHour?: number | null
 }): string {
   const { name, vialAmount, vialUnit, vialsUsed, vialLabel, vialVolumeMl, diluentName, route, finalVolumeMl, drawMl, dropsPerMin, rateMlPerHour } = params
-  const strength = vialVolumeMl != null ? `${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} mL` : formatMass(vialAmount, vialUnit)
-  const countPart = vialsUsed != null ? ` ${vialsUsed > 1 ? trim(vialsUsed, 0) : "1"} ${vialLabel ?? "ống"}` : ""
+  const strength = vialVolumeMl != null ? `${viNum(vialAmount)} ${vialUnit}/${viNum(vialVolumeMl)} mL` : formatMass(vialAmount, vialUnit)
+  const countPart = vialsUsed != null ? ` ${vialsUsed > 1 ? viNum(vialsUsed, 0) : "1"} ${vialLabel ?? "ống"}` : ""
   // Ba trường hợp, không phải hai:
   //   - pha đủ X mL rồi RÚT một phần Y mL  → "đủ X ml lấy Y ml" (mẫu 4b)
   //   - pha đủ X mL rồi truyền TRỌN mẻ đó  → "đủ X ml" — vẫn PHẢI nói thể tích pha loãng
@@ -74,14 +80,14 @@ export function formatVialUsage(params: {
   // (TTM)" — pha với bao nhiêu mL thì không ai biết. Với một kháng sinh bắt buộc pha loãng thì đó là
   // thiếu đúng con số quan trọng nhất của câu.
   const drawPart =
-    finalVolumeMl == null ? "" : drawMl != null ? ` đủ ${trim(finalVolumeMl)} mL lấy ${trim(drawMl)} mL` : ` đủ ${trim(finalVolumeMl)} mL`
+    finalVolumeMl == null ? "" : drawMl != null ? ` đủ ${viNum(finalVolumeMl)} mL lấy ${viNum(drawMl)} mL` : ` đủ ${viNum(finalVolumeMl)} mL`
   const base = `${name} ${strength}${countPart} pha với ${diluentName}${drawPart} (${route})`
   // Chỉ đường TTM mới có tốc độ truyền (giọt/phút hoặc BTĐ) — TMC là tiêm thẳng một lần, IM/SC
   // không có khái niệm tốc độ truyền.
   if (route !== "TTM") return base
-  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} mL/h`
+  if (rateMlPerHour != null) return `${base} BTĐ ${viNum(rateMlPerHour)} mL/h`
   if (dropsPerMin == null) return base
-  return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
+  return `${base} ${viNum(dropsPerMin, 0)} giọt/phút`
 }
 
 export function formatFixedUsage(params: {
@@ -101,17 +107,17 @@ export function formatFixedUsage(params: {
   rateMlPerHour?: number | null
 }): string {
   const { name, vialAmount, vialUnit, vialVolumeMl, vialsUsed, doseAmount, doseUnit, route, dropsPerMin, rateMlPerHour } = params
-  const bottle = `${name} ${trim(vialAmount)} ${vialUnit}/${trim(vialVolumeMl)} mL`
+  const bottle = `${name} ${viNum(vialAmount)} ${vialUnit}/${viNum(vialVolumeMl)} mL`
   const pooled = vialsUsed != null && vialsUsed > 1
   // Trước đây nhánh "dùng trọn chai" (doseAmount == null — trường hợp THƯỜNG GẶP NHẤT, vd Levofloxacin
   // dùng cả chai) return NGAY tại đây, không bao giờ chạy tới phần route/giọt-phút/BTĐ bên dưới — kết
   // quả là câu "Cách dùng" thiếu hẳn đường dùng và tốc độ truyền đúng lúc cần nhất. Gộp chung một
   // điểm `base` rồi cùng đi qua phần tốc độ ở cuối, giống hệt nhánh "lấy một phần".
   const base = doseAmount == null
-    ? `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : " 1 chai"}${route ? ` (${route})` : ""}`
-    : `${bottle}${pooled ? ` ${trim(vialsUsed, 0)} chai` : ""} lấy ${trim(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
+    ? `${bottle}${pooled ? ` ${viNum(vialsUsed, 0)} chai` : " 1 chai"}${route ? ` (${route})` : ""}`
+    : `${bottle}${pooled ? ` ${viNum(vialsUsed, 0)} chai` : ""} lấy ${viNum(doseAmount)} ${doseUnit ?? vialUnit}${route ? ` (${route})` : ""}`
   if (route !== "TTM") return base
-  if (rateMlPerHour != null) return `${base} BTĐ ${trim(rateMlPerHour)} mL/h`
+  if (rateMlPerHour != null) return `${base} BTĐ ${viNum(rateMlPerHour)} mL/h`
   if (dropsPerMin == null) return base
-  return `${base} ${trim(dropsPerMin, 0)} giọt/phút`
+  return `${base} ${viNum(dropsPerMin, 0)} giọt/phút`
 }

@@ -141,14 +141,12 @@ export function doseUnitOptions(drugDoseUnit: string, concUnit: string): string[
   return [drugDoseUnit, ...usable.filter((u) => u !== drugDoseUnit)]
 }
 
-// Làm gọn số cho dễ đọc: liều rất nhỏ (0.01 mcg/kg/phút) cần nhiều số thập phân, tốc độ 12.5 mL/giờ
-// thì một số là đủ.
+// Làm gọn số cho dễ đọc: liều rất nhỏ (0,01 mcg/kg/phút) cần nhiều số thập phân, tốc độ 12,5 mL/giờ
+// thì một số là đủ. Dấu thập phân dùng "," (tiếng Việt) — nhất quán với chuỗi tự biên trong app
+// ("NaCl 0,9%") thay vì lẫn "." của toFixed (/impeccable critique 2026-08-31, P3).
 export function formatDoseNumber(v: number): string {
   const abs = Math.abs(v)
   if (abs === 0) return "0"
-  if (abs < 0.01) return v.toFixed(4)
-  if (abs < 0.1) return v.toFixed(3)
-  if (abs < 10) return v.toFixed(2)
-  if (abs < 100) return v.toFixed(1)
-  return v.toFixed(0)
+  const fixed = abs < 0.01 ? v.toFixed(4) : abs < 0.1 ? v.toFixed(3) : abs < 10 ? v.toFixed(2) : abs < 100 ? v.toFixed(1) : v.toFixed(0)
+  return fixed.replace(".", ",")
 }

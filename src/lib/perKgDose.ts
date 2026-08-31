@@ -49,10 +49,12 @@ export function findPerKgDoses(text: string | undefined | null): PerKgDose[] {
 // Làm gọn số cho dễ đọc, kèm quy đổi sang gam khi con số quá lớn (1750 mg → "1750 mg (1,75 g)") vì
 // lọ thuốc trên thực tế ghi theo gam.
 export function formatMass(value: number, unit: string): string {
+  // Dấu thập phân "," tiếng Việt — nhất quán với formatDoseNumber và phần "(x g)" bên dưới vốn
+  // đã .replace(".", ",") (/impeccable critique 2026-08-31, P3).
   const round = (v: number) => {
     if (v >= 100) return String(Math.round(v))
-    if (v >= 10) return (Math.round(v * 10) / 10).toString()
-    return (Math.round(v * 100) / 100).toString()
+    if (v >= 10) return (Math.round(v * 10) / 10).toString().replace(".", ",")
+    return (Math.round(v * 100) / 100).toString().replace(".", ",")
   }
   const base = `${round(value)} ${unit}`
   if (unit === "mg" && value >= 1000) return `${base} (${(Math.round((value / 1000) * 100) / 100).toString().replace(".", ",")} g)`
