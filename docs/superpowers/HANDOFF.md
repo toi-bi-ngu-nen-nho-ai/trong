@@ -37,17 +37,26 @@ Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`
 bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
 kho tài liệu để tìm.
 
-**Bảng Mẫu (Template) rỗng — khiếm khuyết THẬT, chủ dự án gọi đích danh là nợ kỹ thuật (2026-08-31).**
-`affine/gfx/template/src/toolbar/builtin-templates.ts` khai `export const templates: TemplateCategory[] = []`
-— thượng nguồn cố tình để RỖNG; app chủ tự bơm mẫu vào qua `builtInTemplates.extend(manager)`.
-AFFiNE bơm từ `packages/frontend/templates` (16 mẫu, sinh bởi `build-edgeless.mjs` từ 16 tệp .zip
-trong `edgeless-snapshot/`, ~3MB, kèm assets đổ vào `core/public/static/templates`). drtrong chưa
-gọi `extend` ở đâu cả, nên panel mở ra trắng trơn (chuỗi placeholder "Search file or anything..."
-cũng chưa dịch).
-CẢNH BÁO nếu chặng sau định nhập 16 mẫu đó: chúng là mẫu KINH DOANH tiếng Anh (SWOT, Gantt, Kanban,
-Flowchart…), và **chưa ai kiểm chúng có dùng loại khối nằm ngoài `viewExtensions` cắt gọn hay không**
-(bảng/embed/divider…) — nhập vào mà không kiểm là rước đúng lớp lỗi "khối không có view" ở trên.
-Chủ dự án đã nói ý định KHÁC với "nhập mẫu của AFFiNE" — hỏi lại trước khi làm bất cứ hướng nào.
+**Bảng Mẫu (Template) — ĐÃ BƠM 185 mũi tên vẽ tay (2026-09-01).**
+`affine/gfx/template/src/toolbar/builtin-templates.ts` để `templates = []` rỗng; app chủ bơm qua
+`builtInTemplates.extend(manager)`. drtrong nay gọi ở `EdgelessBoard.tsx` (cấp module):
+`EdgelessTemplatePanel.templates.extend(new HandyTemplateManager())`.
+- Nguồn: `Eronred/handy-arrows` `static/arrows/*.svg` — chủ dự án xác nhận là tài sản của mình,
+  KHÔNG cần ghi công. 185 tệp (~2MB) chép vào `public/static/templates/arrows/` bởi
+  `npm run dung:mau-handy` (`scripts/dung-mau-handy.mjs`, chạy tay, kết quả commit).
+- `src/board/mau-handy.ts` (`HandyTemplateManager`) dựng mỗi SVG thành `Template` kiểu `sticker`:
+  `preview` = URL công khai (`<img loading=lazy>`), `assets[sourceId]` = cùng URL (panel `fetch()`
+  khi thả), `content` = `DocSnapshot` `affine:page > affine:surface > affine:image`. Kích thước lấy
+  từ `viewBox`, nằm trong `mau-handy.sinh.ts` (tệp sinh, KHÔNG chứa byte SVG — D13). Một danh mục:
+  "Mũi tên".
+- Kiểm: `mau-handy.spec.ts` (185 mẫu qua `DocSnapshotSchema.parse`, asset khớp sourceId) +
+  `mau-handy-chen.spec.ts` (chèn thật → `affine:image` dưới surface + blob vào kho). Cả hai xanh.
+- CÒN NỢ: (a) kiểm mắt trên Browser pane HIỆN (pane bị giấu suốt lượt làm) — tab "Mũi tên" + lưới
+  preview, thả một mũi tên thấy hình trên canvas, vào-ra còn nguyên. (b) Arrow SVG là `fill="black"`
+  → mờ trên nền canvas tối; chưa xử. (c) `illustrations` (54 tệp, ~10MB) CỐ Ý BỎ — rủi ro phình
+  git + IndexedDB bảng.
+- Placeholder "Search file or anything..." vẫn tiếng Anh — chuỗi vendored, thuộc pipeline D12, KHÔNG
+  gộp vào lượt này.
 
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 
@@ -174,7 +183,7 @@ của phiên này.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **59 file / 555 ca** (2026-08-31) |
+| Test | `npx vitest run` | **63 file / 596 ca** (2026-09-01) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout `BLOCKSUITE_UPSTREAM` còn ở SHA trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy TRƯỚC danh sách `LỆCH:`. |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 | D16 + biến CSS | `npm run build` (tự chạy `kiem:dist` ở `postbuild`) | Bản PHÁT HÀNH: không còn `affine-`, mọi `--drt-*` được dùng đều có định nghĩa, bản dịch `vi.json` còn nguyên. Cổng DUY NHẤT nhìn vào `dist/` — từng bắt 81 biến CSS không phân giải mà console vẫn sạch. |

@@ -4071,3 +4071,54 @@ không nạp được (luật ba-con-số của mục 40.3).
 3. ~~**8 nhánh từ xa trên `origin`** (mục 40.5)~~ — **ĐÃ ĐÓNG**: `git fetch --prune` cho thấy
    `origin` nay chỉ còn `main`. Không còn gì để quyết.
 4. ~~**Đối chiếu nhánh lưu 2026-08-15**~~ — **ĐÃ ĐÓNG** bởi chính mục này.
+
+## 42. BƠM 185 MẪU MŨI TÊN VÀO NÚT "MẪU" — HANDOFF §1 mục 3 ĐÓNG (2026-09-01)
+
+Nút "Mẫu" (EdgelessTemplateButton, `div.template-cards` — chủ dự án chỉ đích danh phần tử này) mở
+panel gọi `builtInTemplates.list()`; thượng nguồn để `templates = []`, chờ `extend()`. drtrong chưa
+từng gọi → panel trắng.
+
+**Đã làm:**
+- `scripts/dung-mau-handy.mjs` (`npm run dung:mau-handy`, chạy tay) — sparse-clone
+  `Eronred/handy-arrows`, chép `static/arrows/*.svg` (185 tệp, ~2MB) vào
+  `public/static/templates/arrows/`, đọc `viewBox` từng tệp → sinh `src/board/mau-handy.sinh.ts`
+  (chỉ mảng `{id,w,h}`, KHÔNG byte SVG — giữ D13). Chủ dự án xác nhận SVG là tài sản của mình,
+  không cần ghi công.
+- `src/board/mau-handy.ts` — `HandyTemplateManager implements TemplateManager`. Mỗi SVG → `Template`
+  kiểu `sticker`: `preview`/`assets[sourceId]` = URL công khai, `content` = `DocSnapshot`
+  `affine:page > affine:surface > affine:image`. Một danh mục "Mũi tên". Tệp KHÔNG import runtime
+  từ cây vendored (chỉ `import type`) — nhờ đó `mau-handy.spec.ts` là unit test thật.
+- `EdgelessBoard.tsx` — thêm 1 lời gọi cấp module:
+  `EdgelessTemplatePanel.templates.extend(new HandyTemplateManager())`. `.templates` CHÍNH LÀ
+  `builtInTemplates` (static field), và `builtin-templates.ts` không export trực tiếp nên đây là
+  đường vào duy nhất.
+
+**Đường chèn đã lần kỹ** (`template-middlewares.ts` + `services/template.ts`): với sticker,
+`_insertToDoc` chạy `mergeIdMapping.set(surfaceSnapshotId → realSurfaceId)` NGAY đầu `insert()` cho
+mọi MERGE_BLOCK, TRƯỚC nhánh short-circuit "defered" — nên khối `affine:image` (xử lý ở pass 1) tra
+được id surface thật và nằm đúng dưới surface, giống `addImages()` của edgeless
+(`addBlocks(blocks, gfx.surface)`).
+
+**Kiểm** (đọc mã thoát thật, mở log ra đọc — luật mục 40.1):
+```
+tsc --noEmit   : 0, log rỗng
+vitest run     : 0, Test Files 63/63, Tests 596/596   (+mau-handy.spec +mau-handy-chen.spec)
+kiem:vendor    : 0, 2.782 file, lệch 0   (D11 không đụng)
+build+kiem:dist: 0, 323 file dist/, không "affine-", biến --drt-* đủ   (D16; .svg không nằm trong bộ đuôi kiem-dist quét)
+```
+`mau-handy.spec.ts`: 185 mẫu đều qua `DocSnapshotSchema.parse`, asset đúng 1 khoá khớp `sourceId`,
+`sourceId` không mở đầu bằng `/`. `mau-handy-chen.spec.ts` (happy-dom, mount bảng thật): thả một mẫu
+→ `affine:image` mọc dưới surface + blob vào `blobSync`.
+
+### CÒN NỢ SAU LƯỢT NÀY
+
+1. **Kiểm mắt trên Browser pane HIỆN** — pane bị giấu suốt lượt làm (`tabs_context` báo hidden,
+   `navigate` bị từ chối), nên chỉ xác nhận được: asset serve `200 image/svg+xml`, hai integration
+   test xanh. CHƯA thấy tận mắt: panel hiện tab "Mũi tên" + lưới preview, thả một mũi tên hiện hình
+   trên canvas, thoát ra vào lại còn nguyên.
+2. **Arrow SVG `fill="black"`** — trên nền canvas tối sẽ mờ/khuất. Chưa xử (đổi màu 185 tệp là việc
+   riêng).
+3. **`illustrations`** (54 tệp, ~10MB, có tệp 300–900KB) — CỐ Ý BỎ: rủi ro phình git + phình
+   IndexedDB mỗi bảng. Muốn thêm thì lọc riêng tệp nhỏ.
+4. **Placeholder "Search file or anything..."** — chuỗi vendored, chưa dịch; thuộc pipeline D12,
+   không gộp vào lượt này.

@@ -23,7 +23,8 @@
     "doiten:vendor": "node scripts/doi-ten-vendor.mjs",
     "dichchuoi:vendor": "node scripts/dich-chuoi-vendor.mjs",
     "tao:bam-vendor": "node scripts/tao-bam-vendor.mjs",
-    "dung:vendor": "node scripts/dung-vendor.mjs"
+    "dung:vendor": "node scripts/dung-vendor.mjs",
+    "dung:mau-handy": "node scripts/dung-mau-handy.mjs"
   },
   "_comment_format": "Script `format` (chạy `oxfmt`) đã bị GỠ, và gói oxfmt gỡ khỏi devDependencies cùng nó. Lý do: oxfmt 0.2.0 không có bất kỳ cơ chế loại trừ nào — không đọc .gitignore, không có .oxfmtignore, không có cờ --ignore-path (đã kiểm bản 0.2.0). `oxfmt` trần vì thế định dạng lại CẢ 2.764 file, bao gồm toàn bộ src/vendor/blocksuite, và nó ĐỔI KIỂU NHÁY — tức là một lệnh `npm run format` phá thẳng D11, bất biến quan trọng nhất của nhánh này, trên hàng nghìn file cùng lúc. Phương án 'thu hẹp phạm vi vào thư mục của dự án' bị loại: nó chỉ an toàn đúng đến lần đầu ai đó sửa danh sách đường dẫn, và dự án chưa hề chốt một quy ước định dạng nào để tool này thi hành (App.tsx dùng nháy kép, scripts/ và board/ dùng nháy đơn) — chạy nó sẽ churn hàng nghìn dòng mà không ai được lợi. Không có cổng hay hook nào gọi script này. Khi cần định dạng lại, hãy thêm lại kèm một công cụ CÓ ignore-file.",
   "dependencies": {
