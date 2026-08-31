@@ -5528,7 +5528,7 @@ function PatientField({ label, children }: { label: string; children: React.Reac
   )
 }
 
-function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open: boolean; onToggle: () => void; renalRelevantByDefault?: boolean }) {
   const { patient, setPatientField, resetPatient, running, abwKg, heightCm, ageYears, crcl, crclUsable, crclInputImplausible } = useDosing()
   const hasData = patientHasData(patient)
   // "Bệnh nhân mới" xoá SẠCH thông số lẫn bảng đang dùng — hành động phá huỷ nhất màn hình, nên
@@ -5634,10 +5634,14 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
               tickHaptic()
             }}
             className="flex-none min-h-[44px] px-2.5 rounded-full text-[12px] font-bold border relative overflow-hidden"
+            // Trạng thái NGHỈ dùng màu trung tính, không phải đỏ: đỏ dành cho nguy hiểm lâm sàng
+            // (thẻ cảnh báo thuốc ngay bên dưới) — một nút đỏ thường trực trên đầu khung tranh tín
+            // hiệu với chúng (/impeccable critique 2026-08-31, P2). Chạm-một mới lên đỏ đặc: đó mới
+            // là khoảnh khắc "sắp xoá sạch bệnh nhân + bảng Đang truyền" cần màu nguy hiểm thật.
             style={
               confirmReset
                 ? { background: "var(--c-danger)", borderColor: "var(--c-danger)", color: "var(--c-on-bright)" }
-                : { background: "var(--c-surface)", borderColor: "var(--c-danger-line)", color: "var(--c-danger)" }
+                : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
             }
             aria-label={
               confirmReset
@@ -5783,12 +5787,13 @@ function PatientPanel({ open, onToggle }: { open: boolean; onToggle: () => void 
           {/* Creatinin/CrCl/độ thanh thải thận chỉ có ý nghĩa cho liều kháng sinh theo CrCl — 9 nhóm
               thuốc truyền còn lại chỉ cần cân nặng/giới tính ở trên. Gấp lại theo mặc định để
               không chặn đường xuống danh sách thuốc trên các tab đó; tự mở khi đã có dữ liệu liên
-              quan (đang tra kháng sinh hoặc đã khai độ thanh thải thận) để không giấu mất giá trị đã
-              nhập. */}
+              quan HOẶC đang ở tab Kháng sinh (renalRelevantByDefault) — creatinin là ô nhập mà cả
+              màn "theo CrCl" xoay quanh, giấu nó sau disclosure khiến dễ đọc thẻ liều khi CrCl chưa
+              tính (/impeccable critique 2026-08-31, P2). */}
           <Disclosure
             label="Creatinin · CrCl · Độ thanh thải thận"
             alert={!crclUsable}
-            defaultOpen={patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
+            defaultOpen={renalRelevantByDefault || patient.scr.trim() !== "" || patient.rrt !== "none" || patient.akiUnstable}
           >
             <PatientField label="Creatinin">
               {/* flex-wrap + min-w-[96px]: trên máy hẹp (iPhone SE, hoặc cỡ chữ hệ thống lớn), ô nhập
@@ -6248,7 +6253,10 @@ function RunningPanel() {
                       <span className="relative">Hoàn tác</span>
                     </button>
                   ) : (
-                    <button onClick={() => requestUnpin(r.id)} className="w-11 h-11 rounded-full flex items-center justify-center flex-none" style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }} aria-label="Bỏ khỏi bảng">
+                    // Màu trung tính, không phải đỏ-nhạt: bỏ ghim làm lại được (5s hoàn tác + ghim
+                    // lại) và đỏ để dành cho cảnh báo thuốc thật (/impeccable critique 2026-08-31,
+                    // P2). Vẫn cách nút Đường truyền một khoảng w-4 rõ ràng để không chạm hụt.
+                    <button onClick={() => requestUnpin(r.id)} className="w-11 h-11 rounded-full flex items-center justify-center flex-none" style={{ background: "var(--c-line-soft)", color: "var(--c-text-soft)" }} aria-label="Bỏ khỏi bảng">
                       {icons.x()}
                     </button>
                   )}
@@ -11543,13 +11551,22 @@ export function DungThuocScreen({
           màn hình tôn trọng aria-modal một mình; `inert` chặn cả focus lẫn cây accessibility của nội
           dung phía sau một cách chắc chắn, không phụ thuộc AT có hỗ trợ hay không (critique
           /impeccable 2026-08-17T22-03, P3). Bọc thêm MỘT lớp flex thay vì rải `inert` trên từng khối
-          con — `flex-1 min-h-0` giữ nguyên hành vi chiều cao của flex-col cha, không đổi layout. */}
-      <div className="flex-1 min-h-0 flex flex-col" inert={!disclaimerAck || undefined}>
+          con — `flex-1 min-h-0` giữ nguyên hành vi chiều cao của flex-col cha, không đổi layout.
+          `max-w-[860px] mx-auto`: PWA vốn mobile-first, nhưng mở trên tablet/desktop thì không có
+          giới hạn bề rộng nào — chữ liều/cảnh báo chạy 100–200 ký tự/dòng, chevron disclosure kẹt
+          tận mép phải (/impeccable critique 2026-08-31, P2). Dưới 860px là no-op. `relative` để toast
+          "Hoàn tác" (bên dưới) neo trong đúng cột đã giới hạn. */}
+      <div className="flex-1 min-h-0 flex flex-col relative w-full max-w-[860px] mx-auto" inert={!disclaimerAck || undefined}>
       <ScreenHeader
         title={MIXING_TITLES[tab]}
         actions={
           <>
             <ThemeToggle variant="inline" />
+            {/* "Tìm" và "Nhật ký" rút còn nút biểu tượng vuông (h-9 w-9): ba pill có chữ + ThemeToggle
+                ăn ~55–60% bề ngang header ở 375px nên tiêu đề màn ("Kháng sinh theo CrCl"…) bị
+                `truncate` cắt cụt trên MỌI tab — nhãn định hướng duy nhất của màn không đọc được
+                (/impeccable critique 2026-08-31, P1). Biểu tượng-only vẫn giữ aria-label + title;
+                lối vào "Tìm" còn được gợi ý một lần bằng showTabHint bên dưới. */}
             <button
               onClick={() => {
                 setSearchOpen((v) => !v)
@@ -11560,29 +11577,40 @@ export function DungThuocScreen({
               // dọc vô hình (py-1) — đúng ngưỡng chạm chung của màn.
               className="flex-none flex items-center justify-center py-1"
               aria-label="Tìm thuốc trong mọi nhóm"
+              title="Tìm thuốc trong mọi nhóm"
             >
               <span
-                className={`h-9 pl-2.5 pr-3 ${R.pill} ${T.label} border flex items-center gap-1.5`}
+                className={`h-9 w-9 ${R.pill} border flex items-center justify-center`}
                 style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
               >
                 {/* icons.search() cố định 24px — thu nhỏ bằng scale ở đây, không sửa icon dùng chung
                     (chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc). Giữ active=false: tô đặc làm
                     mất nét tay cầm kính lúp, trông như ảnh vỡ. */}
-                <span className="flex items-center justify-center" style={{ transform: "scale(0.7)" }}>
+                <span className="flex items-center justify-center" style={{ transform: "scale(0.8)" }}>
                   {icons.search(false)}
                 </span>
-                Tìm
               </span>
             </button>
             {/* Cùng kỹ thuật đệm dọc vô hình với nút "Tìm" cạnh nó: pill nhìn thấy vẫn cao 36px
-                (khớp hàng tiêu đề min-h-9), nhưng vùng CHẠM của chính button là 44px. */}
+                (khớp hàng tiêu đề min-h-9), nhưng vùng CHẠM của chính button là 44px. Số mục 12h gần
+                nhất chuyển thành huy hiệu góc thay vì chữ "· N" nối dài pill. */}
             <button
               onClick={() => setShowLog(true)}
               className="flex-none flex items-center justify-center py-1"
               aria-label={`Nhật ký${recentLogCount > 0 ? ` · ${recentLogCount} mục gần đây` : ""}`}
+              title="Nhật ký phép tính"
             >
-              <span className={`h-9 px-3 ${R.pill} ${T.label} border flex items-center`} style={{ borderColor: C.line, color: C.textSoft }}>
-                Nhật ký{recentLogCount > 0 ? ` · ${recentLogCount}` : ""}
+              <span className={`relative h-9 w-9 ${R.pill} border flex items-center justify-center`} style={{ borderColor: C.line, color: C.textSoft }}>
+                {icons.doc()}
+                {recentLogCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+                    style={{ background: C.primary, color: "var(--c-on-bright)" }}
+                    aria-hidden="true"
+                  >
+                    {recentLogCount > 9 ? "9+" : recentLogCount}
+                  </span>
+                )}
               </span>
             </button>
           </>
@@ -11758,7 +11786,7 @@ export function DungThuocScreen({
           để khung bệnh nhân cuộn đi được thay vì chiếm chỗ cố định trên màn hình điện thoại. */}
       <div ref={scrollRef} className="scroll-ios flex-1">
         <DisclaimerBar />
-        <PatientPanel open={patientOpen} onToggle={() => setPatientOpen((v) => !v)} />
+        <PatientPanel open={patientOpen} onToggle={() => setPatientOpen((v) => !v)} renalRelevantByDefault={tab === "antibiotics"} />
         <RunningPanel />
         <div
           key={`${tab}-${jumpKey}`}
