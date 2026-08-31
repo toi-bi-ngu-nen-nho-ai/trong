@@ -47,6 +47,26 @@ describe('thứ tự lớp thác đổ khai ở index.css', () => {
     const ten = khai![1].split(',').map((t) => t.trim())
     expect(ten).toEqual([LOP_THAP, 'theme', 'base', LOP_CAO])
   })
+
+  // HỒI QUY THẬT, bắt được ngay trong chính chặng tách lớp (2026-08-31): đẩy `drt-vendor` lên trên
+  // `base` khiến bản vá `.truncate { align-self: revert }` — vốn nằm ở `@layer base` và thắng khi
+  // `drt-vendor` còn là lớp thấp nhất — thua lại luật `.truncate { align-self: stretch }` của
+  // BlockSuite. Lỗi 2026-08-28 tái phát nguyên vẹn: mở bảng vẽ rồi thoát ra là nhãn "Trang chủ" ở
+  // Trang chủ nhảy từ 16px lên 35px (đo thật trên trình duyệt).
+  //
+  // `.truncate` là chỗ DUY NHẤT app và cây vendored trùng tên class (quét 797 luật lớp `drt-vendor`
+  // đối chiếu mọi phần tử light-DOM của app, 2026-08-31), nên đây là bản vá duy nhất thuộc loại
+  // "app phải thắng vendor" — và nó BẮT BUỘC nằm ở lớp cao hơn `drt-vendor`. `components` là đúng
+  // chỗ: trên `drt-vendor`, dưới `utilities`.
+  //
+  // Hai bản vá `@layer base` còn lại KHÔNG chuyển và không được ca này canh, vì chúng nhắm vào luật
+  // vendor có bộ chọn phần tử TRẦN (`input{…}`) — loại luôn bị xếp xuống `drt-vendor-tran`, dưới
+  // `base`, nên vẫn thắng.
+  it('bản vá .truncate nằm ở lớp CAO HƠN drt-vendor, không phải @layer base', () => {
+    const khoi = css.match(/@layer\s+([\w-]+)\s*\{[^{}]*\.truncate\s*\{[^{}]*align-self:\s*revert/)
+    expect(khoi, 'không thấy bản vá `.truncate { align-self: revert }` trong index.css').not.toBeNull()
+    expect(khoi![1]).toBe('components')
+  })
 })
 
 describe('chonLopChoCss — phân loại theo mức nguy hiểm của bộ chọn', () => {

@@ -686,9 +686,20 @@ input, select, textarea {
    Quét toàn bộ 914 luật trong lớp `drt-vendor` đối chiếu với mọi phần tử light-DOM của app:
    `.truncate` là luật DUY NHẤT chạm tới app — vá đúng một thuộc tính này là đủ, không phải đuổi bắt.
    `revert` chứ không phải `center`: trả về giá trị trình duyệt (`auto` = nghe theo `align-items` của
-   cha). Vẫn đặt trong `@layer base` để bất kỳ utility `self-*` nào app cố ý dùng (lớp `utilities`,
-   cao hơn) vẫn thắng. */
-@layer base {
+   cha).
+
+   PHẢI nằm trong `@layer components`, KHÔNG phải `@layer base` (đổi 2026-08-31). Bản đầu đặt ở
+   `base` và thắng, vì hồi đó `drt-vendor` là lớp THẤP NHẤT. Chặng 2026-08-31 tách CSS vendor làm
+   HAI lớp và đẩy `drt-vendor` lên TRÊN `base` (để CSS khối BlockSuite thắng preflight — xem
+   src/board/lop-css-vendor.ts), nên bản vá ở `base` lập tức thua lại và lỗi 2026-08-28 TÁI PHÁT y
+   nguyên: đo thật ngay sau lượt tách lớp, nhãn "Trang chủ" lại nhảy 16px thành 35px sau khi mở
+   bảng vẽ rồi thoát ra. `components` là đúng chỗ: TRÊN `drt-vendor` nên thắng vendor, DƯỚI
+   `utilities` nên bất kỳ utility `self-*` nào app cố ý dùng vẫn thắng — giữ nguyên ý đồ ban đầu.
+
+   Quét lại 2026-08-31 (797 luật trong lớp `drt-vendor` đối chiếu mọi phần tử light-DOM của app):
+   `.truncate` VẪN là luật duy nhất chạm tới app. Nghi hồi quy thì chạy lại đúng phép quét đó, đừng
+   đoán. Ca kiểm canh vị trí lớp: src/board/__tests__/lop-css-vendor.spec.ts. */
+@layer components {
   .truncate {
     align-self: revert;
   }
