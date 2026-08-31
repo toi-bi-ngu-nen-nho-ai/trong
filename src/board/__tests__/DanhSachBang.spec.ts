@@ -665,6 +665,40 @@ describe('DanhSachBang', () => {
         expect(ds.find((b) => b.id === 'xm-1')?.daXoaLuc).toBeDefined()
       })
     })
+
+    it('"Chọn tất cả" ở chế độ rút gọn → chọn HẾT (kể cả dòng bị giấu), mở "Xem tất cả", xoá vĩnh viễn sạch IndexedDB', async () => {
+      await seedXoaMem(6)
+      // Rút gọn: chỉ 4/6 dòng hiện, nhưng nút phải nói "(6)".
+      expect(rows()).toBe(4)
+      const chonTatCa = container.querySelector('[data-testid="chon-tat-ca-da-xoa"]') as HTMLButtonElement
+      expect(chonTatCa?.textContent).toContain('Chọn tất cả (6)')
+      await act(async () => chonTatCa.click())
+      // Auto mở "Xem tất cả" → đủ 6 dòng, dải hàng loạt nói "6 đã chọn", nút lật thành "Bỏ chọn".
+      expect(rows()).toBe(6)
+      expect(container.querySelector('[data-testid="dai-chon-da-xoa"]')?.textContent).toContain('6 đã chọn')
+      expect(container.querySelector('[data-testid="chon-tat-ca-da-xoa"]')?.textContent).toContain('Bỏ chọn tất cả')
+      // Xoá vĩnh viễn 2 bước → không còn bảng nào trong IndexedDB.
+      await act(async () => {
+        ;(container.querySelector('[data-testid="hoi-xoa-vinh-vien"]') as HTMLButtonElement).click()
+      })
+      expect(container.textContent).toContain('Xoá vĩnh viễn 6 bảng?')
+      await act(async () => {
+        ;(container.querySelector('[data-testid="xoa-vinh-vien-chon"]') as HTMLButtonElement).click()
+      })
+      await choDom(async () => {
+        expect((await idbGetAll(IDB_STORES.boards)).length).toBe(0)
+      })
+    })
+
+    it('"Chọn tất cả" rồi "Bỏ chọn tất cả" → sạch tích chọn, dải hàng loạt biến mất', async () => {
+      await seedXoaMem(3)
+      const nut = () => container.querySelector('[data-testid="chon-tat-ca-da-xoa"]') as HTMLButtonElement
+      await act(async () => nut().click())
+      expect(container.querySelector('[data-testid="dai-chon-da-xoa"]')?.textContent).toContain('3 đã chọn')
+      await act(async () => nut().click())
+      expect(container.querySelector('[data-testid="dai-chon-da-xoa"]')).toBeNull()
+      expect(nut().textContent).toContain('Chọn tất cả (3)')
+    })
   })
 
   it('xoá thẻ A (đang chạy card-slide-out) không đóng menu "⋯" đang mở của thẻ B', async () => {

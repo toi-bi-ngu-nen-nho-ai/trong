@@ -1324,6 +1324,10 @@ export function DanhSachBang({
             const hienThi = xemTatCaDaXoa ? daLoc : daXoaGanDay.slice(0, RUT_GON_DA_XOA)
             const soChon = chonDaXoa.size
             const conAn = daXoaGanDay.length - RUT_GON_DA_XOA
+            // "Chọn tất cả" thao tác trên `daLoc` (ở chế độ rút gọn = TOÀN BỘ bảng đã xoá, không
+            // phải 4 dòng đang hiện; ở "Xem tất cả" = tập đã lọc theo ô tìm) — đúng nghĩa "xoá hết
+            // tất cả bảng" mà không phải tự tay tick từng ô. Đã chọn hết thì nút lật thành "Bỏ chọn".
+            const tatCaDaChon = daLoc.length > 0 && daLoc.every((b) => chonDaXoa.has(b.id))
             const nutPhu: React.CSSProperties = {
               minHeight: 40, padding: '4px 10px', fontSize: 12, fontWeight: 700,
               borderRadius: 9999, border: 0, background: 'none', whiteSpace: 'nowrap',
@@ -1347,6 +1351,34 @@ export function DanhSachBang({
                       color: 'var(--c-text, #12142b)',
                     }}
                   />
+                )}
+
+                {/* "Chọn tất cả / Bỏ chọn tất cả" — cùng khuôn nút-chữ mờ với "Xem tất cả"/"Thu gọn".
+                    Hiện khi có >1 bảng đã xoá (1 bảng thì tick thẳng ô nhanh hơn). Ở chế độ rút gọn,
+                    bấm chọn hết cũng MỞ LUÔN "Xem tất cả" nếu còn dòng bị giấu — để người dùng thấy
+                    đúng những gì vừa chọn thay vì dải "N đã chọn" trong khi chỉ 4 ô tick hiện ra. */}
+                {daLoc.length > 1 && (
+                  <button
+                    type="button"
+                    data-testid="chon-tat-ca-da-xoa"
+                    onClick={() => {
+                      if (tatCaDaChon) {
+                        setChonDaXoa(new Set())
+                        setXacNhanXoaVinhVien(false)
+                      } else {
+                        setChonDaXoa(new Set(daLoc.map((b) => b.id)))
+                        if (!xemTatCaDaXoa && conAn > 0) setXemTatCaDaXoa(true)
+                      }
+                    }}
+                    className="mind-focus-ring"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', minHeight: 36,
+                      marginBottom: 6, padding: '4px 2px', fontSize: 12, fontWeight: 600,
+                      color: 'var(--c-text-muted, #6b6e96)', background: 'none', border: 0,
+                    }}
+                  >
+                    {tatCaDaChon ? 'Bỏ chọn tất cả' : `Chọn tất cả (${daLoc.length})`}
+                  </button>
                 )}
 
                 {/* Dải hành động hàng loạt — chỉ khi có ≥1 tích chọn. Bước xác nhận đỏ theo Untouchable
