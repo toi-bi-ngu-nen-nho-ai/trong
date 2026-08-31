@@ -1240,8 +1240,8 @@ function LibraryScreen({
     // lẫn nội dung) — cuộn xuống vài trăm pixel là chữ "Thư viện" biến mất hẳn khỏi màn hình, khác
     // hẳn Mindmap/Dùng thuốc/Ôn tập (tiêu đề luôn đứng yên phía trên). Nay tách header ra ngoài
     // vùng cuộn (flex-col + ScreenHeader flex-none + nội dung scroll-ios flex-1) như ba màn kia.
-    <div className="h-full flex flex-col">
-      <ScreenHeader title="Thư viện" subtitle="Tất cả dữ liệu y học tác giả sưu tầm" />
+    <div className="h-full flex flex-col screen-transition">
+      <ScreenHeader title="Thư viện" />
       <div className="scroll-ios flex-1">
         {customArticles.length > 0 && (
           <div className="px-6 pb-6">
