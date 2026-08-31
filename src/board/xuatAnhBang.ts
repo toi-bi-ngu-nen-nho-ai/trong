@@ -35,7 +35,7 @@
 //
 // D11: KHÔNG sửa gì trong src/vendor/. Module này chỉ GỌI API công khai của cây vendored.
 
-import { docLopKhoi, veLopKhoi, type MoTaLopKhoi } from './ve-khoi-len-canvas'
+import { docLopKhoi, napBieuTuong, veLopKhoi, type MoTaLopKhoi } from './ve-khoi-len-canvas'
 
 export type HopBao = { x: number; y: number; w: number; h: number }
 
@@ -273,6 +273,10 @@ export async function xuatPngBang(
       }
 
       moTaKhoi = docLopKhoi(els, (x, y) => gfx.viewport.toModelCoord(x, y))
+      // Chấm đầu dòng / ô tick / mũi gập là `<svg>` nội tuyến — giải mã thành ảnh vẽ được TRƯỚC khi
+      // vào `voiTiLePixel`, để phần vẽ ở dưới ở lại đồng bộ (không giữ `devicePixelRatio` giả qua
+      // một lượt await nào).
+      moTaKhoi = await napBieuTuong(moTaKhoi)
       // Khối có trong mô hình mà không đọc ra được thân thẻ nào = không vào được ảnh. Báo, đừng im.
       soKhoiThieu = Math.max(0, khoiModels.length - moTaKhoi.the.length)
     }

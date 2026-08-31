@@ -54,10 +54,25 @@ export type AnhKhoi = {
   h: number
 }
 
+/**
+ * Một biểu tượng SVG nội tuyến đã tuần tự hoá thành `data:` URL TỰ CHỨA (currentColor đã ghim
+ * thành màu thật). Chưa vẽ được — phải qua `napBieuTuong()` để thành `AnhKhoi`, vì giải mã ảnh là
+ * việc bất đồng bộ còn `docLopKhoi()` cố ý ở lại đồng bộ (chỉ đọc, kiểm được bằng DOM giả).
+ */
+export type BieuTuongKhoi = {
+  duLieu: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export type MoTaLopKhoi = {
   the: TheKhoi[]
   chu: DongChu[]
   anh: AnhKhoi[]
+  /** Không bắt buộc: `veLopKhoi()` không cần tới nó (đã nhập vào `anh` từ trước khi vẽ). */
+  bieuTuong?: BieuTuongKhoi[]
 }
 
 /** Đổi một điểm màn hình sang toạ độ mô hình. App thật truyền `gfx.viewport.toModelCoord`. */
@@ -75,6 +90,26 @@ const CHON_BO_QUA = 'edgeless-note-mask, drt-block-selection, .drt-note-mask'
 // từng grapheme là vài mili-giây; nhưng một khối dán cả trang văn bản vào thì phải có đường lùi,
 // nếu không lượt xuất tự biến thành thứ mà cả chặng này sinh ra để diệt.
 const TRAN_GRAPHEME = 4000
+
+// Dấu đầu mục của danh sách: chấm, số thứ tự, ô tick, mũi gập. BlockSuite dựng chúng NGOÀI trình
+// soạn nội tuyến — một `div` anh em của `rich-text` (`affine/blocks/list/src/utils/get-list-icon.ts`)
+// — nên KHÔNG selector nào ở trên chạm tới: chấm/ô tick/mũi gập là `<svg>` nội tuyến (không phải
+// `<img>`), còn số thứ tự là một TEXT NODE TRẦN ngay trong div (không mang `data-v-text`). Đó là
+// nguyên nhân gốc của "xuất ra được chữ nhưng mất sạch chấm, số, ô tick" (đo trên trình duyệt thật
+// 2026-08-31: ba thẻ danh sách ra ảnh thành ba hình chữ nhật rỗng).
+// Khớp `[class*=...]` để trúng cả `affine-list-block__prefix` (thượng nguồn) lẫn
+// `drt-list-block__prefix` (sau pipeline đổi tên, scripts/doi-ten-vendor.mjs) — một lượt đổi tiền
+// tố nữa không được phép âm thầm tắt lại đường này.
+const CHON_DAU_MUC = '[class*="list-block__prefix"]'
+
+// Biểu tượng vẽ ra ảnh xuất ở tỉ lệ tới 2×, mà `drawImage` chỉ PHÓNG ẢNH BITMAP đã rasterise ở kích
+// thước nội tại của SVG. Ghim kích thước nội tại lên 4× cỡ hiển thị để phần phóng luôn là thu nhỏ,
+// không phải nội suy lên (icon 24px → bitmap 96px, chi phí không đáng kể).
+const TI_LE_NET_BIEU_TUONG = 4
+
+// Trần chờ giải mã một biểu tượng. `data:` URL giải mã gần như tức thì, nhưng một lượt treo ở đây
+// sẽ treo CẢ nút xuất — thà mất cái chấm còn hơn mất lượt xuất.
+const HAN_NAP_BIEU_TUONG_MS = 2000
 
 function laPhanTuAn(el: Element): boolean {
   const cs = getComputedStyle(el)
@@ -172,10 +207,16 @@ function chiaDeuTheoHop(
  *
  * Chỉ đọc, không vẽ, không sửa DOM — nên kiểm được bằng DOM giả.
  */
-export function docLopKhoi(khoiEls: Element[], doiToaDo: DoiToaDo): MoTaLopKhoi {
+export function docLopKhoi(
+  khoiEls: Element[],
+  doiToaDo: DoiToaDo,
+  taoRange?: () => Range,
+): MoTaLopKhoi {
   const the: TheKhoi[] = []
   const chu: DongChu[] = []
   const anh: AnhKhoi[] = []
+  const bieuTuong: BieuTuongKhoi[] = []
+  const ngatDong = (n: Text) => (taoRange ? ngatDongTheoRange(n, taoRange) : ngatDongTheoRange(n))
 
   for (const khoi of khoiEls) {
     // ── Thân thẻ (nền + bo góc + viền) ──────────────────────────────────────────────────────
@@ -225,15 +266,140 @@ export function docLopKhoi(khoiEls: Element[], doiToaDo: DoiToaDo): MoTaLopKhoi 
       // `font-size` computed KHÔNG bị `transform: scale(zoom)` của viewport đụng vào, nên nó đã là
       // cỡ chữ trong hệ toạ độ MÔ HÌNH — đúng thứ canvas xuất cần, không phải quy đổi.
       const font = `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize)}px ${cs.fontFamily}`
-      for (const d of ngatDongTheoRange(nodeChu)) {
+      for (const d of ngatDong(nodeChu)) {
         if (d.chu.trim() === '') continue
         const [x, y] = doiToaDo(d.trai, d.giua)
         chu.push({ chu: d.chu, x, y, font, mau: cs.color })
       }
     }
+
+    // ── Dấu đầu mục: SỐ THỨ TỰ ──────────────────────────────────────────────────────────────
+    // Text node TRẦN ngay trong div dấu đầu mục — không có `data-v-text` nên vòng lặp chữ ở trên
+    // không bao giờ thấy. Đọc ĐÚNG các con text trực tiếp (không đệ quy) để không chạm nhầm vào
+    // chữ của trình soạn nội tuyến nằm sâu hơn, và không kéo theo chữ mờ gợi ý.
+    for (const dau of Array.from(khoi.querySelectorAll(CHON_DAU_MUC))) {
+      if (dau.closest(CHON_BO_QUA) || laPhanTuAn(dau)) continue
+      const cs = getComputedStyle(dau)
+      const font = `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize)}px ${cs.fontFamily}`
+      for (const con of Array.from(dau.childNodes)) {
+        if (con.nodeType !== 3 /* TEXT_NODE */) continue
+        const t = con as Text
+        if ((t.textContent ?? '').trim() === '') continue
+        for (const d of ngatDong(t)) {
+          if (d.chu.trim() === '') continue
+          const [x, y] = doiToaDo(d.trai, d.giua)
+          chu.push({ chu: d.chu, x, y, font, mau: cs.color })
+        }
+      }
+    }
+
+    // ── Biểu tượng SVG nội tuyến: chấm đầu dòng, ô tick, mũi gập ───────────────────────────
+    // Quét CẢ khối chứ không riêng dấu đầu mục: cùng một cơ chế cũng đưa được icon của thẻ nhúng
+    // (bookmark, liên kết tài liệu) vào ảnh, và mọi lớp phủ thao tác đã bị `CHON_BO_QUA` chặn.
+    for (const svg of Array.from(khoi.querySelectorAll('svg'))) {
+      if (svg.closest(CHON_BO_QUA) || laPhanTuAn(svg)) continue
+      // SVG lồng trong SVG đã nằm trong bản tuần tự hoá của cha — vẽ lần nữa là vẽ chồng.
+      if (svg.parentElement?.closest('svg')) continue
+      const r = svg.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) continue
+      const duLieu = svgThanhDuLieu(svg, r.width, r.height)
+      if (!duLieu) continue
+      const [x, y] = doiToaDo(r.left, r.top)
+      const [x2, y2] = doiToaDo(r.right, r.bottom)
+      bieuTuong.push({ duLieu, x, y, w: x2 - x, h: y2 - y })
+    }
   }
 
-  return { the, chu, anh }
+  return { the, chu, anh, bieuTuong }
+}
+
+/**
+ * Một `<svg>` nội tuyến → `data:` URL TỰ CHỨA.
+ *
+ * Hai điều bắt buộc, cả hai đều là loại hỏng-âm-thầm nếu quên:
+ *   • `currentColor` trong một tệp SVG rời không còn gì để kế thừa → icon ra ĐEN (hoặc mất hút trên
+ *     nền tối). Phải ghim màu đã phân giải vào chính phần tử gốc.
+ *   • kích thước nội tại phải lớn hơn cỡ vẽ cuối, xem `TI_LE_NET_BIEU_TUONG`.
+ *
+ * Trả `null` cho SVG tham chiếu tài nguyên ngoài miền: vẽ nó lên canvas sẽ NHUỘM BẨN canvas và
+ * `toDataURL()` ném ở tận cuối lượt xuất — mất cả ảnh chỉ vì một cái icon.
+ */
+function svgThanhDuLieu(svg: Element, rong: number, cao: number): string | null {
+  const ban = svg.cloneNode(true) as Element
+  ban.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  // Không có `viewBox` thì phóng khung chỉ làm khung to ra chứ không phóng nét — giữ nguyên cỡ.
+  const heSo = ban.getAttribute('viewBox') ? TI_LE_NET_BIEU_TUONG : 1
+  ban.setAttribute('width', String(Math.max(1, Math.round(rong * heSo))))
+  ban.setAttribute('height', String(Math.max(1, Math.round(cao * heSo))))
+  const mau = getComputedStyle(svg).color
+  if (mau) ban.setAttribute('style', `${ban.getAttribute('style') ?? ''};color:${mau}`)
+
+  let chuoi: string
+  try {
+    chuoi = new XMLSerializer().serializeToString(ban)
+  } catch {
+    return null
+  }
+  // Chỉ chặn THAM CHIẾU TÀI NGUYÊN ra ngoài miền. KHÔNG được lọc "http" trần: mọi SVG đều mang
+  // `xmlns="http://www.w3.org/2000/svg"`, nên phép lọc thô loại sạch 100% biểu tượng — và loại
+  // ÂM THẦM, ảnh vẫn xuất ra, chỉ thiếu đúng thứ chặng này sinh ra để thêm vào.
+  if (/(?:xlink:)?href\s*=\s*["']?\s*https?:/i.test(chuoi)) return null
+  if (/url\(\s*["']?\s*https?:/i.test(chuoi)) return null
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(chuoi)}`
+}
+
+/**
+ * Giải mã các biểu tượng thành ảnh vẽ được và nhập vào lớp ảnh. Gọi SAU `docLopKhoi()`, TRƯỚC
+ * `veLopKhoi()`.
+ *
+ * Một biểu tượng hỏng/quá hạn chỉ mất đúng biểu tượng đó — phần còn lại của bản xuất vẫn ra.
+ * `taoAnh` CHỈ để ca kiểm tiêm.
+ */
+export async function napBieuTuong(
+  moTa: MoTaLopKhoi,
+  taoAnh: () => HTMLImageElement = () => new Image(),
+): Promise<MoTaLopKhoi> {
+  const ds = moTa.bieuTuong ?? []
+  if (ds.length === 0) return { ...moTa, bieuTuong: [] }
+  const nap = await Promise.all(ds.map((b) => napMotBieuTuong(b, taoAnh)))
+  return {
+    ...moTa,
+    anh: [...moTa.anh, ...nap.filter((a): a is AnhKhoi => a !== null)],
+    bieuTuong: [],
+  }
+}
+
+async function napMotBieuTuong(
+  b: BieuTuongKhoi,
+  taoAnh: () => HTMLImageElement,
+): Promise<AnhKhoi | null> {
+  try {
+    const img = taoAnh()
+    img.src = b.duLieu
+    // `decode()` là đường chính; `onload` là đường lùi cho môi trường không có nó.
+    const xong = img.decode
+      ? img.decode()
+      : new Promise<void>((ok, hong) => {
+          img.onload = () => ok()
+          img.onerror = () => hong(new Error('napBieuTuong: không tải được biểu tượng'))
+        })
+    await doiCoHan(xong, HAN_NAP_BIEU_TUONG_MS)
+    return { nguon: img, x: b.x, y: b.y, w: b.w, h: b.h }
+  } catch {
+    return null
+  }
+}
+
+// Hạn giờ đi bằng `setTimeout` (KHÔNG `requestAnimationFrame`: rAF đứng im khi tài liệu ẩn, đã
+// từng treo vĩnh viễn cả lượt xuất — xem xuatAnhBang.ts).
+function doiCoHan<T>(p: Promise<T>, ms: number): Promise<T> {
+  let dong: ReturnType<typeof setTimeout>
+  return Promise.race([
+    p.finally(() => clearTimeout(dong)),
+    new Promise<T>((_, hong) => {
+      dong = setTimeout(() => hong(new Error('napBieuTuong: hết giờ giải mã')), ms)
+    }),
+  ])
 }
 
 /**

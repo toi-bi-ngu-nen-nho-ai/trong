@@ -6,7 +6,13 @@
 // hình ảnh kiểm bằng trình duyệt thật.
 import { describe, expect, it, vi } from 'vitest'
 
-import { docLopKhoi, ngatDongTheoRange, veLopKhoi, type MoTaLopKhoi } from '../ve-khoi-len-canvas'
+import {
+  docLopKhoi,
+  napBieuTuong,
+  ngatDongTheoRange,
+  veLopKhoi,
+  type MoTaLopKhoi,
+} from '../ve-khoi-len-canvas'
 
 function hcn(x: number, y: number, w: number, h: number): DOMRect {
   return { x, y, width: w, height: h, left: x, top: y, right: x + w, bottom: y + h } as DOMRect
@@ -267,5 +273,103 @@ describe('veLopKhoi — vẽ bản mô tả, không đọc DOM', () => {
     }
     expect(() => veLopKhoi(ctx as unknown as CanvasRenderingContext2D, moTa, doiSang)).not.toThrow()
     expect(ctx.fillText).toHaveBeenCalledWith('còn đây', 6, 7)
+  })
+})
+
+// ─── Dấu đầu mục (chấm, số thứ tự, ô tick) ─────────────────────────────────────────────────────
+//
+// Ba thứ này KHÔNG nằm trong trình soạn nội tuyến: BlockSuite dựng chúng ở một `div` anh em
+// (`drt-list-block__prefix`) — chấm/ô tick/mũi gập là `<svg>` nội tuyến, số thứ tự là một TEXT NODE
+// TRẦN ngay trong div. Không selector nào của lượt đọc cũ (`[data-v-text="true"]`, `img`) chạm tới,
+// nên cả ba biến mất khỏi ảnh xuất trong khi nội dung ghi chú vẫn ra đủ (đo trên trình duyệt thật
+// 2026-08-31: ba thẻ danh sách xuất ra ba hình chữ nhật rỗng).
+
+describe('docLopKhoi — dấu đầu mục danh sách', () => {
+  it('chấm đầu dòng (SVG nội tuyến) → một biểu tượng, currentColor đã phân giải thành màu thật', () => {
+    const khoi = dungKhoiGia(
+      '<div class="drt-list-block__prefix">' +
+        '<svg viewBox="0 0 24 24"><circle cx="7" cy="12" r="3" fill="currentColor"></circle></svg>' +
+        '</div>',
+    )
+    const svg = khoi.querySelector('svg')!
+    datRect(svg, hcn(100, 200, 24, 24))
+    ;(svg as unknown as HTMLElement).style.color = 'rgb(55, 106, 154)'
+
+    const moTa = docLopKhoi([khoi], doiToaDoGia)
+    expect(moTa.bieuTuong).toHaveLength(1)
+    const b = moTa.bieuTuong![0]
+    expect([b.x, b.y, b.w, b.h]).toEqual([50, 100, 12, 12])
+    expect(b.duLieu.startsWith('data:image/svg+xml')).toBe(true)
+    const svgChuoi = decodeURIComponent(b.duLieu.split(',')[1])
+    expect(svgChuoi).toContain('circle')
+    // `currentColor` trong một tệp SVG rời không có gì để kế thừa — phải ghim màu vào chính nó.
+    expect(svgChuoi).toContain('rgb(55, 106, 154)')
+    khoi.remove()
+  })
+
+  it('số thứ tự (text node trần, KHÔNG có data-v-text) vào lớp chữ', () => {
+    const khoi = dungKhoiGia(
+      '<div class="drt-list-block__prefix drt-list-block__numbered">1.</div>',
+    )
+    const dau = khoi.querySelector('div')! as HTMLElement
+    datRect(dau, hcn(0, 0, 22, 24))
+    dau.style.color = 'rgb(55, 106, 154)'
+
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(10))
+    expect(moTa.chu.map((c) => c.chu)).toContain('1.')
+    expect(moTa.chu[0].mau).toBe('rgb(55, 106, 154)')
+    khoi.remove()
+  })
+
+  it('BỎ QUA svg trong lớp phủ thao tác — không phải nội dung', () => {
+    const khoi = dungKhoiGia(
+      '<edgeless-note-mask><svg viewBox="0 0 24 24"><path d="M0 0"/></svg></edgeless-note-mask>',
+    )
+    datRect(khoi.querySelector('svg')!, hcn(0, 0, 24, 24))
+    expect(docLopKhoi([khoi], doiToaDoGia).bieuTuong ?? []).toHaveLength(0)
+    khoi.remove()
+  })
+
+  it('KHÔNG đếm svg lồng trong svg hai lần', () => {
+    const khoi = dungKhoiGia(
+      '<div class="drt-list-block__prefix"><svg viewBox="0 0 24 24"><svg viewBox="0 0 8 8"></svg></svg></div>',
+    )
+    for (const s of Array.from(khoi.querySelectorAll('svg'))) datRect(s, hcn(0, 0, 24, 24))
+    expect(docLopKhoi([khoi], doiToaDoGia).bieuTuong).toHaveLength(1)
+    khoi.remove()
+  })
+})
+
+describe('napBieuTuong — nạp biểu tượng SVG thành ảnh vẽ được', () => {
+  function anhGia(ket: 'xong' | 'hong') {
+    return () => {
+      const img = { decode: () => (ket === 'xong' ? Promise.resolve() : Promise.reject(new Error('hỏng'))) } as unknown as HTMLImageElement
+      return img
+    }
+  }
+
+  it('biểu tượng nạp xong → thành phần tử trong lớp ảnh, danh sách biểu tượng rỗng đi', async () => {
+    const moTa: MoTaLopKhoi = {
+      the: [],
+      chu: [],
+      anh: [],
+      bieuTuong: [{ duLieu: 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E', x: 1, y: 2, w: 3, h: 4 }],
+    }
+    const ra = await napBieuTuong(moTa, anhGia('xong'))
+    expect(ra.anh).toHaveLength(1)
+    expect([ra.anh[0].x, ra.anh[0].y, ra.anh[0].w, ra.anh[0].h]).toEqual([1, 2, 3, 4])
+    expect(ra.bieuTuong ?? []).toHaveLength(0)
+  })
+
+  it('một biểu tượng hỏng → bỏ đúng cái đó, phần còn lại của bản mô tả giữ nguyên', async () => {
+    const moTa: MoTaLopKhoi = {
+      the: [],
+      chu: [{ chu: 'còn đây', x: 0, y: 0, font: 'normal 400 15px X', mau: '#000' }],
+      anh: [],
+      bieuTuong: [{ duLieu: 'data:image/svg+xml,x', x: 0, y: 0, w: 1, h: 1 }],
+    }
+    const ra = await napBieuTuong(moTa, anhGia('hong'))
+    expect(ra.anh).toHaveLength(0)
+    expect(ra.chu).toHaveLength(1)
   })
 })

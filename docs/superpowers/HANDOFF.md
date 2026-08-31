@@ -43,6 +43,9 @@ Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trướ
   cache-first cho chunk lazy). Dấu hiệu: lượt chạy xong NHANH HƠN cả hạn giờ vừa thêm vào mã.
   `for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();`
   `for (const k of await caches.keys()) await caches.delete(k);`
+- **Đừng lọc "http" trần khi lọc tài nguyên ngoài miền của SVG** — mọi `<svg>` mang
+  `xmlns="http://www.w3.org/2000/svg"`, nên phép lọc thô loại SẠCH 100% biểu tượng, âm thầm (ảnh
+  vẫn xuất ra, chỉ thiếu đúng thứ vừa thêm). Lọc theo `href=`/`url(`.
 - **Đừng chờ bằng `requestAnimationFrame`** — rAF không chạy khi tài liệu ẩn (tab nền, pane bị
   giấu). Một lượt xuất ảnh từng treo vĩnh viễn ở đúng đó. Nhịp chờ đi bằng `setTimeout`.
 - **Khối tạo bằng `store.addBlock()` trần không render**; và edgeless **cull** khối ngoài khung nhìn
@@ -89,7 +92,7 @@ của phiên này.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **57 file / 521 ca** (2026-08-31) |
+| Test | `npx vitest run` | **57 file / 527 ca** (2026-08-31) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout `BLOCKSUITE_UPSTREAM` còn ở SHA trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy TRƯỚC danh sách `LỆCH:`. |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 
