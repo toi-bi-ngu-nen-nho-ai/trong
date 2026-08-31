@@ -14,7 +14,14 @@ Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trướ
 ## 1. ĐANG MỞ
 
 **Deploy Vercel chậm thêm vài phút mỗi lần.** `postinstall` dựng lại `.vendor-build/` từ đầu
-(checkout CI luôn sạch). Cân nhắc Vercel Build Cache API **nếu** thành vấn đề thật — chưa cần.
+(checkout CI luôn sạch — cục bộ thì nó bỏ qua khi cổng đã xanh). Cân nhắc Vercel Build Cache API
+**nếu** thành vấn đề thật — chưa cần.
+
+**Xuất PNG còn thiếu vài lớp trang trí.** Sau lượt 2026-08-31 (chấm/số/ô tick đã vào ảnh), đọc mã
+thì vẫn còn hai khoảng trống, CHƯA đo trên trình duyệt: `DongChu` chỉ mang font + màu nên gạch
+chân / gạch ngang / nền tô chữ không tới được ảnh; và lượt đọc hộp chỉ nhìn
+`edgeless-note-background` nên mọi hộp CSS khác — đường kẻ ngang, vạch trái trích dẫn, nền khối mã,
+lưới bảng — cũng không. Chưa ai báo; ghi ở đây để lần sau khỏi đào lại.
 
 ---
 
@@ -95,6 +102,7 @@ của phiên này.
 | Test | `npx vitest run` | **57 file / 527 ca** (2026-08-31) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout `BLOCKSUITE_UPSTREAM` còn ở SHA trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy TRƯỚC danh sách `LỆCH:`. |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
+| D16 + biến CSS | `npm run build` (tự chạy `kiem:dist` ở `postbuild`) | Bản PHÁT HÀNH: không còn `affine-`, mọi `--drt-*` được dùng đều có định nghĩa, bản dịch `vi.json` còn nguyên. Cổng DUY NHẤT nhìn vào `dist/` — từng bắt 81 biến CSS không phân giải mà console vẫn sạch. |
 
 - `npm run dung:vendor` dựng lại `.vendor-build/` (vài phút). Nó **không** kéo lại từ thượng nguồn →
   không sửa được lệch do checkout trôi khỏi SHA pin; cái đó phải `git -C "$BLOCKSUITE_UPSTREAM"
@@ -115,10 +123,15 @@ của phiên này.
 - **D13 — chunk Mindmap nạp chậm.** Cả chồng BlockSuite nằm sau `React.lazy`. Import tĩnh từ
   `BoardGallery.tsx`/`App.tsx` vào bất cứ thứ gì kéo theo BlockSuite là lôi cả chồng vào chunk vỏ
   app cho mọi người dùng. Dùng `import()` động.
-- **CSS BlockSuite rò ra toàn app** nếu không chặn bằng lớp `drt-vendor`. Đừng xoá dòng `@layer` đầu
-  `src/index.css`, đừng xoá lời gọi `batLopCssVendor()`.
-- **npm là công cụ quản gói duy nhất** (`pnpm-lock.yaml` đã gỡ — nó tả một dự án 2 dependency trong
-  khi `package.json` có 67).
+- **D16 — bản phát hành không được lộ tên thượng nguồn.** Pipeline `scripts/doi-ten-vendor.mjs` đổi
+  `affine-` → `drt-` khi dựng. Nên mã của app đừng ghim tiền tố cứng: selector chạm cây vendored
+  phải khớp được cả hai (vd `[class*="list-block__prefix"]`), nếu không một lượt đổi tên nữa sẽ tắt
+  nó âm thầm. (`affine:page`/`affine:surface` là FLAVOUR trong dữ liệu — cố ý KHÔNG đổi.)
+- **CSS BlockSuite rò ra toàn app** nếu không chặn bằng lớp `drt-vendor`. Câu lệnh
+  `@layer drt-vendor;` trong `src/index.css` phải đứng TRƯỚC mọi `@import` (không phải "dòng đầu
+  tệp" — nó nằm sau khối chú thích); đừng xoá nó, đừng xoá lời gọi `batLopCssVendor()`.
+- **npm là công cụ quản gói duy nhất** (`pnpm-lock.yaml` đã gỡ — nó tả một dự án 2 dependency cho
+  một `package.json` đã hàng chục lần lớn hơn thế).
 
 ---
 
