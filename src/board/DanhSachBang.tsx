@@ -11,6 +11,7 @@ import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
 import { bangKhopTimKiem, type BangMeta, taoIdBang } from './boardMeta'
+import { xoaNoiDungBang } from './xoaNoiDungBang'
 
 // Cùng giá trị CONFIRM_DELETE_RESET_MS của App.tsx (5000) — viết hằng số riêng thay vì import vì
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
@@ -1143,7 +1144,15 @@ export function DanhSachBang({
     setXacNhanXoaVinhVien(false)
   }
   const xoaVinhVienNhieu = (ids: Iterable<string>) => {
-    for (const b of bangDaXoaTheoId(ids)) remove(b.id)
+    const bang = bangDaXoaTheoId(ids)
+    for (const b of bang) remove(b.id)
+    // META và NỘI DUNG nằm ở HAI kho khác nhau: `remove` chỉ xoá META (`drtrong-ecg`/`boards`), còn
+    // toàn bộ nét vẽ + thẻ ghi chú nằm ở `drtrong-board`/`collection` do BlockSuite ghi và KHÔNG ai
+    // xoá. Không có dòng dưới đây thì "xoá vĩnh viễn" chỉ làm bảng biến mất khỏi lưới trong khi dung
+    // lượng không giảm một byte (đo 2026-08-31: xoá hết 4 bảng, store vẫn còn nguyên 5 bản ghi).
+    // Không `await`: người dùng không phải chờ một lượt dọn kho để thấy lưới cập nhật, và hàm này tự
+    // nuốt lỗi + cảnh báo.
+    void xoaNoiDungBang(bang.map((b) => b.id))
     setChonDaXoa(new Set())
     setXacNhanXoaVinhVien(false)
   }

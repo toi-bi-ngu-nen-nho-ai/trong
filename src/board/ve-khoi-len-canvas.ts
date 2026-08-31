@@ -110,6 +110,20 @@ const CHON_BO_QUA = 'edgeless-note-mask, drt-block-selection, .drt-note-mask'
 // rồi tô màu thân thẻ thành "nền chữ".
 const CHON_BOC_CHU = 'affine-text, drt-text'
 
+// Những phần tử NGOÀI thân thẻ mà trình duyệt sơn bằng nền/viền, và vì thế không lọt vào lượt đọc
+// chữ lẫn lượt đọc ảnh: đường kẻ ngang (`<hr>` `border-top`, blocks/divider/src/styles.ts), ô bảng
+// (`<td>` `border: 1px solid`, blocks/table/src/table-cell-css.ts), mã inline (`<code>` nền + viền,
+// shared/src/styles/text.ts).
+//
+// DANH SÁCH TRẮNG có chủ đích, KHÔNG quét đoán. Một phép "phần tử nào có nền thì vẽ" sẽ tô luôn mọi
+// div bọc và lớp phủ đang có nền — đổi một lượt xuất đang đúng lấy một lượt xuất đoán mò.
+const CHON_HOP_TRANG_TRI = 'hr, code, td, th'
+
+// Vạch dọc bên trái khối trích dẫn là PSEUDO-ELEMENT `.quote::after` (blocks/paragraph/src/styles.ts)
+// — không có phần tử thật nên `getBoundingClientRect` không với tới. Đọc bằng
+// `getComputedStyle(el, '::after')` rồi tự đặt vào hệ toạ độ của `.quote` (nó `position: relative`).
+const CHON_TRICH_DAN = '.quote'
+
 // Trần grapheme cho phép đi từng ký tự. Trên một thẻ ghi chú bình thường (vài trăm ký tự) phép đo
 // từng grapheme là vài mili-giây; nhưng một khối dán cả trang văn bản vào thì phải có đường lùi,
 // nếu không lượt xuất tự biến thành thứ mà cả chặng này sinh ra để diệt.
@@ -244,6 +258,95 @@ function chiaDeuTheoHop(s: string, hop: DOMRect[]): DongTho[] {
   return ra
 }
 
+function coMau(m: string | undefined): boolean {
+  return !!m && m !== 'rgba(0, 0, 0, 0)' && m !== 'transparent'
+}
+
+function khongVien(kieu: string | undefined): boolean {
+  return !kieu || kieu === 'none' || kieu === 'hidden'
+}
+
+/**
+ * Một phần tử trong danh sách trắng → hộp vẽ được, hoặc `null` nếu nó chẳng sơn gì.
+ *
+ * Ca ĐẶC BIỆT là phần tử CHỈ có viền trên (`<hr>` của khối kẻ ngang): hộp của nó cao 0, kẻ khung
+ * quanh một hộp cao 0 thì hoặc mất hút hoặc ra hai vạch chồng nhau. Vẽ nó thành một VỆT ĐẶC dày
+ * đúng bằng viền — đó cũng chính là thứ người dùng nhìn thấy.
+ */
+function docHopTrangTri(el: Element, doiToaDo: DoiToaDo): TheKhoi | null {
+  const r = el.getBoundingClientRect()
+  if (r.width <= 0) return null
+  const cs = getComputedStyle(el)
+  const day = khongVien(cs.borderTopStyle) ? 0 : parseFloat(cs.borderTopWidth) || 0
+  const nen = cs.backgroundColor
+  if (day === 0 && !coMau(nen)) return null
+
+  const chiVienTren =
+    day > 0 &&
+    khongVien(cs.borderRightStyle) &&
+    khongVien(cs.borderBottomStyle) &&
+    khongVien(cs.borderLeftStyle)
+
+  const [x, y] = doiToaDo(r.left, r.top)
+  const [x2, y2] = doiToaDo(r.right, chiVienTren ? r.top + day : r.bottom)
+  if (chiVienTren) {
+    return {
+      x,
+      y,
+      w: x2 - x,
+      h: y2 - y,
+      mauNen: cs.borderTopColor,
+      banKinh: 0,
+      vienMau: '',
+      vienDay: 0,
+    }
+  }
+  return {
+    x,
+    y,
+    w: x2 - x,
+    h: y2 - y,
+    mauNen: coMau(nen) ? nen : '',
+    banKinh: parseFloat(cs.borderRadius) || 0,
+    vienMau: cs.borderTopColor,
+    vienDay: day,
+  }
+}
+
+/**
+ * Vạch dọc bên trái khối trích dẫn — `.quote::after`, một pseudo-element nên không có phần tử thật
+ * để đo. `getComputedStyle(el, '::after')` trả về bề rộng/chiều cao/màu ĐÃ giải (kể cả
+ * `calc(100% - 20px)`), còn vị trí thì suy từ chính `.quote`: nó `position: relative` nên `left`/
+ * `top` của pseudo tính từ mép hộp đó.
+ */
+function docVachTrichDan(q: Element, doiToaDo: DoiToaDo): TheKhoi | null {
+  let cs: CSSStyleDeclaration
+  try {
+    cs = getComputedStyle(q, '::after')
+  } catch {
+    return null
+  }
+  const rong = parseFloat(cs.width) || 0
+  const cao = parseFloat(cs.height) || 0
+  if (rong <= 0 || cao <= 0 || !coMau(cs.backgroundColor)) return null
+  const r = q.getBoundingClientRect()
+  if (r.width <= 0) return null
+  const trai = r.left + (parseFloat(cs.left) || 0)
+  const tren = r.top + (parseFloat(cs.top) || 0) + (parseFloat(cs.marginTop) || 0)
+  const [x, y] = doiToaDo(trai, tren)
+  const [x2, y2] = doiToaDo(trai + rong, tren + cao)
+  return {
+    x,
+    y,
+    w: x2 - x,
+    h: y2 - y,
+    mauNen: cs.backgroundColor,
+    banKinh: parseFloat(cs.borderRadius) || 0,
+    vienMau: '',
+    vienDay: 0,
+  }
+}
+
 /**
  * Gạch chân / gạch ngang / nền tô của một đoạn chữ — đọc bằng cách đi NGƯỢC lên cha, CHẶN ở
  * `CHON_BOC_CHU`. Xem chú thích ở hằng đó: hai thuộc tính này không kế thừa nên không thể đọc tại
@@ -260,7 +363,9 @@ function docTrangTriChu(span: Element): { gachChan: boolean; gachNgang: boolean;
     const gach = `${cs.textDecorationLine || ''} ${cs.textDecoration || ''}`
     if (gach.includes('underline')) kq.gachChan = true
     if (gach.includes('line-through')) kq.gachNgang = true
-    const nen = cs.backgroundColor
+    // Nền của `<code>` do lượt đọc HỘP lo (nó còn có viền + bo góc mà một dải nền sau chữ không tả
+    // được). Lấy cả ở đây là vẽ hai lần cùng một màu, chồng lệch nhau.
+    const nen = el.tagName === 'CODE' ? '' : cs.backgroundColor
     if (!kq.nen && nen && nen !== 'rgba(0, 0, 0, 0)' && nen !== 'transparent') kq.nen = nen
     if (el === boc) break
   }
@@ -327,6 +432,18 @@ export function docLopKhoi(
           vienDay: cs.borderTopStyle === 'none' ? 0 : parseFloat(cs.borderTopWidth) || 0,
         })
       }
+    }
+
+    // ── Hộp CSS ngoài thân thẻ (kẻ ngang, ô bảng, mã inline, vạch trích dẫn) ───────────────
+    for (const el of Array.from(khoi.querySelectorAll(CHON_HOP_TRANG_TRI))) {
+      if (el.closest(CHON_BO_QUA) || laPhanTuAn(el)) continue
+      const hop = docHopTrangTri(el, doiToaDo)
+      if (hop) the.push(hop)
+    }
+    for (const q of Array.from(khoi.querySelectorAll(CHON_TRICH_DAN))) {
+      if (q.closest(CHON_BO_QUA) || laPhanTuAn(q)) continue
+      const vach = docVachTrichDan(q, doiToaDo)
+      if (vach) the.push(vach)
     }
 
     // ── Ảnh chèn ────────────────────────────────────────────────────────────────────────────

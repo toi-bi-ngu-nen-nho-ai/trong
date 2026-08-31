@@ -509,3 +509,83 @@ describe('veLopKhoi — vẽ định dạng chữ', () => {
     expect(ctx.fillRect).not.toHaveBeenCalled()
   })
 })
+
+// ─── Hộp CSS ngoài thân thẻ ────────────────────────────────────────────────────────────────────
+//
+// Lượt đọc hộp trước đây chỉ nhìn `edgeless-note-background`, nên mọi thứ khác trình duyệt sơn
+// bằng nền/viền đều không vào ảnh: đường kẻ ngang (`<hr>` với `border-top`, xem
+// `affine/blocks/divider/src/styles.ts`), ô bảng (`<td>` `border: 1px solid`,
+// `table-cell-css.ts`), viền mã inline (`<code>` trong `affine-text`).
+//
+// DANH SÁCH TRẮNG, không quét đoán: một phép "phần tử nào có nền thì vẽ" sẽ tô luôn cả các div bọc
+// và lớp phủ, làm bẩn mọi bản xuất — đổi một tính năng đang chạy đúng lấy một tính năng đoán mò.
+
+describe('docLopKhoi — hộp CSS ngoài thân thẻ', () => {
+  it('đường kẻ ngang (<hr> chỉ có border-top) → một VỆT ĐẶC, không phải cái khung', () => {
+    const khoi = dungKhoiGia('<hr>')
+    const hr = khoi.querySelector('hr')! as HTMLElement
+    datRect(hr, hcn(20, 100, 400, 0))
+    hr.style.borderTop = '2px solid rgb(220, 220, 230)'
+
+    const the = docLopKhoi([khoi], doiToaDoGia).the
+    expect(the).toHaveLength(1)
+    // Tô ĐẶC bằng màu viền — kẻ khung quanh một hộp cao 0 thì hoặc mất hút hoặc thành hai vạch.
+    expect(the[0].mauNen).toBe('rgb(220, 220, 230)')
+    expect(the[0].vienDay).toBe(0)
+    expect(the[0].h).toBe(1) // 2px màn hình → 1 đơn vị mô hình (doiToaDoGia chia đôi)
+    expect(the[0].w).toBe(200)
+  })
+
+  it('ô bảng (<td> viền đủ bốn cạnh) → hộp CÓ VIỀN', () => {
+    const khoi = dungKhoiGia('<table><tr><td>ô</td></tr></table>')
+    const td = khoi.querySelector('td')! as HTMLElement
+    datRect(td, hcn(0, 0, 120, 40))
+    td.style.border = '1px solid rgb(10, 20, 30)'
+
+    const the = docLopKhoi([khoi], doiToaDoGia).the
+    expect(the).toHaveLength(1)
+    expect(the[0].vienDay).toBe(1)
+    expect(the[0].vienMau).toBe('rgb(10, 20, 30)')
+  })
+
+  it('mã inline (<code> nền + viền) → hộp có cả nền lẫn viền', () => {
+    const khoi = dungKhoiGia('<code>mg/kg</code>')
+    const code = khoi.querySelector('code')! as HTMLElement
+    datRect(code, hcn(0, 0, 60, 20))
+    code.style.backgroundColor = 'rgb(245, 245, 245)'
+    code.style.border = '1px solid rgb(200, 200, 200)'
+    code.style.borderRadius = '4px'
+
+    const the = docLopKhoi([khoi], doiToaDoGia).the
+    expect(the).toHaveLength(1)
+    expect(the[0].mauNen).toBe('rgb(245, 245, 245)')
+    expect(the[0].vienDay).toBe(1)
+    expect(the[0].banKinh).toBe(4)
+  })
+
+  it('nền của <code> KHÔNG bị vẽ hai lần — dòng chữ bỏ nền, hộp lo phần đó', () => {
+    const khoi = dungKhoiGia(
+      '<drt-text><code style="background-color: rgb(245, 245, 245)"><v-text>' +
+        '<span data-v-text="true">mg/kg</span>' +
+        '</v-text></code></drt-text>',
+    )
+    datRect(khoi.querySelector('code')!, hcn(0, 0, 60, 20))
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(50))
+    expect(moTa.chu[0].nen).toBeFalsy()
+    khoi.remove()
+  })
+
+  it('phần tử không nền KHÔNG viền → không dựng hộp nào (không có vệt ma trong ảnh)', () => {
+    const khoi = dungKhoiGia('<table><tr><td>trống trơn</td></tr></table>')
+    datRect(khoi.querySelector('td')!, hcn(0, 0, 100, 30))
+    expect(docLopKhoi([khoi], doiToaDoGia).the).toHaveLength(0)
+  })
+
+  it('hộp trong lớp phủ thao tác bị bỏ qua', () => {
+    const khoi = dungKhoiGia('<edgeless-note-mask><hr></edgeless-note-mask>')
+    const hr = khoi.querySelector('hr')! as HTMLElement
+    datRect(hr, hcn(0, 0, 100, 0))
+    hr.style.borderTop = '1px solid rgb(0, 0, 0)'
+    expect(docLopKhoi([khoi], doiToaDoGia).the).toHaveLength(0)
+  })
+})

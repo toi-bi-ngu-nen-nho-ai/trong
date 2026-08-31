@@ -13,20 +13,19 @@ Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trướ
 
 ## 1. ĐANG MỞ
 
-**Deploy Vercel chậm thêm vài phút mỗi lần.** `postinstall` dựng lại `.vendor-build/` từ đầu
-(checkout CI luôn sạch — cục bộ thì nó bỏ qua khi cổng đã xanh). Cân nhắc Vercel Build Cache API
-**nếu** thành vấn đề thật — chưa cần.
+**Deploy Vercel chậm thêm vài phút mỗi lần — ĐÃ QUYẾT: không làm.** `postinstall` dựng lại
+`.vendor-build/` từ đầu trên CI (checkout luôn sạch; cục bộ nó bỏ qua khi cổng đã xanh). Cân nhắc
+2026-08-31 và bác: không đo được thời gian build Vercel từ máy dev, nên sẽ là một lớp cache viết mù.
+Khoá cache thì đã có sẵn nếu sau này cần — `bang-bam-vendor.json` là băm SHA-256 toàn cây vendored,
+đã commit, nên "khoá đổi ⇒ dựng lại" là đúng theo cấu tạo, không sợ phục vụ cây cũ. **Chỉ làm khi
+có một lượt deploy thật bị chặn vì nó**, và làm thì đo trước/sau.
 
-**"Xoá vĩnh viễn" để lại nội dung bảng trong IndexedDB.** `xoaVinhVienNhieu` chỉ gọi `remove(id)`
-trên META bảng; doc BlockSuite vẫn nằm nguyên ở `drtrong-board` → store `collection`, cùng khoá
-`blocksuite:bang-*:edgelessViewport` trong localStorage. Đo 2026-08-31: xoá vĩnh viễn hết 4 bảng
-xong, store vẫn còn 5 bản ghi (4 doc bảng + doc gốc `bs-trong-board`). Người dùng tưởng đã xoá
-sạch, dung lượng thì không giảm. Sửa = cho đường xoá vĩnh viễn dọn luôn doc + khoá viewport.
-
-**Xuất PNG: còn các HỘP CSS ngoài thân thẻ.** Chấm/số/ô tick (2026-08-31) và gạch chân/gạch
-ngang/nền tô chữ (cùng ngày) đã vào ảnh. Còn lại: lượt đọc hộp chỉ nhìn `edgeless-note-background`,
-nên đường kẻ ngang, vạch trái trích dẫn, viền khối mã inline và lưới bảng vẫn không có. Đọc từ mã,
-CHƯA đo trên trình duyệt; chưa ai báo.
+**Ảnh (blob) của bảng đã xoá vẫn ở lại.** `xoaNoiDungBang` dọn doc + khoá viewport, nhưng
+`IndexedDBBlobSource` lưu blob ở HAI DB riêng (`drtrong-board_blob`, `drtrong-board_blob_mime`) và
+đánh khoá theo **băm nội dung ảnh**, không theo id bảng — không có cách nào biết ảnh nào của bảng
+nào nếu không mở doc ra dò tham chiếu, và một ảnh có thể dùng chung giữa hai bảng. Muốn dọn đúng
+phải viết một lượt gom rác: đọc mọi doc CÒN LẠI, thu tập khoá blob được tham chiếu, xoá phần thừa.
+Chưa ai báo; nặng hay nhẹ tuỳ người dùng có dán ảnh vào bảng hay không.
 
 ---
 
@@ -41,6 +40,9 @@ CHƯA đo trên trình duyệt; chưa ai báo.
 - **Đọc vitest phải nhìn đủ ba:** mã thoát thật, dòng `Test Files` (đỏ-cấp-file không hiện ở dòng
   `Tests`), và tổng số ca so lượt trước (tụt số ca mà không ca nào đỏ = có file không nạp được).
 - **Đừng chạy `tsc` song song `vitest`** (đã gây `UNKNOWN: unknown error, read` trên Windows).
+- **`EBUSY ... watch '.tmp-test-*'` là RÁC TẠM, không phải ca đỏ.** Lượt chạy chết giữa chừng, KHÔNG
+  in dòng `Test Files` nào — dấu hiệu nhận ra. Chạy lại là xanh; không có bản tổng kết thì đừng đọc
+  thành hồi quy.
 - **Tắt dev server trước khi chạy suite** — server thừa từng làm worker timeout, đọc nhầm thành hồi quy.
 
 ### 2.2 Đo trên trình duyệt
@@ -115,7 +117,7 @@ của phiên này.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **57 file / 537 ca** (2026-08-31) |
+| Test | `npx vitest run` | **58 file / 548 ca** (2026-08-31) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout `BLOCKSUITE_UPSTREAM` còn ở SHA trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy TRƯỚC danh sách `LỆCH:`. |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 | D16 + biến CSS | `npm run build` (tự chạy `kiem:dist` ở `postbuild`) | Bản PHÁT HÀNH: không còn `affine-`, mọi `--drt-*` được dùng đều có định nghĩa, bản dịch `vi.json` còn nguyên. Cổng DUY NHẤT nhìn vào `dist/` — từng bắt 81 biến CSS không phân giải mà console vẫn sạch. |
