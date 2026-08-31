@@ -13,33 +13,16 @@ Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trướ
 
 ## 1. ĐANG MỞ
 
-**Deploy Vercel chậm thêm vài phút mỗi lần — ĐÃ QUYẾT: không làm.** `postinstall` dựng lại
-`.vendor-build/` từ đầu trên CI (checkout luôn sạch; cục bộ nó bỏ qua khi cổng đã xanh). Cân nhắc
-2026-08-31 và bác: không đo được thời gian build Vercel từ máy dev, nên sẽ là một lớp cache viết mù.
-Khoá cache thì đã có sẵn nếu sau này cần — `bang-bam-vendor.json` là băm SHA-256 toàn cây vendored,
-đã commit, nên "khoá đổi ⇒ dựng lại" là đúng theo cấu tạo, không sợ phục vụ cây cũ. **Chỉ làm khi
-có một lượt deploy thật bị chặn vì nó**, và làm thì đo trước/sau.
+Hai nhóm dưới đây KHÁC HẲN NHAU về nghĩa vụ — đừng gộp lại thành "danh sách việc cần làm":
 
-**Gõ "/" bằng TIẾNG ANH không còn tìm ra mục — hệ quả CÓ CHỦ Ý của chặng dịch menu lệnh
-(2026-08-31, commit `c528c38`).** `slash-menu-popover.ts:153` lọc bằng `[name, ...searchAlias].some(…)`,
-mà `searchAlias` thượng nguồn gần như rỗng (đo được đúng 3 chỗ: `checkbox`, `mathBlock/equationBlock/
-latexBlock`, `remove`). Từ khi `name` được dịch, `/code` `/h1` không ra kết quả nữa — phải gõ
-`/khối` `/tiêu`. Chủ dự án ĐÃ được báo và chưa yêu cầu sửa.
-Muốn khôi phục gõ tắt tiếng Anh thì KHÔNG dùng được bộ dịch D12: nó chỉ THAY chuỗi, không THÊM được
-thuộc tính `searchAlias` vào cây vendored — cần một bước dựng khác (hoặc một `SlashMenuConfig` phụ
-đăng ký từ phía app, hướng chưa khảo sát). Đừng bắt đầu bằng cách nới luật dịch.
+- **§1.1 NỢ KỸ THUẬT** — khiếm khuyết có thật, còn nằm đó, *nên* trả khi có dịp.
+- **§1.2 ĐÃ QUYẾT KHÔNG LÀM** — chủ dự án đã cân nhắc và chốt là KHÔNG làm. Đây là **thông tin**,
+  không phải việc tồn. Đừng "sửa giúp", đừng đưa vào kế hoạch, đừng nêu lại như một thiếu sót.
+  Chỉ mở lại khi chủ dự án nói mở lại.
 
-**Chữ tiếng Anh trong TRANH MINH HOẠ SVG của thẻ xem trước menu "/" — ĐÃ QUYẾT: không làm
-(2026-08-31).** Nhãn và tiêu đề nhóm đã dịch xong; phần còn lại là nội dung mẫu vẽ trong hình
-(`In a decentralized system…`, chữ "Heading 1" nằm trong SVG) ở các bảng `tooltips`.
-Vì sao bác: `viewBox` cố định 170×68, mỗi dòng là `<tspan>` ghim cứng `x`/`y`, `font-size: 10` —
-tiếng Việt dài hơn ~20–30% và có dấu nên sẽ tràn khung/cắt dấu, mà sửa toạ độ là sửa `src/vendor/`
-(D11 cấm). Cộng thêm một lớp luật dịch thứ 5 (text node trong SVG) và ~30 khoá văn xuôi trang trí.
-Đo được: ở khung 800×450 thẻ xem trước KHÔNG dựng ra (SVG 0×0), chỉ hiện khi cửa sổ rộng ~1600px —
-tức trên iPad/điện thoại gần như không thấy. **Nếu sau này vẫn muốn xử lý, cách rẻ và an toàn hơn
-nhiều là ẩn hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch chữ trong hình.**
+### 1.1 NỢ KỸ THUẬT — cần trả
 
-**Nút "Liên kết" trong menu Ghi chú không làm gì — CHỦ DỰ ÁN CHỌN ĐỂ NGUYÊN (2026-08-31).**
+**Nút "Liên kết" trong menu Ghi chú không làm gì — khiếm khuyết THẬT, chủ dự án hoãn (2026-08-31).**
 `affine/gfx/note/src/toolbar/note-menu.ts` render một nút Liên kết gọi `insertLinkByQuickSearchCommand`
 (`affine/blocks/bookmark/src/commands/insert-link-by-quick-search.ts`). Dòng đầu của lệnh đó:
 `const s = std.getOptional(QuickSearchProvider); if (!s) return` — **thoát im lặng, không gọi
@@ -54,7 +37,7 @@ Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`
 bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
 kho tài liệu để tìm.
 
-**Bảng Mẫu (Template) rỗng — CHỦ DỰ ÁN CHỌN ĐỂ NGUYÊN (2026-08-31).**
+**Bảng Mẫu (Template) rỗng — khiếm khuyết THẬT, chủ dự án gọi đích danh là nợ kỹ thuật (2026-08-31).**
 `affine/gfx/template/src/toolbar/builtin-templates.ts` khai `export const templates: TemplateCategory[] = []`
 — thượng nguồn cố tình để RỖNG; app chủ tự bơm mẫu vào qua `builtInTemplates.extend(manager)`.
 AFFiNE bơm từ `packages/frontend/templates` (16 mẫu, sinh bởi `build-edgeless.mjs` từ 16 tệp .zip
@@ -65,6 +48,38 @@ CẢNH BÁO nếu chặng sau định nhập 16 mẫu đó: chúng là mẫu KIN
 Flowchart…), và **chưa ai kiểm chúng có dùng loại khối nằm ngoài `viewExtensions` cắt gọn hay không**
 (bảng/embed/divider…) — nhập vào mà không kiểm là rước đúng lớp lỗi "khối không có view" ở trên.
 Chủ dự án đã nói ý định KHÁC với "nhập mẫu của AFFiNE" — hỏi lại trước khi làm bất cứ hướng nào.
+
+### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
+
+Ba mục dưới đây đã được cân nhắc và chốt là không làm. Ghi lại để phiên sau **khỏi phát hiện lại
+rồi tưởng là thiếu sót** — kèm sẵn phép đo và hướng đi nếu có ngày đổi ý. Đừng tự ý sửa, đừng xếp
+vào kế hoạch, đừng báo cáo như lỗi còn tồn.
+
+**Deploy Vercel chậm thêm vài phút mỗi lần.** `postinstall` dựng lại `.vendor-build/` từ đầu trên CI
+(checkout luôn sạch; cục bộ nó bỏ qua khi cổng đã xanh). Cân nhắc 2026-08-31 và bác: không đo được
+thời gian build Vercel từ máy dev, nên sẽ là một lớp cache viết mù. Khoá cache thì đã có sẵn nếu sau
+này cần — `bang-bam-vendor.json` là băm SHA-256 toàn cây vendored, đã commit, nên "khoá đổi ⇒ dựng
+lại" là đúng theo cấu tạo, không sợ phục vụ cây cũ. **Chỉ làm khi có một lượt deploy thật bị chặn vì
+nó**, và làm thì đo trước/sau.
+
+**Gõ "/" bằng TIẾNG ANH không còn tìm ra mục — hệ quả CÓ CHỦ Ý của chặng dịch menu lệnh
+(commit `c528c38`).** `slash-menu-popover.ts:153` lọc bằng `[name, ...searchAlias].some(…)`, mà
+`searchAlias` thượng nguồn gần như rỗng (đo được đúng 3 chỗ: `checkbox`, `mathBlock/equationBlock/
+latexBlock`, `remove`). Từ khi `name` được dịch, `/code` `/h1` không ra kết quả nữa — phải gõ
+`/khối` `/tiêu`. Chủ dự án đã được báo và chốt là chấp nhận.
+Nếu có ngày muốn khôi phục gõ tắt tiếng Anh: KHÔNG dùng được bộ dịch D12 — nó chỉ THAY chuỗi, không
+THÊM được thuộc tính `searchAlias` vào cây vendored. Cần một bước dựng khác, hoặc một
+`SlashMenuConfig` phụ đăng ký từ phía app (hướng chưa khảo sát). Đừng bắt đầu bằng cách nới luật dịch.
+
+**Chữ tiếng Anh trong TRANH MINH HOẠ SVG của thẻ xem trước menu "/".** Nhãn và tiêu đề nhóm đã dịch
+xong; phần còn lại là nội dung mẫu vẽ TRONG hình (`In a decentralized system…`, chữ "Heading 1" nằm
+trong SVG) ở các bảng `tooltips`.
+Vì sao bác: `viewBox` cố định 170×68, mỗi dòng là `<tspan>` ghim cứng `x`/`y`, `font-size: 10` —
+tiếng Việt dài hơn ~20–30% và có dấu nên sẽ tràn khung/cắt dấu, mà sửa toạ độ là sửa `src/vendor/`
+(D11 cấm). Cộng thêm một lớp luật dịch thứ 5 (text node trong SVG) và ~30 khoá văn xuôi trang trí.
+Đo được: ở khung 800×450 thẻ xem trước KHÔNG dựng ra (SVG 0×0), chỉ hiện khi cửa sổ rộng ~1600px —
+tức trên iPad/điện thoại gần như không thấy. **Nếu có ngày đổi ý, cách rẻ và an toàn hơn nhiều là ẩn
+hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch chữ trong hình.**
 
 ---
 
