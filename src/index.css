@@ -10,9 +10,20 @@
 /* ─── Lớp thác đổ cho CSS của cây BlockSuite ──────────────────────────────────────────────────────
    PHẢI đứng TRƯỚC `@import 'tailwindcss'` và không được xê dịch xuống dưới. Thứ tự ưu tiên của các
    lớp thác đổ (cascade layer) do THỨ TỰ KHAI BÁO ĐẦU TIÊN quyết định: lớp khai TRƯỚC = ưu tiên
-   THẤP hơn. Khai `drt-vendor` ngay dòng đầu đẩy nó xuống dưới cả bốn lớp Tailwind
-   (theme/base/components/utilities) mà `@import 'tailwindcss'` khai ngay sau đó. Đặt được ở đây là
-   nhờ luật CSS cho phép CÂU LỆNH `@layer a;` đứng trước `@import` (khác KHỐI `@layer a {...}`).
+   THẤP hơn. Câu lệnh dưới đây ghim SẴN vị trí của `theme` và `base`, nên khi `@import 'tailwindcss'`
+   khai lại `theme, base, components, utilities` ngay sau đó thì hai tên đã có giữ nguyên chỗ, còn
+   `components`/`utilities` (tên mới) được nối vào CUỐI — tức sau `drt-vendor`. Thứ tự cuối cùng,
+   thấp → cao:  drt-vendor-tran < theme < base < drt-vendor < components < utilities.
+   Đặt được ở đây là nhờ luật CSS cho phép CÂU LỆNH `@layer a;` đứng trước `@import` (khác KHỐI
+   `@layer a {...}`).
+
+   HAI lớp chứ không một, vì hai họ lỗi ĐỐI NGHỊCH nhau (lý do đầy đủ ở src/board/lop-css-vendor.ts):
+   - `drt-vendor-tran` (thấp nhất, dưới cả `base`): stylesheet vendor có bộ chọn PHẦN TỬ TRẦN —
+     loại rò ra toàn app, lỗi 2026-08-26 mô tả ngay dưới đây.
+   - `drt-vendor` (trên `base`, dưới `components`): phần còn lại, bộ chọn neo vào `.drt-*` hoặc
+     custom element nên không với tới DOM app. PHẢI nằm trên `base` vì preflight của Tailwind v4
+     khai `*{margin:0;padding:0;border:0}` trong đúng lớp đó và sẽ xoá sạch padding của mọi khối
+     BlockSuite — lỗi 2026-08-31 "Khối mã/Trích dẫn hiển thị lệch hoàn toàn".
 
    Vì sao cần: cây BlockSuite tiêm ~190 thẻ <style> thẳng vào <head> lúc bảng vẽ mở, và những thẻ đó
    KHÔNG thuộc lớp nào. Theo luật thác đổ, CSS KHÔNG-LỚP luôn thắng CSS CÓ-LỚP bất kể độ đặc hiệu —
@@ -24,7 +35,7 @@
 
    KHÔNG xoá dòng này dù grep trong CHÍNH file này không thấy ai dùng tên lớp: nơi dùng là bước bọc
    lúc chạy ở src/board/lop-css-vendor.ts. */
-@layer drt-vendor;
+@layer drt-vendor-tran, theme, base, drt-vendor;
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,500;1,600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import 'tailwindcss';

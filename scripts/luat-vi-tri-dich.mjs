@@ -295,6 +295,19 @@ export function viTriHienThi(node, tenFile = null) {
     if (gp && gp.kind === ts.SyntaxKind.TemplateSpan && gp.expression === p) {
       return khopThuocTinhHtml(gp)
     }
+
+    // Biểu thức điều kiện đứng làm GIÁ TRỊ của một thuộc tính đã có trong THUOC_TINH_HIEN_THI —
+    // đo được ở affine/gfx/note/src/toolbar/note-menu-config.js:
+    //   `tooltip: item.type !== 'text' ? item.tooltip.replace(…) : 'Text'`
+    // (lỗi người dùng báo 2026-08-31: menu Ghi chú hiện nút đầu tiên là "Text", 14 nút còn lại đã
+    // tiếng Việt). Nới theo NGUYÊN TẮC, không theo file: chỗ nào `tooltip:`/`label:`/… đã được
+    // duyệt là chữ hiển thị thì một NHÁNH ternary gán vào đúng chỗ đó cũng là chữ hiển thị — cùng
+    // lập luận đã dùng cho nhánh TemplateSpan ngay trên. Vẫn MỘT CẤP: ternary lồng ternary không
+    // được nhận (ca kiểm canh riêng), giữ đúng nguyên tắc hỏng-thì-đóng của đầu file.
+    if (gp && gp.kind === ts.SyntaxKind.PropertyAssignment && gp.initializer === p) {
+      const tenCha = tenThuocTinh(gp.name)
+      if (tenCha && THUOC_TINH_HIEN_THI.has(tenCha)) return `nhánh-điều-kiện-thuộc-tính:${tenCha}`
+    }
     return null
   }
 
@@ -588,6 +601,50 @@ export function thayNutDongMenuMobile(js, banDo, tenFile = 'khong-ten.js') {
   return {
     js: js.replace(RE_NUT_DONG_MENU_MOBILE, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
     cacLuot: [{ chuoiGoc: 'Done', chuoiDich: vi, dong }],
+  }
+}
+
+// Chữ TRẦN "Custom" giữa cặp thẻ `<div class="frame-add-button custom">…</div>` — menu CHÍNH của
+// công cụ Khung (`frame-menu.ts`, hiện ra khi bấm nút Khung trên thanh công cụ). Cùng lớp lỗi chữ
+// trần như "More Tools"/"Done"/"Slide " ở trên: nằm trong phần TEXT của một template literal nên
+// không có node AST nào đại diện, `dichMotFile` không bao giờ thấy.
+//
+// VÌ SAO CHẶNG TRƯỚC BỎ SÓT: mục 34 (2026-08-25) điều tra đúng chữ "Custom" nhưng đo ở
+// `frame-DENSE-menu.ts` — menu TRÀN, chỉ hiện khi thanh công cụ không đủ rộng — và kết luận
+// "`name: 'Custom'` không có trong vi.json nên không bị đụng". Chữ "Custom" người dùng THẤY nằm ở
+// file KHÁC, `frame-menu.ts`, và ở dạng chữ trần chứ không phải `name:`. Hai file, hai hình dạng,
+// hai đường vá — đừng đọc ghi chú mục 34 rồi kết luận chuyện này đã xong.
+//
+// Neo bằng chính class `frame-add-button custom` (nút "tuỳ chỉnh" duy nhất trong menu), KHÔNG bằng
+// tên thẻ `<div>` chung chung — cùng nguyên tắc với `@click="${this.onClose}"` của
+// thayNutDongMenuMobile. Đo 2026-08-31: ĐÚNG MỘT lượt chữ "Custom" trong toàn file, và đúng một
+// lượt class đó. Danh sách ĐÓNG theo đường dẫn.
+const RE_CUSTOM_FRAME_MENU = /(<div class="frame-add-button custom">\s*)Custom(\s*<\/div>)/
+
+export function thayChuCustomFrameMenu(js, banDo, tenFile = 'khong-ten.js') {
+  if (tenFile !== 'affine/blocks/frame/src/edgeless-toolbar/frame-menu.js') {
+    return { js, cacLuot: [] }
+  }
+  const m = js.match(RE_CUSTOM_FRAME_MENU)
+  if (!m || !Object.hasOwn(banDo, 'Custom')) return { js, cacLuot: [] }
+
+  const vi = banDo['Custom']
+  if (typeof vi !== 'string') {
+    throw new Error(
+      'luat-vi-tri-dich: khoá "Custom" (nút tuỳ chỉnh menu Khung, thayChuCustomFrameMenu) có giá ' +
+        `trị KHÔNG PHẢI CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+    )
+  }
+
+  // Cùng lý do thoát ký tự với thayChuTrongTagTooltip — chèn thẳng vào phần TEXT của một template
+  // literal đang mở, không qua JSON.stringify.
+  const thoatTemplate = (s) => s.replace(/[`$\\]/g, (c) => `\\${c}`)
+  // Dòng của CHÍNH chữ "Custom" (m[1] là đoạn neo đứng trước nó).
+  const dong = js.slice(0, m.index + m[1].length).split('\n').length
+
+  return {
+    js: js.replace(RE_CUSTOM_FRAME_MENU, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
+    cacLuot: [{ chuoiGoc: 'Custom', chuoiDich: vi, dong }],
   }
 }
 

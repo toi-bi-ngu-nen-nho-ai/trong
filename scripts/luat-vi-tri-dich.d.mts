@@ -72,3 +72,15 @@ export declare function thayTienToSlideFrameDenseMenu(
   banDo: Record<string, string>,
   tenFile?: string,
 ): { js: string; cacLuot: LuotTienToSlide[] }
+
+export interface LuotCustomFrameMenu {
+  chuoiGoc: string
+  chuoiDich: string
+  dong: number
+}
+
+export declare function thayChuCustomFrameMenu(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotCustomFrameMenu[] }

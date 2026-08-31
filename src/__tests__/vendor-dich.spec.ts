@@ -15,6 +15,7 @@ import {
   dichMotFile,
   FILE_CHO_PHEP_FILLTEXT,
   FILE_CHO_PHEP_NAME_SENIOR_TOOL,
+  thayChuCustomFrameMenu,
   thayChuTrongTagTooltip,
   thayNutDongMenuMobile,
   thayTienToSlideFrameDenseMenu,
@@ -690,5 +691,81 @@ describe('thayTienToSlideFrameDenseMenu — tiền tố trần "Slide " đầu t
     expect(() =>
       thayTienToSlideFrameDenseMenu(js, { Slide: 42 } as unknown as Record<string, string>, TEN_FILE),
     ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
+describe('nhánh biểu thức điều kiện làm GIÁ TRỊ của một thuộc tính hiển thị (mục "Text")', () => {
+  // LỖI GỐC (người dùng báo 2026-08-31: "Ghi chú: bấm vào thấy chữ 'Text'"):
+  // `affine/gfx/note/src/toolbar/note-menu-config.js` dựng tooltip của từng mục trong menu Ghi chú
+  // bằng `tooltip: item.type !== 'text' ? item.tooltip.replace(…) : 'Text'`. Literal `'Text'` nằm ở
+  // NHÁNH của một biểu thức điều kiện, còn biểu thức đó là GIÁ TRỊ của thuộc tính `tooltip:` —
+  // `tooltip` đã có trong THUOC_TINH_HIEN_THI, nhưng luật cũ chỉ nhận nhánh điều kiện khi biểu thức
+  // đứng trong một NHỊP TEMPLATE (`.tooltip=${a ? '' : 'Others'}`), nên hình dạng này lọt hoàn toàn.
+  // Đo trên trình duyệt thật trước khi vá: 14/15 nút trong menu Ghi chú hiện tiếng Việt, riêng nút
+  // đầu tiên hiện "Text".
+  //
+  // Nới luật theo NGUYÊN TẮC chứ không theo file: chỗ nào `tooltip:`/`label:`/… đã được duyệt là
+  // chữ hiển thị thì một nhánh ternary gán vào đúng chỗ đó cũng là chữ hiển thị. Vẫn giữ giới hạn
+  // MỘT CẤP như luật cũ (ternary lồng ternary không được nhận).
+  it('nhánh whenFalse của ternary gán vào tooltip: được dịch', () => {
+    const { js } = dichMotFile("const a = { tooltip: x !== 'text' ? y : 'Text' }", { Text: 'Chữ' })
+    expect(js).toContain('"Chữ"')
+  })
+
+  it('nhánh whenTrue của ternary gán vào label: được dịch', () => {
+    const { js } = dichMotFile("const a = { label: x ? 'Text' : y }", { Text: 'Chữ' })
+    expect(js).toContain('"Chữ"')
+  })
+
+  it('nhánh ternary gán vào một thuộc tính KHÔNG hiển thị thì không được đụng', () => {
+    const { js } = dichMotFile("const a = { key: x ? 'Text' : y }", { Text: 'Chữ' })
+    expect(js).toBe("const a = { key: x ? 'Text' : y }")
+  })
+
+  it('ternary LỒNG một cấp nữa gán vào tooltip: vẫn không được nhận (giữ fail-closed)', () => {
+    const nguon = "const a = { tooltip: x ? (y ? 'Text' : z) : w }"
+    expect(dichMotFile(nguon, { Text: 'Chữ' }).js).toBe(nguon)
+  })
+})
+
+describe('thayChuCustomFrameMenu — chữ trần "Custom" trong menu Khung', () => {
+  // LỖI GỐC (người dùng báo 2026-08-31: "Khung: bấm vào thấy chữ 'Custom' trên PC"):
+  // `affine/blocks/frame/src/edgeless-toolbar/frame-menu.js:78` viết
+  // `<div class="frame-add-button custom">Custom</div>` — chữ TRẦN giữa hai thẻ trong một template
+  // literal, cùng lớp lỗi với "More Tools"/"Done"/"Slide " đã vá trước đó: không có node AST nào
+  // đại diện nên `dichMotFile` không bao giờ thấy.
+  //
+  // Chặng 2026-08-25 đã vá "Slide" ở frame-DENSE-menu (menu tràn khi thanh công cụ hẹp) và ghi
+  // nhận "Custom" trong CÙNG file đó không có trong vi.json. Nhưng "Custom" mà người dùng THẤY nằm
+  // ở file KHÁC — `frame-menu.js`, menu chính hiện khi bấm nút Khung — và chưa ai đụng tới.
+  //
+  // Neo bằng chính class `frame-add-button custom` chứ không phải tên thẻ `<div>` chung chung, cùng
+  // nguyên tắc với `@click="${this.onClose}"` của thayNutDongMenuMobile. Đo 2026-08-31: ĐÚNG MỘT
+  // lượt chữ "Custom" trong toàn file.
+  const TEP = 'affine/blocks/frame/src/edgeless-toolbar/frame-menu.js'
+  const NGUON = 'const t = html`<div class="frame-add-button custom">Custom</div>`'
+
+  it('thay chữ trần trong file đã đo/duyệt', () => {
+    const { js, cacLuot } = thayChuCustomFrameMenu(NGUON, { Custom: 'Tuỳ chỉnh' }, TEP)
+    expect(js).toContain('>Tuỳ chỉnh<')
+    expect(js).not.toContain('>Custom<')
+    expect(cacLuot).toEqual([{ chuoiGoc: 'Custom', chuoiDich: 'Tuỳ chỉnh', dong: 1 }])
+  })
+
+  it('CÙNG hình dạng ở file KHÁC thì không đụng', () => {
+    expect(thayChuCustomFrameMenu(NGUON, { Custom: 'Tuỳ chỉnh' }, 'affine/blocks/frame/src/khac.js').js).toBe(NGUON)
+  })
+
+  it('chữ "Custom" trong file nhưng KHÔNG ở đúng thẻ neo thì không đụng', () => {
+    const khac = 'const t = html`<div class="frame-add-button">Custom</div>`'
+    expect(thayChuCustomFrameMenu(khac, { Custom: 'Tuỳ chỉnh' }, TEP).js).toBe(khac)
+  })
+
+  it('không có khoá trong bản đồ thì giữ nguyên', () => {
+    expect(thayChuCustomFrameMenu(NGUON, {}, TEP).js).toBe(NGUON)
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() => thayChuCustomFrameMenu(NGUON, { Custom: 42 } as unknown as Record<string, string>, TEP)).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })

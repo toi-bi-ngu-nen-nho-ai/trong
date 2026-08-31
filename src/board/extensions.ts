@@ -16,6 +16,14 @@
 // inline (đậm/nghiêng/@nhắc/liên kết/chú thích/công thức/bình luận) — không chỉ riêng ô Database.
 // SlashMenu (gõ "/") là đường DUY NHẤT để chèn khối Database vào một Note — không có nút riêng.
 //
+// Chặng 2026-08-31 bật thêm 1: EdgelessTextViewExtension — điều tra lỗi người dùng báo "Chữ tự do:
+// bấm là vào hư vô". Công cụ Chữ tự do (menu Sơ đồ tư duy) chèn khối `affine:edgeless-text` qua
+// `insertEdgelessTextCommand` vì cờ `enable_edgeless_text` mặc định BẬT — nhưng không có extension
+// này thì không ai đăng ký `BlockViewExtension('affine:edgeless-text', …)` lẫn thẻ
+// `drt-edgeless-text`, nên khối vào store mà không có gì vẽ ra. Xem
+// src/board/__tests__/cong-cu-chu-tu-do.spec.ts. Ghi chú lịch sử: câu "9 block … EdgelessText" ở
+// đoạn đầu file nói về diện BỎ lúc D13 — kể từ chặng này EdgelessText KHÔNG còn trong diện đó nữa.
+//
 // Chặng 2026-08-23 (xem docs/superpowers/specs/2026-08-22-dich-be-mat-hien-thi-dot-2-design.md
 // mục "Ngoài phạm vi") bật thêm 4: AttachmentViewExtension, CodeBlockViewExtension,
 // ImageViewExtension, SurfaceRefViewExtension — để 7/8 chuỗi dịch bị gỡ ở chặng "Dịch bề mặt hiển
@@ -68,6 +76,7 @@
 import { AttachmentViewExtension } from '@blocksuite/affine-block-attachment/view'
 import { CodeBlockViewExtension } from '@blocksuite/affine-block-code/view'
 import { DatabaseViewExtension } from '@blocksuite/affine-block-database/view'
+import { EdgelessTextViewExtension } from '@blocksuite/affine-block-edgeless-text/view'
 import { FrameViewExtension } from '@blocksuite/affine-block-frame/view'
 import { ImageViewExtension } from '@blocksuite/affine-block-image/view'
 import { ListViewExtension } from '@blocksuite/affine-block-list/view'
@@ -119,6 +128,7 @@ export const viewExtensions = [
   AttachmentViewExtension,
   CodeBlockViewExtension,
   DatabaseViewExtension,
+  EdgelessTextViewExtension,
   FrameViewExtension,
   ImageViewExtension,
   ListViewExtension,

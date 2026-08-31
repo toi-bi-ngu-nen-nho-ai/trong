@@ -15,6 +15,7 @@ import { dietJs } from './duyet-cay-js.mjs'
 import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile, kiemTienTo } from './kiem-quan-he-dich.mjs'
 import {
   dichMotFile,
+  thayChuCustomFrameMenu,
   thayChuTrongTagTooltip,
   thayNutDongMenuMobile,
   thayTienToSlideFrameDenseMenu,
@@ -269,15 +270,29 @@ for await (const f of dietJs(BUILD)) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
   }
-  const jsCuoi = ketQuaSlide.js
   const coDoiSlide = ketQuaSlide.cacLuot.length > 0
+
+  // Chữ trần "Custom" trong menu CHÍNH của Khung (frame-menu.js) — cùng cơ chế quét văn bản thô,
+  // cùng bản đồ `banDo`, chạy SAU thayTienToSlideFrameDenseMenu theo đúng nguyên tắc thứ tự của ba
+  // bộ thay văn-bản-thô ở trên. Lưu ý hai bộ này KHÁC FILE (frame-menu.js vs frame-dense-menu.js)
+  // nên không bao giờ đụng nhau.
+  let ketQuaCustom
+  try {
+    ketQuaCustom = thayChuCustomFrameMenu(ketQuaSlide.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const jsCuoi = ketQuaCustom.js
+  const coDoiCustom = ketQuaCustom.cacLuot.length > 0
 
   if (
     ketQua.cacLuot.length === 0 &&
     !coDoiTienTo &&
     !coDoiTagTooltip &&
     !coDoiNutDong &&
-    !coDoiSlide
+    !coDoiSlide &&
+    !coDoiCustom
   )
     continue
 
@@ -307,6 +322,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'tien-to-tran-slide-frame-dense-menu',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaCustom.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'chu-tran-custom-frame-menu',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })

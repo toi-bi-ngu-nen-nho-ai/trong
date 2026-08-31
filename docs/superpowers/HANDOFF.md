@@ -20,6 +20,33 @@ Khoá cache thì đã có sẵn nếu sau này cần — `bang-bam-vendor.json` 
 đã commit, nên "khoá đổi ⇒ dựng lại" là đúng theo cấu tạo, không sợ phục vụ cây cũ. **Chỉ làm khi
 có một lượt deploy thật bị chặn vì nó**, và làm thì đo trước/sau.
 
+**Nút "Liên kết" trong menu Ghi chú không làm gì — CHỦ DỰ ÁN CHỌN ĐỂ NGUYÊN (2026-08-31).**
+`affine/gfx/note/src/toolbar/note-menu.ts` render một nút Liên kết gọi `insertLinkByQuickSearchCommand`
+(`affine/blocks/bookmark/src/commands/insert-link-by-quick-search.ts`). Dòng đầu của lệnh đó:
+`const s = std.getOptional(QuickSearchProvider); if (!s) return` — **thoát im lặng, không gọi
+`next()`**, nên `insertedLinkType` là `undefined` và `?.then` ở note-menu.ts cũng thành no-op.
+`QuickSearchProvider` là service do APP CHỦ cấp (AFFiNE cấp hộp thoại tìm tài liệu / dán URL);
+drtrong không cấp. Đã đo trên trình duyệt thật: nút hiện đúng nhãn "Liên kết", bấm không có phản hồi
+nào.
+Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`: nhánh `externalUrl` chạy tiếp
+`insertEmbedIframeWithUrlCommand` rồi `insertBookmarkCommand`, mà `EmbedViewExtension` và
+`BookmarkViewExtension` đều KHÔNG có trong `viewExtensions` — kết quả sẽ là một khối vô hình, tức
+đổi lỗi này lấy đúng lỗi "Chữ tự do" vừa vá. Ba việc phải làm CÙNG LÚC: cấp QuickSearchProvider +
+bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
+kho tài liệu để tìm.
+
+**Bảng Mẫu (Template) rỗng — CHỦ DỰ ÁN CHỌN ĐỂ NGUYÊN (2026-08-31).**
+`affine/gfx/template/src/toolbar/builtin-templates.ts` khai `export const templates: TemplateCategory[] = []`
+— thượng nguồn cố tình để RỖNG; app chủ tự bơm mẫu vào qua `builtInTemplates.extend(manager)`.
+AFFiNE bơm từ `packages/frontend/templates` (16 mẫu, sinh bởi `build-edgeless.mjs` từ 16 tệp .zip
+trong `edgeless-snapshot/`, ~3MB, kèm assets đổ vào `core/public/static/templates`). drtrong chưa
+gọi `extend` ở đâu cả, nên panel mở ra trắng trơn (chuỗi placeholder "Search file or anything..."
+cũng chưa dịch).
+CẢNH BÁO nếu chặng sau định nhập 16 mẫu đó: chúng là mẫu KINH DOANH tiếng Anh (SWOT, Gantt, Kanban,
+Flowchart…), và **chưa ai kiểm chúng có dùng loại khối nằm ngoài `viewExtensions` cắt gọn hay không**
+(bảng/embed/divider…) — nhập vào mà không kiểm là rước đúng lớp lỗi "khối không có view" ở trên.
+Chủ dự án đã nói ý định KHÁC với "nhập mẫu của AFFiNE" — hỏi lại trước khi làm bất cứ hướng nào.
+
 ---
 
 ## 2. LUẬT THAO TÁC — mỗi dòng là một lượt đã mất
