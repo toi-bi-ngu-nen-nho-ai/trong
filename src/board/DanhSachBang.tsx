@@ -11,7 +11,7 @@ import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
 import { bangKhopTimKiem, type BangMeta, taoIdBang } from './boardMeta'
-import { xoaNoiDungBang } from './xoaNoiDungBang'
+import { donRacBlobBang, xoaNoiDungBang } from './xoaNoiDungBang'
 
 // Cùng giá trị CONFIRM_DELETE_RESET_MS của App.tsx (5000) — viết hằng số riêng thay vì import vì
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
@@ -1152,7 +1152,10 @@ export function DanhSachBang({
     // lượng không giảm một byte (đo 2026-08-31: xoá hết 4 bảng, store vẫn còn nguyên 5 bản ghi).
     // Không `await`: người dùng không phải chờ một lượt dọn kho để thấy lưới cập nhật, và hàm này tự
     // nuốt lỗi + cảnh báo.
-    void xoaNoiDungBang(bang.map((b) => b.id))
+    // Dọn nội dung TRƯỚC, gom rác ảnh SAU — bắt buộc theo thứ tự này: chừng nào doc của bảng vừa
+    // xoá còn trong kho thì chính nó vẫn tham chiếu ảnh của nó, và lượt gom rác sẽ không thấy blob
+    // nào mồ côi. Ảnh nằm ở hai DB riêng, đánh khoá theo băm nội dung chứ không theo id bảng.
+    void xoaNoiDungBang(bang.map((b) => b.id)).then(() => donRacBlobBang())
     setChonDaXoa(new Set())
     setXacNhanXoaVinhVien(false)
   }

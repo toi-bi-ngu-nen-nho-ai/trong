@@ -20,13 +20,6 @@ Khoá cache thì đã có sẵn nếu sau này cần — `bang-bam-vendor.json` 
 đã commit, nên "khoá đổi ⇒ dựng lại" là đúng theo cấu tạo, không sợ phục vụ cây cũ. **Chỉ làm khi
 có một lượt deploy thật bị chặn vì nó**, và làm thì đo trước/sau.
 
-**Ảnh (blob) của bảng đã xoá vẫn ở lại.** `xoaNoiDungBang` dọn doc + khoá viewport, nhưng
-`IndexedDBBlobSource` lưu blob ở HAI DB riêng (`drtrong-board_blob`, `drtrong-board_blob_mime`) và
-đánh khoá theo **băm nội dung ảnh**, không theo id bảng — không có cách nào biết ảnh nào của bảng
-nào nếu không mở doc ra dò tham chiếu, và một ảnh có thể dùng chung giữa hai bảng. Muốn dọn đúng
-phải viết một lượt gom rác: đọc mọi doc CÒN LẠI, thu tập khoá blob được tham chiếu, xoá phần thừa.
-Chưa ai báo; nặng hay nhẹ tuỳ người dùng có dán ảnh vào bảng hay không.
-
 ---
 
 ## 2. LUẬT THAO TÁC — mỗi dòng là một lượt đã mất
@@ -57,6 +50,9 @@ Chưa ai báo; nặng hay nhẹ tuỳ người dùng có dán ảnh vào bảng 
   cache-first cho chunk lazy). Dấu hiệu: lượt chạy xong NHANH HƠN cả hạn giờ vừa thêm vào mã.
   `for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();`
   `for (const k of await caches.keys()) await caches.delete(k);`
+- **Chuỗi trong update Yjs nằm NGUYÊN VĂN (UTF-8, có varint độ dài đứng trước).** Nhờ vậy dò được
+  tham chiếu mà không phải giải mã schema — `donRacBlobBang` dựa vào đúng tính chất này để tìm ảnh
+  mồ côi, không cần `yjs` trong chunk vỏ app.
 - **`text-decoration` và `background-color` KHÔNG kế thừa** — `getComputedStyle` trên phần tử mang
   chữ trả "none"/"rgba(0, 0, 0, 0)" dù cha có đặt (trình duyệt vẽ chúng từ cha phủ xuống). Muốn đọc
   thì đi ngược lên cha, và phải CHẶN đúng phần tử bọc: không chặn thì vớ luôn màu thân thẻ ghi chú.
@@ -117,7 +113,7 @@ của phiên này.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **58 file / 548 ca** (2026-08-31) |
+| Test | `npx vitest run` | **59 file / 555 ca** (2026-08-31) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout `BLOCKSUITE_UPSTREAM` còn ở SHA trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy TRƯỚC danh sách `LỆCH:`. |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 | D16 + biến CSS | `npm run build` (tự chạy `kiem:dist` ở `postbuild`) | Bản PHÁT HÀNH: không còn `affine-`, mọi `--drt-*` được dùng đều có định nghĩa, bản dịch `vi.json` còn nguyên. Cổng DUY NHẤT nhìn vào `dist/` — từng bắt 81 biến CSS không phân giải mà console vẫn sạch. |
