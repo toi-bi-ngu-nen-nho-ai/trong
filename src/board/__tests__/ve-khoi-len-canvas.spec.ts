@@ -195,6 +195,7 @@ function ctxGia() {
     fill: vi.fn(),
     stroke: vi.fn(),
     fillText: vi.fn(),
+    fillRect: vi.fn(),
     drawImage: vi.fn(),
     fillStyle: '',
     strokeStyle: '',
@@ -223,7 +224,16 @@ describe('veLopKhoi — vẽ bản mô tả, không đọc DOM', () => {
     const moTa: MoTaLopKhoi = {
       the: [theMau],
       chu: [
-        { chu: 'Sốc nhiễm khuẩn', x: 30, y: 40, font: 'normal 600 26px X', mau: 'rgb(18,18,18)' },
+        {
+          chu: 'Sốc nhiễm khuẩn',
+          x: 30,
+          y: 40,
+          rong: 200,
+          cao: 30,
+          coChu: 26,
+          font: 'normal 600 26px X',
+          mau: 'rgb(18,18,18)',
+        },
       ],
       anh: [],
     }
@@ -269,7 +279,9 @@ describe('veLopKhoi — vẽ bản mô tả, không đọc DOM', () => {
     const moTa: MoTaLopKhoi = {
       the: [],
       anh: [{ nguon: {} as CanvasImageSource, x: 0, y: 0, w: 10, h: 10 }],
-      chu: [{ chu: 'còn đây', x: 1, y: 2, font: 'normal 400 15px X', mau: '#000' }],
+      chu: [
+        { chu: 'còn đây', x: 1, y: 2, rong: 50, cao: 18, coChu: 15, font: 'normal 400 15px X', mau: '#000' },
+      ],
     }
     expect(() => veLopKhoi(ctx as unknown as CanvasRenderingContext2D, moTa, doiSang)).not.toThrow()
     expect(ctx.fillText).toHaveBeenCalledWith('còn đây', 6, 7)
@@ -364,12 +376,136 @@ describe('napBieuTuong — nạp biểu tượng SVG thành ảnh vẽ được'
   it('một biểu tượng hỏng → bỏ đúng cái đó, phần còn lại của bản mô tả giữ nguyên', async () => {
     const moTa: MoTaLopKhoi = {
       the: [],
-      chu: [{ chu: 'còn đây', x: 0, y: 0, font: 'normal 400 15px X', mau: '#000' }],
+      chu: [
+        { chu: 'còn đây', x: 0, y: 0, rong: 50, cao: 18, coChu: 15, font: 'normal 400 15px X', mau: '#000' },
+      ],
       anh: [],
       bieuTuong: [{ duLieu: 'data:image/svg+xml,x', x: 0, y: 0, w: 1, h: 1 }],
     }
     const ra = await napBieuTuong(moTa, anhGia('hong'))
     expect(ra.anh).toHaveLength(0)
     expect(ra.chu).toHaveLength(1)
+  })
+})
+
+// ─── Định dạng chữ: gạch chân, gạch ngang, nền tô ──────────────────────────────────────────────
+//
+// `affine-text` bọc chữ thành `<span style="...">​<v-text><span data-v-text="true">`. Màu và font
+// đặt ở span NGOÀI vẫn tới được span trong vì chúng là thuộc tính KẾ THỪA — nhưng
+// `text-decoration` và `background-color` thì KHÔNG kế thừa: trình duyệt vẽ chúng từ phần tử cha
+// phủ lên con. Đo trên Chrome thật (2026-08-31) ngay trên hình dạng DOM đó: ở span trong,
+// `textDecorationLine` = "none" và `backgroundColor` = "rgba(0, 0, 0, 0)" trong khi span ngoài có
+// đủ. Nên lượt đọc cũ — chỉ `getComputedStyle` trên `[data-v-text]` — mù đúng hai thứ này.
+
+describe('docLopKhoi — định dạng nằm ở phần tử KHÔNG kế thừa xuống', () => {
+  function dungChuCoDinhDang(styleNgoai: string): HTMLElement {
+    const khoi = dungKhoiGia(
+      `<drt-text><span style="${styleNgoai}"><v-text>` +
+        '<span data-v-text="true">nguy kịch</span>' +
+        '</v-text></span></drt-text>',
+    )
+    return khoi
+  }
+
+  it('gạch chân + gạch ngang đọc từ span bọc, không phải từ span mang chữ', () => {
+    const khoi = dungChuCoDinhDang('text-decoration: underline line-through')
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(50))
+    expect(moTa.chu).toHaveLength(1)
+    expect(moTa.chu[0].gachChan).toBe(true)
+    expect(moTa.chu[0].gachNgang).toBe(true)
+    khoi.remove()
+  })
+
+  it('nền tô chữ đọc từ span bọc', () => {
+    const khoi = dungChuCoDinhDang('background-color: rgb(255, 220, 0)')
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(50))
+    expect(moTa.chu[0].nen).toBe('rgb(255, 220, 0)')
+    khoi.remove()
+  })
+
+  it('chữ không định dạng → không cờ nào bật, không nền', () => {
+    const khoi = dungKhoiGia('<span data-v-text="true">bình thường</span>')
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(50))
+    expect(moTa.chu[0].gachChan).toBeFalsy()
+    expect(moTa.chu[0].gachNgang).toBeFalsy()
+    expect(moTa.chu[0].nen).toBeFalsy()
+    khoi.remove()
+  })
+
+  it('KHÔNG lấy nền của thân thẻ làm nền chữ — phép đi ngược dừng ở drt-text', () => {
+    // Nếu vòng đi ngược không có chặn, nó sẽ trèo tới `edgeless-note-background` và tô một vệt
+    // nền thẻ dài đúng bằng dòng chữ — sai hẳn cả về màu lẫn ý nghĩa.
+    const khoi = dungKhoiGia(
+      '<edgeless-note-background style="background-color: rgb(255, 245, 171)">' +
+        '<drt-text><span style="font-style: italic"><v-text>' +
+        '<span data-v-text="true">nguy kịch</span>' +
+        '</v-text></span></drt-text></edgeless-note-background>',
+    )
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(50))
+    expect(moTa.chu[0].nen).toBeFalsy()
+    khoi.remove()
+  })
+
+  it('mang theo bề rộng + chiều cao dòng (toạ độ mô hình) để vẽ nền và gạch', () => {
+    const khoi = dungKhoiGia('<span data-v-text="true">abcde</span>')
+    const moTa = docLopKhoi([khoi], doiToaDoGia, taoRangeGia(50))
+    // Range giả: 50 ký tự mỗi dòng × RONG=10 → hộp rộng 500, cao CAO=20; toạ độ mô hình = /2.
+    expect(moTa.chu[0].rong).toBe(250)
+    expect(moTa.chu[0].cao).toBe(10)
+  })
+})
+
+describe('veLopKhoi — vẽ định dạng chữ', () => {
+  const doiSang = (x: number, y: number): [number, number] => [x, y]
+  const dongMau = {
+    chu: 'nguy kịch',
+    x: 0,
+    y: 100,
+    rong: 80,
+    cao: 20,
+    coChu: 16,
+    font: 'normal 400 16px X',
+    mau: 'rgb(18,18,18)',
+  }
+
+  it('nền tô vẽ TRƯỚC chữ, đúng hộp dòng', () => {
+    const ctx = ctxGia()
+    const thuTu: string[] = []
+    ctx.fillRect = vi.fn(() => void thuTu.push('nen'))
+    ctx.fillText = vi.fn(() => void thuTu.push('chu'))
+    veLopKhoi(
+      ctx as unknown as CanvasRenderingContext2D,
+      { the: [], anh: [], chu: [{ ...dongMau, nen: 'rgb(255, 220, 0)' }] },
+      doiSang,
+    )
+    expect(thuTu).toEqual(['nen', 'chu'])
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 90, 80, 20)
+  })
+
+  it('gạch ngang vẽ qua giữa dòng, gạch chân vẽ dưới đường giữa', () => {
+    const ctx = ctxGia()
+    veLopKhoi(
+      ctx as unknown as CanvasRenderingContext2D,
+      { the: [], anh: [], chu: [{ ...dongMau, gachChan: true, gachNgang: true }] },
+      doiSang,
+    )
+    const veCac = (ctx.fillRect as unknown as { mock: { calls: number[][] } }).mock.calls
+    expect(veCac).toHaveLength(2)
+    // Cả hai chạy hết bề rộng dòng.
+    for (const g of veCac) expect(g[2]).toBe(80)
+    const yNgang = veCac.find((g) => g[1] < 100)![1]
+    const yChan = veCac.find((g) => g[1] > 100)![1]
+    expect(yNgang).toBeLessThan(100)
+    expect(yChan).toBeGreaterThan(100)
+  })
+
+  it('chữ không định dạng → KHÔNG vẽ hình chữ nhật nào (không có vệt thừa trong ảnh)', () => {
+    const ctx = ctxGia()
+    veLopKhoi(
+      ctx as unknown as CanvasRenderingContext2D,
+      { the: [], anh: [], chu: [dongMau] },
+      doiSang,
+    )
+    expect(ctx.fillRect).not.toHaveBeenCalled()
   })
 })

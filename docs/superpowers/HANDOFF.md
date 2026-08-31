@@ -17,11 +17,10 @@ Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trướ
 (checkout CI luôn sạch — cục bộ thì nó bỏ qua khi cổng đã xanh). Cân nhắc Vercel Build Cache API
 **nếu** thành vấn đề thật — chưa cần.
 
-**Xuất PNG còn thiếu vài lớp trang trí.** Sau lượt 2026-08-31 (chấm/số/ô tick đã vào ảnh), đọc mã
-thì vẫn còn hai khoảng trống, CHƯA đo trên trình duyệt: `DongChu` chỉ mang font + màu nên gạch
-chân / gạch ngang / nền tô chữ không tới được ảnh; và lượt đọc hộp chỉ nhìn
-`edgeless-note-background` nên mọi hộp CSS khác — đường kẻ ngang, vạch trái trích dẫn, nền khối mã,
-lưới bảng — cũng không. Chưa ai báo; ghi ở đây để lần sau khỏi đào lại.
+**Xuất PNG: còn các HỘP CSS ngoài thân thẻ.** Chấm/số/ô tick (2026-08-31) và gạch chân/gạch
+ngang/nền tô chữ (cùng ngày) đã vào ảnh. Còn lại: lượt đọc hộp chỉ nhìn `edgeless-note-background`,
+nên đường kẻ ngang, vạch trái trích dẫn, viền khối mã inline và lưới bảng vẫn không có. Đọc từ mã,
+CHƯA đo trên trình duyệt; chưa ai báo.
 
 ---
 
@@ -50,6 +49,10 @@ lưới bảng — cũng không. Chưa ai báo; ghi ở đây để lần sau kh
   cache-first cho chunk lazy). Dấu hiệu: lượt chạy xong NHANH HƠN cả hạn giờ vừa thêm vào mã.
   `for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();`
   `for (const k of await caches.keys()) await caches.delete(k);`
+- **`text-decoration` và `background-color` KHÔNG kế thừa** — `getComputedStyle` trên phần tử mang
+  chữ trả "none"/"rgba(0, 0, 0, 0)" dù cha có đặt (trình duyệt vẽ chúng từ cha phủ xuống). Muốn đọc
+  thì đi ngược lên cha, và phải CHẶN đúng phần tử bọc: không chặn thì vớ luôn màu thân thẻ ghi chú.
+  `color`/`font-*` thì kế thừa bình thường — đó là lý do đậm/nghiêng vào ảnh được mà gạch chân không.
 - **Đừng lọc "http" trần khi lọc tài nguyên ngoài miền của SVG** — mọi `<svg>` mang
   `xmlns="http://www.w3.org/2000/svg"`, nên phép lọc thô loại SẠCH 100% biểu tượng, âm thầm (ảnh
   vẫn xuất ra, chỉ thiếu đúng thứ vừa thêm). Lọc theo `href=`/`url(`.
@@ -99,7 +102,7 @@ của phiên này.
 | Cổng | Lệnh | Canh gì |
 |---|---|---|
 | Kiểu | `npx tsc --noEmit -p tsconfig.json` | `src/` + cây vendored qua `tsconfig.vendor-paths.json` |
-| Test | `npx vitest run` | **57 file / 527 ca** (2026-08-31) |
+| Test | `npx vitest run` | **57 file / 537 ca** (2026-08-31) |
 | D11 | `npm run kiem:vendor` | Cây vendored khớp nguyên văn thượng nguồn, VÀ checkout `BLOCKSUITE_UPSTREAM` còn ở SHA trong `commit-thuong-nguon.txt`. Lệch thì cổng tự in cảnh báo + lệnh dán-là-chạy TRƯỚC danh sách `LỆCH:`. |
 | Bản đồ paths | `npm run kiem:vendor-paths` | `tsconfig.vendor-paths.json` còn tả đúng `.vendor-build/` |
 | D16 + biến CSS | `npm run build` (tự chạy `kiem:dist` ở `postbuild`) | Bản PHÁT HÀNH: không còn `affine-`, mọi `--drt-*` được dùng đều có định nghĩa, bản dịch `vi.json` còn nguyên. Cổng DUY NHẤT nhìn vào `dist/` — từng bắt 81 biến CSS không phân giải mà console vẫn sạch. |
@@ -131,7 +134,7 @@ của phiên này.
   `@layer drt-vendor;` trong `src/index.css` phải đứng TRƯỚC mọi `@import` (không phải "dòng đầu
   tệp" — nó nằm sau khối chú thích); đừng xoá nó, đừng xoá lời gọi `batLopCssVendor()`.
 - **npm là công cụ quản gói duy nhất** (`pnpm-lock.yaml` đã gỡ — nó tả một dự án 2 dependency cho
-  một `package.json` đã hàng chục lần lớn hơn thế).
+  một `package.json` có 67 dependency, chưa kể 19 devDependency).
 
 ---
 

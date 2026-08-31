@@ -42,8 +42,21 @@ export type DongChu = {
   chu: string
   x: number
   y: number
+  /**
+   * Bề rộng và chiều cao HỘP DÒNG, toạ độ mô hình. Đo ở lượt ĐỌC (từ `Range`) chứ không đo lại
+   * bằng `ctx.measureText` lúc vẽ: giữ `veLopKhoi()` thuần (không đo gì), và số của trình duyệt
+   * bao giờ cũng đúng hơn phép đo lại bằng một phông có thể phân giải khác đi trên canvas.
+   */
+  rong: number
+  cao: number
+  /** Cỡ chữ (px, hệ mô hình) — quyết định độ dày và độ sâu của gạch chân. */
+  coChu: number
   font: string
   mau: string
+  gachChan?: boolean
+  gachNgang?: boolean
+  /** Màu nền tô chữ (bút dạ quang, nền chữ inline-code). Rỗng/thiếu = không tô. */
+  nen?: string
 }
 
 export type AnhKhoi = {
@@ -86,6 +99,17 @@ const CHON_CHU = '[data-v-text="true"]'
 // Cây con chỉ là lớp phủ thao tác, không phải nội dung: mặt nạ note (bắt chuột), khung chọn.
 const CHON_BO_QUA = 'edgeless-note-mask, drt-block-selection, .drt-note-mask'
 
+// Phần tử bọc một đoạn chữ CÓ ĐỊNH DẠNG. `affine-text` dựng
+// `<span style="..."><v-text><span data-v-text="true">` (nodes/affine-text.ts), và đặt TOÀN BỘ định
+// dạng lên span NGOÀI (shared/src/styles/text.ts).
+//
+// Màu và font tới được span trong vì chúng KẾ THỪA. `text-decoration` và `background-color` thì
+// KHÔNG: trình duyệt vẽ chúng từ phần tử cha phủ lên con, nên `getComputedStyle` ở span trong trả
+// "none" và "rgba(0, 0, 0, 0)". Đo trên Chrome thật 2026-08-31, đúng hình dạng DOM này. Vì thế phải
+// đi NGƯỢC lên tìm — và phải có CHẶN, nếu không vòng lặp trèo tiếp tới `edgeless-note-background`
+// rồi tô màu thân thẻ thành "nền chữ".
+const CHON_BOC_CHU = 'affine-text, drt-text'
+
 // Trần grapheme cho phép đi từng ký tự. Trên một thẻ ghi chú bình thường (vài trăm ký tự) phép đo
 // từng grapheme là vài mili-giây; nhưng một khối dán cả trang văn bản vào thì phải có đường lùi,
 // nếu không lượt xuất tự biến thành thứ mà cả chặng này sinh ra để diệt.
@@ -106,6 +130,12 @@ const CHON_DAU_MUC = '[class*="list-block__prefix"]'
 // thước nội tại của SVG. Ghim kích thước nội tại lên 4× cỡ hiển thị để phần phóng luôn là thu nhỏ,
 // không phải nội suy lên (icon 24px → bitmap 96px, chi phí không đáng kể).
 const TI_LE_NET_BIEU_TUONG = 4
+
+// Gạch chân/gạch ngang vẽ tay: canvas không có `text-decoration`. Hai con số này bắt chước cách
+// trình duyệt vẽ — dày bằng ~1/14 cỡ chữ, và gạch chân nằm dưới đường GIỮA dòng khoảng 0,38 cỡ chữ
+// (vẽ với `textBaseline: 'middle'` nên mọi thứ tính từ đường giữa, không phải từ baseline).
+const DO_MANH_GACH = 14
+const SAU_GACH_CHAN = 0.38
 
 // Trần chờ giải mã một biểu tượng. `data:` URL giải mã gần như tức thì, nhưng một lượt treo ở đây
 // sẽ treo CẢ nút xuất — thà mất cái chấm còn hơn mất lượt xuất.
@@ -133,7 +163,7 @@ function laPhanTuAn(el: Element): boolean {
 export function ngatDongTheoRange(
   nodeChu: Text,
   taoRange: () => Range = () => document.createRange(),
-): Array<{ chu: string; trai: number; giua: number }> {
+): DongTho[] {
   const s = nodeChu.textContent ?? ''
   if (s.length === 0) return []
 
@@ -143,7 +173,7 @@ export function ngatDongTheoRange(
   if (hopDong.length === 0) return []
   if (hopDong.length === 1) {
     const h = hopDong[0]
-    return [{ chu: s, trai: h.left, giua: (h.top + h.bottom) / 2 }]
+    return [{ chu: s, trai: h.left, giua: (h.top + h.bottom) / 2, rong: h.width, cao: h.height }]
   }
 
   const graphemes = tachGrapheme(s)
@@ -153,7 +183,7 @@ export function ngatDongTheoRange(
     return chiaDeuTheoHop(s, hopDong)
   }
 
-  const ra: Array<{ chu: string; trai: number; giua: number }> = []
+  const ra: DongTho[] = []
   let i = 0
   for (const g of graphemes) {
     r.setStart(nodeChu, i)
@@ -164,11 +194,20 @@ export function ngatDongTheoRange(
     const giua = (b.top + b.bottom) / 2
     const cuoi = ra[ra.length - 1]
     // Cùng dòng khi đường giữa trùng nhau (sai số nửa pixel cho màn DPR lẻ).
-    if (cuoi && Math.abs(cuoi.giua - giua) < 0.5) cuoi.chu += g
-    else ra.push({ chu: g, trai: b.left, giua })
+    if (cuoi && Math.abs(cuoi.giua - giua) < 0.5) {
+      cuoi.chu += g
+      // Nới mép phải theo ký tự vừa thêm — bề rộng dòng là khoảng cách từ mép trái tới đó.
+      cuoi.rong = Math.max(cuoi.rong, b.left + b.width - cuoi.trai)
+      cuoi.cao = Math.max(cuoi.cao, b.height)
+    } else {
+      ra.push({ chu: g, trai: b.left, giua, rong: b.width, cao: b.height })
+    }
   }
   return ra
 }
+
+/** Một dòng đã ngắt, còn ở toạ độ MÀN HÌNH. `giua` là đường giữa dòng. */
+type DongTho = { chu: string; trai: number; giua: number; rong: number; cao: number }
 
 function tachGrapheme(s: string): string[] {
   // `Intl.Segmenter` giữ nguyên cụm dấu tiếng Việt (ế, ườ...) — cắt bằng `[...s]` sẽ xé dấu ra khỏi
@@ -187,19 +226,45 @@ function tachGrapheme(s: string): string[] {
   return Array.from(new Seg(undefined, { granularity: 'grapheme' }).segment(s), (x) => x.segment)
 }
 
-function chiaDeuTheoHop(
-  s: string,
-  hop: DOMRect[],
-): Array<{ chu: string; trai: number; giua: number }> {
+function chiaDeuTheoHop(s: string, hop: DOMRect[]): DongTho[] {
   const tong = hop.reduce((t, h) => t + h.width, 0) || 1
-  const ra: Array<{ chu: string; trai: number; giua: number }> = []
+  const ra: DongTho[] = []
   let dau = 0
   hop.forEach((h, idx) => {
     const cuoi = idx === hop.length - 1 ? s.length : dau + Math.round((h.width / tong) * s.length)
-    ra.push({ chu: s.slice(dau, cuoi), trai: h.left, giua: (h.top + h.bottom) / 2 })
+    ra.push({
+      chu: s.slice(dau, cuoi),
+      trai: h.left,
+      giua: (h.top + h.bottom) / 2,
+      rong: h.width,
+      cao: h.height,
+    })
     dau = cuoi
   })
   return ra
+}
+
+/**
+ * Gạch chân / gạch ngang / nền tô của một đoạn chữ — đọc bằng cách đi NGƯỢC lên cha, CHẶN ở
+ * `CHON_BOC_CHU`. Xem chú thích ở hằng đó: hai thuộc tính này không kế thừa nên không thể đọc tại
+ * chỗ, và không có chặn thì phép đi ngược sẽ vớ luôn màu thân thẻ ghi chú.
+ */
+function docTrangTriChu(span: Element): { gachChan: boolean; gachNgang: boolean; nen: string } {
+  const kq = { gachChan: false, gachNgang: false, nen: '' }
+  const boc = span.closest(CHON_BOC_CHU)
+  if (!boc) return kq
+  for (let el: Element | null = span; el; el = el.parentElement) {
+    const cs = getComputedStyle(el)
+    // `textDecorationLine` là dạng đã tách; đọc thêm `textDecoration` cho môi trường chỉ giữ dạng
+    // rút gọn (happy-dom của bộ kiểm là một).
+    const gach = `${cs.textDecorationLine || ''} ${cs.textDecoration || ''}`
+    if (gach.includes('underline')) kq.gachChan = true
+    if (gach.includes('line-through')) kq.gachNgang = true
+    const nen = cs.backgroundColor
+    if (!kq.nen && nen && nen !== 'rgba(0, 0, 0, 0)' && nen !== 'transparent') kq.nen = nen
+    if (el === boc) break
+  }
+  return kq
 }
 
 /**
@@ -217,6 +282,28 @@ export function docLopKhoi(
   const anh: AnhKhoi[] = []
   const bieuTuong: BieuTuongKhoi[] = []
   const ngatDong = (n: Text) => (taoRange ? ngatDongTheoRange(n, taoRange) : ngatDongTheoRange(n))
+
+  /** Đọc một text node ra các `DongChu` đã đổi sang toạ độ mô hình. Dùng cho CẢ chữ lẫn số thứ tự. */
+  const themChu = (node: Text, chuaChu: Element, cs: CSSStyleDeclaration) => {
+    const font = `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize)}px ${cs.fontFamily}`
+    const trangTri = docTrangTriChu(chuaChu)
+    for (const d of ngatDong(node)) {
+      if (d.chu.trim() === '') continue
+      const [x, y] = doiToaDo(d.trai, d.giua)
+      const [x2, y2] = doiToaDo(d.trai + d.rong, d.giua + d.cao)
+      chu.push({
+        chu: d.chu,
+        x,
+        y,
+        rong: x2 - x,
+        cao: y2 - y,
+        coChu: parseFloat(cs.fontSize) || 0,
+        font,
+        mau: cs.color,
+        ...trangTri,
+      })
+    }
+  }
 
   for (const khoi of khoiEls) {
     // ── Thân thẻ (nền + bo góc + viền) ──────────────────────────────────────────────────────
@@ -262,15 +349,9 @@ export function docLopKhoi(
       )
       if (!nodeChu) continue
 
-      const cs = getComputedStyle(span)
       // `font-size` computed KHÔNG bị `transform: scale(zoom)` của viewport đụng vào, nên nó đã là
       // cỡ chữ trong hệ toạ độ MÔ HÌNH — đúng thứ canvas xuất cần, không phải quy đổi.
-      const font = `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize)}px ${cs.fontFamily}`
-      for (const d of ngatDong(nodeChu)) {
-        if (d.chu.trim() === '') continue
-        const [x, y] = doiToaDo(d.trai, d.giua)
-        chu.push({ chu: d.chu, x, y, font, mau: cs.color })
-      }
+      themChu(nodeChu, span, getComputedStyle(span))
     }
 
     // ── Dấu đầu mục: SỐ THỨ TỰ ──────────────────────────────────────────────────────────────
@@ -280,16 +361,11 @@ export function docLopKhoi(
     for (const dau of Array.from(khoi.querySelectorAll(CHON_DAU_MUC))) {
       if (dau.closest(CHON_BO_QUA) || laPhanTuAn(dau)) continue
       const cs = getComputedStyle(dau)
-      const font = `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize)}px ${cs.fontFamily}`
       for (const con of Array.from(dau.childNodes)) {
         if (con.nodeType !== 3 /* TEXT_NODE */) continue
         const t = con as Text
         if ((t.textContent ?? '').trim() === '') continue
-        for (const d of ngatDong(t)) {
-          if (d.chu.trim() === '') continue
-          const [x, y] = doiToaDo(d.trai, d.giua)
-          chu.push({ chu: d.chu, x, y, font, mau: cs.color })
-        }
+        themChu(t, dau, cs)
       }
     }
 
@@ -443,9 +519,21 @@ export function veLopKhoi(
   ctx.textBaseline = 'middle'
   for (const d of moTa.chu) {
     const [x, y] = doiSangCanvas(d.x, d.y)
+    // Nền tô trước, nếu không nó đè mất chính dòng chữ nó tô cho.
+    if (d.nen) {
+      ctx.fillStyle = d.nen
+      ctx.fillRect(x, y - d.cao / 2, d.rong, d.cao)
+    }
     ctx.font = d.font
     ctx.fillStyle = d.mau
     ctx.fillText(d.chu, x, y)
+    if (d.gachChan || d.gachNgang) {
+      // Cùng màu chữ: `text-decoration` không nêu màu thì trình duyệt lấy `currentColor`.
+      ctx.fillStyle = d.mau
+      const day = Math.max(1, d.coChu / DO_MANH_GACH)
+      if (d.gachNgang) ctx.fillRect(x, y - day / 2, d.rong, day)
+      if (d.gachChan) ctx.fillRect(x, y + d.coChu * SAU_GACH_CHAN, d.rong, day)
+    }
   }
   ctx.restore()
 }

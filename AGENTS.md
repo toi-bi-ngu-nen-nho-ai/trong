@@ -11,8 +11,9 @@ A Vite development server is **always running** on `$PORT` (default 8443). You d
 
 **npm is authoritative.** `package-lock.json` is the lockfile that is kept current; install with
 `npm ci`. There is no pnpm setup: `pnpm-lock.yaml` used to be tracked here but described a
-2-dependency project long after `package.json` had grown to 67, so `pnpm install` produced an
-unusable tree — it has been removed rather than left as a trap.
+2-dependency project long after `package.json` had grown to 67 runtime dependencies (plus 19 dev
+ones), so `pnpm install` produced an unusable tree — it has been removed rather than left as a
+trap.
 
 ## Key Files
 
