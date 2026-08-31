@@ -29,6 +29,7 @@ import path from 'node:path'
 
 import {
   coNhuLiteral,
+  coTrongKhoaNhomSlashMenu,
   coTrongNutDongMenuMobile,
   coTrongTagTooltip,
   coTrongTienToTemplateHead,
@@ -213,7 +214,8 @@ for (const f of dietFile(DIST)) {
         coNhuLiteral(noiDung, v) ||
         coTrongTagTooltip(noiDung, v) ||
         coTrongNutDongMenuMobile(noiDung, v) ||
-        coTrongTienToTemplateHead(noiDung, v)
+        coTrongTienToTemplateHead(noiDung, v) ||
+        coTrongKhoaNhomSlashMenu(noiDung, v)
       )
         thieuBanDich.delete(v)
       // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa

@@ -119,6 +119,21 @@ export function coTrongTienToTemplateHead(noiDung, s) {
   return re.test(noiDung)
 }
 
+// Cùng lớp với ba hàm trên (bản dịch KHÔNG đứng một mình trong literal), nhưng cho TÊN NHÓM của
+// menu lệnh "/": nó là đoạn giữa của khoá nhóm có cấu trúc `'<số>_<Tên>@<số>'` — xem
+// thayTenNhomSlashMenu (luat-vi-tri-dich.mjs, 2026-08-31). `coNhuLiteral` không bao giờ thấy nó vì
+// literal thật là `'0_Cơ bản@0'`, không phải `'Cơ bản'`; đo được thật ngay lượt đầu: `npm run build`
+// đỏ với sáu tên nhóm (Cơ bản / Danh sách / Nội dung & phương tiện / Phần tử bảng vẽ / Ngày /
+// Thao tác) dù cả sáu đã tới dist/ đúng chỗ.
+//
+// Dấu MỞ CHUỖI ở biên trái là bắt buộc, cùng lý do đã ghi ở RE_TEN_NHOM_SLASH_MENU: thiếu nó thì
+// dãy số khớp được cả phần đuôi của một định danh dài hơn. Chấp nhận cả `'`, `"` và backtick vì bộ
+// minify tự chọn dấu nháy; phần sau `@` là chữ số (khoá tĩnh) hoặc `${` (khoá dựng bằng template).
+export function coTrongKhoaNhomSlashMenu(noiDung, s) {
+  const re = new RegExp(`['"\`]\\d+_${thoatRegex(s)}@(?:\\d|\\$\\{)`)
+  return re.test(noiDung)
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.

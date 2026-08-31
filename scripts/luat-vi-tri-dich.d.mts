@@ -79,6 +79,22 @@ export interface LuotCustomFrameMenu {
   dong: number
 }
 
+export declare const FILE_CHO_PHEP_NAME_SLASH_MENU: Set<string>
+export declare const FILE_CHO_PHEP_KHOA_BANG_TOOLTIP: Set<string>
+export declare const FILE_CHO_PHEP_LOC_INCLUDES: Set<string>
+
+export interface LuotTenNhomSlashMenu {
+  chuoiGoc: string
+  chuoiDich: string
+  dong: number
+}
+
+export declare function thayTenNhomSlashMenu(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotTenNhomSlashMenu[] }
+
 export declare function thayChuCustomFrameMenu(
   js: string,
   banDo: Record<string, string>,

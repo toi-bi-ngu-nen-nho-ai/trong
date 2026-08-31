@@ -17,6 +17,7 @@ import {
   FILE_CHO_PHEP_NAME_SENIOR_TOOL,
   thayChuCustomFrameMenu,
   thayChuTrongTagTooltip,
+  thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
   thayTienToSlideFrameDenseMenu,
   thayTrenToanCay,
@@ -552,6 +553,18 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (banDich.has(chu)) daThay.add(chu)
       }
 
+      // Cùng nguyên tắc cho TÊN NHÓM của menu lệnh "/" (thayTenNhomSlashMenu, 2026-08-31): sau khi
+      // dịch, "Cơ bản" nằm GIỮA một literal lớn hơn (`'0_Cơ bản@0'`, hoặc TemplateHead
+      // `` `0_Cơ bản@${i++}` ``) — vòng lặp AST ở trên chỉ so KHỚP TRỌN literal nên không bao giờ
+      // thấy nó, và thiếu đoạn này thì 6 tên nhóm bị báo "chưa từng thấy" oan. Đo lúc thêm: đúng 5
+      // tên nhóm hụt khỏi phép đếm (Cơ bản / Danh sách / Nội dung & phương tiện / Phần tử bảng vẽ /
+      // Ngày / Thao tác — trong đó vài tên còn sống ở vị trí khác nên không phải cả 6 đều hụt).
+      // Regex viết LẠI, không gọi hàm thật — giữ đúng tinh thần "cổng độc lập" của ca này.
+      for (const mm of src.matchAll(/['"`]\d+_([^@`'"]+)@(?:\d|\$\{)/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 
@@ -767,5 +780,130 @@ describe('thayChuCustomFrameMenu — chữ trần "Custom" trong menu Khung', ()
 
   it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
     expect(() => thayChuCustomFrameMenu(NGUON, { Custom: 42 } as unknown as Record<string, string>, TEP)).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
+// ─── Menu lệnh "/" (2026-08-31) ───────────────────────────────────────────────────────────────
+//
+// LỖI GỐC (người dùng báo: 'ở Chữ tự do → nhập "/" để ra mẫu: chưa dịch hết'): menu lệnh hiện
+// `item.name` và đoạn GIỮA của `item.group` (`'0_Basic@0'` → tiêu đề nhóm "Basic"). Hai tên thuộc
+// tính này bị D12 loại VĨNH VIỄN khỏi THUOC_TINH_HIEN_THI từ chặng P1-E, vì chúng bị tiêu thụ làm
+// DỮ LIỆU chứ không chỉ hiển thị:
+//   - `tooltips[name]`  — blocks/note/src/configs/slash-menu.js:92,132 (tra bảng tooltip theo tên)
+//   - `['Code','Link'].includes(i.name)` — cùng file:74 (loại 2 mục khỏi nhóm Style)
+//   - `parseGroup(group)` — widgets/slash-menu/src/utils.js (mổ '<số>_<Tên>@<số>' để xếp thứ tự)
+// Vì thế chỉ `description` được dịch — đúng những gì đo trên màn: mô tả tiếng Việt, tên mục và
+// tiêu đề nhóm tiếng Anh.
+//
+// PHÉP VÁ không phải "nới `name` ra toàn cây" (đo được 96 chỗ tiêu thụ ngược — mở là hỏng im lặng)
+// mà là dịch `name` CÙNG LÚC với mọi vế bị ghép cặp với nó, và chỉ trong danh sách file ĐÓNG khai ở
+// luat-vi-tri-dich.mjs. Bốn khối dưới canh đúng bốn mảnh đó.
+describe('FILE_CHO_PHEP_NAME_SLASH_MENU — dịch name của mục menu lệnh', () => {
+  const TEP = 'affine/rich-text/src/conversion.js'
+  const BAN_DO = { 'Code Block': 'Khối mã', Text: 'Chữ' }
+
+  it('name: trong file đã đo/duyệt được dịch', () => {
+    const { js } = dichMotFile("const a = [{ name: 'Code Block', flavour: 'affine:code' }]", BAN_DO, TEP)
+    expect(js).toContain('"Khối mã"')
+    // Không được đụng flavour — đó là định danh lược đồ, không phải chữ hiển thị.
+    expect(js).toContain("'affine:code'")
+  })
+
+  it('CÙNG hình dạng ở file NGOÀI danh sách thì KHÔNG dịch', () => {
+    const nguon = "const a = [{ name: 'Code Block' }]"
+    expect(dichMotFile(nguon, BAN_DO, 'affine/blocks/khac/src/config.js').js).toBe(nguon)
+  })
+
+  // surface-ref/configs/slash-menu.js NẰM TRONG danh sách (nó khai name: 'Frame'/'Mind Map'), nhưng
+  // CÙNG file còn có `text: 'Mind Map'` và `text: 'Text'` — đó là NỘI DUNG của khối được tạo ra,
+  // không phải nhãn. Đây chính là lý do phép vá phải theo VỊ TRÍ chứ không phải "thay mọi chỗ trong
+  // file": thay mọi chỗ sẽ lặng lẽ đổi nội dung tài liệu người dùng tạo ra.
+  it('text: trong CÙNG file đó KHÔNG được đụng — đó là nội dung khối, không phải nhãn', () => {
+    const nguon = "const a = { name: 'Mind Map', text: 'Mind Map' }"
+    const { js } = dichMotFile(nguon, { 'Mind Map': 'Sơ đồ tư duy' }, 'affine/blocks/surface-ref/src/configs/slash-menu.js')
+    expect(js).toContain('name: "Sơ đồ tư duy"')
+    expect(js).toContain("text: 'Mind Map'")
+  })
+})
+
+describe('FILE_CHO_PHEP_KHOA_BANG_TOOLTIP — dịch KHOÁ bảng tooltips để tooltips[name] còn khớp', () => {
+  const TEP = 'affine/blocks/note/src/configs/tooltips.js'
+
+  // Bảng này là object DUY NHẤT có khoá trong cả file (mọi thứ khác là `const XTooltip = html\`…\``),
+  // nên luật "dịch khoá object trong file này" không thể trượt sang chỗ khác.
+  it('khoá CÓ nháy và khoá KHÔNG nháy đều được dịch', () => {
+    const { js } = dichMotFile(
+      "export const tooltips = { Text: { caption: 'x' }, 'Code Block': { caption: 'y' } }",
+      { Text: 'Chữ', 'Code Block': 'Khối mã' },
+      TEP,
+    )
+    expect(js).toContain('"Chữ":')
+    expect(js).toContain('"Khối mã":')
+  })
+
+  it('file KHÁC thì khoá object không bị đụng', () => {
+    const nguon = "const t = { Text: { caption: 'x' } }"
+    expect(dichMotFile(nguon, { Text: 'Chữ' }, 'affine/blocks/note/src/configs/khac.js').js).toBe(nguon)
+  })
+})
+
+describe('FILE_CHO_PHEP_LOC_INCLUDES — dịch vế lọc ["Code","Link"] cho khớp name đã dịch', () => {
+  const TEP = 'affine/blocks/note/src/configs/slash-menu.js'
+
+  it('phần tử mảng của .includes(...) được dịch trong file đã duyệt', () => {
+    const { js } = dichMotFile("const a = x.filter(i => !['Code', 'Link'].includes(i.name))", { Code: 'Mã', Link: 'Liên kết' }, TEP)
+    expect(js).toContain('"Mã"')
+    expect(js).toContain('"Liên kết"')
+  })
+
+  it('mảng KHÔNG đứng trước .includes() thì không đụng', () => {
+    const nguon = "const a = ['Code', 'Link']"
+    expect(dichMotFile(nguon, { Code: 'Mã', Link: 'Liên kết' }, TEP).js).toBe(nguon)
+  })
+})
+
+describe('thayTenNhomSlashMenu — dịch đoạn giữa của khoá nhóm "<số>_<Tên>@<số>"', () => {
+  const TEP = 'affine/blocks/note/src/configs/slash-menu.js'
+  const BAN_DO = { Basic: 'Cơ bản', List: 'Danh sách', 'Content & Media': 'Nội dung & phương tiện' }
+
+  it('dịch trong TemplateHead — giữ nguyên số thứ tự hai đầu', () => {
+    const { js, cacLuot } = thayTenNhomSlashMenu('const g = `0_Basic@${i++}`', BAN_DO, TEP)
+    expect(js).toBe('const g = `0_Cơ bản@${i++}`')
+    expect(cacLuot).toEqual([{ chuoiGoc: 'Basic', chuoiDich: 'Cơ bản', dong: 1 }])
+  })
+
+  it('dịch trong chuỗi thường', () => {
+    const { js } = thayTenNhomSlashMenu("const g = '4_Content & Media@1'", BAN_DO, TEP)
+    expect(js).toBe("const g = '4_Nội dung & phương tiện@1'")
+  })
+
+  it('hai nhóm khác nhau trong cùng file không lệch vị trí nhau', () => {
+    const { js } = thayTenNhomSlashMenu("const a = '0_Basic@0'; const b = '1_List@2'", BAN_DO, TEP)
+    expect(js).toBe("const a = '0_Cơ bản@0'; const b = '1_Danh sách@2'")
+  })
+
+  // Số thứ tự nhóm (vế TRƯỚC dấu _) mới là khoá xếp hạng chính trong itemCompareFn, nên đổi phần
+  // TÊN không đảo thứ tự nhóm. Nhưng bắt nhầm một chuỗi KHÔNG phải khoá nhóm thì hỏng im lặng —
+  // hình dạng phải khớp CHẶT: số, gạch dưới, tên, @, rồi số hoặc mở nhịp.
+  it('chuỗi KHÔNG đúng hình dạng khoá nhóm thì không đụng', () => {
+    for (const nguon of ["const a = 'Basic'", "const a = '_Basic@1'", "const a = '0_Basic'", "const a = 'x0_Basic@1'"]) {
+      expect(thayTenNhomSlashMenu(nguon, BAN_DO, TEP).js).toBe(nguon)
+    }
+  })
+
+  it('file NGOÀI danh sách thì không đụng', () => {
+    const nguon = "const g = '0_Basic@0'"
+    expect(thayTenNhomSlashMenu(nguon, BAN_DO, 'affine/blocks/khac/src/config.js').js).toBe(nguon)
+  })
+
+  it('tên nhóm không có trong bản đồ thì giữ nguyên', () => {
+    const nguon = "const g = '9_Unknown@0'"
+    expect(thayTenNhomSlashMenu(nguon, BAN_DO, TEP).js).toBe(nguon)
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayTenNhomSlashMenu("const g = '0_Basic@0'", { Basic: 42 } as unknown as Record<string, string>, TEP),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })

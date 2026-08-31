@@ -107,6 +107,56 @@ export const FILE_CHO_PHEP_PLACEHOLDER_DOAN_VAN = new Set([
   'affine/blocks/paragraph/src/view.js',
 ])
 
+// ─── Menu lệnh "/" (2026-08-31) — BA danh sách đi CÙNG NHAU ───────────────────────────────────
+//
+// Người dùng báo: mở khối Chữ tự do, gõ "/" thì mô tả đã tiếng Việt nhưng TÊN MỤC và TIÊU ĐỀ NHÓM
+// vẫn tiếng Anh. Đúng như thiết kế cũ: `name` và `group` bị loại vĩnh viễn khỏi THUOC_TINH_HIEN_THI
+// (xem cảnh báo 96 chỗ tiêu thụ ngược ở đầu file), nên chỉ `description` được dịch.
+//
+// Không nới `name` ra toàn cây. Thay vào đó dịch `name` CÙNG LÚC với hai vế bị GHÉP CẶP với nó —
+// nếu chỉ dịch một bên thì mối nối đứt và hỏng IM LẶNG:
+//   1. `tooltips[name]` (blocks/note/src/configs/slash-menu.js:92,132) tra bảng tooltip bằng chính
+//      giá trị `name`. Dịch `name` mà không dịch KHOÁ bảng → tooltip xem trước biến mất sạch.
+//   2. `['Code','Link'].includes(i.name)` (cùng file:74) loại 2 mục khỏi nhóm Style. Dịch `name` mà
+//      không dịch vế lọc → "Code"/"Liên kết" lọt vào menu, tức thêm mục upstream cố ý giấu.
+// Cả hai vế đều là literal lúc BUILD nên dịch đồng bộ là giữ nguyên hành vi.
+//
+// Danh sách ĐÓNG theo đường dẫn, đo 2026-08-31 bằng cách dò ngược từng mục hiện trên menu thật.
+// Thêm file mới thì phải đo lại tiêu thụ ngược của riêng file đó, đừng suy diễn.
+//
+// CẢNH BÁO đã trả giá trong chính lượt đo này: `blocks/surface-ref/src/configs/slash-menu.js` nằm
+// trong danh sách (nó khai `name: 'Frame'`/`name: 'Mind Map'`), nhưng CÙNG file còn có
+// `text: 'Mind Map'` và `text: 'Text'` — đó là NỘI DUNG của khối được tạo ra, không phải nhãn. Vì
+// vậy phép vá phải theo VỊ TRÍ (`name:` và chỉ `name:`), TUYỆT ĐỐI không phải "thay mọi chỗ trong
+// file" — cách đó sẽ lặng lẽ đổi nội dung tài liệu người dùng tạo ra.
+export const FILE_CHO_PHEP_NAME_SLASH_MENU = new Set([
+  'affine/rich-text/src/conversion.js',
+  'affine/rich-text/src/align.js',
+  'affine/inlines/preset/src/command/config.js',
+  'affine/blocks/note/src/configs/slash-menu.js',
+  'affine/blocks/image/src/configs/slash-menu.js',
+  'affine/blocks/attachment/src/configs/slash-menu.js',
+  'affine/blocks/surface-ref/src/configs/slash-menu.js',
+  'affine/widgets/slash-menu/src/config.js',
+])
+
+// Mảnh 1 của cặp ghép: KHOÁ của bảng `tooltips`. Bảng này là object DUY NHẤT có khoá trong cả file
+// (mọi thứ khác là `const XTooltip = html` + chuỗi SVG, đo 2026-08-31), nên luật "dịch khoá object
+// trong file này" không thể trượt sang chỗ khác. Khoá trộn CÓ nháy ('Heading 1') lẫn KHÔNG nháy
+// (Text, Bold, Quote) trong cùng object — chính cái bẫy mà chú thích Cổng 4 ở
+// kiem-quan-he-dich.mjs cảnh báo — nên bộ duyệt phải nhận CẢ StringLiteral LẪN Identifier ở vị trí
+// khoá, xem `laKhoaThuocTinh` trong dichMotFile.
+export const FILE_CHO_PHEP_KHOA_BANG_TOOLTIP = new Set([
+  'affine/blocks/note/src/configs/tooltips.js',
+])
+
+// Mảnh 2 của cặp ghép: phần tử của mảng đứng ngay trước `.includes(...)`. Hẹp gấp đôi — vừa theo
+// file, vừa theo hình dạng cú pháp `[...].includes(...)` — nên một mảng chuỗi bình thường trong
+// cùng file KHÔNG bị đụng.
+export const FILE_CHO_PHEP_LOC_INCLUDES = new Set([
+  'affine/blocks/note/src/configs/slash-menu.js',
+])
+
 // Ngoại lệ HẸP THEO FILE cho literal là giá trị của một property có KHOÁ TÍNH TOÁN
 // (`[Enum.X]: 'Chuỗi'`) — `tenThuocTinh()` trả null cho khoá tính toán nên `viTriHienThi` bỏ qua
 // mặc định (khoá động, không đoán được tên tại lúc phân tích tĩnh). Đo RIÊNG file dưới đây
@@ -240,6 +290,36 @@ export function viTriHienThi(node, tenFile = null) {
   const p = node.parent
   if (!p) return null
 
+  // KHOÁ của một thuộc tính (`Text: {…}` hoặc `'Code Block': {…}`) — khác hẳn GIÁ TRỊ ở nhánh dưới.
+  // Chỉ mở cho bảng `tooltips`, xem FILE_CHO_PHEP_KHOA_BANG_TOOLTIP. Phải đứng TRƯỚC nhánh
+  // `p.initializer === node`, vì với khoá thì `p.name === node` chứ không phải `p.initializer`.
+  if (p.kind === ts.SyntaxKind.PropertyAssignment && p.name === node) {
+    if (tenFile && FILE_CHO_PHEP_KHOA_BANG_TOOLTIP.has(tenFile)) {
+      return `khoá-bảng-tooltip:${tenFile}`
+    }
+    return null
+  }
+
+  // Phần tử của mảng đứng ngay trước `.includes(...)` — vế lọc ghép cặp với `name` đã dịch, xem
+  // FILE_CHO_PHEP_LOC_INCLUDES. Đòi ĐỦ ba tầng cú pháp (mảng → truy cập `.includes` → lời gọi) nên
+  // một mảng chuỗi bình thường trong cùng file không lọt.
+  if (p.kind === ts.SyntaxKind.ArrayLiteralExpression) {
+    const gp = p.parent
+    if (
+      tenFile &&
+      FILE_CHO_PHEP_LOC_INCLUDES.has(tenFile) &&
+      gp &&
+      gp.kind === ts.SyntaxKind.PropertyAccessExpression &&
+      gp.expression === p &&
+      gp.name?.text === 'includes' &&
+      gp.parent &&
+      gp.parent.kind === ts.SyntaxKind.CallExpression
+    ) {
+      return `vế-lọc-includes:${tenFile}`
+    }
+    return null
+  }
+
   if (p.kind === ts.SyntaxKind.PropertyAssignment && p.initializer === node) {
     const ten = tenThuocTinh(p.name)
     if (ten && THUOC_TINH_HIEN_THI.has(ten)) return `thuộc-tính:${ten}`
@@ -251,6 +331,9 @@ export function viTriHienThi(node, tenFile = null) {
     }
     if (ten === 'name' && tenFile && FILE_CHO_PHEP_NAME_SENIOR_TOOL.has(tenFile)) {
       return `thuộc-tính-name-senior-tool:${tenFile}`
+    }
+    if (ten === 'name' && tenFile && FILE_CHO_PHEP_NAME_SLASH_MENU.has(tenFile)) {
+      return `thuộc-tính-name-menu-lệnh:${tenFile}`
     }
     if (ten === 'text' && tenFile && FILE_CHO_PHEP_PLACEHOLDER_DOAN_VAN.has(tenFile)) {
       return `placeholder-doan-van-rieng-file:${tenFile}`
@@ -348,9 +431,23 @@ export function dichMotFile(js, banDo, tenFile = 'khong-ten.js') {
 
   const thay = []
   const di = (n) => {
+    // Khoá thuộc tính KHÔNG nháy (`Text: {…}`) là một Identifier, không phải StringLiteral — bộ
+    // duyệt cũ không bao giờ nhìn tới nó. Bảng `tooltips` của BlockSuite trộn khoá có nháy và khoá
+    // không nháy trong CÙNG một object, nên bỏ qua Identifier là dịch thủng đúng một nửa bảng mà
+    // trông vẫn xanh. Nhận thêm Identifier CHỈ khi nó đứng đúng vị trí khoá — `viTriHienThi` vẫn là
+    // nơi quyết định cuối (chỉ file trong FILE_CHO_PHEP_KHOA_BANG_TOOLTIP mới được dịch), nên phép
+    // nới này không mở rộng phạm vi ra bất kỳ file nào khác.
+    // Thay bằng `JSON.stringify` ra khoá CÓ nháy (`"Chữ":`) — hợp lệ cho mọi khoá, kể cả khi bản
+    // dịch có dấu cách hay dấu tiếng Việt.
+    const laKhoaThuocTinh =
+      n.kind === ts.SyntaxKind.Identifier &&
+      n.parent &&
+      n.parent.kind === ts.SyntaxKind.PropertyAssignment &&
+      n.parent.name === n
     if (
       n.kind === ts.SyntaxKind.StringLiteral ||
-      n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral
+      n.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral ||
+      laKhoaThuocTinh
     ) {
       // `Object.hasOwn`, KHÔNG phải `banDo[n.text] !== undefined`. `banDo` là object thường (kể cả
       // khi đến từ `JSON.parse`), nên phép tra khoá đi qua chuỗi prototype: `banDo['constructor']`,
@@ -602,6 +699,72 @@ export function thayNutDongMenuMobile(js, banDo, tenFile = 'khong-ten.js') {
     js: js.replace(RE_NUT_DONG_MENU_MOBILE, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
     cacLuot: [{ chuoiGoc: 'Done', chuoiDich: vi, dong }],
   }
+}
+
+// Tiêu đề NHÓM của menu lệnh "/". Không phải một chuỗi hiển thị đứng riêng: nó là đoạn GIỮA của
+// khoá nhóm có cấu trúc `'<số>_<Tên>@<số>'` (ví dụ `'0_Basic@0'`, `` `1_List@${index++}` ``).
+// `parseGroup` (widgets/slash-menu/src/utils.js) mổ chuỗi này thành [số nhóm, TÊN, số mục]; TÊN
+// chính là chữ vẽ lên đầu mỗi nhóm trong menu.
+//
+// Vì sao KHÔNG dịch qua `viTriHienThi`: chuỗi cần đổi là MỘT PHẦN của literal, không phải cả
+// literal — và một nửa số chỗ là TemplateHead (`` `0_Basic@${ ``), thứ không có node biểu thức nào
+// đại diện. Cùng lớp lỗi với thayTienToSlideFrameDenseMenu / thayChuCustomFrameMenu, nên cùng cách
+// vá: quét văn bản thô, neo bằng hình dạng CHẶT.
+//
+// An toàn với phép SẮP XẾP: `itemCompareFn` so `số nhóm` TRƯỚC (khoá chính), chỉ khi bằng nhau mới
+// so tên bằng `localeCompare` — mà mọi mục cùng nhóm luôn mang cùng chuỗi tên, nên dịch đồng loạt
+// không đảo thứ tự nhóm lẫn thứ tự mục. Số hai đầu giữ nguyên tuyệt đối.
+//
+// Hình dạng khớp CHẶT: dấu MỞ CHUỖI, số, gạch dưới, tên, `@`, rồi số hoặc `${`. Chỉ khoá nhóm mới
+// có hình này. Nới lỏng là bắt nhầm chuỗi khác và hỏng im lặng.
+//
+// Dấu mở chuỗi (`'` `"` hoặc backtick) là NEO TRÁI BẮT BUỘC, không phải trang trí: thiếu nó thì
+// `\d+` khớp được cả phần đuôi của một định danh dài hơn — ca kiểm bắt được thật với
+// `'x0_Basic@1'`, chuỗi đó bị dịch oan thành `'x0_Cơ bản@1'`. Cùng lớp lỗi "biên trái không neo đủ
+// chặt" mà THUOC_TINH_HTML_HIEN_THI đã trả giá một lượt vá.
+const RE_TEN_NHOM_SLASH_MENU = /(['"`]\d+_)([^@`'"]+)(@(?:\d|\$\{))/g
+
+export function thayTenNhomSlashMenu(js, banDo, tenFile = 'khong-ten.js') {
+  if (!FILE_CHO_PHEP_NAME_SLASH_MENU.has(tenFile)) return { js, cacLuot: [] }
+
+  const thay = []
+  for (const m of js.matchAll(RE_TEN_NHOM_SLASH_MENU)) {
+    const ten = m[2]
+    if (!Object.hasOwn(banDo, ten)) continue
+    const vi = banDo[ten]
+    if (typeof vi !== 'string') {
+      throw new Error(
+        `luat-vi-tri-dich: khoá "${ten}" (tên nhóm menu lệnh, thayTenNhomSlashMenu) có giá trị ` +
+          `KHÔNG PHẢI CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+      )
+    }
+    const dau = m.index + m[1].length
+    thay.push({
+      dau,
+      cuoi: dau + ten.length,
+      chuoiGoc: ten,
+      chuoiDich: vi,
+      dong: sfDong(js, dau),
+    })
+  }
+
+  // Thay từ CUỐI về ĐẦU để vị trí chưa xử lý không bị lệch — cùng lý do với dichMotFile.
+  let ra = js
+  for (const t of [...thay].sort((a, b) => b.dau - a.dau)) {
+    ra = ra.slice(0, t.dau) + t.chuoiDich + ra.slice(t.cuoi)
+  }
+
+  return {
+    js: ra,
+    cacLuot: thay
+      .sort((a, b) => a.dau - b.dau)
+      .map(({ chuoiGoc, chuoiDich, dong }) => ({ chuoiGoc, chuoiDich, dong })),
+  }
+}
+
+/** Số dòng (đếm từ 1) của vị trí ký tự `viTri` trong `van`. */
+function sfDong(van, viTri) {
+  return van.slice(0, viTri).split('\n').length
 }
 
 // Chữ TRẦN "Custom" giữa cặp thẻ `<div class="frame-add-button custom">…</div>` — menu CHÍNH của

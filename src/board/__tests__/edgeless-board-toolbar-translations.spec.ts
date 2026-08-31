@@ -124,17 +124,39 @@ describe('EdgelessBoard — toolbar khối ảnh + caption SlashMenu đã dịch
     expect(tooltips).not.toContain('Align center')
   })
 
-  it('mở SlashMenu → caption Attachment/Mind Map đã dịch (Tệp đính kèm/Tự do)', async () => {
+  // 2026-08-31: ca này TRA MỤC theo `item.name`, và từ chặng dịch menu lệnh thì chính `name` cũng
+  // đã được dịch (xem FILE_CHO_PHEP_NAME_SLASH_MENU trong scripts/luat-vi-tri-dich.mjs). Tra bằng
+  // tên tiếng Anh cũ trả về `undefined` — ca đỏ vì GIẢ ĐỊNH của nó cũ, không phải vì sản phẩm hỏng.
+  // Đổi sang tra bằng tên đã dịch, và kiểm luôn CẢ HAI vế: `name` đã dịch VÀ `tooltip.caption` vẫn
+  // còn — vế thứ hai chính là bằng chứng mối nối `tooltips[name]` không đứt khi dịch `name` (nếu
+  // khoá bảng tooltip không được dịch đồng bộ thì tra hụt và `caption` thành undefined).
+  it('mở SlashMenu → tên mục và caption đều đã dịch, tooltips[name] không đứt', async () => {
     const { inlineEl } = await moBangVaTaoNoteCoNoiDung(root, container, 'board-toolbar-slashmenu', 'hello')
     const slashMenu = await moSlashMenuTuNote(inlineEl)
 
     type ItemVoiTooltip = { name: string; tooltip?: { caption?: string } }
     const items = slashMenu.items as unknown as ItemVoiTooltip[]
+    const ten = items.map((i) => i.name)
 
-    const attachment = items.find((i) => i.name === 'Attachment')
+    const attachment = items.find((i) => i.name === 'Tệp đính kèm')
     expect(attachment?.tooltip?.caption).toBe('Tệp đính kèm')
 
-    const mindMap = items.find((i) => i.name === 'Mind Map')
+    const mindMap = items.find((i) => i.name === 'Sơ đồ tư duy')
     expect(mindMap?.tooltip?.caption).toBe('Tự do')
+
+    // Mối nối tooltips[name]: mục "Khối mã" lấy tooltip qua đúng bảng tra bằng tên. Dịch `name` mà
+    // quên dịch KHOÁ bảng thì dòng dưới là undefined — đây là dây bẫy cho lỗi đó.
+    const khoiMa = items.find((i) => i.name === 'Khối mã')
+    expect(khoiMa?.tooltip?.caption).toBe('Khối mã')
+
+    // Đối chứng: tên tiếng Anh KHÔNG còn sót trong menu.
+    expect(ten).not.toContain('Attachment')
+    expect(ten).not.toContain('Mind Map')
+    expect(ten).not.toContain('Code Block')
+
+    // Vế lọc `['Code','Link'].includes(i.name)` phải dịch ĐỒNG BỘ với `name`; lệch một bên là hai
+    // mục upstream cố tình giấu sẽ lọt vào menu.
+    expect(ten).not.toContain('Mã')
+    expect(ten).not.toContain('Liên kết')
   })
 })
