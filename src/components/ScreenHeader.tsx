@@ -20,10 +20,15 @@ export function ScreenHeader({
   title,
   subtitle,
   actions,
+  titleClamp = 1,
 }: {
   title: ReactNode
   subtitle?: ReactNode
   actions?: ReactNode
+  // Số dòng tối đa cho tiêu đề. Mặc định 1 (`truncate`) — giữ đúng đặc tả "một dòng đọc được".
+  // `2` cho màn có vài nhãn dài không rút gọn được (Dùng thuốc: "An thần · Giảm đau · Giãn cơ"…)
+  // mà `truncate` cắt cụt chính nhãn định hướng (/impeccable critique 2026-08-31).
+  titleClamp?: 1 | 2
 }) {
   return (
     <div className="flex-none px-5 pt-3 pb-3">
@@ -33,7 +38,10 @@ export function ScreenHeader({
         {/* flex-1 min-w-0: flex item mặc định min-width:auto theo nội dung, nên `truncate` không
             có tác dụng khi tiêu đề đủ dài đứng cạnh cụm nút "Tìm"/"Nhật ký" — chữ tràn ra ngoài
             hàng thay vì bị cắt gọn. Cùng lỗi min-width đã gặp ở PatientPanel (ô Creatinin). */}
-        <h1 className="flex-1 min-w-0 text-[20px] font-bold leading-[1.3] truncate" style={{ color: C.text }}>
+        <h1
+          className={`flex-1 min-w-0 text-[20px] font-bold leading-[1.3] ${titleClamp === 2 ? "line-clamp-2" : "truncate"}`}
+          style={{ color: C.text }}
+        >
           {title}
         </h1>
         {actions && <div className="flex-none flex items-center gap-1.5">{actions}</div>}

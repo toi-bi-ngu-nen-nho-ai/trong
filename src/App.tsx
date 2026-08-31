@@ -6855,69 +6855,114 @@ function VialCountWarning({ grade, show, onConfirm }: { grade: VialCountGrade; s
   )
 }
 
-// ─── Công tắc "Làm tròn lên" + lời giải thích con số vừa in ra ────────────────
+// ─── "Làm tròn lên": lời giải thích + công tắc ───────────────────────────────
 //
-// Vấn đề đang sửa: app làm tròn rất "thông minh" (gộp lọ, nâng thể tích pha lên mốc dễ đong) nhưng
-// KHÔNG nói một câu nào về việc đó — người dùng thấy 1000 mg thay vì 525 mg, hay 150 mL thay vì
-// 100 mL, không có cách nào biết vì đâu ra và cũng không có cách nào chọn khác. Ba việc gộp trong
-// một khối gọn: nói phần dư là bao nhiêu, cảnh báo khi dư quá nhiều (ROUND_WARN_RATIO), và cho tắt.
+// Vấn đề gốc: app làm tròn rất "thông minh" (gộp lọ, nâng thể tích pha lên mốc dễ đong) nhưng KHÔNG
+// nói câu nào — người dùng thấy 1000 mg thay vì 525 mg mà không rõ vì đâu, cũng không chọn khác được.
 //
-// TẮT rồi thì KHÔNG cảnh báo gì nữa: người dùng đã tự chọn liều thấp hơn khoảng khuyến cáo và tự
-// nhận trách nhiệm — lặp lại cảnh báo cho đúng cái họ vừa chọn chỉ dạy họ bỏ qua mọi cảnh báo.
-function RoundingSwitch({
-  on,
-  setOn,
+// /impeccable critique 2026-08-31, P1 + P2: khi làm tròn lên vọt quá ROUND_WARN_RATIO (1,3×) cho
+// đúng thuốc/bậc này, app KHÔNG tự áp liều làm tròn nữa — hiện liều TÍNH ĐƯỢC (trong khoảng khuyến
+// cáo), người dùng bật riêng cho thuốc này bằng một chạm. Và câu cảnh báo hổ phách tách HẲN khỏi
+// công tắc (trước đây công tắc xanh nằm trong ô hổ phách — trộn tín hiệu chrome/an toàn, phạm
+// Decoration/Diagnosis Split). Làm tròn nhỏ (≤1,3×) thì giữ nguyên nếp cũ: một công tắc toàn cục.
+function ToggleSwitch({ on, onToggle, ariaLabel }: { on: boolean; onToggle: () => void; ariaLabel: string }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
+      onClick={() => {
+        onToggle()
+        tickHaptic()
+      }}
+      className="flex-none w-[52px] h-8 rounded-full relative transition-colors"
+      style={{ background: on ? "var(--c-accent)" : "var(--c-line-strong)" }}
+    >
+      <span className="absolute top-1 w-6 h-6 rounded-full transition-all" style={{ left: on ? 24 : 4, background: "var(--c-surface)" }} />
+    </button>
+  )
+}
+
+function RoundingControl({
+  globalOn,
+  setGlobalOn,
+  overshoot,
+  useHeavyRoundUp,
+  setUseHeavyRoundUp,
   excess,
   delivered,
+  roundedUpDelivered,
+  roundedUpExcess,
   unit,
 }: {
-  on: boolean
-  setOn: (next: boolean) => void
-  // Số lần lượng thuốc thực nhận so với liều tính được — xem roundingExcess trong lib/mixing.ts.
+  globalOn: boolean
+  setGlobalOn: (next: boolean) => void
+  // Làm tròn LÊN cho đúng thuốc/bậc này có vọt quá 1,3× không (tính từ usageUp, không phụ thuộc thẻ).
+  overshoot: boolean
+  useHeavyRoundUp: boolean
+  setUseHeavyRoundUp: (next: boolean) => void
+  // excess/delivered của con số ĐANG hiển thị (usageDown khi chưa opt-in, usageUp khi đã opt-in).
   excess: number
   delivered: number
+  // Con số NẾU làm tròn lên — để nói "bật sẽ thành bao nhiêu" khi đang hiện liều tính được.
+  roundedUpDelivered: number | null
+  roundedUpExcess: number | null
   unit: string
 }) {
-  const over = on && excess > 1.001
-  const heavy = on && excess > ROUND_WARN_RATIO
-  const tone = heavy
-    ? { bg: "var(--c-warn-soft)", border: "var(--c-warn-line)", text: "var(--c-warn-icon)" }
-    : { bg: "var(--c-surface-alt)", border: "var(--c-line)", text: "var(--c-text-soft)" }
+  const neutral = { bg: "var(--c-surface-alt)", border: "var(--c-line)", text: "var(--c-text-soft)" }
 
-  return (
-    <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: tone.bg, border: `1px solid ${tone.border}` }}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-bold leading-[1.45]" style={{ color: tone.text }}>
-            {on ? "Làm tròn lên: ĐANG BẬT" : "Làm tròn lên: ĐANG TẮT"}
-          </p>
-          <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: tone.text }}>
-            {heavy
-              ? `Đang làm tròn cao hơn nhiều so với liều tính được — thực nhận ${formatDoseNumber(delivered)} ${unit}, gấp ${trim(excess, 2)} lần. Rút bớt dịch pha để bỏ phần dư, hoặc tắt công tắc này để lấy mức thấp hơn.`
-              : over
+  // Làm tròn nhỏ hoặc đang tắt toàn cục: một khối trung tính + công tắc toàn cục, như trước.
+  if (!globalOn || !overshoot) {
+    const over = globalOn && excess > 1.001
+    return (
+      <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: neutral.bg, border: `1px solid ${neutral.border}` }}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-bold leading-[1.45]" style={{ color: neutral.text }}>
+              {globalOn ? "Làm tròn lên: ĐANG BẬT" : "Làm tròn lên: ĐANG TẮT"}
+            </p>
+            <p className="text-[12px] leading-[1.45] mt-0.5" style={{ color: neutral.text }}>
+              {over
                 ? `Theo mức làm tròn lên gần nhất có thể — thực nhận ${formatDoseNumber(delivered)} ${unit}. Tắt công tắc nếu muốn lấy mức thấp hơn cho gọn.`
-                : on
+                : globalOn
                   ? "Không có bậc nào phải làm tròn — con số ở trên đúng bằng liều tính được."
                   : `Đang lấy mức thấp nhất dễ đong — thực nhận ${formatDoseNumber(delivered)} ${unit}, có thể thấp hơn khoảng khuyến cáo. Bạn đã tự chọn mức này.`}
-          </p>
+            </p>
+          </div>
+          <ToggleSwitch on={globalOn} onToggle={() => setGlobalOn(!globalOn)} ariaLabel="Làm tròn lên khi không có bậc nào khớp khoảng liều" />
         </div>
-        {/* Công tắc thật (role=switch) chứ không phải một nút chữ: trạng thái bật/tắt phải đọc được
-            bằng trình đọc màn hình, và phải nhìn thấy ngay đang ở chiều nào mà không cần đọc chữ. */}
-        <button
-          role="switch"
-          aria-checked={on}
-          aria-label="Làm tròn lên khi không có bậc nào khớp khoảng liều"
-          onClick={() => {
-            setOn(!on)
-            tickHaptic()
-          }}
-          className="flex-none w-[52px] h-8 rounded-full relative transition-colors"
-          style={{ background: on ? "var(--c-accent)" : "var(--c-line-strong)" }}
-        >
-          <span
-            className="absolute top-1 w-6 h-6 rounded-full transition-all"
-            style={{ left: on ? 24 : 4, background: "var(--c-surface)" }}
+      </div>
+    )
+  }
+
+  // Làm tròn lên vọt >1,3×: câu cảnh báo hổ phách (CHỈ chữ, không control) + khối điều khiển trung
+  // tính tách riêng bên dưới.
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      <div className="px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-warn-soft)", border: "1px solid var(--c-warn-line)" }}>
+        <p className="text-[12px] leading-[1.45]" style={{ color: "var(--c-warn-icon)" }}>
+          {useHeavyRoundUp
+            ? `Đang làm tròn lên cho thuốc này — thực nhận ${formatDoseNumber(delivered)} ${unit}, gấp ${trim(excess, 2)} lần liều tính được. Rút bớt dịch pha để bỏ phần dư.`
+            : `Làm tròn lên cho thuốc này sẽ cho thực nhận ${roundedUpDelivered != null ? formatDoseNumber(roundedUpDelivered) : "—"} ${unit}${roundedUpExcess != null ? `, gấp ${trim(roundedUpExcess, 2)} lần` : ""} liều tính được. Đang hiển thị LIỀU TÍNH ĐƯỢC — ${formatDoseNumber(delivered)} ${unit}, trong khoảng khuyến cáo.`}
+        </p>
+      </div>
+      <div className="px-2.5 py-2 rounded-[14px]" style={{ background: neutral.bg, border: `1px solid ${neutral.border}` }}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[12px] font-bold leading-[1.45] flex-1 min-w-0" style={{ color: neutral.text }}>
+            Dùng liều làm tròn lên cho thuốc này
+          </p>
+          <ToggleSwitch
+            on={useHeavyRoundUp}
+            onToggle={() => setUseHeavyRoundUp(!useHeavyRoundUp)}
+            ariaLabel="Dùng liều làm tròn lên cho riêng thuốc này dù phần dư vượt 1,3 lần"
           />
+        </div>
+        <button
+          onClick={() => setGlobalOn(false)}
+          className="text-[12px] font-semibold underline mt-1 leading-[1.45] text-left"
+          style={{ color: neutral.text }}
+        >
+          Tắt làm tròn lên cho mọi thuốc
         </button>
       </div>
     </div>
@@ -8011,7 +8056,13 @@ function AntibioticDoseCard({
     return fixed ? applyDoseCap(fixed.amount, null, fixed.unit, drug.maxSingleDose) : null
   }, [notComputableDose, perKgDoses, dosingWeight.used, weightImplausible, tier.dose, drug.maxSingleDose])
   const doseCapText = doseTargetMg ? describeDoseCap(doseTargetMg) : null
-  const autoUsage = useMemo(() => {
+  // Tính "Cách dùng" theo CẢ HAI chiều làm tròn trong một memo (build(true)/build(false)) thay vì
+  // chỉ theo công tắc toàn cục: thẻ cần biết TRƯỚC lượng thực nhận nếu làm tròn LÊN có vọt quá
+  // ROUND_WARN_RATIO không, để quyết định có tự áp liều làm tròn hay hiện liều tính được
+  // (/impeccable critique 2026-08-31, P1 — "liều thực nhận không phải con số nổi bật" + mặc định
+  // làm tròn theo thẻ).
+  const autoUsagePair = useMemo(() => {
+    const build = (roundUp: boolean) => {
     if (!mixCfg || !doseTargetMg) return null
     if (mixCfg.vialForm === "fixed") {
       if (mixCfg.vialVolumeMl == null) return null
@@ -8163,7 +8214,22 @@ function AntibioticDoseCard({
       excess: roundingExcess(deliveredDose, doseTargetMg.high ?? doseTargetMg.low),
       deliveredDose,
     }
-  }, [mixCfg, doseTargetMg, drug.name, activeMix?.vialLabel, routeShort, roundUp])
+    }
+    return { up: build(true), down: build(false) }
+  }, [mixCfg, doseTargetMg, drug.name, activeMix?.vialLabel, routeShort])
+
+  const usageUp = autoUsagePair?.up ?? null
+  const usageDown = autoUsagePair?.down ?? null
+  // Làm tròn LÊN cho đúng thuốc/bậc này có làm lượng thực nhận vượt 1,3× liều tính được không?
+  const roundUpWouldOvershoot = usageUp != null && !("insufficient" in usageUp) && usageUp.excess > ROUND_WARN_RATIO
+  // Opt-in THEO THẺ khi làm tròn lên vọt >1,3×: không tự áp, hiện liều tính được (thấp hơn, trong
+  // khoảng khuyến cáo); người dùng bật riêng cho thuốc này bằng một chạm. Reset khi đổi thuốc/bậc/
+  // quy cách đóng gói — quyết định "chấp nhận dư nhiều lần này" không được mang sang thuốc kế tiếp.
+  const [useHeavyRoundUp, setUseHeavyRoundUp] = useState(false)
+  useEffect(() => {
+    setUseHeavyRoundUp(false)
+  }, [drug.id, tier.dose, mixIndex])
+  const autoUsage = !roundUp ? usageDown : roundUpWouldOvershoot && !useHeavyRoundUp ? usageDown : usageUp
   const vialGuard = useVialCountGuard(autoUsage?.vialCount ?? null, autoUsage?.vialForm ?? "powder")
   const highWarnings = (drug.warnings ?? []).filter((w) => w.severity === "cao")
   const otherWarnings = (drug.warnings ?? []).filter((w) => w.severity !== "cao")
@@ -8480,6 +8546,20 @@ function AntibioticDoseCard({
         autoUsage &&
         !vialGuard.blocked && (
           <div className="mt-1.5 px-2.5 py-2 rounded-[14px]" style={{ background: "var(--c-primary-soft)", border: "1px solid var(--c-primary-line)" }}>
+            {/* Con số bác sĩ/điều dưỡng THẬT SỰ hành động theo (lượng rút ra sau làm tròn) hiện ở
+                cỡ mono-dose ngang với con số tính được — trước đây chỉ nằm chìm trong câu "rút X mL
+                = Y mg" 12px, thẻ có thể hiện hai "liều" khác nhau ở cái nhìn nguy hiểm nhất
+                (/impeccable critique 2026-08-31, P1). Chỉ hiện khi làm tròn tạo ra chênh lệch thật
+                (excess > 1,001) — khớp đúng thì con số trong câu đã đủ. */}
+            {!autoUsage.insufficient && autoUsage.excess > 1.001 && doseTargetMg && (
+              <p className="text-[12px] leading-[1.45] mb-1" style={{ color: "var(--c-text-soft)" }}>
+                Thực nhận{" "}
+                <b className={NUM_DOSE} style={{ color: "var(--c-text)" }}>
+                  {formatDoseNumber(autoUsage.deliveredDose)} {doseTargetMg.unit}
+                </b>{" "}
+                · tính được <span className={NUM}>{formatDoseNumber(doseTargetMg.high ?? doseTargetMg.low)}</span> {doseTargetMg.unit}
+              </p>
+            )}
             {/* Đây là hướng dẫn rút thuốc thật — điểm kiểm tra cuối trước khi kim chạm vào lọ —
                 nên đọc CHỮ bằng --c-text (như SEVERITY_STYLE.ok trong doseSafety.ts) chứ không phải
                 --c-primary, và KHÔNG bounce (bỏ pop-value): con số đổi ở đây là do tính toán lại
@@ -8507,7 +8587,18 @@ function AntibioticDoseCard({
           không nhét vào Cài đặt: con số gây thắc mắc nằm ở trên, chỗ trả lời phải ở ngay cạnh nó —
           và người dùng phải đổi được chiều làm tròn ngay tại đây, không phải đi tìm. */}
       {autoUsage && !autoUsage.insufficient && !vialGuard.blocked && (
-        <RoundingSwitch on={roundUp} setOn={setRoundUp} excess={autoUsage.excess} delivered={autoUsage.deliveredDose} unit={doseTargetMg?.unit ?? "mg"} />
+        <RoundingControl
+          globalOn={roundUp}
+          setGlobalOn={setRoundUp}
+          overshoot={roundUpWouldOvershoot}
+          useHeavyRoundUp={useHeavyRoundUp}
+          setUseHeavyRoundUp={setUseHeavyRoundUp}
+          excess={autoUsage.excess}
+          delivered={autoUsage.deliveredDose}
+          roundedUpDelivered={usageUp && !("insufficient" in usageUp) ? usageUp.deliveredDose : null}
+          roundedUpExcess={usageUp && !("insufficient" in usageUp) ? usageUp.excess : null}
+          unit={doseTargetMg?.unit ?? "mg"}
+        />
       )}
 
       {/* Cảnh báo mức cao luôn hiện; phần còn lại gấp lại giống thẻ thuốc truyền */}
@@ -8531,7 +8622,14 @@ function AntibioticDoseCard({
             name: drug.name,
             compatKey: drug.compatKey,
             line: 1,
-            doseText: tier.dose,
+            // Ghim con số mg CỤ THỂ (lượng thực nhận sau làm tròn) đứng trước quy tắc mg/kg — bảng
+            // Đang truyền dùng để bàn giao ca, ở đó "15–20 mg/kg mỗi 8h" bắt người đọc tự nhân lại
+            // (/impeccable critique 2026-08-31, P1). Không có con số cụ thể (thiếu cân nặng/công
+            // thức) thì rơi về text bậc như trước.
+            doseText:
+              autoUsage && !autoUsage.insufficient && doseTargetMg
+                ? `${formatDoseNumber(autoUsage.deliveredDose)} ${doseTargetMg.unit} · ${tier.dose}`
+                : tier.dose,
             rateText: "",
             concText: drug.route,
             kind: "intermittent",
@@ -11559,6 +11657,7 @@ export function DungThuocScreen({
       <div className="flex-1 min-h-0 flex flex-col relative w-full max-w-[860px] mx-auto" inert={!disclaimerAck || undefined}>
       <ScreenHeader
         title={MIXING_TITLES[tab]}
+        titleClamp={2}
         actions={
           <>
             <ThemeToggle variant="inline" />
