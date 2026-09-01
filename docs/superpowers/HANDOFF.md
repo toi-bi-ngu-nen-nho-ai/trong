@@ -37,37 +37,72 @@ Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`
 bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
 kho tài liệu để tìm.
 
-**Bảng Mẫu (Template) — ĐÃ BƠM 185 mũi tên vẽ tay (2026-09-01).**
+**Bảng Mẫu (Template) — 5 tab, 227 nhãn dán + 5 mẫu bảng (2026-09-01).**
 `affine/gfx/template/src/toolbar/builtin-templates.ts` để `templates = []` rỗng; app chủ bơm qua
-`builtInTemplates.extend(manager)`. drtrong nay gọi ở `EdgelessBoard.tsx` (cấp module):
-`EdgelessTemplatePanel.templates.extend(new HandyTemplateManager())`.
-- Nguồn: `Eronred/handy-arrows` `static/arrows/*.svg` — chủ dự án xác nhận là tài sản của mình,
-  KHÔNG cần ghi công. 185 tệp (~2MB) chép vào `public/static/templates/arrows/` bởi
-  `npm run dung:mau-handy` (`scripts/dung-mau-handy.mjs`, chạy tay, kết quả commit).
-- `src/board/mau-handy.ts` (`HandyTemplateManager`) dựng mỗi SVG thành `Template` kiểu `sticker`:
-  `preview` = URL công khai (`<img loading=lazy>`), `assets[sourceId]` = cùng URL (panel `fetch()`
-  khi thả), `content` = `DocSnapshot` `affine:page > affine:surface > affine:image`. Kích thước lấy
-  từ `viewBox`, nằm trong `mau-handy.sinh.ts` (tệp sinh, KHÔNG chứa byte SVG — D13). Một danh mục:
-  "Mũi tên".
-- Mực: nguồn dùng `fill="black"` / `fill="currentColor"` → đen tịt trên canvas tối. `dung-mau-handy.mjs`
-  chèn `<style>*{fill:#808080}</style>` sau thẻ `<svg>` mỗi tệp (CSS thắng thuộc tính `fill=`, phủ cả
-  hai họ). #808080 ~3,95:1 trên nền trắng, ~4,55:1 trên `#14162c` — trên sàn 3:1 ở cả hai. Khối ảnh
-  render SVG qua `<img src="blob:">` (không kế thừa theme; theme app là công tắc trong-app, không
-  phải `prefers-color-scheme`) nên chọn MỘT mực trung tính thay vì hai biến thể.
-- Kiểm: `mau-handy.spec.ts` (185 mẫu qua `DocSnapshotSchema.parse`, asset khớp sourceId) +
-  `mau-handy-chen.spec.ts` (chèn thật → `affine:image` dưới surface + blob vào kho). Cả hai xanh.
-  Rasterise 5 tệp (cả hai họ) trên canvas: mọi điểm đục = `#808080`, 0 điểm đen, hình vẫn ra.
-- CÒN NỢ: (a) kiểm mắt trên Browser pane HIỆN (pane bị giấu suốt lượt làm) — tab "Mũi tên" + lưới
-  preview, thả một mũi tên thấy hình trên canvas, vào-ra còn nguyên. (b) `illustrations` (54 tệp,
-  ~10MB) CỐ Ý BỎ — rủi ro phình git + IndexedDB bảng.
+`builtInTemplates.extend(manager)`. drtrong gọi ở `EdgelessBoard.tsx` (cấp module) HAI lần —
+`HandyTemplateManager` rồi `DongNaoTemplateManager`. **Thứ tự `extend()` = thứ tự tab.**
+Kế hoạch đầy đủ + phép đo: [`plans/2026-09-01-mo-rong-bang-mau.md`](plans/2026-09-01-mo-rong-bang-mau.md).
+
+Panel vendored ĐÃ CÓ SẴN mọi thứ trong video AFFiNE chủ dự án gửi: ô tìm, tab danh mục cuộn ngang,
+tooltip tên mẫu, `overlay-scrollbar`, preview `loading=lazy`, và preview nhận cả chuỗi `<svg…` lẫn
+URL (`template-panel.ts:438-447`). Chỗ drtrong từng thiếu chỉ là DỮ LIỆU — không sửa dòng vendored nào.
+
+- **Nhãn dán (`type: 'sticker'`, `src/board/mau-handy.ts` → `HandyTemplateManager`).** Bốn tab:
+  `Mũi tên` (185), `Heo nhắng` (15), `Nhãn dán` (14), `Giấy nhớ` (13).
+  - `Mũi tên` ← `Eronred/handy-arrows` `static/arrows/*.svg`, chủ dự án xác nhận là tài sản của
+    mình, KHÔNG cần ghi công. `npm run dung:mau-handy` → `public/static/templates/arrows/` +
+    `mau-handy.sinh.ts`.
+  - Ba tab kia ← `packages/frontend/templates/stickers/{Cheeky Piggies,Contorted Stickers,Paper}`
+    của bản checkout AFFiNE trên máy (`AFFINE_REPO`, mặc định `../AFFiNE`). `npm run dung:mau-sticker`
+    → `public/static/templates/stickers/<thu-muc>/` + `mau-sticker.sinh.ts`. Chỉ đọc `Content/`,
+    KHÔNG `Cover/` (`Paper/Cover` 1020 KB vs `Content` 108 KB). Chủ dự án duyệt việc chép 2026-09-01.
+  - **BỎ 3 tệp** `AFFiNE.svg`, `AFFiNE AI.svg`, `Local First.svg` — slug của chúng chứa `affine-`
+    (D16 luật A) và là thương hiệu thượng nguồn. Danh sách cứng trong `dung-mau-sticker.mjs`.
+  - Mực: CHỈ bộ mũi tên bị ép `<style>*{fill:#808080}</style>` (nguồn dùng `fill="black"` /
+    `fill="currentColor"` → đen tịt trên canvas tối; #808080 ~3,95:1 trên nền trắng, ~4,55:1 trên
+    `#14162c`, trên sàn 3:1 ở cả hai). Ba bộ mới **KHÔNG** ép — chúng có màu sẵn, ép xám là phá hình.
+  - **Khung thả**: `xywh` KHÔNG dùng thẳng `viewBox`. Bộ mũi tên chỉ 62–87px nên thả ra bé xíu (đo
+    trên trình duyệt thật: ~73px ở zoom 100%, trong khi AFFiNE ~460px vì `build-stickers.mjs`
+    hardcode `[0,0,460,430]`). `khungTha()` phóng theo CẠNH DÀI lên `CANH_DAI = 420`, giữ tỷ lệ —
+    không hardcode khung cứng vì ba bộ mới có tỷ lệ khác hẳn. `width`/`height` vẫn là kích thước gốc.
+- **Mẫu bảng (`type: 'template'`, `src/board/mau-dongnao.ts` → `DongNaoTemplateManager`).** Tab
+  `Động não`, 5 mẫu ← `edgeless-snapshot/Brainstorming/*.zip` (5W2H, Sơ đồ khái niệm, Lưu đồ,
+  Nguyên tắc SMART, SWOT). `npm run dung:mau-dongnao` → `public/static/templates/dongnao/<slug>.json`
+  (~97 KB) + `<slug>.svg` (bìa) + `mau-dongnao.sinh.ts` (chỉ slug + tên).
+  - **NẠP LƯỜI**: `list()` trả Promise, `fetch()` khi người dùng mở tab — 97 KB không vào chunk JS (D13).
+  - **HỎNG MỀM, đừng "sửa" thành ném.** `builtin-templates.ts:41` gộp MỌI manager bằng một
+    `Promise.all`; một promise vỡ ở đây xoá trắng CẢ bốn tab nhãn dán, và `template-panel.ts` chỉ
+    `console.error` rồi bỏ. Nên mọi lỗi bị nuốt tại chỗ, trả `[]`, xoá cache để lần sau thử lại.
+- ⚠️ **BẪY: snapshot Brainstorming nhồi `--affine-*` dạng DỮ LIỆU** — `affine-palette-line-black`,
+  `affine-palette-shape-yellow`, `affine-tag-purple`, `affine-note-shadow-sticker`… Chép nguyên thì
+  (a) `kiem-dist.mjs` luật A báo đỏ, và (b) mẫu render với custom property KHÔNG PHÂN GIẢI ĐƯỢC —
+  đúng lớp lỗi luật B sinh ra để bắt (console sạch, hình sai, mắt thường không thấy).
+  `dung-mau-dongnao.mjs` rửa `\baffine-` → `drt-` y luật `doi-ten-vendor.mjs`; luật khớp gạch nối nên
+  `affine:page`/`affine:surface` (FLAVOUR) không bị chạm. **Ngoại lệ hợp lệ duy nhất:**
+  `--drt-palette-transparent` KHÔNG có trong `theme/style.css` và không cần có — thượng nguồn khai
+  nó là sentinel (`shared/src/theme/css-variables.ts`), `color-picker/utils.js` so chuỗi
+  `endsWith('transparent')` rồi trả thẳng `transparent`, không bao giờ gọi `var()`.
+- **Dịch**: `scripts/dich-dongnao.json` (58 chuỗi + 5 tên mẫu). `dung-mau-dongnao.mjs` **liệt kê hết
+  rồi ném** nếu gặp `insert` lạ — không được im lặng để tiếng Anh lọt lên bề mặt. Các mục dịch-thành-
+  chính-nó (chữ cái SMART, "SWOT") là cố ý.
+- Kiểm: `mau-handy.spec.ts` (227 mẫu, `DocSnapshotSchema.parse`, sourceId duy nhất toàn cục, khung
+  thả không méo), `mau-handy-chen.spec.ts` (chèn thật từ CẢ `Mũi tên` lẫn `Giấy nhớ`),
+  `mau-dongnao.spec.ts` (5 mẫu, không `affine-`, mọi `--drt-*` có định nghĩa, không sót tiếng Anh,
+  fetch hỏng → `[]` không ném).
 - Placeholder "Search file or anything..." vẫn tiếng Anh — chuỗi vendored, thuộc pipeline D12, KHÔNG
   gộp vào lượt này.
 
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 
-Ba mục dưới đây đã được cân nhắc và chốt là không làm. Ghi lại để phiên sau **khỏi phát hiện lại
+Các mục dưới đây đã được cân nhắc và chốt là không làm. Ghi lại để phiên sau **khỏi phát hiện lại
 rồi tưởng là thiếu sót** — kèm sẵn phép đo và hướng đi nếu có ngày đổi ý. Đừng tự ý sửa, đừng xếp
 vào kế hoạch, đừng báo cáo như lỗi còn tồn.
+
+**`illustrations` của handy-arrows (54 tệp, ~10 MB) — CỐ Ý BỎ.** Rủi ro phình git + phình IndexedDB
+của bảng. Trước 2026-09-01 khoản này nằm ở §1.1 dưới nhãn "CÒN NỢ (b)", đọc như việc tồn; nó là
+QUYẾT ĐỊNH, không phải nợ. Bốn tab nhãn dán hiện có (227 mẫu) đã phủ nhu cầu. Muốn mở lại thì cân
+dung lượng trước — và bộ `illustrations` là ảnh minh hoạ, không phải mũi tên/nhãn dán, tức là một
+loại nội dung khác chứ không phải "thêm cho đủ".
 
 **Deploy Vercel chậm thêm vài phút mỗi lần.** `postinstall` dựng lại `.vendor-build/` từ đầu trên CI
 (checkout luôn sạch; cục bộ nó bỏ qua khi cổng đã xanh). Cân nhắc 2026-08-31 và bác: không đo được

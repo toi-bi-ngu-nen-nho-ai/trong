@@ -42,14 +42,20 @@ describe('HandyTemplateManager — chèn sticker vào bảng thật', () => {
     })
   })
 
-  it('thả một mẫu → khối affine:image dưới surface, blob đã vào kho', async () => {
+  // Chạy cho CẢ HAI đường dữ liệu: bộ mũi tên (mau-handy.sinh) và một bộ nhãn dán mới
+  // (mau-sticker.sinh). Chúng khác nhau ở tiền tố sourceId và thư mục public/, nên một lỗi ánh xạ
+  // đường dẫn chỉ lộ ra ở một trong hai.
+  it.each([['Mũi tên'], ['Giấy nhớ']])(
+    'thả một mẫu %s → khối affine:image dưới surface, blob đã vào kho',
+    async (danhMuc) => {
     const eh = document.querySelector('editor-host') as unknown as { std: StdLike }
     const std = eh.std as unknown as Parameters<typeof createTemplateJob>[0]
     const store = eh.std.store
 
     const truoc = store.getModelsByFlavour('affine:image').length
 
-    const mau = new HandyTemplateManager().list('Mũi tên')[0]
+    const mau = new HandyTemplateManager().list(danhMuc)[0]
+    expect(mau, `danh mục ${danhMuc} rỗng`).toBeDefined()
     const sourceId = Object.keys(mau.assets!)[0]
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0h10v10H0z"/></svg>'
     const blob = new Blob([svg], { type: 'image/svg+xml' })
@@ -72,5 +78,6 @@ describe('HandyTemplateManager — chèn sticker vào bảng thật', () => {
     const sid = moi.props.sourceId as string
     expect(sid).toBeTruthy()
     expect(await store.blobSync.get(sid)).toBeInstanceOf(Blob)
-  })
+    },
+  )
 })

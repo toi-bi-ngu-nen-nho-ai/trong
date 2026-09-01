@@ -49,6 +49,7 @@ import '../../.vendor-build/theme/style.css'
 import './cau-noi-thuong-hieu.css'
 
 import { viewExtensions } from './extensions'
+import { DongNaoTemplateManager } from './mau-dongnao'
 import { HandyTemplateManager } from './mau-handy'
 import { EdgelessTemplatePanel } from '@blocksuite/affine-gfx-template'
 
@@ -60,10 +61,12 @@ apDungViewportChoIOS()
 const viewManager = new ViewExtensionManager(viewExtensions)
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 
-// Bơm bộ mẫu mũi tên vào nút "Mẫu" của thanh công cụ edgeless. Thượng nguồn để `builtInTemplates`
+// Bơm các bộ mẫu vào nút "Mẫu" của thanh công cụ edgeless. Thượng nguồn để `builtInTemplates`
 // rỗng, chờ app chủ gọi `extend()` (xem src/board/mau-handy.ts + scripts/dung-mau-handy.mjs). Chạy ở
 // cấp module, một lần khi chunk bảng nạp — `EdgelessTemplatePanel.templates` CHÍNH LÀ `builtInTemplates`.
+// THỨ TỰ `extend()` = THỨ TỰ TAB trong panel: bốn tab nhãn dán trước, "Động não" (mẫu bảng) cuối.
 EdgelessTemplatePanel.templates.extend(new HandyTemplateManager())
+EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
 
 /**
  * Bộ extension cho chế độ edgeless, lấy từ ĐÚNG `viewManager` singleton của module này.
