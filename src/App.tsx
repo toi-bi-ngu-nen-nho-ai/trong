@@ -11312,22 +11312,6 @@ const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
 // tabOrderIds trong DungThuocScreen (/impeccable critique 2026-08-26, P1).
 const TAB_REORDER_HINT_KEY = "drtrong:tabReorderHintSeen"
 
-// Gợi ý cho hai nút icon-only "Tìm"/"Nhật ký" ở ScreenHeader — rút còn biểu tượng vuông từ
-// 2026-08-31 (P1, tránh tiêu đề bị `truncate`), nhưng `title` không hiện khi CHẠM (thiết bị chính
-// của màn này), nên người lần đầu thấy hai vòng tròn không nhãn mà không có cách xem trước chức năng
-// ngoài bấm thử (/impeccable critique 2026-09-01, P3). Dòng riêng, KHÔNG dùng chung slot với
-// TAB_SEARCH_HINT_KEY/TAB_REORDER_HINT_KEY (hai gợi ý đó đã có logic tránh chồng lên nhau — thêm một
-// dòng nữa vào đúng chỗ đó sẽ phải sửa lại toàn bộ phối hợp ba chiều, rủi ro hơn cần thiết); dòng này
-// đứng NGAY DƯỚI header, biến mất khi chạm MỘT trong hai nút.
-//
-// Lưu MỐC GIỜ dismiss, không phải cờ boolean "1" — máy trực là THIẾT BỊ DÙNG CHUNG nhiều bác sĩ luân
-// phiên (per PRODUCT.md), "thiết bị đã thấy gợi ý" không đồng nghĩa "người đang cầm máy ca này đã
-// thấy". Cờ vĩnh viễn ban đầu chặn gợi ý mãi mãi cho MỌI người dùng sau, chỉ vì một người từng chạm
-// thử một lần (/impeccable critique 2026-09-01 lượt 2, P2). Tái xuất hiện sau HEADER_ICON_HINT_REARM_MS
-// im lặng — đủ dài để không phiền người vừa thấy, đủ ngắn để một bác sĩ khác cầm máy sau vài tháng
-// còn có cơ hội thấy lại.
-const HEADER_ICON_HINT_KEY = "drtrong:headerIconHintDismissedAt"
-const HEADER_ICON_HINT_REARM_MS = 90 * 24 * 60 * 60 * 1000
 
 // Đóng băng thứ tự tab theo phiên (xem comment ở khai báo tabOrderIds trong DungThuocScreen) tránh
 // được nạn xáo trộn mỗi lần dựng lại màn, nhưng đóng băng VĨNH VIỄN cho tới khi đóng hẳn tab trình
@@ -11590,28 +11574,6 @@ export function DungThuocScreen({
     setShowTabHint(false)
   }
 
-  // Gợi ý cho hai nút icon-only "Tìm"/"Nhật ký" — tái xuất hiện sau một khoảng im lặng dài, xem
-  // HEADER_ICON_HINT_KEY. Mặc định ẨN nếu lỗi đọc localStorage (ngược DisclaimerGate: gợi ý lặp lại
-  // mãi phiền hơn mất một lần gợi ý).
-  const [showHeaderIconHint, setShowHeaderIconHint] = useState(() => {
-    try {
-      const raw = localStorage.getItem(HEADER_ICON_HINT_KEY)
-      if (raw == null) return true
-      const dismissedAt = Number(raw)
-      return !Number.isFinite(dismissedAt) || Date.now() - dismissedAt > HEADER_ICON_HINT_REARM_MS
-    } catch {
-      return false
-    }
-  })
-  function dismissHeaderIconHint() {
-    try {
-      localStorage.setItem(HEADER_ICON_HINT_KEY, String(Date.now()))
-    } catch {
-      // Không lưu được thì gợi ý có thể hiện lại lần sau — chấp nhận được, không chặn việc dùng app.
-    }
-    setShowHeaderIconHint(false)
-  }
-
   const searchResults = useMemo(() => {
     const q = normalizeSearch(globalQuery)
     if (!q) return []
@@ -11841,23 +11803,23 @@ export function DungThuocScreen({
         actions={
           <>
             <ThemeToggle variant="inline" />
-            {/* "Tìm" và "Nhật ký" rút còn nút biểu tượng vuông (h-9 w-9): ba pill có chữ + ThemeToggle
-                ăn ~55–60% bề ngang header ở 375px nên tiêu đề màn ("Kháng sinh theo CrCl"…) bị
-                `truncate` cắt cụt trên MỌI tab — nhãn định hướng duy nhất của màn không đọc được
-                (/impeccable critique 2026-08-31, P1). Biểu tượng-only vẫn giữ aria-label + title;
-                lối vào "Tìm" còn được gợi ý một lần bằng showTabHint bên dưới. */}
+            {/* "Tìm" và "Nhật ký" rút còn nút biểu tượng vuông (h-9 w-9) từ 2026-08-31 (P1, tránh
+                tiêu đề bị `truncate`). Từng thử một gợi ý MỘT LẦN (rồi tái xuất hiện sau 90 ngày) để
+                bù cho việc `title` không hiện khi CHẠM — nhưng vẫn là "gợi ý sẽ có lúc biến mất", và
+                máy trực dùng chung nhiều bác sĩ luân phiên khiến việc chọn đúng mốc tái xuất hiện trở
+                thành đoán mò (/impeccable critique 2026-09-01 lượt 3, P2). Đổi hẳn sang NHÃN CHỮ
+                THƯỜNG TRỰC dưới icon — cùng khuôn dạng bottom-nav (text-[11px], --c-text-muted đạt
+                AA cho chữ nhỏ, xem comment tại hàng nav) — luôn đọc được, không phụ thuộc đã-thấy hay
+                chưa. Cột dọc (flex-col) làm nút cao hơn hàng tiêu đề min-h-9 một chút; hàng actions
+                dùng items-center nên ThemeToggle bên cạnh vẫn canh giữa đúng, không lệch. */}
             <button
               onClick={() => {
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
                 if (showTabHint) dismissTabHint()
-                if (showHeaderIconHint) dismissHeaderIconHint()
               }}
-              // Pill nhìn thấy cao 36px (khớp hàng tiêu đề min-h-9), vùng chạm thật 44px nhờ đệm
-              // dọc vô hình (py-1) — đúng ngưỡng chạm chung của màn.
-              className="flex-none flex items-center justify-center py-1"
+              className="flex-none flex flex-col items-center gap-0.5 py-0.5"
               aria-label="Tìm thuốc trong mọi nhóm"
-              title="Tìm thuốc trong mọi nhóm"
             >
               <span
                 className={`h-9 w-9 ${R.pill} border flex items-center justify-center`}
@@ -11870,18 +11832,14 @@ export function DungThuocScreen({
                   {icons.search(false)}
                 </span>
               </span>
+              <span aria-hidden="true" className="text-[11px] leading-none font-medium" style={{ color: "var(--c-text-muted)" }}>
+                Tìm
+              </span>
             </button>
-            {/* Cùng kỹ thuật đệm dọc vô hình với nút "Tìm" cạnh nó: pill nhìn thấy vẫn cao 36px
-                (khớp hàng tiêu đề min-h-9), nhưng vùng CHẠM của chính button là 44px. Số mục 12h gần
-                nhất chuyển thành huy hiệu góc thay vì chữ "· N" nối dài pill. */}
             <button
-              onClick={() => {
-                setShowLog(true)
-                if (showHeaderIconHint) dismissHeaderIconHint()
-              }}
-              className="flex-none flex items-center justify-center py-1"
+              onClick={() => setShowLog(true)}
+              className="flex-none flex flex-col items-center gap-0.5 py-0.5"
               aria-label={`Nhật ký${recentLogCount > 0 ? ` · ${recentLogCount} mục gần đây` : ""}`}
-              title="Nhật ký phép tính"
             >
               <span className={`relative h-9 w-9 ${R.pill} border flex items-center justify-center`} style={{ borderColor: C.line, color: C.textSoft }}>
                 {icons.doc()}
@@ -11895,24 +11853,13 @@ export function DungThuocScreen({
                   </span>
                 )}
               </span>
+              <span aria-hidden="true" className="text-[11px] leading-none font-medium" style={{ color: "var(--c-text-muted)" }}>
+                Nhật ký
+              </span>
             </button>
           </>
         }
       />
-
-      {/* Gợi ý cho hai nút icon-only vừa rút gọn ở trên — xem HEADER_ICON_HINT_KEY. Ẩn ngay khi chạm
-          MỘT trong hai nút (dù đọc gợi ý trước hay bấm thẳng không đọc), nhưng tái xuất hiện sau
-          HEADER_ICON_HINT_REARM_MS — máy trực dùng chung nhiều bác sĩ luân phiên nên "đã ẩn" không
-          nên có nghĩa "ẩn vĩnh viễn cho mọi người dùng sau" (/impeccable critique 2026-09-01 lượt 2,
-          P2). Cùng khuôn dạng chữ mờ, không viền/nền/nút với showTabHint bên dưới, nhưng đứng slot
-          RIÊNG ngay dưới header — không dùng chung logic tránh-chồng-banner của
-          showTabHint/tabReorderNotice (hai cái đó phối hợp với nhau đã đủ tinh vi, thêm một chân thứ
-          ba vào đó rủi ro hơn cần thiết). */}
-      {showHeaderIconHint && (
-        <p className="fade-in flex-none px-5 pb-2 text-[12px] leading-[1.4]" style={{ color: C.textSoft }}>
-          Kính lúp = Tìm thuốc · Trang giấy = Nhật ký phép tính.
-        </p>
-      )}
 
       {searchOpen && (
         <div className="fade-in flex-none px-5 pb-3">
@@ -12010,12 +11957,17 @@ export function DungThuocScreen({
                         {t.search}
                       </p>
                     </button>
+                    {/* Cùng kiểu chấm tròn đặc `--c-primary-strong` với nút ghim ở hàng tab chính —
+                        trước đây chỉ là icon trần không nền, cùng Ý NGHĨA nhưng khác HÌNH DẠNG ở hai
+                        nơi cách nhau vài chạm, phá nhất quán mẫu hình (/impeccable critique
+                        2026-09-01 lượt 3, P2). */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         togglePinTab(t.id)
                       }}
-                      className="flex-none w-11 h-11 flex items-center justify-center"
+                      className={`flex-none w-9 h-9 mr-1 ${R.pill} flex items-center justify-center`}
+                      style={{ background: "var(--c-primary-strong)" }}
                       aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.search}` : `Ghim nhóm ${t.search} lên đầu hàng`}
                       aria-pressed={pinnedTabIds.includes(t.id)}
                     >
@@ -12061,7 +12013,17 @@ export function DungThuocScreen({
             // là một pill độc lập (giữ nguyên `pulse-scale` phóng to 1.12 lúc vừa chọn — bọc trong
             // overflow-hidden sẽ cắt cụt hoạt ảnh đó), nút ghim là một pill tròn nhỏ TÁCH RIÊNG có
             // khoảng cách (gap-1), không cố hàn liền vào chip như "ghim công thức" ở RunningPanel.
-            <div key={t.id} className="flex-none flex items-center gap-1">
+            //
+            // `role="group"` + `aria-label` CHỈ khi có nút ghim (tab đang mở) — theo ARIA APG, một
+            // `tablist` lẽ ra chỉ nên chứa các phần tử `tab`, còn nút ghim là một control KHÁC bị chèn
+            // vào giữa luồng đó khiến trình đọc màn hình đọc xen "sao, ghim nhóm X" lẫn với các tab
+            // thật (/impeccable critique 2026-09-01 lượt 3, P3). Tái cấu trúc hẳn để tách nút ghim ra
+            // khỏi tablist là rủi ro hơn cần thiết cho một sửa mức P3 (đổi cả bố cục cuộn ngang đã
+            // kiểm chứng); `role="group"` gom tab+nút ghim thành MỘT đơn vị có tên, ít nhất giúp trình
+            // đọc màn hình hiểu đây là "Kháng sinh (kèm nút ghim)" thay vì hai control rời rạc không
+            // liên quan. Không đặt role="group" cho 9 tab còn lại (không có nút ghim) — nhóm một phần
+            // tử duy nhất không thêm giá trị.
+            <div key={t.id} className="flex-none flex items-center gap-1" role={tab === t.id ? "group" : undefined} aria-label={tab === t.id ? t.label : undefined}>
               <button
                 id={`mixing-tab-${t.id}`}
                 ref={tab === t.id ? activeTabRef : null}
