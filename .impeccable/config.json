@@ -159,6 +159,15 @@
         ],
         "createdAt": "2026-08-30T17:44:47.128Z",
         "reason": "Claude: <img> KHÔNG src là fixture CỐ Ý — ca kiểm canh đúng việc docLopKhoi bỏ qua ảnh chưa tải xong (img.complete false), không phải ảnh hiển thị cho người dùng"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "12px",
+        "files": [
+          "src/__tests__/vendor-gioi-han-panel-mau.spec.ts"
+        ],
+        "createdAt": "2026-09-01T16:11:59.593Z",
+        "reason": "Fixture text mô phỏng nguyên văn CSS vendored .edgeless-templates-panel (BlockSuite thượng nguồn) để test hàm vá chuỗi vaKichThuocPanelMau — không phải giao diện thật của app, không dùng thang bo góc DESIGN.md"
       }
     ]
   }

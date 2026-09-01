@@ -125,6 +125,25 @@ if (ketQuaTachDinhDanh.status !== 0) {
   process.exit(ketQuaTachDinhDanh.status ?? 1)
 }
 
+// Bước 4b — giới hạn kích thước VÀ vị trí panel "Mẫu" theo viewport (vá lỗi panel tràn/đè lên
+// thanh công cụ chính, người dùng báo 2026-09-01; xem chú thích đầy đủ ở gioi-han-panel-mau.mjs,
+// gồm cả bài học "lượt vá CSS-only đầu tiên không đủ"). Vá HAI file (template-panel.js +
+// template-tool-button.js) trong một lượt gọi CLI. Không phụ thuộc thứ tự với tách định danh (4a)
+// hay dịch chuỗi (4c) — khác hẳn phạm vi hai bước kia — nhưng đứng cạnh chúng cho nhất quán "vá cấu
+// trúc trước khi dịch chuỗi". Exit code ở đây có ý nghĩa thật: script này không có lý do sẵn có nào
+// để thoát khác 0, nên thất bại là phải dừng.
+const ketQuaGioiHanPanel = chay(
+  'node',
+  ['scripts/gioi-han-panel-mau.mjs'],
+  'gioi-han-panel-mau',
+)
+if (ketQuaGioiHanPanel.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — bước giới hạn kích thước panel Mẫu thất bại (exit code ${ketQuaGioiHanPanel.status}).`,
+  )
+  process.exit(ketQuaGioiHanPanel.status ?? 1)
+}
+
 // Bước 4c — dịch chuỗi hiển thị (D12). Phải chạy SAU đổi tên VÀ SAU tách định danh: bản dịch phải
 // đáp lên cây đã đổi tên và đã tách định danh, không ngược lại. Tách khỏi bước đổi tên vì đây là
 // phép thay có điều kiện theo ngữ cảnh — xem đầu scripts/dich-chuoi-vendor.mjs. Exit code ở đây
