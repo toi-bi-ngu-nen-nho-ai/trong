@@ -5515,7 +5515,19 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
   // bắt xác nhận hai bước như mọi nút xoá khác thay vì thực thi ngay từ một chạm.
   const [confirmReset, setConfirmReset] = useState(false)
   const confirmResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current) }, [])
+  // `aria-label` của nút chỉ nói "tự huỷ sau 20 giây" MỘT LẦN lúc chạm đầu tiên — trình đọc màn hình
+  // không có cách nào biết cửa sổ hoàn tác sắp đóng ngoài tự hỏi lại đúng control đó (/impeccable
+  // critique 2026-09-01 lượt 2, P3). Vùng `aria-live` rỗng lúc nghỉ, đổi nội dung ở mốc còn 5 giây —
+  // trình đọc màn hình tự động đọc lại NGAY LÚC nội dung đổi, không cần người dùng chủ động dò.
+  const [confirmResetNearExpiry, setConfirmResetNearExpiry] = useState(false)
+  const confirmResetNearExpiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current)
+      if (confirmResetNearExpiryTimer.current) clearTimeout(confirmResetNearExpiryTimer.current)
+    },
+    [],
+  )
 
   const weightWarn = checkWeight(abwKg)
   const heightWarn = checkHeight(heightCm)
@@ -5596,8 +5608,15 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
             Bệnh nhân hiện tại
           </p>
-          <p className="text-[12px] text-slate-600 mt-0.5 flex items-baseline gap-1.5 min-w-0">
-            <span className="truncate min-w-0">{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</span>
+          {/* Trước đây `truncate` một dòng: lượt vá 2026-09-01 tách CrCl ra khỏi vùng cắt vì đó là
+              con số cả tab kháng sinh tồn tại để tính ra, nhưng tuổi/chiều cao/cân nặng vẫn nằm
+              trong chuỗi `truncate` cũ — ở 375px với đủ dữ liệu, tuổi (đứng cuối) bị cắt mất, đúng
+              CÙNG lớp lỗi vừa vá cho CrCl (/impeccable critique 2026-09-01 lượt 2, P1). Thay vì vá
+              tiếp từng trường một mỗi lần bị phát hiện, đổi hẳn sang `flex-wrap` — không trường nào
+              còn có thể bị cắt âm thầm, tối đa chỉ xuống dòng (dữ liệu bệnh nhân luôn ngắn, hiếm khi
+              quá 2 dòng thật). */}
+          <p className="text-[12px] text-slate-600 mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+            <span>{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</span>
             {hasData && crclSummary && <span className="flex-none">· {crclSummary}</span>}
           </p>
         </button>
@@ -5608,16 +5627,24 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
             critique 2026-08-18). Hai lớp chạm-hai-lần + Hoàn tác 20 giây (CONFIRM_PATIENT_RESET_MS)
             đã đủ chống bấm nhầm; đừng "sửa" chỗ này bằng cách kéo nút xuống vùng dễ với. */}
         {hasData && (
+          <>
           <button
             onClick={() => {
               if (!confirmReset) {
                 setConfirmReset(true)
+                setConfirmResetNearExpiry(false)
                 tickHaptic()
                 confirmResetTimer.current = setTimeout(() => setConfirmReset(false), CONFIRM_PATIENT_RESET_MS)
+                confirmResetNearExpiryTimer.current = setTimeout(
+                  () => setConfirmResetNearExpiry(true),
+                  Math.max(CONFIRM_PATIENT_RESET_MS - 5_000, 0),
+                )
                 return
               }
               if (confirmResetTimer.current) clearTimeout(confirmResetTimer.current)
+              if (confirmResetNearExpiryTimer.current) clearTimeout(confirmResetNearExpiryTimer.current)
               setConfirmReset(false)
+              setConfirmResetNearExpiry(false)
               resetPatient()
               tickHaptic()
             }}
@@ -5656,6 +5683,13 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
                 : "Xoá bệnh nhân"}
             </span>
           </button>
+          {/* Trình đọc màn hình tự đọc lại NGAY khi nội dung vùng aria-live đổi — rỗng lúc nghỉ, chỉ
+              có chữ ở mốc còn 5 giây, nên không đọc ồn ào suốt 20 giây, chỉ đúng một lần lúc cửa sổ
+              hoàn tác sắp đóng. */}
+          <span className="sr-only" role="status" aria-live="assertive">
+            {confirmReset && confirmResetNearExpiry ? "Cửa sổ hoàn tác xoá bệnh nhân sắp đóng." : ""}
+          </span>
+          </>
         )}
         <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }} aria-label={open ? "Thu gọn" : "Mở rộng"}>
           <span style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}>{icons.chevronDown()}</span>
@@ -11278,14 +11312,22 @@ const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
 // tabOrderIds trong DungThuocScreen (/impeccable critique 2026-08-26, P1).
 const TAB_REORDER_HINT_KEY = "drtrong:tabReorderHintSeen"
 
-// Gợi ý MỘT LẦN DUY NHẤT cho hai nút icon-only "Tìm"/"Nhật ký" ở ScreenHeader — rút còn biểu tượng
-// vuông từ 2026-08-31 (P1, tránh tiêu đề bị `truncate`), nhưng `title` không hiện khi CHẠM (thiết bị
-// chính của màn này), nên người lần đầu thấy hai vòng tròn không nhãn mà không có cách xem trước
-// chức năng ngoài bấm thử (/impeccable critique 2026-09-01, P3). Dòng riêng, KHÔNG dùng chung slot
-// với TAB_SEARCH_HINT_KEY/TAB_REORDER_HINT_KEY (hai gợi ý đó đã có logic tránh chồng lên nhau — thêm
-// một dòng nữa vào đúng chỗ đó sẽ phải sửa lại toàn bộ phối hợp ba chiều, rủi ro hơn cần thiết cho
-// một sửa mức P3); dòng này đứng NGAY DƯỚI header, biến mất khi chạm MỘT trong hai nút.
-const HEADER_ICON_HINT_KEY = "drtrong:headerIconHintSeen"
+// Gợi ý cho hai nút icon-only "Tìm"/"Nhật ký" ở ScreenHeader — rút còn biểu tượng vuông từ
+// 2026-08-31 (P1, tránh tiêu đề bị `truncate`), nhưng `title` không hiện khi CHẠM (thiết bị chính
+// của màn này), nên người lần đầu thấy hai vòng tròn không nhãn mà không có cách xem trước chức năng
+// ngoài bấm thử (/impeccable critique 2026-09-01, P3). Dòng riêng, KHÔNG dùng chung slot với
+// TAB_SEARCH_HINT_KEY/TAB_REORDER_HINT_KEY (hai gợi ý đó đã có logic tránh chồng lên nhau — thêm một
+// dòng nữa vào đúng chỗ đó sẽ phải sửa lại toàn bộ phối hợp ba chiều, rủi ro hơn cần thiết); dòng này
+// đứng NGAY DƯỚI header, biến mất khi chạm MỘT trong hai nút.
+//
+// Lưu MỐC GIỜ dismiss, không phải cờ boolean "1" — máy trực là THIẾT BỊ DÙNG CHUNG nhiều bác sĩ luân
+// phiên (per PRODUCT.md), "thiết bị đã thấy gợi ý" không đồng nghĩa "người đang cầm máy ca này đã
+// thấy". Cờ vĩnh viễn ban đầu chặn gợi ý mãi mãi cho MỌI người dùng sau, chỉ vì một người từng chạm
+// thử một lần (/impeccable critique 2026-09-01 lượt 2, P2). Tái xuất hiện sau HEADER_ICON_HINT_REARM_MS
+// im lặng — đủ dài để không phiền người vừa thấy, đủ ngắn để một bác sĩ khác cầm máy sau vài tháng
+// còn có cơ hội thấy lại.
+const HEADER_ICON_HINT_KEY = "drtrong:headerIconHintDismissedAt"
+const HEADER_ICON_HINT_REARM_MS = 90 * 24 * 60 * 60 * 1000
 
 // Đóng băng thứ tự tab theo phiên (xem comment ở khai báo tabOrderIds trong DungThuocScreen) tránh
 // được nạn xáo trộn mỗi lần dựng lại màn, nhưng đóng băng VĨNH VIỄN cho tới khi đóng hẳn tab trình
@@ -11350,7 +11392,8 @@ export function DungThuocScreen({
   const [pinnedTabIds, setPinnedTabIds] = useState<string[]>(() => MIXING_TABS.filter((t) => isTabPinned(t.id)).map((t) => t.id))
   const togglePinTab = useCallback(
     (id: string) => {
-      setPinnedTabIds(toggleTabPin(id))
+      const nextPinned = toggleTabPin(id)
+      setPinnedTabIds(nextPinned)
       setTabOrderIds(sortByUsage(MIXING_TABS).map((t) => t.id))
       setTabOrderAt(Date.now())
       tickHaptic()
@@ -11358,9 +11401,40 @@ export function DungThuocScreen({
       // đổi, chỉ cuộn MỘT LẦN lúc vào màn — xem effect activeTabRef bên dưới) — bấm sao xong mà tab
       // vừa ghim biến mất khỏi khung nhìn thì thao tác trông như không làm gì (phát hiện lúc test tay
       // sửa P2 /impeccable critique 2026-09-01). rAF đợi DOM cập nhật vị trí mới rồi mới cuộn.
-      requestAnimationFrame(() => {
-        activeTabRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
-      })
+      //
+      // Ghim luôn đưa tab về ĐẦU hàng (sortByUsage xếp ghim trước MRU) — "start" là điểm neo rõ ràng,
+      // không mập mờ. "center" (dùng khi mount, tab có thể ở bất kỳ đâu trong 10 tab) lại mập mờ cho
+      // vị trí ĐẦU tiên vì không có gì bên trái để cân giữa — Assessment B đo được `scrollLeft` dừng
+      // lưng chừng (31px trên tab rộng ~82px), cắt viền trái tab vừa ghim trong khoảnh khắc animation
+      // (/impeccable critique 2026-09-01 lượt 2, P3). Bỏ ghim thì tab rơi về vị trí bất kỳ theo MRU —
+      // giữ "center" như cũ cho trường hợp đó.
+      //
+      // KHÔNG dùng `scrollIntoView` — tự đo và gọi `scrollTo` trên chính container thay vì tin
+      // `Element.scrollIntoView()`: kiểm tay trực tiếp phát hiện `scrollIntoView` không nhúc nhích
+      // `scrollLeft` trong môi trường test này (kể cả gọi tay ngoài React, không phải do rAF hay
+      // đóng gói của hàm này) — rất có thể đúng là NGUYÊN NHÂN gốc của glitch 31px Assessment B đo
+      // được, không chỉ là "cắt lúc animation đang chạy" như đoán trước đó. `row.scrollTo()` gọi
+      // trực tiếp trên container đã kiểm chứng chạy đúng.
+      const justPinned = nextPinned.includes(id)
+      // `setTimeout(fn, 0)`, KHÔNG PHẢI `requestAnimationFrame` — rAF chỉ chạy khi trình duyệt sắp vẽ
+      // khung hình TIẾP THEO của một tab đang HIỂN THỊ; state đổi trong React 18 đã flush đồng bộ
+      // trước khi hàng đợi task tiếp theo chạy, nên setTimeout(0) đủ để đợi DOM cập nhật xong mà
+      // không phụ thuộc chu kỳ vẽ/hiển thị của tab (rAF từng không chạy khi kiểm tay trực tiếp trong
+      // một tab bị trình duyệt coi là không hiển thị — cùng gốc rễ với glitch 31px Assessment B đo
+      // được, không chỉ là "cắt lúc animation đang chạy" như đoán ban đầu).
+      setTimeout(() => {
+        const row = tabRowRef.current
+        const el = activeTabRef.current
+        if (!row || !el) return
+        const rowRect = row.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
+        const elOffsetWithinRow = elRect.left - rowRect.left + row.scrollLeft
+        const target = justPinned
+          ? elOffsetWithinRow - 20 // khớp `px-5` (20px) đệm trái của hàng tab
+          : elOffsetWithinRow - (rowRect.width - elRect.width) / 2
+        const maxScroll = row.scrollWidth - row.clientWidth
+        row.scrollTo({ left: Math.max(0, Math.min(target, maxScroll)), behavior: "smooth" })
+      }, 0)
     },
     [setTabOrderIds, setTabOrderAt],
   )
@@ -11516,17 +11590,22 @@ export function DungThuocScreen({
     setShowTabHint(false)
   }
 
-  // Gợi ý một lần cho hai nút icon-only "Tìm"/"Nhật ký" — xem HEADER_ICON_HINT_KEY.
+  // Gợi ý cho hai nút icon-only "Tìm"/"Nhật ký" — tái xuất hiện sau một khoảng im lặng dài, xem
+  // HEADER_ICON_HINT_KEY. Mặc định ẨN nếu lỗi đọc localStorage (ngược DisclaimerGate: gợi ý lặp lại
+  // mãi phiền hơn mất một lần gợi ý).
   const [showHeaderIconHint, setShowHeaderIconHint] = useState(() => {
     try {
-      return localStorage.getItem(HEADER_ICON_HINT_KEY) !== "1"
+      const raw = localStorage.getItem(HEADER_ICON_HINT_KEY)
+      if (raw == null) return true
+      const dismissedAt = Number(raw)
+      return !Number.isFinite(dismissedAt) || Date.now() - dismissedAt > HEADER_ICON_HINT_REARM_MS
     } catch {
       return false
     }
   })
   function dismissHeaderIconHint() {
     try {
-      localStorage.setItem(HEADER_ICON_HINT_KEY, "1")
+      localStorage.setItem(HEADER_ICON_HINT_KEY, String(Date.now()))
     } catch {
       // Không lưu được thì gợi ý có thể hiện lại lần sau — chấp nhận được, không chặn việc dùng app.
     }
@@ -11821,12 +11900,14 @@ export function DungThuocScreen({
         }
       />
 
-      {/* Gợi ý một lần cho hai nút icon-only vừa rút gọn ở trên — xem HEADER_ICON_HINT_KEY. Tự biến
-          mất vĩnh viễn ngay khi chạm MỘT trong hai nút (dù đọc gợi ý trước hay bấm thẳng không đọc).
-          Cùng khuôn dạng chữ mờ, không viền/nền/nút với showTabHint bên dưới, nhưng đứng slot RIÊNG
-          ngay dưới header — không dùng chung logic tránh-chồng-banner của showTabHint/tabReorderNotice
-          (hai cái đó phối hợp với nhau đã đủ tinh vi, thêm một chân thứ ba vào đó rủi ro hơn cần thiết
-          cho một sửa mức P3, /impeccable critique 2026-09-01). */}
+      {/* Gợi ý cho hai nút icon-only vừa rút gọn ở trên — xem HEADER_ICON_HINT_KEY. Ẩn ngay khi chạm
+          MỘT trong hai nút (dù đọc gợi ý trước hay bấm thẳng không đọc), nhưng tái xuất hiện sau
+          HEADER_ICON_HINT_REARM_MS — máy trực dùng chung nhiều bác sĩ luân phiên nên "đã ẩn" không
+          nên có nghĩa "ẩn vĩnh viễn cho mọi người dùng sau" (/impeccable critique 2026-09-01 lượt 2,
+          P2). Cùng khuôn dạng chữ mờ, không viền/nền/nút với showTabHint bên dưới, nhưng đứng slot
+          RIÊNG ngay dưới header — không dùng chung logic tránh-chồng-banner của
+          showTabHint/tabReorderNotice (hai cái đó phối hợp với nhau đã đủ tinh vi, thêm một chân thứ
+          ba vào đó rủi ro hơn cần thiết). */}
       {showHeaderIconHint && (
         <p className="fade-in flex-none px-5 pb-2 text-[12px] leading-[1.4]" style={{ color: C.textSoft }}>
           Kính lúp = Tìm thuốc · Trang giấy = Nhật ký phép tính.
@@ -11901,6 +11982,48 @@ export function DungThuocScreen({
                   ))}
                 </div>
               )}
+            </div>
+          )}
+          {/* Danh sách nhóm thuốc khi Ô TÌM CÒN TRỐNG — nút ghim trên hàng tab chỉ hiện ở tab ĐANG
+              MỞ (xem hàng tab bên dưới), nên ghim một nhóm đang nằm ngoài màn hình vẫn phải cuộn tới
+              nó trước. Ở đây ghim/nhảy được TỚI BẤT KỲ nhóm nào ngay từ khung Tìm, không cần đã đứng
+              sẵn ở tab đó (/impeccable critique 2026-09-01 lượt 2, P2 — mở rộng phạm vi theo yêu cầu
+              chủ dự án, không chỉ vá gọn). Dùng `t.search` (nhãn đầy đủ) thay vì `t.label` (nhãn tắt
+              trên chip) — đúng quy ước đã ghi ở khai báo MIXING_TABS. */}
+          {globalQuery.trim() === "" && (
+            <div className={`${R.box} border overflow-hidden mt-2`} style={{ borderColor: C.line, background: C.surface }}>
+              <p className={`${T.meta} px-3 pt-2.5 pb-1.5`} style={{ color: C.textSoft }}>
+                Nhảy tới nhóm — chạm sao để ghim lên đầu hàng tab
+              </p>
+              <div className="max-h-64 overflow-y-auto scroll-ios">
+                {orderedTabs.map((t) => (
+                  <div key={t.id} className="flex items-center border-b" style={{ borderColor: C.lineSoft }}>
+                    <button
+                      onClick={() => {
+                        chonTab(t.id)
+                        setSearchOpen(false)
+                        setGlobalQuery("")
+                      }}
+                      className={`flex-1 min-w-0 text-left px-3 py-2.5 ${TAP}`}
+                    >
+                      <p className={`${T.bodyStrong} truncate`} style={{ color: C.text }}>
+                        {t.search}
+                      </p>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        togglePinTab(t.id)
+                      }}
+                      className="flex-none w-11 h-11 flex items-center justify-center"
+                      aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.search}` : `Ghim nhóm ${t.search} lên đầu hàng`}
+                      aria-pressed={pinnedTabIds.includes(t.id)}
+                    >
+                      <span style={{ opacity: pinnedTabIds.includes(t.id) ? 1 : 0.3 }}>{icons.star()}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
