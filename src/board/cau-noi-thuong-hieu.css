@@ -51,3 +51,35 @@
 .drt-edgeless-viewport:not([data-theme='dark']) {
   --drt-v2-edgeless-note-white: var(--c-note);
 }
+
+/* ─── BẢNG ĐÃ "ĐỖ" THÌ KHÔNG ĐƯỢC VẼ RA NGOÀI ───────────────────────────────────────────────────
+
+   LỖI GỐC (đo thật trên trình duyệt 2026-09-01): mở một bảng ở tab Mindmap rồi bấm sang tab khác
+   (Trang chủ) — hai khung `affine:frame` nền vàng của mẫu "Lưu đồ" vẽ đè lên màn hình mới, che mất
+   thẻ "Truy cập nhanh". Dựng lại được từ một bảng TRỐNG cộng một mẫu Động não, nên không phải lỗi
+   dữ liệu mẫu.
+
+   VÌ SAO: BoardGallery cố ý KHÔNG tháo bảng khi rời tab (để quay lại tức thì) — nó gắn
+   `invisible pointer-events-none` + `inert` lên bọc `[data-testid="boc-bang"]`
+   (BoardGallery.tsx ~dòng 331). `visibility` THỪA KẾ được, nhưng cũng GHI ĐÈ được — và
+   `gfx-viewport` của cây vendored bật lại `visibility: visible` cho mọi khối DOM đang trong khung
+   nhìn, bằng CẢ luật `.block-active`/`.block-survival` (framework/std/src/gfx/viewport-element.ts)
+   LẪN style inline nó tự đặt lúc cull. Khối nào có nền (frame) là hiện ra ngoài.
+
+   VÌ SAO VÁ Ở ĐÂY, THEO CÁCH NÀY:
+   - `!important` của author thắng style inline THƯỜNG, nên một luật bịt được cả hai đường.
+   - KHÔNG đổi `invisible` thành `display:none`/`content-visibility:hidden`: hai cái đó bỏ layout
+     của cây con, mà `gfx-viewport` đọc kích thước qua ResizeObserver để dựng khung nhìn — đổi
+     sang chúng là đánh cược vào đường hồi phục chưa ai kiểm. `visibility` KHÔNG ảnh hưởng layout,
+     nên bản vá này giữ nguyên mọi phép đo, đúng như trước.
+   - KHÔNG sửa `src/vendor/**` (luật D11).
+   - `pointer-events` bịt kèm vì `.block-active` cũng đặt `pointer-events: auto`. Hôm nay `inert`
+     đã chặn tương tác, nhưng `inert` là cơ chế RIÊNG — đừng để bất biến này phụ thuộc vào việc ai
+     đó giữ nó mãi.
+
+   Ghim bởi src/board/__tests__/do-bang-khong-ro.spec.ts (canh cả ba mảnh: móc class ở
+   BoardGallery, luật này, và luật vendored bị đối kháng). */
+[data-testid='boc-bang'].invisible * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

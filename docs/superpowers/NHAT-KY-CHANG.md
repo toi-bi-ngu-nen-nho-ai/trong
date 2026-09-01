@@ -4130,3 +4130,124 @@ build+kiem:dist: 0, 323 file dist/, không "affine-", biến --drt-* đủ   (D1
    IndexedDB mỗi bảng. Muốn thêm thì lọc riêng tệp nhỏ.
 4. **Placeholder "Search file or anything..."** — chuỗi vendored, chưa dịch; thuộc pipeline D12,
    không gộp vào lượt này.
+
+---
+
+## 43. BẢNG MẪU 5 TAB — 227 NHÃN DÁN + 5 MẪU BẢNG, VÀ MỘT RÒ RỈ CÓ SẴN LỘ RA (2026-09-01)
+
+Chủ dự án quay video bản AFFiNE thật và yêu cầu đưa nút "Mẫu" của drtrong lên ngang đó. Kế hoạch đầy
+đủ kèm mọi phép đo: [`plans/2026-09-01-mo-rong-bang-mau.md`](plans/2026-09-01-mo-rong-bang-mau.md).
+
+### 43.1 Kết luận quan trọng nhất: panel KHÔNG thiếu tính năng, chỉ thiếu DỮ LIỆU
+
+Mọi thứ trong video đã có sẵn trong cây vendored — ô tìm, tab danh mục cuộn ngang, tooltip tên mẫu,
+`overlay-scrollbar`, preview `loading=lazy`, và preview nhận CẢ chuỗi `<svg…` LẪN URL
+(`gfx/template/src/toolbar/template-panel.ts:438-447`). Loại `template` cũng được hỗ trợ sẵn
+(`template-type.ts`, `services/template.ts:386,403,417`). **Không sửa một dòng vendored nào.**
+
+Đối chiếu với `packages/frontend/templates/` của bản checkout AFFiNE: tab `Arrows` (186 tệp
+`arrow-N.svg`) CHÍNH LÀ bộ handy-arrows chặng 42 đã bơm. Thiếu: 3 bộ nhãn dán + nhóm Brainstorming.
+
+### 43.2 Một lỗi thật trong mã cũ: mẫu thả ra bé xíu
+
+`mau-handy.ts` đặt `xywh` bằng đúng `viewBox`, mà bộ mũi tên chỉ 62–87px → đo trên trình duyệt thật:
+mũi tên ra ~73px ở zoom 100%, trong khi AFFiNE ra ~460px (`build-stickers.mjs` hardcode
+`[0,0,460,430]` cho MỌI nhãn dán). Đó là toàn bộ lý do bảng của ta "trông không giống video".
+Vá bằng `khungTha()`: phóng theo CẠNH DÀI lên `CANH_DAI = 420`, GIỮ TỶ LỆ — không hardcode khung
+cứng như thượng nguồn vì ba bộ nhãn dán mới có tỷ lệ khác hẳn mũi tên và sẽ bị méo. `width`/`height`
+của khối ảnh vẫn là kích thước tự nhiên (hai thứ khác nhau, đừng gộp).
+
+### 43.3 BẪY LỚN NHẤT: snapshot Brainstorming nhồi `--affine-*` dạng DỮ LIỆU
+
+Đếm bên trong 5 tệp `.zip`: tất cả đều chứa tên token màu như giá trị chuỗi —
+`affine-palette-line-black`, `affine-palette-shape-yellow`, `affine-tag-purple`,
+`affine-note-shadow-sticker`… Chép nguyên thì hỏng HAI đường cùng lúc:
+(a) `kiem-dist.mjs` luật A báo đỏ vì `affine-` lọt vào `dist/**/*.json`;
+(b) mẫu render với custom property KHÔNG PHÂN GIẢI ĐƯỢC — đúng lớp lỗi luật B của cổng đó sinh ra
+để bắt: console sạch, tên thẻ đúng, hình sai, một lượt kiểm bằng mắt cũng không thấy.
+
+`dung-mau-dongnao.mjs` rửa `\baffine-` → `drt-` y luật `doi-ten-vendor.mjs`. Luật khớp GẠCH NỐI nên
+`affine:page` / `affine:surface` (FLAVOUR, dấu hai chấm) không bị chạm — đổi flavour là không đọc
+được tài liệu do AFFiNE tạo.
+
+**Ngoại lệ hợp lệ duy nhất — đừng "sửa" nó:** `--drt-palette-transparent` KHÔNG có trong
+`.vendor-build/theme/style.css` và KHÔNG cần có. Thượng nguồn khai nó là "special value added for
+the sake of logical consistency" (`shared/src/theme/css-variables.ts:100`) và
+`components/src/color-picker/utils.js:186` so chuỗi `value.endsWith('transparent')` rồi trả thẳng
+`transparent` — không bao giờ đi qua `var()`. `mau-dongnao.spec.ts` ghim nó vào danh sách trắng.
+
+### 43.4 `DongNaoTemplateManager` phải HỎNG MỀM — đừng đổi thành ném
+
+`builtin-templates.ts:41` gộp MỌI manager đã `extend()` bằng MỘT `Promise.all`, và
+`template-panel.ts` chỉ `console.error` rồi bỏ. Một promise vỡ trong manager Động não vì thế xoá
+trắng CẢ BỐN tab nhãn dán, không riêng tab của nó. Nên mọi lỗi fetch bị nuốt tại chỗ, ghi log, trả
+`[]`, và xoá cache để lần mở sau thử lại. Có ca kiểm riêng canh đúng điều này.
+
+Nạp lười: 5 mẫu = ~97 KB JSON, chỉ `fetch` khi người dùng bấm sang tab (D13 — không vào chunk JS).
+
+### 43.5 Dịch: 58 chuỗi, script NÉM nếu sót
+
+`scripts/dich-dongnao.json` (`_ten` + `_chuoi`). `dung-mau-dongnao.mjs` liệt kê hết rồi ném khi gặp
+`insert` lạ — không được im lặng để tiếng Anh lọt lên bề mặt. Các mục dịch-thành-chính-nó (chữ cái
+SMART, "SWOT") là CỐ Ý, và `mau-dongnao.spec.ts` lọc chúng ra khi canh.
+
+Khoá của bảng dịch được SINH từ chính snapshot chứ không gõ tay — chúng có nháy cong `“ ”`, `\n`
+lồng và khoảng trắng cuối dòng, gõ tay là sai chắc.
+
+### 43.6 Bỏ 3 nhãn dán mang thương hiệu thượng nguồn
+
+`AFFiNE.svg`, `AFFiNE AI.svg`, `Local First.svg` — slug của chúng chứa `affine-` (D16 luật A) và là
+thương hiệu/khẩu hiệu của AFFiNE. Danh sách cứng trong `dung-mau-sticker.mjs`, kèm chốt
+`SO_MAU_MONG_DOI = 42` để một lượt chạy sinh thiếu tệp không lọt qua im lặng.
+
+Mực: CHỈ bộ mũi tên bị ép `#808080` (chặng 42). Ba bộ mới **KHÔNG** ép — chúng có màu sẵn, ép xám là
+phá hình chứ không phải sửa tương phản.
+
+### 43.7 Rò rỉ "bảng đã đỗ" — lỗi CÓ SẴN, lượt này mới làm nó lộ ra
+
+**Triệu chứng:** mở bảng ở tab Mindmap rồi bấm sang tab khác (Trang chủ) → hai khung `affine:frame`
+nền vàng của mẫu "Lưu đồ" vẽ đè lên màn hình mới, che thẻ "Truy cập nhanh".
+
+**Gốc rễ (đã lần tới đáy, không đoán):** `BoardGallery.tsx:331` cố ý KHÔNG tháo bảng khi rời tab —
+chỉ gắn `invisible pointer-events-none` + `inert`. `visibility` THỪA KẾ được nhưng cũng GHI ĐÈ được,
+mà `framework/std/src/gfx/viewport-element.ts:218-228` bật lại `visibility: visible` cho mọi khối DOM
+trong khung nhìn, bằng CẢ luật `.block-active`/`.block-survival` LẪN style inline lúc cull. Khối nào
+có nền (frame) là hiện ra ngoài.
+
+**KHÔNG phải do chặng này gây ra:** đã đo `<drt-edgeless-text>` gõ tay (không dính mẫu nào) cũng
+`block-active` + inline `visibility: visible` y hệt. Mẫu Động não chỉ làm nó DỄ THẤY vì có 2 khung
+lớn có nền.
+
+**Vá:** một luật `!important` ở cuối `cau-noi-thuong-hieu.css` — khai báo `!important` của author
+thắng style inline THƯỜNG nên bịt được cả hai đường, không đụng `src/vendor/**` (D11), và
+`visibility` KHÔNG ảnh hưởng layout nên mọi phép đo viewport giữ nguyên. **Đã cân nhắc và BÁC**
+`display:none` / `content-visibility:hidden`: chúng bỏ layout của cây con, mà `gfx-viewport` đọc kích
+thước qua ResizeObserver — đổi sang chúng là đánh cược vào đường hồi phục chưa ai kiểm.
+Ghim bởi `do-bang-khong-ro.spec.ts`, canh CẢ BA mảnh (móc class ở BoardGallery, luật CSS, và luật
+vendored bị đối kháng) vì không mảnh nào import mảnh nào.
+
+Kiểm chuỗi nối tiếp trên trình duyệt thật: rời tab → màn Trang chủ sạch, DOM đo được **0** phần tử
+`visible` có kích thước trong bọc bảng (kể cả xuyên shadow root); quay lại tab → bảng nguyên vẹn,
+nội dung còn đủ.
+
+### 43.8 Hai thứ TRÔNG như lỗi mà không phải — đừng đuổi lại
+
+1. **Lưới nhãn dán trống / thẻ "Truy cập nhanh" biến mất trong ảnh chụp.** Là artifact CHỤP DỞ KHUNG
+   của Browser pane (nó cũng đã báo `Screenshot timed out ... did not finish rendering`). Chụp lại
+   sau khi trang lắng là đủ. Phân biệt bằng DOM: đo `getBoundingClientRect` + `getComputedStyle`,
+   đừng kết luận từ một tấm ảnh.
+2. **Bấm MỘT lần vào mẫu không thả được.** Là thiết kế của cây vendored:
+   `widgets/edgeless-toolbar/src/draggable/draggable-element.controller.ts:157-167` — một cú bấm
+   không di chuyển và ngắn hơn `clickThreshold` (1500ms) sẽ NHẤC mẫu lên (tạo overlay bám con trỏ)
+   rồi `return false`; cú bấm thứ hai trên canvas mới thả. Đường mã Y HỆT cho nhãn dán và mẫu bảng —
+   đã đối chứng A/B trên trình duyệt. Không phải hồi quy, và D11 cấm sửa chỗ đó.
+
+### 43.9 Kiểm
+
+```
+vitest run     : 0, Test Files 65/65, Tests 610/610
+build+kiem:dist: 0, dist/ không "affine-", mọi --drt-* dùng đều có định nghĩa
+```
+Kiểm mắt trên trình duyệt thật (KHÔNG bị giấu pane lần này — nợ mục 42.1 ĐÓNG): 5 tab đúng thứ tự
+`Mũi tên · Heo nhắng · Nhãn dán · Giấy nhớ · Động não`; thả mẫu "Lưu đồ" ra đủ hình + đường nối +
+chữ tiếng Việt + màu phân giải đúng; vào-ra bảng còn nguyên.

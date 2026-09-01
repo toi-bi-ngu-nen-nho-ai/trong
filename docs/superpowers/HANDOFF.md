@@ -1,8 +1,8 @@
 # BÀN GIAO
 
-Cập nhật **2026-08-31**. Đọc §1 (đang mở) + §4 (ranh giới) trước khi làm; §2 tra khi cần.
+Cập nhật **2026-09-01**. Đọc §1 (đang mở) + §4 (ranh giới) trước khi làm; §2 tra khi cần.
 
-- Lịch sử đầy đủ 42 chặng: **[`NHAT-KY-CHANG.md`](NHAT-KY-CHANG.md)**. Định thử một hướng nghe có
+- Lịch sử đầy đủ 43 chặng: **[`NHAT-KY-CHANG.md`](NHAT-KY-CHANG.md)**. Định thử một hướng nghe có
   vẻ hay thì tra bên đó trước — nhiều khả năng đã thử và đã hỏng, kèm phép đo.
 - **"HANDOFF mục N" trong `src/` và `specs/` trỏ tới NHẬT KÝ, không phải file này** (di sản từ thời
   hai nội dung chung một file). Không sửa các chú thích đó.
@@ -37,60 +37,12 @@ Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`
 bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
 kho tài liệu để tìm.
 
-**Bảng Mẫu (Template) — 5 tab, 227 nhãn dán + 5 mẫu bảng (2026-09-01).**
-`affine/gfx/template/src/toolbar/builtin-templates.ts` để `templates = []` rỗng; app chủ bơm qua
-`builtInTemplates.extend(manager)`. drtrong gọi ở `EdgelessBoard.tsx` (cấp module) HAI lần —
-`HandyTemplateManager` rồi `DongNaoTemplateManager`. **Thứ tự `extend()` = thứ tự tab.**
-Kế hoạch đầy đủ + phép đo: [`plans/2026-09-01-mo-rong-bang-mau.md`](plans/2026-09-01-mo-rong-bang-mau.md).
+**Bảng Mẫu — chuỗi "Search file or anything..." vẫn tiếng Anh.** Chuỗi vendored trong
+`affine/gfx/template/src/toolbar/template-panel.ts` (ô tìm của panel Mẫu). Thuộc pipeline dịch D12,
+CHƯA có vị trí trong `vi.json`. Đây là khoản DUY NHẤT còn tồn của bảng Mẫu — bản thân tính năng đã
+xong (5 tab, 227 nhãn dán + 5 mẫu bảng, 2026-09-01): xem NHẬT KÝ chặng 43 và
+[`plans/2026-09-01-mo-rong-bang-mau.md`](plans/2026-09-01-mo-rong-bang-mau.md).
 
-Panel vendored ĐÃ CÓ SẴN mọi thứ trong video AFFiNE chủ dự án gửi: ô tìm, tab danh mục cuộn ngang,
-tooltip tên mẫu, `overlay-scrollbar`, preview `loading=lazy`, và preview nhận cả chuỗi `<svg…` lẫn
-URL (`template-panel.ts:438-447`). Chỗ drtrong từng thiếu chỉ là DỮ LIỆU — không sửa dòng vendored nào.
-
-- **Nhãn dán (`type: 'sticker'`, `src/board/mau-handy.ts` → `HandyTemplateManager`).** Bốn tab:
-  `Mũi tên` (185), `Heo nhắng` (15), `Nhãn dán` (14), `Giấy nhớ` (13).
-  - `Mũi tên` ← `Eronred/handy-arrows` `static/arrows/*.svg`, chủ dự án xác nhận là tài sản của
-    mình, KHÔNG cần ghi công. `npm run dung:mau-handy` → `public/static/templates/arrows/` +
-    `mau-handy.sinh.ts`.
-  - Ba tab kia ← `packages/frontend/templates/stickers/{Cheeky Piggies,Contorted Stickers,Paper}`
-    của bản checkout AFFiNE trên máy (`AFFINE_REPO`, mặc định `../AFFiNE`). `npm run dung:mau-sticker`
-    → `public/static/templates/stickers/<thu-muc>/` + `mau-sticker.sinh.ts`. Chỉ đọc `Content/`,
-    KHÔNG `Cover/` (`Paper/Cover` 1020 KB vs `Content` 108 KB). Chủ dự án duyệt việc chép 2026-09-01.
-  - **BỎ 3 tệp** `AFFiNE.svg`, `AFFiNE AI.svg`, `Local First.svg` — slug của chúng chứa `affine-`
-    (D16 luật A) và là thương hiệu thượng nguồn. Danh sách cứng trong `dung-mau-sticker.mjs`.
-  - Mực: CHỈ bộ mũi tên bị ép `<style>*{fill:#808080}</style>` (nguồn dùng `fill="black"` /
-    `fill="currentColor"` → đen tịt trên canvas tối; #808080 ~3,95:1 trên nền trắng, ~4,55:1 trên
-    `#14162c`, trên sàn 3:1 ở cả hai). Ba bộ mới **KHÔNG** ép — chúng có màu sẵn, ép xám là phá hình.
-  - **Khung thả**: `xywh` KHÔNG dùng thẳng `viewBox`. Bộ mũi tên chỉ 62–87px nên thả ra bé xíu (đo
-    trên trình duyệt thật: ~73px ở zoom 100%, trong khi AFFiNE ~460px vì `build-stickers.mjs`
-    hardcode `[0,0,460,430]`). `khungTha()` phóng theo CẠNH DÀI lên `CANH_DAI = 420`, giữ tỷ lệ —
-    không hardcode khung cứng vì ba bộ mới có tỷ lệ khác hẳn. `width`/`height` vẫn là kích thước gốc.
-- **Mẫu bảng (`type: 'template'`, `src/board/mau-dongnao.ts` → `DongNaoTemplateManager`).** Tab
-  `Động não`, 5 mẫu ← `edgeless-snapshot/Brainstorming/*.zip` (5W2H, Sơ đồ khái niệm, Lưu đồ,
-  Nguyên tắc SMART, SWOT). `npm run dung:mau-dongnao` → `public/static/templates/dongnao/<slug>.json`
-  (~97 KB) + `<slug>.svg` (bìa) + `mau-dongnao.sinh.ts` (chỉ slug + tên).
-  - **NẠP LƯỜI**: `list()` trả Promise, `fetch()` khi người dùng mở tab — 97 KB không vào chunk JS (D13).
-  - **HỎNG MỀM, đừng "sửa" thành ném.** `builtin-templates.ts:41` gộp MỌI manager bằng một
-    `Promise.all`; một promise vỡ ở đây xoá trắng CẢ bốn tab nhãn dán, và `template-panel.ts` chỉ
-    `console.error` rồi bỏ. Nên mọi lỗi bị nuốt tại chỗ, trả `[]`, xoá cache để lần sau thử lại.
-- ⚠️ **BẪY: snapshot Brainstorming nhồi `--affine-*` dạng DỮ LIỆU** — `affine-palette-line-black`,
-  `affine-palette-shape-yellow`, `affine-tag-purple`, `affine-note-shadow-sticker`… Chép nguyên thì
-  (a) `kiem-dist.mjs` luật A báo đỏ, và (b) mẫu render với custom property KHÔNG PHÂN GIẢI ĐƯỢC —
-  đúng lớp lỗi luật B sinh ra để bắt (console sạch, hình sai, mắt thường không thấy).
-  `dung-mau-dongnao.mjs` rửa `\baffine-` → `drt-` y luật `doi-ten-vendor.mjs`; luật khớp gạch nối nên
-  `affine:page`/`affine:surface` (FLAVOUR) không bị chạm. **Ngoại lệ hợp lệ duy nhất:**
-  `--drt-palette-transparent` KHÔNG có trong `theme/style.css` và không cần có — thượng nguồn khai
-  nó là sentinel (`shared/src/theme/css-variables.ts`), `color-picker/utils.js` so chuỗi
-  `endsWith('transparent')` rồi trả thẳng `transparent`, không bao giờ gọi `var()`.
-- **Dịch**: `scripts/dich-dongnao.json` (58 chuỗi + 5 tên mẫu). `dung-mau-dongnao.mjs` **liệt kê hết
-  rồi ném** nếu gặp `insert` lạ — không được im lặng để tiếng Anh lọt lên bề mặt. Các mục dịch-thành-
-  chính-nó (chữ cái SMART, "SWOT") là cố ý.
-- Kiểm: `mau-handy.spec.ts` (227 mẫu, `DocSnapshotSchema.parse`, sourceId duy nhất toàn cục, khung
-  thả không méo), `mau-handy-chen.spec.ts` (chèn thật từ CẢ `Mũi tên` lẫn `Giấy nhớ`),
-  `mau-dongnao.spec.ts` (5 mẫu, không `affine-`, mọi `--drt-*` có định nghĩa, không sót tiếng Anh,
-  fetch hỏng → `[]` không ném).
-- Placeholder "Search file or anything..." vẫn tiếng Anh — chuỗi vendored, thuộc pipeline D12, KHÔNG
-  gộp vào lượt này.
 
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 
@@ -191,6 +143,16 @@ hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch
 - **Đừng dời khung nhìn của người dùng như tác dụng phụ.** Lượt xuất PNG từng fit vô điều kiện: bảng
   thu nhỏ hết cỡ 1,5 giây rồi nhảy về ("màn hình cứ nhấp nháy", 2026-08-31). Chỉ dời khi thật sự cần,
   và che lại trong lúc dời.
+- **Một tấm ảnh chụp KHÔNG phải bằng chứng — Browser pane trả về khung dở.** 2026-09-01: ảnh chụp
+  cho thấy lưới nhãn dán trống trơn và hai thẻ "Truy cập nhanh" biến mất; đo DOM ngay lúc đó thì cả
+  15 nhãn dán đều `naturalWidth = 360` và cả 5 thẻ đều `opacity 1`, đúng vị trí, đúng màu. Chụp lại
+  sau khi trang lắng là ra đủ. Pane cũng tự báo `Screenshot timed out ... did not finish rendering`
+  ở các lượt gần đó. **Thấy gì đó "biến mất" thì đo `getBoundingClientRect` + `getComputedStyle`
+  trước khi gọi là lỗi** — nếu không sẽ đi đuổi một con ma nửa tiếng.
+- **`elementsFromPoint` BỎ QUA phần tử `pointer-events: none`.** Lớp phủ đang vẽ đè nhưng không nhận
+  chuột thì phép dò điểm không thấy nó — 2026-09-01 suýt kết luận nhầm "không có gì che". Muốn tìm
+  thứ đang vẽ đè thì duyệt cây con và lọc theo `getComputedStyle(el).visibility` + rect, có xuyên cả
+  `shadowRoot`.
 - **Dọn sau khi đo:** xoá bảng/dữ liệu thử khỏi IndexedDB + localStorage, tắt dev server.
 
 ### 2.3 Tin vào ca kiểm tới đâu
