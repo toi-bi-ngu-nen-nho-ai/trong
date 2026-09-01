@@ -1295,7 +1295,11 @@ html.theme-shift * {
   .card-settle,
   .card-plop,
   .card-slide-out,
-  .empty-breathe {
+  .empty-breathe,
+  /* .screen-transition (fadeSlideIn, DanhSachBang.tsx) sót khỏi danh sách này — người bật giảm
+     chuyển động vẫn thấy đúng một hiệu ứng trượt-mờ 0,22s mỗi lần vào màn Mindmap (critique
+     2026-09-01, P3). Cùng khối, không cần rule riêng. */
+  .screen-transition {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -1351,6 +1355,18 @@ html.theme-shift * {
    KHÔNG kèm `opacity`: mọi lớp mờ thêm sẽ kéo tụt lại đúng con số vừa sửa. */
 .mind-search-pill input::placeholder {
   color: var(--c-text-placeholder, #5f628a);
+}
+
+/* Hàng chip lọc chuyên khoa (DanhSachBang.tsx, role="group") — cuộn ngang khi mở rộng "Thêm +N",
+   tới 13 chip trên iPhone (đo thật: scrollWidth 1122px so với clientWidth 375px) mà không có dấu
+   hiệu thị giác nào báo còn nội dung ngoài khung nhìn — "Tất cả" cuộn khuất khỏi tầm mắt ngay khi
+   mở rộng, không mũi tên/fade/scrollbar nào gợi ý cuộn lại được (critique 2026-09-01, P2). Fade
+   tĩnh hai cạnh — KHÔNG theo vị trí cuộn (cần JS mới làm được) — vẫn là tín hiệu đủ rõ, đúng mẫu
+   quen thuộc (tab bar cuộn ngang của nhiều app khác). 20px đủ để mờ hẳn viền chip đầu/cuối mà
+   không nuốt cả nhãn chữ bên trong. */
+.mind-chip-scroll {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
 }
 
 /* Lưới danh sách bảng (DanhSachBang.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng

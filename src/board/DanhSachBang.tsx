@@ -1647,6 +1647,7 @@ export function DanhSachBang({
             // review lượt 1.
             role="group"
             aria-label="Lọc theo chuyên khoa"
+            className="mind-chip-scroll"
             style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 20px 8px' }}
           >
             <button
@@ -1753,7 +1754,17 @@ export function DanhSachBang({
               {LOI_MOI_TRONG}
             </p>
           )}
-          <p style={{ fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0, maxWidth: 280, textWrap: 'balance' }}>
+          {/* rongDoBoLoc: dòng này ĐỨNG MỘT MÌNH làm dòng đầu (headline ấm ở trên bị ẩn), nên mượn
+              đúng trọng lượng chữ của headline đó (15.5/700 thay vì 14/400) — không thêm copy mới,
+              chỉ để trạng thái rỗng-do-lọc không đọc lạnh/tuột bậc hơn rỗng-thật (critique
+              2026-09-01, P3). */}
+          <p
+            style={
+              rongDoBoLoc
+                ? { fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--c-text, #12142b)', margin: 0, maxWidth: 280, lineHeight: 1.3, textWrap: 'balance' }
+                : { fontSize: 14, color: 'var(--c-text-muted, #6b6e96)', margin: 0, maxWidth: 280, textWrap: 'balance' }
+            }
+          >
             {rongDoBoLoc ? 'Không tìm thấy bảng nào khớp' : 'Bắt đầu một sơ đồ tư duy mới'}
           </p>
           {rongDoBoLoc && (

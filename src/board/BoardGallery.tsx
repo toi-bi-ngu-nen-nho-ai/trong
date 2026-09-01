@@ -280,6 +280,21 @@ export function BoardGallery({
     return () => clearTimeout(id)
   }, [openBoardId, dangPhongTo])
 
+  // Dòng "vẫn đang tải" cho màn chờ mở bảng — chỉ bật sau một ngưỡng dài hơn hẳn thời lượng bình
+  // thường (~2,5s, xem TheTrong/VeChuyenKhoaDangTai), để không nhấp nháy trên đường tải nhanh thông
+  // thường. Không có nhánh này thì mạng yếu/thiết bị cũ/lần mở đầu chưa cache chunk BlockSuite chỉ
+  // thấy hoạt ảnh trang trí lặp vô hạn, không cách nào phân biệt "đang tải" với "đã treo" (critique
+  // 2026-09-01, P2).
+  const [choLau, setChoLau] = useState(false)
+  useEffect(() => {
+    if (!openBoardId || !(dangChoCanvas || dangPhongTo)) {
+      setChoLau(false)
+      return
+    }
+    const id = setTimeout(() => setChoLau(true), 4500)
+    return () => clearTimeout(id)
+  }, [openBoardId, dangChoCanvas, dangPhongTo])
+
   return (
     <>
       {!openBoardId && !dangDong && dangHienTab && (
@@ -353,6 +368,28 @@ export function BoardGallery({
                   chính nó phải là thứ đang vẽ — xem TheTrong. Lớp phủ "gập lại" lúc ĐÓNG ở trên
                   KHÔNG bật cờ này: cú gập chỉ 260ms. */}
               <TheTrong khoa={openOrigin.chuyenKhoa} dangVe />
+              {/* Dòng "vẫn đang tải" — chỉ bật sau 4,5s (choLau ở trên), cho mạng yếu/thiết bị cũ/
+                  lần mở đầu chưa cache chunk BlockSuite một tín hiệu phân biệt với "đã treo".
+                  role="status" để người dùng đọc màn hình cũng nghe được, không chỉ thấy chữ. */}
+              {choLau && (
+                <p
+                  role="status"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(50% + 15%)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    margin: 0,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: 'var(--c-text-muted, #6b6e96)',
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Đang tải sơ đồ… có thể mất thêm chút thời gian ở lần mở đầu.
+                </p>
+              )}
             </div>
           )}
           <button
