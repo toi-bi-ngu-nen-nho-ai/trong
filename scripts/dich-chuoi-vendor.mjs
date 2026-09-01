@@ -17,6 +17,7 @@ import {
   dichMotFile,
   thayChuCustomFrameMenu,
   thayChuTrongTagTooltip,
+  thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
   thayTienToSlideFrameDenseMenu,
@@ -286,12 +287,24 @@ for await (const f of dietJs(BUILD)) {
   }
   const coDoiCustom = ketQuaCustom.cacLuot.length > 0
 
+  // Placeholder tĩnh của ô tìm panel Mẫu ("Search file or anything...") — cùng cơ chế quét văn bản
+  // thô (thuộc tính HTML TĨNH, không qua nhịp `${…}`), chạy SAU thayChuCustomFrameMenu theo đúng
+  // nguyên tắc thứ tự "tiền tố trước, phần còn lại sau" của khối này.
+  let ketQuaPlaceholderMau
+  try {
+    ketQuaPlaceholderMau = thayPlaceholderBangMau(ketQuaCustom.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const coDoiPlaceholderMau = ketQuaPlaceholderMau.cacLuot.length > 0
+
   // Tên NHÓM của menu lệnh "/" — đoạn giữa của khoá `'<số>_<Tên>@<số>'`. Cùng cơ chế quét văn bản
   // thô như ba bộ thay ở trên (chuỗi cần đổi là MỘT PHẦN của literal, có chỗ nằm trong TemplateHead
   // nên không node AST nào đại diện), chạy SAU chúng theo đúng nguyên tắc thứ tự đã dùng.
   let ketQuaNhom
   try {
-    ketQuaNhom = thayTenNhomSlashMenu(ketQuaCustom.js, banDo, rel)
+    ketQuaNhom = thayTenNhomSlashMenu(ketQuaPlaceholderMau.js, banDo, rel)
   } catch (err) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
@@ -306,6 +319,7 @@ for await (const f of dietJs(BUILD)) {
     !coDoiNutDong &&
     !coDoiSlide &&
     !coDoiCustom &&
+    !coDoiPlaceholderMau &&
     !coDoiNhom
   )
     continue
@@ -345,6 +359,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'chu-tran-custom-frame-menu',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaPlaceholderMau.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'placeholder-bang-mau',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })

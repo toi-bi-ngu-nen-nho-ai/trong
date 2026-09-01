@@ -169,6 +169,32 @@ export const FILE_CHO_PHEP_KHOA_TINH_TOAN = new Set([
   'affine/model/src/elements/connector/connector.js',
 ])
 
+// Ngoại lệ HẸP THEO FILE cho `key` — khác hẳn nguyên tắc chung ở đầu file (`key` KHÔNG được thêm
+// vào đâu, vì nó chứa "Align left"/"Align right" dùng làm ĐỊNH DANH tra cứu ở nơi khác trong cây
+// vendored — dịch chung sẽ gãy tra cứu đó). Ba file dưới đây định nghĩa mảng `MenuItem<T>` cho
+// `renderMenu`/`renderMenuItems`/`renderCurrentMenuItemWith` của
+// `affine/widgets/edgeless-toolbar/src/config/utils.ts` — `key` ở ĐÚNG BA FILE NÀY chỉ đọc lại để
+// hiển thị (`.tooltip="${ifDefined(key)}"`, `aria-label="${ifDefined(key)}"`, hoặc render thẳng
+// làm text con qua `renderCurrentMenuItemWith(list, value, 'key')`), không so sánh/tra khoá nào
+// khác trong CHÍNH BA FILE NÀY đọc lại `.key`. Đo 2026-09-01 (điều tra lỗi "mũi tên còn tiếng Anh"
+// khi chọn connector đã vẽ, mở menu Kiểu đường nối/Bố cục/Kiểu chữ trong editor-toolbar nổi):
+//   - `affine/gfx/connector/src/toolbar/config.js` — CONNECTOR_MODE_LIST (Curve/Elbowed/Straight),
+//     một chỗ dùng duy nhất (renderMenu trong id `d.connector-shape`).
+//   - `affine/gfx/mindmap/src/toolbar/config.js` — MINDMAP_LAYOUT_LIST (Left/Radial/Right), một chỗ
+//     dùng duy nhất (renderMenu trong createMindmapLayoutActionMenu) — đây là toolbar của
+//     MindmapScreen, "phòng não phải" của app.
+//   - `affine/gfx/text/src/toolbar/actions.js` — FONT_WEIGHT_LIST (Light/Regular/Semibold),
+//     FONT_STYLE_LIST (Italic), TEXT_ALIGN_LIST (Left/Center/Right) — dùng qua renderMenu (id
+//     `e.alignment`) VÀ qua renderCurrentMenuItemWith hai lượt (id `c.font-style`, hiển thị trực
+//     tiếp trong nhãn nút, không phải tooltip) — cả hai đường tiêu thụ đều là hiển thị thuần.
+// Danh sách ĐÓNG theo đường dẫn, cùng nguyên tắc mọi FILE_CHO_PHEP_* ở trên — thêm file mới phải đo
+// lại tiêu thụ ngược của riêng file đó, không suy diễn "chắc cũng an toàn".
+export const FILE_CHO_PHEP_KEY_MUC_MENU = new Set([
+  'affine/gfx/connector/src/toolbar/config.js',
+  'affine/gfx/mindmap/src/toolbar/config.js',
+  'affine/gfx/text/src/toolbar/actions.js',
+])
+
 // Đối số của các hàm này là chuỗi hiển thị cho người dùng cuối.
 // KHÔNG thêm `error`/`warn`/`debugLog` (thông báo cho lập trình viên) hay `track` (tên sự kiện đo
 // đạc) hay `createIdentifier` (định danh tiêm phụ thuộc — dịch là gãy phân giải service).
@@ -218,7 +244,16 @@ export const THUOC_TINH_HTML_HIEN_THI = ['data-tip']
 // "Highlight", "Switch view", "Font", "Font style", "More". Vá: `khopLit` chấp nhận dấu nháy TUỲ
 // CHỌN ngay sau `=` (`["']?` trước `$`) — không đổi tên thuộc tính nào được phép, chỉ nhận thêm
 // MỘT BIẾN THỂ CÚ PHÁP của chính `tooltip` đã có trong danh sách, nên an toàn ngang phần đã đo.
-export const THUOC_TINH_LIT_HIEN_THI = ['tooltip']
+// `label` thêm 2026-09-01 (điều tra lỗi "mũi tên còn tiếng Anh" — nút mở bảng màu nét vẽ của
+// connector đã chọn hiện `.label="${'Stroke style'}"`, khác vị trí object-property `label: '…'`
+// đã có trong THUOC_TINH_HIEN_THI). Đo toàn cây (`grep '\.label=' --include=*.ts`, loại
+// `aria-label`): ĐÚNG 8 lượt. 6 lượt là literal đứng một mình — 'Background' (frame-toolbar.ts),
+// 'Color' × 2 (brush.ts, highlighter.ts), 'Stroke style' (gfx/connector), 'Text color' và
+// 'Font size' (gfx/text/actions.ts) — tất cả là nhãn hiển thị của `edgeless-color-picker-button`/
+// `affine-size-dropdown-menu`, cùng bản chất với `label:` object-property đã dịch an toàn ở nơi
+// khác. 2 lượt còn lại là biểu thức động (`palette.key`, `this._popupLabel$.value`), không phải
+// StringLiteral nên bộ duyệt vốn đã bỏ qua — không có rủi ro dịch nhầm.
+export const THUOC_TINH_LIT_HIEN_THI = ['tooltip', 'label']
 
 function tenThuocTinh(name) {
   if (!name) return null
@@ -337,6 +372,9 @@ export function viTriHienThi(node, tenFile = null) {
     }
     if (ten === 'text' && tenFile && FILE_CHO_PHEP_PLACEHOLDER_DOAN_VAN.has(tenFile)) {
       return `placeholder-doan-van-rieng-file:${tenFile}`
+    }
+    if (ten === 'key' && tenFile && FILE_CHO_PHEP_KEY_MUC_MENU.has(tenFile)) {
+      return `thuộc-tính-key-muc-menu:${tenFile}`
     }
     if (
       !ten &&
@@ -808,6 +846,51 @@ export function thayChuCustomFrameMenu(js, banDo, tenFile = 'khong-ten.js') {
   return {
     js: js.replace(RE_CUSTOM_FRAME_MENU, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
     cacLuot: [{ chuoiGoc: 'Custom', chuoiDich: vi, dong }],
+  }
+}
+
+// Chữ TRẦN "Search file or anything..." — placeholder tĩnh của ô tìm panel Mẫu
+// (`template-panel.ts`). Đây là nợ kỹ thuật đã ghi trong docs/superpowers/HANDOFF.md §1.1 ("Bảng
+// Mẫu — chuỗi 'Search file or anything...' vẫn tiếng Anh"), đóng lại 2026-09-01 khi rà thêm các vị
+// trí dịch còn sót ngoài phạm vi connector.
+//
+// Cùng lớp lỗi chữ trần như "Custom"/"Done"/"Slide " ở trên: `placeholder="…"` ở đây là một THUỘC
+// TÍNH HTML TĨNH (không qua nhịp `${…}`), nên không phải StringLiteral/NoSubstitutionTemplateLiteral
+// và `dichMotFile` không bao giờ thấy nó — khác `data-tip="${…}"` (đã có trong
+// THUOC_TINH_HTML_HIEN_THI) vốn LUÔN đi qua một nhịp template.
+//
+// Neo bằng `class="search-input"` đứng ngay trước — đo 2026-09-01: ĐÚNG MỘT ô `<input>` mang class
+// này trong toàn file (hai lượt còn lại của "search-input" là luật CSS trong khối `static styles`,
+// không khớp hình dạng `class="search-input"` của regex). Danh sách ĐÓNG theo đường dẫn, cùng
+// nguyên tắc mọi bộ thay-chữ-trần khác ở trên.
+const RE_PLACEHOLDER_BANG_MAU = /(class="search-input"[\s\S]*?placeholder=")Search file or anything\.\.\.(")/
+
+export function thayPlaceholderBangMau(js, banDo, tenFile = 'khong-ten.js') {
+  if (tenFile !== 'affine/gfx/template/src/toolbar/template-panel.js') {
+    return { js, cacLuot: [] }
+  }
+  const m = js.match(RE_PLACEHOLDER_BANG_MAU)
+  const khoa = 'Search file or anything...'
+  if (!m || !Object.hasOwn(banDo, khoa)) return { js, cacLuot: [] }
+
+  const vi = banDo[khoa]
+  if (typeof vi !== 'string') {
+    throw new Error(
+      `luat-vi-tri-dich: khoá "${khoa}" (placeholder ô tìm panel Mẫu, thayPlaceholderBangMau) có ` +
+        `giá trị KHÔNG PHẢI CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+    )
+  }
+
+  // Cùng lý do thoát ký tự với thayChuTrongTagTooltip — chèn thẳng vào phần TEXT tĩnh của một
+  // template literal đang mở, không qua JSON.stringify. Ở đây còn phải thoát dấu nháy kép `"` vì
+  // giá trị chèn vào nằm giữa hai dấu `"` của một thuộc tính HTML thường (khác `<drt-tooltip>`,
+  // vốn không có dấu nháy bao quanh).
+  const thoat = (s) => s.replace(/[`$\\"]/g, (c) => `\\${c}`)
+  const dong = js.slice(0, m.index + m[1].length).split('\n').length
+
+  return {
+    js: js.replace(RE_PLACEHOLDER_BANG_MAU, (_all, truoc, sau) => `${truoc}${thoat(vi)}${sau}`),
+    cacLuot: [{ chuoiGoc: khoa, chuoiDich: vi, dong }],
   }
 }
 

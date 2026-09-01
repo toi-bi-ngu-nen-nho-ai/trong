@@ -14,9 +14,11 @@ import {
   DOI_SO_HIEN_THI,
   dichMotFile,
   FILE_CHO_PHEP_FILLTEXT,
+  FILE_CHO_PHEP_KEY_MUC_MENU,
   FILE_CHO_PHEP_NAME_SENIOR_TOOL,
   thayChuCustomFrameMenu,
   thayChuTrongTagTooltip,
+  thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
   thayTienToSlideFrameDenseMenu,
@@ -58,8 +60,8 @@ describe('D12 — danh sách vị trí cho phép đúng kích thước và nội
     expect(THUOC_TINH_HTML_HIEN_THI).toEqual(['data-tip'])
   })
 
-  it('THUOC_TINH_LIT_HIEN_THI có đúng 1 tên: tooltip', () => {
-    expect(THUOC_TINH_LIT_HIEN_THI).toEqual(['tooltip'])
+  it('THUOC_TINH_LIT_HIEN_THI có đúng 2 tên: tooltip, label (mục 2026-09-01)', () => {
+    expect(THUOC_TINH_LIT_HIEN_THI).toEqual(['tooltip', 'label'])
   })
 })
 
@@ -565,6 +567,14 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (banDich.has(chu)) daThay.add(chu)
       }
 
+      // Cùng nguyên tắc cho placeholder TĨNH của ô tìm panel Mẫu (thayPlaceholderBangMau, mục
+      // 2026-09-01): `placeholder="…"` là thuộc tính HTML tĩnh, không qua nhịp `${…}`, nên vòng
+      // lặp AST ở trên không bao giờ thấy nó — regex viết LẠI ở đây, không gọi hàm thật.
+      for (const mm of src.matchAll(/placeholder="([^"]*)"/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 
@@ -665,6 +675,35 @@ describe('FILE_CHO_PHEP_NAME_SENIOR_TOOL — ngoại lệ hẹp-theo-file cho na
   it('CÙNG literal name: ở file KHÁC (không trong danh sách) thì KHÔNG dịch', () => {
     const ra = dichMotFile(`const a = { name: 'Style' }`, BAN_DO, 'khong-o-danh-sach.js').js
     expect(ra).not.toContain('Phong cách')
+  })
+})
+
+// Ngoại lệ hẹp-theo-file cho `key:` của mảng MenuItem<T> (renderMenu/renderMenuItems/
+// renderCurrentMenuItemWith ở affine/widgets/edgeless-toolbar/src/config/utils.ts) — đo 2026-09-01,
+// điều tra lỗi "mũi tên còn tiếng Anh" khi chọn connector đã vẽ và mở menu Kiểu đường nối trong
+// editor-toolbar nổi. Khác nguyên tắc chung: `key` KHÔNG được thêm vào danh sách hiển thị chung vì
+// nó còn là ĐỊNH DANH tra cứu ở nơi khác trong cây vendored ("Align left"/"Align right") — đây là
+// ngoại lệ hẹp-theo-file, chỉ khớp khi CẢ tên file lẫn hình dạng cú pháp đều đúng.
+describe('FILE_CHO_PHEP_KEY_MUC_MENU — ngoại lệ hẹp-theo-file cho key: của MenuItem<T>', () => {
+  it('có đúng 3 file đã đo (connector/mindmap/text toolbar config)', () => {
+    expect([...FILE_CHO_PHEP_KEY_MUC_MENU].sort()).toEqual(
+      [
+        'affine/gfx/connector/src/toolbar/config.js',
+        'affine/gfx/mindmap/src/toolbar/config.js',
+        'affine/gfx/text/src/toolbar/actions.js',
+      ].sort(),
+    )
+  })
+
+  it('key: được dịch trong file đã đo/duyệt', () => {
+    const ra = dichMotFile(`const a = { key: 'Style', value: 1 }`, BAN_DO, 'affine/gfx/connector/src/toolbar/config.js').js
+    expect(ra).toContain('"Phong cách"')
+  })
+
+  it('CÙNG literal key: ở file KHÁC (không trong danh sách) thì KHÔNG dịch', () => {
+    const ra = dichMotFile(`const a = { key: 'Style', value: 1 }`, BAN_DO, 'khong-o-danh-sach.js').js
+    expect(ra).not.toContain('Phong cách')
+    expect(ra).toContain(`'Style'`)
   })
 })
 
@@ -780,6 +819,48 @@ describe('thayChuCustomFrameMenu — chữ trần "Custom" trong menu Khung', ()
 
   it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
     expect(() => thayChuCustomFrameMenu(NGUON, { Custom: 42 } as unknown as Record<string, string>, TEP)).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
+// Placeholder tĩnh "Search file or anything..." của ô tìm panel Mẫu — nợ kỹ thuật đã ghi trong
+// docs/superpowers/HANDOFF.md §1.1, đóng lại 2026-09-01. Khác mọi ca ở trên: `placeholder="…"` là
+// thuộc tính HTML TĨNH (không qua nhịp `${…}`), nên đây là hình dạng "chữ trần" thứ tư của D12.
+describe('thayPlaceholderBangMau — placeholder tĩnh của ô tìm panel Mẫu', () => {
+  const TEP = 'affine/gfx/template/src/toolbar/template-panel.js'
+  const NGUON =
+    'const t = html`<input class="search-input" type="text" placeholder="Search file or anything..." @input=${x}>`'
+  const dungBanDo = { 'Search file or anything...': 'Tìm tệp hoặc bất cứ thứ gì...' }
+
+  it('thay đúng placeholder trong file đã đo/duyệt', () => {
+    const { js, cacLuot } = thayPlaceholderBangMau(NGUON, dungBanDo, TEP)
+    expect(js).toContain('placeholder="Tìm tệp hoặc bất cứ thứ gì..."')
+    expect(js).not.toContain('Search file or anything')
+    expect(cacLuot).toEqual([
+      { chuoiGoc: 'Search file or anything...', chuoiDich: 'Tìm tệp hoặc bất cứ thứ gì...', dong: 1 },
+    ])
+  })
+
+  it('CÙNG hình dạng ở file KHÁC thì không đụng', () => {
+    expect(thayPlaceholderBangMau(NGUON, dungBanDo, 'affine/gfx/template/src/khac.js').js).toBe(NGUON)
+  })
+
+  it('placeholder trong file nhưng KHÔNG đứng sau class="search-input" thì không đụng', () => {
+    const khac = 'const t = html`<input type="text" placeholder="Search file or anything...">`'
+    expect(thayPlaceholderBangMau(khac, dungBanDo, TEP).js).toBe(khac)
+  })
+
+  it('không có khoá trong bản đồ thì giữ nguyên', () => {
+    expect(thayPlaceholderBangMau(NGUON, {}, TEP).js).toBe(NGUON)
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayPlaceholderBangMau(
+        NGUON,
+        { 'Search file or anything...': 42 } as unknown as Record<string, string>,
+        TEP,
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })
 
