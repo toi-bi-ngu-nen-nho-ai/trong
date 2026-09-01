@@ -98,6 +98,7 @@ import { BlockEditor, type LinkTarget } from "./components/BlockEditor"
 import { BlockContent } from "./components/BlockContent"
 import { ScreenHeader } from "./components/ScreenHeader"
 import { specialtyIcon } from "./components/SpecialtyIcons"
+import { IconChevronBack } from "./components/IconChevronBack"
 import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
 import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, PROSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
 
@@ -237,11 +238,10 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
   ),
-  back: () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-    </svg>
-  ),
+  // Dùng chung với BoardGallery.tsx (nút quay lại màn vẽ Mindmap) qua IconChevronBack — trước đây
+  // BoardGallery.tsx phải chép tay path SVG này vì hàm back() này không export được (critique
+  // 2026-09-01, P3).
+  back: () => <IconChevronBack className="w-5 h-5" />,
   share: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
@@ -5615,7 +5615,10 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
               tiếp từng trường một mỗi lần bị phát hiện, đổi hẳn sang `flex-wrap` — không trường nào
               còn có thể bị cắt âm thầm, tối đa chỉ xuống dòng (dữ liệu bệnh nhân luôn ngắn, hiếm khi
               quá 2 dòng thật). */}
-          <p className="text-[12px] text-slate-600 mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+          {/* text-slate-600 (Tailwind cứng) trước đây — DESIGN.md cấm hex/màu Tailwind cứng, chỉ đọc
+              từ `--c-*`; đổi sang `--c-text-soft` (dòng nhãn "Bệnh nhân hiện tại" cạnh nó cũng đã
+              dùng inline style token, không phải class màu cứng) — /impeccable polish 2026-09-02. */}
+          <p className="text-[12px] mt-0.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5" style={{ color: "var(--c-text-soft)" }}>
             <span>{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</span>
             {hasData && crclSummary && <span className="flex-none">· {crclSummary}</span>}
           </p>

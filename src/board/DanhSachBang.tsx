@@ -26,6 +26,15 @@ const VUA_TAO_NGUONG_MS = 3000
 // tên dùng chính hằng số này để quyết định hiện RỖNG hay hiện tên thật (xem `TheBang`).
 const TEN_MAC_DINH = 'Bảng chưa đặt tên'
 
+// Chuyên khoa đang lọc — NGOẠI LỆ có chủ đích với quy ước "bộ lọc chỉ sống trong phiên" của phần
+// còn lại của app (SearchScreen.activeFilter và các bộ lọc tạm thời khác): một board Mindmap là tài
+// sản dài hạn (tháng/năm), không phải một lượt tra cứu nhất thời — bác sĩ luôn làm việc trong một
+// chuyên khoa cố định phải "Thêm +N" rồi chọn lại chip đó mỗi lần mở tab là phí lặp lại thật cho
+// đúng người dùng trung thành nhất (critique 2026-09-01, P2; xác nhận lại với chủ dự án trước khi
+// làm — KHÔNG áp dụng ngoại lệ này cho `truyVan`/`hienHetChip`, hai state đó vẫn đúng nghĩa tạm
+// thời của một phiên xem lưới, giữ nguyên không lưu).
+const CHUYEN_KHOA_LOC_KEY = 'drtrong:mindmap-chuyen-khoa-loc'
+
 // Thời lượng .card-slide-out (src/index.css) — thẻ giữ mount đúng bằng ngần này trước khi đánh dấu
 // xoá mềm (daXoaLuc) chạy, để animation kịp chạy hết trước khi thẻ biến mất khỏi lưới. PHẢI khớp
 // đúng thời lượng animation CSS (0.4s, tăng từ 0.2s cũ — debug 2026-08-26, "xoá quá nhanh, có như
@@ -912,16 +921,37 @@ export function DanhSachBang({
   // Xác nhận hai bước cho xoá VĨNH VIỄN (không hoàn tác) — cùng khuôn "Chắc chắn xoá?" + tự tắt sau
   // XAC_NHAN_XOA_MS mà nút xoá từng-bảng đã dùng.
   const [xacNhanXoaVinhVien, setXacNhanXoaVinhVien] = useState(false)
-  // null = "Tất cả" (không lọc). Không đưa vào URL/localStorage — lọc chỉ có ý nghĩa trong phiên
-  // đang xem lưới, giống các bộ lọc tạm thời khác của app (SearchScreen.activeFilter).
-  const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(null)
+  // null = "Tất cả" (không lọc). Khởi tạo từ CHUYEN_KHOA_LOC_KEY (xem lý do ngoại lệ ở định nghĩa
+  // hằng số đó) — validate lại với SPECIALTIES hiện tại phòng khi danh sách chuyên khoa đổi giữa các
+  // bản build, tránh lọc "kẹt" vào một id không còn tồn tại. try/catch cùng khuôn mọi lượt đọc
+  // localStorage khác trong app (Safari chặn storage/hết quota ẩn danh ném lỗi).
+  const [chuyenKhoaLoc, setChuyenKhoaLoc] = useState<string | null>(() => {
+    try {
+      const luu = localStorage.getItem(CHUYEN_KHOA_LOC_KEY)
+      return luu && SPECIALTIES.some((s) => s.id === luu) ? luu : null
+    } catch {
+      return null
+    }
+  })
+  useEffect(() => {
+    try {
+      if (chuyenKhoaLoc) localStorage.setItem(CHUYEN_KHOA_LOC_KEY, chuyenKhoaLoc)
+      else localStorage.removeItem(CHUYEN_KHOA_LOC_KEY)
+    } catch {
+      // Không ghi được thì lần mở tab sau quay về "Tất cả" — chấp nhận được, không chặn dùng app.
+    }
+  }, [chuyenKhoaLoc])
   // Dải chip chuyên khoa mặc định chỉ hiện 4 chip đầu + nút "Thêm" — 12 chip đồng hạng trên một
   // hàng buộc cuộn-và-quét mới tìm ra một chuyên khoa, vi phạm luật ≤4 lựa chọn tại một điểm quyết
-  // định (critique 2026-08-25, mục "Hàng filter chuyên khoa"). Không lưu localStorage: đây là trạng
-  // thái mở-ra tạm thời của một phiên xem lưới, cùng quy ước với chuyenKhoaLoc/truyVan ngay trên.
+  // định (critique 2026-08-25, mục "Hàng filter chuyên khoa"). Không lưu localStorage: KHÁC
+  // chuyenKhoaLoc ở trên (nay có ngoại lệ riêng), đây vẫn đúng nghĩa trạng thái mở-ra tạm thời của
+  // một phiên xem lưới — chip đang lọc luôn tự hiện dù đang gấp (xem chonNamOTrongPhanAn bên dưới),
+  // nên không cần nhớ luôn cả trạng thái mở/gấp mới khôi phục đúng bộ lọc đã lưu.
   const [hienHetChip, setHienHetChip] = useState(false)
-  // Truy vấn ô tìm nội bộ — cùng quy ước "chỉ sống trong phiên xem lưới" với chuyenKhoaLoc ngay
-  // trên (không vào URL/localStorage). Chuỗi rỗng = chưa lọc (bangKhopTimKiem trả true).
+  // Truy vấn ô tìm nội bộ — vẫn đúng quy ước "chỉ sống trong phiên xem lưới" của phần còn lại của
+  // app (không vào URL/localStorage, KHÁC chuyenKhoaLoc ở trên): một chuỗi tìm kiếm cũ mở lại vài
+  // ngày sau dễ đọc thành "sao lưới trống/lạ" hơn là hữu ích, không giống một chuyên khoa cố định.
+  // Chuỗi rỗng = chưa lọc (bangKhopTimKiem trả true).
   const [truyVan, setTruyVan] = useState('')
 
   useEffect(() => {
@@ -1170,6 +1200,13 @@ export function DanhSachBang({
     })
 
   const taoBangMoi = () => {
+    // Khoá chống bấm đúp: `add()` đồng bộ và không có cờ "đang tạo" riêng, nên hai lượt gọi liên
+    // tiếp (bấm đúp nhanh, hoặc double-fire trên một số trình duyệt cảm ứng) từng tạo được HAI bảng
+    // — `setDangSuaTenId` lần gọi thứ hai thắng, bảng đầu tiên vào lưới với tên mặc định mà không
+    // có ô đổi tên nào tự mở, dễ mồ côi lúc vội (critique 2026-09-01, P3). Mượn đúng state đã có sẵn
+    // thay vì thêm ref/timer riêng: còn một bảng đang ở chế độ đổi tên thì "+" tạm không phản ứng —
+    // đúng luồng dự kiến (đặt tên xong bảng này rồi mới tạo bảng kế) chứ không phải hạn chế mới.
+    if (dangSuaTenId) return
     const luc = Date.now()
     const meta: BangMeta = {
       id: taoIdBang(),
@@ -1500,6 +1537,13 @@ export function DanhSachBang({
               >
                 {hienThi.map((b, i) => {
                   const daChon = chonDaXoa.has(b.id)
+                  // Hai bảng trùng tên mặc định "Bảng chưa đặt tên" trước đây CHỈ phân biệt được bằng
+                  // chấm màu — nhưng chấm đó mang aria-hidden, nên người dùng đọc màn hình nghe hai
+                  // dòng giống hệt nhau, không biết "Hoàn tác" nào khôi phục đúng bảng cần (critique
+                  // 2026-09-01, P1). Mốc xoá tương đối (daXoaLuc, không phải capNhatLuc — đúng thứ
+                  // panel này sắp theo, xem daXoaGanDay ở trên) vừa hiện ra cho mắt, vừa gắn vào
+                  // aria-label của checkbox/nút để trình đọc màn hình có tín hiệu phân biệt thật.
+                  const moTaXoa = b.daXoaLuc ? `, xoá ${formatReadTime(b.daXoaLuc)}` : ''
                   return (
                     <div
                       key={b.id}
@@ -1518,7 +1562,7 @@ export function DanhSachBang({
                           data-testid={`chon-da-xoa-${b.id}`}
                           checked={daChon}
                           onChange={() => chuyenChon(b.id)}
-                          aria-label={`Chọn bảng ${b.ten}`}
+                          aria-label={`Chọn bảng ${b.ten}${moTaXoa}`}
                           style={{ width: 17, height: 17, accentColor: 'var(--c-primary, #2d3a94)' }}
                         />
                       </label>
@@ -1535,15 +1579,22 @@ export function DanhSachBang({
                         <span style={{ minWidth: 0, fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {b.ten}
                         </span>
+                        {b.daXoaLuc && (
+                          <span style={{ flexShrink: 0, fontSize: 11, color: 'var(--c-text-muted, #6b6e96)', opacity: 0.75 }}>
+                            {formatReadTime(b.daXoaLuc)}
+                          </span>
+                        )}
                       </span>
                       {/* "Hoàn tác" từng-dòng chỉ khi CHƯA chọn gì — có tích chọn thì dải hàng loạt ở
                           trên tiếp quản. --c-accent-2 đồng ngôn ngữ màu với nút Hoàn tác ở toast
-                          (critique 2026-08-26 P2); weight 600 để bốn dòng không hét lên cùng lúc. */}
+                          (critique 2026-08-26 P2); weight 600 để bốn dòng không hét lên cùng lúc.
+                          aria-label riêng (khác chữ hiện "Hoàn tác" trần) — cùng lý do moTaXoa ở trên. */}
                       {soChon === 0 && (
                         <button
                           type="button"
                           data-testid={`hoan-tac-gan-day-${b.id}`}
                           onClick={() => khoiPhucBang(b)}
+                          aria-label={`Hoàn tác xoá bảng ${b.ten}${moTaXoa}`}
                           className="mind-focus-ring"
                           style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', minHeight: 32, fontSize: 12, fontWeight: 600, color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, padding: '4px 6px', whiteSpace: 'nowrap' }}
                         >

@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { doiGhiAnhXongNeuCo } from './boardMeta'
 import { DanhSachBang, TheTrong, type BoardOpenOrigin } from './DanhSachBang'
 import { EdgelessBoard, type KetQuaXuat, type XuatBangFn } from './index'
+import { IconChevronBack } from '../components/IconChevronBack'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
 // không. Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board'
@@ -466,16 +467,10 @@ export function BoardGallery({
               justifyContent: 'center',
             }}
           >
-            {/* Ký tự Unicode "←" trần đọc như một placeholder chưa hoàn thiện — chữ hệ thống,
-                không khớp nét/độ dày với BẤT KỲ icon nào khác trong app, kể cả icons.back của
-                App.tsx (chevron-left SVG 24×24, strokeWidth 2, dùng ở MỌI nút quay lại khác của
-                app) — đây là chỗ DUY NHẤT còn dùng chữ thay vì icon (phản hồi thật 2026-08-27,
-                taste review: "quá AI"). icons.back là hàm PRIVATE trong App.tsx (không export,
-                xem chú thích component gốc ConfirmIconButton cùng file) nên chép lại đúng path đó
-                tại đây thay vì import — cùng path nghĩa là cùng icon, không phải một icon mới. */}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
+            {/* IconChevronBack (src/components/) — cùng icon với icons.back của App.tsx (mọi nút
+                quay lại khác của app), dùng chung qua import thay vì chép tay path SVG (critique
+                2026-09-01, P3: bản chép tay cũ không có tín hiệu biên dịch nào nếu bản gốc đổi). */}
+            <IconChevronBack style={{ width: 20, height: 20 }} />
           </button>
 
           {/* Nút "Xuất PNG" — CHẤM TRÒN đối xứng nút quay lại qua trục dọc giữa màn: cùng `top`,
