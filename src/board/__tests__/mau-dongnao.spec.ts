@@ -84,6 +84,36 @@ describe('DongNaoTemplateManager', () => {
     expect(ds.map((m) => m.name)).toEqual(MAU_DONG_NAO.map((m) => m.ten))
   })
 
+  // `replaceIdMiddleware` chạy `Object.entries(blockJson.props.childElementIds)` cho MỌI khối
+  // `affine:frame` (`gfx/template/src/services/template-middlewares.ts`, nhánh cuối
+  // `regenerateBlockId`). `assertType` ngay trên nó là no-op lúc chạy nên KHÔNG chặn gì. Snapshot
+  // gốc của AFFiNE thiếu hẳn prop này (đã kiểm trong .zip nguồn: 3 khung của Concept Map và 2 khung
+  // của Flowchart đều thiếu) → mỗi lần thả mẫu ném một `TypeError: Cannot convert undefined or null
+  // to object` cho MỖI khung, đúng số khung, bắt được trên trình duyệt thật 2026-09-01.
+  // `frame-model.ts:51` mặc định prop này là object rỗng, nên `{}` là giá trị đúng để bù.
+  it('mọi khối affine:frame đều có props.childElementIds là object', () => {
+    let soKhung = 0
+    for (const { slug } of MAU_DONG_NAO) {
+      const j = JSON.parse(docTep(slug))
+      const khung: { props?: Record<string, unknown> }[] = []
+      const di = (v: unknown): void => {
+        if (Array.isArray(v)) return v.forEach(di)
+        if (!v || typeof v !== 'object') return
+        if ((v as { flavour?: string }).flavour === 'affine:frame') khung.push(v)
+        Object.values(v).forEach(di)
+      }
+      di(j.content)
+      soKhung += khung.length
+      for (const k of khung) {
+        const ids = k.props?.childElementIds
+        expect(ids, `${slug}: khung thiếu childElementIds`).toBeDefined()
+        expect(typeof ids, `${slug}: childElementIds không phải object`).toBe('object')
+      }
+    }
+    // Chốt số: nếu thượng nguồn đổi bộ mẫu mà không còn khung nào thì ca này thành vô nghĩa.
+    expect(soKhung, 'không còn khối affine:frame nào — bản vá này có thể đã thừa').toBe(5)
+  })
+
   it('không tệp nào còn chuỗi "affine-" (D16 luật A)', () => {
     for (const { slug } of MAU_DONG_NAO) {
       expect(docTep(slug), slug).not.toMatch(/\baffine-/)

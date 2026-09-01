@@ -153,6 +153,12 @@ hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch
   chuột thì phép dò điểm không thấy nó — 2026-09-01 suýt kết luận nhầm "không có gì che". Muốn tìm
   thứ đang vẽ đè thì duyệt cây con và lọc theo `getComputedStyle(el).visibility` + rect, có xuyên cả
   `shadowRoot`.
+- **ĐỌC CONSOLE, đừng chỉ nhìn.** 2026-09-01: mọi cổng xanh, kiểm mắt "trông đúng", vậy mà mỗi lần
+  thả mẫu Động não có khung vẫn ném một `TypeError` cho MỖI khung (`affine:frame` thiếu
+  `childElementIds`; `assertType` phía trên chỗ ném là no-op lúc chạy). Không tấm ảnh nào cho thấy
+  điều đó, và mẫu vẫn hiện ra gần đúng. Mỗi lượt kiểm trình duyệt phải đọc console + network, và với
+  lỗi khó bắt thì gắn `window.addEventListener('error'|'unhandledrejection')` rồi mới thao tác —
+  bộ đệm console sống qua cả lần tải lại nên phải phân biệt lỗi CŨ với lỗi MỚI.
 - **Dọn sau khi đo:** xoá bảng/dữ liệu thử khỏi IndexedDB + localStorage, tắt dev server.
 
 ### 2.3 Tin vào ca kiểm tới đâu

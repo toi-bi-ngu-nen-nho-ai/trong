@@ -4230,6 +4230,39 @@ Kiểm chuỗi nối tiếp trên trình duyệt thật: rời tab → màn Tran
 `visible` có kích thước trong bọc bảng (kể cả xuyên shadow root); quay lại tab → bảng nguyên vẹn,
 nội dung còn đủ.
 
+### 43.75 KHUNG `affine:frame` THIẾU `childElementIds` — ném mỗi lần thả mẫu
+
+Bắt được ở lượt kiểm cuối trên trình duyệt (2026-09-01), sau khi mọi cổng đã xanh: mỗi lần thả một
+mẫu Động não CÓ KHUNG, console ném `TypeError: Cannot convert undefined or null to object` — đúng
+MỘT lỗi cho MỖI khung (Flowchart 2 khung → 2 lỗi; Sơ đồ khái niệm 3 khung → 3 lỗi).
+
+Gốc rễ ở `gfx/template/src/services/template-middlewares.ts`, nhánh cuối của `regenerateBlockId`:
+
+```js
+if (blockJson.flavour === 'affine:frame') {
+  assertType(blockJson.props.childElementIds);   // ← NO-OP lúc chạy, không chặn gì
+  Object.entries(blockJson.props.childElementIds).forEach(...)   // ← ném ở đây
+}
+```
+
+Snapshot gốc của AFFiNE KHÔNG có prop này — đã kiểm thẳng trong `.zip` nguồn: cả 3 khung của
+Concept Map lẫn 2 khung của Flowchart đều thiếu. Tức là bản AFFiNE thượng nguồn cũng dính, ta chỉ
+chép trung thành.
+
+Hậu quả không chỉ là bẩn console: ngoại lệ ném GIỮA CHỪNG subscriber `beforeInsert` nên phần remap
+sau đó bị bỏ, và khung thả ra KHÔNG nhận phần tử con nào — kéo khung thì nội dung bên trong đứng im.
+
+**Vá ở tầng dữ liệu** (`buChildElementIds` trong `dung-mau-dongnao.mjs`): bù `childElementIds = {}`
+cho mọi khung còn thiếu. Object RỖNG là giá trị đúng — `model/src/blocks/frame/frame-model.ts:51`
+mặc định đúng như vậy. KHÔNG đi suy ra khung chứa phần tử nào: đó là bịa dữ liệu thượng nguồn không
+có. Đo lại sau khi vá: 0 lỗi, và các khung tự nhận đủ con (2 / 2 / 18 / 20) vì middleware chạy trọn.
+
+Ghim bởi ca `mọi khối affine:frame đều có props.childElementIds là object` trong `mau-dongnao.spec.ts`,
+kèm chốt cứng `soKhung === 5` để một lượt đổi bộ mẫu không làm ca này thành vô nghĩa.
+
+**Bài học thao tác:** cổng xanh + kiểm mắt "trông đúng" vẫn để lọt lỗi này. Chỉ có ĐỌC CONSOLE mới
+thấy. Từ nay lượt kiểm trình duyệt phải đọc console và network, không chỉ nhìn ảnh.
+
 ### 43.8 Hai thứ TRÔNG như lỗi mà không phải — đừng đuổi lại
 
 1. **Lưới nhãn dán trống / thẻ "Truy cập nhanh" biến mất trong ảnh chụp.** Là artifact CHỤP DỞ KHUNG

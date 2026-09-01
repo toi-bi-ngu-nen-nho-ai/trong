@@ -56,6 +56,38 @@ if (!existsSync(THU_MUC_NGUON)) {
   )
 }
 
+/**
+ * Bù `props.childElementIds` cho mọi khối `affine:frame` còn thiếu. Trả về số khối đã bù.
+ *
+ * VÌ SAO CẦN: `replaceIdMiddleware` chạy `Object.entries(blockJson.props.childElementIds)` cho MỌI
+ * khối `affine:frame` (`gfx/template/src/services/template-middlewares.ts`, nhánh cuối
+ * `regenerateBlockId`) — và `assertType` ngay phía trên nó là no-op lúc chạy, không chặn gì. Snapshot
+ * gốc của AFFiNE KHÔNG có prop này (đã kiểm trong .zip: cả 3 khung của Concept Map lẫn 2 khung của
+ * Flowchart đều thiếu), nên mỗi lần thả mẫu ném một `TypeError: Cannot convert undefined or null to
+ * object` cho MỖI khung — bắt được trên trình duyệt thật 2026-09-01, đúng số lỗi bằng số khung.
+ *
+ * Bù bằng object RỖNG chứ không đi suy ra khung chứa phần tử nào: `frame-model.ts:51` mặc định prop
+ * này là object rỗng, và mọi chỗ đọc nó đều xử lý được "khung không có con". Tự chế danh sách con
+ * là bịa ra dữ liệu thượng nguồn không có.
+ */
+function buChildElementIds(nut) {
+  let so = 0
+  const di = (v) => {
+    if (Array.isArray(v)) return v.forEach(di)
+    if (!v || typeof v !== 'object') return
+    if (v.flavour === 'affine:frame') {
+      v.props ??= {}
+      if (v.props.childElementIds == null) {
+        v.props.childElementIds = {}
+        so += 1
+      }
+    }
+    Object.values(v).forEach(di)
+  }
+  di(nut)
+  return so
+}
+
 /** Duyệt cây snapshot, thay mọi `insert` bằng bản dịch. Gom chuỗi chưa có trong bảng vào `thieu`. */
 function dichCay(nut, thieu) {
   if (Array.isArray(nut)) return nut.forEach((v) => dichCay(v, thieu))
@@ -99,6 +131,7 @@ for (const { tep, slug } of MAU) {
 
   const noiDung = JSON.parse(await zip.files[tenSnapshot].async('text'))
   dichCay(noiDung, thieu)
+  const soKhungBu = buChildElementIds(noiDung)
 
   const tenHienThi = BANG_DICH._ten[tep]
   if (tenHienThi === undefined) throw new Error(`Bảng dịch thiếu tên mẫu "${tep}" (mục _ten)`)
@@ -125,7 +158,10 @@ for (const { tep, slug } of MAU) {
   writeFileSync(path.join(THU_MUC_DICH, `${slug}.svg`), bia)
 
   daSinh.push({ slug, ten: tenHienThi })
-  console.log(`> ${tep} → ${slug}.json (${Math.round(json.length / 1024)} KB) + ${slug}.svg`)
+  console.log(
+    `> ${tep} → ${slug}.json (${Math.round(json.length / 1024)} KB) + ${slug}.svg` +
+      (soKhungBu > 0 ? `  [bù childElementIds cho ${soKhungBu} khung]` : ''),
+  )
 }
 
 if (thieu.size > 0) {
