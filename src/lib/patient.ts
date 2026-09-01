@@ -105,10 +105,35 @@ export function patientHasData(p: PatientVitals): boolean {
 
 export function usePatientVitals() {
   const [patient, setPatient] = useState<PatientVitals>(loadPatient)
+  // Mốc giờ lần cuối một TAB/CỬA SỔ KHÁC (cùng gốc) ghi đè thông số này — null nghĩa là chưa từng.
+  // Trước đây `usePatientVitals` chỉ ĐỌC localStorage một lần lúc mount rồi tự ghi đè theo state nội
+  // bộ, không có gì đối chiếu khi một tab khác (tab cũ còn sót từ trước khi cài PWA, hoặc mở nhầm
+  // tab thứ hai) ghi đè cùng khoá — tab hiện tại lặng lẽ nhận cân nặng/creatinin sai mà không có
+  // cảnh báo nào khác NGOÀI banner "cân nặng đã đổi" vốn đọc y như một chỉnh sửa bình thường của
+  // chính người dùng, trong khi đây là MỘT NGỮ CẢNH KHÁC vừa ghi đè (/impeccable critique
+  // 2026-09-01, P1). PatientPanel dùng mốc giờ này để hiện banner riêng, mức nghiêm trọng hơn.
+  const [crossTabUpdatedAt, setCrossTabUpdatedAt] = useState<number | null>(null)
 
   useEffect(() => {
     savePatient(patient)
   }, [patient])
+
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== PATIENT_KEY || e.newValue == null) return
+      let parsed: Partial<PatientVitals>
+      try {
+        parsed = JSON.parse(e.newValue)
+      } catch {
+        return
+      }
+      const next: PatientVitals = { ...EMPTY_PATIENT, ...parsed }
+      setPatient(next)
+      setCrossTabUpdatedAt(Date.now())
+    }
+    window.addEventListener("storage", onStorage)
+    return () => window.removeEventListener("storage", onStorage)
+  }, [])
 
   const setField = useCallback(<K extends keyof PatientVitals>(key: K, value: PatientVitals[K]) => {
     setPatient((prev) => ({
@@ -119,13 +144,18 @@ export function usePatientVitals() {
     }))
   }, [])
 
-  const reset = useCallback(() => setPatient({ ...EMPTY_PATIENT }), [])
+  const reset = useCallback(() => {
+    setPatient({ ...EMPTY_PATIENT })
+    setCrossTabUpdatedAt(null)
+  }, [])
 
   // Nạp thẳng một bản ghi cũ — dùng cho "Hoàn tác" sau khi bấm "Bệnh nhân mới": khôi phục nguyên
   // trạng thái đã lưu, không chỉ từng trường một.
   const restore = useCallback((snapshot: PatientVitals) => setPatient(snapshot), [])
 
-  return { patient, setField, reset, restore }
+  const dismissCrossTabUpdate = useCallback(() => setCrossTabUpdatedAt(null), [])
+
+  return { patient, setField, reset, restore, crossTabUpdatedAt, dismissCrossTabUpdate }
 }
 
 // ─── Toàn bộ bối cảnh bệnh nhân ────────────────────────────────────────────────

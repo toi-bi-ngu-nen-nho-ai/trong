@@ -80,7 +80,7 @@ import {
   type WardRecipe,
 } from "./lib/wardRecipes"
 import { useStickyState, writeStickyState } from "./lib/uiState"
-import { reconcileOrder, recordTabUse, sortByUsage } from "./lib/tabUsage"
+import { isTabPinned, reconcileOrder, recordTabUse, sortByUsage, toggleTabPin } from "./lib/tabUsage"
 import { recordAbxGroupUse, sortGroupsByUsage } from "./lib/drugUsage"
 import { resolveConfirmTap, shouldRequireExtraConfirm } from "./lib/confirmGate"
 import { applyDoseCap, computePerKgText, describeDoseCap, findFixedDose, findPerKgDoses, formatMass, type CappedDose } from "./lib/perKgDose"
@@ -4919,6 +4919,13 @@ interface DosingContextValue {
   patient: PatientVitals
   setPatientField: <K extends keyof PatientVitals>(key: K, value: PatientVitals[K]) => void
   resetPatient: () => void
+  // Khác null trong lần render đầu tiên sau khi MỘT TAB KHÁC (cùng gốc) ghi đè patient qua sự kiện
+  // `storage` — xem usePatientVitals.crossTabUpdatedAt. PatientPanel dùng để hiện banner riêng,
+  // phân biệt với staleReason (RunningPanel, "cân nặng đã đổi") vì đây là dữ liệu bị NGỮ CẢNH KHÁC
+  // ghi đè, không phải người dùng hiện tại tự sửa.
+  patientChangedElsewhereAt: number | null
+  dismissPatientChangedElsewhere: () => void
+
   // Còn khác null trong 10 giây sau khi bấm "Bệnh nhân mới" — bản sao thông số + bảng đang dùng
   // NGAY TRƯỚC lúc xoá, để dải "Hoàn tác" phục hồi lại đúng như cũ.
   resetUndo: { patient: PatientVitals; running: RunningDrug[] } | null
@@ -5489,7 +5496,20 @@ function PatientField({ label, children }: { label: string; children: React.Reac
 }
 
 function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open: boolean; onToggle: () => void; renalRelevantByDefault?: boolean }) {
-  const { patient, setPatientField, resetPatient, running, abwKg, heightCm, ageYears, crcl, crclUsable, crclInputImplausible } = useDosing()
+  const {
+    patient,
+    setPatientField,
+    resetPatient,
+    running,
+    abwKg,
+    heightCm,
+    ageYears,
+    crcl,
+    crclUsable,
+    crclInputImplausible,
+    patientChangedElsewhereAt,
+    dismissPatientChangedElsewhere,
+  } = useDosing()
   const hasData = patientHasData(patient)
   // "Bệnh nhân mới" xoá SẠCH thông số lẫn bảng đang dùng — hành động phá huỷ nhất màn hình, nên
   // bắt xác nhận hai bước như mọi nút xoá khác thay vì thực thi ngay từ một chạm.
@@ -5558,11 +5578,16 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
     heightCm != null ? `${heightCm} cm` : null,
     patient.sex === "male" ? "Nam" : "Nữ",
     ageYears != null ? `${ageYears} tuổi` : null,
-    crcl != null ? (crclUsable ? `CrCl ${crcl}` : `CrCl ${crcl} (không dùng được)`) : null,
     patient.rrt !== "none" ? RRT_LABELS[patient.rrt] : null,
   ]
     .filter(Boolean)
     .join(" · ")
+  // CrCl tách khỏi summary và không bao giờ `truncate` — đây là con số cả tab kháng sinh tồn tại để
+  // tính ra, nhưng đứng cuối chuỗi join cũ nên bị `truncate` nuốt mất đầu tiên trên màn 375px, đúng
+  // lúc bác sĩ lướt nhanh dòng thu gọn một tay để hỏi "CrCl bao nhiêu" (/impeccable critique
+  // 2026-09-01, P1). Đặt thành span `flex-none` riêng để phần còn lại (cân nặng/tuổi/RRT) có thể
+  // rớt trước, còn CrCl luôn hiện trọn vẹn.
+  const crclSummary = crcl != null ? (crclUsable ? `CrCl ${crcl}` : `CrCl ${crcl} (không dùng được)`) : null
 
   return (
     <div className="mx-5 mb-3 rounded-[20px]" style={{ background: "var(--c-surface)" }}>
@@ -5571,7 +5596,10 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
             Bệnh nhân hiện tại
           </p>
-          <p className="text-[12px] text-slate-600 truncate mt-0.5">{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</p>
+          <p className="text-[12px] text-slate-600 mt-0.5 flex items-baseline gap-1.5 min-w-0">
+            <span className="truncate min-w-0">{hasData ? summary : "Chưa nhập thông số — chạm để nhập"}</span>
+            {hasData && crclSummary && <span className="flex-none">· {crclSummary}</span>}
+          </p>
         </button>
         {/* "Xoá bệnh nhân" CỐ Ý nằm ở đây — đầu khung, gần nút mở/thu gọn — chứ không đẩy xuống gần
             vùng ngón cái hơn (vd cuối danh sách thuốc). Đây là hành động phá huỷ nhất màn hình
@@ -5633,6 +5661,28 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
           <span style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}>{icons.chevronDown()}</span>
         </button>
       </div>
+
+      {/* Đứng TRƯỚC banner "thông số nhập từ lâu" bên dưới — mức nghiêm trọng hơn (màu danger, không
+          phải warn): đây không phải chính người dùng quên cập nhật, mà là MỘT TAB/CỬA SỔ KHÁC (cùng
+          gốc) vừa ghi đè cân nặng/creatinin qua sự kiện `storage` (xem usePatientVitals). Trước đây
+          `usePatientVitals` chỉ đọc localStorage một lần lúc mount, không đối chiếu khi tab khác ghi
+          đè — tab hiện tại lặng lẽ nhận số sai, và banner "cân nặng đã đổi" hiện có (staleReason,
+          RunningPanel) đọc y như một chỉnh sửa bình thường của chính người dùng chứ không báo đây là
+          ngữ cảnh khác (/impeccable critique 2026-09-01, P1). */}
+      {hasData && patientChangedElsewhereAt != null && (
+        <div className="flex items-center gap-2 mx-4 mb-3 px-2.5 py-2 rounded-[14px] fade-in" style={{ background: "var(--c-danger-soft)", border: "1px solid var(--c-danger-line)" }}>
+          <p className="flex-1 text-[12px] font-bold leading-[1.4]" style={{ color: "var(--c-danger)" }}>
+            Dữ liệu bệnh nhân vừa đổi từ một tab khác — kiểm tra lại trước khi dùng
+          </p>
+          <button
+            onClick={dismissPatientChangedElsewhere}
+            className={`flex-none h-7 px-2.5 ${R.pill} dose-press text-[12px] font-bold`}
+            style={{ background: "var(--c-danger)", color: "var(--c-on-bright)" }}
+          >
+            Đã biết
+          </button>
+        </div>
+      )}
 
       {/* Nhắc "còn đúng bệnh nhân này không" — nằm ở HÀNG LUÔN HIỆN, ngoài disc-body, vì mọi phép
           tính liều trên màn hình đọc từ khối này, và trước đây chỉ isRenalStatusStale nhắc riêng
@@ -11228,6 +11278,15 @@ const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
 // tabOrderIds trong DungThuocScreen (/impeccable critique 2026-08-26, P1).
 const TAB_REORDER_HINT_KEY = "drtrong:tabReorderHintSeen"
 
+// Gợi ý MỘT LẦN DUY NHẤT cho hai nút icon-only "Tìm"/"Nhật ký" ở ScreenHeader — rút còn biểu tượng
+// vuông từ 2026-08-31 (P1, tránh tiêu đề bị `truncate`), nhưng `title` không hiện khi CHẠM (thiết bị
+// chính của màn này), nên người lần đầu thấy hai vòng tròn không nhãn mà không có cách xem trước
+// chức năng ngoài bấm thử (/impeccable critique 2026-09-01, P3). Dòng riêng, KHÔNG dùng chung slot
+// với TAB_SEARCH_HINT_KEY/TAB_REORDER_HINT_KEY (hai gợi ý đó đã có logic tránh chồng lên nhau — thêm
+// một dòng nữa vào đúng chỗ đó sẽ phải sửa lại toàn bộ phối hợp ba chiều, rủi ro hơn cần thiết cho
+// một sửa mức P3); dòng này đứng NGAY DƯỚI header, biến mất khi chạm MỘT trong hai nút.
+const HEADER_ICON_HINT_KEY = "drtrong:headerIconHintSeen"
+
 // Đóng băng thứ tự tab theo phiên (xem comment ở khai báo tabOrderIds trong DungThuocScreen) tránh
 // được nạn xáo trộn mỗi lần dựng lại màn, nhưng đóng băng VĨNH VIỄN cho tới khi đóng hẳn tab trình
 // duyệt lại quá cứng: nếu cách dùng thật sự đổi giữa ca (thuốc cấp cứu → thuốc an thần) hoặc điện
@@ -11284,6 +11343,26 @@ export function DungThuocScreen({
   const orderedTabs = useMemo(
     () => (tabOrderIds.length > 0 ? reconcileOrder(MIXING_TABS, tabOrderIds) : MIXING_TABS),
     [tabOrderIds],
+  )
+  // Ghim thủ công 2-3 nhóm hay dùng theo tua trực — xem lib/tabUsage.ts. Đọc lại từ localStorage mỗi
+  // khi đổi để nút ghim (chỉ hiện trên tab đang mở, xem hàng tab bên dưới) phản ánh đúng ngay lập
+  // tức, không đợi tới lần tính lại thứ tự theo TAB_ORDER_REFRESH_MS.
+  const [pinnedTabIds, setPinnedTabIds] = useState<string[]>(() => MIXING_TABS.filter((t) => isTabPinned(t.id)).map((t) => t.id))
+  const togglePinTab = useCallback(
+    (id: string) => {
+      setPinnedTabIds(toggleTabPin(id))
+      setTabOrderIds(sortByUsage(MIXING_TABS).map((t) => t.id))
+      setTabOrderAt(Date.now())
+      tickHaptic()
+      // Ghim tab đang mở có thể nhảy nó ra khỏi đầu hàng cuộn (hàng không tự cuộn theo khi thứ tự
+      // đổi, chỉ cuộn MỘT LẦN lúc vào màn — xem effect activeTabRef bên dưới) — bấm sao xong mà tab
+      // vừa ghim biến mất khỏi khung nhìn thì thao tác trông như không làm gì (phát hiện lúc test tay
+      // sửa P2 /impeccable critique 2026-09-01). rAF đợi DOM cập nhật vị trí mới rồi mới cuộn.
+      requestAnimationFrame(() => {
+        activeTabRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+      })
+    },
+    [setTabOrderIds, setTabOrderAt],
   )
   // Báo MỘT LẦN DUY NHẤT trong đời máy khi thứ tự hàng tab THẬT SỰ đổi (không phải lần tính đầu
   // tiên, vốn chưa có gì để so với). Hàng tab tự sắp lại theo tần suất dùng có ích, nhưng phá trí
@@ -11365,7 +11444,7 @@ export function DungThuocScreen({
       window.removeEventListener("resize", updateTabProgress)
     }
   }, [orderedTabs, updateTabProgress])
-  const { patient, setField, reset, restore } = usePatientVitals()
+  const { patient, setField, reset, restore, crossTabUpdatedAt, dismissCrossTabUpdate } = usePatientVitals()
   // Nâng lên từ DisclaimerGate: cha cần biết tấm phủ có đang mở hay không để đánh dấu `inert` cho
   // nội dung phía sau nó (bàn phím/trình đọc màn hình vẫn thấy được các control nền dù aria-modal
   // đã khai đúng — không phải mọi AT tôn trọng aria-modal một mình, xem DisclaimerGate bên dưới).
@@ -11435,6 +11514,23 @@ export function DungThuocScreen({
       // Không lưu được thì gợi ý có thể hiện lại lần sau — chấp nhận được, không chặn việc dùng app.
     }
     setShowTabHint(false)
+  }
+
+  // Gợi ý một lần cho hai nút icon-only "Tìm"/"Nhật ký" — xem HEADER_ICON_HINT_KEY.
+  const [showHeaderIconHint, setShowHeaderIconHint] = useState(() => {
+    try {
+      return localStorage.getItem(HEADER_ICON_HINT_KEY) !== "1"
+    } catch {
+      return false
+    }
+  })
+  function dismissHeaderIconHint() {
+    try {
+      localStorage.setItem(HEADER_ICON_HINT_KEY, "1")
+    } catch {
+      // Không lưu được thì gợi ý có thể hiện lại lần sau — chấp nhận được, không chặn việc dùng app.
+    }
+    setShowHeaderIconHint(false)
   }
 
   const searchResults = useMemo(() => {
@@ -11535,6 +11631,8 @@ export function DungThuocScreen({
     () => ({
       patient,
       setPatientField: setField,
+      patientChangedElsewhereAt: crossTabUpdatedAt,
+      dismissPatientChangedElsewhere: dismissCrossTabUpdate,
       // "Bệnh nhân mới" phải xoá SẠCH (số cũ còn sót là sai nguy hiểm nhất — nhìn vẫn "có số"),
       // gồm cả bảng Đang truyền. Giữ bản sao 20 giây để "Hoàn tác".
       resetPatient: () => {
@@ -11625,7 +11723,23 @@ export function DungThuocScreen({
       clearWard: (drugId, recipeId) => setWardRecipes(removeWardRecipe(drugId, recipeId)),
       pinWard: (drugId, recipeId) => setWardRecipes(setPinnedWardRecipe(drugId, recipeId)),
     }),
-    [patient, setField, reset, restore, abwKg, heightCm, ageYears, crcl, crclUsable, crclInputImplausible, running, wardRecipes, resetUndo],
+    [
+      patient,
+      setField,
+      reset,
+      restore,
+      crossTabUpdatedAt,
+      dismissCrossTabUpdate,
+      abwKg,
+      heightCm,
+      ageYears,
+      crcl,
+      crclUsable,
+      crclInputImplausible,
+      running,
+      wardRecipes,
+      resetUndo,
+    ],
   )
 
   return (
@@ -11658,6 +11772,7 @@ export function DungThuocScreen({
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
                 if (showTabHint) dismissTabHint()
+                if (showHeaderIconHint) dismissHeaderIconHint()
               }}
               // Pill nhìn thấy cao 36px (khớp hàng tiêu đề min-h-9), vùng chạm thật 44px nhờ đệm
               // dọc vô hình (py-1) — đúng ngưỡng chạm chung của màn.
@@ -11681,7 +11796,10 @@ export function DungThuocScreen({
                 (khớp hàng tiêu đề min-h-9), nhưng vùng CHẠM của chính button là 44px. Số mục 12h gần
                 nhất chuyển thành huy hiệu góc thay vì chữ "· N" nối dài pill. */}
             <button
-              onClick={() => setShowLog(true)}
+              onClick={() => {
+                setShowLog(true)
+                if (showHeaderIconHint) dismissHeaderIconHint()
+              }}
               className="flex-none flex items-center justify-center py-1"
               aria-label={`Nhật ký${recentLogCount > 0 ? ` · ${recentLogCount} mục gần đây` : ""}`}
               title="Nhật ký phép tính"
@@ -11702,6 +11820,18 @@ export function DungThuocScreen({
           </>
         }
       />
+
+      {/* Gợi ý một lần cho hai nút icon-only vừa rút gọn ở trên — xem HEADER_ICON_HINT_KEY. Tự biến
+          mất vĩnh viễn ngay khi chạm MỘT trong hai nút (dù đọc gợi ý trước hay bấm thẳng không đọc).
+          Cùng khuôn dạng chữ mờ, không viền/nền/nút với showTabHint bên dưới, nhưng đứng slot RIÊNG
+          ngay dưới header — không dùng chung logic tránh-chồng-banner của showTabHint/tabReorderNotice
+          (hai cái đó phối hợp với nhau đã đủ tinh vi, thêm một chân thứ ba vào đó rủi ro hơn cần thiết
+          cho một sửa mức P3, /impeccable critique 2026-09-01). */}
+      {showHeaderIconHint && (
+        <p className="fade-in flex-none px-5 pb-2 text-[12px] leading-[1.4]" style={{ color: C.textSoft }}>
+          Kính lúp = Tìm thuốc · Trang giấy = Nhật ký phép tính.
+        </p>
+      )}
 
       {searchOpen && (
         <div className="fade-in flex-none px-5 pb-3">
@@ -11804,26 +11934,51 @@ export function DungThuocScreen({
           }}
         >
           {orderedTabs.map((t) => (
-            <button
-              key={t.id}
-              id={`mixing-tab-${t.id}`}
-              ref={tab === t.id ? activeTabRef : null}
-              onClick={() => chonTab(t.id)}
-              // Roving tabindex (ARIA APG): chỉ tab đang chọn nằm trong thứ tự Tab của trình duyệt,
-              // các tab khác chỉ tới được bằng Trái/Phải — Tab-key không phải lướt qua cả 10 nút mới
-              // ra khỏi hàng.
-              tabIndex={tab === t.id ? 0 : -1}
-              // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
-              // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
-              className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
-              // C.textSoft cho tab chưa chọn, không phải text-muted — text-muted dưới ngưỡng AA ở cỡ này.
-              style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
-              role="tab"
-              aria-selected={tab === t.id}
-              aria-controls="mixing-tabpanel"
-            >
-              {t.label}
-            </button>
+            // items-center (không phải items-stretch) + KHÔNG overflow-hidden trên wrapper: chip vẫn
+            // là một pill độc lập (giữ nguyên `pulse-scale` phóng to 1.12 lúc vừa chọn — bọc trong
+            // overflow-hidden sẽ cắt cụt hoạt ảnh đó), nút ghim là một pill tròn nhỏ TÁCH RIÊNG có
+            // khoảng cách (gap-1), không cố hàn liền vào chip như "ghim công thức" ở RunningPanel.
+            <div key={t.id} className="flex-none flex items-center gap-1">
+              <button
+                id={`mixing-tab-${t.id}`}
+                ref={tab === t.id ? activeTabRef : null}
+                onClick={() => chonTab(t.id)}
+                // Roving tabindex (ARIA APG): chỉ tab đang chọn nằm trong thứ tự Tab của trình duyệt,
+                // các tab khác chỉ tới được bằng Trái/Phải — Tab-key không phải lướt qua cả 10 nút mới
+                // ra khỏi hàng.
+                tabIndex={tab === t.id ? 0 : -1}
+                // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
+                // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
+                className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
+                // C.textSoft cho tab chưa chọn, không phải text-muted — text-muted dưới ngưỡng AA ở cỡ này.
+                style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
+                role="tab"
+                aria-selected={tab === t.id}
+                aria-controls="mixing-tabpanel"
+              >
+                {t.label}
+              </button>
+              {/* Ghim thủ công — CHỈ hiện trên tab đang mở, không phải cả 10 chip: hàng tab vốn đã
+                  vượt giới hạn ≤4 lựa chọn đồng thời (checklist tải nhận thức), thêm icon vào MỌI
+                  chip sẽ làm mật độ nặng hơn đúng chỗ đang muốn giảm nhẹ. Mở tab cần ghim ra rồi bấm
+                  sao ở đây là đủ để ghim nó lên đầu hàng ngay lập tức, không phải chờ MRU hội tụ qua
+                  nhiều ca trực (/impeccable critique 2026-09-01, P2). Cùng ngôn ngữ hình ảnh với
+                  "ghim công thức" (icons.star, opacity mờ/đậm) thay vì phát minh biểu tượng mới. */}
+              {tab === t.id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    togglePinTab(t.id)
+                  }}
+                  className={`flex-none w-9 h-9 ${R.pill} flex items-center justify-center`}
+                  style={{ background: "var(--c-primary-strong)" }}
+                  aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.label}` : `Ghim nhóm ${t.label} lên đầu hàng`}
+                  aria-pressed={pinnedTabIds.includes(t.id)}
+                >
+                  <span style={{ opacity: pinnedTabIds.includes(t.id) ? 1 : 0.35 }}>{icons.star()}</span>
+                </button>
+              )}
+            </div>
           ))}
         </div>
         <div className="absolute left-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to right, var(--c-page), transparent)" }} />
@@ -11859,7 +12014,7 @@ export function DungThuocScreen({
           rỗng, đè lên nội dung lâm sàng (/impeccable critique 2026-08-31, P2). Tự biến mất vĩnh viễn
           khi người dùng mở ô Tìm lần đầu (dismissTabHint trong onClick nút Tìm). */}
       {showTabHint && (
-        <p className="fade-in flex-none mx-5 mb-2 text-[11px] leading-[1.4]" style={{ color: C.textSoft }}>
+        <p className="fade-in flex-none mx-5 mb-2 text-[12px] leading-[1.4]" style={{ color: C.textSoft }}>
           Không thấy thuốc trong {MIXING_TABS.length} nhóm?{" "}
           <button
             onClick={() => {
@@ -12663,7 +12818,7 @@ export default function App() {
                     aria-current={isActive ? "page" : undefined}
                     className="nav-press flex-1 flex flex-col items-center justify-center gap-1"
                     // Mục chưa chọn dùng --c-text-muted chứ không phải --c-muted: nhãn nav chỉ cao
-                    // 10px nên phải đạt ngưỡng tương phản 4.5:1 của chữ nhỏ. Đo trên nền thanh nav
+                    // 11px nên phải đạt ngưỡng tương phản 4.5:1 của chữ nhỏ. Đo trên nền thanh nav
                     // bản tối, --c-muted chỉ được 4.33:1 (trượt), --c-text-muted đạt 5.8:1.
                     style={{ color: isActive ? "var(--c-primary)" : "var(--c-text-muted)", transition: "color .2s ease" }}
                   >
@@ -12686,7 +12841,7 @@ export default function App() {
                       <span className="relative flex items-center justify-center">{icon(isActive)}</span>
                     </span>
                     <span
-                      className="text-[10px] leading-none"
+                      className="text-[11px] leading-none"
                       style={{ fontWeight: isActive ? 700 : 500, transition: "font-weight .2s ease" }}
                     >
                       {label}
