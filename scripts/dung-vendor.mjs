@@ -144,6 +144,19 @@ if (ketQuaGioiHanPanel.status !== 0) {
   process.exit(ketQuaGioiHanPanel.status ?? 1)
 }
 
+// Bước 4b′ — ô "Aa" chỉ liệt kê những họ phông DỰNG ĐƯỢC THẬT. `FontFamilyList` là hằng enum của
+// model (BlockSuite "biết" bảy họ), không nói gì về việc trình duyệt có face nào; dự án chỉ tự chứa
+// Inter nên sáu họ kia là mục chết — bấm vào còn làm ô kiểu chữ bên cạnh tụt về rỗng. Xem chú thích
+// đầy đủ ở loc-ho-phong-co-that.mjs. Cùng bản chất "vá cấu trúc trên cây đã biên dịch" với 4b nên
+// đứng ngay sau; không phụ thuộc thứ tự với nó (khác file hẳn).
+const ketQuaLocHoPhong = chay('node', ['scripts/loc-ho-phong-co-that.mjs'], 'loc-ho-phong-co-that')
+if (ketQuaLocHoPhong.status !== 0) {
+  console.error(
+    `\ndung:vendor: DỪNG — bước lọc họ phông thất bại (exit code ${ketQuaLocHoPhong.status}).`,
+  )
+  process.exit(ketQuaLocHoPhong.status ?? 1)
+}
+
 // Bước 4c — dịch chuỗi hiển thị (D12). Phải chạy SAU đổi tên VÀ SAU tách định danh: bản dịch phải
 // đáp lên cây đã đổi tên và đã tách định danh, không ngược lại. Tách khỏi bước đổi tên vì đây là
 // phép thay có điều kiện theo ngữ cảnh — xem đầu scripts/dich-chuoi-vendor.mjs. Exit code ở đây
