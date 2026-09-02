@@ -4,7 +4,11 @@
 import { describe, expect, it } from 'vitest'
 import ts from 'typescript'
 
-import { vaKichThuocPanelMau, vaViTriPanelMau } from '../../scripts/gioi-han-panel-mau.mjs'
+import {
+  thuGonThanhTimKiemPanelMau,
+  vaKichThuocPanelMau,
+  vaViTriPanelMau,
+} from '../../scripts/gioi-han-panel-mau.mjs'
 
 // Fixture tối giản CÙNG HÌNH DẠNG với khối `.edgeless-templates-panel {...}` thật trong
 // .vendor-build/affine/gfx/template/src/toolbar/template-panel.js — chỉ giữ hai dòng hàm cần kiểm
@@ -65,6 +69,74 @@ describe('vaKichThuocPanelMau — fail-closed khi cấu trúc lệch kỳ vọng
 
   it('file trống → throw', () => {
     expect(() => vaKichThuocPanelMau('', 'thu.js')).toThrow(/không xuất hiện ĐÚNG MỘT LẦN/)
+  })
+})
+
+// Fixture tối giản CÙNG HÌNH DẠNG với khối `.search-bar {...}` / `.search-input {...}` thật trong
+// .vendor-build/affine/gfx/template/src/toolbar/template-panel.js.
+function dungFixtureThanhTimKiem(): string {
+  return (
+    '.search-bar {\n' +
+    '      padding: 21px 24px;\n' +
+    '      font-size: 18px;\n' +
+    '      color: var(--drt-secondary);\n' +
+    '    }\n' +
+    '.search-input {\n' +
+    '      border: 0;\n' +
+    '      font-size: 20px;\n' +
+    '      width: 100%;\n' +
+    '    }\n'
+  )
+}
+
+describe('thuGonThanhTimKiemPanelMau — đường cơ bản', () => {
+  it('thu đệm .search-bar còn 12px 16px và cỡ chữ còn 16px', () => {
+    const { js } = thuGonThanhTimKiemPanelMau(dungFixtureThanhTimKiem(), 'thu.js')
+    expect(js).toContain('padding: 12px 16px;\n      font-size: 16px;')
+    expect(js).not.toContain('padding: 21px 24px;')
+  })
+
+  it('hạ cỡ chữ .search-input còn 16px (sàn 16px chống iOS Safari tự zoom)', () => {
+    const { js } = thuGonThanhTimKiemPanelMau(dungFixtureThanhTimKiem(), 'thu.js')
+    // `.search-bar` và `.search-input` đều còn "font-size: 16px;" sau khi vá — đếm đúng 2 lần,
+    // không còn "font-size: 18px;"/"font-size: 20px;" nào sót lại.
+    expect((js.match(/font-size: 16px;/g) ?? []).length).toBe(2)
+    expect(js).not.toContain('font-size: 20px;')
+    expect(js).not.toContain('font-size: 18px;')
+  })
+
+  it('giữ nguyên phần CSS còn lại xung quanh (không cắt lố)', () => {
+    const { js } = thuGonThanhTimKiemPanelMau(dungFixtureThanhTimKiem(), 'thu.js')
+    expect(js).toContain('color: var(--drt-secondary);')
+    expect(js).toContain('width: 100%;')
+  })
+
+  it('báo daVa: true khi vá thành công', () => {
+    const { daVa } = thuGonThanhTimKiemPanelMau(dungFixtureThanhTimKiem(), 'thu.js')
+    expect(daVa).toBe(true)
+  })
+
+  it('chạy hai lần liên tiếp trên cùng input gốc cho kết quả giống hệt nhau', () => {
+    const fixture = dungFixtureThanhTimKiem()
+    const lanMot = thuGonThanhTimKiemPanelMau(fixture, 'thu.js')
+    const lanHai = thuGonThanhTimKiemPanelMau(fixture, 'thu.js')
+    expect(lanMot).toEqual(lanHai)
+  })
+})
+
+describe('thuGonThanhTimKiemPanelMau — fail-closed khi cấu trúc lệch kỳ vọng', () => {
+  it('thiếu "padding: 21px 24px;\\n      font-size: 18px;" → throw', () => {
+    const fixture = dungFixtureThanhTimKiem().replace('padding: 21px 24px;', 'padding: 20px 24px;')
+    expect(() => thuGonThanhTimKiemPanelMau(fixture, 'thu.js')).toThrow(/không còn khớp ĐÚNG MỘT LẦN/)
+  })
+
+  it('thiếu "font-size: 20px;" ở .search-input → throw', () => {
+    const fixture = dungFixtureThanhTimKiem().replace('font-size: 20px;', 'font-size: 19px;')
+    expect(() => thuGonThanhTimKiemPanelMau(fixture, 'thu.js')).toThrow(/không còn khớp ĐÚNG MỘT LẦN/)
+  })
+
+  it('file trống → throw', () => {
+    expect(() => thuGonThanhTimKiemPanelMau('', 'thu.js')).toThrow(/không còn khớp ĐÚNG MỘT LẦN/)
   })
 })
 

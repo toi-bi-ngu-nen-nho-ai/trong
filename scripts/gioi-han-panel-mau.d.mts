@@ -9,3 +9,8 @@ export declare function vaViTriPanelMau(
   js: string,
   tenFile?: string,
 ): { js: string; daVa: boolean }
+
+export declare function thuGonThanhTimKiemPanelMau(
+  js: string,
+  tenFile?: string,
+): { js: string; daVa: boolean }

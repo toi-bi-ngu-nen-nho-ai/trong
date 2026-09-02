@@ -81,6 +81,48 @@ export function vaKichThuocPanelMau(js, tenFile = 'khong-ten.js') {
   return { js: ra, daVa: true }
 }
 
+// Thu gọn thanh tìm kiếm ở đầu panel "Mẫu" — chủ dự án báo 2026-09-02 (kèm ảnh chụp) rằng nó CHIẾM
+// QUÁ NHIỀU DIỆN TÍCH so với phần còn lại của panel: đệm 21px/24px + cỡ chữ 18–20px trong khi hàng
+// tab danh mục ngay dưới chỉ 12px/4px 9px và ô mẫu chỉ cao 80px. Không đổi hành vi, chỉ đổi TỈ LỆ:
+// đệm còn hơn một nửa (12px 16px) và cỡ chữ hạ xuống 16px — SÀN đã dùng cho MỌI ô nhập của app
+// (DESIGN.md "The 16px Floor Rule": ô dưới 16px khiến iOS Safari tự zoom khi focus). `.search-bar`
+// tự nó cũng khai `font-size: 18px` làm giá trị dự phòng cho div bao ngoài — hạ luôn xuống 16px cho
+// nhất quán, dù `.search-input` mới là thứ người dùng thật sự thấy gõ chữ vào.
+//
+// BA PHÉP THAY ĐỘC LẬP TỪNG DÒNG, không phải MỘT literal nhiều dòng: `tsc` phát ra file với line
+// ending CRLF (cây nguồn `src/vendor/blocksuite/` toàn bộ là CRLF trên máy Windows này), nên một
+// literal `'a;\n      b;'` chèn cứng `\n` sẽ KHÔNG BAO GIỜ khớp `a;\r\n      b;` thật — đo được
+// ngay lần chạy đầu (0/1 thay vì 1/1). Ba dòng CSS đích đều là chuỗi lẻ, mỗi dòng chỉ xuất hiện
+// đúng một lần trong file, nên tách riêng khỏi luôn phải quan tâm ký tự xuống dòng nào.
+const CU_SEARCH_BAR_PADDING = 'padding: 21px 24px;'
+const MOI_SEARCH_BAR_PADDING = 'padding: 12px 16px;'
+const CU_SEARCH_BAR_CO_CHU = 'font-size: 18px;'
+const MOI_SEARCH_BAR_CO_CHU = 'font-size: 16px;'
+const CU_SEARCH_INPUT_CO_CHU = 'font-size: 20px;'
+const MOI_SEARCH_INPUT_CO_CHU = 'font-size: 16px;'
+
+export function thuGonThanhTimKiemPanelMau(js, tenFile = 'khong-ten.js') {
+  const soKhop = {
+    padding: demLuot(js, CU_SEARCH_BAR_PADDING),
+    coChuBar: demLuot(js, CU_SEARCH_BAR_CO_CHU),
+    coChuInput: demLuot(js, CU_SEARCH_INPUT_CO_CHU),
+  }
+  if (soKhop.padding !== 1 || soKhop.coChuBar !== 1 || soKhop.coChuInput !== 1) {
+    throw new Error(
+      `gioi-han-panel-mau: ".search-bar"/".search-input" không còn khớp ĐÚNG MỘT LẦN trong ` +
+        `${tenFile} (đo được padding=${soKhop.padding}, font-size:18px=${soKhop.coChuBar}, ` +
+        `font-size:20px=${soKhop.coChuInput}). Thượng nguồn có thể đã đổi CSS thanh tìm kiếm — ` +
+        'đo lại trước khi sửa, đừng đổi số mù.',
+    )
+  }
+
+  const ra = js
+    .replace(CU_SEARCH_BAR_PADDING, MOI_SEARCH_BAR_PADDING)
+    .replace(CU_SEARCH_BAR_CO_CHU, MOI_SEARCH_BAR_CO_CHU)
+    .replace(CU_SEARCH_INPUT_CO_CHU, MOI_SEARCH_INPUT_CO_CHU)
+  return { js: ra, daVa: true }
+}
+
 export function vaViTriPanelMau(js, tenFile = 'khong-ten.js') {
   if (demLuot(js, CU_IMPORT_FLOATING_UI) !== 1 || demLuot(js, CU_MIDDLEWARE) !== 1) {
     throw new Error(
@@ -104,6 +146,7 @@ if (dieuHanhTrucTiep) {
 
   for (const [duong, ham, moTa] of [
     [TEP_KICH_THUOC, vaKichThuocPanelMau, 'giới hạn kích thước .edgeless-templates-panel theo viewport'],
+    [TEP_KICH_THUOC, thuGonThanhTimKiemPanelMau, 'thu gọn đệm/cỡ chữ thanh tìm kiếm'],
     [TEP_VI_TRI, vaViTriPanelMau, 'thêm middleware size() cho vị trí panel'],
   ]) {
     const rel = path.relative(GOC, duong).split(path.sep).join('/')

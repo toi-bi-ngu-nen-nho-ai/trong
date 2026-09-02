@@ -13,7 +13,7 @@ export type NhomSticker = {
 
 export const MAU_STICKER: readonly NhomSticker[] = [
   {
-    danhMuc: "Heo nhắng",
+    danhMuc: "Heo mập",
     thuMuc: "heo-nhang",
     mau: [
       { id: "crybaby", ten: "Crybaby", w: 360, h: 360 },

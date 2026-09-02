@@ -30,7 +30,7 @@ const TEP_SINH = path.join(GOC, 'src/board/mau-sticker.sinh.ts')
 const KHI_HONG_DUNG = { w: 240, h: 240 } // SVG không parse được kích thước — hiếm, nhưng đừng ném cả lượt chạy.
 
 const DANH_MUC = [
-  { nguon: 'Cheeky Piggies', hienThi: 'Heo nhắng', thuMuc: 'heo-nhang' },
+  { nguon: 'Cheeky Piggies', hienThi: 'Heo mập', thuMuc: 'heo-nhang' },
   { nguon: 'Contorted Stickers', hienThi: 'Nhãn dán', thuMuc: 'nhan-dan' },
   { nguon: 'Paper', hienThi: 'Giấy nhớ', thuMuc: 'giay-nho' },
 ]

@@ -126,12 +126,14 @@ if (ketQuaTachDinhDanh.status !== 0) {
 }
 
 // Bước 4b — giới hạn kích thước VÀ vị trí panel "Mẫu" theo viewport (vá lỗi panel tràn/đè lên
-// thanh công cụ chính, người dùng báo 2026-09-01; xem chú thích đầy đủ ở gioi-han-panel-mau.mjs,
-// gồm cả bài học "lượt vá CSS-only đầu tiên không đủ"). Vá HAI file (template-panel.js +
-// template-tool-button.js) trong một lượt gọi CLI. Không phụ thuộc thứ tự với tách định danh (4a)
-// hay dịch chuỗi (4c) — khác hẳn phạm vi hai bước kia — nhưng đứng cạnh chúng cho nhất quán "vá cấu
-// trúc trước khi dịch chuỗi". Exit code ở đây có ý nghĩa thật: script này không có lý do sẵn có nào
-// để thoát khác 0, nên thất bại là phải dừng.
+// thanh công cụ chính, người dùng báo 2026-09-01), CỘNG thêm thu gọn đệm/cỡ chữ thanh tìm kiếm
+// (chủ dự án báo 2026-09-02: thanh tìm kiếm chiếm quá nhiều diện tích so với phần còn lại của
+// panel) — xem chú thích đầy đủ ở gioi-han-panel-mau.mjs, gồm cả bài học "lượt vá CSS-only đầu
+// tiên không đủ". Vá HAI file (template-panel.js + template-tool-button.js) trong một lượt gọi
+// CLI. Không phụ thuộc thứ tự với tách định danh (4a) hay dịch chuỗi (4c) — khác hẳn phạm vi hai
+// bước kia — nhưng đứng cạnh chúng cho nhất quán "vá cấu trúc trước khi dịch chuỗi". Exit code ở
+// đây có ý nghĩa thật: script này không có lý do sẵn có nào để thoát khác 0, nên thất bại là phải
+// dừng.
 const ketQuaGioiHanPanel = chay(
   'node',
   ['scripts/gioi-han-panel-mau.mjs'],

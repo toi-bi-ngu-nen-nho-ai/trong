@@ -22,7 +22,7 @@ function propsAnh(mau: { content: unknown }): Record<string, unknown> {
 
 describe('HandyTemplateManager', () => {
   it('bốn danh mục, "Mũi tên" đứng đầu', () => {
-    expect(qtl.categories()).toEqual([DANH_MUC, 'Heo nhắng', 'Nhãn dán', 'Giấy nhớ'])
+    expect(qtl.categories()).toEqual([DANH_MUC, 'Heo mập', 'Nhãn dán', 'Giấy nhớ'])
   })
 
   it('list trả đủ số mẫu từng danh mục, danh mục lạ trả rỗng', () => {
