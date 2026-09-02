@@ -171,11 +171,17 @@ function khoiTheoFlavour(snap, flavour) {
 /**
  * Phóng một phần tử `text` lên `he` lần: cỡ chữ VÀ hộp, neo góc trên-trái. Vì `w` phóng cùng hệ số
  * nên cách ngắt dòng không đổi, số dòng không đổi, và `h × he` vẫn đúng là chiều cao mới.
+ *
+ * CỘNG BIÊN 2 % + 4 px, đừng bỏ. `w` thượng nguồn chính là bề rộng ĐO ĐƯỢC của chữ ở cỡ cũ, nên
+ * `w × he` ra đúng bằng bề rộng cần — và `wrapText` so `width > W` nên chỉ cần sai số làm tròn
+ * float là chữ rơi xuống dòng hai. Bắt được trên trình duyệt thật 2026-09-02: "Điểm mạnh" hiện ra
+ * "Điểm", "Nguy cơ" ra "Nguy" — phần rơi xuống KHÔNG mất mà bị khối giấy nhớ (DOM, nằm trên canvas)
+ * che, nên nhìn y hệt chữ bị cắt và console sạch trơn.
  */
 function phongChu(el, he) {
   const [x, y, w, h] = doXywh(el)
   el.fontSize = Math.round(el.fontSize * he * 100) / 100
-  datXywh(el, x, y, w * he, h * he)
+  datXywh(el, x, y, w * he * 1.02 + 4, h * he)
 }
 
 function canDung(dieuKien, thongDiep) {
@@ -209,10 +215,17 @@ function boCucLuuDo(snap) {
     }
   }
 
-  // Sáu nhãn "Có"/"Không" cạnh đường nối — chọn theo bề rộng hộp, không theo chuỗi đã dịch.
+  // Sáu nhãn "Có"/"Không" cạnh đường nối — chọn theo bề rộng hộp, không theo chuỗi đã dịch. Bề rộng
+  // đặt thẳng 200 vì cùng cái bẫy như tiêu đề ô SWOT: hộp thượng nguồn của "Không" chỉ rộng 33 khi
+  // chữ cần 70 ở cỡ 24, nên `wrapText` bẻ THEO TỪNG KÝ TỰ và nhãn đổ dọc thành "K/h/ô/n/g" — nhìn
+  // trên bản gốc tưởng là hoạ tiết. Nhân hệ số chỉ phóng to cái lỗi đó lên.
   const nhan = pt.filter((e) => e.type === 'text' && doXywh(e)[2] <= 100)
   canDung(nhan.length === 6, `Lưu đồ phải có 6 nhãn nhánh, thấy ${nhan.length}`)
-  nhan.forEach((e) => phongChu(e, 40 / 24))
+  for (const e of nhan) {
+    const [x, y, , h] = doXywh(e)
+    e.fontSize = 40
+    datXywh(e, x, y, 200, (h * 40) / 24)
+  }
 
   // Cột trái: nới khung "Hướng dẫn" tới sát x = −460 (phần tử trái nhất của sơ đồ ở x = −416) để
   // khối văn xuôi ngắt dòng thưa hơn; nhờ đó nâng được cỡ 24 → 44 mà vẫn nằm gọn trong khung. Khung
@@ -220,10 +233,10 @@ function boCucLuuDo(snap) {
   // không đổi.
   const khung = khoiTheoFlavour(snap, 'affine:frame').sort((a, b) => doXywh(b)[3] - doXywh(a)[3])
   canDung(khung.length === 2, `Lưu đồ phải có 2 khung, thấy ${khung.length}`)
-  datXywh(khung[0], -1722, 10, 1262, 1240)
-  datXywh(khung[1], -1722, 1300, 811, 333)
+  datXywh(khung[0], -1722, 10, 1262, 1090)
+  datXywh(khung[1], -1722, 1160, 811, 333)
 
-  const DOI_PHIM = 408 // 1300 − 892: khoảng khung "Phím" tụt xuống
+  const DOI_PHIM = 268 // 1160 − 892: khoảng khung "Phím" tụt xuống
   const hinhPhim = pt.filter((e) => e.type === 'shape' && doXywh(e)[0] < -900)
   canDung(hinhPhim.length === 2, `khung "Phím" phải có 2 hình mẫu, thấy ${hinhPhim.length}`)
   hinhPhim.forEach((e) => {
@@ -234,9 +247,16 @@ function boCucLuuDo(snap) {
   const chuHuongDan = pt.filter((e) => e.type === 'text' && doXywh(e)[0] < -900)
   canDung(chuHuongDan.length === 2, `khung "Hướng dẫn" phải có 2 khối chữ, thấy ${chuHuongDan.length}`)
   const than = chuHuongDan.find((e) => e.fontSize < 60)
-  canDung(than != null, 'không tìm được khối văn xuôi của khung "Hướng dẫn"')
+  const tieuDe = chuHuongDan.find((e) => e.fontSize >= 60)
+  canDung(than != null && tieuDe != null, 'không tìm đủ tiêu đề + văn xuôi của khung "Hướng dẫn"')
+  // DẸT XUỐNG 110 đơn vị dưới đỉnh khung. Chip tên khung (`drt-frame-title`) là DOM cao 23 px CỐ
+  // ĐỊNH, vẽ đè vào góc trên-trái BÊN TRONG khung chứ không nằm phía trên nó. Thuợng nguồn đặt tiêu
+  // đề chỉ cách đỉnh khung 45 đơn vị — ở zoom 0,25 chỉ còn 11 px nên chip đè thẳng lên chữ (đo DOM
+  // 2026-09-02: chip 204..227, chữ "Lưu đồ" ở 212). 110 đơn vị đủ chỗ cho chip ở mọi mức zoom ≥ 0,21.
+  const [, , wTieuDe, hTieuDe] = doXywh(tieuDe)
+  datXywh(tieuDe, -1675, 120, wTieuDe, hTieuDe)
   than.fontSize = 44
-  datXywh(than, -1675, 174, 1170, 1010)
+  datXywh(than, -1675, 240, 1170, 800)
 }
 
 /**
@@ -252,7 +272,19 @@ function boCucSwot(snap) {
   canDung(tieuDeO.length === 4, `SWOT phải có 4 tiêu đề ô, thấy ${tieuDeO.length}`)
   // 64 → 110: hộp cao nhất sau khi phóng là 120 px, còn giấy nhớ đầu tiên của mỗi ô nằm ở +137 px
   // dưới đỉnh ô, nên vẫn không chạm.
-  tieuDeO.forEach((e) => phongChu(e, 110 / 64))
+  //
+  // BỀ RỘNG ĐẶT THẲNG, KHÔNG NHÂN HỆ SỐ. `w` thượng nguồn KHÔNG phải bề rộng chữ: đo trên trình
+  // duyệt thật 2026-09-02, "Điểm mạnh" ở cỡ 110 OrelegaOne cần 516 px trong khi 245 × 110/64 chỉ ra
+  // 433 — tức bốn nhãn này đã ngắt dòng sẵn từ thượng nguồn. Nhân hệ số vì thế giữ nguyên lỗi: chữ
+  // rơi xuống dòng hai rồi bị khối giấy nhớ (DOM nằm trên canvas) che, nhìn y như bị cắt cụt
+  // ("Điểm mạnh" → "Điểm", "Nguy cơ" → "Nguy"). 1100 dư cho nhãn rộng nhất và vẫn nằm trong ô: nhãn
+  // cách mép trái ô 69 px nên mép phải 1169 < 1377. Cả bốn đều căn TRÁI nên nới rộng không xê dịch.
+  for (const e of tieuDeO) {
+    const [x, y, , h] = doXywh(e)
+    canDung(e.textAlign === 'left', `tiêu đề ô SWOT phải căn trái, thấy ${e.textAlign}`)
+    e.fontSize = 110
+    datXywh(e, x, y, 1100, (h * 110) / 64)
+  }
 
   const tieuDeMau = chu.find((e) => e.fontSize === 64 && doXywh(e)[0] < 0)
   canDung(tieuDeMau != null, 'không tìm được tiêu đề "SWOT" trong bảng hướng dẫn')
@@ -269,8 +301,142 @@ function boCucSwot(snap) {
   phongChu(goiY, 52 / 44)
 }
 
+/**
+ * Sơ đồ khái niệm. Khổ 8026×2334 bị chặn theo BỀ NGANG rất nặng (0,155 so với 0,301 theo chiều cao)
+ * — đúng dạng mà THU KHỔ ăn tiền: bảng "Hướng dẫn" 1030 px nằm ở cạnh trái, dời nó LÊN TRÊN hai
+ * khung sơ đồ cắt bề ngang còn 6787 (zoom 0,183, +18 %) mà chiều cao mới 3718 vẫn chưa thành cạnh
+ * chặn (703/3718 = 0,189). Bảng nằm ngang cũng cho khối văn xuôi ngắt dòng thưa hơn nhiều, nên cỡ
+ * chữ nhảy từ 48 lên 96 mà chiều cao còn GIẢM.
+ */
+function boCucSoDoKhaiNiem(snap) {
+  const pt = phanTu(snap)
+  const khung = khoiTheoFlavour(snap, 'affine:frame').sort((a, b) => doXywh(a)[2] - doXywh(b)[2])
+  canDung(khung.length === 3, `Sơ đồ khái niệm phải có 3 khung, thấy ${khung.length}`)
+  const [kHuongDan, kA] = khung
+  canDung(Math.round(doXywh(kHuongDan)[2]) === 1031, 'khung hẹp nhất phải là bảng "Hướng dẫn"')
+
+  // Bảng hướng dẫn thành một dải NGANG rộng bằng khung sơ đồ A, đặt phía trên. 110 đơn vị chừa cho
+  // chip tên khung (DOM cao 23 px cố định, vẽ đè vào góc trên-trái BÊN TRONG khung).
+  const xA = doXywh(kA)[0]
+  const wA = doXywh(kA)[2]
+  datXywh(kHuongDan, xA, -1340, wA, 1274)
+
+  const chu = pt.filter((e) => e.type === 'text')
+  canDung(chu.length === 2, `Sơ đồ khái niệm phải có 2 khối chữ, thấy ${chu.length}`)
+  const tieuDe = chu.find((e) => e.fontSize === 64)
+  const than = chu.find((e) => e.fontSize === 48)
+  canDung(tieuDe != null && than != null, 'không tìm đủ tiêu đề + văn xuôi bảng hướng dẫn')
+  tieuDe.fontSize = 128
+  datXywh(tieuDe, xA + 73, -1230, 2000, 164) // 2000 dư sức cho nhãn — xem bẫy bề rộng ở phongChu()
+  than.fontSize = 96
+  datXywh(than, xA + 73, -1026, wA - 146, 900)
+
+  // Hai nút gốc "Khái niệm A/B": hộp 359×234 với BebasNeue cỡ 64 chỉ ra 11,7 px sau khi chèn. Nới
+  // hộp lên 560×280 (còn thừa chỗ: phần tử kế tiếp trong khung cách 880 px) để lên được cỡ 96. 560
+  // chứ không phải 520 vì lòng hộp phải hơn 496 px — bề rộng đo được của "Khái niệm A" ở cỡ 96
+  // BebasNeue; 520 làm nhãn rơi xuống hai dòng ngoài ý muốn.
+  const nut = pt.filter((e) => e.type === 'shape' && chuTrongHinh(e) !== '')
+  canDung(nut.length === 2, `Sơ đồ khái niệm phải có 2 hình có chữ, thấy ${nut.length}`)
+  for (const e of nut) {
+    const [x, y] = doXywh(e)
+    datXywh(e, x, y, 560, 280)
+    e.fontSize = 96
+  }
+}
+
+/**
+ * SMART. Khổ 7279×1553 bị chặn theo BỀ NGANG cực nặng (0,170 so với 0,453 theo chiều cao): năm cột
+ * rộng 1207 xếp một hàng, trong khi chiều cao chỉ dùng hết 1/3 khả năng. Đây là mẫu DUY NHẤT phải
+ * dựng lại bố cục chứ không chỉ chỉnh cỡ chữ — chữ của nó đã lấp gần kín hộp sẵn (khối tiêu đề
+ * 1208×271 chứa 202 px nội dung = 75 %), nên nâng cỡ tại chỗ là tràn.
+ *
+ * Cách làm: bóp bề ngang cột 1207 → 780 (chữ ngắt dòng dày hơn, bù bằng khối tiêu đề cao hơn — chỗ
+ * đó đang thừa), dời bảng "Hướng dẫn" từ cạnh trái lên thành dải ngang phía trên, và thu chữ cái
+ * khổng lồ 824 → 420 cho vừa cột mới. Khổ còn 4140×2176 → zoom 0,300 (từ 0,170), và cỡ chữ thân bài
+ * nâng 32 → 44 nên chữ trên màn đi từ 5,4 px lên 13,2 px.
+ */
+function boCucSmart(snap) {
+  const pt = phanTu(snap)
+  const W_COT = 780
+  const BUOC = 840
+  const X0 = -1680
+  // Chiều cao khối tiêu đề lấy theo chỗ chữ THẬT chiếm: đo trên trình duyệt 2026-09-02, thân bài
+  // dài nhất ở cỡ 44 trong lòng 676 là 5 dòng = 253 px, cộng nhãn 51 px và lề → 440 là vừa.
+  const CAO_TIEU_DE = 440
+  const Y_PANEL = -193 + CAO_TIEU_DE + 40 // 287
+  // Panel phải chứa HAI tờ giấy nhớ 348 px xếp so le mà không chồng nhau: 60 + 348 + 22 + 348 + 42.
+  const CAO_PANEL = 820
+
+  const hinh = pt.filter((e) => e.type === 'shape')
+  const bangHuongDan = hinh.find((e) => Math.round(doXywh(e)[2]) === 950)
+  const dauCot = hinh.filter((e) => Math.round(doXywh(e)[3]) === 271).sort((a, b) => doXywh(a)[0] - doXywh(b)[0])
+  const thanCot = hinh.filter((e) => Math.round(doXywh(e)[3]) === 1159).sort((a, b) => doXywh(a)[0] - doXywh(b)[0])
+  canDung(bangHuongDan != null, 'không tìm được bảng "Hướng dẫn" 950×733 của SMART')
+  canDung(dauCot.length === 5 && thanCot.length === 5, `SMART phải có 5 khối tiêu đề + 5 panel, thấy ${dauCot.length}/${thanCot.length}`)
+
+  const chu = pt.filter((e) => e.type === 'text')
+  const chuKhongLo = chu.filter((e) => e.fontSize > 500).sort((a, b) => doXywh(a)[0] - doXywh(b)[0])
+  const nhan = chu.filter((e) => e.fontSize === 32 && doXywh(e)[2] < 400).sort((a, b) => doXywh(a)[0] - doXywh(b)[0])
+  const thanBai = chu.filter((e) => e.fontSize === 32 && doXywh(e)[2] >= 400).sort((a, b) => doXywh(a)[0] - doXywh(b)[0])
+  canDung(
+    chuKhongLo.length === 5 && nhan.length === 5 && thanBai.length === 5,
+    `SMART phải có 5 chữ cái lớn + 5 nhãn + 5 thân bài, thấy ${chuKhongLo.length}/${nhan.length}/${thanBai.length}`,
+  )
+
+  // Giấy nhớ: ghi lại cột cũ của từng tờ TRƯỚC khi dời cột, rồi xếp lại vào cột mới.
+  const ghiChu = khoiTheoFlavour(snap, 'affine:note')
+  canDung(ghiChu.length === 9, `SMART phải có 9 giấy nhớ, thấy ${ghiChu.length}`)
+  const xCotCu = dauCot.map((e) => doXywh(e)[0])
+  const theoCot = xCotCu.map(() => [])
+  for (const n of ghiChu) {
+    const x = doXywh(n)[0]
+    let i = 0
+    for (let k = 1; k < xCotCu.length; k += 1) if (x >= xCotCu[k]) i = k
+    theoCot[i].push(n)
+  }
+
+  for (let i = 0; i < 5; i += 1) {
+    const X = X0 + i * BUOC
+    datXywh(dauCot[i], X, -193, W_COT, CAO_TIEU_DE)
+    datXywh(thanCot[i], X, Y_PANEL, W_COT, CAO_PANEL)
+
+    nhan[i].fontSize = 44
+    datXywh(nhan[i], X + 52, -133, W_COT - 104, 66)
+    thanBai[i].fontSize = 44
+    datXywh(thanBai[i], X + 52, -51, W_COT - 104, 280)
+
+    // Chữ cái khổng lồ: đổi sang căn GIỮA và lấy trọn bề ngang cột. Vừa tránh hẳn bẫy ngắt dòng
+    // (hộp luôn rộng hơn một ký tự), vừa cho nó nằm đúng tâm panel — bản gốc đặt lệch mỗi cột một
+    // kiểu (lệch 232…365 px trong panel 1207).
+    chuKhongLo[i].fontSize = 420
+    chuKhongLo[i].textAlign = 'center'
+    datXywh(chuKhongLo[i], X, Y_PANEL + 158, W_COT, 630)
+
+    // Giấy nhớ xếp SO LE (trên-trái, dưới-phải) chứ không kề nhau: hai tờ 364 px cạnh nhau chiếm
+    // trọn cột 780 và bịt kín chữ cái phía sau. Giấy nhớ là khối DOM nằm TRÊN canvas nên luôn che
+    // chữ cái — bản gốc cũng vậy, chỉ khác là panel rộng 1207 nên che ít hơn.
+    theoCot[i].forEach((n, k) => {
+      const [, , w, h] = doXywh(n)
+      datXywh(n, X + (k === 0 ? 40 : W_COT - 40 - w), Y_PANEL + 60 + k * 370, w, h)
+    })
+  }
+
+  // Bảng hướng dẫn thành dải ngang phía trên năm cột.
+  const W_BANG = 4 * BUOC + W_COT
+  datXywh(bangHuongDan, X0, -933, W_BANG, 620)
+  const tieuDeMau = chu.find((e) => e.fontSize === 48)
+  const thanMau = chu.find((e) => e.fontSize === 36)
+  canDung(tieuDeMau != null && thanMau != null, 'không tìm đủ tiêu đề + văn xuôi bảng hướng dẫn SMART')
+  tieuDeMau.fontSize = 96
+  datXywh(tieuDeMau, X0 + 60, -873, 2000, 136)
+  thanMau.fontSize = 72
+  datXywh(thanMau, X0 + 60, -707, W_BANG - 120, 470)
+}
+
 const BO_CUC = {
+  'concept-map': boCucSoDoKhaiNiem,
   flowchart: boCucLuuDo,
+  smart: boCucSmart,
   swot: boCucSwot,
 }
 
