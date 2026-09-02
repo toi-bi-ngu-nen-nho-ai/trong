@@ -198,6 +198,27 @@ export const FILE_CHO_PHEP_KEY_MUC_MENU = new Set([
 // Đối số của các hàm này là chuỗi hiển thị cho người dùng cuối.
 // KHÔNG thêm `error`/`warn`/`debugLog` (thông báo cho lập trình viên) hay `track` (tên sự kiện đo
 // đạc) hay `createIdentifier` (định danh tiêm phụ thuộc — dịch là gãy phân giải service).
+// Hai mảng nhãn ở ĐẦU `date-picker.js`: `const days = ['Su','Mo',…]` và `const months =
+// ['Jan','Feb',…]`. Đây là chữ HIỂN THỊ thuần tuý (hàng tiêu đề thứ và lưới chọn tháng của bộ chọn
+// ngày), nhưng nằm ở một vị trí cú pháp mà không nhánh nào của viTriHienThi phủ: phần tử mảng
+// literal cấp module. Hệ quả đo thật 2026-09-02 — dựng `new DatePicker()` trong app đang chạy rồi
+// đọc shadow DOM: "Sep 2026 TODAY SuMoTuWeThFrSa 30 31 1 2 …", tức TOÀN BỘ bộ chọn ngày tiếng Anh.
+//
+// KHÔNG phải UI chết: `blocks/database/src/properties/index.js` khai
+// `dateColumnConfig: datePropertyConfig`, và cell-renderer của preset đó gọi thẳng
+// `new DatePicker()`. Đường tới khối Database thì chính `edgeless-board-database.spec.ts` đã canh
+// (slash menu → "Table View" → khối vào Note → thêm cột). Khác hẳn `open-doc-dropdown-menu` (chuỗi
+// "Open") — thứ KHÔNG khối/widget nào còn render ở bản cắt gọn này, nên cố tình để nguyên.
+//
+// Danh sách ĐÓNG theo đường dẫn, và nhánh trong viTriHienThi còn đòi thêm ĐÚNG tên biến (dưới) —
+// hai tầng neo, cùng mức chặt với FILE_CHO_PHEP_LOC_INCLUDES.
+export const FILE_CHO_PHEP_MANG_NHAN_NGAY = new Set([
+  'affine/components/src/date-picker/date-picker.js',
+])
+
+/** Tên biến của hai mảng nhãn nói trên — neo thứ hai, xem FILE_CHO_PHEP_MANG_NHAN_NGAY. */
+export const TEN_MANG_NHAN_NGAY = new Set(['days', 'months'])
+
 export const DOI_SO_HIEN_THI = new Set(['toast'])
 
 // Ngoại lệ HẸP THEO FILE cho đối số đầu của `ctx.fillText(…)` — KHÔNG thêm 'fillText' vào
@@ -351,6 +372,23 @@ export function viTriHienThi(node, tenFile = null) {
       gp.parent.kind === ts.SyntaxKind.CallExpression
     ) {
       return `vế-lọc-includes:${tenFile}`
+    }
+
+    // Phần tử của ĐÚNG hai mảng nhãn `const days = [...]` / `const months = [...]` ở đầu
+    // date-picker.js — xem FILE_CHO_PHEP_MANG_NHAN_NGAY. Đòi đủ ba tầng cú pháp (mảng → khai báo
+    // biến → đúng một trong hai tên) nên một mảng chuỗi bình thường trong cùng file không lọt,
+    // cùng mức chặt với vế-lọc-includes ngay trên.
+    if (tenFile && FILE_CHO_PHEP_MANG_NHAN_NGAY.has(tenFile)) {
+      const kb = p.parent
+      if (
+        kb &&
+        kb.kind === ts.SyntaxKind.VariableDeclaration &&
+        kb.initializer === p &&
+        kb.name?.kind === ts.SyntaxKind.Identifier &&
+        TEN_MANG_NHAN_NGAY.has(kb.name.text)
+      ) {
+        return `mảng-nhãn-ngày:${kb.name.text}`
+      }
     }
     return null
   }
@@ -1027,4 +1065,41 @@ export function thayChuTranTrongDiv(js, banDo, tenFile = 'khong-ten.js') {
   }
 
   return { js: ket, cacLuot }
+}
+
+// Chữ TRẦN "TODAY" trong `<span>TODAY</span>` — nút "hôm nay" của bộ chọn ngày (date-picker.js).
+// Hình dạng "chữ trần" thứ SÁU: `<span>` này KHÔNG có class nào, nên thayChuTranTrongDiv (neo bằng
+// cặp thẻ+class) không với tới. Neo bằng class của NÚT BAO NGOÀI đứng ngay trước —
+// `class="action-label interactive today"` — đúng kỹ thuật `@click="${this.onClose}"` của
+// thayNutDongMenuMobile.
+//
+// Hai mảng nhãn `days`/`months` cùng file KHÔNG đi đường này: chúng là StringLiteral thật nên bộ
+// duyệt AST (`dichMotFile`) dịch được, chỉ cần mở vị trí — xem FILE_CHO_PHEP_MANG_NHAN_NGAY.
+// Riêng "TODAY" nằm trong phần TEXT của template literal, không node AST nào đại diện.
+//
+// Đo 2026-09-02 trên .vendor-build: ĐÚNG MỘT lượt class đó và đúng một lượt "TODAY" trong toàn
+// file. Danh sách ĐÓNG theo đường dẫn.
+const RE_NUT_HOM_NAY = /(class="action-label interactive today"[\s\S]*?<span>\s*)TODAY(\s*<\/span>)/
+
+export function thayNutHomNay(js, banDo, tenFile = 'khong-ten.js') {
+  if (tenFile !== 'affine/components/src/date-picker/date-picker.js') {
+    return { js, cacLuot: [] }
+  }
+  const m = js.match(RE_NUT_HOM_NAY)
+  if (!m || !Object.hasOwn(banDo, 'TODAY')) return { js, cacLuot: [] }
+
+  const vi = banDo['TODAY']
+  if (typeof vi !== 'string') {
+    throw new Error(
+      'luat-vi-tri-dich: khoá "TODAY" (nút hôm nay của bộ chọn ngày, thayNutHomNay) có giá trị ' +
+        `KHÔNG PHẢI CHUỖI (kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+    )
+  }
+
+  const dong = js.slice(0, m.index + m[1].length).split('\n').length
+
+  return {
+    js: js.replace(RE_NUT_HOM_NAY, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`),
+    cacLuot: [{ chuoiGoc: 'TODAY', chuoiDich: vi, dong }],
+  }
 }

@@ -22,6 +22,7 @@ import {
   thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
+  thayNutHomNay,
   thayTienToSlideFrameDenseMenu,
   thayTrenToanCay,
   THUOC_TINH_HIEN_THI,
@@ -587,6 +588,13 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (banDich.has(chu)) daThay.add(chu)
       }
 
+      // Cùng nguyên tắc cho `<span>` KHÔNG thuộc tính — nút "hôm nay" của bộ chọn ngày
+      // (thayNutHomNay, 2026-09-02). Regex viết LẠI, không gọi hàm thật.
+      for (const mm of src.matchAll(/<span>\s*([^<>{}]+?)\s*<\/span>/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 
@@ -941,6 +949,84 @@ describe('thayChuTranTrongDiv — chữ trần trong <div class="…">', () => {
   it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
     expect(() =>
       thayChuTranTrongDiv(NGUON, { 'Border style': 42 } as unknown as Record<string, string>, TEP),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
+// Bộ chọn ngày (2026-09-02) — hai cơ chế trong CÙNG một file, cố ý khác nhau:
+//   - `days`/`months` là mảng StringLiteral thật, nên chỉ cần MỞ VỊ TRÍ cho bộ duyệt AST
+//     (FILE_CHO_PHEP_MANG_NHAN_NGAY + TEN_MANG_NHAN_NGAY), không cần bộ thay riêng.
+//   - "TODAY" là chữ trần trong `<span>` KHÔNG class, không node AST nào đại diện → thayNutHomNay.
+describe('mảng nhãn bộ chọn ngày — mở vị trí cho days/months', () => {
+  const TEP = 'affine/components/src/date-picker/date-picker.js'
+  const BAN_DO_NGAY = { Su: 'CN', Mo: 'T2', Jan: 'Th1', Feb: 'Th2' }
+
+  const viTri = (js: string, tep: string) => {
+    const sf = ts.createSourceFile('x.js', js, ts.ScriptTarget.ESNext, true, ts.ScriptKind.JS)
+    const ket: (string | null)[] = []
+    const di = (n: ts.Node) => {
+      if (ts.isStringLiteral(n)) ket.push(viTriHienThi(n, tep))
+      ts.forEachChild(n, di)
+    }
+    di(sf)
+    return ket
+  }
+
+  it('phần tử của const days / const months được nhận là vị trí hiển thị', () => {
+    expect(viTri("const days = ['Su', 'Mo'];", TEP)).toEqual([
+      'mảng-nhãn-ngày:days',
+      'mảng-nhãn-ngày:days',
+    ])
+    expect(viTri("const months = ['Jan'];", TEP)).toEqual(['mảng-nhãn-ngày:months'])
+  })
+
+  it('CÙNG hình dạng ở file KHÁC thì KHÔNG được nhận', () => {
+    expect(viTri("const days = ['Su', 'Mo'];", 'affine/components/src/khac.js')).toEqual([null, null])
+  })
+
+  it('mảng chuỗi tên KHÁC trong cùng file thì KHÔNG được nhận', () => {
+    expect(viTri("const nhan = ['Su', 'Mo'];", TEP)).toEqual([null, null])
+  })
+
+  it('dichMotFile dịch đúng hai mảng đó', () => {
+    const { js } = dichMotFile("const days = ['Su', 'Mo'];\nconst months = ['Jan', 'Feb'];", BAN_DO_NGAY, TEP)
+    expect(js).toContain('"CN"')
+    expect(js).toContain('"T2"')
+    expect(js).toContain('"Th1"')
+    expect(js).toContain('"Th2"')
+    expect(js).not.toMatch(/'Su'|"Su"/)
+  })
+})
+
+describe('thayNutHomNay — chữ trần TODAY trong <span> không class', () => {
+  const TEP = 'affine/components/src/date-picker/date-picker.js'
+  const NGUON =
+    'const t = html`<button class="action-label interactive today" @click=${x}>\n<span>TODAY</span>\n</button>`'
+  const dungBanDo = { TODAY: 'HÔM NAY' }
+
+  it('thay đúng chữ trần trong file đã đo/duyệt', () => {
+    const { js, cacLuot } = thayNutHomNay(NGUON, dungBanDo, TEP)
+    expect(js).toContain('<span>HÔM NAY</span>')
+    expect(js).not.toContain('TODAY')
+    expect(cacLuot).toEqual([{ chuoiGoc: 'TODAY', chuoiDich: 'HÔM NAY', dong: 2 }])
+  })
+
+  it('CÙNG hình dạng ở file KHÁC thì không đụng', () => {
+    expect(thayNutHomNay(NGUON, dungBanDo, 'affine/components/src/khac.js').js).toBe(NGUON)
+  })
+
+  it('span TODAY nhưng KHÔNG đứng sau nút class="…today" thì không đụng', () => {
+    const khac = 'const t = html`<span>TODAY</span>`'
+    expect(thayNutHomNay(khac, dungBanDo, TEP).js).toBe(khac)
+  })
+
+  it('không có khoá trong bản đồ thì giữ nguyên', () => {
+    expect(thayNutHomNay(NGUON, {}, TEP).js).toBe(NGUON)
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayNutHomNay(NGUON, { TODAY: 42 } as unknown as Record<string, string>, TEP),
     ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })

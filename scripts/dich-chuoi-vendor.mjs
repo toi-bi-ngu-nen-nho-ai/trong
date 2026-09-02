@@ -18,6 +18,7 @@ import {
   thayChuCustomFrameMenu,
   thayChuTranTrongDiv,
   thayChuTrongTagTooltip,
+  thayNutHomNay,
   thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
@@ -313,12 +314,24 @@ for await (const f of dietJs(BUILD)) {
   }
   const coDoiDiv = ketQuaDiv.cacLuot.length > 0
 
+  // Nút "hôm nay" của bộ chọn ngày — chữ trần trong `<span>` không class, neo bằng class của nút
+  // bao ngoài (xem thayNutHomNay). Cùng cơ chế quét văn bản thô, chạy SAU thayChuTranTrongDiv;
+  // date-picker.js không nằm trong bảng của bộ thay đó nên hai bộ không bao giờ đụng nhau.
+  let ketQuaHomNay
+  try {
+    ketQuaHomNay = thayNutHomNay(ketQuaDiv.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const coDoiHomNay = ketQuaHomNay.cacLuot.length > 0
+
   // Tên NHÓM của menu lệnh "/" — đoạn giữa của khoá `'<số>_<Tên>@<số>'`. Cùng cơ chế quét văn bản
   // thô như ba bộ thay ở trên (chuỗi cần đổi là MỘT PHẦN của literal, có chỗ nằm trong TemplateHead
   // nên không node AST nào đại diện), chạy SAU chúng theo đúng nguyên tắc thứ tự đã dùng.
   let ketQuaNhom
   try {
-    ketQuaNhom = thayTenNhomSlashMenu(ketQuaDiv.js, banDo, rel)
+    ketQuaNhom = thayTenNhomSlashMenu(ketQuaHomNay.js, banDo, rel)
   } catch (err) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
@@ -335,6 +348,7 @@ for await (const f of dietJs(BUILD)) {
     !coDoiCustom &&
     !coDoiPlaceholderMau &&
     !coDoiDiv &&
+    !coDoiHomNay &&
     !coDoiNhom
   )
     continue
@@ -392,6 +406,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'chu-tran-trong-div-co-class',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaHomNay.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'nut-hom-nay-bo-chon-ngay',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })

@@ -154,6 +154,18 @@ export function coTrongDivCoClass(noiDung, s) {
   return re.test(noiDung)
 }
 
+// Cùng lớp trên, nhưng cho `<span>` KHÔNG có thuộc tính nào — nút "hôm nay" của bộ chọn ngày
+// (`<span>HÔM NAY</span>`, xem thayNutHomNay trong luat-vi-tri-dich.mjs, 2026-09-02).
+//
+// Không tái tạo neo `class="action-label interactive today"` như phía thay: cổng này chỉ hỏi "bản
+// dịch có tới được dist/ ở dạng chữ trần trong một span hay không". Neo chặt hơn cũng không bắt
+// thêm lớp lỗi nào (ghim toạ độ là việc của phía thay), mà lại dễ báo động giả khi bộ đóng gói
+// xáo trộn khoảng cách giữa nút và span.
+export function coTrongSpanTran(noiDung, s) {
+  const re = new RegExp(`<span>\\s*${thoatRegex(s)}\\s*<\\/span>`)
+  return re.test(noiDung)
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.
