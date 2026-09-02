@@ -17,6 +17,7 @@ import {
   FILE_CHO_PHEP_KEY_MUC_MENU,
   FILE_CHO_PHEP_NAME_SENIOR_TOOL,
   thayChuCustomFrameMenu,
+  thayChuTranTrongDiv,
   thayChuTrongTagTooltip,
   thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
@@ -575,6 +576,17 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (banDich.has(chu)) daThay.add(chu)
       }
 
+      // Cùng nguyên tắc cho chữ TRẦN giữa `<div class="…">` và `</div>` (thayChuTranTrongDiv, mục
+      // 2026-09-02): đó là phần TEXT của một template literal, không node AST nào đại diện, nên
+      // vòng lặp AST ở trên không bao giờ thấy. Regex viết LẠI ở đây, KHÔNG gọi hàm thật và KHÔNG
+      // đọc CHU_TRAN_DIV_CO_CLASS — giữ đúng tinh thần "cổng độc lập" của ca này: một bảng toạ độ
+      // sai thì cổng phải đỏ, chứ không sai theo. Loại `{`/`}` khỏi lớp ký tự để không bắt nhầm
+      // `<div class="picker-label">${label}</div>` (nhịp động, không phải chữ trần).
+      for (const mm of src.matchAll(/<div class="[^"]*">\s*([^<>{}]+?)\s*<\/div>/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 
@@ -860,6 +872,75 @@ describe('thayPlaceholderBangMau — placeholder tĩnh của ô tìm panel Mẫu
         { 'Search file or anything...': 42 } as unknown as Record<string, string>,
         TEP,
       ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
+// Chữ trần giữa `<div class="…">` và `</div>` — hình dạng "chữ trần" thứ NĂM của D12 (2026-09-02).
+// Khác bốn bộ trên ở chỗ nó phục vụ NHIỀU vị trí bằng MỘT hàm + một bảng đóng
+// (CHU_TRAN_DIV_CO_CLASS), nên ngoài các ca quen thuộc còn phải canh riêng hai thứ: (a) không đụng
+// biến thể có nhịp `${…}` nằm cùng file cùng class, (b) DỪNG khi số lượt khớp khác 1.
+describe('thayChuTranTrongDiv — chữ trần trong <div class="…">', () => {
+  const TEP = 'affine/components/src/edgeless-shape-color-picker/color-picker.js'
+  const NGUON = 'const t = html`<div class="picker-label">Border style</div>`'
+  const dungBanDo = { 'Border style': 'Kiểu viền' }
+
+  it('thay đúng chữ trần trong file+class đã đo/duyệt', () => {
+    const { js, cacLuot } = thayChuTranTrongDiv(NGUON, dungBanDo, TEP)
+    expect(js).toContain('<div class="picker-label">Kiểu viền</div>')
+    expect(js).not.toContain('Border style')
+    expect(cacLuot).toEqual([{ chuoiGoc: 'Border style', chuoiDich: 'Kiểu viền', dong: 1 }])
+  })
+
+  it('CÙNG hình dạng ở file KHÁC thì không đụng', () => {
+    expect(thayChuTranTrongDiv(NGUON, dungBanDo, 'affine/components/src/khac.js').js).toBe(NGUON)
+  })
+
+  it('cùng file nhưng class KHÁC thì DỪNG bằng lỗi, KHÔNG âm thầm thay', () => {
+    // Khác các bộ thay neo-một-chỗ ở trên (chúng trả nguyên văn khi không khớp): bảng
+    // CHU_TRAN_DIV_CO_CLASS khai rằng trong ĐÚNG file này có ĐÚNG một `<div class="picker-label">`
+    // mang chữ đó. Không thấy nữa nghĩa là thượng nguồn đã đổi class/chỗ — im lặng bỏ qua chính là
+    // cách bản dịch trôi mất mà không ai biết, đúng lớp lỗi Cổng 3 sinh ra để bắt.
+    const khac = 'const t = html`<div class="khac">Border style</div>`'
+    expect(() => thayChuTranTrongDiv(khac, dungBanDo, TEP)).toThrow(/chờ ĐÚNG 1 lượt/)
+  })
+
+  it('biến thể có nhịp ${…} cùng class KHÔNG bị đụng, chỉ chữ trần bị thay', () => {
+    const caHai =
+      'const t = html`<div class="picker-label">${label}</div><div class="picker-label">Border style</div>`'
+    const { js } = thayChuTranTrongDiv(caHai, dungBanDo, TEP)
+    expect(js).toContain('<div class="picker-label">${label}</div>')
+    expect(js).toContain('<div class="picker-label">Kiểu viền</div>')
+  })
+
+  it('thay được NHIỀU mục cùng file trong một lượt', () => {
+    const TEP2 = 'affine/components/src/highlight-dropdown-menu/dropdown-menu.js'
+    const nguon2 =
+      'const t = html`<div class="highlight-heading">Color</div><div class="highlight-heading">Background</div>`'
+    const { js, cacLuot } = thayChuTranTrongDiv(nguon2, { Color: 'Màu', Background: 'Nền' }, TEP2)
+    expect(js).toContain('<div class="highlight-heading">Màu</div>')
+    expect(js).toContain('<div class="highlight-heading">Nền</div>')
+    expect(cacLuot.map((l) => l.chuoiGoc)).toEqual(['Color', 'Background'])
+  })
+
+  it('KHÔNG khớp lượt nào (thượng nguồn đổi chỗ) thì DỪNG bằng lỗi', () => {
+    const doiChoc = 'const t = html`<div class="picker-label">Stroke style</div>`'
+    expect(() => thayChuTranTrongDiv(doiChoc, dungBanDo, TEP)).toThrow(/chờ ĐÚNG 1 lượt/)
+  })
+
+  it('khớp NHIỀU HƠN một lượt (thượng nguồn nhân bản) thì DỪNG bằng lỗi', () => {
+    const nhanBan =
+      'const t = html`<div class="picker-label">Border style</div><div class="picker-label">Border style</div>`'
+    expect(() => thayChuTranTrongDiv(nhanBan, dungBanDo, TEP)).toThrow(/chờ ĐÚNG 1 lượt/)
+  })
+
+  it('không có khoá trong bản đồ thì giữ nguyên', () => {
+    expect(thayChuTranTrongDiv(NGUON, {}, TEP).js).toBe(NGUON)
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayChuTranTrongDiv(NGUON, { 'Border style': 42 } as unknown as Record<string, string>, TEP),
     ).toThrow(/KHÔNG PHẢI CHUỖI/)
   })
 })

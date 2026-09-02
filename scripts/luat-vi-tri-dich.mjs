@@ -929,3 +929,102 @@ export function thayTienToSlideFrameDenseMenu(js, banDo, tenFile = 'khong-ten.js
     cacLuot: [{ chuoiGoc: 'Slide', chuoiDich: vi, dong }],
   }
 }
+
+// Chữ TRẦN nằm gọn giữa `<div class="…">` và `</div>` — cùng lớp lỗi với "Custom"/"Done"/"Slide "
+// ở trên (phần TEXT của một template literal, không node AST nào đại diện) nhưng có ĐỦ NHIỀU chỗ
+// để không đáng viết mỗi chỗ một hàm: bốn vị trí dưới đây hình dạng giống hệt nhau, chỉ khác tên
+// class và chuỗi. Nên MỘT hàm + MỘT bảng ĐÓNG, thay vì bốn nấc mới trong dây chuyền
+// dich-chuoi-vendor.mjs.
+//
+// Bốn chỗ này lộ ra ngày 2026-09-02, khi lượt vá `src/board/che-do-edgeless.ts` trả lại thanh công
+// cụ phần tử: trước đó thanh công cụ KHÔNG BAO GIỜ hiện, nên không ai thấy được nhãn nào của nó
+// còn tiếng Anh. Một lỗi che lỗi kia — không phải bốn khoá mới trôi đi.
+//
+//   1. "Border style" — nhãn nhóm thứ ba của bảng màu hình (`edgeless-shape-color-picker`), đứng
+//      ngay dưới "Màu nền"/"Màu viền". Hai nhãn kia là `label: 'Fill color'`/`label: 'Border color'`
+//      (object-property, `dichMotFile` dịch được từ lâu), riêng nhãn này bị viết cứng thành chữ
+//      trần — nên đúng một dòng tiếng Anh nằm giữa hai dòng tiếng Việt.
+//   2/3. "Color" / "Background" — hai nhãn nhóm của menu tô sáng chữ (`highlight-dropdown-menu`),
+//      hiện khi bôi đen chữ trong thẻ ghi chú trên canvas.
+//   4. "No Results" — dòng báo rỗng của `context-menu` dùng chung (menu lệnh "/", ô tìm tham
+//      chiếu). Khoá này CHƯA có trong vi.json, thêm cùng lượt này.
+//
+// Neo bằng CẶP (đường dẫn file, tên class) chứ không bằng `<div>` chung chung — cùng nguyên tắc
+// `frame-add-button custom` của thayChuCustomFrameMenu. Đo 2026-09-02 trên .vendor-build: mỗi bộ ba
+// (file, class, chuỗi) khớp ĐÚNG MỘT lượt. Riêng `picker-label` có hai lượt trong cùng file, nhưng
+// lượt kia là `<div class="picker-label">${label}</div>` — có nhịp `${…}` ngay sau dấu `>` nên
+// không khớp regex đòi chuỗi tiếng Anh nguyên văn. Bảng ĐÓNG: thêm chỗ mới phải sửa ở đây, và phép
+// đếm `soLuotKhop` bên dưới sẽ đỏ nếu thượng nguồn nhân bản hay xoá mất một chỗ.
+export const CHU_TRAN_DIV_CO_CLASS = [
+  {
+    file: 'affine/components/src/edgeless-shape-color-picker/color-picker.js',
+    lop: 'picker-label',
+    khoa: 'Border style',
+  },
+  {
+    file: 'affine/components/src/highlight-dropdown-menu/dropdown-menu.js',
+    lop: 'highlight-heading',
+    khoa: 'Color',
+  },
+  {
+    file: 'affine/components/src/highlight-dropdown-menu/dropdown-menu.js',
+    lop: 'highlight-heading',
+    khoa: 'Background',
+  },
+  {
+    file: 'affine/components/src/context-menu/menu-renderer.js',
+    lop: 'no-results',
+    khoa: 'No Results',
+  },
+]
+
+/** Thoát ký tự cho chuỗi chèn thẳng vào phần TEXT của một template literal đang mở. */
+function thoatTemplate(s) {
+  return s.replace(/[`$\\]/g, (c) => `\\${c}`)
+}
+
+function reDivCoClass(lop, khoa) {
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(<div class="${esc(lop)}">\\s*)${esc(khoa)}(\\s*</div>)`, 'g')
+}
+
+export function thayChuTranTrongDiv(js, banDo, tenFile = 'khong-ten.js') {
+  const mucCuaFile = CHU_TRAN_DIV_CO_CLASS.filter((m) => m.file === tenFile)
+  if (mucCuaFile.length === 0) return { js, cacLuot: [] }
+
+  let ket = js
+  const cacLuot = []
+  for (const { lop, khoa } of mucCuaFile) {
+    if (!Object.hasOwn(banDo, khoa)) continue
+
+    const vi = banDo[khoa]
+    if (typeof vi !== 'string') {
+      throw new Error(
+        `luat-vi-tri-dich: khoá "${khoa}" (chữ trần trong <div class="${lop}">, ` +
+          'thayChuTranTrongDiv) có giá trị KHÔNG PHẢI CHUỖI ' +
+          `(kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+      )
+    }
+
+    const re = reDivCoClass(lop, khoa)
+    const soLuotKhop = [...ket.matchAll(re)].length
+    // Bảng trên khai ĐÚNG MỘT chỗ cho mỗi bộ ba. Không khớp lượt nào = thượng nguồn đã đổi chỗ đó
+    // (bản dịch trôi mất mà không ai biết — đúng lớp lỗi Cổng 3 sinh ra để bắt); khớp nhiều hơn một
+    // = thượng nguồn nhân bản, và thay hết một cách im lặng là quyết định thay người đọc. Cả hai
+    // đều phải DỪNG chứ không đoán.
+    if (soLuotKhop !== 1) {
+      throw new Error(
+        `luat-vi-tri-dich: chờ ĐÚNG 1 lượt <div class="${lop}">${khoa}</div> ở ${tenFile}, ` +
+          `đo được ${soLuotKhop}. Thượng nguồn đã đổi/nhân bản chỗ này — mở file ra xem rồi cập ` +
+          'nhật CHU_TRAN_DIV_CO_CLASS, đừng nới regex cho xanh.',
+      )
+    }
+
+    const m = ket.match(re)
+    const dong = ket.slice(0, ket.indexOf(m[0]) + m[0].indexOf(khoa)).split('\n').length
+    ket = ket.replace(re, (_all, truoc, sau) => `${truoc}${thoatTemplate(vi)}${sau}`)
+    cacLuot.push({ chuoiGoc: khoa, chuoiDich: vi, dong })
+  }
+
+  return { js: ket, cacLuot }
+}

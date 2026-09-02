@@ -134,6 +134,26 @@ export function coTrongKhoaNhomSlashMenu(noiDung, s) {
   return re.test(noiDung)
 }
 
+// Cùng lớp với bốn hàm trên (bản dịch KHÔNG đứng một mình trong literal), nhưng cho chữ trần nằm
+// gọn giữa `<div class="…">` và `</div>` — xem thayChuTranTrongDiv (luat-vi-tri-dich.mjs,
+// 2026-09-02): nhãn nhóm bảng màu hình ("Kiểu viền"), hai nhãn menu tô sáng chữ ("Màu"/"Nền") và
+// dòng báo rỗng của context-menu ("Không có kết quả").
+//
+// Đo được thật ngay lượt đầu: `npm run build` đỏ với "Không có kết quả" dù chuỗi đã tới dist/ đúng
+// chỗ — `coNhuLiteral` không thấy nó vì literal thật là cả khúc template chứa `<div
+// class="no-results">`, không phải riêng chuỗi. Ba bản dịch kia không đỏ chỉ vì chúng còn sống ở
+// vị trí KHÁC trong cây, tức phép so khớp vẫn mù với đúng vị trí này — vá cho cả bốn thay vì chỉ
+// chuỗi đang đỏ.
+//
+// Không neo theo TÊN CLASS: cổng này chỉ hỏi "bản dịch có tới được dist/ ở dạng chữ trần trong một
+// div hay không", còn việc GHIM đúng toạ độ (file + class + đúng một lượt khớp) là việc của
+// CHU_TRAN_DIV_CO_CLASS ở phía thay. Nhân đôi bảng toạ độ vào đây chỉ tạo thêm một chỗ phải sửa
+// đồng bộ mà không bắt thêm được lớp lỗi nào.
+export function coTrongDivCoClass(noiDung, s) {
+  const re = new RegExp(`<div class="[^"]*">\\s*${thoatRegex(s)}\\s*<\\/div>`)
+  return re.test(noiDung)
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.

@@ -16,6 +16,7 @@ import { BAN_KHAI_TIEU_THU, diemTieuThuTrongFile, kiemTienTo } from './kiem-quan
 import {
   dichMotFile,
   thayChuCustomFrameMenu,
+  thayChuTranTrongDiv,
   thayChuTrongTagTooltip,
   thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
@@ -299,12 +300,25 @@ for await (const f of dietJs(BUILD)) {
   }
   const coDoiPlaceholderMau = ketQuaPlaceholderMau.cacLuot.length > 0
 
+  // Chữ trần giữa `<div class="…">…</div>` — bốn nhãn của thanh công cụ phần tử và menu ngữ cảnh
+  // (xem CHU_TRAN_DIV_CO_CLASS trong luat-vi-tri-dich.mjs). Cùng cơ chế quét văn bản thô, chạy SAU
+  // thayPlaceholderBangMau theo đúng nguyên tắc thứ tự "tiền tố trước, phần còn lại sau" của khối
+  // này — bốn file bị đụng không trùng file nào của các bộ thay ở trên.
+  let ketQuaDiv
+  try {
+    ketQuaDiv = thayChuTranTrongDiv(ketQuaPlaceholderMau.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const coDoiDiv = ketQuaDiv.cacLuot.length > 0
+
   // Tên NHÓM của menu lệnh "/" — đoạn giữa của khoá `'<số>_<Tên>@<số>'`. Cùng cơ chế quét văn bản
   // thô như ba bộ thay ở trên (chuỗi cần đổi là MỘT PHẦN của literal, có chỗ nằm trong TemplateHead
   // nên không node AST nào đại diện), chạy SAU chúng theo đúng nguyên tắc thứ tự đã dùng.
   let ketQuaNhom
   try {
-    ketQuaNhom = thayTenNhomSlashMenu(ketQuaPlaceholderMau.js, banDo, rel)
+    ketQuaNhom = thayTenNhomSlashMenu(ketQuaDiv.js, banDo, rel)
   } catch (err) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
@@ -320,6 +334,7 @@ for await (const f of dietJs(BUILD)) {
     !coDoiSlide &&
     !coDoiCustom &&
     !coDoiPlaceholderMau &&
+    !coDoiDiv &&
     !coDoiNhom
   )
     continue
@@ -368,6 +383,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'placeholder-bang-mau',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaDiv.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'chu-tran-trong-div-co-class',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })
