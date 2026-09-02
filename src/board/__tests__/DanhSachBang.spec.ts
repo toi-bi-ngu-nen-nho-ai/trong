@@ -163,6 +163,35 @@ describe('DanhSachBang', () => {
     })
   })
 
+  it('bấm ĐÚP thẻ "+" (hai cú click trước khi React kịp render lại) → chỉ tạo MỘT bảng', async () => {
+    // Khoá chống bấm đúp của taoBangMoi là `if (dangSuaTenId) return` — một state React, tức CẬP
+    // NHẬT BẤT ĐỒNG BỘ. Cú click thứ hai của một lần bấm đúp vẫn đọc giá trị cũ (null) trong closure
+    // nên lọt qua khoá và tạo bảng thứ hai. Đo trên trình duyệt thật 2026-09-02: một lần bấm đúp
+    // vào "+" đưa số bảng từ 10 lên 12; và 9 bảng rác của phiên hôm đó có hai cặp sinh trong CÙNG
+    // MỘT GIÂY (22:18:13 ×2, 22:27:22 ×2) — đúng dấu vân tay của lỗi này.
+    //
+    // Hai `.click()` trong CÙNG một `act()` mô phỏng đúng cửa sổ đó: React chưa flush render giữa
+    // hai lượt gọi, nên `dangSuaTenId` vẫn null ở lượt thứ hai.
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
+    await act(async () => {
+      nut.click()
+      nut.click()
+    })
+
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    await choDom(async () => {
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      expect(ds).toHaveLength(1)
+    })
+  })
+
   it('bấm thẻ "+", gõ tên rồi Enter → thoát ô đổi tên, bấm vào thẻ → GỌI onMoBang (mở canvas)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {

@@ -137,7 +137,28 @@ function dichCay(nut, thieu) {
 //
 // Mọi phép dưới đây KIỂM SỐ LƯỢNG trước khi sửa và NÉM nếu không khớp. Thượng nguồn đổi bố cục mà
 // script lặng lẽ bỏ qua thì mẫu ra sai không ai thấy — đúng lớp lỗi mà hai phép rửa trên được viết
-// ra để chặn.
+// ra để chặn. `src/board/__tests__/mau-dongnao.spec.ts` khoá kết quả ở đầu kia: mọi phần tử có chữ
+// phải GHI RÕ fontSize, cỡ chữ nhỏ nhất sau khi chèn phải ≥ 10 px, và khổ từng mẫu là số chốt.
+//
+// ═══ HAI THỨ ĐÃ ĐIỀU TRA VÀ CỐ Ý KHÔNG VÁ — đừng thử lại từ đầu ═══
+//
+// 1. CHỮ TRONG GIẤY NHỚ (SMART 9 tờ, SWOT 21 tờ) vẫn ~4,5 px sau khi chèn. Knob thì CÓ:
+//    `props.edgeless.scale` của khối `affine:note`. Nhưng `note-edgeless-block.ts:59-61` render với
+//    `width = bound.w / scale`, nên chỉ có hai đường và cả hai đều cụt:
+//      • nâng `scale` mà giữ `xywh` → chữ to lên đúng bấy nhiêu, nhưng bề rộng DOM chia cho `scale`.
+//        Để đạt 13 px cần scale ≈ 2,9, tức tờ giấy 364 chỉ còn 125 px DOM ≈ 8 ký tự một dòng.
+//      • nâng cả `scale` lẫn `xywh` → khổ mẫu phình đúng hệ số đó, khung nhìn thu lại đúng hệ số đó,
+//        chữ trên màn KHÔNG đổi. Y hệt cái bẫy "phóng đều cả hình lẫn chữ" ở đầu khối này.
+//    Bộ mẫu ship giấy nhớ RỖNG nên lúc vừa chèn không có gì để đọc; người dùng gõ vào thì đằng nào
+//    cũng đã phóng to. Đổi 36 ký tự/dòng lấy 8 là lỗ.
+//
+// 2. MỨC ZOOM LÚC THẢ KHÔNG CỐ ĐỊNH. `template-panel.ts:312` tính `padding = 20 / viewport.zoom`
+//    rồi đưa cho `setViewportByBound`, mà tham số đó tính bằng PX KHUNG NHÌN (`viewport.ts:712-724`)
+//    — nên thả lúc board đang ở zoom 0,1 cho padding 200 px và mẫu rơi vào bé hơn hẳn mức vừa khung.
+//    Lỗi thượng nguồn, D11 cấm sửa tại chỗ. Mọi đường vòng ở lớp app đều tệ hơn chính cái lỗi: vá đè
+//    `setViewportByBound` là đổi hành vi của MỌI caller (outline/frame panel, edgeless-auto-connect)
+//    mà không phân biệt được caller nào, còn ép zoom về 1 lúc mở panel là giật khung nhìn của người
+//    dùng khi họ chưa làm gì. Cách dùng đúng: thả xong bấm "Vừa khung hình".
 
 const doXywh = (o) => JSON.parse(o.props ? o.props.xywh : o.xywh)
 

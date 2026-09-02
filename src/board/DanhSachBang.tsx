@@ -951,6 +951,17 @@ export function DanhSachBang({
     remove,
   } = useIdbCollection<BangMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
+  // Bản sao ĐỒNG BỘ của "đang có bảng chờ đặt tên", chỉ dùng làm khoá cho taoBangMoi — xem chú
+  // thích dài tại đó. Ref chứ không phải state vì state React chỉ thấy được ở lượt render SAU.
+  const dangSuaTenRef = useRef<string | null>(null)
+  // Đồng bộ ref theo state ở MỌI lượt render (cố tình không có mảng deps). Ô đổi tên còn được mở/
+  // đóng từ menu "⋯" và từ chính ô nhập, nên ref phải bám theo cả những đường đó; và không deps
+  // nghĩa là dù `taoBangMoi` có ném giữa chừng sau khi đã gán khoá, lượt render kế tiếp bất kỳ cũng
+  // trả nó về đúng state — khoá không thể kẹt vĩnh viễn làm chết nút "+". Giữa HAI cú click của một
+  // lần bấm đúp thì không có lượt render nào, nên khoá vẫn nguyên vẹn ở đúng lúc cần.
+  useEffect(() => {
+    dangSuaTenRef.current = dangSuaTenId
+  })
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
@@ -1349,10 +1360,19 @@ export function DanhSachBang({
     // Khoá chống bấm đúp: `add()` đồng bộ và không có cờ "đang tạo" riêng, nên hai lượt gọi liên
     // tiếp (bấm đúp nhanh, hoặc double-fire trên một số trình duyệt cảm ứng) từng tạo được HAI bảng
     // — `setDangSuaTenId` lần gọi thứ hai thắng, bảng đầu tiên vào lưới với tên mặc định mà không
-    // có ô đổi tên nào tự mở, dễ mồ côi lúc vội (critique 2026-09-01, P3). Mượn đúng state đã có sẵn
-    // thay vì thêm ref/timer riêng: còn một bảng đang ở chế độ đổi tên thì "+" tạm không phản ứng —
-    // đúng luồng dự kiến (đặt tên xong bảng này rồi mới tạo bảng kế) chứ không phải hạn chế mới.
-    if (dangSuaTenId) return
+    // có ô đổi tên nào tự mở, dễ mồ côi lúc vội (critique 2026-09-01, P3). Ý tưởng vẫn thế: còn một
+    // bảng đang ở chế độ đổi tên thì "+" tạm không phản ứng — đúng luồng dự kiến (đặt tên xong bảng
+    // này rồi mới tạo bảng kế) chứ không phải hạn chế mới.
+    //
+    // ĐỌC REF, KHÔNG ĐỌC STATE (sửa 2026-09-03). Bản đầu khoá bằng `if (dangSuaTenId) return` — một
+    // state React, tức chỉ đổi ở lượt render SAU. Cú click thứ hai của một lần bấm đúp chạy trước
+    // lượt render đó nên vẫn đọc `null` trong closure và lọt thẳng qua khoá: khoá KHÔNG hề chặn
+    // được đúng cái nó sinh ra để chặn. Đo trên trình duyệt thật 2026-09-02: một lần bấm đúp vào
+    // "+" đưa số bảng từ 10 lên 12, và 9 bảng rác của phiên đó có hai cặp sinh trong CÙNG MỘT GIÂY.
+    // Ref được gán NGAY dưới đây nên cú click thứ hai thấy liền; effect ở dưới trả nó về null khi ô
+    // đổi tên đóng lại.
+    if (dangSuaTenRef.current) return
+    dangSuaTenRef.current = 'dang-tao'
     const luc = Date.now()
     const meta: BangMeta = {
       id: taoIdBang(),
@@ -1379,6 +1399,7 @@ export function DanhSachBang({
     // "Bảng chưa đặt tên" và ảnh xem trước GIỐNG HỆT NHAU byte-cho-byte (canvas trống chụp y hệt),
     // không cách nào phân biệt trong lưới. Giữ người dùng lại ở danh sách, mở luôn ô đổi tên cho thẻ
     // vừa tạo — họ đặt tên trước rồi mới bấm vào để vẽ, đúng lúc còn nhớ đang tạo bảng cho việc gì.
+    dangSuaTenRef.current = meta.id
     setDangSuaTenId(meta.id)
     // Bảng mới chưa gắn chuyên khoa nào ('' — xem trên) — nếu chip lọc đang chọn MỘT chuyên khoa cụ
     // thể, thẻ vừa tạo sẽ không khớp bộ lọc đó và biến mất khỏi lưới ngay khi vừa ghi xong (bấm "+"

@@ -114,6 +114,112 @@ describe('DongNaoTemplateManager', () => {
     expect(soKhung, 'không còn khối affine:frame nào — bản vá này có thể đã thừa').toBe(5)
   })
 
+  // ═══ TỈ LỆ CHỮ / KHỔ MẪU ═══
+  //
+  // `toolbar/template-panel.ts:311-316` của cây vendored luôn thu khung nhìn cho vừa TOÀN BỘ mẫu
+  // sau khi thả, chỉ chừa 20 px. Nên độ đọc được của một mẫu KHÔNG phụ thuộc cỡ chữ tuyệt đối mà
+  // chỉ phụ thuộc tỉ số `cỡ chữ ÷ khổ mẫu` — và cả hai vế đó nằm trong dữ liệu đã sinh, tức kiểm
+  // được ở đây, không cần trình duyệt. Ba ca dưới khoá đúng ba thứ đã hỏng thật ngày 2026-09-02.
+
+  // Vùng vẽ đo được trên cửa sổ 1280×800 (thanh điều hướng dưới + header đã trừ). Con số cụ thể
+  // không thiêng liêng — nó chỉ là mốc quy chiếu để ngưỡng px bên dưới có nghĩa.
+  const VUNG_VE = { w: 1280, h: 743 }
+
+  /** Khổ mẫu theo ĐÚNG công thức `_getTemplateBound()` của cây vendored (bỏ connector và group). */
+  function khoMau(slug: string): { w: number; h: number } {
+    const j = JSON.parse(docTep(slug))
+    let minx = Infinity
+    let miny = Infinity
+    let maxx = -Infinity
+    let maxy = -Infinity
+    const gom = (xywh: string) => {
+      const [x, y, w, h] = JSON.parse(xywh) as number[]
+      minx = Math.min(minx, x)
+      miny = Math.min(miny, y)
+      maxx = Math.max(maxx, x + w)
+      maxy = Math.max(maxy, y + h)
+    }
+    const di = (v: unknown): void => {
+      if (Array.isArray(v)) return v.forEach(di)
+      if (!v || typeof v !== 'object') return
+      const nut = v as { flavour?: string; props?: Record<string, unknown> }
+      if (nut.flavour && typeof nut.props?.xywh === 'string') gom(nut.props.xywh)
+      if (nut.flavour === 'affine:surface') {
+        for (const el of Object.values(nut.props?.elements as Record<string, Record<string, unknown>>)) {
+          const loai = el.type as string
+          if (typeof el.xywh === 'string' && loai !== 'connector' && loai !== 'group') gom(el.xywh)
+        }
+      }
+      Object.values(v).forEach(di)
+    }
+    di(j.content.blocks)
+    return { w: maxx - minx, h: maxy - miny }
+  }
+
+  /** Mức zoom mà panel đặt sau khi thả, ở mức zoom 1 (padding = 20 px mỗi cạnh). */
+  function zoomSauKhiChen(slug: string): number {
+    const { w, h } = khoMau(slug)
+    return Math.min((VUNG_VE.w - 40) / w, (VUNG_VE.h - 40) / h)
+  }
+
+  /** Mọi phần tử mặt phẳng CÓ CHỮ, kèm cỡ chữ hiệu lực. */
+  function phanTuCoChu(slug: string): { loai: string; fontSize: number | undefined; chu: string }[] {
+    const j = JSON.parse(docTep(slug))
+    const mp = j.content.blocks.children.find((c: { flavour: string }) => c.flavour === 'affine:surface')
+    const ra: { loai: string; fontSize: number | undefined; chu: string }[] = []
+    for (const el of Object.values(mp.props.elements) as Record<string, never>[]) {
+      const t = el as unknown as {
+        type: string
+        fontSize?: number
+        text?: { delta?: { insert?: string }[] }
+      }
+      if (t.type !== 'shape' && t.type !== 'text') continue
+      const chu = (t.text?.delta ?? []).map((d) => d.insert ?? '').join('')
+      if (chu.trim() === '') continue
+      ra.push({ loai: t.type, fontSize: t.fontSize, chu })
+    }
+    return ra
+  }
+
+  // LỖI GỐC của lượt vá này: 14 hình của Lưu đồ không có prop `fontSize` trong snapshot thượng
+  // nguồn nên rơi về mặc định `ShapeTextFontSize.MEDIUM = 20` (affine/model shape.ts:110) trong hộp
+  // 304×156 — tỉ lệ chữ/hộp 0,128, ra 5,5 px trên màn sau khi chèn. Thiếu prop là hỏng IM LẶNG:
+  // không lỗi, không cảnh báo, chỉ là chữ bé.
+  it('mọi hình/khối chữ đều GHI RÕ fontSize, không rơi về mặc định', () => {
+    for (const { slug } of MAU_DONG_NAO) {
+      const thieu = phanTuCoChu(slug).filter((e) => typeof e.fontSize !== 'number')
+      expect(thieu.map((e) => `${e.loai}:${e.chu.slice(0, 20)}`), `${slug} thiếu fontSize`).toEqual([])
+    }
+  })
+
+  // Khẳng định NGƯỜI DÙNG THẤY: thả mẫu ra rồi phải đọc được ngay, không phải phóng to lên mới đọc
+  // nổi. Trước lượt vá, bốn mẫu rơi vào 5,4–9,9 px.
+  it('cỡ chữ nhỏ nhất của mọi mẫu ≥ 10 px trên màn ngay sau khi chèn', () => {
+    for (const { slug, ten } of MAU_DONG_NAO) {
+      const z = zoomSauKhiChen(slug)
+      const cos = phanTuCoChu(slug).map((e) => e.fontSize as number)
+      expect(cos.length, `${slug} không có phần tử chữ nào`).toBeGreaterThan(0)
+      const nhoNhat = Math.min(...cos)
+      expect(Math.round(nhoNhat * z * 10) / 10, `${ten} (${slug}) chữ nhỏ nhất trên màn`).toBeGreaterThanOrEqual(10)
+    }
+  })
+
+  // Chốt khổ từng mẫu. Khổ là MẪU SỐ của tỉ số trên, nên một lượt sinh lại làm mẫu phình ra sẽ kéo
+  // tụt cỡ chữ trên màn của MỌI phần tử cùng lúc — ca này chỉ đúng tên thủ phạm sớm hơn.
+  it('khổ từng mẫu đúng như lượt sinh đã chốt', () => {
+    const CHOT: Record<string, [number, number]> = {
+      '5w2h': [3215, 1924],
+      'concept-map': [6788, 3718],
+      flowchart: [3067, 2545],
+      smart: [4140, 2040],
+      swot: [4305, 2009],
+    }
+    for (const { slug } of MAU_DONG_NAO) {
+      const { w, h } = khoMau(slug)
+      expect([Math.round(w), Math.round(h)], `${slug}`).toEqual(CHOT[slug])
+    }
+  })
+
   it('không tệp nào còn chuỗi "affine-" (D16 luật A)', () => {
     for (const { slug } of MAU_DONG_NAO) {
       expect(docTep(slug), slug).not.toMatch(/\baffine-/)
