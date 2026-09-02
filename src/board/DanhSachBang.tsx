@@ -68,17 +68,12 @@ const HOAN_TAC_XOA_MS = 5000
 // hai bảng vừa lỡ tay mà không đổ nguyên danh sách thùng rác ra giữa màn (phản hồi 2026-08-30).
 const RUT_GON_DA_XOA = 4
 
-// Nhấn-giữ trên thẻ mở CÙNG menu mà nút "⋯" mở — lối vào THỨ HAI, không thay thế nút. Trước đây
-// "⋯" là cửa duy nhất tới đổi tên/gắn khoa/xoá, nên toàn bộ khả năng quản lý bảng dồn rủi
-// ro vào việc người dùng tự tìm ra một glyph nhỏ ở góc thẻ (critique 2026-08-28, P2). Nhấn-giữ là
-// cử chỉ đúng ẩn dụ "cầm tờ giấy lên" và là quy ước sẵn có trên di động, nên nó thêm đường vào mà
-// không phải làm nút "⋯" nặng nề hơn (giữ nguyên thẩm mỹ giấy).
-// 500ms: mốc quen thuộc của long-press trên iOS/Android — ngắn hơn thì cú chạm mở bảng bình thường
-// dễ lỡ kích hoạt, dài hơn thì đọc như treo máy.
-const NHAN_GIU_MS = 500
-// Ngón tay dịch quá ngần này (px) trong lúc đang đếm giờ = người dùng đang CUỘN lưới, không phải
-// nhấn giữ — huỷ hẹn giờ. pointercancel bắt được phần lớn ca cuộn thật, nhưng không phải mọi ca.
-const NHAN_GIU_TRUOT_TOI_DA = 10
+// Nhấn-giữ trên thẻ TỪNG mở CÙNG menu mà nút "⋯" mở (thêm 2026-08-28, P2, làm lối vào THỨ HAI cho
+// đúng menu đó) — GỠ 2026-09-02 (distill, critique P3): ba vòng critique độc lập sau đó đều thấy cử
+// chỉ này vô hình, không ai tìm ra được nó, và mỗi lần đội chỉ "thêm lối vào song song" (nút "⋯" đã
+// có sẵn từ trước, rồi "Chọn" cho xoá hàng loạt) thay vì sửa/bỏ chính cử chỉ ẩn. Vì nó chưa từng làm
+// gì mà "⋯" không làm được — luôn là lối vào THỨ HAI tới CÙNG menu, không phải khả năng riêng — bỏ
+// nó không mất chức năng thật nào, chỉ bỏ mã đếm giờ/đo trượt không ai chạm tới trong thực tế.
 
 // Băm chuỗi id thành một góc nghiêng ỔN ĐỊNH trong khoảng [-3.0, 3.0] độ, bước 0.1 — KHÔNG dùng
 // Math.random() vì góc phải giữ nguyên qua mọi lần re-render (đúng thẻ ảnh thật nằm yên trên bàn,
@@ -283,24 +278,24 @@ function TheBang({
   // Menu "⋯" mở LÊN TRÊN thay vì xuống dưới, khi dưới thẻ không còn chỗ. Xem useLayoutEffect ngay
   // dưới phần khai báo state — mặc định false (mở xuống) để lượt render đầu không nhấp nháy.
   const [menuMoLen, setMenuMoLen] = useState(false)
-  // Hẹn giờ nhấn-giữ (xem NHAN_GIU_MS) + toạ độ điểm chạm đầu để đo trượt. `daNhanGiuRef` là cờ
-  // "lượt chạm này ĐÃ mở menu bằng nhấn-giữ" — onClick đọc nó để KHÔNG mở luôn cả bảng ngay sau đó
-  // (pointerup vẫn sinh ra một click bình thường, không có cờ này thì giữ tay = vừa mở menu vừa mở
-  // bảng, menu nháy lên rồi biến mất cùng lúc canvas chiếm màn hình).
-  const hesNhanGiuRef = useRef<number | null>(null)
-  const diemChamRef = useRef<{ x: number; y: number } | null>(null)
-  const daNhanGiuRef = useRef(false)
-
-  const huyNhanGiu = () => {
-    if (hesNhanGiuRef.current !== null) {
-      clearTimeout(hesNhanGiuRef.current)
-      hesNhanGiuRef.current = null
-    }
-    diemChamRef.current = null
+  // Đặt góc nghiêng theo MỘT điểm (chuột đang hover HOẶC ngón tay đang ấn) — dùng chung cho cả hai
+  // nhánh con trỏ/cảm ứng của onPointerDown/onPointerMove bên dưới, cùng một công thức toạ độ đọc
+  // bởi Lớp B/C trong index.css (--con-tro-x/--con-tro-y, [0,1] theo bề rộng/cao nút).
+  const datNghiengTheoDiem = (clientX: number, clientY: number) => {
+    const el = nutRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    el.style.setProperty('--con-tro-x', String((clientX - r.left) / r.width))
+    el.style.setProperty('--con-tro-y', String((clientY - r.top) / r.height))
   }
-  // Thẻ có thể bị gỡ khỏi DOM giữa lúc đang đếm giờ (xoá bảng, đổi chip lọc, huỷ tìm kiếm) — hẹn
-  // giờ còn sống sẽ gọi onBatMenu() cho một thẻ không còn tồn tại.
-  useEffect(() => huyNhanGiu, [])
+  // Gỡ góc nghiêng theo điểm chạm — gọi ở mọi điểm ngón tay/con trỏ RỜI thẻ (pointerup/
+  // pointercancel/pointerleave), đúng lúc :hover/:active hết khớp nên tờ giấy phải TỰ SETTLE về góc
+  // tĩnh (var(--tilt)) qua chính transition 0.18s đã có, không phải đứng khựng ở góc nghiêng cuối
+  // cùng của lần chạm trước.
+  const xoaNghiengConTro = () => {
+    nutRef.current?.style.removeProperty('--con-tro-x')
+    nutRef.current?.style.removeProperty('--con-tro-y')
+  }
   // Tên chuyên khoa cho aria-label — huy hiệu chuyên khoa trong TheTrong là aria-hidden (nó lồng
   // vào artwork trang trí), nên người dùng trình đọc màn hình không có cách nào khác biết bảng này
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
@@ -438,11 +433,6 @@ function TheBang({
         ref={nutRef}
         type="button"
         onClick={() => {
-          // Lượt chạm này vừa mở menu bằng nhấn-giữ → nuốt cú click đi kèm, đừng mở luôn cả bảng.
-          if (daNhanGiuRef.current) {
-            daNhanGiuRef.current = false
-            return
-          }
           // Chỉ dựng origin khi rect đo được có kích thước thật (>0) — rect rỗng (0×0) xảy ra khi
           // phần tử chưa layout xong hoặc trong môi trường không có engine layout thật (vd ca kiểm
           // happy-dom). Không có kích thước thật thì FLIP không có gì để "First" từ đó — rơi về
@@ -462,46 +452,28 @@ function TheBang({
           )
         }}
         className="the-bang-vat the-bang-nghieng-con-tro mind-focus-ring"
-        // Nhấn-giữ CHỈ cho cảm ứng/bút. Chuột được loại trừ có chủ ý: trên máy có con trỏ, nút "⋯"
-        // đã hiện rõ khi rê tới và không ai có thói quen giữ chuột để mở menu — bật cho chuột chỉ
-        // tạo ra một cái bẫy "giữ hơi lâu rồi thả thì bảng không mở".
+        // Nghiêng theo vị trí con trỏ/ngón tay khi đang ấn — Lớp B/C ở index.css đọc hai biến này.
+        // Nhấn-giữ ĐỂ MỞ MENU từng sống ở đúng ba handler này (removed 2026-09-02, distill P3): sau
+        // 3 vòng critique độc lập, cử chỉ đó vẫn không ai tìm ra (comment cũ ghi thẳng điều này) —
+        // "⋯" đã là lối vào DUY NHẤT và đầy đủ tới cùng menu, nên giữ một cử chỉ song song không ai
+        // dùng chỉ còn là chi phí bảo trì (thêm nhánh onPointerDown/Move/Cancel, thêm bề mặt cho bug
+        // tinh vi) không ai hưởng lợi — không mất chức năng thật nào khi bỏ.
         onPointerDown={(e) => {
           if (e.pointerType === 'mouse') return
-          huyNhanGiu()
-          daNhanGiuRef.current = false
-          diemChamRef.current = { x: e.clientX, y: e.clientY }
-          hesNhanGiuRef.current = window.setTimeout(() => {
-            hesNhanGiuRef.current = null
-            daNhanGiuRef.current = true
-            onBatMenu()
-          }, NHAN_GIU_MS)
+          // Nghiêng ngay từ lúc ngón tay chạm xuống — một cú chạm-mở-bảng bình thường không tạo
+          // pointermove nào trước khi rời tay, nên thiếu dòng này thì .the-bang-vat:active của phần
+          // lớn lượt chạm không bao giờ có góc nghiêng thật, chỉ scale phẳng (adapt cho cảm ứng,
+          // critique 2026-09-02 P2 — trước đây Lớp C chỉ chạy qua :hover chuột, vô hình với đối
+          // tượng dùng chính của PWA này).
+          datNghiengTheoDiem(e.clientX, e.clientY)
         }}
-        onPointerUp={huyNhanGiu}
-        onPointerCancel={huyNhanGiu}
-        // Long-press trên cảm ứng làm iOS/Android bật menu ngữ cảnh hệ thống ("Sao chép", "Chia
-        // sẻ…") đè lên menu của app — chặn để hai menu không chồng nhau.
-        onContextMenu={(e) => e.preventDefault()}
-        onPointerMove={(e) => {
-          if (e.pointerType !== 'mouse') {
-            // Trượt quá ngưỡng = đang cuộn lưới, không phải nhấn giữ.
-            const d = diemChamRef.current
-            if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > NHAN_GIU_TRUOT_TOI_DA) huyNhanGiu()
-            return
-          }
-          const el = nutRef.current
-          if (!el) return
-          const r = el.getBoundingClientRect()
-          el.style.setProperty('--con-tro-x', String((e.clientX - r.left) / r.width))
-          el.style.setProperty('--con-tro-y', String((e.clientY - r.top) / r.height))
-        }}
-        onPointerLeave={() => {
-          huyNhanGiu()
-          nutRef.current?.style.removeProperty('--con-tro-x')
-          nutRef.current?.style.removeProperty('--con-tro-y')
-        }}
-        // WebkitTouchCallout/userSelect none: đi kèm nhấn-giữ ở trên — iOS bật bong bóng "Sao chép"
-        // và bôi đen tên bảng ngay giữa cử chỉ giữ nếu không tắt, khiến menu app mở ra dưới một lớp
-        // lựa chọn văn bản đang nhấp nháy. Không ảnh hưởng bàn phím/trình đọc màn hình.
+        onPointerUp={xoaNghiengConTro}
+        onPointerCancel={xoaNghiengConTro}
+        onPointerMove={(e) => datNghiengTheoDiem(e.clientX, e.clientY)}
+        onPointerLeave={xoaNghiengConTro}
+        // WebkitTouchCallout/userSelect none: nút này là một hành động (mở bảng), không phải văn
+        // bản để chọn — không tắt thì iOS bật bong bóng "Sao chép" và bôi đen tên bảng ngay giữa cú
+        // chạm/ấn giữ bình thường. Không ảnh hưởng bàn phím/trình đọc màn hình.
         style={{
           display: 'block',
           width: '100%',
@@ -822,6 +794,10 @@ function TheBang({
             className="mind-focus-ring"
             style={{ width: '100%', fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)', marginBottom: 8 }}
           >
+            {/* Bảng mới tạo (taoBangMoi) bắt đầu ở '' — lựa chọn này cho người dùng CHỦ ĐỘNG quay
+                lại trạng thái đó (không chỉ tiến từ nó), thay vì buộc phải chọn một chuyên khoa thật
+                cho một bảng hành chính/liên chuyên khoa không thuộc chuyên khoa nào. */}
+            <option value="">— Chưa gắn chuyên khoa —</option>
             {SPECIALTIES.map((kh) => (
               <option key={kh.id} value={kh.id}>{kh.name}</option>
             ))}
@@ -948,6 +924,18 @@ export function DanhSachBang({
   // thanh hành động ghim đáy — KHÁC drawer trash ghim trên, đúng quy ước tầm ngón cái của màn này).
   const [dangChonNhieu, setDangChonNhieu] = useState(false)
   const [chonNhieuSong, setChonNhieuSong] = useState<Set<string>>(() => new Set())
+  // Xác nhận hai bước cho "Xoá (N)" hàng loạt trên lưới sống — TRƯỚC ĐÂY nút này xoá ngay ở lần
+  // chạm đầu, trong khi xoá TỪNG bảng (dangXacNhanXoaId ở dưới) đã luôn đòi hai lần chạm. Bất nhất
+  // đó tự nó là rủi ro: luồng xoá-đơn dạy người dùng kỳ vọng một khoảng dừng trước khi mất gì đó,
+  // rồi luồng hàng loạt bỏ đúng khoảng dừng ấy ở chỗ phạm vi thiệt hại lớn nhất — một bác sĩ trực,
+  // thao tác một tay, "Chọn tất cả" rồi "Xoá" là xong cả thư viện chỉ trong hai chạm vô tình
+  // (critique 2026-09-02, P1). Cùng khuôn "Chắc chắn xoá?" + tự tắt sau XAC_NHAN_XOA_MS với
+  // dangXacNhanXoaId/xacNhanXoaVinhVien bên dưới.
+  const [xacNhanXoaNhieu, setXacNhanXoaNhieu] = useState(false)
+  // Đổi lựa chọn (chọn thêm/bớt, "Chọn tất cả", bỏ chọn) GIỮA hai lần chạm huỷ luôn xác nhận đang
+  // chờ — chạm "Xoá" lần hai chỉ được hiểu là đồng ý xoá ĐÚNG tập vừa xác nhận, không phải một tập
+  // khác lỡ đổi sau đó.
+  useEffect(() => setXacNhanXoaNhieu(false), [chonNhieuSong])
   // Cùng khuôn "chờ animation rồi mới đánh dấu xoá mềm" với dangChoXoa/vuaXoa ở trên — mảng thay vì
   // một object vì xoá NHIỀU bảng cùng lúc. TheBang đọc mảng này để biết thẻ nào đang chạy
   // .card-slide-out (xem dangXoa ở .map() bên dưới).
@@ -1013,6 +1001,14 @@ export function DanhSachBang({
     const id = setTimeout(() => setXacNhanXoaVinhVien(false), XAC_NHAN_XOA_MS)
     return () => clearTimeout(id)
   }, [xacNhanXoaVinhVien])
+
+  // Cùng khuôn tự-huỷ với xacNhanXoaVinhVien ngay trên, cho dải "Chắc chắn xoá?" của nút Xoá hàng
+  // loạt (xem khai báo xacNhanXoaNhieu ở trên).
+  useEffect(() => {
+    if (!xacNhanXoaNhieu) return
+    const id = setTimeout(() => setXacNhanXoaNhieu(false), XAC_NHAN_XOA_MS)
+    return () => clearTimeout(id)
+  }, [xacNhanXoaNhieu])
 
   // Đánh dấu XOÁ MỀM (daXoaLuc) sau khi .card-slide-out chạy xong — KHÔNG gọi idbDelete/remove()
   // nữa (trước đây xoá vĩnh viễn ngay, không hoàn tác được, ngược với lời hứa "xoá mềm" của
@@ -1213,6 +1209,19 @@ export function DanhSachBang({
     (truyVan.trim().length > 0 || chuyenKhoaLoc !== null) &&
     danhSach.filter((b) => !b.daXoaLuc).length > 0
 
+  // Lưới GẦN-trống (1-3 bảng thật, xem lời mời phía dưới .mind-board-grid): với chỉ vài thẻ, lưới
+  // 2-4 cột chỉ lấp một hàng trên cùng, để lại phần lớn màn hình dưới nếp gấp là khoảng trắng chết —
+  // đọc như một dashboard chưa xong hơn là "phòng não phải" đáng ở lại hàng giờ mà hiến chương
+  // Mindmap mô tả (critique 2026-09-02, P3). KHÔNG lấp bằng nền có hoạ tiết bàn/vải (đã thử 2026-08-
+  // 28, chủ dự án gỡ lại — tờ giấy tự mang trọng lượng vật liệu, nền lưới giữ nguyên --c-surface
+  // phẳng) và KHÔNG lấp bằng thẻ giả/ô trống cùng cỡ (nested/decoy card là phản ví dụ). Thay vào đó
+  // một dòng chữ mờ, MỘT câu, đặt Ý NGHĨA vào khoảng trắng thay vì lấp nó bằng hoạ tiết — chỉ hiện
+  // khi lưới đang cho xem ĐÚNG toàn bộ thư viện thật (không lọc/tìm, không phải một tập con ngẫu
+  // nhiên trông mỏng), nên "mới bắt đầu" luôn đúng sự thật khi nó hiện ra.
+  const dangXemDayDuKhongLoc = !chuyenKhoaLoc && truyVan.trim().length === 0
+  const tongSoBangConLai = danhSach.filter((b) => !b.daXoaLuc).length
+  const ganTrong = dangXemDayDuKhongLoc && tongSoBangConLai > 0 && tongSoBangConLai <= 3
+
   // Bỏ xoá mềm cho một bảng (cả hai nút "Hoàn tác": dải toast và panel "Đã xoá gần đây").
   // "Hoàn tác" là đường phục hồi CUỐI CÙNG nên nó phải chịu ĐÚNG lớp lỗi mà taoBangMoi/
   // onDoiChuyenKhoa/onLuuTen/onXoaTag đã vá: bảng được ghi lại thật trong IndexedDB nhưng không
@@ -1280,6 +1289,7 @@ export function DanhSachBang({
   const thoatChonNhieu = () => {
     setDangChonNhieu(false)
     setChonNhieuSong(new Set())
+    setXacNhanXoaNhieu(false)
   }
   const xoaNhieuSong = () => {
     const bang = danhSachSapXep.filter((b) => chonNhieuSong.has(b.id))
@@ -1306,7 +1316,18 @@ export function DanhSachBang({
       ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,
-      chuyenKhoa: SPECIALTIES[0].id,
+      // Bảng mới bắt đầu ở trạng thái CHƯA GẮN chuyên khoa ('' — không phải SPECIALTIES[0].id như
+      // trước). Bảng là "tài sản dài hạn hàng tháng/năm" (xem chú thích CHUYEN_KHOA_LOC_KEY), ép nó
+      // vào chuyên khoa đầu tiên trong danh sách trước khi người dùng chọn là một lời nói dối lặng
+      // lẽ: aria-label, chip lọc, và panel "Đã xoá gần đây" đều đọc thẳng giá trị này, nên MỌI bảng
+      // mới (kể cả bảng hành chính/liên chuyên khoa) từng bị tính nhầm vào "Tim mạch" cho tới khi ai
+      // đó nhớ mở menu sửa lại — làm nhãn chuyên khoa mất độ tin cậy khi liếc nhanh (critique
+      // 2026-09-02, P2). '' KHÔNG kích hoạt fallback `?? SPECIALTIES[0].id` ở mọi nơi đọc trường này
+      // (nullish coalescing chỉ bắt null/undefined, không bắt chuỗi rỗng) — fallback đó vẫn đúng
+      // nguyên cho bảng CŨ thật sự thiếu hẳn trường (dữ liệu tạo trước lượt thêm 3 trường bắt buộc,
+      // xem boardMeta.ts). TheTrong/specialtyIcon/VeChuyenKhoaDangTai đã sẵn nhánh trung tính cho
+      // khoa lạ/rỗng — không cần sửa gì ở đó.
+      chuyenKhoa: '',
       tags: [],
       noiDungTimKiem: '',
     }
@@ -1316,8 +1337,8 @@ export function DanhSachBang({
     // không cách nào phân biệt trong lưới. Giữ người dùng lại ở danh sách, mở luôn ô đổi tên cho thẻ
     // vừa tạo — họ đặt tên trước rồi mới bấm vào để vẽ, đúng lúc còn nhớ đang tạo bảng cho việc gì.
     setDangSuaTenId(meta.id)
-    // Bảng mới LUÔN được gán chuyenKhoa: SPECIALTIES[0].id — nếu chip lọc đang chọn một chuyên khoa
-    // KHÁC, thẻ vừa tạo sẽ không khớp bộ lọc và biến mất khỏi lưới ngay khi vừa ghi xong (bấm "+"
+    // Bảng mới chưa gắn chuyên khoa nào ('' — xem trên) — nếu chip lọc đang chọn MỘT chuyên khoa cụ
+    // thể, thẻ vừa tạo sẽ không khớp bộ lọc đó và biến mất khỏi lưới ngay khi vừa ghi xong (bấm "+"
     // trông như không phản ứng gì, trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB — review
     // lượt 1 phát hiện). Đưa bộ lọc về "Tất cả" ngay khi tạo để thẻ mới chắc chắn hiện ra.
     setChuyenKhoaLoc(null)
@@ -1997,6 +2018,7 @@ export function DanhSachBang({
         // khoảng trống thừa nhỏ hơn NHIỀU so với ca "không cân đối" đã sửa trước đây (ca đó phát sinh
         // từ auto-fill dò RA THÊM cột rỗng vô hình để lấp hết bề ngang một container rộng trong khi
         // mỗi cột bị ghim cỡ nhỏ cố định — vấn đề gốc đã biến mất cùng với chính cơ chế auto-fill).
+        <>
         <div className="mind-board-grid" style={dangChonNhieu ? { paddingBottom: 64 } : undefined}>
           {/* Ô "+" là ô ĐẦU TIÊN của lưới, không phải ô cuối (critique 2026-08-29, P1). Lưới sắp
               theo `capNhatLuc` giảm dần nên vị trí ô cuối DỊCH CHUYỂN mỗi lần thêm bảng, và ở 2 cột
@@ -2117,6 +2139,15 @@ export function DanhSachBang({
             />
           ))}
         </div>
+        {/* Chỉ MỘT câu, mượn đúng cỡ/màu chữ phụ đã dùng cho "Thử từ khoá khác…" ở trạng thái rỗng
+            phía trên — không icon, không nút, không khung: nó không mời làm gì (ô "+" trong lưới đã
+            mời rồi), chỉ giải thích khoảng trắng bên dưới là CHỖ CÒN CHỖ, không phải lỗi/thiếu. */}
+        {ganTrong && !dangChonNhieu && (
+          <p style={{ fontSize: 13, color: 'var(--c-text-muted, #6b6e96)', textAlign: 'center', margin: '18px auto 0', maxWidth: 320, textWrap: 'balance' }}>
+            Còn nhiều chỗ — mỗi chuyên khoa hay dự án một bảng riêng cũng được, thêm bao nhiêu tuỳ ý.
+          </p>
+        )}
+        </>
       )}
       </div>
       </div>
@@ -2360,11 +2391,21 @@ export function DanhSachBang({
           {/* Nút Xoá theo Untouchable Signal Rule (DESIGN.md): họ màu --c-danger, PHẲNG — không
               bounce/glow dù đứng trong một thanh có thể trượt lên bằng .toast-in-full ở nơi khác.
               disabled khi chưa chọn gì, thay vì ẩn hẳn — thanh vẫn hiện ngay khi bật chế độ chọn
-              (để "Chọn tất cả" luôn với tới được), nút Xoá chỉ có tác dụng khi có gì để xoá. */}
+              (để "Chọn tất cả" luôn với tới được), nút Xoá chỉ có tác dụng khi có gì để xoá.
+              Hai lần chạm khi có gì để xoá — cùng khuôn "Chắc chắn xoá?" với xoá TỪNG bảng (nút
+              trong menu "⋯"), xem xacNhanXoaNhieu. Chạm đầu chỉ ĐỔI NHÃN, không xoá gì. */}
           <button
             type="button"
             data-testid="xoa-nhieu-song"
-            onClick={xoaNhieuSong}
+            onClick={() => {
+              if (soChonSong === 0) return
+              if (!xacNhanXoaNhieu) {
+                setXacNhanXoaNhieu(true)
+                return
+              }
+              setXacNhanXoaNhieu(false)
+              xoaNhieuSong()
+            }}
             disabled={soChonSong === 0}
             className="mind-focus-ring"
             style={{
@@ -2376,7 +2417,7 @@ export function DanhSachBang({
               opacity: soChonSong === 0 ? 0.6 : 1,
             }}
           >
-            Xoá{soChonSong > 0 ? ` (${soChonSong})` : ''}
+            {soChonSong === 0 ? 'Xoá' : xacNhanXoaNhieu ? 'Chắc chắn xoá?' : `Xoá (${soChonSong})`}
           </button>
         </div>
       )

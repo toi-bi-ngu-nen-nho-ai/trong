@@ -1123,10 +1123,12 @@ html.theme-shift * {
   pointer-events: none;
 }
 
-/* LỚP C — nghiêng nhẹ theo vị trí con trỏ khi hover, chỉ bật với chuột thật (không giả trên cảm
-   ứng). JS (DanhSachBang.tsx) cập nhật --con-tro-x/--con-tro-y qua pointermove; nếu JS không chạy
-   (hoặc trên cảm ứng, nơi media query dưới đây không khớp), thẻ vẫn dùng đúng .the-bang-vat:hover
-   tĩnh của Task 1 — không có gì hỏng nếu bỏ qua lớp này. */
+/* LỚP C (chuột/bút mảnh) — nghiêng nhẹ theo vị trí con trỏ khi hover. JS (DanhSachBang.tsx,
+   datNghiengTheoDiem()) cập nhật --con-tro-x/--con-tro-y qua pointermove; nếu JS không chạy (hoặc
+   trên cảm ứng, nơi media query dưới đây không khớp), thẻ vẫn dùng đúng .the-bang-vat:hover tĩnh
+   của Task 1 — không có gì hỏng nếu bỏ qua lớp này. Tương đương cho CON TRỎ THÔ (cảm ứng) đứng ở
+   khối riêng bên dưới rule vá-specificity kế tiếp — không giả hover trên cảm ứng (không có hover
+   thật để giả), mà cho nghiêng chạy qua :active thay vào đó. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .the-bang-vat.the-bang-nghieng-con-tro:hover {
     transform: perspective(400px)
@@ -1142,9 +1144,33 @@ html.theme-shift * {
    (0,3,0) với rule hover-nghiêng nhưng đứng SAU nó trong stylesheet nên thắng tie-break theo thứ tự
    nguồn — khôi phục đúng phản hồi rotate(0deg) scale(0.97) của Task 1 khi có cả hai class (luôn
    đúng vì Task 6 luôn gắn the-bang-nghieng-con-tro cùng the-bang-vat). KHÔNG sửa/xoá rule
-   .the-bang-vat:active gốc — nó vẫn đúng ngữ nghĩa, chỉ bị rule này ghi đè khi có đủ hai class. */
+   .the-bang-vat:active gốc — nó vẫn đúng ngữ nghĩa, chỉ bị rule này ghi đè khi có đủ hai class.
+   Đây CŨNG là rule phổ quát mà con trỏ thô (cảm ứng) dùng khi khối @media (pointer: coarse) ngay
+   dưới không khớp (giảm-chuyển-động bật) — giữ nguyên để phản hồi chạm luôn còn dù mất phần nghiêng
+   trang trí. */
 .the-bang-vat.the-bang-nghieng-con-tro:active {
   transform: rotate(0deg) scale(0.97);
+}
+
+/* LỚP C (cảm ứng) — tương đương lớp hover ở trên nhưng cho ngón tay: nghiêng theo ĐÚNG điểm đang ấn
+   khi thẻ :active trên một con trỏ THÔ (touch/bút không hover được thật). Trước đây lớp nghiêng-
+   theo-vị-trí chỉ chạy qua :hover chuột, nên hiệu ứng vật lý tinh vi nhất của thẻ giấy này vô hình
+   với đúng đối tượng dùng chính của app — bác sĩ cầm điện thoại một tay (PRODUCT.md) — critique
+   2026-09-02, P2. JS (datNghiengTheoDiem(), dùng chung với lớp chuột ở trên) cập nhật hai biến này
+   ngay lúc ngón tay chạm xuống và trong lúc còn di chuyển tại chỗ (chưa vượt ngưỡng cuộn), rồi gỡ
+   chúng lúc ngón tay rời thẻ — tờ giấy nghiêng theo điểm ấn rồi TỰ SETTLE về góc tĩnh qua đúng
+   transition 0.18s sẵn có của .the-bang-vat, không phải một cú CSS state swap (hiến chương Mindmap:
+   "every drag, dock, open, and close is a physical event"). Cùng specificity (0,3,0) với rule phổ
+   quát ngay trên — đứng SAU nên thắng tie-break theo thứ tự nguồn TRÊN CON TRỎ THÔ; chuột/bút mảnh
+   không khớp pointer: coarse nên vẫn dùng đúng rule phổ quát đó, không đổi gì. */
+@media (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  .the-bang-vat.the-bang-nghieng-con-tro:active {
+    transform: perspective(400px)
+      rotateX(calc((var(--con-tro-y, 0.5) - 0.5) * -6deg))
+      rotateY(calc((var(--con-tro-x, 0.5) - 0.5) * 6deg))
+      scale(0.97);
+    box-shadow: 0 6px 16px var(--c-shadow), var(--c-shadow-glow);
+  }
 }
 
 .screen-transition {
