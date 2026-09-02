@@ -18,6 +18,14 @@ import { donRacBlobBang, xoaNoiDungBang } from './xoaNoiDungBang'
 // dòng đó. Xem Global Constraints của kế hoạch này.
 const XAC_NHAN_XOA_MS = 5000
 
+// Ngưỡng thời gian TỐI THIỂU giữa lần chạm "vào trạng thái xác nhận" và lần chạm "xác nhận thật" —
+// không có ngưỡng này, "Xoá" → "Chắc chắn xoá?" → xoá thật chỉ là MỘT cử chỉ hai-chạm-liên-tiếp
+// (double-tap ~100-300ms, phản xạ quen tay từ double-tap-to-zoom, tay run, bấm lại vì lo lắng) xuyên
+// thủng hoàn toàn — đo được trực tiếp: 2 click cách nhau 50ms thực thi xoá ngay, y hệt không hề có
+// bước xác nhận (critique 2026-09-02 lượt 3, P1). 450ms nằm trên ngưỡng double-tap của con người
+// (thường <300ms) nhưng vẫn ngắn hơn hẳn cảm giác "phải đợi" của một lần chạm CHỦ Ý thứ hai.
+const NGUONG_XAC_NHAN_MS = 450
+
 // Ngưỡng coi một thẻ là "vừa tạo" (dùng .card-plop thay vì .card-settle êm) — xem §3.2/§3.3 spec.
 const VUA_TAO_NGUONG_MS = 3000
 
@@ -62,6 +70,9 @@ export type BoardOpenOrigin = {
   // với thẻ gốc thay vì rơi về một xám trung tính chung cho mọi bảng chưa gắn khoa (critique
   // 2026-09-02 lượt 2, P2). undefined cùng điều kiện với chuyenKhoa ở trên.
   id?: string
+  // Hue cố định đã gán lúc tạo bảng (BangMeta.mauHue) — cùng lý do id ở trên, ưu tiên hơn hash
+  // mauOnDinh(id) khi có (critique 2026-09-02 lượt 3, P2).
+  mauHue?: number
 }
 
 // Cửa sổ "Hoàn tác" sau khi xoá mềm một bảng — cùng độ dài với XAC_NHAN_XOA_MS (quy ước sẵn có của
@@ -92,27 +103,60 @@ export function nghiengOnDinh(id: string): number {
 // Băm id thành một góc (độ hue) ỔN ĐỊNH trong khoảng [260, 330) — họ tím-hồng quanh --c-accent-2
 // (~327°, xem src/index.css), CỐ TÌNH tránh xa đỏ/hổ phách/xanh lá (~0-50°, ~90-150°) vì ba màu đó
 // dành riêng cho tín hiệu nguy hiểm/cảnh báo/thành công (Untouchable Signal Rule, DESIGN.md) — chấm
-// phân biệt bảng không bao giờ được lẫn với tín hiệu an toàn. Dùng chung `--chip-s`/`--chip-l` (định
-// nghĩa cạnh --c-accent-2 trong index.css, tự đổi theo sáng/tối) nên hue là thứ DUY NHẤT hàm này cần
-// tính — critique lượt 3 (2026-08-24): bảng mới tạo không phân biệt được trong lưới lẫn panel "Đã
-// xoá gần đây" (11/15 bảng thật trên máy dev đọc y hệt "Bảng chưa đặt tên").
+// phân biệt bảng không bao giờ được lẫn với tín hiệu an toàn — critique lượt 3 (2026-08-24): bảng
+// mới tạo không phân biệt được trong lưới lẫn panel "Đã xoá gần đây" (11/15 bảng thật trên máy dev
+// đọc y hệt "Bảng chưa đặt tên"). Từ 2026-09-02 lượt 3 chỉ còn FALLBACK cho bảng thiếu mauHue (xem
+// mauHueChongTrung/mauTrungTinhTheoBang ngay dưới) — không còn dùng trực tiếp cho S/L nữa (đã bỏ
+// --chip-s/--chip-l, xem chú thích tại mauTrungTinhTheoBang).
 export function mauOnDinh(id: string): number {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) | 0
   return 260 + (Math.abs(h) % 70)
 }
 
-// Màu badge cho bảng CHƯA gắn chuyên khoa — tô theo mauOnDinh(id) thay vì một xám trung tính DÙNG
-// CHUNG cho mọi bảng chưa gắn khoa. Trước 2026-09-02 mọi bảng như vậy (nay là mặc định của bảng mới,
-// xem taoBangMoi) đều đọc y hệt nhau trong lưới — cùng lớp lỗi "11/15 bảng đọc y hệt nhau" mà chính
-// mauOnDinh() ở trên từng vá cho panel "Đã xoá gần đây" (critique 2026-09-02 lượt 2, P2). S/L CỐ ĐỊNH
-// (không dùng --chip-s/--chip-l — hai token đó tự đổi theo theme cho nền --c-page/--c-surface, còn
-// badge này luôn nằm TRÊN GIẤY (.mind-note-card), vốn KHÔNG theme-swap — trộn nhầm token theo-theme
-// vào nền không theo-theme là đúng lớp bug 2,69:1 mà --c-on-note-muted bên dưới từng vá, xem chú
-// thích P0 tại chỗ dùng). 50%/36% đo được ≥5,3:1 trên cả hai tông giấy (#fbfaf7 sáng / #efece3 tối)
-// xuyên suốt toàn bộ dải hue [260,330) — kiểm bằng script, không đoán.
-export function mauTrungTinhTheoBang(id: string | undefined): string {
-  return id ? `hsl(${mauOnDinh(id)} 50% 36%)` : 'var(--c-on-note-muted, #5c5f7a)'
+// 14 mốc hue cách đều 5° phủ hết [260,330) — "ứng viên" cho mauHueChongTrung() ngay dưới. Độ mịn 5°
+// đủ để chọn được một mốc rõ ràng tách biệt khỏi láng giềng gần nhất trong thực tế (vài chục bảng),
+// không cần mịn hơn (khác biệt dưới 5° không còn phân biệt được bằng mắt ở cùng S/L, nên mịn hơn chỉ
+// tổ tốn phép tính mà không thêm khả năng phân biệt thật).
+const CAC_MOC_HUE: number[] = Array.from({ length: 14 }, (_, i) => 260 + i * 5)
+
+// Chọn MỘT hue trong CAC_MOC_HUE xa nhất (theo khoảng cách gần nhất) các hue ĐANG CÓ — greedy
+// farthest-point, gọi MỘT LẦN lúc tạo bảng (taoBangMoi) rồi lưu cố định vào BangMeta.mauHue, KHÔNG
+// gọi lại mỗi lần render. Vì sao không thể là hash thuần theo id: hai giá trị hash độc lập của hai id
+// bất kỳ không có bảo đảm khoảng cách tối thiểu nào — đo được trực tiếp 2 bảng tạo liên tiếp ra hue
+// cách nhau chỉ 6°, gần như cùng màu (critique 2026-09-02 lượt 3, P2). Thuật toán này thì có: nó NHÌN
+// THẤY sibling hiện có trước khi gán, nên luôn chọn được mốc tách biệt nhất còn lại. Mảng rỗng (bảng
+// đầu tiên) → mốc đầu tiên, không có gì để tránh.
+export function mauHueChongTrung(hueHienCo: number[]): number {
+  if (hueHienCo.length === 0) return CAC_MOC_HUE[0]
+  let tot = CAC_MOC_HUE[0]
+  let xaNhat = -1
+  for (const moc of CAC_MOC_HUE) {
+    const ganNhat = Math.min(...hueHienCo.map((h) => Math.abs(h - moc)))
+    if (ganNhat > xaNhat) {
+      xaNhat = ganNhat
+      tot = moc
+    }
+  }
+  return tot
+}
+
+// Màu badge cho bảng CHƯA gắn chuyên khoa — tô theo hue (mauHue nếu bảng đã có, tức tạo từ
+// 2026-09-02 lượt 3 trở đi qua mauHueChongTrung; mauOnDinh(id) làm fallback cho bảng CŨ hơn, tạo
+// trước khi trường này tồn tại — không đổi màu bảng cũ người dùng đã quen mắt) thay vì một xám trung
+// tính DÙNG CHUNG cho mọi bảng chưa gắn khoa. Trước 2026-09-02 mọi bảng như vậy (nay là mặc định của
+// bảng mới, xem taoBangMoi) đều đọc y hệt nhau trong lưới — cùng lớp lỗi "11/15 bảng đọc y hệt nhau"
+// mà chính mauOnDinh() ở trên từng vá cho panel "Đã xoá gần đây" (critique 2026-09-02 lượt 2, P2).
+// S/L CỐ ĐỊNH (không dùng --chip-s/--chip-l — hai token đó tự đổi theo theme cho nền --c-page/
+// --c-surface, còn badge này luôn nằm TRÊN GIẤY (.mind-note-card), vốn KHÔNG theme-swap — trộn nhầm
+// token theo-theme vào nền không theo-theme là đúng lớp bug 2,69:1 mà --c-on-note-muted bên dưới
+// từng vá, xem chú thích P0 tại chỗ dùng). 50%/36% đo được ≥5,3:1 trên cả hai tông giấy (#fbfaf7
+// sáng / #efece3 tối) xuyên suốt toàn bộ dải hue [260,330) — kiểm bằng script, không đoán. Panel "Đã
+// xoá gần đây" dùng CHÍNH công thức này (không còn --chip-s/--chip-l riêng) để chấm màu ở đó và badge
+// ở lưới chính luôn là MỘT màu cho cùng một bảng (critique 2026-09-02 lượt 3, P3).
+export function mauTrungTinhTheoBang(id: string | undefined, mauHue?: number): string {
+  if (!id) return 'var(--c-on-note-muted, #5c5f7a)'
+  return `hsl(${mauHue ?? mauOnDinh(id)} 50% 36%)`
 }
 
 // Độ sáng tương đối (WCAG relative luminance, 0-1) của một màu hex "#rrggbb".
@@ -153,12 +197,24 @@ function chuTrenNen(hexNen: string): string {
 // chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
 // id: id CỦA BẢNG (không phải chuyên khoa) — chỉ dùng khi spec undefined, để tô màu trung tính ổn
 // định theo từng bảng thay vì một xám dùng chung cho mọi bảng chưa gắn khoa (mauTrungTinhTheoBang).
+// mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (BangMeta.mauHue, xem mauHueChongTrung) — ưu tiên hơn hash
+// mauOnDinh(id) khi có, vì bảo đảm tách biệt khỏi sibling lúc tạo mà hash thuần không có.
 // Export vì BoardGallery.tsx dùng CHÍNH component này cho lớp phủ chuyển cảnh FLIP: lớp phủ phải
 // là đúng thứ người dùng vừa bấm, và từ 2026-08-30 thứ đó luôn là huy hiệu chuyên khoa. Dựng lại
 // một bản sao ở đó là mở đường cho hai hình khác nhau trôi dạt khỏi nhau — đúng lúc chúng phải
-// khớp từng pixel thì chuyển cảnh mới liền mạch (cùng lý do id phải đi kèm chuyenKhoa trong
+// khớp từng pixel thì chuyển cảnh mới liền mạch (cùng lý do id/mauHue phải đi kèm chuyenKhoa trong
 // BoardOpenOrigin, xem type đó).
-export function TheTrong({ khoa, id, dangVe = false }: { khoa?: string; id?: string; dangVe?: boolean }) {
+export function TheTrong({
+  khoa,
+  id,
+  mauHue,
+  dangVe = false,
+}: {
+  khoa?: string
+  id?: string
+  mauHue?: number
+  dangVe?: boolean
+}) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
     <div className="relative w-full h-full" aria-hidden="true">
@@ -186,7 +242,7 @@ export function TheTrong({ khoa, id, dangVe = false }: { khoa?: string; id?: str
           // đó) VÀ phân biệt được từng bảng bằng mắt — --c-on-note-muted (đồng nhất) chỉ còn là
           // fallback khi không có id. Nhánh spec.color không đổi: màu chuyên khoa đều đậm, thấp
           // nhất đo được 5,04:1 trên giấy nên vốn đã an toàn ở cả hai bản.
-          color: spec ? spec.color : mauTrungTinhTheoBang(id),
+          color: spec ? spec.color : mauTrungTinhTheoBang(id, mauHue),
         }}
       >
         {/* `dangVe`: lớp phủ FLIP lúc MỞ bảng dùng nhánh này. Lớp phủ đó CHÍNH LÀ màn chờ ở đường
@@ -196,7 +252,7 @@ export function TheTrong({ khoa, id, dangVe = false }: { khoa?: string; id?: str
             đây thì chỉ còn MỘT màn, và nó hạ cánh đúng chỗ cú FLIP phóng tới.
             Hai nhánh vẽ CÙNG một icon, cùng ô 34%, cùng màu — chỉ khác tĩnh/động. Mặc định (lưới,
             lớp phủ "gập lại" lúc đóng) vẫn tĩnh: cú gập chỉ dài 260ms, không đủ để vẽ gì. */}
-        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} /> : specialtyIcon(khoa, 'w-full h-full')}
+        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} mauHue={mauHue} /> : specialtyIcon(khoa, 'w-full h-full')}
       </div>
     </div>
   )
@@ -299,6 +355,16 @@ function TheBang({
   // Menu "⋯" mở LÊN TRÊN thay vì xuống dưới, khi dưới thẻ không còn chỗ. Xem useLayoutEffect ngay
   // dưới phần khai báo state — mặc định false (mở xuống) để lượt render đầu không nhấp nháy.
   const [menuMoLen, setMenuMoLen] = useState(false)
+  // Nháy xác nhận khi HUỶ đổi tên bằng Escape — trước bản vá này, Escape hoàn tác đúng (tên cũ được
+  // lưu lại) nhưng không có gì cho người gõ nhanh THẤY việc huỷ đã xảy ra, chỉ có thể tin (critique
+  // 2026-09-02 lượt 3, P3). Tự tắt sau một nhịp ngắn — xem .ten-bang-vua-huy (index.css) cho hoạt
+  // ảnh, tắt ở Escape handler bên dưới.
+  const [vuaHuyDoiTen, setVuaHuyDoiTen] = useState(false)
+  useEffect(() => {
+    if (!vuaHuyDoiTen) return
+    const id = setTimeout(() => setVuaHuyDoiTen(false), 300)
+    return () => clearTimeout(id)
+  }, [vuaHuyDoiTen])
   // Đặt góc nghiêng theo MỘT điểm (chuột đang hover HOẶC ngón tay đang ấn) — dùng chung cho cả hai
   // nhánh con trỏ/cảm ứng của onPointerDown/onPointerMove bên dưới, cùng một công thức toạ độ đọc
   // bởi Lớp B/C trong index.css (--con-tro-x/--con-tro-y, [0,1] theo bề rộng/cao nút).
@@ -469,6 +535,7 @@ function TheBang({
                   tilt: nghiengOnDinh(bang.id),
                   chuyenKhoa: bang.chuyenKhoa,
                   id: bang.id,
+                  mauHue: bang.mauHue,
                 }
               : undefined,
           )
@@ -506,7 +573,19 @@ function TheBang({
           WebkitTouchCallout: 'none',
           userSelect: 'none',
         }}
-        aria-label={tenChuyenKhoa ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}` : `Mở bảng ${bang.ten}`}
+        // Mốc cập nhật tương đối gắn vào aria-label — cùng lý do/mẫu moTaXoa của panel "Đã xoá gần
+        // đây" (critique 2026-09-01 P1, xem chú thích tại đó): trước bản vá này, mọi thẻ CHƯA gắn
+        // chuyên khoa (mặc định của bảng mới từ 2026-09-02) có aria-label NGUYÊN VĂN giống hệt nhau
+        // — "Mở bảng Bảng chưa đặt tên" — nên người dùng trình đọc màn hình không có cách nào phân
+        // biệt N bảng như vậy trong lưới, dù bản vá màu-theo-id lượt 2 đã giúp người sáng mắt phân
+        // biệt được (critique 2026-09-02 lượt 3, P1 — đúng lỗi đã vá RIÊNG ở panel trash nhưng chưa
+        // mang sang lưới chính). Dùng capNhatLuc (đã hiển thị trên màn, xem <p> ngay dưới) chứ không
+        // phải taoLuc: đây là mốc người dùng NHÌN THẤY, giữ hai nguồn tin đồng bộ với nhau.
+        aria-label={
+          tenChuyenKhoa
+            ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+            : `Mở bảng ${bang.ten}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+        }
       >
         <div
           // .mind-note-card (index.css): tờ giấy ghim y hệt ảnh tham chiếu người dùng gửi lần 2
@@ -537,7 +616,7 @@ function TheBang({
               color: 'var(--c-text-muted, #6b6e96)',
             }}
           >
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} mauHue={bang.mauHue} />
           </div>
           {/* Không còn cây ghim vẽ trên thẻ — chủ dự án yêu cầu bỏ hẳn (2026-08-29: "xóa ghim").
               Phân biệt bảng cùng tên mặc định vẫn còn: icon + màu chuyên khoa trong TheTrong, tên,
@@ -546,6 +625,7 @@ function TheBang({
         {!dangSuaTen && (
           <>
             <p
+              className={vuaHuyDoiTen ? 'ten-bang-vua-huy' : undefined}
               style={{
                 fontSize: 13,
                 fontWeight: 600,
@@ -595,7 +675,10 @@ function TheBang({
           onChange={(e) => setTenNhap(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onLuuTen(tenCanLuu())
-            if (e.key === 'Escape') onLuuTen(bang.ten)
+            if (e.key === 'Escape') {
+              setVuaHuyDoiTen(true)
+              onLuuTen(bang.ten)
+            }
           }}
           onBlur={() => onLuuTen(tenCanLuu())}
           className="mind-focus-ring"
@@ -965,6 +1048,9 @@ export function DanhSachBang({
   const [dangMoMenuId, setDangMoMenuId] = useState<string | null>(null)
   const [dangSuaTagId, setDangSuaTagId] = useState<string | null>(null)
   const [dangXacNhanXoaId, setDangXacNhanXoaId] = useState<string | null>(null)
+  // Mốc thời gian lúc dangXacNhanXoaId được ARM (không phải state — chỉ ĐỌC trong callback, không
+  // cần kích render) — xem NGUONG_XAC_NHAN_MS ở đầu file.
+  const hesXacNhanXoaLucRef = useRef(0)
   // "Xuất PNG" chuyển ra nút tròn ở màn vẽ (BoardGallery.tsx) — không còn state xuất ở lưới.
   // Mang cả OBJECT (không chỉ id) — cần đủ dữ liệu gốc để đánh dấu daXoaLuc rồi đưa thẳng cho dải
   // "Hoàn tác" mà không phải tra lại danhSach sau khi bang đã bị lọc khỏi danh sách hiển thị.
@@ -986,6 +1072,9 @@ export function DanhSachBang({
   // (critique 2026-09-02, P1). Cùng khuôn "Chắc chắn xoá?" + tự tắt sau XAC_NHAN_XOA_MS với
   // dangXacNhanXoaId/xacNhanXoaVinhVien bên dưới.
   const [xacNhanXoaNhieu, setXacNhanXoaNhieu] = useState(false)
+  // Cùng lý do/ngưỡng với hesXacNhanXoaLucRef (xoá từng-bảng) — chặn double-tap xuyên thủng xác
+  // nhận hàng loạt (critique 2026-09-02 lượt 3, P1).
+  const hesXacNhanXoaNhieuLucRef = useRef(0)
   // Đổi lựa chọn (chọn thêm/bớt, "Chọn tất cả", bỏ chọn) GIỮA hai lần chạm huỷ luôn xác nhận đang
   // chờ — chạm "Xoá" lần hai chỉ được hiểu là đồng ý xoá ĐÚNG tập vừa xác nhận, không phải một tập
   // khác lỡ đổi sau đó.
@@ -1386,11 +1475,16 @@ export function DanhSachBang({
     if (dangSuaTenRef.current) return
     dangSuaTenRef.current = 'dang-tao'
     const luc = Date.now()
+    // Tính TRƯỚC lúc tạo bản ghi — mauHueChongTrung cần biết hue các bảng ĐANG SỐNG (bỏ qua xoá
+    // mềm, đúng như mọi chỗ lọc lưới khác trong file) để chọn mốc xa nhất, không phải hue của MỌI
+    // bản ghi từng có kể cả đã xoá (critique 2026-09-02 lượt 3, P2).
+    const hueHienCo = danhSach.filter((b) => !b.daXoaLuc).map((b) => b.mauHue ?? mauOnDinh(b.id))
     const meta: BangMeta = {
       id: taoIdBang(),
       ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,
+      mauHue: mauHueChongTrung(hueHienCo),
       // Bảng mới bắt đầu ở trạng thái CHƯA GẮN chuyên khoa ('' — không phải SPECIALTIES[0].id như
       // trước). Bảng là "tài sản dài hạn hàng tháng/năm" (xem chú thích CHUYEN_KHOA_LOC_KEY), ép nó
       // vào chuyên khoa đầu tiên trong danh sách trước khi người dùng chọn là một lời nói dối lặng
@@ -1797,7 +1891,7 @@ export function DanhSachBang({
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '0 1 auto', minWidth: 0 }}>
                         <span
                           aria-hidden="true"
-                          style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: `hsl(${mauOnDinh(b.id)} var(--chip-s) var(--chip-l))` }}
+                          style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mauTrungTinhTheoBang(b.id, b.mauHue) }}
                         />
                         <span style={{ minWidth: 0, fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {b.ten}
@@ -2192,8 +2286,13 @@ export function DanhSachBang({
               onXoa={() => {
                 if (dangXacNhanXoaId !== bang.id) {
                   setDangXacNhanXoaId(bang.id)
+                  hesXacNhanXoaLucRef.current = Date.now()
                   return
                 }
+                // Chạm "xác nhận" tới quá sớm sau chạm ARM = double-tap vô tình, không phải hai
+                // quyết định riêng biệt — bỏ qua, GIỮ NGUYÊN trạng thái "Chắc chắn xoá?" để lần
+                // chạm chủ ý thật (sau ngưỡng) vẫn xoá được, không phải bắt đầu lại từ đầu.
+                if (Date.now() - hesXacNhanXoaLucRef.current < NGUONG_XAC_NHAN_MS) return
                 setDangXacNhanXoaId(null)
                 setDangMoMenuId(null)
                 setDangChoXoa(bang)
@@ -2477,8 +2576,12 @@ export function DanhSachBang({
               if (soChonSong === 0) return
               if (!xacNhanXoaNhieu) {
                 setXacNhanXoaNhieu(true)
+                hesXacNhanXoaNhieuLucRef.current = Date.now()
                 return
               }
+              // Cùng lý do với onXoa (xoá từng-bảng): chạm tới quá sớm sau ARM là double-tap vô
+              // tình, bỏ qua và GIỮ NGUYÊN "Chắc chắn xoá?" thay vì xoá ngay hoặc rút lại xác nhận.
+              if (Date.now() - hesXacNhanXoaNhieuLucRef.current < NGUONG_XAC_NHAN_MS) return
               setXacNhanXoaNhieu(false)
               xoaNhieuSong()
             }}

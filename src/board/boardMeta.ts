@@ -26,6 +26,15 @@ export type BangMeta = {
   chuyenKhoa: string
   tags: string[]
   noiDungTimKiem: string
+  // Hue (độ, [260,330)) cho badge/chấm màu khi bảng CHƯA gắn chuyên khoa — gán MỘT LẦN lúc tạo
+  // (taoBangMoi, DanhSachBang.tsx) bằng thuật toán chọn xa nhất các bảng đang có (mauHueChongTrung),
+  // KHÔNG phải hash thuần theo id: hai bảng tạo liên tiếp từng đo được hue cách nhau chỉ 6° — gần
+  // như cùng màu (critique 2026-09-02 lượt 3, P2). Lưu cố định vào bản ghi để màu KHÔNG đổi sau đó
+  // dù bảng khác được thêm/xoá (đúng triết lý "tờ giấy nằm yên trên bàn" — mauOnDinh(id) đã dùng cho
+  // mục đích khác, chỉ còn là fallback tại đây). Optional, KHÔNG backfill: bảng cũ tạo trước lượt
+  // này thiếu trường, mọi nơi đọc phải tự `?? mauOnDinh(id)` — không đổi màu bảng cũ người dùng đã
+  // quen mắt.
+  mauHue?: number
 }
 
 export function taoIdBang(): string {

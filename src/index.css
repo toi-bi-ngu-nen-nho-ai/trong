@@ -267,12 +267,6 @@
   /* Bộ ba R,G,B của accent-2 — cùng khuôn với --c-primary-rgb, để nhét vào rgba() cho viền/nền mờ
      (khung khoanh vùng, vệt lasso) ăn theo sắc này mà vẫn tự đổi theo sáng/tối. */
   --c-accent-2-rgb: 184, 25, 111;
-  /* Độ bão hoà/sáng dùng CHUNG cho chấm màu phân biệt bảng trong DanhSachBang.tsx (mauOnDinh() chỉ
-     tính hue, ghép với hai biến này qua hsl()) — cùng nguyên tắc "chỉ dùng trong Mindmap" như
-     --c-accent-2, tách riêng để tự đổi theo sáng/tối giống mọi token màu khác trong file này. */
-  --chip-s: 58%;
-  --chip-l: 48%;
-
   /* Dải "Hoàn tác" sau khi xoá mềm một bảng (DanhSachBang.tsx). CỐ TÌNH không đổi theo sáng/tối —
      giống --c-note, đây là một vật thể chất liệu cố định: một tấm thẻ tối nổi hẳn trên mọi nền ở
      cả hai theme, để hành động phục hồi cuối cùng luôn đọc ra ngay. Trước đây nền là
@@ -427,8 +421,6 @@
     --c-accent-line: var(--c-primary-line);
     --c-accent-2: #f175a6;
     --c-accent-2-rgb: 241, 117, 166;
-    --chip-s: 62%;
-    --chip-l: 64%;
 
     --c-danger-icon: #ff6b6b;
     --c-danger: #ff8585;
@@ -516,8 +508,6 @@
   --c-accent-line: var(--c-primary-line);
   --c-accent-2: #f175a6;
   --c-accent-2-rgb: 241, 117, 166;
-  --chip-s: 62%;
-  --chip-l: 64%;
 
   --c-danger-icon: #ff6b6b;
   --c-danger: #ff8585;
@@ -1058,6 +1048,21 @@ html.theme-shift * {
 }
 .card-plop {
   animation: cardPlop 0.34s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* Nháy xác nhận khi HUỶ đổi tên bảng bằng Escape (DanhSachBang.tsx, ten-bang-vua-huy) — Escape hoàn
+   tác đúng tên cũ nhưng trước bản vá này không có gì cho người gõ nhanh THẤY việc huỷ đã xảy ra, chỉ
+   có thể tin (critique 2026-09-02 lượt 3, P3). Một cú "settle" rất ngắn — không phải chào mừng vật gì
+   mới (khác .card-plop), chỉ xác nhận "đã quay lại" — cùng họ easing lò xo dùng xuyên app. Trang trí
+   thuần tuý, tôn trọng prefers-reduced-motion (khác tap-confirmation, không bắt buộc phải sống). */
+@keyframes tenBangVuaHuySettle {
+  0% { opacity: 0.55; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ten-bang-vua-huy {
+    animation: tenBangVuaHuySettle 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
 }
 
 /* Thẻ bị xoá trượt/rút khỏi chồng thay vì biến mất tức thì. forwards giữ trạng thái cuối (opacity

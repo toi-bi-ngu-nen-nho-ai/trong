@@ -498,6 +498,13 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     expect(nutXoa().textContent).toContain('Chắc chắn')
 
+    // Chờ qua NGUONG_XAC_NHAN_MS (DanhSachBang.tsx) — dưới ngưỡng này chạm thứ hai bị coi là
+    // double-tap vô tình và bị BỎ QUA (critique 2026-09-02 lượt 3, P1). Test này mô phỏng hai chạm
+    // CHỦ Ý cách nhau thật, không phải một cử chỉ đúp.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 500))
+    })
+
     // Chạm lần 2: bắt đầu xoá — thẻ CHƯA biến mất ngay, đang chạy .card-slide-out.
     await act(async () => {
       nutXoa().click()
@@ -537,6 +544,8 @@ describe('DanhSachBang', () => {
     })
     const nutXoa = () => container.querySelector('[data-testid="xoa-bang-1"]') as HTMLButtonElement
     await act(async () => { nutXoa().click() })
+    // Chờ qua NGUONG_XAC_NHAN_MS — xem chú thích ở test double-tap phía trên.
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)) })
     await act(async () => { nutXoa().click() })
 
     // Thẻ biến mất khỏi lưới (xoá mềm đã chạy) và dải "Hoàn tác" xuất hiện với đúng tên bảng.
@@ -594,6 +603,8 @@ describe('DanhSachBang', () => {
     })
     const nutXoa = () => container.querySelector('[data-testid="xoa-a"]') as HTMLButtonElement
     await act(async () => { nutXoa().click() })
+    // Chờ qua NGUONG_XAC_NHAN_MS — xem chú thích ở test double-tap phía trên.
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)) })
     await act(async () => { nutXoa().click() })
     await choDenKhi(() => {
       expect(container.textContent).toContain('Đã xoá')
@@ -816,6 +827,8 @@ describe('DanhSachBang', () => {
     })
     const nutXoaA = () => container.querySelector('[data-testid="xoa-bang-a"]') as HTMLButtonElement
     await act(async () => { nutXoaA().click() })
+    // Chờ qua NGUONG_XAC_NHAN_MS — xem chú thích ở test double-tap phía trên.
+    await act(async () => { await new Promise((r) => setTimeout(r, 500)) })
     await act(async () => { nutXoaA().click() })
 
     // Menu của B mở lúc đầu đã bị đóng bởi bước mở-menu-A (đúng hành vi sẵn có: mở menu khác thì

@@ -82,13 +82,16 @@ function mauOnDinh(id: string): number {
 // id: id CỦA BẢNG — optional, chỉ truyền từ TheTrong (DanhSachBang.tsx). Hai lời gọi khác
 // (index.tsx, EdgelessBoard.tsx) không có board id sẵn trong ngữ cảnh của chúng (màn tải chunk lần
 // đầu / màn chờ nội bộ EdgelessBoard) nên không truyền — tự rơi về màu mờ cũ, không cần sửa gì ở đó.
-export function VeChuyenKhoaDangTai({ khoa, id }: { khoa?: string; id?: string }) {
+// mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (BangMeta.mauHue) — ưu tiên hơn mauOnDinh(id) khi có,
+// cùng lý do/ưu tiên với TheTrong (xem đó): hash thuần không bảo đảm tách biệt khỏi sibling.
+export function VeChuyenKhoaDangTai({ khoa, id, mauHue }: { khoa?: string; id?: string; mauHue?: number }) {
   const bocRef = useRef<HTMLDivElement>(null)
   // Màu nhận diện của khoa — cùng hằng số spec.color mà thẻ bảng và specialtyIcon() vẫn ăn theo.
-  // Khoa lạ / bảng chưa gắn khoa → tô theo mauOnDinh(id) (cùng công thức TheTrong dùng cho chính
-  // thẻ đó) thay vì một màu chữ mờ dùng chung — hai nhánh tĩnh/động phải "cùng màu" (xem chú thích
-  // "Hai nhánh vẽ CÙNG..." tại TheTrong), --c-text-muted chỉ còn là fallback khi không có id.
-  const mau = SPECIALTIES.find((s) => s.id === khoa)?.color ?? (id ? `hsl(${mauOnDinh(id)} 50% 36%)` : 'var(--c-text-muted, #6b6e96)')
+  // Khoa lạ / bảng chưa gắn khoa → tô theo mauHue ?? mauOnDinh(id) (cùng công thức/ưu tiên TheTrong
+  // dùng cho chính thẻ đó) thay vì một màu chữ mờ dùng chung — hai nhánh tĩnh/động phải "cùng màu"
+  // (xem chú thích "Hai nhánh vẽ CÙNG..." tại TheTrong), --c-text-muted chỉ còn là fallback khi
+  // không có id.
+  const mau = SPECIALTIES.find((s) => s.id === khoa)?.color ?? (id ? `hsl(${mauHue ?? mauOnDinh(id)} 50% 36%)` : 'var(--c-text-muted, #6b6e96)')
 
   // useLayoutEffect (không phải useEffect): hoạt ảnh đặt icon thật về opacity 0 ở mốc 0 của chu
   // kỳ. Chạy SAU lượt vẽ thì có đúng một khung hình loé nguyên icon đặc rồi mới tắt đi để nét bắt
