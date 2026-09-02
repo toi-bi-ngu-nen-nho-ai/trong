@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from 'react'
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
 import { cheDoEdgeless } from './che-do-edgeless'
+import { phongChuBangExtension } from './phong-chu-bang'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
 import type { KetQuaXuat } from './xuatAnhBang'
@@ -83,9 +84,14 @@ EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
  * `FoundationViewExtension` (phần tử đầu mảng) vừa đăng ký. Không có nó thì `getEditorMode()` trả
  * `null` và TOÀN BỘ thanh công cụ phần tử tắt câm — xem ./che-do-edgeless.ts để biết chuỗi nhân quả
  * đầy đủ. Đặt trong hàm dùng chung này để mọi đường mount cây Lit đều nhận đúng một bộ.
+ *
+ * `phongChuBangExtension` cùng lớp lý do: `FoundationViewExtension` chỉ đăng ký cấu hình phông KHI
+ * được truyền `options.fontConfig`, mà ta gọi `.get('edgeless')` không kèm options — nên không có
+ * FontFace nào mang tên họ `blocksuite:surface:*` và MỌI ô chọn phông/kiểu chữ mở ra đều rỗng. Xem
+ * ./phong-chu-bang.ts.
  */
 export function layExtensionsEdgeless() {
-  return [...viewManager.get('edgeless'), cheDoEdgeless]
+  return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension]
 }
 
 // Tên CSDL IndexedDB riêng cho NỘI DUNG bảng (CRDT nhị phân + blob ảnh) — tách hẳn khỏi

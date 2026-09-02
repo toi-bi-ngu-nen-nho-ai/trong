@@ -113,3 +113,33 @@ export declare function thayPlaceholderBangMau(
   banDo: Record<string, string>,
   tenFile?: string,
 ): { js: string; cacLuot: LuotPlaceholderBangMau[] }
+
+/** Chung cho hai bộ thay chữ trần thêm 2026-09-02 — cùng hình dạng lượt trả về. */
+export interface LuotChuTran {
+  chuoiGoc: string
+  chuoiDich: string
+  dong: number
+}
+
+export interface MucChuTranDiv {
+  file: string
+  lop: string
+  khoa: string
+}
+
+export declare const CHU_TRAN_DIV_CO_CLASS: MucChuTranDiv[]
+
+export declare function thayChuTranTrongDiv(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotChuTran[] }
+
+export declare const FILE_CHO_PHEP_MANG_NHAN_NGAY: Set<string>
+export declare const TEN_MANG_NHAN_NGAY: Set<string>
+
+export declare function thayNutHomNay(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotChuTran[] }
