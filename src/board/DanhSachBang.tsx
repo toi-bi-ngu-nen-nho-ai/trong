@@ -225,6 +225,9 @@ function TheBang({
   dangMoMenu,
   dangXacNhanXoa,
   dangSuaTag,
+  chonNhieu = false,
+  daChonNhieu = false,
+  onChuyenChonNhieu,
   onMo,
   onBatMenu,
   onBatSuaTen,
@@ -242,6 +245,14 @@ function TheBang({
   dangMoMenu: boolean
   dangXacNhanXoa: boolean
   dangSuaTag: boolean
+  // Chế độ chọn-nhiều trên lưới sống (critique 2026-09-01, P2) — khi bật, checkbox thay hẳn nút
+  // "⋯" ở góc thẻ (xem render bên dưới); menu/nhấn-giữ vẫn tồn tại về mặt code nhưng cha truyền
+  // onBatMenu rỗng lúc chonNhieu=true nên không có gì mở ra, và onMo cũng bị cha đổi thành chọn/
+  // bỏ chọn thay vì mở bảng — TheBang không tự biết "đang ở chế độ chọn" theo nghĩa hành vi, chỉ
+  // theo nghĩa HIỂN THỊ (icon nào vẽ ở góc thẻ).
+  chonNhieu?: boolean
+  daChonNhieu?: boolean
+  onChuyenChonNhieu?: () => void
   onMo: (origin?: BoardOpenOrigin) => void
   onBatMenu: () => void
   onBatSuaTen: () => void
@@ -611,6 +622,28 @@ function TheBang({
         />
       )}
 
+      {chonNhieu && (
+        // Checkbox thay HẲN nút "⋯" (không chỉ che nó) khi đang ở chế độ chọn-nhiều — cùng vị trí
+        // góc/44×44 nên mắt không phải học lại toạ độ, nhưng loại bỏ affordance mở menu từng-thẻ
+        // trong khi đang thao tác hàng loạt (hai chế độ chọn xung đột nhau nếu cùng hiện).
+        // Vùng chạm 44×44 bọc checkbox 20px — to hơn checkbox 17px của panel trash một chút vì thẻ
+        // này lớn hơn hẳn dòng danh sách trash, cân đối thị giác hơn.
+        <label
+          style={{
+            position: 'absolute', top: 4, right: 4, width: 44, height: 44,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          }}
+        >
+          <input
+            type="checkbox"
+            data-testid={`chon-nhieu-song-${bang.id}`}
+            checked={daChonNhieu}
+            onChange={() => onChuyenChonNhieu?.()}
+            aria-label={`Chọn bảng ${bang.ten}`}
+            style={{ width: 20, height: 20, accentColor: 'var(--c-primary, #2d3a94)' }}
+          />
+        </label>
+      )}
       <button
         ref={menuBtnRef}
         type="button"
@@ -619,6 +652,7 @@ function TheBang({
         aria-label="Tuỳ chọn bảng"
         aria-haspopup="menu"
         aria-expanded={dangMoMenu || dangSuaTag}
+        hidden={chonNhieu}
         className="mind-focus-ring"
         // Vùng chạm 44×44 (chuẩn tối thiểu cho ngón tay, WCAG 2.2 AA + khuyến nghị thực hành) — giữ
         // cùng gốc top/right:4 như cũ (không đẩy ra ngoài mép thẻ, tránh chồng lên khoảng gap của
@@ -907,6 +941,18 @@ export function DanhSachBang({
   const [dangChoXoa, setDangChoXoa] = useState<BangMeta | null>(null)
   // Bang vừa xoá mềm xong — điều khiển dải "Hoàn tác". null nghĩa là không có dải nào đang hiện.
   const [vuaXoa, setVuaXoa] = useState<BangMeta | null>(null)
+  // ─── Chọn nhiều trên LƯỚI SỐNG (khác chonDaXoa — đó là chọn nhiều trong panel trash) ───────────
+  // Bấm "Chọn" ở ScreenHeader bật dangChonNhieu; tap vào thẻ khi đang bật chuyển thành chọn/bỏ chọn
+  // thay vì mở bảng (xem onMo đổi ở .map() bên dưới) — mượn NGUYÊN thị giác checkbox của panel trash
+  // (critique 2026-09-01, P2; /impeccable shape đã xác nhận: nút "Chọn" riêng, v1 chỉ xoá hàng loạt,
+  // thanh hành động ghim đáy — KHÁC drawer trash ghim trên, đúng quy ước tầm ngón cái của màn này).
+  const [dangChonNhieu, setDangChonNhieu] = useState(false)
+  const [chonNhieuSong, setChonNhieuSong] = useState<Set<string>>(() => new Set())
+  // Cùng khuôn "chờ animation rồi mới đánh dấu xoá mềm" với dangChoXoa/vuaXoa ở trên — mảng thay vì
+  // một object vì xoá NHIỀU bảng cùng lúc. TheBang đọc mảng này để biết thẻ nào đang chạy
+  // .card-slide-out (xem dangXoa ở .map() bên dưới).
+  const [dangChoXoaNhieu, setDangChoXoaNhieu] = useState<BangMeta[] | null>(null)
+  const [vuaXoaNhieu, setVuaXoaNhieu] = useState<BangMeta[] | null>(null)
   // Dải "Hoàn tác" (vuaXoa) chỉ sống HOAN_TAC_XOA_MS rồi tắt im lặng — nếu người dùng bị gọi đi
   // giữa ca trực (đúng bối cảnh PRODUCT.md mô tả) và bỏ lỡ, bảng vẫn còn thật trong IndexedDB
   // (daXoaLuc được set) nhưng trước đây KHÔNG có đường nào lấy lại nữa — vi phạm thẳng lời hứa "xoá
@@ -989,6 +1035,28 @@ export function DanhSachBang({
     const id = setTimeout(() => setVuaXoa(null), HOAN_TAC_XOA_MS)
     return () => clearTimeout(id)
   }, [vuaXoa])
+
+  // Cặp effect XOÁ HÀNG LOẠT — mirror đúng cặp dangChoXoa/vuaXoa ở trên, chỉ khác thao tác trên
+  // MẢNG thay vì một bảng. Giữ tách riêng (không gộp chung state) vì hai luồng có nguồn kích hoạt
+  // khác nhau (nút "⋯" một thẻ so với thanh hành động chọn-nhiều) và không bao giờ chạy đồng thời
+  // (checkbox thay hẳn nút "⋯" khi dangChonNhieu bật — xem TheBang), nên không có xung đột state.
+  useEffect(() => {
+    if (!dangChoXoaNhieu) return
+    const bangBiXoa = dangChoXoaNhieu
+    const id = setTimeout(() => {
+      const luc = Date.now()
+      for (const b of bangBiXoa) update({ ...b, daXoaLuc: luc })
+      setDangChoXoaNhieu(null)
+      setVuaXoaNhieu(bangBiXoa)
+    }, XOA_TRE_MS)
+    return () => clearTimeout(id)
+  }, [dangChoXoaNhieu, update])
+
+  useEffect(() => {
+    if (!vuaXoaNhieu) return
+    const id = setTimeout(() => setVuaXoaNhieu(null), HOAN_TAC_XOA_MS)
+    return () => clearTimeout(id)
+  }, [vuaXoaNhieu])
 
   // Hiệu ứng .board-out chỉ chạy MỘT LẦN khi vừa đóng một bảng (dungTuBang=true) — tự báo xong
   // sau khi animation (0,2s, xem index.css) kết thúc, cộng biên an toàn nhỏ. KHÔNG chạy khi
@@ -1199,6 +1267,31 @@ export function DanhSachBang({
       return sau
     })
 
+  // ─── Chọn nhiều trên LƯỚI SỐNG (khác chuyenChon/chonDaXoa ở trên — đó là panel trash) ──────────
+  const chuyenChonNhieuSong = (id: string) =>
+    setChonNhieuSong((truoc) => {
+      const sau = new Set(truoc)
+      if (sau.has(id)) sau.delete(id)
+      else sau.add(id)
+      return sau
+    })
+  // Thoát chế độ chọn — dùng cả khi bấm "Huỷ" lẫn sau khi xoá xong, để lưới luôn quay về trạng thái
+  // bình thường (thẻ mở lại được bằng tap, "⋯"/nhấn-giữ trở lại) mà không cần nhớ dọn riêng từng cờ.
+  const thoatChonNhieu = () => {
+    setDangChonNhieu(false)
+    setChonNhieuSong(new Set())
+  }
+  const xoaNhieuSong = () => {
+    const bang = danhSachSapXep.filter((b) => chonNhieuSong.has(b.id))
+    if (bang.length === 0) return
+    // Cùng cơ chế "chờ .card-slide-out rồi mới đánh dấu xoá mềm thật" với xoá từng-thẻ (setDangChoXoa)
+    // — xem effect dangChoXoaNhieu. Thoát chế độ chọn NGAY (thanh hành động biến mất tức thì); thẻ tự
+    // chạy animation xoá độc lập nhờ dangXoa đọc dangChoXoaNhieu ở .map() bên dưới, không phụ thuộc
+    // dangChonNhieu/chonNhieuSong nữa.
+    setDangChoXoaNhieu(bang)
+    thoatChonNhieu()
+  }
+
   const taoBangMoi = () => {
     // Khoá chống bấm đúp: `add()` đồng bộ và không có cờ "đang tạo" riêng, nên hai lượt gọi liên
     // tiếp (bấm đúp nhanh, hoặc double-fire trên một số trình duyệt cảm ứng) từng tạo được HAI bảng
@@ -1253,7 +1346,40 @@ export function DanhSachBang({
           dung thay vì trải rồi căn giữa — đo được 162px và tiêu đề nhảy sang x=579. width:100% trả
           lại đúng hành vi "trải hết rồi kẹp ở 1040px". */}
       <div className="mind-board-wrap w-full">
-        <ScreenHeader title="Sơ đồ tư duy" />
+        <ScreenHeader
+          title="Sơ đồ tư duy"
+          // Lối vào tường minh cho chọn-nhiều trên lưới sống (khác nhấn-giữ/"⋯" của từng thẻ) —
+          // /impeccable shape 2026-09-01 đã xác nhận hướng này thay vì mượn nhấn-giữ (nhấn-giữ vẫn
+          // vô hình qua 3 lượt critique, không nên chồng thêm một chức năng ẩn nữa lên nó). Ẩn khi
+          // lưới trống thật (không có gì để chọn) — vẫn hiện nếu đang bật dở (dangChonNhieu) để
+          // luôn có đường "Huỷ", kể cả khi bộ lọc vừa đổi làm lưới hiện tại trống.
+          actions={
+            danhSachSapXep.length > 0 || dangChonNhieu ? (
+              <button
+                type="button"
+                data-testid="chon-nhieu-song-toggle"
+                onClick={() => (dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true))}
+                aria-pressed={dangChonNhieu}
+                className="mind-focus-ring"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 36,
+                  padding: '0 14px',
+                  borderRadius: 9999,
+                  border: '1px solid var(--c-line, #d9ddf4)',
+                  background: dangChonNhieu ? 'var(--c-primary, #2d3a94)' : 'none',
+                  color: dangChonNhieu ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {dangChonNhieu ? 'Huỷ' : 'Chọn'}
+              </button>
+            ) : undefined
+          }
+        />
       </div>
       <div className={`scroll-ios flex-1${dungTuBang ? ' board-out' : ''}`}>
       {/* .mind-board-wrap (index.css) — bọc toàn bộ nội dung trong một cột co giãn tối đa, CĂN GIỮA.
@@ -1871,7 +1997,7 @@ export function DanhSachBang({
         // khoảng trống thừa nhỏ hơn NHIỀU so với ca "không cân đối" đã sửa trước đây (ca đó phát sinh
         // từ auto-fill dò RA THÊM cột rỗng vô hình để lấp hết bề ngang một container rộng trong khi
         // mỗi cột bị ghim cỡ nhỏ cố định — vấn đề gốc đã biến mất cùng với chính cơ chế auto-fill).
-        <div className="mind-board-grid">
+        <div className="mind-board-grid" style={dangChonNhieu ? { paddingBottom: 64 } : undefined}>
           {/* Ô "+" là ô ĐẦU TIÊN của lưới, không phải ô cuối (critique 2026-08-29, P1). Lưới sắp
               theo `capNhatLuc` giảm dần nên vị trí ô cuối DỊCH CHUYỂN mỗi lần thêm bảng, và ở 2 cột
               trên iPhone thì 20 bảng = 10 hàng: hành động chính của màn trôi xuống sau ~10 hàng
@@ -1881,10 +2007,14 @@ export function DanhSachBang({
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
+            // disabled khi đang chọn-nhiều: tạo bảng mới tự mở ô đổi tên (taoBangMoi) — trộn với chế
+            // độ chọn (checkbox thay "⋯") ra một thẻ vừa mời gõ tên vừa mời tích chọn cùng lúc, rối
+            // hơn là hữu ích. "Chọn" ở header vẫn còn đó để thoát trước khi tạo bảng mới.
+            disabled={dangChonNhieu}
             // Cùng .mind-o-tao-bang + .mind-o-moi với ô "+" ở trạng thái rỗng phía trên — một nguồn
             // sự thật cho viền đứt/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
             className="mind-focus-ring mind-o-tao-bang mind-o-moi"
-            style={{ aspectRatio: '4 / 3', fontSize: 24 }}
+            style={{ aspectRatio: '4 / 3', fontSize: 24, opacity: dangChonNhieu ? 0.4 : 1 }}
             aria-label="Tạo bảng mới"
           >
             +
@@ -1894,21 +2024,31 @@ export function DanhSachBang({
               key={bang.id}
               bang={bang}
               index={index}
-              dangXoa={dangChoXoa?.id === bang.id}
+              dangXoa={dangChoXoa?.id === bang.id || (dangChoXoaNhieu?.some((b) => b.id === bang.id) ?? false)}
               dangSuaTen={dangSuaTenId === bang.id}
               dangMoMenu={dangMoMenuId === bang.id}
               dangXacNhanXoa={dangXacNhanXoaId === bang.id}
               dangSuaTag={dangSuaTagId === bang.id}
-              onMo={(origin) => onMoBang(bang.id, origin, bang.ten)}
-              onBatMenu={() => {
-                const dangMo = dangMoMenuId === bang.id
-                setDangMoMenuId(dangMo ? null : bang.id)
-                // Panel sửa chuyên khoa/tag và menu "⋯" ghim CÙNG toạ độ (top:30 right:4) với cùng
-                // zIndex, panel render SAU nên luôn vẽ ĐÈ lên menu. Mục "Chuyên khoa/tag" là đường
-                // DUY NHẤT đóng panel (nó là toggle), mà nó nằm trong menu bị che — panel mở ra là
-                // kẹt cho tới khi thẻ unmount. Mở menu thì đóng panel trước: "⋯" luôn là đường thoát.
-                if (!dangMo) setDangSuaTagId(null)
-              }}
+              chonNhieu={dangChonNhieu}
+              daChonNhieu={chonNhieuSong.has(bang.id)}
+              onChuyenChonNhieu={() => chuyenChonNhieuSong(bang.id)}
+              // Đang chọn-nhiều thì tap vào thẻ = chọn/bỏ chọn, KHÔNG mở bảng — đổi ngay tại đây,
+              // không phải trong TheBang, nên nút vật lý/pointer-handling của TheBang không cần biết
+              // gì về chế độ chọn (xem chú thích tại prop chonNhieu của TheBang).
+              onMo={dangChonNhieu ? () => chuyenChonNhieuSong(bang.id) : (origin) => onMoBang(bang.id, origin, bang.ten)}
+              onBatMenu={
+                dangChonNhieu
+                  ? () => {}
+                  : () => {
+                      const dangMo = dangMoMenuId === bang.id
+                      setDangMoMenuId(dangMo ? null : bang.id)
+                      // Panel sửa chuyên khoa/tag và menu "⋯" ghim CÙNG toạ độ (top:30 right:4) với cùng
+                      // zIndex, panel render SAU nên luôn vẽ ĐÈ lên menu. Mục "Chuyên khoa/tag" là đường
+                      // DUY NHẤT đóng panel (nó là toggle), mà nó nằm trong menu bị che — panel mở ra là
+                      // kẹt cho tới khi thẻ unmount. Mở menu thì đóng panel trước: "⋯" luôn là đường thoát.
+                      if (!dangMo) setDangSuaTagId(null)
+                    }
+              }
               onBatSuaTen={() => {
                 setDangMoMenuId(null)
                 setDangSuaTenId(bang.id)
@@ -2143,6 +2283,104 @@ export function DanhSachBang({
           />
         </div>
       )}
+    {vuaXoaNhieu && (
+        // Mirror đúng dải "Hoàn tác" đơn ở trên (vuaXoa) — chỉ khác text số nhiều + khôi phục CẢ mảng
+        // cùng lúc thay vì một bảng. Không dùng chung một khối JSX với vuaXoa: kiểu dữ liệu khác hẳn
+        // (object đơn so với mảng) khiến một khối gộp chung phải nhánh if/else ngay trong JSX, khó
+        // đọc hơn là hai khối riêng song song — cùng tinh thần soGhiCho số ít/nhiều trong file này.
+        <div
+          key={vuaXoaNhieu.map((b) => b.id).join(',')}
+          role="status"
+          aria-live="polite"
+          className="toast-in-full absolute flex items-center gap-2.5 px-4 py-2.5 rounded-2xl z-40 overflow-hidden"
+          style={{ left: 12, right: 12, bottom: 10, background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
+        >
+          <span className="flex-1 text-[12.5px] leading-snug" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>
+            Đã xoá {vuaXoaNhieu.length} bảng
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              for (const b of vuaXoaNhieu) khoiPhucBang(b)
+              setVuaXoaNhieu(null)
+            }}
+            className="mind-focus-ring"
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: 36, minWidth: 44, color: 'var(--c-toast-action, #f175a6)',
+              fontWeight: 600, fontSize: 13, background: 'none', border: 0,
+              whiteSpace: 'nowrap', padding: '4px 6px',
+            }}
+          >
+            Hoàn tác
+          </button>
+          <span
+            aria-hidden="true"
+            className="toast-countdown-bar"
+            style={{
+              position: 'absolute', left: 0, bottom: 0, height: 2, width: '100%',
+              background: 'var(--c-toast-action, #f175a6)', opacity: 0.55,
+              '--toast-countdown-ms': `${HOAN_TAC_XOA_MS}ms`,
+            } as React.CSSProperties}
+          />
+        </div>
+      )}
+    {dangChonNhieu && (() => {
+      // Thanh hành động chọn-nhiều trên lưới sống — ghim ĐÁY (khác thanh trên của panel trash, xem
+      // chú thích dangChonNhieu ở khai báo state) — cùng công thức vị trí left:12/right:12/bottom:10
+      // với dải "Hoàn tác" ngay trên (position:absolute bên trong <main>, KHÔNG var(--above-nav) —
+      // xem chú thích dài tại đó). Không phải toast tự tắt: sống suốt lúc dangChonNhieu còn bật.
+      const soChonSong = chonNhieuSong.size
+      const tatCaDaChonSong = danhSachSapXep.length > 0 && danhSachSapXep.every((b) => chonNhieuSong.has(b.id))
+      return (
+        <div
+          role="toolbar"
+          aria-label="Thao tác hàng loạt"
+          className="absolute flex items-center gap-2 px-4 py-2.5 rounded-2xl z-40"
+          style={{ left: 12, right: 12, bottom: 10, background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
+        >
+          <span className="flex-1 text-[12.5px] leading-snug font-semibold" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>
+            {soChonSong > 0 ? `${soChonSong} đã chọn` : 'Chọn bảng cần xoá'}
+          </span>
+          <button
+            type="button"
+            data-testid="chon-tat-ca-song"
+            onClick={() =>
+              setChonNhieuSong(tatCaDaChonSong ? new Set() : new Set(danhSachSapXep.map((b) => b.id)))
+            }
+            className="mind-focus-ring"
+            style={{
+              display: 'inline-flex', alignItems: 'center', minHeight: 36, padding: '0 10px',
+              color: 'var(--c-toast-action, #f175a6)', fontWeight: 600, fontSize: 12.5,
+              background: 'none', border: 0, whiteSpace: 'nowrap',
+            }}
+          >
+            {tatCaDaChonSong ? 'Bỏ chọn' : `Chọn tất cả (${danhSachSapXep.length})`}
+          </button>
+          {/* Nút Xoá theo Untouchable Signal Rule (DESIGN.md): họ màu --c-danger, PHẲNG — không
+              bounce/glow dù đứng trong một thanh có thể trượt lên bằng .toast-in-full ở nơi khác.
+              disabled khi chưa chọn gì, thay vì ẩn hẳn — thanh vẫn hiện ngay khi bật chế độ chọn
+              (để "Chọn tất cả" luôn với tới được), nút Xoá chỉ có tác dụng khi có gì để xoá. */}
+          <button
+            type="button"
+            data-testid="xoa-nhieu-song"
+            onClick={xoaNhieuSong}
+            disabled={soChonSong === 0}
+            className="mind-focus-ring"
+            style={{
+              display: 'inline-flex', alignItems: 'center', minHeight: 36, padding: '0 14px',
+              borderRadius: 9999, border: 0,
+              background: soChonSong === 0 ? 'var(--c-line-soft, #e9ebf9)' : 'var(--c-danger, #b91c1c)',
+              color: soChonSong === 0 ? 'var(--c-text-muted, #6b6e96)' : 'var(--c-on-bright, #fff)',
+              fontWeight: 700, fontSize: 12.5, whiteSpace: 'nowrap',
+              opacity: soChonSong === 0 ? 0.6 : 1,
+            }}
+          >
+            Xoá{soChonSong > 0 ? ` (${soChonSong})` : ''}
+          </button>
+        </div>
+      )
+    })()}
     </>
   )
 }
