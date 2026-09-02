@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
+import { cheDoEdgeless } from './che-do-edgeless'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
 import type { KetQuaXuat } from './xuatAnhBang'
@@ -77,9 +78,14 @@ EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
  * toàn bộ thẻ Lit — gọi lần hai trên cùng tên thẻ là `NotSupportedError` ném thẳng ra, hỏng cả
  * bảng vẽ lẫn lượt xuất. Xuất một hàm rẻ hơn xuất chính `viewManager` (bên ngoài không cần biết
  * manager tồn tại, chỉ cần đúng mảng extension).
+ *
+ * `cheDoEdgeless` nối vào CUỐI, sau mọi view extension: nó `di.override` `DocModeProvider` mà
+ * `FoundationViewExtension` (phần tử đầu mảng) vừa đăng ký. Không có nó thì `getEditorMode()` trả
+ * `null` và TOÀN BỘ thanh công cụ phần tử tắt câm — xem ./che-do-edgeless.ts để biết chuỗi nhân quả
+ * đầy đủ. Đặt trong hàm dùng chung này để mọi đường mount cây Lit đều nhận đúng một bộ.
  */
 export function layExtensionsEdgeless() {
-  return viewManager.get('edgeless')
+  return [...viewManager.get('edgeless'), cheDoEdgeless]
 }
 
 // Tên CSDL IndexedDB riêng cho NỘI DUNG bảng (CRDT nhị phân + blob ảnh) — tách hẳn khỏi
@@ -422,7 +428,7 @@ export function EdgelessBoard({
           return
         }
         workspaceHienTai = workspace
-        const std = new BlockStdScope({ store, extensions: viewManager.get('edgeless') })
+        const std = new BlockStdScope({ store, extensions: layExtensionsEdgeless() })
         litRender(std.render(), el)
 
         // Mồi bàn phím ảo iOS: BlockSuite hoãn mọi `focusTextModel()` qua rAF nên Safari iOS không
