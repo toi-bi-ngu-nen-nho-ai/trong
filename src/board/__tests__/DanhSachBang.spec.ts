@@ -192,6 +192,63 @@ describe('DanhSachBang', () => {
     })
   })
 
+  it('bấm ĐÚP thẻ "+" như trình duyệt thật (ô đổi tên blur giữa hai cú click) → vẫn chỉ MỘT bảng', async () => {
+    // Ca trên khoá cửa sổ "hai click, không lượt render nào xen giữa". Trên trình duyệt THẬT còn một
+    // cửa sổ thứ hai, và nó mới là cửa sổ thực sự lọt: cú click đầu mở ô đổi tên, rồi `mousedown`
+    // của cú click thứ hai chuyển focus khỏi ô đó → `onBlur` (dòng 600) gọi `onLuuTen` →
+    // `setDangSuaTenId(null)`, React flush ngay (sự kiện discrete) → khoá MỞ ra đúng trước khi
+    // handler `click` thứ hai chạy. Đo trên trình duyệt thật 2026-09-03 SAU khi đã thêm khoá ref:
+    // bấm đúp vẫn đưa 17 → 19, trong khi hai `.click()` lập trình (không có blur) chỉ ra +1.
+    //
+    // Chốt chặn cho cửa sổ này là `event.detail`: cú click thứ hai của một lần bấm đúp mang
+    // `detail === 2`. Bàn phím (Enter/Space trên <button>) cho `detail === 0` nên không bị chặn.
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
+    await act(async () => {
+      nut.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+    })
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+
+    // mousedown của cú thứ hai đá focus khỏi ô đổi tên — mô phỏng bằng đúng sự kiện blur mà React
+    // lắng nghe, rồi mới bắn click thứ hai.
+    const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    expect(oNhap, 'cú click đầu phải mở ô đổi tên').not.toBeNull()
+    await act(async () => {
+      // `focusout`, KHÔNG phải `blur`: React 17+ uỷ quyền `onBlur` qua sự kiện `focusout` (có bubble)
+      // ở gốc cây, nên bắn `blur` (không bubble) là handler không bao giờ chạy và ca kiểm xanh giả.
+      oNhap.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    })
+    // Khẳng định TRUNG GIAN, đừng bỏ: nếu ô đổi tên vẫn còn thì `focusout` đã không tới được
+    // handler, khoá chưa hề mở ra, và ca kiểm bên dưới xanh vì lý do SAI (bản đầu của ca này xanh
+    // cả trước lẫn sau bản vá đúng vì thiếu chỗ neo này).
+    expect(
+      container.querySelector('[data-testid^="input-ten-"]'),
+      'focusout phải đóng ô đổi tên — nếu không, phần sau của ca kiểm vô nghĩa',
+    ).toBeNull()
+
+    // TRUY VẤN LẠI nút, đừng dùng lại tham chiếu cũ: lưới rỗng render nút "+" của trạng thái rỗng,
+    // còn khi đã có thẻ thì render ô "+" của lưới — HAI node DOM khác nhau. Bắn click vào node cũ
+    // (đã tháo khỏi cây) là không handler nào chạy, và ca kiểm xanh vì lý do sai.
+    const nutSauKhiCoThe = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
+    expect(nutSauKhiCoThe).not.toBeNull()
+    expect(nutSauKhiCoThe.isConnected, 'nút "+" phải còn trong cây').toBe(true)
+    await act(async () => {
+      nutSauKhiCoThe.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }))
+    })
+
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    await choDom(async () => {
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      expect(ds).toHaveLength(1)
+    })
+  })
+
   it('bấm thẻ "+", gõ tên rồi Enter → thoát ô đổi tên, bấm vào thẻ → GỌI onMoBang (mở canvas)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {

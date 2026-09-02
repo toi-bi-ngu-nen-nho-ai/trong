@@ -1356,7 +1356,7 @@ export function DanhSachBang({
     thoatChonNhieu()
   }
 
-  const taoBangMoi = () => {
+  const taoBangMoi = (e?: { detail?: number }) => {
     // Khoá chống bấm đúp: `add()` đồng bộ và không có cờ "đang tạo" riêng, nên hai lượt gọi liên
     // tiếp (bấm đúp nhanh, hoặc double-fire trên một số trình duyệt cảm ứng) từng tạo được HAI bảng
     // — `setDangSuaTenId` lần gọi thứ hai thắng, bảng đầu tiên vào lưới với tên mặc định mà không
@@ -1371,6 +1371,18 @@ export function DanhSachBang({
     // "+" đưa số bảng từ 10 lên 12, và 9 bảng rác của phiên đó có hai cặp sinh trong CÙNG MỘT GIÂY.
     // Ref được gán NGAY dưới đây nên cú click thứ hai thấy liền; effect ở dưới trả nó về null khi ô
     // đổi tên đóng lại.
+    // CỬA SỔ THỨ HAI, và là cửa sổ thật sự lọt trên trình duyệt. Khoá ref ở trên chỉ đóng được
+    // trường hợp "hai click, không lượt render nào xen giữa". Bấm đúp THẬT đi đường khác — nhật ký
+    // sự kiện đo được 2026-09-03 khi khoá ref ĐÃ có:
+    //     mousedown#2 (detail 2) → focusout trên ô đổi tên của bảng vừa tạo → click#2 (detail 2)
+    // tức `onBlur` của ô đổi tên (dòng ~600 → onLuuTen → setDangSuaTenId(null)) MỞ khoá ra đúng
+    // trước khi handler click thứ hai chạy. Không khoá nào dựa trên "đang có ô đổi tên mở" sống nổi
+    // qua chuỗi đó, vì chính cú click thứ hai đóng ô đó lại.
+    //
+    // `detail` là số lần click liên tiếp của chuỗi hiện tại: cú thứ hai của một lần bấm đúp mang 2.
+    // Bàn phím (Enter/Space trên <button>) và `.click()` lập trình đều cho 0 nên không bị chặn — hai
+    // đường đó vẫn do khoá ref bên dưới trông.
+    if ((e?.detail ?? 0) > 1) return
     if (dangSuaTenRef.current) return
     dangSuaTenRef.current = 'dang-tao'
     const luc = Date.now()
