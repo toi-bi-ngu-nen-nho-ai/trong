@@ -36,6 +36,11 @@ describe('DanhSachBang', () => {
   let root: Root
 
   beforeEach(() => {
+    // localStorage KHÔNG tự reset giữa các ca trong cùng file (happy-dom dựng MỘT window cho cả
+    // file). Từ khi `chuyenKhoaLoc` được lưu vào 'drtrong:mindmap-chuyen-khoa-loc' (92aa83c), một ca
+    // bấm chip chuyên khoa là mọi ca SAU nó khởi động với đúng bộ lọc đó — lưới lọc sạch, `the-bang`
+    // về 0 và 7 ca đỏ mà không ca nào sai logic. Dọn ở đây, cùng khuôn lượt dọn IndexedDB ở afterEach.
+    localStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -951,6 +956,11 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
   let root: Root
 
   beforeEach(() => {
+    // localStorage KHÔNG tự reset giữa các ca trong cùng file (happy-dom dựng MỘT window cho cả
+    // file). Từ khi `chuyenKhoaLoc` được lưu vào 'drtrong:mindmap-chuyen-khoa-loc' (92aa83c), một ca
+    // bấm chip chuyên khoa là mọi ca SAU nó khởi động với đúng bộ lọc đó — lưới lọc sạch, `the-bang`
+    // về 0 và 7 ca đỏ mà không ca nào sai logic. Dọn ở đây, cùng khuôn lượt dọn IndexedDB ở afterEach.
+    localStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -1238,6 +1248,11 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
   let root: Root
 
   beforeEach(() => {
+    // localStorage KHÔNG tự reset giữa các ca trong cùng file (happy-dom dựng MỘT window cho cả
+    // file). Từ khi `chuyenKhoaLoc` được lưu vào 'drtrong:mindmap-chuyen-khoa-loc' (92aa83c), một ca
+    // bấm chip chuyên khoa là mọi ca SAU nó khởi động với đúng bộ lọc đó — lưới lọc sạch, `the-bang`
+    // về 0 và 7 ca đỏ mà không ca nào sai logic. Dọn ở đây, cùng khuôn lượt dọn IndexedDB ở afterEach.
+    localStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -1699,6 +1714,11 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
   let root: Root
 
   beforeEach(() => {
+    // localStorage KHÔNG tự reset giữa các ca trong cùng file (happy-dom dựng MỘT window cho cả
+    // file). Từ khi `chuyenKhoaLoc` được lưu vào 'drtrong:mindmap-chuyen-khoa-loc' (92aa83c), một ca
+    // bấm chip chuyên khoa là mọi ca SAU nó khởi động với đúng bộ lọc đó — lưới lọc sạch, `the-bang`
+    // về 0 và 7 ca đỏ mà không ca nào sai logic. Dọn ở đây, cùng khuôn lượt dọn IndexedDB ở afterEach.
+    localStorage.clear()
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
