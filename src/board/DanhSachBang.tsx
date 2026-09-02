@@ -57,6 +57,11 @@ export type BoardOpenOrigin = {
   // FLIP morph đúng thứ người dùng vừa bấm — icon chuyên khoa — thay vì một ảnh chụp mà thẻ không
   // còn hiện nữa (xem BoardGallery.tsx).
   chuyenKhoa?: string
+  // id của bảng — cùng lý do có mặt với chuyenKhoa ở trên: TheTrong dùng nó để tô màu trung tính ổn
+  // định cho badge CHƯA gắn chuyên khoa (xem mauTrungTinhTheoBang), giữ lớp phủ FLIP khớp đúng màu
+  // với thẻ gốc thay vì rơi về một xám trung tính chung cho mọi bảng chưa gắn khoa (critique
+  // 2026-09-02 lượt 2, P2). undefined cùng điều kiện với chuyenKhoa ở trên.
+  id?: string
 }
 
 // Cửa sổ "Hoàn tác" sau khi xoá mềm một bảng — cùng độ dài với XAC_NHAN_XOA_MS (quy ước sẵn có của
@@ -97,6 +102,19 @@ export function mauOnDinh(id: string): number {
   return 260 + (Math.abs(h) % 70)
 }
 
+// Màu badge cho bảng CHƯA gắn chuyên khoa — tô theo mauOnDinh(id) thay vì một xám trung tính DÙNG
+// CHUNG cho mọi bảng chưa gắn khoa. Trước 2026-09-02 mọi bảng như vậy (nay là mặc định của bảng mới,
+// xem taoBangMoi) đều đọc y hệt nhau trong lưới — cùng lớp lỗi "11/15 bảng đọc y hệt nhau" mà chính
+// mauOnDinh() ở trên từng vá cho panel "Đã xoá gần đây" (critique 2026-09-02 lượt 2, P2). S/L CỐ ĐỊNH
+// (không dùng --chip-s/--chip-l — hai token đó tự đổi theo theme cho nền --c-page/--c-surface, còn
+// badge này luôn nằm TRÊN GIẤY (.mind-note-card), vốn KHÔNG theme-swap — trộn nhầm token theo-theme
+// vào nền không theo-theme là đúng lớp bug 2,69:1 mà --c-on-note-muted bên dưới từng vá, xem chú
+// thích P0 tại chỗ dùng). 50%/36% đo được ≥5,3:1 trên cả hai tông giấy (#fbfaf7 sáng / #efece3 tối)
+// xuyên suốt toàn bộ dải hue [260,330) — kiểm bằng script, không đoán.
+export function mauTrungTinhTheoBang(id: string | undefined): string {
+  return id ? `hsl(${mauOnDinh(id)} 50% 36%)` : 'var(--c-on-note-muted, #5c5f7a)'
+}
+
 // Độ sáng tương đối (WCAG relative luminance, 0-1) của một màu hex "#rrggbb".
 function doSangTuongDoi(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -133,11 +151,14 @@ function chuTrenNen(hexNen: string): string {
 // khoa nào (lưới rỗng toàn bộ, chưa lọc gì). specialtyIcon() đã tự xử lý id lạ/undefined bằng icon
 // "trang giấy" mặc định (xem SpecialtyIcons.tsx), TheTrong không cần thêm nhánh dự phòng cho icon —
 // chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
+// id: id CỦA BẢNG (không phải chuyên khoa) — chỉ dùng khi spec undefined, để tô màu trung tính ổn
+// định theo từng bảng thay vì một xám dùng chung cho mọi bảng chưa gắn khoa (mauTrungTinhTheoBang).
 // Export vì BoardGallery.tsx dùng CHÍNH component này cho lớp phủ chuyển cảnh FLIP: lớp phủ phải
 // là đúng thứ người dùng vừa bấm, và từ 2026-08-30 thứ đó luôn là huy hiệu chuyên khoa. Dựng lại
 // một bản sao ở đó là mở đường cho hai hình khác nhau trôi dạt khỏi nhau — đúng lúc chúng phải
-// khớp từng pixel thì chuyển cảnh mới liền mạch.
-export function TheTrong({ khoa, dangVe = false }: { khoa?: string; dangVe?: boolean }) {
+// khớp từng pixel thì chuyển cảnh mới liền mạch (cùng lý do id phải đi kèm chuyenKhoa trong
+// BoardOpenOrigin, xem type đó).
+export function TheTrong({ khoa, id, dangVe = false }: { khoa?: string; id?: string; dangVe?: boolean }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
     <div className="relative w-full h-full" aria-hidden="true">
@@ -157,14 +178,15 @@ export function TheTrong({ khoa, dangVe = false }: { khoa?: string; dangVe?: boo
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          // Nhánh "chưa gắn chuyên khoa" tô bằng --c-on-note-muted, KHÔNG phải --c-text-muted:
-          // huy hiệu này nằm TRÊN tờ giấy (.mind-note-card) vốn không đổi theo theme, còn
-          // --c-text-muted thì lật sáng ở bản tối — cặp đó đo được 2,69:1 trên giấy bản tối, dưới
-          // ngưỡng 3:1 của WCAG 1.4.11 cho đồ hoạ mang nghĩa (critique 2026-08-28, P0). Token mới
-          // giữ 5,9:1 / 5,2:1 ở cả hai bản mà vẫn nhạt hơn hẳn --c-on-note, đúng sắc thái "chưa
-          // gắn khoa". Nhánh spec.color không đổi: màu chuyên khoa đều đậm, thấp nhất đo được
-          // 5,04:1 trên giấy nên vốn đã an toàn ở cả hai bản.
-          color: spec ? spec.color : 'var(--c-on-note-muted, #5c5f7a)',
+          // Nhánh "chưa gắn chuyên khoa": tô theo mauTrungTinhTheoBang(id) — KHÔNG phải
+          // --c-text-muted: huy hiệu này nằm TRÊN tờ giấy (.mind-note-card) vốn không đổi theo
+          // theme, còn --c-text-muted thì lật sáng ở bản tối — cặp đó đo được 2,69:1 trên giấy bản
+          // tối, dưới ngưỡng 3:1 của WCAG 1.4.11 cho đồ hoạ mang nghĩa (critique 2026-08-28, P0).
+          // mauTrungTinhTheoBang giữ ≥5,3:1 ở cả hai bản (kiểm cho toàn dải hue, xem chú thích tại
+          // đó) VÀ phân biệt được từng bảng bằng mắt — --c-on-note-muted (đồng nhất) chỉ còn là
+          // fallback khi không có id. Nhánh spec.color không đổi: màu chuyên khoa đều đậm, thấp
+          // nhất đo được 5,04:1 trên giấy nên vốn đã an toàn ở cả hai bản.
+          color: spec ? spec.color : mauTrungTinhTheoBang(id),
         }}
       >
         {/* `dangVe`: lớp phủ FLIP lúc MỞ bảng dùng nhánh này. Lớp phủ đó CHÍNH LÀ màn chờ ở đường
@@ -174,7 +196,7 @@ export function TheTrong({ khoa, dangVe = false }: { khoa?: string; dangVe?: boo
             đây thì chỉ còn MỘT màn, và nó hạ cánh đúng chỗ cú FLIP phóng tới.
             Hai nhánh vẽ CÙNG một icon, cùng ô 34%, cùng màu — chỉ khác tĩnh/động. Mặc định (lưới,
             lớp phủ "gập lại" lúc đóng) vẫn tĩnh: cú gập chỉ dài 260ms, không đủ để vẽ gì. */}
-        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} /> : specialtyIcon(khoa, 'w-full h-full')}
+        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} /> : specialtyIcon(khoa, 'w-full h-full')}
       </div>
     </div>
   )
@@ -241,10 +263,9 @@ function TheBang({
   dangXacNhanXoa: boolean
   dangSuaTag: boolean
   // Chế độ chọn-nhiều trên lưới sống (critique 2026-09-01, P2) — khi bật, checkbox thay hẳn nút
-  // "⋯" ở góc thẻ (xem render bên dưới); menu/nhấn-giữ vẫn tồn tại về mặt code nhưng cha truyền
-  // onBatMenu rỗng lúc chonNhieu=true nên không có gì mở ra, và onMo cũng bị cha đổi thành chọn/
-  // bỏ chọn thay vì mở bảng — TheBang không tự biết "đang ở chế độ chọn" theo nghĩa hành vi, chỉ
-  // theo nghĩa HIỂN THỊ (icon nào vẽ ở góc thẻ).
+  // "⋯" ở góc thẻ (xem render bên dưới); cha truyền onBatMenu rỗng lúc chonNhieu=true nên không có
+  // gì mở ra, và onMo cũng bị cha đổi thành chọn/bỏ chọn thay vì mở bảng — TheBang không tự biết
+  // "đang ở chế độ chọn" theo nghĩa hành vi, chỉ theo nghĩa HIỂN THỊ (icon nào vẽ ở góc thẻ).
   chonNhieu?: boolean
   daChonNhieu?: boolean
   onChuyenChonNhieu?: () => void
@@ -447,6 +468,7 @@ function TheBang({
                   height: r.height,
                   tilt: nghiengOnDinh(bang.id),
                   chuyenKhoa: bang.chuyenKhoa,
+                  id: bang.id,
                 }
               : undefined,
           )
@@ -515,7 +537,7 @@ function TheBang({
               color: 'var(--c-text-muted, #6b6e96)',
             }}
           >
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} />
           </div>
           {/* Không còn cây ghim vẽ trên thẻ — chủ dự án yêu cầu bỏ hẳn (2026-08-29: "xóa ghim").
               Phân biệt bảng cùng tên mặc định vẫn còn: icon + màu chuyên khoa trong TheTrong, tên,
@@ -590,6 +612,13 @@ function TheBang({
             borderRadius: 4,
             padding: '2px 4px',
             background: 'var(--c-surface, #fff)',
+            // Ô này là ANH EM (không phải con) của nút .the-bang-vat mang rotate(var(--tilt)) —
+            // transform không kế thừa qua CSS nên ô nhập trước đây đứng thẳng phẳng lệch với thẻ
+            // giấy vẫn đang nghiêng ngay bên dưới, đúng lúc người dùng chú ý nhất (đặt tên bảng vừa
+            // tạo) — một vết nứt nhỏ trong ảo giác "mọi thứ là vật thể thật" (critique 2026-09-02
+            // lượt 2, P3). --tilt là custom property, CÓ kế thừa qua cây DOM dù transform thì không,
+            // nên đọc lại đúng góc của outer wrapper là đủ, không cần đo/truyền lại giá trị nào mới.
+            transform: 'rotate(var(--tilt, 0deg))',
           }}
         />
       )}
@@ -612,7 +641,13 @@ function TheBang({
             checked={daChonNhieu}
             onChange={() => onChuyenChonNhieu?.()}
             aria-label={`Chọn bảng ${bang.ten}`}
-            style={{ width: 20, height: 20, accentColor: 'var(--c-primary, #2d3a94)' }}
+            // colorScheme:'light' BẮT BUỘC ở đây, không kế thừa app.dark: checkbox này nằm TRÊN tờ
+            // giấy .mind-note-card (không đổi theo theme, luôn gần-trắng) nhưng trình duyệt tự vẽ
+            // khung checkbox CHƯA TÍCH theo color-scheme của TRANG (dark), ra một ô đặc tối gần như
+            // không viền trên nền giấy sáng — đọc thành hoạ tiết trang trí hơn là control (critique
+            // 2026-09-02 lượt 2, P3). Ép light cho riêng control này thì khung/viền luôn vẽ theo quy
+            // ước sáng, khớp đúng nền giấy nó đứng trên — accentColor (trạng thái ĐÃ tích) không đổi.
+            style={{ width: 20, height: 20, accentColor: 'var(--c-primary, #2d3a94)', colorScheme: 'light' }}
           />
         </label>
       )}
@@ -746,6 +781,14 @@ function TheBang({
             onClick={onXoa}
             className="mind-focus-ring"
             role="menuitem"
+            // aria-live + aria-atomic: chuyển "Xoá" → "Chắc chắn xoá?" chỉ là đổi CHỮ trên CÙNG nút,
+            // không có phần tử mới nào mount lên để trình đọc màn hình tình cờ bắt được — không có
+            // hai thuộc tính này, việc chuyển sang bước xác nhận phá huỷ hoàn toàn im lặng với AT
+            // (critique 2026-09-02 lượt 2, P2). "polite" (không "assertive"): đây là xác nhận NGAY
+            // SAU thao tác của chính người dùng trên đúng nút đang focus, không phải một cảnh báo hệ
+            // thống cần cắt ngang những gì AT đang đọc dở.
+            aria-live="polite"
+            aria-atomic="true"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1285,7 +1328,7 @@ export function DanhSachBang({
       return sau
     })
   // Thoát chế độ chọn — dùng cả khi bấm "Huỷ" lẫn sau khi xoá xong, để lưới luôn quay về trạng thái
-  // bình thường (thẻ mở lại được bằng tap, "⋯"/nhấn-giữ trở lại) mà không cần nhớ dọn riêng từng cờ.
+  // bình thường (thẻ mở lại được bằng tap, "⋯" hoạt động trở lại) mà không cần nhớ dọn riêng từng cờ.
   const thoatChonNhieu = () => {
     setDangChonNhieu(false)
     setChonNhieuSong(new Set())
@@ -2408,6 +2451,13 @@ export function DanhSachBang({
             }}
             disabled={soChonSong === 0}
             className="mind-focus-ring"
+            // aria-live/aria-atomic: cùng lý do với nút Xoá từng-bảng trong menu "⋯" — đổi nhãn
+            // "Xoá (N)" → "Chắc chắn xoá?" trên CÙNG nút, không có phần tử mới nào mount để AT tình
+            // cờ bắt được (critique 2026-09-02 lượt 2, P2). Đây giờ là hành động phạm vi thiệt hại
+            // lớn nhất màn hình (xoá cả N bảng cùng lúc), càng cần công bố rõ, không chỉ dựa vào
+            // trình đọc màn hình tự đọc lại accessible-name của phần tử đang focus.
+            aria-live="polite"
+            aria-atomic="true"
             style={{
               display: 'inline-flex', alignItems: 'center', minHeight: 36, padding: '0 14px',
               borderRadius: 9999, border: 0,

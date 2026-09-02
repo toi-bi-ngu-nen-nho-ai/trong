@@ -67,11 +67,28 @@ const AN_MUC = 0.64 // icon đặc hiện xong (1152ms)
 // `noUnusedLocals` làm ĐỎ cổng kiểu trên main.)
 const easeVe = 'cubic-bezier(0.65, 0.05, 0.36, 1)'
 
-export function VeChuyenKhoaDangTai({ khoa }: { khoa?: string }) {
+// Băm id thành hue [260,330) — BẢN SAO CỦA mauOnDinh() (DanhSachBang.tsx), KHÔNG import: file này cố
+// tình chỉ phụ thuộc React + SpecialtyIcons.tsx + specialties.ts (xem chú thích đầu file) để an toàn
+// cho cả index.tsx (màn tải chunk lần đầu, ranh giới nạp chậm D13) lẫn EdgelessBoard.tsx import tĩnh
+// — kéo theo DanhSachBang.tsx (2400+ dòng) vào chunk vỏ app chỉ để dùng 4 dòng hash là cái giá không
+// đáng. Công thức PHẢI giữ y hệt bản gốc: cùng id phải ra cùng hue ở cả thẻ (TheTrong tĩnh) lẫn lớp
+// vẽ động này, nếu không cú FLIP đổi màu giữa chừng lúc mở bảng (critique 2026-09-02 lượt 2, P2).
+function mauOnDinh(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) | 0
+  return 260 + (Math.abs(h) % 70)
+}
+
+// id: id CỦA BẢNG — optional, chỉ truyền từ TheTrong (DanhSachBang.tsx). Hai lời gọi khác
+// (index.tsx, EdgelessBoard.tsx) không có board id sẵn trong ngữ cảnh của chúng (màn tải chunk lần
+// đầu / màn chờ nội bộ EdgelessBoard) nên không truyền — tự rơi về màu mờ cũ, không cần sửa gì ở đó.
+export function VeChuyenKhoaDangTai({ khoa, id }: { khoa?: string; id?: string }) {
   const bocRef = useRef<HTMLDivElement>(null)
   // Màu nhận diện của khoa — cùng hằng số spec.color mà thẻ bảng và specialtyIcon() vẫn ăn theo.
-  // Khoa lạ / bảng chưa gắn khoa → màu chữ mờ trung tính (icon "trang giấy" mặc định cũng trung tính).
-  const mau = SPECIALTIES.find((s) => s.id === khoa)?.color ?? 'var(--c-text-muted, #6b6e96)'
+  // Khoa lạ / bảng chưa gắn khoa → tô theo mauOnDinh(id) (cùng công thức TheTrong dùng cho chính
+  // thẻ đó) thay vì một màu chữ mờ dùng chung — hai nhánh tĩnh/động phải "cùng màu" (xem chú thích
+  // "Hai nhánh vẽ CÙNG..." tại TheTrong), --c-text-muted chỉ còn là fallback khi không có id.
+  const mau = SPECIALTIES.find((s) => s.id === khoa)?.color ?? (id ? `hsl(${mauOnDinh(id)} 50% 36%)` : 'var(--c-text-muted, #6b6e96)')
 
   // useLayoutEffect (không phải useEffect): hoạt ảnh đặt icon thật về opacity 0 ở mốc 0 của chu
   // kỳ. Chạy SAU lượt vẽ thì có đúng một khung hình loé nguyên icon đặc rồi mới tắt đi để nét bắt

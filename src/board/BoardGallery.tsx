@@ -76,7 +76,7 @@ export function BoardGallery({
   // là một cuộc đua ĐÃ ĐO ĐƯỢC THẬT (xem chú thích ở nút "quay lại"), giữ nguyên timing hiện tại là
   // bắt buộc; lớp phủ này chỉ là trang trí CHẠY SONG SONG, không chặn hay trì hoãn bất cứ bước nào
   // của chuỗi đó.
-  const [dangGapLai, setDangGapLai] = useState<{ chuyenKhoa?: string } | null>(null)
+  const [dangGapLai, setDangGapLai] = useState<{ chuyenKhoa?: string; id?: string } | null>(null)
   // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app — xem App.tsx
   // navigate()). Gọi onMoBangYeuCauXong() ngay sau khi tiêu thụ để App.tsx reset state về undefined
   // — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó lần hai (cùng id, state App.tsx không đổi giá trị)
@@ -320,7 +320,7 @@ export function BoardGallery({
               chụp khung nhìn); ảnh đó đã bị gỡ khỏi thẻ nên giữ lại ở đây là gập về một hình mà
               lưới không còn hiện. */}
           <div className="absolute inset-0" style={{ background: 'var(--c-surface-alt, #f6f7fd)' }}>
-            <TheTrong khoa={dangGapLai.chuyenKhoa} />
+            <TheTrong khoa={dangGapLai.chuyenKhoa} id={dangGapLai.id} />
           </div>
         </div>
       )}
@@ -368,7 +368,7 @@ export function BoardGallery({
               {/* dangVe: lớp phủ này che trọn màn chờ bên dưới (đo được 2,5s ở opacity 1), nên
                   chính nó phải là thứ đang vẽ — xem TheTrong. Lớp phủ "gập lại" lúc ĐÓNG ở trên
                   KHÔNG bật cờ này: cú gập chỉ 260ms. */}
-              <TheTrong khoa={openOrigin.chuyenKhoa} dangVe />
+              <TheTrong khoa={openOrigin.chuyenKhoa} id={openOrigin.id} dangVe />
               {/* Dòng "vẫn đang tải" — chỉ bật sau 4,5s (choLau ở trên), cho mạng yếu/thiết bị cũ/
                   lần mở đầu chưa cache chunk BlockSuite một tín hiệu phân biệt với "đã treo".
                   role="status" để người dùng đọc màn hình cũng nghe được, không chỉ thấy chữ. */}
@@ -404,7 +404,7 @@ export function BoardGallery({
               // không giao tiếp gì với chuỗi bên dưới (overdrive 2026-08-26, Hướng 2).
               const giamChuyenDong =
                 typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-              setDangGapLai({ chuyenKhoa: openOrigin?.chuyenKhoa })
+              setDangGapLai({ chuyenKhoa: openOrigin?.chuyenKhoa, id: openOrigin?.id })
               setTimeout(() => setDangGapLai(null), giamChuyenDong ? 10 : 260)
 
               // Tháo EdgelessBoard TRƯỚC (kích hoạt cleanup effect của nó — nơi bắt đầu lượt ghi ảnh
