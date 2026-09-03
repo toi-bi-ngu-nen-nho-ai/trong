@@ -435,7 +435,7 @@
        bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
     --c-fav: #facc15;
     --c-fav-soft: #2c2411;
-    --c-fav-bright: #7e4f0c;
+    --c-fav-bright: #facc15;
 
     --c-accent: var(--c-primary);
     --c-accent-deep: var(--c-primary-strong);
@@ -528,7 +528,7 @@
      bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
   --c-fav: #facc15;
   --c-fav-soft: #2c2411;
-  --c-fav-bright: #7e4f0c;
+  --c-fav-bright: #facc15;
 
   --c-accent: var(--c-primary);
   --c-accent-deep: var(--c-primary-strong);
@@ -951,6 +951,29 @@ html.theme-shift * {
   );
   clip-path: path('M0,16 C0,25 5,30 15,30 L0,30 Z');
   filter: drop-shadow(-1px 1.5px 2px rgba(0, 0, 0, 0.28));
+}
+
+/* CÙNG MẶT GIẤY với .mind-note-card ở trên, nhưng lấp đầy khung cha — dùng cho hai lớp phủ chuyển
+   cảnh mở/đóng bảng (BoardGallery.tsx: lớp phủ FLIP lúc mở, lớp phủ "gập lại" lúc đóng).
+   VÌ SAO PHẢI LÀ GIẤY (chủ dự án 2026-09-03: "hoạt ảnh sơ đồ chế độ dark/light quá khác biệt"):
+   hai lớp phủ đó trước đây tô `--c-surface-alt` — bề mặt VỎ APP, LẬT theo chủ đề (#f6f7fd bản sáng
+   → #1b1e3d bản tối) — trong khi thứ chúng vẽ lên đó (mặt giấy + huy hiệu + nét vẽ của TheTrong)
+   thuộc họ GIẤY, họ token CỐ Ý không lật. Đo trên trình duyệt thật lúc lớp phủ đứng opacity 1:
+   lệch sáng giữa giấy thẻ và nền lớp phủ là 1,02:1 ở bản sáng (trùng nhau TÌNH CỜ, nên không ai
+   thấy sai) nhưng 13,68:1 ở bản tối — cú phóng to đọc thành "một tấm nền tối khác đè lên" chứ không
+   phải "tờ giấy vừa bấm lớn dần", và nét vẽ tụt từ 7,32:1 xuống 2,06:1, dưới cả sàn 3:1 của WCAG
+   1.4.11 cho đồ hoạ mang nghĩa. Cùng vật liệu thì hoạt ảnh đọc GIỐNG HỆT ở hai bản, và bản tối
+   được nâng lên bằng bản sáng — đúng cả hai yêu cầu cùng lúc.
+   KHÔNG kèm box-shadow/border-radius/góc-cong-::before của .mind-note-card: ở đây tấm giấy lấp trọn
+   khung nhìn nên cả ba thứ đó rơi ra ngoài mép màn, chỉ tốn công vẽ. Đó là lý do có class riêng
+   thay vì gắn thẳng `mind-note-card` lên lớp phủ. */
+.mind-giay-day {
+  background: linear-gradient(
+    180deg,
+    var(--c-note, #fbfaf7) 0%,
+    var(--c-note, #fbfaf7) 74%,
+    var(--c-note-edge, #e6e4dc) 100%
+  );
 }
 
 /* Ô "+" tạo bảng mới — dùng ở CẢ HAI chỗ (trạng thái rỗng và cuối lưới, DanhSachBang.tsx), gộp về
