@@ -293,18 +293,19 @@ const icons = {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
-  // Sao "ghim / ưa thích" cho hàng tab + danh sách nhảy nhóm. Hai hình theo trạng thái:
-  //   filled=false → viền rỗng (chưa ghim), nơi gọi tô `currentColor` mờ (--c-text-soft).
-  //   filled=true  → tô đặc (đã ghim), nơi gọi tô VÀNG `--c-fav`.
-  // KHÔNG dùng icons.star() ở đây: icons.star() khoá cứng `--c-warn-icon` (họ token cảnh báo lâm
-  // sàng — DESIGN.md "Untouchable Signal Rule"). Vàng ưa thích là token RIÊNG `--c-fav`, sắc lệch hẳn
-  // hổ phách cảnh báo. Ăn theo currentColor để nơi gọi đặt màu bật/tắt.
-  starPin: (filled: boolean) => (
+  // Sao "ghim / ưa thích" cho hàng tab + danh sách nhảy nhóm. Ba dạng theo tham số:
+  //   filled=false        → viền rỗng (chưa ghim), nơi gọi tô `currentColor` mờ.
+  //   filled=true, rim=false → tô đặc trơn (đã ghim, nằm trên nền trung tính), nơi gọi tô `--c-fav`.
+  //   filled=true, rim=true  → tô đặc + viền `--c-on-bright` (đã ghim, nằm THẲNG trên chip primary
+  //                            đặc — viền giữ nét sao sắc kể cả khi ruột vàng sát màu nền chip).
+  // KHÔNG dùng icons.star(): nó khoá cứng `--c-warn-icon` (họ token cảnh báo lâm sàng — DESIGN.md
+  // "Untouchable Signal Rule"). Vàng ưa thích là token RIÊNG `--c-fav*`.
+  starPin: (filled: boolean, rim = false) => (
     <svg
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={filled ? 0 : 1.8}
+      stroke={filled ? (rim ? "var(--c-on-bright)" : "none") : "currentColor"}
+      strokeWidth={filled ? (rim ? 1.4 : 0) : 1.8}
       strokeLinejoin="round"
       className="w-3.5 h-3.5"
     >
@@ -11814,7 +11815,10 @@ export function DungThuocScreen({
 
   return (
     <DosingContext.Provider value={dosingCtx}>
-    <div className="scr-dose h-full flex flex-col relative">
+    {/* `screen-transition` (fadeSlideIn 0.22s): cùng hiệu ứng vào-màn với Thư viện / Mindmap và
+        mọi màn cấp-tab khác — trước đây DungThuocScreen là màn DUY NHẤT thiếu nó (chủ dự án
+        2026-09-03). Có rule prefers-reduced-motion riêng trong index.css. */}
+    <div className="scr-dose h-full flex flex-col relative screen-transition">
       {/* `inert` trên toàn bộ nội dung nền trong khi DisclaimerGate còn mở — role="dialog" +
           aria-modal="true" + bẫy Tab (useDialogFocus) đã đúng chuẩn, nhưng không phải mọi trình đọc
           màn hình tôn trọng aria-modal một mình; `inert` chặn cả focus lẫn cây accessibility của nội
@@ -11978,21 +11982,21 @@ export function DungThuocScreen({
                         {t.search}
                       </p>
                     </button>
-                    {/* Nút ghim — CÙNG hệ màu bật/tắt với nút ghim trên hàng tab chính (xem chú thích
-                        ở đó). Tắt: nền `line-soft` + sao VIỀN RỖNG `text-soft` (đọc như một chip xám
-                        đang nghỉ). Bật: nền `fav-soft` (kem ấm) + viền `fav` + sao TÔ ĐẶC VÀNG `fav`.
-                        Bốn tín hiệu dư (nền, viền, đặc/rỗng, màu sao) — không dựa vào opacity. */}
+                    {/* Nút ghim — sao TRẦN, cùng nguyên tắc "không nền / không viền / không bo" với nút
+                        ghim trên hàng tab (xem chú thích ở đó). Ở đây sao nằm trên nền `--c-surface`
+                        của hàng danh sách (không phải chip primary) nên KHÔNG cần `--c-fav-bright` +
+                        viền: BẬT = sao đặc `--c-fav` (gold đậm bản sáng / vàng-chanh bản tối, đều đạt
+                        ≥3:1 trên surface); TẮT = sao viền rỗng `--c-text-soft` ở opacity 0.5. */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         togglePinTab(t.id)
                       }}
-                      className={`flex-none w-9 h-9 mr-1 ${R.pill} border flex items-center justify-center`}
-                      style={
-                        pinnedTabIds.includes(t.id)
-                          ? { background: C.favSoft, borderColor: C.fav, color: C.fav }
-                          : { background: C.lineSoft, borderColor: "transparent", color: C.textSoft }
-                      }
+                      className="flex-none w-11 h-11 mr-1 flex items-center justify-center rounded-full"
+                      style={{
+                        color: pinnedTabIds.includes(t.id) ? C.fav : C.textSoft,
+                        opacity: pinnedTabIds.includes(t.id) ? 1 : 0.5,
+                      }}
                       aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.search}` : `Ghim nhóm ${t.search} lên đầu hàng`}
                       aria-pressed={pinnedTabIds.includes(t.id)}
                     >
@@ -12034,20 +12038,17 @@ export function DungThuocScreen({
           }}
         >
           {orderedTabs.map((t) => (
-            // KHÔNG overflow-hidden trên wrapper: giữ `pulse-scale` (phóng 1.12 lúc vừa chọn) khỏi bị
-            // cắt cụt. KHÔNG gap: nút ghim HÀN LIỀN vào chip đang chọn thành MỘT viên pill hai đoạn
-            // (`[ Kháng sinh │★ ]`) — chủ dự án 2026-09-03: "để nút favorite chung với button mixing
-            // tab luôn". Chip lấy nửa bo trái, nút ghim lấy nửa bo phải, `-ml-px` kéo khít qua viền
-            // trong suốt của chip; ranh giới màu (xanh đặc ↔ đoạn sao) tự làm đường chia, không cần
-            // hairline. Hai đoạn cùng cao h-11.
+            // `relative` để nút ghim (sao) NẰM THẲNG TRÊN chip đang chọn — không phải một đoạn/nút
+            // tròn riêng cạnh nó (chủ dự án 2026-09-03: "không được để ranh giới là nút tròn → hoà
+            // vào button định nghĩa nó, nằm sát bên phải, không vẽ line viền"). Sao là icon TRẦN
+            // (không nền, không viền, không bo), đặt `absolute` sát mép phải trong phần đệm `pr-10`
+            // mà chip tự chừa khi đang chọn — nhìn ra một chip DUY NHẤT có ngôi sao ở góc phải.
             //
-            // `role="group"` + `aria-label` CHỈ khi có nút ghim (tab đang mở) — theo ARIA APG, một
-            // `tablist` lẽ ra chỉ nên chứa các phần tử `tab`, còn nút ghim là một control KHÁC bị chèn
-            // vào giữa luồng đó khiến trình đọc màn hình đọc xen "sao, ghim nhóm X" lẫn với các tab
-            // thật (/impeccable critique 2026-09-01 lượt 3, P3). `role="group"` gom tab+nút ghim thành
-            // MỘT đơn vị có tên, giúp trình đọc màn hình hiểu đây là "Kháng sinh (kèm nút ghim)" thay
-            // vì hai control rời rạc. Không đặt role="group" cho 9 tab còn lại (không có nút ghim).
-            <div key={t.id} className="flex-none flex items-center" role={tab === t.id ? "group" : undefined} aria-label={tab === t.id ? t.label : undefined}>
+            // `role="group"` + `aria-label` CHỈ khi có nút ghim (tab đang mở): theo ARIA APG một
+            // `tablist` chỉ nên chứa phần tử `tab`; `role="group"` gom chip + nút ghim thành MỘT đơn
+            // vị có tên ("Kháng sinh (kèm nút ghim)") thay vì hai control rời rạc. 9 tab còn lại
+            // không có nút ghim nên không cần group.
+            <div key={t.id} className="flex-none relative flex items-center" role={tab === t.id ? "group" : undefined} aria-label={tab === t.id ? t.label : undefined}>
               <button
                 id={`mixing-tab-${t.id}`}
                 ref={tab === t.id ? activeTabRef : null}
@@ -12057,9 +12058,9 @@ export function DungThuocScreen({
                 // ra khỏi hàng.
                 tabIndex={tab === t.id ? 0 : -1}
                 // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
-                // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount. `rounded-r-none` +
-                // `pr-3` khi đang chọn: nhường nửa phải cho nút ghim hàn liền.
-                className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale rounded-r-none pr-3" : ""}`}
+                // hoạt ảnh chạy lại mỗi lần chuyển tab. `pr-10` khi đang chọn: chừa chỗ cho ngôi sao
+                // trần đặt đè lên mép phải, chữ không đụng sao.
+                className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale pr-10" : ""}`}
                 // C.textSoft cho tab chưa chọn, không phải text-muted — text-muted dưới ngưỡng AA ở cỡ này.
                 style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
                 role="tab"
@@ -12068,49 +12069,41 @@ export function DungThuocScreen({
               >
                 {t.label}
               </button>
-              {/* Ghim thủ công — CHỈ hiện trên tab đang mở, không phải cả 10 chip: hàng tab vốn đã
-                  vượt giới hạn ≤4 lựa chọn đồng thời (checklist tải nhận thức), thêm icon vào MỌI
-                  chip sẽ làm mật độ nặng hơn đúng chỗ đang muốn giảm nhẹ. Mở tab cần ghim ra rồi bấm
-                  sao ở đây là đủ để ghim nó lên đầu hàng ngay lập tức, không phải chờ MRU hội tụ qua
-                  nhiều ca trực (/impeccable critique 2026-09-01, P2).
-
-                  Hệ màu bật/tắt (chủ dự án 2026-09-03: sao ưa thích PHẢI là màu VÀNG):
-                  TẮT = nền `line-soft` + sao VIỀN RỖNG `text-soft` (một chip xám đang nghỉ, hoà vào
-                  hàng, chưa ghim nên sao rỗng). BẬT = nền `fav-soft` (kem ấm) + viền `fav` + sao TÔ
-                  ĐẶC màu VÀNG `fav` — bốn tín hiệu dư (nền, viền, đặc/rỗng, màu sao), không dựa vào
-                  opacity. `--c-fav` là token VÀNG RIÊNG, tách khỏi họ `--c-warn*` cảnh báo lâm sàng
-                  (sắc lệch hẳn hổ phách, xem chú thích trong index.css) — sao đặc + hình sao là dấu
-                  hiệu "ưa thích" phổ quát, đặt trong hàng tab (vùng chrome) nên không lẫn với cảnh báo
-                  trên thẻ liều. Bản sáng buộc là gold ĐẬM (`#a16207`) mới đạt ≥3:1 lúc tô đặc trên nền
-                  nhạt; bản tối là `#facc15` vàng-chanh tươi.
-
-                  `h-11 w-11 -ml-px rounded-r-full rounded-l-none border-l-0`: đoạn PHẢI của viên pill
-                  hai đoạn, khít vào chip (đoạn trái) — cao bằng chip, bo tròn nửa phải, kéo qua viền
-                  trong suốt của chip bằng `-ml-px`. Ranh giới màu (xanh đặc ↔ đoạn sao) tự làm đường
-                  chia. Vùng chạm 44×44. */}
+              {/* Ngôi sao ghim — icon TRẦN đè lên góc phải chip đang chọn. Không nền / không viền /
+                  không bo tròn (chỉ `rounded-full` cho vòng focus, trong suốt nên vô hình) — hoà hẳn
+                  vào chip, không tạo "ranh giới nút tròn". Chủ dự án 2026-09-03: sao ưa thích PHẢI
+                  màu VÀNG.
+                  BẬT (đã ghim): tô đặc `--c-fav-bright` (#facc15 vàng-chanh cả hai theme) + viền
+                    `--c-on-bright` (icons.starPin(true, true)) — chip primary đảo màu giữa hai theme
+                    nên ruột vàng có lúc sát màu nền; viền `--c-on-bright` (đúng màu chữ trên chip)
+                    giữ nét sao luôn sắc. Ba tín hiệu: đặc, màu vàng, opacity 1.
+                  TẮT (chưa ghim): sao VIỀN RỖNG màu `--c-on-bright` (= màu chữ chip) ở opacity 0.5 —
+                    một gợi ý mờ "chạm để ghim", không đọc như một trạng thái cần phân biệt kỹ.
+                  KHÔNG có `dose-press` / nền / viền / bo hiện hình: chủ dự án 2026-09-03 — nút favorite
+                  chỉ đổi CHÍNH NGÔI SAO (rỗng↔đặc, màu, độ mờ), không có bất kỳ hiệu ứng "nút" nào
+                  khác, và không có ranh giới nào tách nó khỏi chip. Vùng chạm 32px trong chip cao 44px. */}
               {tab === t.id && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     togglePinTab(t.id)
                   }}
-                  className="flex-none h-11 w-11 -ml-px rounded-r-full rounded-l-none border border-l-0 flex items-center justify-center dose-press"
-                  style={
-                    pinnedTabIds.includes(t.id)
-                      ? { background: C.favSoft, borderColor: C.fav, color: C.fav }
-                      : { background: C.lineSoft, borderColor: "transparent", color: C.textSoft }
-                  }
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full"
+                  style={{
+                    color: pinnedTabIds.includes(t.id) ? C.favBright : "var(--c-on-bright)",
+                    opacity: pinnedTabIds.includes(t.id) ? 1 : 0.5,
+                  }}
                   aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.label}` : `Ghim nhóm ${t.label} lên đầu hàng`}
                   aria-pressed={pinnedTabIds.includes(t.id)}
                 >
-                  {icons.starPin(pinnedTabIds.includes(t.id))}
+                  {icons.starPin(pinnedTabIds.includes(t.id), true)}
                 </button>
               )}
             </div>
           ))}
         </div>
-        <div className="absolute left-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to right, var(--c-page), transparent)" }} />
-        <div className="absolute right-0 top-0 bottom-3 w-6 pointer-events-none" style={{ background: "linear-gradient(to left, var(--c-page), transparent)" }} />
+        {/* (Trước đây có hai dải mờ gradient hai mép báo "còn cuộn được" — chủ dự án 2026-09-03 yêu
+            cầu bỏ; thanh tiến trình cuộn ngay dưới đây đã đủ tín hiệu "còn nữa".) */}
         {/* Track/bar nằm trong đúng khoảng pb-3 (12px) chừa sẵn dưới hàng tab — không chiếm thêm
             chỗ, không đụng hai dải mờ (chỉ phủ tới bottom-3, không phủ khoảng này). opacity ban đầu
             0 tránh nháy một dải đầy trước khi updateTabProgress() đo xong kích thước thật lúc mount. */}

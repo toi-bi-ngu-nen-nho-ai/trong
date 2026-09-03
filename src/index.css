@@ -260,6 +260,11 @@
      trên nền nhạt — vàng tươi không thể vừa sáng vừa đọc được trên nền sáng. */
   --c-fav: #a16207;
   --c-fav-soft: #fdf3d6;
+  /* Sao ưa thích khi nằm THẲNG trên nền primary đặc (chip tab đang chọn) — luôn vàng-chanh tươi
+     bất kể theme (chip primary đảo màu giữa hai theme, nhưng sao luôn đi kèm viền `--c-on-bright`
+     nên nét sao vẫn sắc). Tách khỏi `--c-fav` vì `--c-fav` bản sáng là gold đậm, chìm trên nền
+     xanh đậm của chip bản sáng. */
+  --c-fav-bright: #facc15;
 
   /* --c-accent* trước đây là một bộ giá trị RIÊNG trùng khít --c-primary* — hai nguồn sự thật cho
      cùng một màu, sửa primary mà quên sửa accent là sẽ lệch ngay. Giờ trỏ thẳng vào primary, giữ
@@ -428,6 +433,7 @@
        bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
     --c-fav: #facc15;
     --c-fav-soft: #2c2411;
+    --c-fav-bright: #facc15;
 
     --c-accent: var(--c-primary);
     --c-accent-deep: var(--c-primary-strong);
@@ -520,6 +526,7 @@
      bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
   --c-fav: #facc15;
   --c-fav-soft: #2c2411;
+  --c-fav-bright: #facc15;
 
   --c-accent: var(--c-primary);
   --c-accent-deep: var(--c-primary-strong);

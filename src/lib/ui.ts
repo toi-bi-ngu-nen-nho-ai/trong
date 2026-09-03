@@ -100,6 +100,7 @@ export const C = {
   // Vàng "ghim / ưa thích" — accent trang trí, TÁCH khỏi họ warn (xem chú thích --c-fav trong index.css).
   fav: "var(--c-fav)",
   favSoft: "var(--c-fav-soft)",
+  favBright: "var(--c-fav-bright)",
   text: "var(--c-text)",
   textSoft: "var(--c-text-soft)",
   muted: "var(--c-muted)",
