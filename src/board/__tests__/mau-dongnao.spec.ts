@@ -261,12 +261,51 @@ describe('DongNaoTemplateManager', () => {
     }
   })
 
+  // ═══ CHIỀU CAO HỘP vs SỐ DÒNG THẬT ═══
+  //
+  // LỖI GỐC (người dùng báo 2026-09-03, ảnh chụp SMART): dòng cuối của cột "Phù hợp" — "dài." — nằm
+  // BÊN DƯỚI ô màu, trên nền trắng. "Lớp không phủ hết chữ".
+  //
+  // Cùng gốc với hai bản vá bề rộng trước đó, chỉ khác TRỤC. Lượt sinh trước đo thân bài dài nhất
+  // ra 5 dòng ở phông Poppins rồi chốt hộp tiêu đề cao 440. Nhưng Poppins KHÔNG được nạp
+  // (xem `boCuc5W2H`), chữ vẽ bằng sans-serif hệ thống — rộng hơn nên NGẮT THÀNH NHIỀU DÒNG HƠN.
+  // Đo lại 2026-09-03: 6 dòng × 49 px = 293 px, đáy chữ 243 + phần đuôi chữ ≈ 250, trong khi đáy hộp
+  // ở 247. Tràn ~3 px là đủ để dòng cuối rơi hẳn ra khoảng trắng giữa hộp tiêu đề và panel.
+  //
+  // Số dòng thay đổi theo phông dự phòng của TỪNG NỀN TẢNG — đo trên 6 phông: Poppins-thật 6 dòng,
+  // Arial 6, Tahoma 6, Segoe UI 6, Noto Sans 6, Verdana 7 (376 px). Nên ngưỡng lấy theo trường hợp
+  // xấu nhất + đuôi chữ: 390 px kể từ ĐỈNH thân bài tới ĐÁY hộp tiêu đề.
+  it('hộp tiêu đề SMART chừa đủ chỗ cho thân bài ở phông dự phòng rộng nhất', () => {
+    const j = JSON.parse(docTep('smart'))
+    const mp = j.content.blocks.children.find((c: { flavour: string }) => c.flavour === 'affine:surface')
+    const els = (Object.values(mp.props.elements) as Record<string, never>[]).map(
+      (e) => e as unknown as { type: string; fontSize?: number; xywh: string },
+    )
+    // Nhãn cột và thân bài cùng cỡ 44 và cùng bề rộng 676 — phân biệt bằng CHIỀU CAO hộp
+    // (nhãn một dòng, thân bài nhiều dòng).
+    const than = els.filter((e) => e.type === 'text' && e.fontSize === 44 && (JSON.parse(e.xywh) as number[])[3] > 100)
+    expect(than, 'số khối thân bài của SMART').toHaveLength(5)
+
+    for (const t of than) {
+      const [tx, ty] = JSON.parse(t.xywh) as number[]
+      // Hộp tiêu đề = hình NHỎ NHẤT chứa góc trên-trái của thân bài.
+      const hop = els
+        .filter((e) => e.type === 'shape')
+        .map((e) => JSON.parse(e.xywh) as number[])
+        .filter(([x, y, w, h]) => tx >= x && tx <= x + w && ty >= y && ty <= y + h)
+        .sort((a, b) => a[2] * a[3] - b[2] * b[3])[0]
+      expect(hop, `không tìm được hộp tiêu đề chứa thân bài ${t.xywh}`).toBeDefined()
+      const choTrong = hop[1] + hop[3] - ty
+      expect(choTrong, `chỗ trống dưới đỉnh thân bài ${t.xywh}`).toBeGreaterThanOrEqual(390)
+    }
+  })
+
   it('khổ từng mẫu đúng như lượt sinh đã chốt', () => {
     const CHOT: Record<string, [number, number]> = {
       '5w2h': [3215, 1924],
       'concept-map': [6788, 3718],
       flowchart: [3067, 2545],
-      smart: [4140, 2040],
+      smart: [4140, 2160],
       swot: [4305, 2009],
     }
     for (const { slug } of MAU_DONG_NAO) {

@@ -445,17 +445,32 @@ function boCucSoDoKhaiNiem(snap) {
  * Cách làm: bóp bề ngang cột 1207 → 780 (chữ ngắt dòng dày hơn, bù bằng khối tiêu đề cao hơn — chỗ
  * đó đang thừa), dời bảng "Hướng dẫn" từ cạnh trái lên thành dải ngang phía trên, và thu chữ cái
  * khổng lồ 824 → 420 cho vừa cột mới. Khổ còn 4140×2176 → zoom 0,300 (từ 0,170), và cỡ chữ thân bài
- * nâng 32 → 44 nên chữ trên màn đi từ 5,4 px lên 13,2 px.
+ * nâng 32 → 44 nên chữ trên màn đi từ 5,4 px lên 13,2 px. (Khổ cao 2176 ở lượt đó; lượt
+ * 2026-09-03 nâng hộp tiêu đề 440 → 560 nên thành 2160×4140 — vẫn bị chặn theo bề ngang, zoom
+ * không đổi.)
  */
 function boCucSmart(snap) {
   const pt = phanTu(snap)
   const W_COT = 780
   const BUOC = 840
   const X0 = -1680
-  // Chiều cao khối tiêu đề lấy theo chỗ chữ THẬT chiếm: đo trên trình duyệt 2026-09-02, thân bài
-  // dài nhất ở cỡ 44 trong lòng 676 là 5 dòng = 253 px, cộng nhãn 51 px và lề → 440 là vừa.
-  const CAO_TIEU_DE = 440
-  const Y_PANEL = -193 + CAO_TIEU_DE + 40 // 287
+  // Chiều cao khối tiêu đề lấy theo chỗ chữ THẬT chiếm — và "thật" ở đây phải tính bằng PHÔNG DỰ
+  // PHÒNG, không phải phông thượng nguồn. Lượt trước đo Poppins ra 5 dòng = 253 px rồi chốt 440;
+  // nhưng Poppins không được nạp (xem `boCuc5W2H`) nên chữ vẽ bằng sans-serif hệ thống, rộng hơn,
+  // NGẮT THÀNH NHIỀU DÒNG HƠN. Người dùng báo 2026-09-03: dòng cuối cột "Phù hợp" ("dài.") rơi hẳn
+  // xuống khoảng trắng dưới ô màu — đáy chữ ~250 so với đáy hộp 247.
+  //
+  // Đo lại 2026-09-03 trên sáu phông (thân bài dài nhất, cỡ 44, lòng 676): Poppins-thật 6 dòng,
+  // Arial 6, Tahoma 6, Segoe UI 6, Noto Sans 6, Verdana 7 = 376 px. Lấy trường hợp xấu nhất cộng
+  // đuôi chữ → thân bài cần 388 px, và nó bắt đầu ở 142 đơn vị dưới đỉnh hộp, nên hộp phải cao
+  // 142 + 388 + 30 (lề đáy) = 560.
+  //
+  // Khổ mẫu cao thêm 120 (2040 → 2160) nhưng ZOOM KHÔNG ĐỔI: SMART bị chặn theo BỀ NGANG
+  // (1240/4140 = 0,300 so với 703/2160 = 0,325), nên cỡ chữ trên màn giữ nguyên.
+  const CAO_TIEU_DE = 560
+  // Chiều cao hộp thân bài: 7 dòng × 54 (dòng cao nhất trong sáu phông) + đuôi chữ.
+  const CAO_THAN_BAI = 388
+  const Y_PANEL = -193 + CAO_TIEU_DE + 40 // 407
   // Panel phải chứa HAI tờ giấy nhớ 348 px xếp so le mà không chồng nhau: 60 + 348 + 22 + 348 + 42.
   const CAO_PANEL = 820
 
@@ -495,7 +510,7 @@ function boCucSmart(snap) {
     nhan[i].fontSize = 44
     datXywh(nhan[i], X + 52, -133, W_COT - 104, 66)
     thanBai[i].fontSize = 44
-    datXywh(thanBai[i], X + 52, -51, W_COT - 104, 280)
+    datXywh(thanBai[i], X + 52, -51, W_COT - 104, CAO_THAN_BAI)
 
     // Chữ cái khổng lồ: đổi sang căn GIỮA và lấy trọn bề ngang cột. Vừa tránh hẳn bẫy ngắt dòng
     // (hộp luôn rộng hơn một ký tự), vừa cho nó nằm đúng tâm panel — bản gốc đặt lệch mỗi cột một
