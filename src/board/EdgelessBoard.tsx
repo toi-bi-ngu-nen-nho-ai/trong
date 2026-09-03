@@ -28,6 +28,7 @@ import { cheDoEdgeless } from './che-do-edgeless'
 import { phongChuBangExtension } from './phong-chu-bang'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
+import { type Hop as HopO, viTriMoiChoO } from './xep-o-tu-dong'
 import type { KetQuaXuat } from './xuatAnhBang'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { capNhatSauKhiRoiBang, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
@@ -481,6 +482,62 @@ export function EdgelessBoard({
         const surfaceModel = store.root?.children.find(
           (khoi): khoi is SurfaceBlockModel => khoi.flavour === 'affine:surface',
         )
+
+        // ─── Bù lỗi nút "+" của ô ghi chú ────────────────────────────────────────────────────
+        // `_computeNextBound` của cây vendored (D11 — không sửa được) đặt ô mới ở đúng
+        // `x + w + 100`, không kiểm ô đã có và không biết có khung chứa: bấm "+" trong mẫu SWOT thì
+        // ô mới đè lên ô kế bên, hoặc chui hẳn ra ngoài ô ma trận và đè sang ô ma trận bên cạnh.
+        // Toàn bộ phần suy lưới và chọn chỗ nằm ở ./xep-o-tu-dong.ts (thuần, có bài kiểm riêng);
+        // ở đây chỉ đọc trạng thái, gọi nó, rồi ghi lại `xywh`.
+        //
+        // HAI KHUNG HÌNH, không phải một: sau khi tạo ô, thượng nguồn xếp một `requestAnimationFrame`
+        // để đặt con trỏ soạn thảo. Dời ô ở khung hình đầu là dời TRƯỚC lượt đó, con trỏ sẽ rơi vào
+        // chỗ trống. Đợi qua khung hình thứ hai thì ô đã ở chỗ mới và khối vẫn đang được chọn.
+        const docHopTu = (xywh: unknown): HopO | null => {
+          if (typeof xywh !== 'string') return null
+          try {
+            const [x, y, w, h] = JSON.parse(xywh) as number[]
+            if (![x, y, w, h].every((n) => typeof n === 'number' && Number.isFinite(n))) return null
+            return { x, y, w, h }
+          } catch {
+            return null
+          }
+        }
+        // `model.props` của cây vendored khai là `SignaledProps<object>` — không có `xywh` ở mức
+        // kiểu. Khai tối thiểu tại chỗ đúng như luật D11 yêu cầu, thay vì import kiểu xuyên ranh giới.
+        const layXywh = (m: unknown): unknown => (m as { props?: { xywh?: unknown } } | null)?.props?.xywh
+        const dkXepO = store.slots.blockUpdated.subscribe((payload) => {
+          if (payload.type !== 'add' || payload.flavour !== 'affine:note' || !payload.isLocal) return
+          const idMoi = payload.id
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              try {
+                const moi = docHopTu(layXywh(store.getModelById(idMoi)))
+                if (!moi) return
+                const daCo = store
+                  .getBlocksByFlavour('affine:note')
+                  .filter((khoi) => khoi.id !== idMoi)
+                  .map((khoi) => docHopTu(layXywh(khoi.model)))
+                  .filter((hop): hop is HopO => hop !== null)
+                const hinh = [...(surfaceModel?.elementModels ?? [])]
+                  .filter((el) => el.type === 'shape')
+                  .map((el) => docHopTu(el.xywh))
+                  .filter((hop): hop is HopO => hop !== null)
+
+                const cho = viTriMoiChoO(moi, daCo, hinh)
+                if (!cho) return
+                store.updateBlock(idMoi, {
+                  xywh: `[${cho.x},${cho.y},${moi.w},${moi.h}]`,
+                })
+              } catch (err) {
+                // Không được để một phép sắp xếp thẩm mỹ làm hỏng thao tác tạo ô của người dùng.
+                console.warn('EdgelessBoard: không xếp lại được ô ghi chú mới:', err)
+              }
+            }),
+          )
+        })
+        huyDangKyThayDoi.push(() => dkXepO.unsubscribe())
+
         if (surfaceModel) {
           const dkThem = surfaceModel.elementAdded.subscribe(({ local }) => {
             if (local) coThayDoiNoiDung = true
