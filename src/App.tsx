@@ -11269,14 +11269,25 @@ function InfusionCategoryScreen({
 // (bỏ qua Trang chủ, xem App() initialScreen) — trước đây ThemeToggle CHỈ có ở Trang chủ, nên bác sĩ
 // vào thẳng màn Dùng thuốc lúc trực đêm không có cách nào giảm chói màn hình mà không phải vòng qua
 // đúng màn hình lối tắt này cố tình bỏ qua (/impeccable critique 2026-08-26, P1).
-function ThemeToggle({ variant = "floating" }: { variant?: "floating" | "inline" }) {
+function ThemeToggle({
+  variant = "floating",
+  preserveScreen,
+}: {
+  variant?: "floating" | "inline"
+  // Màn hình cần giữ lại nếu app đang chạy PWA standalone: đổi chủ đề ở đó ép tải lại trang (xem
+  // saveTheme trong lib/theme.ts), và URL hiện tại thường không mang "?screen=" vì điều hướng trong
+  // app chạy bằng state React chứ không đụng URL — không truyền thì sau khi tải lại initialScreen()
+  // rơi về "home" dù đang đứng ở màn khác. Bản floating ở Trang chủ không cần: rơi về "home" đúng là
+  // rơi về đúng màn đang đứng.
+  preserveScreen?: string
+}) {
   const [mode, setMode] = useState<ThemeMode>(loadTheme)
   const next: Record<ThemeMode, ThemeMode> = { auto: "light", light: "dark", dark: "auto" }
   const glyph = mode === "light" ? icons.sun() : mode === "dark" ? icons.moon() : icons.sunMoon()
   const handleClick = () => {
     const m = next[mode]
     setMode(m)
-    saveTheme(m)
+    saveTheme(m, preserveScreen)
     tickHaptic()
   }
   const label = `Chủ đề: ${THEME_LABELS[mode]}. Chạm để đổi.`
@@ -11834,7 +11845,7 @@ export function DungThuocScreen({
         titleClamp={2}
         actions={
           <>
-            <ThemeToggle variant="inline" />
+            <ThemeToggle variant="inline" preserveScreen="mixing" />
             {/* Nút "Tìm" và "Nhật ký" là hai nút biểu tượng vuông (h-9 w-9) — CÙNG khuôn markup với
                 ThemeToggle variant="inline" ở trên (`flex items-center justify-center py-1` + `<span>`
                 pill viền mỏng), để cả ba nút hành động cao đúng 44px và icon canh giữa khớp nhau trên

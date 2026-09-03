@@ -117,7 +117,24 @@ export function watchSystemTheme(): () => void {
   return () => mq.removeEventListener("change", onChange)
 }
 
-export function saveTheme(mode: ThemeMode): void {
+// Đường dẫn để tải lại sau khi đổi chủ đề trong PWA standalone (xem saveTheme bên dưới): GIỮ NGUYÊN
+// mọi thứ, THÊM tham số `screen` nếu có màn cần giữ.
+//
+// Vì sao: điều hướng trong app chạy bằng state React (App.tsx), không đụng tới URL, nên URL hiện
+// tại thường KHÔNG mang `?screen=`. `location.reload()` giữ nguyên URL đó — sau khi tải lại,
+// initialScreen() (App.tsx) đọc URL, không thấy `screen`, rơi về "home". ThemeToggle từng chỉ có ở
+// Trang chủ nên vô hại (rơi về đúng màn đang đứng); từ khi có thêm bản inline trong DungThuocScreen,
+// bấm đổi chủ đề ở đó tải lại trang và bị đẩy về Trang chủ dù đang xem "Dùng thuốc". Gắn
+// `?screen=mixing` trước khi tải lại thì initialScreen() tự đọc lại đúng lối tắt PWA nó đã biết,
+// quay về đúng màn thay vì "home".
+export function duongDanTaiLaiChuDe(href: string, preserveScreen?: string): string {
+  if (!preserveScreen) return href
+  const url = new URL(href)
+  url.searchParams.set('screen', preserveScreen)
+  return url.toString()
+}
+
+export function saveTheme(mode: ThemeMode, preserveScreen?: string): void {
   let saved = true
   try {
     localStorage.setItem(KEY, mode)
@@ -140,16 +157,21 @@ export function saveTheme(mode: ThemeMode): void {
   // GIỮ NGUYÊN màu cũ cho tới khi bản dựng mới vẽ ra — mà đúng lúc ấy hệ điều hành cũng vừa đọc
   // theme-color mới. Hai bên đổi trong CÙNG một khung hình, không còn gì để lệch.
   //
-  // An toàn để reload ngay ở đây: nút đổi chủ đề (ThemeToggle) chỉ hiện trên Trang chủ — không có ô
-  // nhập nào đang dở để mất, và bệnh nhân/tab/thuốc đang chọn đều đã nằm trong localStorage/
-  // sessionStorage nên sau reload vẫn y nguyên (xem lib/patient.ts, lib/uiState.ts). KHÔNG gọi ở
-  // applyTheme(): applyTheme() còn được main.tsx gọi mỗi lần MỞ app — reload ở đó sẽ vòng lặp vô hạn.
+  // An toàn để reload ngay ở đây: không có ô nhập nào đang dở để mất, và bệnh nhân/tab/thuốc đang
+  // chọn đều đã nằm trong localStorage/sessionStorage nên sau reload vẫn y nguyên (xem lib/patient.ts,
+  // lib/uiState.ts). Riêng MÀN ĐANG ĐỨNG (App.tsx `screen`) thì không — nó chỉ sống trong state React,
+  // nên `preserveScreen` (nếu gọi có kèm) gắn tạm vào URL qua duongDanTaiLaiChuDe() ở trên để
+  // initialScreen() đọc lại đúng sau khi trang tải xong (xem hàm đó để biết vì sao cần).
+  //
+  // KHÔNG gọi ở applyTheme(): applyTheme() còn được main.tsx gọi mỗi lần MỞ app — reload ở đó sẽ
+  // vòng lặp vô hạn.
   //
   // Bắt buộc phải ghi được localStorage mới dám đi lối này: reload xong, lựa chọn được đọc lại từ
   // đúng chỗ vừa ghi. Ghi hỏng mà vẫn reload là chủ đề quay về "auto" ngay trước mắt người vừa bấm —
   // thà đổi màu trong trang (lệch với thanh trạng thái) còn hơn nút bấm không có tác dụng gì.
   if (saved && isStandalonePwa()) {
-    window.location.reload()
+    if (preserveScreen) window.location.replace(duongDanTaiLaiChuDe(window.location.href, preserveScreen))
+    else window.location.reload()
     return
   }
 
