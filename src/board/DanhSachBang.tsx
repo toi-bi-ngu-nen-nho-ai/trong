@@ -12,6 +12,7 @@ import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
 import { bangKhopTimKiem, type BangMeta, taoIdBang } from './boardMeta'
 import { donRacBlobBang, xoaNoiDungBang } from './xoaNoiDungBang'
+import { normalizeSearch } from '../lib/ui'
 
 // Cùng giá trị CONFIRM_DELETE_RESET_MS của App.tsx (5000) — viết hằng số riêng thay vì import vì
 // component gốc (ConfirmIconButton) là private, phụ thuộc `icons` cũng private của file 11.000+
@@ -994,6 +995,20 @@ function TheBang({
             className="mind-focus-ring"
             style={{ width: '100%', fontSize: 12.5, padding: '4px 6px', borderRadius: 4, border: '1px solid var(--c-line, #d9ddf4)' }}
           />
+          {/* Panel này trước đây không có lối thoát tường minh nào — chỉ Escape (không tồn tại trên
+              bàn phím ảo di động) hoặc chạm ra ngoài (không tín hiệu thị giác gợi ý), lệch chuẩn
+              "luôn có hành động tường minh cho mọi thao tác, kể cả thoát" mà menu "⋯" liền kề đang
+              giữ (critique 2026-09-03 lượt 6, P2). `onBatSuaTag` vốn đã là một TOGGLE (mở nếu đang
+              đóng, đóng nếu đang mở — xem chỗ gọi ở DanhSachBang) nên gọi lại chính nó lúc panel đang
+              mở là đóng panel, không cần thêm prop/state mới. */}
+          <button
+            type="button"
+            onClick={onBatSuaTag}
+            className="mind-focus-ring"
+            style={{ display: 'block', width: '100%', marginTop: 8, padding: '5px 0', borderRadius: 4, border: 0, background: 'var(--c-primary-soft, #eceefa)', color: 'var(--c-primary, #2d3a94)', fontSize: 12, fontWeight: 700, textAlign: 'center' }}
+          >
+            Xong
+          </button>
         </div>
       )}
     </div>
@@ -1587,7 +1602,19 @@ export function DanhSachBang({
               <button
                 type="button"
                 data-testid="chon-nhieu-song-toggle"
-                onClick={() => (dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true))}
+                onClick={() => {
+                  if (!dangChonNhieu) {
+                    // Trước bản vá này, bật chọn-nhiều trong khi một ô đổi tên đang mở (autoFocus
+                    // sau khi bấm "+") để lại CẢ HAI affordance chỉnh sửa cùng hiện trên một thẻ:
+                    // checkbox (nhánh `chonNhieu &&`) và ô nhập tên (nhánh `dangSuaTen &&`) là hai
+                    // điều kiện render ĐỘC LẬP, không cái nào biết tới cái kia (critique 2026-09-03
+                    // lượt 6, P3). Blur() phần tử đang focus (nếu đúng là ô đổi tên) chạy lại CHÍNH
+                    // luồng lưu đã có sẵn (`onBlur` → `onLuuTen(tenCanLuu())`) thay vì âm thầm bỏ
+                    // qua/mất chữ đang gõ dở — không cần lift state `tenNhap` lên đây.
+                    ;(document.activeElement as HTMLElement | null)?.blur?.()
+                  }
+                  dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true)
+                }}
                 aria-pressed={dangChonNhieu}
                 className="mind-focus-ring"
                 style={{
@@ -2339,7 +2366,13 @@ export function DanhSachBang({
               }}
               onThemTag={(tag) => {
                 const hienCo = bang.tags ?? []
-                if (hienCo.includes(tag)) return
+                // So khớp CHUẨN HOÁ (bỏ dấu, không phân biệt hoa/thường — cùng hàm `normalizeSearch`
+                // dùng cho tìm kiếm, `boardMeta.ts`), không phải `Array.includes` thô: trước bản vá
+                // này, "Tim mạch" rồi "tim mạch" (gõ lại, quên đã có) thành hai tag khác nhau, hai
+                // chip gần giống hệt nhau xếp cạnh nhau không cách nào hợp nhất ngoài xoá thủ công
+                // (critique 2026-09-03 lượt 6, P3). Giữ NGUYÊN VĂN bản gõ trước (không ép về tag đã
+                // có) — chuẩn hoá chỉ dùng để SO SÁNH, không dùng để LƯU.
+                if (hienCo.some((t) => normalizeSearch(t) === normalizeSearch(tag))) return
                 update({ ...bang, tags: [...hienCo, tag], capNhatLuc: Date.now() })
               }}
               onXoaTag={(tag) => {
@@ -2585,7 +2618,17 @@ export function DanhSachBang({
           className="absolute flex items-center gap-2 px-4 py-2.5 rounded-2xl z-40"
           style={{ left: 12, right: 12, bottom: 10, background: 'var(--c-toast-surface, rgba(15,23,42,.94))' }}
         >
-          <span className="flex-1 text-[12.5px] leading-snug font-semibold" style={{ color: 'var(--c-toast-text, #f4f6fb)' }}>
+          {/* aria-live/aria-atomic: cùng lý do với nút Xoá ngay bên phải trong CÙNG thanh này (xem
+              chú thích tại đó) — người dùng trình đọc màn hình tick/bỏ tick từng checkbox trên lưới
+              (mỗi checkbox có aria-label riêng) nhưng trước bản vá này không nghe được số đếm tổng
+              cập nhật real-time ở đây, phải tự quay lại đúng dòng này mới biết đã chọn bao nhiêu
+              (critique 2026-09-03 lượt 6, P2). */}
+          <span
+            aria-live="polite"
+            aria-atomic="true"
+            className="flex-1 text-[12.5px] leading-snug font-semibold"
+            style={{ color: 'var(--c-toast-text, #f4f6fb)' }}
+          >
             {soChonSong > 0 ? `${soChonSong} đã chọn` : 'Chọn bảng cần xoá'}
           </span>
           <button

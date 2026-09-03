@@ -1307,6 +1307,86 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     expect(ds.find((b) => b.id === 'b2')?.tags).toEqual([])
   })
 
+  // critique 2026-09-03 lượt 6, P3: trước bản vá, chống trùng tag dùng `Array.includes` so khớp
+  // CHÍNH XÁC — "Tim mạch" rồi "tim mach" (khác hoa/thường + dấu) thành hai tag khác nhau. Nay dùng
+  // CHUNG `normalizeSearch` với ô tìm kiếm (bỏ dấu, không phân biệt hoa/thường) để so sánh, nhưng
+  // vẫn LƯU nguyên văn bản gõ đầu tiên.
+  it('[P3 lượt 6] thêm tag "Tim mach" rồi thêm biến thể khác hoa/thường+dấu "tim mach" → KHÔNG nhân đôi', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b-dedup', ten: 'Bảng dedup', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b-dedup"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b-dedup"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b-dedup"]') as HTMLButtonElement).click()
+    })
+
+    const oNhap = container.querySelector('[data-testid="nhap-tag-b-dedup"]') as HTMLInputElement
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    const goTag = async (text: string) => {
+      await act(async () => {
+        if (datGiaTriGoc) datGiaTriGoc.call(oNhap, text)
+        else oNhap.value = text
+        oNhap.dispatchEvent(new Event('input', { bubbles: true }))
+        oNhap.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      })
+    }
+
+    await goTag('Tim mach')
+    await choDenKhi(() => {
+      expect(container.querySelector('[aria-label="Xoá tag Tim mach"]')).not.toBeNull()
+    })
+    await goTag('tim mach')
+
+    const ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    expect(ds.find((b) => b.id === 'b-dedup')?.tags).toEqual(['Tim mach'])
+  })
+
+  // critique 2026-09-03 lượt 6, P2: panel "Chuyên khoa/tag" trước đây không có nút đóng tường minh
+  // nào — chỉ Escape (không tồn tại trên bàn phím ảo di động) hoặc chạm ra ngoài (không tín hiệu
+  // thị giác). `onBatSuaTag` vốn là một toggle nên nút "Xong" tái dùng thẳng nó, không cần state mới.
+  it('[P2 lượt 6] panel "Chuyên khoa/tag" có nút "Xong" đóng panel', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b-xong', ten: 'Bảng xong', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="menu-bang-b-xong"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="menu-bang-b-xong"]') as HTMLButtonElement).click()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="sua-tag-b-xong"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-b-xong"]')).not.toBeNull()
+    })
+
+    const panel = container.querySelector('[data-testid="sua-chuyen-khoa-tag-b-xong"]') as HTMLElement
+    const nutXong = Array.from(panel.querySelectorAll('button')).find((b) => b.textContent === 'Xong')
+    expect(nutXong, 'panel phải có nút "Xong"').not.toBeUndefined()
+    await act(async () => {
+      nutXong!.click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-b-xong"]')).toBeNull()
+    })
+  })
+
   // Cùng lớp lỗi review Task 2 đã bắt ở taoBangMoi (tạo bảng mới trong khi chip lọc đang chọn một
   // chuyên khoa KHÁC khiến thẻ vừa tạo biến mất khỏi lưới ngay lập tức) — ở đây là ĐỔI chuyên khoa
   // của một bảng đang hiển thị dưới chip lọc. Không reset chip lọc thì cả thẻ lẫn panel đang mở sẽ
@@ -2014,5 +2094,96 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     })
+  })
+})
+
+describe('DanhSachBang — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    localStorage.clear()
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  // [P2] Trước bản vá, `<span>{soChonSong} đã chọn</span>` không có aria-live/aria-atomic, khác
+  // hẳn nút Xoá NGAY BÊN CẠNH trong CÙNG thanh (có đủ hai thuộc tính). Người dùng trình đọc màn
+  // hình tick/bỏ tick từng checkbox nhưng không nghe được số đếm tổng cập nhật real-time.
+  it('[P2] thanh chọn-nhiều: nhãn "{N} đã chọn" có aria-live="polite" + aria-atomic', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'b-live', ten: 'Bảng live', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
+    })
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chon-nhieu-song-toggle"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-nhieu-song-toggle"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chon-nhieu-song-b-live"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-nhieu-song-b-live"]') as HTMLInputElement).click()
+    })
+
+    await choDenKhi(() => {
+      const nhan = Array.from(container.querySelectorAll('span')).find((s) => s.textContent === '1 đã chọn')
+      expect(nhan, 'phải có nhãn "1 đã chọn"').not.toBeUndefined()
+      expect(nhan!.getAttribute('aria-live')).toBe('polite')
+      expect(nhan!.getAttribute('aria-atomic')).toBe('true')
+    })
+  })
+
+  // [P3] Trước bản vá, bấm "Chọn" ở header trong khi một ô đổi tên đang mở (autoFocus sau "+") để
+  // lại CẢ HAI affordance cùng hiện trên một thẻ: checkbox VÀ ô nhập tên đang focus — hai điều kiện
+  // render độc lập, không cái nào biết tới cái kia. Bản vá blur() phần tử đang focus trước khi bật
+  // chọn-nhiều, chạy lại chính luồng lưu có sẵn (onBlur → onLuuTen) thay vì âm thầm mất chữ gõ dở.
+  it('[P3] vào chế độ chọn-nhiều trong khi ô đổi tên đang mở → ô đóng lại, tên gõ dở được LƯU, không chồng checkbox+input', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    expect(oNhap, 'cú bấm "+" phải mở ô đổi tên').not.toBeNull()
+    const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+    await act(async () => {
+      if (datGiaTriGoc) datGiaTriGoc.call(oNhap, 'Tên gõ dở')
+      else oNhap.value = 'Tên gõ dở'
+      oNhap.dispatchEvent(new Event('input', { bubbles: true }))
+      oNhap.focus()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-nhieu-song-toggle"]') as HTMLButtonElement).click()
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid^="input-ten-"]'), 'ô đổi tên phải đóng lại').toBeNull()
+      expect(container.querySelector('[data-testid^="chon-nhieu-song-"]'), 'checkbox chọn-nhiều phải hiện').not.toBeNull()
+    })
+    const ds = await idbGetAll<{ ten: string }>(IDB_STORES.boards)
+    expect(ds).toHaveLength(1)
+    expect(ds[0].ten, 'tên gõ dở phải được lưu qua blur, không bị mất').toBe('Tên gõ dở')
   })
 })
