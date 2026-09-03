@@ -293,6 +293,14 @@ const icons = {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
+  // Sao "ghim" cho hàng tab / danh sách nhảy nhóm — KHÔNG khoá màu hổ phách như icons.star() (hổ
+  // phách là họ token cảnh báo lâm sàng riêng, không dùng cho chrome điều hướng — xem DESIGN.md
+  // "Untouchable Signal Rule"). Ăn theo currentColor để nơi gọi tự đặt màu bật/tắt.
+  starPin: () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  ),
   bell: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -366,6 +374,14 @@ const icons = {
       <path d="M6.6 3.4h6.9l4.9 4.9v11.5a1.8 1.8 0 01-1.8 1.8H6.6a1.8 1.8 0 01-1.8-1.8V5.2a1.8 1.8 0 011.8-1.8z" />
       <path d="M13.2 3.5v3.4a1.5 1.5 0 001.5 1.5h3.4" />
       <path d="M8.2 13h7.6M8.2 16.6h5" opacity={0.6} />
+    </svg>
+  ),
+  // Nút "Nhật ký" trên tiêu đề Dùng thuốc — path gốc từ Memory.svg chủ dự án gửi (đồng hồ + mũi tên
+  // xoay ngược = "lịch sử / nhật ký"). fill "#000000" gốc -> currentColor để ăn theo màu/theme động.
+  memory: () => (
+    <svg viewBox="0 0 304 304" fill="currentColor" stroke="none" className="w-5 h-5" aria-hidden="true">
+      <path d="M114.057037,277.157471 C83.485008,264.991394 60.871845,244.608185 46.118359,215.584091 C45.364227,214.100494 44.652184,212.589874 44.019775,211.051041 C41.717094,205.447952 43.000874,200.964722 47.372780,199.179550 C51.926327,197.320251 56.136719,199.320007 58.570652,204.606781 C63.698227,215.744476 70.230415,225.985855 78.707108,234.839233 C103.267685,260.491241 133.559875,272.483124 168.777267,269.438965 C221.939316,264.843658 259.592712,224.249771 267.871460,178.759476 C278.261963,121.665154 240.758011,61.105007 176.382904,50.692074 C132.527161,43.598225 89.111038,63.535351 65.452690,101.631996 C64.681473,102.873886 63.673389,104.066490 63.985626,106.083939 C66.563354,107.086418 69.400589,106.593994 72.148392,106.642479 C77.645546,106.739464 83.152328,106.522873 88.641792,106.753548 C93.418800,106.954277 96.433205,110.379417 96.288879,114.877083 C96.151321,119.163803 93.189323,122.278160 88.532707,122.318756 C73.703827,122.448051 58.872646,122.442268 44.043480,122.334427 C39.378548,122.300499 36.107613,119.295715 36.042358,114.477089 C35.839336,99.484940 35.826889,84.485359 36.084816,69.494576 C36.169983,64.544571 39.679459,61.531425 44.011066,61.502415 C48.576138,61.471840 51.949505,64.664581 52.119858,69.844505 C52.352928,76.931549 52.178085,84.032021 52.623814,91.272118 C59.000965,81.919914 66.115227,73.427292 74.365150,65.924110 C100.441689,42.207874 131.264709,31.058933 166.307297,32.874893 C223.250870,35.825794 270.671387,76.836769 282.776459,132.711594 C295.587036,191.842697 263.455231,252.805099 207.496155,275.659790 C176.663483,288.252380 145.650253,288.453766 114.057037,277.157471 z" />
+      <path d="M149.951141,122.000000 C149.951553,113.171722 149.842407,104.841484 149.990356,96.515823 C150.094833,90.636627 152.796219,87.302887 157.360672,86.806664 C162.585373,86.238670 166.210846,90.019112 166.231094,96.387321 C166.289886,114.876038 166.393555,133.367065 166.144424,151.852661 C166.078674,156.732040 167.469116,160.261078 170.990585,163.673996 C180.077103,172.480438 188.843384,181.620789 197.631317,190.730270 C201.590042,194.833817 201.358444,200.412186 197.333801,203.405838 C193.643600,206.150711 190.040283,205.577423 186.959244,202.528839 C175.476624,191.167160 164.096191,179.702133 152.686691,168.266632 C150.396286,165.970993 149.941925,163.076263 149.950226,159.977432 C149.983688,147.485046 149.956329,134.992493 149.951141,122.000000 z" />
     </svg>
   ),
   docCross: () => (
@@ -11806,22 +11822,20 @@ export function DungThuocScreen({
         actions={
           <>
             <ThemeToggle variant="inline" />
-            {/* "Tìm" và "Nhật ký" rút còn nút biểu tượng vuông (h-9 w-9) từ 2026-08-31 (P1, tránh
-                tiêu đề bị `truncate`). Từng thử một gợi ý MỘT LẦN (rồi tái xuất hiện sau 90 ngày) để
-                bù cho việc `title` không hiện khi CHẠM — nhưng vẫn là "gợi ý sẽ có lúc biến mất", và
-                máy trực dùng chung nhiều bác sĩ luân phiên khiến việc chọn đúng mốc tái xuất hiện trở
-                thành đoán mò (/impeccable critique 2026-09-01 lượt 3, P2). Đổi hẳn sang NHÃN CHỮ
-                THƯỜNG TRỰC dưới icon — cùng khuôn dạng bottom-nav (text-[11px], --c-text-muted đạt
-                AA cho chữ nhỏ, xem comment tại hàng nav) — luôn đọc được, không phụ thuộc đã-thấy hay
-                chưa. Cột dọc (flex-col) làm nút cao hơn hàng tiêu đề min-h-9 một chút; hàng actions
-                dùng items-center nên ThemeToggle bên cạnh vẫn canh giữa đúng, không lệch. */}
+            {/* Nút "Tìm" và "Nhật ký" là hai nút biểu tượng vuông (h-9 w-9) — CÙNG khuôn markup với
+                ThemeToggle variant="inline" ở trên (`flex items-center justify-center py-1` + `<span>`
+                pill viền mỏng), để cả ba nút hành động cao đúng 44px và icon canh giữa khớp nhau trên
+                một hàng. Từng có nhãn chữ "Tìm"/"Nhật ký" xếp dọc dưới icon (flex-col) — nhưng cột dọc
+                làm hai nút này cao 53px so với ThemeToggle 44px, đẩy icon của chúng lên lệch ~6px so
+                với icon ThemeToggle (chủ dự án gửi ảnh lệch hàng 2026-09-03). Bỏ nhãn, đưa về đúng
+                khuôn ThemeToggle là hết lệch. aria-label vẫn đủ cho trình đọc màn hình. */}
             <button
               onClick={() => {
                 setSearchOpen((v) => !v)
                 setGlobalQuery("")
                 if (showTabHint) dismissTabHint()
               }}
-              className="flex-none flex flex-col items-center gap-0.5 py-0.5"
+              className="flex-none flex items-center justify-center py-1"
               aria-label="Tìm thuốc trong mọi nhóm"
             >
               <span
@@ -11835,17 +11849,14 @@ export function DungThuocScreen({
                   {icons.search(false)}
                 </span>
               </span>
-              <span aria-hidden="true" className="text-[11px] leading-none font-medium" style={{ color: "var(--c-text-muted)" }}>
-                Tìm
-              </span>
             </button>
             <button
               onClick={() => setShowLog(true)}
-              className="flex-none flex flex-col items-center gap-0.5 py-0.5"
+              className="flex-none flex items-center justify-center py-1"
               aria-label={`Nhật ký${recentLogCount > 0 ? ` · ${recentLogCount} mục gần đây` : ""}`}
             >
               <span className={`relative h-9 w-9 ${R.pill} border flex items-center justify-center`} style={{ borderColor: C.line, color: C.textSoft }}>
-                {icons.doc()}
+                {icons.memory()}
                 {recentLogCount > 0 && (
                   <span
                     className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
@@ -11855,9 +11866,6 @@ export function DungThuocScreen({
                     {recentLogCount > 9 ? "9+" : recentLogCount}
                   </span>
                 )}
-              </span>
-              <span aria-hidden="true" className="text-[11px] leading-none font-medium" style={{ color: "var(--c-text-muted)" }}>
-                Nhật ký
               </span>
             </button>
           </>
@@ -11960,21 +11968,26 @@ export function DungThuocScreen({
                         {t.search}
                       </p>
                     </button>
-                    {/* Cùng kiểu chấm tròn đặc `--c-primary-strong` với nút ghim ở hàng tab chính —
-                        trước đây chỉ là icon trần không nền, cùng Ý NGHĨA nhưng khác HÌNH DẠNG ở hai
-                        nơi cách nhau vài chạm, phá nhất quán mẫu hình (/impeccable critique
-                        2026-09-01 lượt 3, P2). */}
+                    {/* Nút ghim — CÙNG hệ màu bật/tắt với nút ghim trên hàng tab chính (xem chú thích
+                        ở đó), giữ nhất quán mẫu hình giữa hai nơi. Tắt: nền `line-soft` + sao
+                        `text-soft` (đọc như một chip xám đang nghỉ trong hàng). Bật: nền `primary-soft`
+                        + viền `primary-line` + sao `primary` — hai tín hiệu dư (nền + màu icon), không
+                        còn dựa vào opacity, không còn hổ phách (họ token cảnh báo lâm sàng). */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         togglePinTab(t.id)
                       }}
-                      className={`flex-none w-9 h-9 mr-1 ${R.pill} flex items-center justify-center`}
-                      style={{ background: "var(--c-primary-strong)" }}
+                      className={`flex-none w-9 h-9 mr-1 ${R.pill} border flex items-center justify-center`}
+                      style={
+                        pinnedTabIds.includes(t.id)
+                          ? { background: C.primarySoft, borderColor: C.primaryLine, color: C.primary }
+                          : { background: C.lineSoft, borderColor: "transparent", color: C.textSoft }
+                      }
                       aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.search}` : `Ghim nhóm ${t.search} lên đầu hàng`}
                       aria-pressed={pinnedTabIds.includes(t.id)}
                     >
-                      <span style={{ opacity: pinnedTabIds.includes(t.id) ? 1 : 0.3 }}>{icons.star()}</span>
+                      {icons.starPin()}
                     </button>
                   </div>
                 ))}
@@ -12050,20 +12063,32 @@ export function DungThuocScreen({
                   vượt giới hạn ≤4 lựa chọn đồng thời (checklist tải nhận thức), thêm icon vào MỌI
                   chip sẽ làm mật độ nặng hơn đúng chỗ đang muốn giảm nhẹ. Mở tab cần ghim ra rồi bấm
                   sao ở đây là đủ để ghim nó lên đầu hàng ngay lập tức, không phải chờ MRU hội tụ qua
-                  nhiều ca trực (/impeccable critique 2026-09-01, P2). Cùng ngôn ngữ hình ảnh với
-                  "ghim công thức" (icons.star, opacity mờ/đậm) thay vì phát minh biểu tượng mới. */}
+                  nhiều ca trực (/impeccable critique 2026-09-01, P2).
+
+                  Hệ màu bật/tắt (chủ dự án 2026-09-03: "màu on/off quá tệ, nút tách ra riêng"):
+                  dùng ĐÚNG ngôn ngữ màu của chip trong hàng — TẮT = nền `line-soft` + sao `text-soft`
+                  (như một chip chưa chọn đang nghỉ, hoà vào hàng thay vì là chấm tròn đặc nổi bật);
+                  BẬT = nền `primary-soft` + viền `primary-line` + sao `primary` (thanh ghi rõ "đang
+                  giữ", ở tông MỀM của thương hiệu nên không đấu với chip đang chọn nền `primary` đặc
+                  ngay bên cạnh). Hai tín hiệu dư (nền + màu icon), bỏ hẳn mẹo opacity mờ/đậm và màu
+                  hổ phách `--c-warn-icon` cũ (hổ phách là họ token cảnh báo lâm sàng — DESIGN.md
+                  "Untouchable Signal Rule", không dùng cho chrome điều hướng). */}
               {tab === t.id && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     togglePinTab(t.id)
                   }}
-                  className={`flex-none w-9 h-9 ${R.pill} flex items-center justify-center`}
-                  style={{ background: "var(--c-primary-strong)" }}
+                  className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
+                  style={
+                    pinnedTabIds.includes(t.id)
+                      ? { background: C.primarySoft, borderColor: C.primaryLine, color: C.primary }
+                      : { background: C.lineSoft, borderColor: "transparent", color: C.textSoft }
+                  }
                   aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.label}` : `Ghim nhóm ${t.label} lên đầu hàng`}
                   aria-pressed={pinnedTabIds.includes(t.id)}
                 >
-                  <span style={{ opacity: pinnedTabIds.includes(t.id) ? 1 : 0.35 }}>{icons.star()}</span>
+                  {icons.starPin()}
                 </button>
               )}
             </div>
