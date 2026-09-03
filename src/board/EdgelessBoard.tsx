@@ -15,7 +15,7 @@ import { type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
 import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
-import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx'
+import { GfxControllerIdentifier, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, type GfxController } from '@blocksuite/affine/std/gfx'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
@@ -369,6 +369,36 @@ export type XuatBangFn = (tenBang: string) => Promise<KetQuaXuat>
 // BoardGallery vẽ nút thế nào, chỉ cấp đúng một hàm.
 // (Trước 2026-08-31 nút xuất nằm ở menu "⋯" của THẺ trong lưới và mở một bảng ngầm để dựng ảnh —
 // bỏ vì trình soạn thảo ngầm không render khối note, xem ./xuatAnhBang.ts và HANDOFF §1.1.)
+
+// Ba icon cho bộ nút zoom nổi (xem chú thích `gfxRef` bên dưới). Cùng ngôn ngữ vẽ với
+// IconChevronBack.tsx: stroke, viewBox 24, strokeWidth 2, currentColor — để đọc thành một bộ với
+// các icon khác của bảng vẽ dù không dùng chung file.
+function IconThuNho() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16} aria-hidden="true">
+      <path strokeLinecap="round" d="M5 12h14" />
+    </svg>
+  )
+}
+function IconPhongTo() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16} aria-hidden="true">
+      <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+function IconVuaKhungHinh() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16} aria-hidden="true">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"
+      />
+    </svg>
+  )
+}
+
 export function EdgelessBoard({
   boardId,
   khoa,
@@ -404,6 +434,14 @@ export function EdgelessBoard({
   const [chiDoc, setChiDoc] = useState(laKhungHep)
   // Giữ store để đổi được `readonly` khi XOAY MÁY, chứ không chỉ đặt một lần lúc mở bảng.
   const storeRef = useRef<{ readonly: boolean } | null>(null)
+  // Bù lại thanh zoom vendored bị `readonly` ẩn (xem ĐÁNH ĐỔI ở trên): giữ tham chiếu tới chính
+  // `GfxController` mà cây Lit đang dùng, để bộ nút zoom nổi ở JSX bên dưới gọi thẳng API công
+  // khai của nó (`fitToScreen()`, `viewport.smoothZoom()`) — không đụng file vendored nào (D11).
+  const gfxRef = useRef<GfxController | null>(null)
+  // Phần trăm zoom hiện tại, chỉ để HIỂN THỊ trên nút zoom nổi khi khung hẹp. Khởi tạo 100 vì gfx
+  // chưa sẵn sàng ở lượt render đầu (mount bất đồng bộ) — số này được ghi đè ngay khi std dựng
+  // xong và mỗi lần viewport đổi (subscribe viewportUpdated bên dưới).
+  const [zoomPct, setZoomPct] = useState(100)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
   // về bộ nhớ ở taoHoacMoBang() chứ không reject). Trước lượt sửa này, một promise reject ở đây
   // không có .catch() nào bắt: React ném "Đang mở bảng…" treo mãi, còn lỗi thật thì trôi thành một
@@ -463,6 +501,16 @@ export function EdgelessBoard({
         store.readonly = laKhungHep()
         const std = new BlockStdScope({ store, extensions: layExtensionsEdgeless() })
         litRender(std.render(), el)
+
+        // Giữ gfx cho bộ nút zoom nổi (xem khai báo gfxRef ở trên) + đồng bộ % zoom hiển thị mỗi
+        // lần viewport đổi (kéo/chụm ngón tay, hoặc chính các nút này gọi smoothZoom/fitToScreen).
+        const gfx = std.get(GfxControllerIdentifier)
+        gfxRef.current = gfx
+        setZoomPct(Math.round(gfx.viewport.zoom * 100))
+        const dkZoom = gfx.viewport.viewportUpdated.subscribe(({ zoom }: { zoom: number }) =>
+          setZoomPct(Math.round(zoom * 100)),
+        )
+        huyDangKyThayDoi.push(() => dkZoom.unsubscribe())
 
         // Mồi bàn phím ảo iOS: BlockSuite hoãn mọi `focusTextModel()` qua rAF nên Safari iOS không
         // mở bàn phím khi chạm vào node text. Phép mồi focus một `<input>` thật đồng bộ trong
@@ -651,11 +699,24 @@ export function EdgelessBoard({
         // Cập nhật metadata là tiện ích phụ — không được làm hỏng thao tác quay lại của người dùng.
       }
       storeRef.current = null
+      gfxRef.current = null
       litRender(null, el)
       workspaceHienTai?.forceStop()
     }
   }, [boardId])
 
+  // ─── Bộ nút zoom nổi khi khung hẹp (bù thanh zoom vendored bị `readonly` ẩn) ─────────────────
+  // Gọi thẳng API công khai của gfx/viewport — cùng những lệnh mà `zoom-toolbar.ts` (vendored)
+  // dùng cho hai nút Phóng to/Thu nhỏ và `gfx.fitToScreen()` cho nút "Vừa khung hình" — nên hành
+  // vi khớp với thanh gốc, chỉ khác nơi vẽ nút.
+  const chinhZoom = (buoc: number) => {
+    const gfx = gfxRef.current
+    if (!gfx) return
+    gfx.viewport.smoothZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, gfx.viewport.zoom + buoc)))
+  }
+  const vuaKhungHinh = () => gfxRef.current?.fitToScreen()
+  // Bấm vào số % để về lại 100% — giống hệt nút "zoom-percent" của thanh vendored.
+  const datLaiZoom = () => gfxRef.current?.viewport.smoothZoom(1)
 
   // ─── Đồng bộ lại toạ độ sau hiệu ứng vào màn ─────────────────────────────────────────────────
   // Cơ chế, bằng chứng đo được và lý do đầy đủ nằm ở ./dong-bo-toa-do-viewport.ts. Tóm tắt: bảng
@@ -734,9 +795,11 @@ export function EdgelessBoard({
         // vùng thanh gạt Home (`--nav-pad-bottom`, xem App.tsx). Nav không còn thì băng này phải tự
         // chừa, nếu không chữ nằm đúng dưới thanh gạt.
         //
-        // `pointer-events-none`: băng chỉ để đọc, không được nuốt cú kéo khung nhìn.
+        // `pointer-events-none` trên chính khung này: băng chỉ để đọc, không được nuốt cú kéo
+        // khung nhìn. Hàng nút zoom bên trong tự bật lại `pointer-events-auto` — đây là nơi DUY
+        // NHẤT trong băng này được phép nhận chạm.
         <div
-          className="absolute bottom-0 inset-x-0 z-10 px-3 pt-1.5 text-[12px] font-semibold text-center pointer-events-none"
+          className="absolute bottom-0 inset-x-0 z-10 px-3 pt-1.5 text-center pointer-events-none"
           role="status"
           aria-live="polite"
           style={{
@@ -746,7 +809,53 @@ export function EdgelessBoard({
             paddingBottom: 'calc(0.375rem + var(--safe-bottom))',
           }}
         >
-          Bạn đang xem ở khung hẹp - chỉ ở chế độ đọc
+          {/* Bù thanh zoom vendored bị `readonly` ẩn hoàn toàn (xem ĐÁNH ĐỔI ở khai báo `chiDoc`)
+              — không đụng file vendored (D11), chỉ gọi API công khai của gfx qua gfxRef. Vô hiệu
+              khi bảng chưa mở xong (`dangMo`): gfxRef.current lúc đó vẫn null, bấm không có tác
+              dụng, nhưng khoá luôn nút cho rõ ràng thay vì để bấm hụt trong im lặng. */}
+          <div className="flex items-center justify-center gap-1 pb-1 pointer-events-auto">
+            <button
+              type="button"
+              disabled={dangMo}
+              onClick={() => chinhZoom(-ZOOM_STEP)}
+              aria-label="Thu nhỏ"
+              className="mind-focus-ring flex items-center justify-center disabled:opacity-40"
+              style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid var(--c-line)', background: 'var(--c-surface)', color: 'var(--c-text-soft)' }}
+            >
+              <IconThuNho />
+            </button>
+            <button
+              type="button"
+              disabled={dangMo}
+              onClick={datLaiZoom}
+              aria-label="Đặt lại 100%"
+              className="mind-focus-ring disabled:opacity-40"
+              style={{ minWidth: 40, height: 30, borderRadius: 7, fontSize: 12, fontWeight: 600, color: 'var(--c-text-soft)', background: 'transparent', border: 'none' }}
+            >
+              {zoomPct}%
+            </button>
+            <button
+              type="button"
+              disabled={dangMo}
+              onClick={() => chinhZoom(ZOOM_STEP)}
+              aria-label="Phóng to"
+              className="mind-focus-ring flex items-center justify-center disabled:opacity-40"
+              style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid var(--c-line)', background: 'var(--c-surface)', color: 'var(--c-text-soft)' }}
+            >
+              <IconPhongTo />
+            </button>
+            <button
+              type="button"
+              disabled={dangMo}
+              onClick={vuaKhungHinh}
+              aria-label="Vừa khung hình"
+              className="mind-focus-ring flex items-center justify-center disabled:opacity-40"
+              style={{ width: 30, height: 30, borderRadius: 7, marginLeft: 4, border: '1px solid var(--c-line)', background: 'var(--c-surface)', color: 'var(--c-text-soft)' }}
+            >
+              <IconVuaKhungHinh />
+            </button>
+          </div>
+          <p className="text-[12px] font-semibold m-0">Bạn đang xem ở khung hẹp - chỉ ở chế độ đọc</p>
         </div>
       )}
       {loi && (
