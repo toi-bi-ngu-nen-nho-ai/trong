@@ -12034,21 +12034,20 @@ export function DungThuocScreen({
           }}
         >
           {orderedTabs.map((t) => (
-            // items-center (không phải items-stretch) + KHÔNG overflow-hidden trên wrapper: chip vẫn
-            // là một pill độc lập (giữ nguyên `pulse-scale` phóng to 1.12 lúc vừa chọn — bọc trong
-            // overflow-hidden sẽ cắt cụt hoạt ảnh đó), nút ghim là một pill tròn nhỏ TÁCH RIÊNG có
-            // khoảng cách (gap-1), không cố hàn liền vào chip như "ghim công thức" ở RunningPanel.
+            // KHÔNG overflow-hidden trên wrapper: giữ `pulse-scale` (phóng 1.12 lúc vừa chọn) khỏi bị
+            // cắt cụt. KHÔNG gap: nút ghim HÀN LIỀN vào chip đang chọn thành MỘT viên pill hai đoạn
+            // (`[ Kháng sinh │★ ]`) — chủ dự án 2026-09-03: "để nút favorite chung với button mixing
+            // tab luôn". Chip lấy nửa bo trái, nút ghim lấy nửa bo phải, `-ml-px` kéo khít qua viền
+            // trong suốt của chip; ranh giới màu (xanh đặc ↔ đoạn sao) tự làm đường chia, không cần
+            // hairline. Hai đoạn cùng cao h-11.
             //
             // `role="group"` + `aria-label` CHỈ khi có nút ghim (tab đang mở) — theo ARIA APG, một
             // `tablist` lẽ ra chỉ nên chứa các phần tử `tab`, còn nút ghim là một control KHÁC bị chèn
             // vào giữa luồng đó khiến trình đọc màn hình đọc xen "sao, ghim nhóm X" lẫn với các tab
-            // thật (/impeccable critique 2026-09-01 lượt 3, P3). Tái cấu trúc hẳn để tách nút ghim ra
-            // khỏi tablist là rủi ro hơn cần thiết cho một sửa mức P3 (đổi cả bố cục cuộn ngang đã
-            // kiểm chứng); `role="group"` gom tab+nút ghim thành MỘT đơn vị có tên, ít nhất giúp trình
-            // đọc màn hình hiểu đây là "Kháng sinh (kèm nút ghim)" thay vì hai control rời rạc không
-            // liên quan. Không đặt role="group" cho 9 tab còn lại (không có nút ghim) — nhóm một phần
-            // tử duy nhất không thêm giá trị.
-            <div key={t.id} className="flex-none flex items-center gap-1" role={tab === t.id ? "group" : undefined} aria-label={tab === t.id ? t.label : undefined}>
+            // thật (/impeccable critique 2026-09-01 lượt 3, P3). `role="group"` gom tab+nút ghim thành
+            // MỘT đơn vị có tên, giúp trình đọc màn hình hiểu đây là "Kháng sinh (kèm nút ghim)" thay
+            // vì hai control rời rạc. Không đặt role="group" cho 9 tab còn lại (không có nút ghim).
+            <div key={t.id} className="flex-none flex items-center" role={tab === t.id ? "group" : undefined} aria-label={tab === t.id ? t.label : undefined}>
               <button
                 id={`mixing-tab-${t.id}`}
                 ref={tab === t.id ? activeTabRef : null}
@@ -12058,8 +12057,9 @@ export function DungThuocScreen({
                 // ra khỏi hàng.
                 tabIndex={tab === t.id ? 0 : -1}
                 // pulse-scale chỉ đặt khi CHÍNH tab này vừa thành active — remount qua key riêng để
-                // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount.
-                className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale" : ""}`}
+                // hoạt ảnh chạy lại mỗi lần chuyển tab, không chỉ lần đầu mount. `rounded-r-none` +
+                // `pr-3` khi đang chọn: nhường nửa phải cho nút ghim hàn liền.
+                className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale rounded-r-none pr-3" : ""}`}
                 // C.textSoft cho tab chưa chọn, không phải text-muted — text-muted dưới ngưỡng AA ở cỡ này.
                 style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
                 role="tab"
@@ -12082,14 +12082,19 @@ export function DungThuocScreen({
                   (sắc lệch hẳn hổ phách, xem chú thích trong index.css) — sao đặc + hình sao là dấu
                   hiệu "ưa thích" phổ quát, đặt trong hàng tab (vùng chrome) nên không lẫn với cảnh báo
                   trên thẻ liều. Bản sáng buộc là gold ĐẬM (`#a16207`) mới đạt ≥3:1 lúc tô đặc trên nền
-                  nhạt; bản tối là `#facc15` vàng-chanh tươi. */}
+                  nhạt; bản tối là `#facc15` vàng-chanh tươi.
+
+                  `h-11 w-11 -ml-px rounded-r-full rounded-l-none border-l-0`: đoạn PHẢI của viên pill
+                  hai đoạn, khít vào chip (đoạn trái) — cao bằng chip, bo tròn nửa phải, kéo qua viền
+                  trong suốt của chip bằng `-ml-px`. Ranh giới màu (xanh đặc ↔ đoạn sao) tự làm đường
+                  chia. Vùng chạm 44×44. */}
               {tab === t.id && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     togglePinTab(t.id)
                   }}
-                  className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
+                  className="flex-none h-11 w-11 -ml-px rounded-r-full rounded-l-none border border-l-0 flex items-center justify-center dose-press"
                   style={
                     pinnedTabIds.includes(t.id)
                       ? { background: C.favSoft, borderColor: C.fav, color: C.fav }
