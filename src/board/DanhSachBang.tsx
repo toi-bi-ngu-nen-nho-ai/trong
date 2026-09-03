@@ -1005,7 +1005,11 @@ function TheBang({
             type="button"
             onClick={onBatSuaTag}
             className="mind-focus-ring"
-            style={{ display: 'block', width: '100%', marginTop: 8, padding: '5px 0', borderRadius: 4, border: 0, background: 'var(--c-primary-soft, #eceefa)', color: 'var(--c-primary, #2d3a94)', fontSize: 12, fontWeight: 700, textAlign: 'center' }}
+            // minHeight 44 — cùng chuẩn vùng chạm tối thiểu mà checkbox chọn-nhiều (44×44) và nút
+            // "⋯" (44×44) trong chính file này đang giữ; bản đầu chỉ cao 28px (padding 5px dọc),
+            // đo được trên browser thật lúc polish (/impeccable polish 2026-09-03) — dưới chuẩn
+            // ngay trên chính bề mặt vừa được ca ngợi vì tuân thủ 44px ở mọi nơi khác.
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: 44, marginTop: 8, padding: '5px 0', borderRadius: 4, border: 0, background: 'var(--c-primary-soft, #eceefa)', color: 'var(--c-primary, #2d3a94)', fontSize: 12, fontWeight: 700, textAlign: 'center' }}
           >
             Xong
           </button>
