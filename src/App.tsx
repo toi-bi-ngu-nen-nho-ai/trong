@@ -12072,10 +12072,10 @@ export function DungThuocScreen({
                   không bo tròn (chỉ `rounded-full` cho vòng focus, trong suốt nên vô hình) — hoà hẳn
                   vào chip. Chủ dự án 2026-09-03: sao ưa thích PHẢI màu VÀNG, và KHÔNG có bờ viền ngoài
                   ngôi sao.
-                  BẬT (đã ghim): tô đặc TRƠN `--c-fav-bright` (#facc15 vàng-chanh cả hai theme), không
-                    viền. Chip primary đảo màu giữa hai theme, nhưng vàng-chanh bão hoà cao TƯƠNG PHẢN
-                    SẮC (gần bù trừ) với cả xanh indigo đậm (bản sáng) lẫn xanh trời nhạt (bản tối) —
-                    nổi rõ bằng độ chói + độ bão hoà, không cần viền. Đặc + màu vàng + opacity 1.
+                  BẬT (đã ghim): tô đặc TRƠN `--c-fav-bright`, KHÔNG viền. Token này đổi theo theme để
+                    luôn tương phản độ chói với nền chip primary (vốn đảo màu): bản SÁNG chip xanh
+                    indigo ĐẬM → vàng-chanh #facc15 (nổi ~7:1); bản TỐI chip xanh trời NHẠT → vàng-gold
+                    ĐẬM #7e4f0c (nổi ~3,3:1). Đặc + màu vàng + opacity 1.
                   TẮT (chưa ghim): sao VIỀN RỖNG màu `--c-on-bright` (= màu chữ chip) ở opacity 0.5 —
                     gợi ý mờ "chạm để ghim".
                   KHÔNG `dose-press` / nền / viền / bo hiện hình: nút favorite chỉ đổi CHÍNH NGÔI SAO
