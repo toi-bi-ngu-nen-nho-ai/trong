@@ -16,6 +16,7 @@ import { StoreExtensionManager, ViewExtensionManager } from '@blocksuite/affine/
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx'
+import { PanTool } from '@blocksuite/affine-gfx-pointer'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
@@ -363,6 +364,37 @@ async function moBangThat(boardId: string, tuyChon?: {
 /** Hàm xuất PNG bảng đang mở — trả về mã kết quả để BoardGallery chọn thông báo. */
 export type XuatBangFn = (tenBang: string) => Promise<KetQuaXuat>
 
+/**
+ * Đưa công cụ đang chọn về BÀN TAY (`PanTool`).
+ *
+ * Vì sao cần (chủ dự án báo 2026-09-04): `store.readonly` chặn mọi đường GHI, nhưng nó KHÔNG đụng
+ * tới `gfx.tool` — công cụ đang chọn lúc khung còn rộng (Bút, Hình, Chữ, Tẩy...) vẫn nguyên đó khi
+ * khung hẹp lại. Mà chỉ-đọc cũng ẩn luôn thanh công cụ, nên không còn nút nào để đổi về: bảng kẹt
+ * ở một công cụ vẽ không vẽ được gì, cú kéo trên canvas thành kéo-chọn/vẽ hụt thay vì dời khung
+ * nhìn — đúng thao tác DUY NHẤT còn ý nghĩa ở chế độ đọc.
+ *
+ * Bàn tay chứ không phải `DefaultTool` (mũi tên chọn): ở chế độ đọc không có gì để chọn, còn kéo
+ * để đi quanh sơ đồ thì luôn cần.
+ *
+ * `{ panning: false }` là đúng hình dạng option mà thượng nguồn dùng ở mọi nơi khác
+ * (edgeless-keyboard.ts:744, default-tool-button.ts:34) — `true` nghĩa là "đang giữ chuột kéo",
+ * không phải "bật công cụ".
+ *
+ * Không ném ra ngoài: đây là một phép chỉnh cho dễ dùng, không được phép làm hỏng lượt mở bảng nếu
+ * thượng nguồn đổi hình dạng API.
+ */
+function veCongCuBanTay(std: BlockStdScope | null): void {
+  if (!std) return
+  try {
+    const tool = std.get(GfxControllerIdentifier).tool
+    // `peek()` (không phải `.value`): đây là một phép hỏi tại chỗ, không được tạo đăng ký signal.
+    if (tool.currentToolName$.peek() === PanTool.toolName) return
+    tool.setTool(PanTool, { panning: false })
+  } catch (err) {
+    console.warn('EdgelessBoard: không đưa được công cụ về bàn tay:', err)
+  }
+}
+
 // Nút "Xuất PNG" sống Ở MÀN VẼ (BoardGallery.tsx), đối xứng với nút quay lại — component này chỉ
 // góp phần THỰC THI: sau khi cây Lit gắn xong, nó dựng một `XuatBangFn` đóng gói `std` + host rồi
 // đẩy lên BoardGallery qua `onXuatSanSang`. Vẫn giữ tinh thần "file phải nhỏ": không biết
@@ -424,6 +456,9 @@ export function EdgelessBoard({
   // (3) đã đọc `std-scope.ts`/`store.ts` để xác nhận `BlockStdScope`/`Store` không dùng private
   // field thật (`#x`) ở các đường đọc liên quan, nên Proxy không vỡ vì brand-check của private field.
   const stdChiDocRef = useRef<BlockStdScope | null>(null)
+  // `std` THẬT (khác Proxy giả-readonly ở trên) — giữ lại để đưa công cụ đang chọn về bàn tay mỗi
+  // lần vào chế độ chỉ đọc, kể cả khi cú đổi đến từ việc XOAY MÁY chứ không phải lúc mở bảng.
+  const stdRef = useRef<BlockStdScope | null>(null)
   // Nơi litRender() dựng thêm `<edgeless-zoom-toolbar>` — tách khỏi hostRef vì đó là cây chính,
   // không được chèn phần tử ngoài ý muốn của BlockSuite vào giữa.
   const zoomHostRef = useRef<HTMLDivElement>(null)
@@ -458,6 +493,10 @@ export function EdgelessBoard({
   // đồng bộ) — nhánh trong `.then()` bên dưới đặt lần đầu, effect này lo những lần đổi sau.
   useEffect(() => {
     if (storeRef.current) storeRef.current.readonly = chiDoc
+    // Vào chế độ đọc thì công cụ phải về bàn tay — xem veCongCuBanTay(). Rời chế độ đọc thì KHÔNG
+    // khôi phục công cụ cũ: thanh công cụ hiện lại đầy đủ, để người dùng tự chọn còn dễ đoán hơn
+    // một cú đổi công cụ tự động sau lưng họ.
+    if (chiDoc) veCongCuBanTay(stdRef.current)
   }, [chiDoc])
 
   useEffect(() => {
@@ -486,6 +525,13 @@ export function EdgelessBoard({
         store.readonly = laKhungHep()
         const std = new BlockStdScope({ store, extensions: layExtensionsEdgeless() })
         litRender(std.render(), el)
+        stdRef.current = std
+        // KHÔNG gọi veCongCuBanTay() ở đây. Mốc MỞ BẢNG đã do thượng nguồn lo:
+        // `edgeless-root-block.ts:452` mở đầu `firstUpdated()` bằng
+        // `if (this.store.readonly) this.gfx.tool.setTool(PanTool, ...)` — và `store.readonly` đã
+        // được đặt ngay trên, TRƯỚC `litRender`, nên nhánh đó luôn thấy đúng trạng thái. Đã kiểm
+        // bằng cách gỡ hẳn bản vá này: ca "khung hẹp lúc mở bảng" vẫn XANH, chỉ ca "xoay từ khung
+        // rộng sang khung hẹp" mới đỏ. Thêm một lời gọi ở đây chỉ là mã chết đội lốt phòng thủ.
 
         // Proxy giả `store.readonly = false` — CHỈ cho thanh zoom nổi (xem chú thích dài ở khai
         // báo `stdChiDocRef`). `std`/`store` thật ở trên hoàn toàn không bị đụng.
@@ -688,6 +734,7 @@ export function EdgelessBoard({
       }
       storeRef.current = null
       stdChiDocRef.current = null
+      stdRef.current = null
       litRender(null, el)
       workspaceHienTai?.forceStop()
     }

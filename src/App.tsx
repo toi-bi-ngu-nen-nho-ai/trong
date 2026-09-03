@@ -11261,46 +11261,24 @@ function InfusionCategoryScreen({
 // Nút tròn 36px, CHỈ hình mặt trời/mặt trăng — bằng đúng chiều cao nút chọn chuyên khoa đứng cạnh
 // nên hai cái nằm khít một hàng ngang. Bản chữ trước đây ("TỰ ĐỘNG"/"SÁNG"/"TỐI") rộng tới 81px,
 // vừa chiếm chỗ vừa buộc phải đọc mới hiểu.
-// `variant="inline"` (dùng ở ScreenHeader.actions của DungThuocScreen): bản nổi mặc định có nền mờ
-// + đổ bóng riêng để đứng ĐỘC LẬP trên nền Trang chủ — đặt thẳng nó cạnh các pill viền mỏng không
-// đổ bóng khác trên cùng một hàng hành động sẽ trông như hai hệ thống nút khác nhau. Bản inline
-// dùng đúng khung pill viền mỏng đó (không nền mờ/không bóng), giữ nguyên logic xoay vòng trạng thái.
-// Lý do cần đưa nút này vào DungThuocScreen: lối tắt cài trên home-screen mở thẳng "?screen=mixing"
-// (bỏ qua Trang chủ, xem App() initialScreen) — trước đây ThemeToggle CHỈ có ở Trang chủ, nên bác sĩ
-// vào thẳng màn Dùng thuốc lúc trực đêm không có cách nào giảm chói màn hình mà không phải vòng qua
-// đúng màn hình lối tắt này cố tình bỏ qua (/impeccable critique 2026-08-26, P1).
-function ThemeToggle({
-  variant = "floating",
-  preserveScreen,
-}: {
-  variant?: "floating" | "inline"
-  // Màn hình cần giữ lại nếu app đang chạy PWA standalone: đổi chủ đề ở đó ép tải lại trang (xem
-  // saveTheme trong lib/theme.ts), và URL hiện tại thường không mang "?screen=" vì điều hướng trong
-  // app chạy bằng state React chứ không đụng URL — không truyền thì sau khi tải lại initialScreen()
-  // rơi về "home" dù đang đứng ở màn khác. Bản floating ở Trang chủ không cần: rơi về "home" đúng là
-  // rơi về đúng màn đang đứng.
-  preserveScreen?: string
-}) {
+//
+// CHỈ CÒN MỘT NƠI GỌI: Trang chủ (chủ dự án quyết 2026-09-04). Từng có thêm một bản `variant="inline"`
+// trong ScreenHeader của DungThuocScreen — gỡ cùng lượt này, nên prop `variant` lẫn `preserveScreen`
+// (chỉ tồn tại để giữ lại màn "mixing" qua cú tải lại của saveTheme) không còn đối tượng và đã gỡ
+// theo. Muốn dựng lại một nút chủ đề ngoài Trang chủ thì đọc `duongDanTaiLaiChuDe` trong
+// lib/theme.ts trước: cú tải lại trong PWA standalone là thứ bắt buộc phải xử lý lại.
+function ThemeToggle() {
   const [mode, setMode] = useState<ThemeMode>(loadTheme)
   const next: Record<ThemeMode, ThemeMode> = { auto: "light", light: "dark", dark: "auto" }
   const glyph = mode === "light" ? icons.sun() : mode === "dark" ? icons.moon() : icons.sunMoon()
   const handleClick = () => {
     const m = next[mode]
     setMode(m)
-    saveTheme(m, preserveScreen)
+    saveTheme(m)
     tickHaptic()
   }
   const label = `Chủ đề: ${THEME_LABELS[mode]}. Chạm để đổi.`
   const title = `Chủ đề: ${THEME_LABELS[mode]}`
-  if (variant === "inline") {
-    return (
-      <button onClick={handleClick} className="flex-none flex items-center justify-center py-1" aria-label={label} title={title}>
-        <span className={`h-9 w-9 ${R.pill} border flex items-center justify-center`} style={{ borderColor: C.line, color: C.textSoft }}>
-          {glyph}
-        </span>
-      </button>
-    )
-  }
   return (
     <button
       onClick={handleClick}
@@ -11845,14 +11823,16 @@ export function DungThuocScreen({
         titleClamp={2}
         actions={
           <>
-            <ThemeToggle variant="inline" preserveScreen="mixing" />
-            {/* Nút "Tìm" và "Nhật ký" là hai nút biểu tượng vuông (h-9 w-9) — CÙNG khuôn markup với
-                ThemeToggle variant="inline" ở trên (`flex items-center justify-center py-1` + `<span>`
-                pill viền mỏng), để cả ba nút hành động cao đúng 44px và icon canh giữa khớp nhau trên
-                một hàng. Từng có nhãn chữ "Tìm"/"Nhật ký" xếp dọc dưới icon (flex-col) — nhưng cột dọc
-                làm hai nút này cao 53px so với ThemeToggle 44px, đẩy icon của chúng lên lệch ~6px so
-                với icon ThemeToggle (chủ dự án gửi ảnh lệch hàng 2026-09-03). Bỏ nhãn, đưa về đúng
-                khuôn ThemeToggle là hết lệch. aria-label vẫn đủ cho trình đọc màn hình. */}
+            {/* Nút chủ đề sáng/tối KHÔNG còn ở đây (chủ dự án quyết 2026-09-04): chủ đề chỉ đổi ở
+                Trang chủ. Lý do cũ — lối tắt PWA "?screen=mixing" vào thẳng màn này nên cần một nút
+                giảm chói tại chỗ — đã bị chính cái giá của nó vượt qua: bấm nút ở đây làm TẢI LẠI
+                TRANG (xem saveTheme, lib/theme.ts) ngay giữa lúc đang tra liều.
+                Nút "Tìm" và "Nhật ký" là hai nút biểu tượng vuông (h-9 w-9) cùng một khuôn markup
+                (`flex items-center justify-center py-1` + `<span>` pill viền mỏng), để cả hai nút
+                hành động cao đúng 44px và icon canh giữa khớp nhau trên một hàng. Từng có nhãn chữ
+                "Tìm"/"Nhật ký" xếp dọc dưới icon (flex-col) — nhưng cột dọc làm chúng cao 53px thay
+                vì 44px, đẩy icon lên lệch ~6px so với hàng (chủ dự án gửi ảnh lệch hàng 2026-09-03).
+                Bỏ nhãn là hết lệch. aria-label vẫn đủ cho trình đọc màn hình. */}
             <button
               onClick={() => {
                 setSearchOpen((v) => !v)

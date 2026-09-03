@@ -25,14 +25,44 @@ import { choDom } from '../../__tests__/helpers/cho-den-khi'
 // mount (cùng lý do đã ghi ở helpers/note-interaction.ts).
 import './helpers/note-interaction'
 
-/** `window.matchMedia` giả: chỉ truy vấn điện thoại mới trả `khop`. */
+// Trạng thái bề ngang hiện tại + những callback `change` mà mã sản phẩm đã gắn vào truy vấn khung
+// hẹp. Giữ ở ngoài để `xoayMay()` bắn lại đúng chúng, y như trình duyệt làm khi xoay máy.
+let dangHep = false
+let ngheKhungHep: ((e: { matches: boolean }) => void)[] = []
+
+/** `window.matchMedia` giả: chỉ truy vấn khung hẹp mới trả `khop`. */
 function gaBeNgang(khop: boolean) {
+  dangHep = khop
+  ngheKhungHep = []
   vi.stubGlobal('matchMedia', (q: string) => ({
-    matches: q === TRUY_VAN_KHUNG_HEP ? khop : false,
+    get matches() {
+      return q === TRUY_VAN_KHUNG_HEP ? dangHep : false
+    },
     media: q,
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addEventListener: (_loai: string, cb: (e: { matches: boolean }) => void) => {
+      if (q === TRUY_VAN_KHUNG_HEP) ngheKhungHep.push(cb)
+    },
+    removeEventListener: (_loai: string, cb: (e: { matches: boolean }) => void) => {
+      ngheKhungHep = ngheKhungHep.filter((x) => x !== cb)
+    },
   }))
+}
+
+/** Xoay máy / thu nhỏ cửa sổ: bề ngang vượt qua ngưỡng, mọi listener được báo. */
+function xoayMay(hep: boolean) {
+  dangHep = hep
+  for (const cb of [...ngheKhungHep]) cb({ matches: hep })
+}
+
+/**
+ * Tên công cụ đang chọn trên bảng — đọc qua `gfx` của `drt-edgeless-root`, đúng chỗ mã sản phẩm
+ * (veCongCuBanTay trong EdgelessBoard.tsx) ghi vào.
+ */
+function congCuDangChon(): string | undefined {
+  const root = document.querySelector('drt-edgeless-root') as unknown as {
+    gfx?: { tool?: { currentToolName$?: { value?: string } } }
+  } | null
+  return root?.gfx?.tool?.currentToolName$?.value
 }
 
 /** `store` của bảng đang mở — đọc qua editor-host, đúng chỗ mã sản phẩm đặt nó. */
@@ -81,6 +111,43 @@ describe('EdgelessBoard — chế độ chỉ đọc khi khung hẹp', () => {
       expect(layStore()?.readonly, 'store phải bị khoá chỉ-đọc ở khung hẹp').toBe(true)
     })
     expect(container.textContent).toContain('chỉ ở chế độ đọc')
+  })
+
+  // ─── Công cụ đang chọn phải về BÀN TAY khi vào chế độ đọc ──────────────────────────────────
+  // `store.readonly` chặn mọi đường GHI nhưng KHÔNG đụng `gfx.tool`: công cụ chọn lúc khung còn
+  // rộng (Bút, Hình, Chữ...) vẫn nguyên đó khi khung hẹp lại, mà chỉ-đọc lại ẩn luôn thanh công cụ
+  // nên không còn nút nào đổi về — bảng kẹt ở một công cụ vẽ không vẽ được gì, cú kéo trên canvas
+  // không dời được khung nhìn (chủ dự án báo 2026-09-04).
+  // CA CANH THƯỢNG NGUỒN, không canh mã của app: mốc MỞ BẢNG do
+  // `edgeless-root-block.ts:452` lo sẵn (`if (store.readonly) setTool(PanTool, ...)` trong
+  // `firstUpdated()`). Đã kiểm: gỡ hẳn bản vá của app thì ca này VẪN XANH — nên nó KHÔNG phải bằng
+  // chứng cho bản vá, mà là chuông báo nếu nâng cấp cây vendored làm mất hành vi đó (lúc đó app
+  // phải tự lo nốt mốc này).
+  it('khung hẹp lúc mở bảng: công cụ đang chọn là bàn tay (thượng nguồn lo)', async () => {
+    gaBeNgang(true)
+    await moBang('bang-hep-cong-cu')
+
+    await choDom(() => {
+      expect(congCuDangChon(), 'mở thẳng ở khung hẹp cũng phải ra bàn tay').toBe('pan')
+    })
+  })
+
+  it('xoay từ khung rộng sang khung hẹp: công cụ quay về bàn tay', async () => {
+    gaBeNgang(false)
+    await moBang('bang-xoay-cong-cu')
+
+    // Khung rộng: giữ nguyên công cụ mặc định của bảng vẽ, KHÔNG phải bàn tay — nếu bước này đã là
+    // 'pan' thì ca kiểm dưới không chứng minh được gì.
+    expect(congCuDangChon(), 'khung rộng phải giữ công cụ mặc định của bảng vẽ').not.toBe('pan')
+
+    await act(async () => {
+      xoayMay(true)
+    })
+
+    await choDom(() => {
+      expect(layStore()?.readonly, 'xoay sang hẹp phải khoá chỉ-đọc').toBe(true)
+      expect(congCuDangChon(), 'và phải kéo công cụ đang chọn về bàn tay').toBe('pan')
+    })
   })
 
   it('màn hình lớn: KHÔNG khoá, KHÔNG có băng thông báo', async () => {

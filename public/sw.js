@@ -46,7 +46,15 @@
 //      (con số 4,89:1 của báo cáo đo trên nền thẻ trắng, không phải nền pill). Nay là token riêng
 //      --c-text-placeholder. Bump vì v16 ĐÃ được đẩy lên trước khi phát hiện: máy nào kịp lấy v16
 //      sẽ giữ bản CSS thiếu đó vĩnh viễn nếu không đổi số.
-const CACHE = "drtrong-v17"
+// v18: năm khoản sửa lỗi chủ dự án báo 2026-09-04. Bắt buộc bump vì đợt này đổi CẢ index.html —
+//      file nằm ngay trong SHELL bên dưới, tức là thứ máy đã cài PWA phát thẳng từ cache. Khoản
+//      nặng nhất nằm đúng ở đó: một script nội tuyến trong <head> phân giải chủ đề TRƯỚC lần vẽ đầu
+//      để thanh trạng thái iPhone không còn lệch pha với nền web lúc trang tải chậm. Không bump thì
+//      máy đã cài PWA giữ nguyên bản index.html cũ — tức giữ nguyên đúng cái lỗi vừa vá.
+//      Bốn khoản còn lại (bỏ nút chủ đề ở Dùng thuốc; khung hẹp kéo công cụ về bàn tay; viền hai
+//      nút tròn của Sơ đồ đổi từ magenta sang --c-line; icon "chưa gắn chuyên khoa" thành bóng đèn
+//      + bút chì + bánh răng, có line-drawing) đều nằm trong bundle JS/CSS.
+const CACHE = "drtrong-v18"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]

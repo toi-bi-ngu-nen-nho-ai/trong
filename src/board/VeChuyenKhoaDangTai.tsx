@@ -1,15 +1,22 @@
-// Màn chờ mở bảng — LINE-DRAWING trên CHÍNH icon chuyên khoa có sẵn (SPECIALTY_ICONS trong
-// components/SpecialtyIcons.tsx). Không có icon nào được vẽ mới cho màn này: component render
-// đúng `specialtyIcon(khoa)` mà thẻ bảng / bộ lọc / TheTrong vẫn dùng, rồi tự phác đường viền của
-// nó bằng nét bút, xong thì "ăn mực" thành đúng icon đặc như thường.
+// Màn chờ mở bảng — LINE-DRAWING trên CHÍNH icon có sẵn của bảng (SpecialtyIcons.tsx). Không có
+// icon nào được vẽ mới cho màn này: component render đúng `iconBangSoDo(khoa)` mà TheTrong (thẻ ở
+// lưới) vẫn dùng — icon chuyên khoa nếu bảng đã gắn khoa, bóng đèn "chưa gắn chuyên khoa" nếu chưa
+// — rồi tự phác đường viền của nó bằng nét bút, xong thì "ăn mực" thành đúng icon đặc như thường.
+// Gọi CÙNG một hàm với TheTrong là bắt buộc: hai nhánh tĩnh/động phải ra đúng một hình, nếu không
+// cú FLIP lúc mở bảng đổi hình giữa chừng.
 //
 // File RIÊNG (không nằm trong EdgelessBoard.tsx) vì src/board/index.tsx (vỏ nạp chậm D13) cũng
 // dùng nó cho màn tải chunk lần đầu — index.tsx TUYỆT ĐỐI không được import gì từ EdgelessBoard.tsx
 // (module đó kéo theo ~993 kB gzip BlockSuite). Component này chỉ phụ thuộc React + SpecialtyIcons.
 // tsx + specialties.ts (hằng số) nên an toàn cho cả hai phía import tĩnh.
 //
+// Icon "chưa gắn chuyên khoa" (bóng đèn + bút chì + bánh răng, chủ dự án cấp 2026-09-04) đi qua
+// ĐÚNG cỗ máy này, không có đường riêng: nó cũng là một <svg> đặc, cùng khuôn
+// `fill="currentColor" stroke="none"` ở root và nhiều lệnh `M` — 17 nét bút, nhiều hơn hẳn icon
+// chuyên khoa, nên cung vẽ đọc ra rõ hơn.
+//
 // ─── Cách vẽ: NHÂN BẢN icon thật, không chép lại hình ──────────────────────────────────────────
-// Lớp nét là một `cloneNode(true)` của đúng <svg> mà specialtyIcon() render ra, nên mọi <g>,
+// Lớp nét là một `cloneNode(true)` của đúng <svg> mà iconBangSoDo() render ra, nên mọi <g>,
 // transform, viewBox, thứ tự path đều giữ nguyên tuyệt đối — không có cách nào hình bị lệch so với
 // icon thật. Trên bản sao đó:
 //   • mỗi <path> được TÁCH theo lệnh `M` thành nhiều <path> con (mỗi mảnh = một nét bút), vì
@@ -35,7 +42,7 @@
 // @media (prefers-reduced-motion) nên guard bắt buộc nằm ở JS này.
 import { useLayoutEffect, useRef } from 'react'
 
-import { specialtyIcon } from '../components/SpecialtyIcons'
+import { iconBangSoDo } from '../components/SpecialtyIcons'
 import { SPECIALTIES } from '../data/specialties'
 
 // Chu kỳ bắt đầu ĐÚNG Ở MỐC 0 — tức nét đặt bút ngay khung hình đầu. Thứ tự chủ dự án chốt
@@ -86,7 +93,7 @@ function mauOnDinh(id: string): number {
 // cùng lý do/ưu tiên với TheTrong (xem đó): hash thuần không bảo đảm tách biệt khỏi sibling.
 export function VeChuyenKhoaDangTai({ khoa, id, mauHue }: { khoa?: string; id?: string; mauHue?: number }) {
   const bocRef = useRef<HTMLDivElement>(null)
-  // Màu nhận diện của khoa — cùng hằng số spec.color mà thẻ bảng và specialtyIcon() vẫn ăn theo.
+  // Màu nhận diện của khoa — cùng hằng số spec.color mà thẻ bảng và iconBangSoDo() vẫn ăn theo.
   // Khoa lạ / bảng chưa gắn khoa → tô theo mauHue ?? mauOnDinh(id) (cùng công thức/ưu tiên TheTrong
   // dùng cho chính thẻ đó) thay vì một màu chữ mờ dùng chung — hai nhánh tĩnh/động phải "cùng màu"
   // (xem chú thích "Hai nhánh vẽ CÙNG..." tại TheTrong), --c-text-muted chỉ còn là fallback khi
@@ -221,7 +228,7 @@ export function VeChuyenKhoaDangTai({ khoa, id, mauHue }: { khoa?: string; id?: 
       className="mind-loading-ve"
       style={{ color: mau }}
     >
-      {specialtyIcon(khoa, 'mind-loading-that')}
+      {iconBangSoDo(khoa, 'mind-loading-that')}
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
-import { specialtyIcon } from '../components/SpecialtyIcons'
+import { iconBangSoDo } from '../components/SpecialtyIcons'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
@@ -209,9 +209,10 @@ function chuTrenNen(hexNen: string): string {
 }
 
 // khoa: id chuyên khoa để tô màu + chọn icon cho huy hiệu — undefined khi không có ngữ cảnh chuyên
-// khoa nào (lưới rỗng toàn bộ, chưa lọc gì). specialtyIcon() đã tự xử lý id lạ/undefined bằng icon
-// "trang giấy" mặc định (xem SpecialtyIcons.tsx), TheTrong không cần thêm nhánh dự phòng cho icon —
-// chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
+// khoa nào (lưới rỗng toàn bộ, chưa lọc gì). iconBangSoDo() đã tự xử lý id lạ/undefined bằng icon
+// "bóng đèn + bút chì + bánh răng" (xem SpecialtyIcons.tsx — KHÔNG phải tờ giấy của specialtyIcon(),
+// tờ giấy là icon của một BÀI VIẾT chuyên khoa lạ), nên TheTrong không cần thêm nhánh dự phòng cho
+// icon — chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
 // id: id CỦA BẢNG (không phải chuyên khoa) — chỉ dùng khi spec undefined, để tô màu trung tính ổn
 // định theo từng bảng thay vì một xám dùng chung cho mọi bảng chưa gắn khoa (mauTrungTinhTheoBang).
 // mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (BangMeta.mauHue, xem mauHueChongTrung) — ưu tiên hơn hash
@@ -269,7 +270,7 @@ export function TheTrong({
             đây thì chỉ còn MỘT màn, và nó hạ cánh đúng chỗ cú FLIP phóng tới.
             Hai nhánh vẽ CÙNG một icon, cùng ô 34%, cùng màu — chỉ khác tĩnh/động. Mặc định (lưới,
             lớp phủ "gập lại" lúc đóng) vẫn tĩnh: cú gập chỉ dài 260ms, không đủ để vẽ gì. */}
-        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} mauHue={mauHue} /> : specialtyIcon(khoa, 'w-full h-full')}
+        {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} mauHue={mauHue} /> : iconBangSoDo(khoa, 'w-full h-full')}
       </div>
     </div>
   )
@@ -1551,7 +1552,7 @@ export function DanhSachBang({
       // 2026-09-02, P2). '' KHÔNG kích hoạt fallback `?? SPECIALTIES[0].id` ở mọi nơi đọc trường này
       // (nullish coalescing chỉ bắt null/undefined, không bắt chuỗi rỗng) — fallback đó vẫn đúng
       // nguyên cho bảng CŨ thật sự thiếu hẳn trường (dữ liệu tạo trước lượt thêm 3 trường bắt buộc,
-      // xem boardMeta.ts). TheTrong/specialtyIcon/VeChuyenKhoaDangTai đã sẵn nhánh trung tính cho
+      // xem boardMeta.ts). TheTrong/iconBangSoDo/VeChuyenKhoaDangTai đã sẵn nhánh trung tính cho
       // khoa lạ/rỗng — không cần sửa gì ở đó.
       chuyenKhoa: '',
       tags: [],

@@ -30,6 +30,43 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14162c" />
     <meta name="theme-color" content="#2d3a94" />
+    <!-- ─── Phân giải chủ đề TRƯỚC LẦN VẼ ĐẦU (bắt buộc nội tuyến, chặn phân tích cú pháp) ───
+         LỖI NÓ CHỮA (chủ dự án báo 2026-09-04, "lỗi RẤT NẶNG"): ba thẻ ngay trên chọn màu theo
+         prefers-color-scheme, tức theo cài đặt CỦA MÁY. Nhưng app còn cho CHỌN TAY sáng/tối
+         (localStorage "drtrong:theme"), và lựa chọn đó trước đây chỉ được đọc trong bundle JS. Ai chọn tay
+         khác cài đặt máy — chọn "Tối" trong lúc iPhone đang ở chế độ sáng chẳng hạn — thì suốt quãng
+         từ lúc trình duyệt phân tích xong <head> tới lúc bundle chạy được, thanh trạng thái ĐANG
+         TRẮNG còn trang thì sắp đen: mạng chậm hay máy giật là quãng đó dài ra thành mấy giây, hai
+         nửa màn hình lệch hẳn nhau. iOS còn hoà màu DẦN thanh đó chứ không đổi phắt (ở PWA
+         standalone thì KHÔNG đọc lại lần nào nữa), nên độ lệch còn kéo dài sau khi trang đã đúng màu.
+         CÁCH CHỮA: quyết định màu ngay tại đây, trong <head>, trước cả khi <body> được phân tích —
+         cùng một nguồn sự thật (localStorage + prefers-color-scheme) mà applyTheme() dùng. Trình
+         duyệt đọc theme-color SAU khi script nội tuyến trong <head> chạy xong, nên nó thấy đúng màu
+         ngay từ đầu; applyTheme() chạy sau chỉ ghi lại đúng giá trị này.
+         Phần thưởng kèm theo: đặt sẵn data-theme cũng xoá luôn cú nháy trắng của lần vẽ đầu khi
+         người dùng chọn tay bản tối trên một máy đang để bản sáng.
+         KHÔNG dùng type="module"/defer/async: cả ba đều hoãn tới sau khi phân tích xong tài liệu, tức
+         là mất đúng thứ duy nhất script này cần.
+         HAI MÃ MÀU DƯỚI ĐÂY LÀ BẢN SAO của --c-surface (src/index.css) và của SURFACE_FALLBACK
+         (src/lib/theme.ts) — không có cách nào import vào một script nội tuyến chạy trước mọi thứ.
+         src/__tests__/mau-thanh-trang-thai-som.spec.ts khoá ba nơi đó lại với nhau VÀ CHẠY THẬT script
+         này, nên bản sao lệch nhau là đỏ ngay, không âm thầm trôi như mã teal #00766e cũ. -->
+    <script>
+      (function () {
+        try {
+          var luu = localStorage.getItem('drtrong:theme')
+          var che = luu === 'light' || luu === 'dark' ? luu : 'auto'
+          var toi = che === 'dark' || (che === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-theme', toi ? 'dark' : 'light')
+          var mau = toi ? '#14162c' : '#ffffff'
+          var the = document.querySelectorAll('meta[name="theme-color"]')
+          for (var i = 0; i < the.length; i++) the[i].setAttribute('content', mau)
+        } catch (e) {
+          // localStorage bị chặn (Safari riêng tư) hay thiếu matchMedia: để nguyên ba thẻ tĩnh ở trên
+          // lo — chúng vẫn đúng cho người dùng chưa chọn tay, tức là đa số.
+        }
+      })()
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!-- ĐÃ BỎ `apple-mobile-web-app-status-bar-style=black-translucent` (2026-08) — đây là nguyên
          nhân gốc của "thanh nav nhô cao, chừa khoảng trống ở đáy" khi cài ra màn hình chính iPhone.

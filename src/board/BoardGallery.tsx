@@ -462,9 +462,17 @@ export function BoardGallery({
             // mục "Vùng chạm dưới chuẩn". Đây là một nút tròn thật (có nền/bóng), khác nút "⋯" của
             // DanhSachBang.tsx (chỉ ba dấu chấm, không nền) — phóng to cả hình tròn thấy được luôn,
             // không cần tách vùng chạm khỏi vùng thị giác.
-            // Shadow đổi từ rgba(0,0,0,.2) trần sang --c-shadow/--c-shadow-glow + viền mực magenta
-            // nhạt --c-accent-2, để nút quay lại thuộc bộ nhận diện Mindmap thay vì FAB trắng chung
-            // chung (critique 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu").
+            // Shadow đổi từ rgba(0,0,0,.2) trần sang --c-shadow/--c-shadow-glow (critique
+            // 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu").
+            //
+            // VIỀN: từng là mực magenta nhạt của Mindmap (--c-accent-2, 0.25) để nút thuộc bộ nhận
+            // diện Mindmap. GỠ 2026-09-04 theo chủ dự án: trên một nút chrome, magenta đọc thành ĐỎ
+            // — tức thành màu cảnh báo, đúng thứ "Untouchable Signal Rule" (DESIGN.md) giữ riêng cho
+            // tín hiệu nguy hiểm. Nay là --c-line, đúng hairline trung tính mà mọi bề mặt có viền
+            // khác của app (kể cả nút nổi ThemeToggle) dùng, nên tự ra sáng/tối đúng bản.
+            // KHÔNG bỏ viền hẳn: hai nút này nổi trên canvas có nền bất định (giấy trắng, canvas
+            // tối, nét vẽ màu) — bỏ viền thì chỉ còn đổ bóng để tách, mà bóng tan biến trên nền tối
+            // hoặc nền rối. Nhận diện Mindmap vẫn còn nguyên ở --c-shadow-glow.
             style={{
               position: 'absolute',
               // calc(var(--safe-top)+4px), KHÔNG 4px trần — trên iPhone có tai thỏ/Dynamic Island,
@@ -484,7 +492,7 @@ export function BoardGallery({
               width: 44,
               height: 44,
               borderRadius: '50%',
-              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
+              border: '1px solid var(--c-line, #d9ddf4)',
               background: 'var(--c-surface, #fff)',
               boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
               display: 'flex',
@@ -520,7 +528,8 @@ export function BoardGallery({
               width: 44,
               height: 44,
               borderRadius: '50%',
-              border: '1px solid rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.25)',
+              // Hairline trung tính, KHÔNG phải mực magenta của Mindmap — xem chú thích ở nút quay lại.
+              border: '1px solid var(--c-line, #d9ddf4)',
               background: 'var(--c-surface, #fff)',
               boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
               display: 'flex',

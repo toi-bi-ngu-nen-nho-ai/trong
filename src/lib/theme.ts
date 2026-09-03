@@ -95,6 +95,11 @@ export function applyTheme(mode: ThemeMode): void {
   //
   // Ghi cùng một giá trị vào CẢ BA thẻ thì thẻ nào được hệ điều hành chọn cũng ra đúng màu, mà vẫn
   // giữ nguyên tác dụng của `media` lúc mở lạnh (trước khi JS kịp chạy) — xem index.html.
+  //
+  // Từ 2026-09-04, một script NỘI TUYẾN trong <head> (index.html) đã làm đúng phép ghi này TRƯỚC
+  // lần vẽ đầu tiên, nên tới lượt hàm này chạy thì ba thẻ thường đã đúng sẵn. Vòng lặp dưới đây
+  // KHÔNG thừa: nó là đường DUY NHẤT cập nhật màu khi người dùng bấm đổi chủ đề hoặc khi hệ điều
+  // hành lật sáng/tối trong lúc app đang mở — script nội tuyến chỉ chạy đúng một lần lúc tải trang.
   const metas = document.querySelectorAll('meta[name="theme-color"]')
   for (const meta of metas) meta.setAttribute("content", surface)
 
@@ -122,11 +127,14 @@ export function watchSystemTheme(): () => void {
 //
 // Vì sao: điều hướng trong app chạy bằng state React (App.tsx), không đụng tới URL, nên URL hiện
 // tại thường KHÔNG mang `?screen=`. `location.reload()` giữ nguyên URL đó — sau khi tải lại,
-// initialScreen() (App.tsx) đọc URL, không thấy `screen`, rơi về "home". ThemeToggle từng chỉ có ở
-// Trang chủ nên vô hại (rơi về đúng màn đang đứng); từ khi có thêm bản inline trong DungThuocScreen,
-// bấm đổi chủ đề ở đó tải lại trang và bị đẩy về Trang chủ dù đang xem "Dùng thuốc". Gắn
-// `?screen=mixing` trước khi tải lại thì initialScreen() tự đọc lại đúng lối tắt PWA nó đã biết,
-// quay về đúng màn thay vì "home".
+// initialScreen() (App.tsx) đọc URL, không thấy `screen`, rơi về "home".
+//
+// HIỆN KHÔNG AI TRUYỀN `preserveScreen`: từ 2026-09-04, ThemeToggle chỉ còn ở Trang chủ (chủ dự án
+// quyết), nên rơi về "home" đúng là rơi về đúng màn đang đứng. Hàm này ở lại vì nó là điều kiện
+// BẮT BUỘC để đặt nút chủ đề ở bất kỳ màn nào khác: đã có một lượt đúng như thế (bản inline trong
+// DungThuocScreen, 2026-08-26 → 2026-09-04) và nó ĐÃ sinh lỗi thật — bấm đổi chủ đề ở màn Dùng
+// thuốc thì trang tải lại rồi đẩy người dùng về Trang chủ. Gắn `?screen=mixing` trước khi tải lại
+// là cách chữa; ai dựng lại nút ở màn khác thì dùng lại đúng đường này thay vì phát hiện lại lỗi cũ.
 export function duongDanTaiLaiChuDe(href: string, preserveScreen?: string): string {
   if (!preserveScreen) return href
   const url = new URL(href)
