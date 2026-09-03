@@ -2,9 +2,8 @@
 //
 // Vì sao cần file này: trước đây mỗi nhóm thuốc truyền được nối tay vào App.tsx — một khoá lưu
 // trữ, một `useLocalCollection`, một hàm lưu, một nhánh `switch` khi sửa, một dòng trong màn Đồng
-// bộ dữ liệu, ba prop truyền xuống `DungThuocScreen` (thêm/sửa/xoá) và một prop danh sách. Với 5
-// nhóm thì đó đã là hơn 30 chỗ phải sửa đúng cùng lúc; thêm 4 nhóm nữa (An thần, Thần kinh, Khác,
-// Giải độc) theo cách cũ thì con số đó thành hơn 60, và chỉ cần quên MỘT chỗ là nhóm mới im lặng
+// bộ dữ liệu, ba prop truyền xuống `DungThuocScreen` (thêm/sửa/xoá) và một prop danh sách. Nay
+// mọi thứ đọc từ đúng một danh sách dưới đây để tránh quên sửa chỗ nào dẫn tới nhóm mới im lặng
 // mất dữ liệu tự nhập khi sao lưu.
 //
 // Nay mọi thứ đọc từ đúng một danh sách dưới đây: thêm một nhóm = thêm một dòng ở đây.
@@ -19,8 +18,6 @@ import { VASOACTIVES } from "./vasoactives"
 import { VASODILATORS } from "./vasodilators"
 import { ANTIARRHYTHMICS } from "./antiarrhythmics"
 import { ELECTROLYTES } from "./electrolytes"
-import { SEDATIVES } from "./sedation"
-import { NEURO_DRUGS } from "./neuro"
 import { OTHER_DRUGS } from "./others"
 import { ANTIDOTES } from "./antidotes"
 
@@ -30,8 +27,6 @@ export type InfusionCategory =
   | "vasodilator"
   | "arrhythmia"
   | "electrolyte"
-  | "sedation"
-  | "neuro"
   | "other"
   | "antidote"
 
@@ -95,24 +90,6 @@ export const INFUSION_CATEGORIES: InfusionCategoryConfig[] = [
     staticDrugs: ELECTROLYTES,
     storageKey: "customElectrolytes",
     backupKey: "electrolytes",
-  },
-  {
-    id: "sedation",
-    tabLabel: "An thần",
-    title: "An thần · Giảm đau · Giãn cơ",
-    categoryLabel: "thuốc an thần / giảm đau / giãn cơ",
-    staticDrugs: SEDATIVES,
-    storageKey: "customSedatives",
-    backupKey: "sedatives",
-  },
-  {
-    id: "neuro",
-    tabLabel: "Thần kinh",
-    title: "Thần kinh cấp cứu",
-    categoryLabel: "thuốc thần kinh cấp cứu",
-    staticDrugs: NEURO_DRUGS,
-    storageKey: "customNeuro",
-    backupKey: "neuro",
   },
   {
     id: "other",
