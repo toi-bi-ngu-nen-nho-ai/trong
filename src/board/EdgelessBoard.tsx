@@ -28,7 +28,7 @@ import { cheDoEdgeless } from './che-do-edgeless'
 import { phongChuBangExtension } from './phong-chu-bang'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
-import { laDienThoai, theoDoiDienThoai } from './chi-doc-tren-dien-thoai'
+import { laKhungHep, theoDoiKhungHep } from './chi-doc-khung-hep'
 import { type Hop as HopO, viTriMoiChoO } from './xep-o-tu-dong'
 import type { KetQuaXuat } from './xuatAnhBang'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
@@ -392,8 +392,8 @@ export function EdgelessBoard({
   // Ref lớp bọc viewport — dùng cho phép đồng bộ lại toạ độ sau hiệu ứng vào màn (useEffect bên dưới).
   const viewportRef = useRef<HTMLDivElement>(null)
   const [dangMo, setDangMo] = useState(true)
-  // ─── Chế độ CHỈ ĐỌC trên điện thoại (chủ dự án quyết 2026-09-03) ─────────────────────────────
-  // Bảng sơ đồ mở trên điện thoại thì chỉ để XEM. Công tắc là `store.readonly` chứ không phải ẩn
+  // ─── Chế độ CHỈ ĐỌC khi khung hẹp (chủ dự án quyết 2026-09-03) ──────────────────────────────
+  // Bảng sơ đồ mở ở khung hẹp thì chỉ để XEM. Công tắc là `store.readonly` chứ không phải ẩn
   // nút: nó là thứ DUY NHẤT chặn cùng lúc mọi đường sửa — thanh công cụ tự trả `nothing`
   // (`widgets/edgeless-toolbar/src/edgeless-toolbar.ts:663`), `updateBlock` từ chối ghi, bấm đúp
   // không mở được trình soạn chữ. Ẩn nút bằng CSS thì vẫn bấm đúp và kéo phần tử được.
@@ -401,7 +401,7 @@ export function EdgelessBoard({
   // ĐÁNH ĐỔI đã biết: `readonly` ẩn luôn THANH ZOOM (`zoom-toolbar.ts:148`,
   // `zoom-bar-toggle-button.ts:83`), nên trên điện thoại mất nút "Vừa khung hình" và mức zoom, chỉ
   // còn chụm/kéo bằng ngón. Hai file đó thuộc cây vendored — D11 không cho vá tại chỗ.
-  const [chiDoc, setChiDoc] = useState(laDienThoai)
+  const [chiDoc, setChiDoc] = useState(laKhungHep)
   // Giữ store để đổi được `readonly` khi XOAY MÁY, chứ không chỉ đặt một lần lúc mở bảng.
   const storeRef = useRef<{ readonly: boolean } | null>(null)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
@@ -429,7 +429,7 @@ export function EdgelessBoard({
   useEffect(() => watchResolvedTheme(setChuDe), [])
 
   // Xoay ngang/dọc là bề ngang nhảy qua ngưỡng — phải đổi trạng thái ngay, không đợi mở lại bảng.
-  useEffect(() => theoDoiDienThoai(setChiDoc), [])
+  useEffect(() => theoDoiKhungHep(setChiDoc), [])
 
   // Áp `readonly` mỗi khi trạng thái đổi. Store có thể chưa sẵn sàng ở lượt chạy đầu (mount là bất
   // đồng bộ) — nhánh trong `.then()` bên dưới đặt lần đầu, effect này lo những lần đổi sau.
@@ -460,7 +460,7 @@ export function EdgelessBoard({
         // Đặt TRƯỚC `litRender`: thanh công cụ đọc `store.readonly` ngay ở lượt render đầu, đặt
         // sau là nó kịp hiện ra rồi mới biến mất — một cú nháy thấy được trên máy chậm.
         storeRef.current = store
-        store.readonly = laDienThoai()
+        store.readonly = laKhungHep()
         const std = new BlockStdScope({ store, extensions: layExtensionsEdgeless() })
         litRender(std.render(), el)
 
@@ -725,23 +725,28 @@ export function EdgelessBoard({
         // trung tính (`--c-surface-alt` + `--c-text-soft`) chứ KHÔNG dùng màu cảnh báo. DESIGN.md:
         // thứ ồn nhất trên màn luôn phải là tín hiệu nguy hiểm thật.
         //
-        // ĐẶT Ở ĐÁY BẢNG (chủ dự án yêu cầu 2026-09-03) — đúng chỗ thanh công cụ vừa biến mất, nên
-        // nó trả lời luôn câu "sao mất thanh công cụ". Bản trước ghim ở đỉnh và luồn ngay dưới hai
-        // nút tròn nổi (quay lại / xuất), chụp trên khung 390 px thấy chữ bị kẹp giữa hai nút.
+        // DÁN SÁT ĐÁY MÀN, hết bề ngang (chủ dự án yêu cầu 2026-09-03). Làm được là nhờ App đã ẩn
+        // thanh điều hướng dưới khi đang dùng sơ đồ — dưới băng này không còn gì nữa. Hai bản trước
+        // đều sai chỗ: ghim ở đỉnh thì luồn dưới hai nút tròn nổi (quay lại / xuất), còn thả nổi ở
+        // `bottom-4` thì chừa một khe trống vô nghĩa sau khi nav biến mất.
+        //
+        // `--safe-bottom` PHẢI cộng tay: trên iPhone toàn màn hình, thanh nav vốn là thứ "nuốt" giùm
+        // vùng thanh gạt Home (`--nav-pad-bottom`, xem App.tsx). Nav không còn thì băng này phải tự
+        // chừa, nếu không chữ nằm đúng dưới thanh gạt.
+        //
         // `pointer-events-none`: băng chỉ để đọc, không được nuốt cú kéo khung nhìn.
-        <div className="absolute bottom-4 inset-x-0 z-10 px-3 flex justify-center pointer-events-none">
-          <div
-            className="px-3 py-1.5 text-[12px] font-semibold text-center rounded-full max-w-full"
-            role="status"
-            aria-live="polite"
-            style={{
-              background: 'var(--c-surface-alt)',
-              border: '1px solid var(--c-line)',
-              color: 'var(--c-text-soft)',
-            }}
-          >
-            Đang xem sơ đồ ở điện thoại — chỉ hiển thị chế độ đọc.
-          </div>
+        <div
+          className="absolute bottom-0 inset-x-0 z-10 px-3 pt-1.5 text-[12px] font-semibold text-center pointer-events-none"
+          role="status"
+          aria-live="polite"
+          style={{
+            background: 'var(--c-surface-alt)',
+            borderTop: '1px solid var(--c-line)',
+            color: 'var(--c-text-soft)',
+            paddingBottom: 'calc(0.375rem + var(--safe-bottom))',
+          }}
+        >
+          Bạn đang xem ở khung hẹp - chỉ ở chế độ đọc
         </div>
       )}
       {loi && (
