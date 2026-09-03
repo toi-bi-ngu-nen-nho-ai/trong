@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { DanhSachBang, nghiengOnDinh } from '../DanhSachBang'
+import { DanhSachBang, mauHueChongTrung, nghiengOnDinh } from '../DanhSachBang'
 import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -28,6 +28,32 @@ describe('nghiengOnDinh', () => {
 
   it('id rỗng vẫn trả về một số hữu hạn hợp lệ, không NaN', () => {
     expect(Number.isFinite(nghiengOnDinh(''))).toBe(true)
+  })
+})
+
+// critique 2026-09-03 lượt 4, P2: đo trực tiếp trên trình duyệt thật, 14 mốc cách 5° cũ chỉ đạt
+// 14,4-15° giữa 4 bảng liên tiếp — vi phạm claim "≥30°". Đổi sang 3 mốc cách ĐÚNG 30° (xem chú thích
+// tại CAC_MOC_HUE) — ca kiểm này khoá đúng lời hứa MỚI: 3 bảng đầu tách biệt thật ≥30°, bảng thứ 4
+// lặp lại NHẤT QUÁN đúng mốc đầu tiên (không phải một trùng lặp ngẫu nhiên tuỳ thời điểm gọi).
+describe('mauHueChongTrung', () => {
+  it('mảng rỗng → mốc đầu tiên', () => {
+    expect(mauHueChongTrung([])).toBe(260)
+  })
+
+  it('3 bảng liên tiếp qua đúng luồng greedy → mọi cặp cách nhau ≥30°', () => {
+    const hues: number[] = []
+    for (let i = 0; i < 3; i++) hues.push(mauHueChongTrung(hues))
+    for (let i = 0; i < hues.length; i++) {
+      for (let j = i + 1; j < hues.length; j++) {
+        expect(Math.abs(hues[i] - hues[j])).toBeGreaterThanOrEqual(30)
+      }
+    }
+  })
+
+  it('bão hoà ở bảng thứ 4 → lặp lại đúng mốc đầu tiên (260), không phải một hue mới gần 3 mốc kia', () => {
+    const hues: number[] = []
+    for (let i = 0; i < 4; i++) hues.push(mauHueChongTrung(hues))
+    expect(hues[3]).toBe(260)
   })
 })
 
@@ -247,6 +273,65 @@ describe('DanhSachBang', () => {
       const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
       expect(ds).toHaveLength(1)
     })
+  })
+
+  // critique 2026-09-03 lượt 4, P2: ca kiểm ngay trên mô phỏng ĐÚNG cửa sổ lọt bằng cách bắn thẳng
+  // `focusout` (vì happy-dom không tự đá focus khi bắn `mousedown` bằng dispatchEvent, xem chú thích
+  // tại đó) — nó khoá đúng "không nhân bản dữ liệu", nhưng không khoá được PHẦN CÒN LẠI của P2: cú
+  // mousedown thật của trình duyệt tạo ra chính cái `focusout` đó, và đến giờ chưa ca kiểm nào chặn
+  // được NGUỒN của nó. Ca này khoá trực tiếp cơ chế chặn nguồn (`giuFocusKhiBamDup`, DanhSachBang.tsx
+  // — preventDefault trên mousedown khi `detail>1`) mà không cần happy-dom mô phỏng focus-shift thật.
+  it('mousedown detail>1 trên "+" gọi preventDefault (giữ focus ô đổi tên khi double-tap thật); detail=1 thì không', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
+
+    const mdDup = new MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 2 })
+    nut.dispatchEvent(mdDup)
+    expect(mdDup.defaultPrevented, 'click thứ hai của double-tap phải bị preventDefault').toBe(true)
+
+    const mdDon = new MouseEvent('mousedown', { bubbles: true, cancelable: true, detail: 1 })
+    nut.dispatchEvent(mdDon)
+    expect(mdDon.defaultPrevented, 'một cú bấm đơn bình thường không được chặn').toBe(false)
+  })
+
+  // critique 2026-09-03 lượt 4, P1: trước bản vá, mọi thẻ chưa gắn khoa VÀ còn tên mặc định đọc ra
+  // aria-label byte-y-hệt nhau khi tạo trong cùng cửa sổ "Vừa xong" (formatReadTime < 60s) —
+  // formatReadTime không đủ độ phân giải cho mục đích phân biệt. Ca này khoá bằng số thứ tự trong
+  // lưới (`index`), không phụ thuộc đồng hồ hệ thống nên xanh ổn định thay vì đôi khi qua ranh giới
+  // phút thật giữa hai lượt tạo.
+  it('2 bảng tạo liên tiếp (chưa gắn khoa, còn tên mặc định) → aria-label KHÁC nhau', async () => {
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+    ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    })
+    // Thoát ô đổi tên (Escape huỷ, giữ tên mặc định) trước khi tạo bảng thứ hai — "+" tạm không phản
+    // ứng khi còn một bảng đang ở chế độ đổi tên (xem taoBangMoi).
+    const oNhap1 = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
+    await act(async () => {
+      oNhap1.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid^="input-ten-"]')).toBeNull()
+    })
+    ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const nhan = Array.from(container.querySelectorAll('.the-bang-vat')).map((el) => el.getAttribute('aria-label'))
+    expect(nhan).toHaveLength(2)
+    expect(nhan[0]).not.toBe(nhan[1])
   })
 
   it('bấm thẻ "+", gõ tên rồi Enter → thoát ô đổi tên, bấm vào thẻ → GỌI onMoBang (mở canvas)', async () => {

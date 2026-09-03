@@ -114,11 +114,19 @@ export function mauOnDinh(id: string): number {
   return 260 + (Math.abs(h) % 70)
 }
 
-// 14 mốc hue cách đều 5° phủ hết [260,330) — "ứng viên" cho mauHueChongTrung() ngay dưới. Độ mịn 5°
-// đủ để chọn được một mốc rõ ràng tách biệt khỏi láng giềng gần nhất trong thực tế (vài chục bảng),
-// không cần mịn hơn (khác biệt dưới 5° không còn phân biệt được bằng mắt ở cùng S/L, nên mịn hơn chỉ
-// tổ tốn phép tính mà không thêm khả năng phân biệt thật).
-const CAC_MOC_HUE: number[] = Array.from({ length: 14 }, (_, i) => 260 + i * 5)
+// 3 mốc hue cách đều 30° trong [260,330) — "ứng viên" cho mauHueChongTrung() ngay dưới. TRƯỚC là 14
+// mốc cách 5° (phủ gần hết 65° của dải): đo trực tiếp trên trình duyệt thật, farthest-point trên 14
+// mốc mịn cho khoảng cách tối thiểu chỉ 14,4-15° ngay khi có 4 bảng chưa gắn khoa cùng sống — VI PHẠM
+// claim "≥30°" của chính hàm này (critique 2026-09-03 lượt 4, P2), vì đây là giới hạn TOÁN HỌC
+// (pigeonhole): rải N≥4 điểm trong 65° thì khoảng cách nhỏ nhất tốt nhất có thể đạt chỉ ~21,7°, không
+// mốc mịn cỡ nào sửa được. 3 mốc cách ĐÚNG 30° thì lời hứa "≥30°" trở thành SỰ THẬT cho tối đa 3 bảng
+// sống cùng lúc — ít hơn 14 nhưng không còn là lời hứa suông. Từ bảng thứ 4 trở đi, xem chú thích
+// "khi bão hoà" tại mauHueChongTrung ngay dưới. KHÔNG mở rộng dải [260,330) để lấy thêm mốc: dải này
+// cố tình áp sát nhưng chưa chạm đỏ/hổ phách (~0-50°, buffer 35° ở đầu 330) lẫn xanh lá (~90-150°,
+// buffer 110° ở đầu 260) — nới rộng về phía nào cũng ăn bớt buffer an toàn đó (Untouchable Signal
+// Rule, DESIGN.md) hoặc lấn sang hue của chính --c-primary (~232°), một quyết định thương hiệu vượt
+// quá phạm vi một bản vá P2, cần chủ dự án xác nhận trước (xem câu hỏi cuối critique lượt 4).
+const CAC_MOC_HUE: number[] = [260, 290, 320]
 
 // Chọn MỘT hue trong CAC_MOC_HUE xa nhất (theo khoảng cách gần nhất) các hue ĐANG CÓ — greedy
 // farthest-point, gọi MỘT LẦN lúc tạo bảng (taoBangMoi) rồi lưu cố định vào BangMeta.mauHue, KHÔNG
@@ -127,6 +135,14 @@ const CAC_MOC_HUE: number[] = Array.from({ length: 14 }, (_, i) => 260 + i * 5)
 // cách nhau chỉ 6°, gần như cùng màu (critique 2026-09-02 lượt 3, P2). Thuật toán này thì có: nó NHÌN
 // THẤY sibling hiện có trước khi gán, nên luôn chọn được mốc tách biệt nhất còn lại. Mảng rỗng (bảng
 // đầu tiên) → mốc đầu tiên, không có gì để tránh.
+//
+// KHI BÃO HOÀ (bảng chưa-gắn-khoa thứ 4 trở đi, sống cùng lúc): cả 3 mốc đã dùng hết, mọi ứng viên
+// còn lại đều có khoảng-cách-gần-nhất bằng 0 (trùng một mốc đã có) — vòng lặp dùng `>` (không phải
+// `>=`) nên giữ nguyên `tot` ở giá trị KHỞI TẠO (CAC_MOC_HUE[0] = 260) thay vì đổi lung tung theo thứ
+// tự duyệt mảng, tức bảng thứ 4 LUÔN lặp lại đúng màu bảng ĐẦU TIÊN — một sự trùng lặp NHẤT QUÁN, dễ
+// đoán, còn hơn một sự trùng lặp ngẫu nhiên tuỳ thời điểm gọi. Đây là suy giảm CÓ CHỦ Ý, không phải
+// lỗi: 3 bảng đầu vẫn tách biệt thật (đo được ≥30°); bảng thứ 4+ dựa vào tên riêng + số thứ tự trong
+// aria-label (xem chỗ dùng formatReadTime ở TheBang) để phân biệt, không còn dựa vào màu.
 export function mauHueChongTrung(hueHienCo: number[]): number {
   if (hueHienCo.length === 0) return CAC_MOC_HUE[0]
   let tot = CAC_MOC_HUE[0]
@@ -581,10 +597,20 @@ function TheBang({
         // biệt được (critique 2026-09-02 lượt 3, P1 — đúng lỗi đã vá RIÊNG ở panel trash nhưng chưa
         // mang sang lưới chính). Dùng capNhatLuc (đã hiển thị trên màn, xem <p> ngay dưới) chứ không
         // phải taoLuc: đây là mốc người dùng NHÌN THẤY, giữ hai nguồn tin đồng bộ với nhau.
+        //
+        // `formatReadTime` làm tròn mọi mốc dưới 60 giây thành "Vừa xong" — hai bảng tạo trong cùng
+        // một phút (thao tác thật, phổ biến nhất: dựng vài khung liên tiếp đầu ca trực) vẫn đọc ra
+        // câu byte-y-hệt nhau, tái lập chính lớp lỗi bản vá này định sửa (đo được trực tiếp, critique
+        // 2026-09-03 lượt 4, P1). Tái dùng một giá trị ĐÃ LÀM TRÒN cho hiển thị làm nguồn phân biệt
+        // là sai công cụ — thêm `index` (vị trí hiện tại trong lưới đã sắp xếp, luôn khác nhau giữa
+        // hai bản ghi bất kỳ, không cần state mới) làm số thứ tự CHỈ cho nhánh chưa gắn khoa VÀ còn
+        // mang tên mặc định — đúng nhánh gây nhầm lẫn, không đụng tới bảng đã có tên/khoa riêng.
         aria-label={
           tenChuyenKhoa
             ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
-            : `Mở bảng ${bang.ten}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+            : bang.ten === TEN_MAC_DINH
+              ? `Mở bảng chưa đặt tên thứ ${index + 1}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+              : `Mở bảng ${bang.ten}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
         }
       >
         <div
@@ -1445,6 +1471,18 @@ export function DanhSachBang({
     thoatChonNhieu()
   }
 
+  // Cú mousedown thứ hai của một double-click THẬT (e.detail>1) mặc định cướp focus từ ô đổi tên
+  // đang mở của bảng vừa tạo, kích hoạt onBlur lưu-và-đóng ô đó TRƯỚC KHI click#2 (đã bị chặn trong
+  // taoBangMoi ngay dưới) kịp chạy — đúng "CỬA SỔ THỨ HAI" mô tả tại taoBangMoi: khoá `detail>1` ở
+  // đó chỉ chặn được việc TẠO bảng thứ hai, không chặn được cú cướp focus này (đo trực tiếp, critique
+  // 2026-09-03 lượt 4, P2 — double-tap không nhân bản dữ liệu nữa nhưng vẫn để lại bảng mồ côi tên).
+  // preventDefault ở mousedown giữ nguyên focus hiện tại (kỹ thuật chuẩn để giữ focus/selection khi
+  // bấm một nút ngoài input) — CHỈ áp khi e.detail>1, không áp cho một cú bấm đơn kế tiếp thật sự (vd
+  // bấm "+" lần nữa để bỏ dở tên bảng trước rồi tạo bảng mới) — flow đó vẫn cần blur bình thường.
+  const giuFocusKhiBamDup = (e: React.MouseEvent) => {
+    if (e.detail > 1) e.preventDefault()
+  }
+
   const taoBangMoi = (e?: { detail?: number }) => {
     // Khoá chống bấm đúp: `add()` đồng bộ và không có cờ "đang tạo" riêng, nên hai lượt gọi liên
     // tiếp (bấm đúp nhanh, hoặc double-fire trên một số trình duyệt cảm ứng) từng tạo được HAI bảng
@@ -2165,6 +2203,7 @@ export function DanhSachBang({
               type="button"
               data-testid="tao-bang"
               onClick={taoBangMoi}
+              onMouseDown={giuFocusKhiBamDup}
               // .mind-o-tao-bang + .mind-o-moi (index.css): viền ĐỨT nét ngắn + nền phớt --c-accent-2
               // nhạt, dấu "+" magenta (DESIGN.md "The One Other Place Rule") — tự đổi sáng/tối.
               // .mind-o-moi CHỈ trên ô "+", không trên nút "Xoá bộ lọc" cũng mượn .mind-o-tao-bang.
@@ -2199,6 +2238,7 @@ export function DanhSachBang({
             type="button"
             data-testid="tao-bang"
             onClick={taoBangMoi}
+            onMouseDown={giuFocusKhiBamDup}
             // disabled khi đang chọn-nhiều: tạo bảng mới tự mở ô đổi tên (taoBangMoi) — trộn với chế
             // độ chọn (checkbox thay "⋯") ra một thẻ vừa mời gõ tên vừa mời tích chọn cùng lúc, rối
             // hơn là hữu ích. "Chọn" ở header vẫn còn đó để thoát trước khi tạo bảng mới.
