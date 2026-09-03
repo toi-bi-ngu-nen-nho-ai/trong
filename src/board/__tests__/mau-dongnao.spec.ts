@@ -244,6 +244,23 @@ describe('DongNaoTemplateManager', () => {
     expect([...mepPhai], 'bảy nhãn phải chung một mép phải').toHaveLength(1)
   })
 
+  // Cùng lớp lỗi, mẫu khác. Hai nút gốc "Khái niệm A/B" dùng BebasNeue — cũng KHÔNG được nạp, cũng
+  // vẽ bằng phông dự phòng. Lượt sinh trước chốt hộp 560 (lòng 520) dựa trên bề rộng đo được 496 px;
+  // đo lại 2026-09-03 ra 518 px, tức chỉ còn dư 2 px, và phông dự phòng rộng nhất trong chín phông
+  // hệ thống phổ biến cần ~535 px. Ngưỡng 700 (lòng 660) giữ biên 1,27 lần.
+  it('hai nút gốc của Sơ đồ khái niệm đủ rộng cho chữ ở phông dự phòng', () => {
+    const j = JSON.parse(docTep('concept-map'))
+    const mp = j.content.blocks.children.find((c: { flavour: string }) => c.flavour === 'affine:surface')
+    const nut = (Object.values(mp.props.elements) as Record<string, never>[])
+      .map((e) => e as unknown as { type: string; xywh: string; text?: { delta?: { insert?: string }[] } })
+      .filter((e) => e.type === 'shape' && (e.text?.delta ?? []).map((d) => d.insert ?? '').join('') !== '')
+    expect(nut, 'số hình có chữ của Sơ đồ khái niệm').toHaveLength(2)
+    for (const e of nut) {
+      const [, , w] = JSON.parse(e.xywh) as number[]
+      expect(w, `hộp nút ${e.xywh} phải rộng ≥ 700`).toBeGreaterThanOrEqual(700)
+    }
+  })
+
   it('khổ từng mẫu đúng như lượt sinh đã chốt', () => {
     const CHOT: Record<string, [number, number]> = {
       '5w2h': [3215, 1924],

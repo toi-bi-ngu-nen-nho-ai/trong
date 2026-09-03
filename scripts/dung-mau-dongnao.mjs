@@ -417,14 +417,21 @@ function boCucSoDoKhaiNiem(snap) {
   datXywh(than, xA + 73, -1026, wA - 146, 900)
 
   // Hai nút gốc "Khái niệm A/B": hộp 359×234 với BebasNeue cỡ 64 chỉ ra 11,7 px sau khi chèn. Nới
-  // hộp lên 560×280 (còn thừa chỗ: phần tử kế tiếp trong khung cách 880 px) để lên được cỡ 96. 560
-  // chứ không phải 520 vì lòng hộp phải hơn 496 px — bề rộng đo được của "Khái niệm A" ở cỡ 96
-  // BebasNeue; 520 làm nhãn rơi xuống hai dòng ngoài ý muốn.
+  // hộp để lên được cỡ 96 (còn thừa chỗ: phần tử kế tiếp trong khung cách 1213 px).
+  //
+  // 700 CHỨ KHÔNG PHẢI 560, và đây không phải chuyện thẩm mỹ. Lượt trước chọn 560 vì lòng hộp phải
+  // hơn 496 px — bề rộng ĐO ĐƯỢC lúc đó của "Khái niệm A" ở cỡ 96. Đo lại 2026-09-03 trên trình
+  // duyệt thật: 518 px, tức lòng hộp 520 chỉ còn dư 2 px. Con số đó trôi vì BebasNeue KHÔNG được
+  // nạp (app chỉ tự chứa họ Inter — xem chú thích của `boCuc5W2H`), nên chữ vẽ bằng phông
+  // sans-serif dự phòng của TỪNG NỀN TẢNG: rộng nhất trong chín phông hệ thống phổ biến là Verdana,
+  // hơn phông đo được ở đây ~3 %, tức ~535 px — quá 520. Dư 2 px là đúng cái mìn đã nổ ở 5W2H, chỉ
+  // chưa tới lượt. 700 (lòng 660) cho biên 1,27 lần và không đụng gì: hai nút không phải phần tử
+  // phải nhất nên khổ mẫu 6788×3718 không đổi.
   const nut = pt.filter((e) => e.type === 'shape' && chuTrongHinh(e) !== '')
   canDung(nut.length === 2, `Sơ đồ khái niệm phải có 2 hình có chữ, thấy ${nut.length}`)
   for (const e of nut) {
     const [x, y] = doXywh(e)
-    datXywh(e, x, y, 560, 280)
+    datXywh(e, x, y, 700, 280)
     e.fontSize = 96
   }
 }
