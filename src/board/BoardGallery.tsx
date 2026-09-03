@@ -338,7 +338,10 @@ export function BoardGallery({
               lại hạ cánh khớp với ô mà nó gập về. Trước 2026-08-30 chỗ này vẽ `anhXemTruoc` (ảnh
               chụp khung nhìn); ảnh đó đã bị gỡ khỏi thẻ nên giữ lại ở đây là gập về một hình mà
               lưới không còn hiện. */}
-          <div className="absolute inset-0" style={{ background: 'var(--c-surface-alt, #f6f7fd)' }}>
+          {/* `mind-giay-day` (index.css) — CÙNG mặt giấy với .mind-note-card của thẻ trong lưới, xem
+              chú thích dài tại class đó. Trước 2026-09-03 chỗ này tô `--c-surface-alt`, token bề mặt
+              vỏ app LẬT theo chủ đề, nên cú gập đọc hoàn toàn khác nhau ở hai bản. */}
+          <div className="absolute inset-0 mind-giay-day">
             <TheTrong khoa={dangGapLai.chuyenKhoa} id={dangGapLai.id} mauHue={dangGapLai.mauHue} />
           </div>
         </div>
@@ -381,8 +384,7 @@ export function BoardGallery({
           {openOrigin && (
             <div
               aria-hidden="true"
-              className={`absolute inset-0 board-flip-cover${dangChoCanvas || dangPhongTo ? '' : ' board-flip-cover-hide'}`}
-              style={{ background: 'var(--c-surface-alt, #f6f7fd)' }}
+              className={`absolute inset-0 mind-giay-day board-flip-cover${dangChoCanvas || dangPhongTo ? '' : ' board-flip-cover-hide'}`}
             >
               {/* dangVe: lớp phủ này che trọn màn chờ bên dưới (đo được 2,5s ở opacity 1), nên
                   chính nó phải là thứ đang vẽ — xem TheTrong. Lớp phủ "gập lại" lúc ĐÓNG ở trên
@@ -390,7 +392,11 @@ export function BoardGallery({
               <TheTrong khoa={openOrigin.chuyenKhoa} id={openOrigin.id} mauHue={openOrigin.mauHue} dangVe />
               {/* Dòng "vẫn đang tải" — chỉ bật sau 4,5s (choLau ở trên), cho mạng yếu/thiết bị cũ/
                   lần mở đầu chưa cache chunk BlockSuite một tín hiệu phân biệt với "đã treo".
-                  role="status" để người dùng đọc màn hình cũng nghe được, không chỉ thấy chữ. */}
+                  role="status" để người dùng đọc màn hình cũng nghe được, không chỉ thấy chữ.
+                  Màu là MỰC TRÊN GIẤY (`--c-on-note-muted`), không phải `--c-text-muted`: lớp phủ
+                  này giờ là mặt giấy (`mind-giay-day`), và `--c-text-muted` lật sang #888eb8 SÁNG ở
+                  bản tối — đặt lên giấy sáng còn ~1,9:1, không đọc được. `--c-on-note-muted` khai
+                  đúng một lần ở :root nên giữ 5,9:1 (giấy bản sáng) / 5,2:1 (giấy bản tối). */}
               {choLau && (
                 <p
                   role="status"
@@ -402,7 +408,7 @@ export function BoardGallery({
                     margin: 0,
                     fontSize: 12.5,
                     fontWeight: 600,
-                    color: 'var(--c-text-muted, #6b6e96)',
+                    color: 'var(--c-on-note-muted, #5c5f7a)',
                     textAlign: 'center',
                     whiteSpace: 'nowrap',
                   }}
