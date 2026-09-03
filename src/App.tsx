@@ -293,19 +293,18 @@ const icons = {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
-  // Sao "ghim / ưa thích" cho hàng tab + danh sách nhảy nhóm. Ba dạng theo tham số:
-  //   filled=false        → viền rỗng (chưa ghim), nơi gọi tô `currentColor` mờ.
-  //   filled=true, rim=false → tô đặc trơn (đã ghim, nằm trên nền trung tính), nơi gọi tô `--c-fav`.
-  //   filled=true, rim=true  → tô đặc + viền `--c-on-bright` (đã ghim, nằm THẲNG trên chip primary
-  //                            đặc — viền giữ nét sao sắc kể cả khi ruột vàng sát màu nền chip).
+  // Sao "ghim / ưa thích" cho hàng tab + danh sách nhảy nhóm.
+  //   filled=false → viền rỗng (chưa ghim), nơi gọi tô `currentColor` mờ.
+  //   filled=true  → tô đặc TRƠN, KHÔNG bờ viền ngoài (chủ dự án 2026-09-03), nơi gọi tô vàng
+  //                  (`--c-fav` trên nền trung tính / `--c-fav-bright` trên chip primary).
   // KHÔNG dùng icons.star(): nó khoá cứng `--c-warn-icon` (họ token cảnh báo lâm sàng — DESIGN.md
   // "Untouchable Signal Rule"). Vàng ưa thích là token RIÊNG `--c-fav*`.
-  starPin: (filled: boolean, rim = false) => (
+  starPin: (filled: boolean) => (
     <svg
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
-      stroke={filled ? (rim ? "var(--c-on-bright)" : "none") : "currentColor"}
-      strokeWidth={filled ? (rim ? 1.4 : 0) : 1.8}
+      stroke={filled ? "none" : "currentColor"}
+      strokeWidth={filled ? 0 : 1.8}
       strokeLinejoin="round"
       className="w-3.5 h-3.5"
     >
@@ -12071,17 +12070,16 @@ export function DungThuocScreen({
               </button>
               {/* Ngôi sao ghim — icon TRẦN đè lên góc phải chip đang chọn. Không nền / không viền /
                   không bo tròn (chỉ `rounded-full` cho vòng focus, trong suốt nên vô hình) — hoà hẳn
-                  vào chip, không tạo "ranh giới nút tròn". Chủ dự án 2026-09-03: sao ưa thích PHẢI
-                  màu VÀNG.
-                  BẬT (đã ghim): tô đặc `--c-fav-bright` (#facc15 vàng-chanh cả hai theme) + viền
-                    `--c-on-bright` (icons.starPin(true, true)) — chip primary đảo màu giữa hai theme
-                    nên ruột vàng có lúc sát màu nền; viền `--c-on-bright` (đúng màu chữ trên chip)
-                    giữ nét sao luôn sắc. Ba tín hiệu: đặc, màu vàng, opacity 1.
+                  vào chip. Chủ dự án 2026-09-03: sao ưa thích PHẢI màu VÀNG, và KHÔNG có bờ viền ngoài
+                  ngôi sao.
+                  BẬT (đã ghim): tô đặc TRƠN `--c-fav-bright` (#facc15 vàng-chanh cả hai theme), không
+                    viền. Chip primary đảo màu giữa hai theme, nhưng vàng-chanh bão hoà cao TƯƠNG PHẢN
+                    SẮC (gần bù trừ) với cả xanh indigo đậm (bản sáng) lẫn xanh trời nhạt (bản tối) —
+                    nổi rõ bằng độ chói + độ bão hoà, không cần viền. Đặc + màu vàng + opacity 1.
                   TẮT (chưa ghim): sao VIỀN RỖNG màu `--c-on-bright` (= màu chữ chip) ở opacity 0.5 —
-                    một gợi ý mờ "chạm để ghim", không đọc như một trạng thái cần phân biệt kỹ.
-                  KHÔNG có `dose-press` / nền / viền / bo hiện hình: chủ dự án 2026-09-03 — nút favorite
-                  chỉ đổi CHÍNH NGÔI SAO (rỗng↔đặc, màu, độ mờ), không có bất kỳ hiệu ứng "nút" nào
-                  khác, và không có ranh giới nào tách nó khỏi chip. Vùng chạm 32px trong chip cao 44px. */}
+                    gợi ý mờ "chạm để ghim".
+                  KHÔNG `dose-press` / nền / viền / bo hiện hình: nút favorite chỉ đổi CHÍNH NGÔI SAO
+                  (rỗng↔đặc, màu, độ mờ), không hiệu ứng "nút" nào khác. Vùng chạm 32px trong chip 44px. */}
               {tab === t.id && (
                 <button
                   onClick={(e) => {
@@ -12096,7 +12094,7 @@ export function DungThuocScreen({
                   aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.label}` : `Ghim nhóm ${t.label} lên đầu hàng`}
                   aria-pressed={pinnedTabIds.includes(t.id)}
                 >
-                  {icons.starPin(pinnedTabIds.includes(t.id), true)}
+                  {icons.starPin(pinnedTabIds.includes(t.id))}
                 </button>
               )}
             </div>
