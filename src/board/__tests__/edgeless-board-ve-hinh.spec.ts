@@ -95,6 +95,30 @@ function keoTren(canvas: HTMLElement, x1: number, y1: number, x2: number, y2: nu
   canvas.dispatchEvent(bienCo('pointerup', x2, y2))
 }
 
+/**
+ * Bấm đúp lên một điểm của canvas — HAI cặp pointerdown/pointerup tại cùng chỗ.
+ *
+ * `PointerController._up()` (framework/std/src/event/control/pointer.ts:141) tự tổng hợp
+ * `doubleClick` từ `_pointerDownCount === 2`; không có sự kiện DOM `dblclick` nào được nghe cả, nên
+ * bắn `new MouseEvent('dblclick')` là không tới được công cụ.
+ *
+ * `pointermove` ĐẦU TIÊN LÀ BẮT BUỘC, đừng bỏ. `GfxViewEventManager.dispatch()`
+ * (framework/std/src/gfx/interactivity/gfx-view-event-handler.ts:24) đẩy MỌI sự kiện không phải
+ * `pointermove`/`drag*` tới `last(this._hoveredElementsStack)`, mà ngăn xếp đó CHỈ được
+ * `_handlePointerMove` nạp. Thiếu lượt di chuột thì ngăn xếp rỗng và `dblclick` của phần tử không
+ * bao giờ chạy — chuột thật luôn đi qua điểm đó trước khi bấm nên trên trình duyệt không thấy.
+ * Đã kiểm A/B trên Chrome thật 2026-09-03: cùng một đường nối, cùng một điểm, bỏ `pointermove` thì
+ * trình soạn nhãn KHÔNG mở; thêm đúng một lượt thì mở và tạo `text` + `labelXYWH`.
+ */
+function bamDupTren(canvas: HTMLElement, x: number, y: number) {
+  document.querySelector('editor-host')?.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }))
+  canvas.dispatchEvent(bienCo('pointermove', x, y))
+  for (let lan = 0; lan < 2; lan += 1) {
+    canvas.dispatchEvent(bienCo('pointerdown', x, y))
+    canvas.dispatchEvent(bienCo('pointerup', x, y))
+  }
+}
+
 async function moBang(root: Root, boardId: string) {
   await act(async () => {
     root.render(createElement(EdgelessBoard, { boardId }))
@@ -217,6 +241,48 @@ describe('EdgelessBoard — Connector và Mindmap tạo ra phần tử thật tr
       expect(surface.elementModels.length).toBe(truoc + 1)
     })
     expect(surface.elementModels.at(-1)?.type).toBe('connector')
+  })
+
+  // Người dùng báo 2026-09-03: "thanh công cụ → công cụ nối → nhập chữ có bị lỗi không". Ca trên chỉ
+  // chứng minh được VẼ RA đường nối; nhập chữ lên nó là một chuỗi khác hẳn và chưa từng được kiểm:
+  //   bấm đúp → `ConnectorElementView.on('dblclick')` (gfx/connector/src/view/view.ts:173)
+  //   → `mountConnectorLabelEditor` (text/edgeless-connector-label-editor.ts:31)
+  //   → tìm `.edgeless-mount-point` trong khối gốc, tạo `Y.Text` cho `connector.text`, gắn
+  //     `<edgeless-connector-label-editor>` vào đó.
+  // Đây đúng là lớp lỗi mà `extensions.ts` của app đã dính hai lần (giữ 37/58 view extension của
+  // thượng nguồn): công cụ vẫn vẽ được, nhưng phần soạn chữ im lặng không mở ra.
+  it('công cụ Nối: bấm đúp lên đường nối → trình soạn nhãn gắn vào bảng và phần tử có ô chữ', async () => {
+    const edgeless = await moBang(root, 'bang-noi-nhap-chu')
+    const surface = edgeless.gfx.surface
+    const canvas = container.querySelector('canvas')!
+
+    await act(async () => {
+      edgeless.gfx.tool.currentToolName$.value = 'connector'
+      const cur = edgeless.gfx.tool.currentTool$.peek()!
+      const opt = { mode: ConnectorMode.Straight }
+      cur.activatedOption = opt
+      cur.activate(opt)
+      keoTren(canvas, 120, 120, 320, 260)
+    })
+    await choDom(() => {
+      expect(surface.elementModels.at(-1)?.type).toBe('connector')
+    })
+    const noi = surface.elementModels.at(-1) as unknown as { text?: { toString(): string }; labelXYWH?: number[] }
+    expect(noi.text, 'đường nối vừa vẽ chưa được có sẵn ô chữ').toBeUndefined()
+
+    // Bấm đúp vào GIỮA đường nối — cùng hệ toạ độ client mà cú kéo ở trên đã dùng.
+    await act(async () => {
+      bamDupTren(canvas, 220, 190)
+    })
+
+    await choDom(() => {
+      expect(
+        document.querySelector('edgeless-connector-label-editor'),
+        'bấm đúp lên đường nối phải mở trình soạn nhãn',
+      ).not.toBeNull()
+    })
+    expect(noi.text, 'mở trình soạn nhãn phải tạo ô chữ trên phần tử').toBeDefined()
+    expect(noi.labelXYWH, 'ô chữ phải có khung đặt trên đường nối').toBeDefined()
   })
 
   it('Mindmap: thả một thẻ mindmap → surface có phần tử "mindmap" VÀ các nút con là "shape" thật', async () => {
