@@ -252,6 +252,15 @@
   --c-primary-line-2: #9aa6e6;
   --c-primary-rgb: 45, 58, 148;
 
+  /* Ngôi sao "ghim / ưa thích" trên hàng tab Dùng thuốc — VÀNG, theo yêu cầu chủ dự án 2026-09-03.
+     TÁCH KHỎI họ token cảnh báo (--c-warn*): đây là accent trang trí ở vùng chrome điều hướng, KHÔNG
+     phải tín hiệu lâm sàng — cùng kiểu ngoại lệ có phạm vi như --c-note (giấy ấm của thẻ Mindmap).
+     Sắc cố ý lệch hẳn --c-warn-icon (#b45309 cam-gạch bản sáng / #f0b429 hổ phách bản tối) sang
+     vàng-gold để không đọc nhầm thành cảnh báo. Bản sáng buộc là gold ĐẬM mới đạt ≥3:1 lúc tô đặc
+     trên nền nhạt — vàng tươi không thể vừa sáng vừa đọc được trên nền sáng. */
+  --c-fav: #a16207;
+  --c-fav-soft: #fdf3d6;
+
   /* --c-accent* trước đây là một bộ giá trị RIÊNG trùng khít --c-primary* — hai nguồn sự thật cho
      cùng một màu, sửa primary mà quên sửa accent là sẽ lệch ngay. Giờ trỏ thẳng vào primary, giữ
      lại tên biến vì còn hàng chục chỗ dùng `--c-accent*` trong App.tsx. */
@@ -415,6 +424,11 @@
     --c-primary-line-2: #445397;
     --c-primary-rgb: 110, 168, 254;
 
+    /* Sao "ghim / ưa thích" — vàng-gold tươi trên nền tối, xem chú thích bản sáng. Lệch --c-warn-icon
+       bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
+    --c-fav: #facc15;
+    --c-fav-soft: #2c2411;
+
     --c-accent: var(--c-primary);
     --c-accent-deep: var(--c-primary-strong);
     --c-accent-soft: var(--c-primary-soft);
@@ -501,6 +515,11 @@
   --c-primary-line: #33407a;
   --c-primary-line-2: #445397;
   --c-primary-rgb: 110, 168, 254;
+
+  /* Sao "ghim / ưa thích" — vàng-gold tươi trên nền tối, xem chú thích bản sáng. Lệch --c-warn-icon
+     bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
+  --c-fav: #facc15;
+  --c-fav-soft: #2c2411;
 
   --c-accent: var(--c-primary);
   --c-accent-deep: var(--c-primary-strong);

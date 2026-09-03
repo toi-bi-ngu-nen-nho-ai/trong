@@ -293,11 +293,21 @@ const icons = {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
-  // Sao "ghim" cho hàng tab / danh sách nhảy nhóm — KHÔNG khoá màu hổ phách như icons.star() (hổ
-  // phách là họ token cảnh báo lâm sàng riêng, không dùng cho chrome điều hướng — xem DESIGN.md
-  // "Untouchable Signal Rule"). Ăn theo currentColor để nơi gọi tự đặt màu bật/tắt.
-  starPin: () => (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+  // Sao "ghim / ưa thích" cho hàng tab + danh sách nhảy nhóm. Hai hình theo trạng thái:
+  //   filled=false → viền rỗng (chưa ghim), nơi gọi tô `currentColor` mờ (--c-text-soft).
+  //   filled=true  → tô đặc (đã ghim), nơi gọi tô VÀNG `--c-fav`.
+  // KHÔNG dùng icons.star() ở đây: icons.star() khoá cứng `--c-warn-icon` (họ token cảnh báo lâm
+  // sàng — DESIGN.md "Untouchable Signal Rule"). Vàng ưa thích là token RIÊNG `--c-fav`, sắc lệch hẳn
+  // hổ phách cảnh báo. Ăn theo currentColor để nơi gọi đặt màu bật/tắt.
+  starPin: (filled: boolean) => (
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={filled ? 0 : 1.8}
+      strokeLinejoin="round"
+      className="w-3.5 h-3.5"
+    >
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
@@ -11969,10 +11979,9 @@ export function DungThuocScreen({
                       </p>
                     </button>
                     {/* Nút ghim — CÙNG hệ màu bật/tắt với nút ghim trên hàng tab chính (xem chú thích
-                        ở đó), giữ nhất quán mẫu hình giữa hai nơi. Tắt: nền `line-soft` + sao
-                        `text-soft` (đọc như một chip xám đang nghỉ trong hàng). Bật: nền `primary-soft`
-                        + viền `primary-line` + sao `primary` — hai tín hiệu dư (nền + màu icon), không
-                        còn dựa vào opacity, không còn hổ phách (họ token cảnh báo lâm sàng). */}
+                        ở đó). Tắt: nền `line-soft` + sao VIỀN RỖNG `text-soft` (đọc như một chip xám
+                        đang nghỉ). Bật: nền `fav-soft` (kem ấm) + viền `fav` + sao TÔ ĐẶC VÀNG `fav`.
+                        Bốn tín hiệu dư (nền, viền, đặc/rỗng, màu sao) — không dựa vào opacity. */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -11981,13 +11990,13 @@ export function DungThuocScreen({
                       className={`flex-none w-9 h-9 mr-1 ${R.pill} border flex items-center justify-center`}
                       style={
                         pinnedTabIds.includes(t.id)
-                          ? { background: C.primarySoft, borderColor: C.primaryLine, color: C.primary }
+                          ? { background: C.favSoft, borderColor: C.fav, color: C.fav }
                           : { background: C.lineSoft, borderColor: "transparent", color: C.textSoft }
                       }
                       aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.search}` : `Ghim nhóm ${t.search} lên đầu hàng`}
                       aria-pressed={pinnedTabIds.includes(t.id)}
                     >
-                      {icons.starPin()}
+                      {icons.starPin(pinnedTabIds.includes(t.id))}
                     </button>
                   </div>
                 ))}
@@ -12065,14 +12074,15 @@ export function DungThuocScreen({
                   sao ở đây là đủ để ghim nó lên đầu hàng ngay lập tức, không phải chờ MRU hội tụ qua
                   nhiều ca trực (/impeccable critique 2026-09-01, P2).
 
-                  Hệ màu bật/tắt (chủ dự án 2026-09-03: "màu on/off quá tệ, nút tách ra riêng"):
-                  dùng ĐÚNG ngôn ngữ màu của chip trong hàng — TẮT = nền `line-soft` + sao `text-soft`
-                  (như một chip chưa chọn đang nghỉ, hoà vào hàng thay vì là chấm tròn đặc nổi bật);
-                  BẬT = nền `primary-soft` + viền `primary-line` + sao `primary` (thanh ghi rõ "đang
-                  giữ", ở tông MỀM của thương hiệu nên không đấu với chip đang chọn nền `primary` đặc
-                  ngay bên cạnh). Hai tín hiệu dư (nền + màu icon), bỏ hẳn mẹo opacity mờ/đậm và màu
-                  hổ phách `--c-warn-icon` cũ (hổ phách là họ token cảnh báo lâm sàng — DESIGN.md
-                  "Untouchable Signal Rule", không dùng cho chrome điều hướng). */}
+                  Hệ màu bật/tắt (chủ dự án 2026-09-03: sao ưa thích PHẢI là màu VÀNG):
+                  TẮT = nền `line-soft` + sao VIỀN RỖNG `text-soft` (một chip xám đang nghỉ, hoà vào
+                  hàng, chưa ghim nên sao rỗng). BẬT = nền `fav-soft` (kem ấm) + viền `fav` + sao TÔ
+                  ĐẶC màu VÀNG `fav` — bốn tín hiệu dư (nền, viền, đặc/rỗng, màu sao), không dựa vào
+                  opacity. `--c-fav` là token VÀNG RIÊNG, tách khỏi họ `--c-warn*` cảnh báo lâm sàng
+                  (sắc lệch hẳn hổ phách, xem chú thích trong index.css) — sao đặc + hình sao là dấu
+                  hiệu "ưa thích" phổ quát, đặt trong hàng tab (vùng chrome) nên không lẫn với cảnh báo
+                  trên thẻ liều. Bản sáng buộc là gold ĐẬM (`#a16207`) mới đạt ≥3:1 lúc tô đặc trên nền
+                  nhạt; bản tối là `#facc15` vàng-chanh tươi. */}
               {tab === t.id && (
                 <button
                   onClick={(e) => {
@@ -12082,13 +12092,13 @@ export function DungThuocScreen({
                   className={`flex-none w-9 h-9 ${R.pill} border flex items-center justify-center`}
                   style={
                     pinnedTabIds.includes(t.id)
-                      ? { background: C.primarySoft, borderColor: C.primaryLine, color: C.primary }
+                      ? { background: C.favSoft, borderColor: C.fav, color: C.fav }
                       : { background: C.lineSoft, borderColor: "transparent", color: C.textSoft }
                   }
                   aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.label}` : `Ghim nhóm ${t.label} lên đầu hàng`}
                   aria-pressed={pinnedTabIds.includes(t.id)}
                 >
-                  {icons.starPin()}
+                  {icons.starPin(pinnedTabIds.includes(t.id))}
                 </button>
               )}
             </div>

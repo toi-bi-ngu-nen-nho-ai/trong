@@ -97,6 +97,9 @@ export const C = {
   warnIcon: "var(--c-warn-icon)",
   warnSoft: "var(--c-warn-soft)",
   warnLine: "var(--c-warn-line)",
+  // Vàng "ghim / ưa thích" — accent trang trí, TÁCH khỏi họ warn (xem chú thích --c-fav trong index.css).
+  fav: "var(--c-fav)",
+  favSoft: "var(--c-fav-soft)",
   text: "var(--c-text)",
   textSoft: "var(--c-text-soft)",
   muted: "var(--c-muted)",
