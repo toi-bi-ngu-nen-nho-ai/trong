@@ -42,10 +42,20 @@ export function BoardGallery({
   dangHienTab,
   moBangYeuCau,
   onMoBangYeuCauXong,
+  onDangMoBang,
 }: {
   dangHienTab: boolean
   moBangYeuCau?: string
   onMoBangYeuCauXong?: () => void
+  /**
+   * Báo lên App "đang có bảng mở và đang nhìn thấy nó", để App ẩn thanh điều hướng dưới (chủ dự án
+   * yêu cầu 2026-09-03: dùng sơ đồ thì bỏ nav, bảng vẽ chiếm trọn màn).
+   *
+   * PHẢI nhân với `dangHienTab`: component này KHÔNG tháo bảng khi rời tab Mindmap (chỉ
+   * `invisible pointer-events-none`, xem chỗ render bên dưới), nên `openBoardId` vẫn còn nguyên
+   * khi người dùng sang tab khác. Báo `true` lúc đó là thanh nav biến mất ở MỌI tab.
+   */
+  onDangMoBang?: (dangMo: boolean) => void
 }) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
   // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm (xem BoardOpenOrigin, DanhSachBang.tsx) —
@@ -286,6 +296,15 @@ export function BoardGallery({
   // thường. Không có nhánh này thì mạng yếu/thiết bị cũ/lần mở đầu chưa cache chunk BlockSuite chỉ
   // thấy hoạt ảnh trang trí lặp vô hạn, không cách nào phân biệt "đang tải" với "đã treo" (critique
   // 2026-09-01, P2).
+  // Báo trạng thái "đang xem một bảng" lên App. Effect chứ không gọi thẳng trong render: đây là
+  // tác dụng phụ ra ngoài component. Dọn về `false` khi tháo, nếu không thanh nav mất vĩnh viễn khi
+  // App tháo BoardGallery lúc bảng còn mở.
+  const dangXemBang = openBoardId !== null && dangHienTab
+  useEffect(() => {
+    onDangMoBang?.(dangXemBang)
+    return () => onDangMoBang?.(false)
+  }, [dangXemBang, onDangMoBang])
+
   const [choLau, setChoLau] = useState(false)
   useEffect(() => {
     if (!openBoardId || !(dangChoCanvas || dangPhongTo)) {

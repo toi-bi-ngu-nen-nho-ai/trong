@@ -12660,6 +12660,14 @@ export default function App() {
   }
 
   const isDetailScreen = NON_TAB_SCREENS.includes(screen)
+  // Bảng sơ đồ KHÔNG phải một "screen" (nó sống trong tab Mindmap, do BoardGallery tự quản) nên
+  // `NON_TAB_SCREENS` không với tới được — App chỉ biết có bảng đang mở nhờ tín hiệu BoardGallery
+  // báo lên. Chủ dự án yêu cầu 2026-09-03: đang dùng sơ đồ thì ẩn thanh nav, ở mọi khung màn.
+  const [bangDangMo, setBangDangMo] = useState(false)
+  // Một biến duy nhất cho MỌI chỗ phụ thuộc "có thanh nav hay không" — thanh nav, lớp `has-nav` của
+  // main, và hai dải nổi (UpdateBanner + dải báo đọc hỏng) vốn tự đẩy mình lên trên thanh nav. Bỏ
+  // sót một chỗ là dải nổi lơ lửng giữa không trung ở đúng chiều cao của một thanh nav không còn.
+  const anThanhNav = isDetailScreen || bangDangMo
 
   return (
     <div
@@ -12752,7 +12760,7 @@ export default function App() {
         {/* `relative`: mốc neo cho thẻ bọc bảng vẽ ngay bên dưới, thứ phải nằm ĐÚNG khung của main
             kể cả khi màn hình khác đang hiển thị. Không có nó, thẻ bọc `absolute inset-0` kia sẽ
             neo lên #app-shell và đổi kích thước mỗi lần ẩn/hiện — đúng thứ làm mất zoom. */}
-        <main className={`relative flex-1 overflow-hidden${isDetailScreen ? "" : " has-nav"}`}>
+        <main className={`relative flex-1 overflow-hidden${anThanhNav ? "" : " has-nav"}`}>
           {screen === "home" && <HomeScreen onNavigate={navigate} ecgCount={allEcgLessons.length} recentReads={recentReadItems} />}
           {screen === "library" && <LibraryScreen onNavigate={navigate} customArticles={customArticlesCol.items} />}
           {screen === "search" && (
@@ -12779,6 +12787,7 @@ export default function App() {
             dangHienTab={screen === "mindmap"}
             moBangYeuCau={moBangYeuCau}
             onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
+            onDangMoBang={setBangDangMo}
           />
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
           {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
@@ -12914,7 +12923,7 @@ export default function App() {
             sau nó không bao giờ có gì để "làm mờ" cả, nên blur() trước đây chỉ là hiệu ứng treo
             không tác dụng, bỏ đi cho nhẹ. (Nguyên nhân thật của dải trống dưới nav hoá ra không nằm
             ở đây — xem `apple-mobile-web-app-status-bar-style` đã bỏ trong index.html.) */}
-        {!isDetailScreen && (
+        {!anThanhNav && (
           <nav
             className="flex-none"
             aria-label="Điều hướng chính"
@@ -12975,7 +12984,7 @@ export default function App() {
         {/* Ở màn chi tiết KHÔNG có thanh nav để tự "nuốt" giùm vùng thanh gạt Home, nên phải cộng
             tay `--safe-bottom` vào đây — nếu không, dải này sẽ nổi quá thấp, lấn vào đúng vùng
             thanh gạt trên iPhone toàn màn hình. */}
-        <UpdateBanner offsetBottom={isDetailScreen ? "var(--above-safe)" : "var(--above-nav)"} />
+        <UpdateBanner offsetBottom={anThanhNav ? "var(--above-safe)" : "var(--above-nav)"} />
 
         {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: cả bài viết lẫn bài học ECG dùng
             CHUNG một IndexedDB, hỏng thì hỏng cùng lúc, và người dùng có thể đang ở bất kỳ tab nào.
@@ -12989,7 +12998,7 @@ export default function App() {
             data-testid="dai-loi-doc-idb"
             className="absolute left-3 right-3 z-40 flex items-start gap-2.5 px-4 py-3 rounded-2xl"
             style={{
-              bottom: isDetailScreen ? "var(--above-safe)" : "var(--above-nav)",
+              bottom: anThanhNav ? "var(--above-safe)" : "var(--above-nav)",
               background: "var(--c-warn-soft, #fffbeb)",
               border: "1px solid var(--c-warn-line, #fde68a)",
               color: "var(--c-warn, #92400e)",
