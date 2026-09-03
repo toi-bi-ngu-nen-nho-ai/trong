@@ -206,6 +206,44 @@ describe('DongNaoTemplateManager', () => {
 
   // Chốt khổ từng mẫu. Khổ là MẪU SỐ của tỉ số trên, nên một lượt sinh lại làm mẫu phình ra sẽ kéo
   // tụt cỡ chữ trên màn của MỌI phần tử cùng lúc — ca này chỉ đúng tên thủ phạm sớm hơn.
+  // ═══ HỘP CHỮ vs BỀ RỘNG CHỮ Ở PHÔNG DỰ PHÒNG ═══
+  //
+  // LỖI GỐC (người dùng báo 2026-09-03): bảy nhãn cột trái của 5W2H hiện ra bị BẺ GIỮA TỪ —
+  // "Who" → "Wh"/"o", "What" → "Wha"/"t", "where" → "wher"/"e", "How much" → "How"/"much".
+  //
+  // Chuỗi nhân quả: `w` trong snapshot thượng nguồn CHÍNH LÀ bề rộng chữ AFFiNE đo được bằng phông
+  // thật của nó (Kalam, tải từ `cdn.affine.pro`). App này chỉ tự chứa DUY NHẤT họ Inter
+  // (`src/board/phong-chu-bang.ts` — quyết định có chủ đích để chạy ngoại tuyến), nên
+  // `getFontString()` của bộ vẽ (`gfx/text/src/element-renderer/utils.ts`) sinh ra
+  // `"blocksuite:surface:Kalam", sans-serif` và trình duyệt rơi thẳng về phông sans-serif hệ thống
+  // — RỘNG HƠN Kalam 11–23 %. `wrapText` so bề rộng đo được với `w` đã lưu, thấy tràn, và vì nhãn
+  // chỉ có MỘT từ nên chỗ ngắt rơi vào giữa từ. Đo trên trình duyệt thật 2026-09-03: cả bảy nhãn
+  // chỉ vừa 0,81–0,90 lần hộp của chúng.
+  //
+  // BẢN VÁ: căn PHẢI và kéo hộp về bên trái tới bề rộng cố định, giữ nguyên mép phải mà thượng
+  // nguồn đã đặt. Hộp rộng hơn hẳn chữ ⇒ cách ngắt dòng thôi phụ thuộc phông dự phòng của nền tảng.
+  // Ngưỡng 720 lấy từ số đo thật: nhãn dài nhất ("How much" cỡ 128) cần 565–677 px trên chín phông
+  // sans-serif hệ thống phổ biến (rộng nhất là Verdana 677), sáu nhãn một-từ cần ≤ 393 px.
+  it('bảy nhãn cột trái của 5W2H căn phải, chung mép phải, hộp đủ rộng cho mọi phông dự phòng', () => {
+    const j = JSON.parse(docTep('5w2h'))
+    const mp = j.content.blocks.children.find((c: { flavour: string }) => c.flavour === 'affine:surface')
+    const nhan = (Object.values(mp.props.elements) as Record<string, never>[])
+      .map((e) => e as unknown as { type: string; fontSize?: number; textAlign?: string; xywh: string })
+      .filter((e) => e.type === 'text' && e.fontSize === 128)
+    expect(nhan, 'số nhãn cột trái của 5W2H').toHaveLength(7)
+
+    const mepPhai = new Set<number>()
+    for (const e of nhan) {
+      const [x, , w] = JSON.parse(e.xywh) as number[]
+      expect(e.textAlign, `nhãn ${e.xywh} phải căn phải`).toBe('right')
+      expect(w, `hộp nhãn ${e.xywh} phải rộng ≥ 720`).toBeGreaterThanOrEqual(720)
+      mepPhai.add(x + w)
+    }
+    // Mép phải chung là thứ giữ cột nhãn thẳng hàng như thượng nguồn — nới hộp về TRÁI mới không
+    // xê dịch chữ; nới về phải là đẩy nhãn vào sát các ô giải thích.
+    expect([...mepPhai], 'bảy nhãn phải chung một mép phải').toHaveLength(1)
+  })
+
   it('khổ từng mẫu đúng như lượt sinh đã chốt', () => {
     const CHOT: Record<string, [number, number]> = {
       '5w2h': [3215, 1924],

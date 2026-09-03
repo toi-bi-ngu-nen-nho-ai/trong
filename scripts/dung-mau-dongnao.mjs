@@ -121,7 +121,11 @@ function dichCay(nut, thieu) {
 //   | SMART           | 7279×1553   | 0,170             | thân bài 5,4 px             |
 //   | Sơ đồ khái niệm | 8026×2334   | 0,155             | 7,4–9,9 px                  |
 //   | SWOT            | 4304×2009   | 0,288             | tiêu đề bốn ô 18,4 px       |
-//   | 5W2H            | 3215×1924   | 0,365             | 13–14 px — ĐẠT, không đụng  |
+//   | 5W2H            | 3215×1924   | 0,365             | 13–14 px — ĐẠT, không đụng* |
+//
+// (*) 5W2H không cần chỉnh CỠ CHỮ, nhưng vẫn có mục trong BO_CUC: bảy nhãn cột trái của nó có hộp
+// HẸP HƠN bề rộng chữ ở phông dự phòng nên bị bẻ giữa từ. Đó là trục thứ ba, độc lập với tỉ lệ
+// chữ/khổ mẫu — xem chú thích của `boCuc5W2H`.
 //
 // Riêng Lưu đồ còn một LỖI THẬT chứ không chỉ là lựa chọn thẩm mỹ: 14 hình của nó KHÔNG có prop
 // `fontSize` trong snapshot thượng nguồn, nên rơi về mặc định `ShapeTextFontSize.MEDIUM = 20`
@@ -323,6 +327,66 @@ function boCucSwot(snap) {
 }
 
 /**
+ * 5W2H. Tỉ lệ chữ/khổ mẫu của mẫu này ĐÃ ĐẠT (13–14 px sau khi chèn) nên không đụng tới cỡ chữ.
+ * Lượt này chữa một lỗi KHÁC HẲN, người dùng báo 2026-09-03: bảy nhãn cột trái bị BẺ GIỮA TỪ —
+ * "Who" → "Wh"/"o", "What" → "Wha"/"t", "where" → "wher"/"e", "How much" → "How"/"much".
+ *
+ * NGUYÊN NHÂN GỐC — không phải lỗi bố cục, mà là PHÔNG. `w` thượng nguồn chính là bề rộng chữ mà
+ * AFFiNE đo được BẰNG PHÔNG THẬT của nó (Kalam, tải từ `cdn.affine.pro`). App này cố ý chỉ tự chứa
+ * DUY NHẤT họ Inter (`src/board/phong-chu-bang.ts` — để chạy được ngoại tuyến), nên
+ * `getFontString()` của bộ vẽ (`gfx/text/src/element-renderer/utils.ts:105`) sinh ra
+ * `"blocksuite:surface:Kalam", sans-serif` và trình duyệt rơi thẳng về phông sans-serif hệ thống —
+ * RỘNG HƠN Kalam 11–23 %. `wrapText` so bề rộng thật với `w` đã lưu, thấy tràn, và vì nhãn chỉ có
+ * MỘT từ nên chỗ ngắt rơi vào giữa từ. Cùng lớp lỗi với nhãn "K/h/ô/n/g" của Lưu đồ, chỉ khác là ở
+ * đây chính THƯỢNG NGUỒN đúng còn ta sai — nên không sửa được bằng cách nhân hệ số.
+ *
+ * Đo trên trình duyệt thật 2026-09-03 (cả năm mẫu, mọi khối chữ một dòng): chỉ bảy nhãn này tràn,
+ * ở mức 0,81–0,90 lần hộp. Mọi phần tử còn lại của cả năm mẫu đều dư chỗ.
+ *
+ * BẢN VÁ: căn PHẢI rồi kéo hộp về BÊN TRÁI tới một bề rộng cố định, GIỮ NGUYÊN mép phải thượng
+ * nguồn. Hai lý do chọn hướng này thay vì nhân `w` lên:
+ *   • bảy nhãn thượng nguồn thẳng hàng theo MÉP PHẢI (x + w giống hệt nhau tới 1e-12) chứ không
+ *     theo mép trái — nới sang phải là đẩy nhãn vào sát các ô giải thích.
+ *   • hộp rộng gấp nhiều lần chữ thì cách ngắt dòng thôi phụ thuộc phông dự phòng của nền tảng —
+ *     thứ ta không điều khiển được và khác nhau giữa Windows / Android / iOS.
+ *
+ * BỀ RỘNG 720 lấy từ số đo thật chứ không phải hệ số: nhãn dài nhất ("How much" cỡ 128) cần
+ * 565–677 px trên chín phông sans-serif hệ thống phổ biến (rộng nhất Verdana 677), sáu nhãn một-từ
+ * cần ≤ 393 px. 720 phủ cả trường hợp xấu nhất mà vẫn cách mép phải bảng "Hướng dẫn" 21 px — biên
+ * đó được `canDung` bên dưới canh, vì ba nhãn trên cùng nằm ngang tầm bảng.
+ *
+ * Khổ mẫu KHÔNG đổi: mép trái mới (−987) vẫn nằm trong bao của bảng hướng dẫn (−1943).
+ */
+function boCuc5W2H(snap) {
+  const pt = phanTu(snap)
+  const nhan = pt.filter((e) => e.type === 'text' && e.fontSize === 128)
+  canDung(nhan.length === 7, `5W2H phải có 7 nhãn cột trái cỡ 128, thấy ${nhan.length}`)
+
+  const mepPhai = nhan.map((e) => {
+    const [x, , w] = doXywh(e)
+    return x + w
+  })
+  const lech = Math.max(...mepPhai) - Math.min(...mepPhai)
+  canDung(lech < 0.01, `7 nhãn 5W2H phải chung một mép phải, lệch ${lech.toFixed(2)}`)
+  const MEP_PHAI = mepPhai[0]
+
+  const W = 720
+  const bang = pt.find((e) => e.type === 'shape' && chuTrongHinh(e) === '' && doXywh(e)[2] > 900)
+  canDung(bang != null, 'không tìm được khối nền bảng "Hướng dẫn" của 5W2H')
+  const [xBang, , wBang] = doXywh(bang)
+  canDung(
+    MEP_PHAI - W > xBang + wBang,
+    `hộp nhãn 5W2H rộng ${W} sẽ đè lên bảng "Hướng dẫn" (mép phải bảng ${(xBang + wBang).toFixed(1)})`,
+  )
+
+  for (const e of nhan) {
+    const [, y, , h] = doXywh(e)
+    e.textAlign = 'right'
+    datXywh(e, MEP_PHAI - W, y, W, h)
+  }
+}
+
+/**
  * Sơ đồ khái niệm. Khổ 8026×2334 bị chặn theo BỀ NGANG rất nặng (0,155 so với 0,301 theo chiều cao)
  * — đúng dạng mà THU KHỔ ăn tiền: bảng "Hướng dẫn" 1030 px nằm ở cạnh trái, dời nó LÊN TRÊN hai
  * khung sơ đồ cắt bề ngang còn 6787 (zoom 0,183, +18 %) mà chiều cao mới 3718 vẫn chưa thành cạnh
@@ -455,6 +519,7 @@ function boCucSmart(snap) {
 }
 
 const BO_CUC = {
+  '5w2h': boCuc5W2H,
   'concept-map': boCucSoDoKhaiNiem,
   flowchart: boCucLuuDo,
   smart: boCucSmart,
@@ -484,8 +549,9 @@ for (const { tep, slug } of MAU) {
   const noiDung = JSON.parse(await zip.files[tenSnapshot].async('text'))
   dichCay(noiDung, thieu)
   const soKhungBu = buChildElementIds(noiDung)
-  // Phép rửa thứ ba (xem khối chú thích "TỈ LỆ CHỮ / KHỔ MẪU"). Chỉ những mẫu có mục trong BO_CUC;
-  // 5W2H không có vì đo được đã đạt 13–14 px sau khi chèn.
+  // Phép rửa thứ ba (xem khối chú thích "TỈ LỆ CHỮ / KHỔ MẪU"). Cả năm mẫu đều có mục trong BO_CUC,
+  // nhưng 5W2H vào đây vì lý do KHÁC bốn mẫu kia: cỡ chữ của nó đã đạt, chỗ hỏng là hộp chữ hẹp hơn
+  // bề rộng chữ ở phông dự phòng (xem chú thích của boCuc5W2H).
   if (BO_CUC[slug]) BO_CUC[slug](noiDung)
 
   const tenHienThi = BANG_DICH._ten[tep]
