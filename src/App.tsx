@@ -12352,8 +12352,6 @@ export default function App() {
     vasodilator: useLocalCollection<InfusionDrug>(infusionCategory("vasodilator").storageKey),
     arrhythmia: useLocalCollection<InfusionDrug>(infusionCategory("arrhythmia").storageKey),
     electrolyte: useLocalCollection<InfusionDrug>(infusionCategory("electrolyte").storageKey),
-    sedation: useLocalCollection<InfusionDrug>(infusionCategory("sedation").storageKey),
-    neuro: useLocalCollection<InfusionDrug>(infusionCategory("neuro").storageKey),
     other: useLocalCollection<InfusionDrug>(infusionCategory("other").storageKey),
     antidote: useLocalCollection<InfusionDrug>(infusionCategory("antidote").storageKey),
   }
