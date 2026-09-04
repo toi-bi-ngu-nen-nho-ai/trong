@@ -97,16 +97,32 @@ liên kết (thẻ liên kết không lấy được tiêu đề/mô tả/biểu
 CORS). Script `doi-ten-vendor.mjs` CÓ cơ chế che (`sourceMappingURL`) nhưng không có guard nào cho
 hostname.
 
-**Vì sao KHÔNG tự sửa — đây là quyết định sản phẩm, không phải quyết định kỹ thuật.** Khôi phục tên
-miền gốc nghĩa là MỖI liên kết bác sĩ dán vào bảng sẽ được gửi tới một worker của bên thứ ba
-(`toeverything.workers.dev` là hạ tầng của AFFiNE) để lấy bản xem trước. Với một app y khoa, lỗi
-tình cờ này đang vô tình đóng vai một lớp bảo vệ riêng tư. Ba hướng, chủ dự án chọn:
-1. **Giữ nguyên (chết im lặng)** — nhưng nên chặn hẳn lời gọi để console khỏi đỏ mỗi lần tạo thẻ.
-2. **Khôi phục tên miền thượng nguồn** — thẻ liên kết đẹp hơn, đổi lại URL người dùng dán rời máy.
-3. **Tự dựng endpoint riêng** — giữ dữ liệu trong tầm kiểm soát, tốn một hạ tầng nhỏ.
+**CHỦ DỰ ÁN ĐÃ CHỌN 2026-09-05: "không muốn có bên thứ ba — chỉ lưu trữ nội bộ."** Tức hướng 1, và
+làm cho đúng: chặn hẳn lời gọi chứ không để nó chết ồn ào. Khôi phục tên miền gốc đã bị loại — nó
+nghĩa là mỗi URL bác sĩ dán vào bảng sẽ rời máy tới hạ tầng của AFFiNE.
 
-Dù chọn hướng nào cũng nên thêm một guard trong `doi-ten-vendor.mjs` để lượt đổi tên sau không âm
-thầm viết lại một URL nữa.
+Quét lại toàn cây khi triển khai thì bề mặt rộng hơn hai endpoint này nhiều — **ít nhất TÁM điểm gọi
+mạng**, trong đó `link-preview-service.ts:86` gọi thẳng `https://api.fxtwitter.com` **viết cứng**,
+không endpoint nào cấu hình tới được. Vá từng điểm là mong manh: D11 cấm sửa cây vendored, và bản
+nâng cấp sau sẽ thêm điểm mới mà không ai hay.
+
+**Đã triển khai — ba lớp, xem `src/board/khong-ben-thu-ba.ts` và chú thích CSP trong `index.html`:**
+1. **CSP `connect-src 'self'; img-src 'self' data: blob:`** — lớp DUY NHẤT trình duyệt cưỡng chế,
+   phủ cả những điểm chưa ai biết. Cố ý KHÔNG khai `script-src`/`style-src` (khai là giết script nội
+   tuyến của Vite và của khối phân giải chủ đề), cũng KHÔNG khai `frame-src` (khối nhúng là nội dung
+   bác sĩ chủ động dán — muốn siết tuyệt đối thì thêm `frame-src 'none'`, đổi lại thẻ nhúng thành ô
+   trống).
+2. **`khongXemTruocQuaMang`** ghi đè `LinkPreviewProvider` ở CẢ HAI bộ extension — không phát lời gọi
+   nào, nên không có gì để CSP phải chặn và console sạch.
+3. **`docNhanTuUrl`** suy nhan đề từ chính URL (`/wiki/Suy_tim` → "Suy tim" + "vi.wikipedia.org"),
+   nên thẻ vẫn đọc được mà không tốn một byte mạng.
+
+Ca kiểm `khong-ben-thu-ba.spec.ts` canh cả ba, gồm một bẫy `fetch` toàn cục khẳng định KHÔNG lời gọi
+nào được phát. Đã chứng minh đỏ khi gỡ bản vá.
+
+**CÒN NỢ:** thêm guard hostname trong `doi-ten-vendor.mjs` để lượt đổi tên sau không âm thầm viết lại
+một URL nữa. Bản thân hai hằng số vẫn mang tên miền `drt-worker` vô nghĩa — vô hại vì đã có ba lớp
+trên, nhưng nó là dấu vết của đúng lỗi này và nên được dọn cùng lúc với guard.
 
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 

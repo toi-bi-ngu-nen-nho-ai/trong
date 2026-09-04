@@ -88,6 +88,7 @@ import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 
 import { banPhimAoTrang } from './ban-phim-ao'
 import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
+import { khongXemTruocQuaMang } from './khong-ben-thu-ba'
 import { phongChuBangExtension } from './phong-chu-bang'
 import { timNhanhLienKet } from './tim-nhanh-lien-ket'
 
@@ -183,7 +184,13 @@ const viewManager = new ViewExtensionManager(viewExtensions)
  * ngay dòng đầu và nút không làm gì — xem ./tim-nhanh-lien-ket.ts.
  */
 export function layExtensionsEdgeless() {
-  return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension, timNhanhLienKet]
+  return [
+    ...viewManager.get('edgeless'),
+    cheDoEdgeless,
+    phongChuBangExtension,
+    timNhanhLienKet,
+    khongXemTruocQuaMang,
+  ]
 }
 
 /**
@@ -206,5 +213,14 @@ export function layExtensionsEdgeless() {
  * đầy đủ và lý do provider tĩnh là đúng.
  */
 export function layExtensionsTrang() {
-  return [...viewManager.get('page'), cheDoTrang, phongChuBangExtension, banPhimAoTrang]
+  return [
+    ...viewManager.get('page'),
+    cheDoTrang,
+    phongChuBangExtension,
+    banPhimAoTrang,
+    // `khongXemTruocQuaMang` có ở CẢ HAI bộ, khác `timNhanhLienKet`/`banPhimAoTrang` vốn hẹp theo
+    // chế độ: thẻ liên kết sống được ở cả bảng vẽ lẫn bài viết, nên đường xem trước phải bị chặn ở
+    // cả hai. Xem ./khong-ben-thu-ba.ts.
+    khongXemTruocQuaMang,
+  ]
 }

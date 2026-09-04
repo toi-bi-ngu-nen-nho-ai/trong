@@ -7,6 +7,30 @@
          con số tốc độ bơm. Nguyên nhân gốc khiến người ta hay chặn zoom (iOS tự phóng khi chạm ô
          nhập) đã được xử lý bằng cách để cỡ chữ ô nhập ≥ 16px, xem index.css. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- ─── KHÔNG BÊN THỨ BA (chủ dự án chốt 2026-09-05) ────────────────────────────────────────
+         Đây là sổ tay lâm sàng: URL bác sĩ dán vào bảng, ảnh trong bệnh án, tên tệp — không thứ nào
+         được rời máy. Cây BlockSuite vendored có ÍT NHẤT tám điểm gọi mạng ra ngoài (đếm 2026-09-05:
+         link-preview-service.ts:113 và :86 — cái sau gọi thẳng `api.fxtwitter.com` VIẾT CỨNG, không
+         qua endpoint cấu hình được; embed-{github,loom,youtube}/utils.ts; embed-iframe-service.ts:122;
+         adapters/utils/fetch.ts:15; attachment/adapters/notion-html.ts:66). Vá từng điểm là mong
+         manh — D11 cấm sửa cây vendored, và bản nâng cấp sau sẽ thêm điểm mới mà không ai hay.
+         CSP là lớp DUY NHẤT cưỡng chế được: trình duyệt chặn, không phải JS tự hứa.
+
+         CỐ Ý CHỈ KHAI HAI CHỈ THỊ:
+         - `connect-src 'self'` — chặn mọi fetch/XHR/WebSocket/beacon ra khác nguồn. Mọi lời gọi của
+           chính app đều là đường dẫn tương đối cùng nguồn (`/static/templates/…`, xem mau-dongnao.ts
+           và mau-handy.ts) nên không gãy gì. Vite HMR dùng ws cùng nguồn, cũng qua.
+         - `img-src 'self' data: blob:` — ảnh chỉ từ máy mình, `data:` cho ảnh nội tuyến, `blob:` cho
+           ảnh người dùng dán vào kho blob. Chặn luôn đường "tải ảnh từ URL ngoài" ngầm.
+         KHÔNG khai `script-src`/`style-src`: script nội tuyến ngay dưới đây và của Vite sẽ chết,
+         đổi một rủi ro riêng tư lấy một app trắng màn hình.
+         KHÔNG khai `frame-src`: khối nhúng là nội dung bác sĩ CHỦ ĐỘNG dán và muốn xem, khác hẳn
+         lời gọi ngầm sau lưng. Muốn siết tuyệt đối thì thêm `frame-src 'none'` — đổi lại thẻ nhúng
+         thành ô trống. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="connect-src 'self'; img-src 'self' data: blob:"
+    />
     <title>Bác sĩ Trọng — Sổ tay lâm sàng</title>
     <meta name="description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
     <link rel="manifest" href="/manifest.json" />
