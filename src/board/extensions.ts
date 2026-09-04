@@ -89,6 +89,7 @@ import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { banPhimAoTrang } from './ban-phim-ao'
 import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
 import { phongChuBangExtension } from './phong-chu-bang'
+import { timNhanhLienKet } from './tim-nhanh-lien-ket'
 
 export const viewExtensions = [
   FoundationViewExtension,
@@ -175,8 +176,14 @@ const viewManager = new ViewExtensionManager(viewExtensions)
  * FontFace nào mang tên họ `blocksuite:surface:*` và MỌI ô chọn phông/kiểu chữ mở ra đều rỗng. Xem
  * ./phong-chu-bang.ts.
  */
+/**
+ * `timNhanhLienKet` CHỈ có ở đây, không có ở `layExtensionsTrang()`: nút "Liên kết" sống trong
+ * `gfx/note/src/toolbar/note-menu.ts` (thanh công cụ Ghi chú của bảng vẽ) và `QuickSearchProvider`
+ * có ĐÚNG MỘT bên tiêu thụ trong cả cây vendored. Thiếu nó thì lệnh thượng nguồn `return` im lặng
+ * ngay dòng đầu và nút không làm gì — xem ./tim-nhanh-lien-ket.ts.
+ */
 export function layExtensionsEdgeless() {
-  return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension]
+  return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension, timNhanhLienKet]
 }
 
 /**

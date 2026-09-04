@@ -22,6 +22,9 @@ Hai nhóm dưới đây KHÁC HẲN NHAU về nghĩa vụ — đừng gộp lạ
 
 ### 1.1 NỢ KỸ THUẬT — cần trả
 
+~~**Nút "Liên kết" trong menu Ghi chú không làm gì.**~~ **ĐÃ VÁ 2026-09-05** — xem mục "Đã vá" ở
+cuối khoản này. Phần mô tả dưới đây giữ nguyên làm hồ sơ chẩn đoán.
+
 **Nút "Liên kết" trong menu Ghi chú không làm gì — khiếm khuyết THẬT, chủ dự án hoãn (2026-08-31).**
 `affine/gfx/note/src/toolbar/note-menu.ts` render một nút Liên kết gọi `insertLinkByQuickSearchCommand`
 (`affine/blocks/bookmark/src/commands/insert-link-by-quick-search.ts`). Dòng đầu của lệnh đó:
@@ -37,12 +40,27 @@ Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`
 bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
 kho tài liệu để tìm.
 
-**Cập nhật 2026-09-05 — nay chỉ còn THIẾU MỘT trong ba.** Chặng page mode (Task 12) đã bật cả
-`BookmarkViewExtension` và `EmbedViewExtension` (`src/board/extensions.ts:108,115`). Khoản còn lại
-đúng một: cấp `QuickSearchProvider`. Khuôn cấp một service mà app chủ phải cung nay đã có sẵn để
-chép — `src/board/ban-phim-ao.ts` (`VirtualKeyboardProvider`, `di.addImpl` trong một `ExtensionType`,
-nối vào `layExtensionsTrang()`). Vẫn PHẢI đo lại dung lượng chunk soạn thảo sau khi bật: hiện
-1.159 kB gzip trên trần 1.400 kB, còn ~240 kB dư địa.
+**ĐÃ VÁ 2026-09-05.** Cả ba điều kiện nay đủ: Task 12 của chặng page mode đã bật
+`BookmarkViewExtension` + `EmbedViewExtension` (`src/board/extensions.ts`), và lượt này cấp
+`QuickSearchProvider` — `src/board/tim-nhanh-lien-ket.ts`, nối vào `layExtensionsEdgeless()`. Đo lại
+dung lượng theo đúng yêu cầu ghi ở trên: chunk soạn thảo 1.159,34 → **1.159,48 kB gzip** (provider
+thêm 0,14 kB), trần 1.400 kB. Ca kiểm `tim-nhanh-lien-ket.spec.ts`.
+
+Một cái bẫy đáng nhớ phát hiện lúc vá: KHÔNG dùng thẳng `toggleEmbedCardCreateModal()` của thượng
+nguồn. Modal ấy có ba đường thoát, nhưng promise nó trả về CHỈ resolve trong `_onConfirm`; bấm nền
+hoặc Escape chỉ gọi `this.remove()`, nên `openQuickSearch()` treo vĩnh viễn khi người dùng huỷ —
+đổi một lỗi im lặng lấy một promise rò rỉ. Bản vá tự dựng modal để giữ tham chiếu rồi móc vào
+`remove()`, điểm chung của cả ba đường.
+
+**MỚI 2026-09-05 — hộp thoại "Chèn liên kết" còn ba chuỗi tiếng Anh (D12).** Chính bản vá trên làm
+lộ ra: `titleText`/`descriptionText` do app truyền nên đã tiếng Việt, nhưng ba chuỗi viết cứng trong
+cây vendored thì chưa — placeholder `Input in https://...` và nút `Confirm`
+(`components/src/embed-card-modal/embed-card-create-modal.ts`), cùng toast `Invalid link` cùng tệp.
+Khảo sát sẵn để phiên sau khỏi dò lại: `Invalid link` chỉ cần MỘT khoá trong `src/board/vi.json` vì
+`toast` đã nằm trong `DOI_SO_HIEN_THI` (bộ duyệt AST bắt được); hai chuỗi kia là chữ TRẦN trong
+template Lit nên cần luật riêng theo đúng khuôn `RE_PLACEHOLDER_BANG_MAU`
+(`scripts/luat-vi-tri-dich.mjs:890-935`), và phải dạy CẢ HAI cổng — `vendor-dich.spec.ts` lẫn
+`kiem-dist.mjs`.
 
 ~~**Bảng Mẫu — chuỗi "Search file or anything..." vẫn tiếng Anh.**~~ **ĐÃ ĐÓNG 2026-09-01**, mục
 này giữ lại để phiên sau khỏi mở điều tra lại. Vị trí dịch đã có:
