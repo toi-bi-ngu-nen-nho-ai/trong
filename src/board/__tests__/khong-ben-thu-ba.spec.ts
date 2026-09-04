@@ -45,6 +45,28 @@ describe('CSP — lưới an toàn do trình duyệt cưỡng chế', () => {
   })
 })
 
+describe('Bản dựng vendored — không endpoint bên thứ ba nào sống sót', () => {
+  const consts = readFileSync('.vendor-build/affine/shared/src/consts/index.js', 'utf8')
+
+  it('hai endpoint worker của AFFiNE đã bị trung hoà thành chuỗi rỗng', () => {
+    // Chuỗi rỗng là đúng thứ thượng nguồn tự hiểu là "không proxy":
+    // `adapters/utils/fetch.ts:3` mở đầu bằng `if (!proxy) return await fetch(url, init)`.
+    expect(consts).toContain("DEFAULT_IMAGE_PROXY_ENDPOINT = ''")
+    expect(consts).toContain("DEFAULT_LINK_PREVIEW_ENDPOINT = ''")
+    expect(consts).not.toContain('workers.dev')
+  })
+
+  it('luật đổi tên KHÔNG viết lại tên miền nào (chốt chặn của doi-ten-vendor.mjs)', () => {
+    // Lỗi gốc 2026-09-05: luật `\baffine-` đổi cả `affine-worker.toeverything.workers.dev` thành
+    // `drt-worker…`, một tên miền không tồn tại — hai endpoint chết vĩnh viễn mà không ai biết.
+    // Ca này canh đúng lớp lỗi đó trên đầu ra thật, độc lập với chốt chặn trong script.
+    const hong = [...consts.matchAll(/https?:\/\/[^"'`\s]+/g)]
+      .map((m) => m[0])
+      .filter((u) => /^https?:\/\/[^/]*drt-/.test(u))
+    expect(hong, 'tên miền không phải định danh mã').toEqual([])
+  })
+})
+
 describe('docNhanTuUrl — nhan đề suy từ chính URL, không gọi mạng', () => {
   it('lấy đoạn cuối đường dẫn làm tiêu đề và tên miền làm mô tả', () => {
     expect(docNhanTuUrl('https://vi.wikipedia.org/wiki/Suy_tim')).toEqual({

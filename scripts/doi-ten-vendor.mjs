@@ -77,6 +77,18 @@ for await (const f of dietJs(BUILD)) {
     return `__DRT_MAP_${khoMap.length - 1}__`
   })
 
+  // Che lượt thứ TƯ: URL TUYỆT ĐỐI. Luật `\baffine-` bên dưới không phân biệt định danh mã với TÊN
+  // MIỀN, nên trước 2026-09-05 nó đã âm thầm đổi
+  // `https://affine-worker.toeverything.workers.dev/api/worker/{image-proxy,link-preview}` thành
+  // `drt-worker…` — một tên miền KHÔNG TỒN TẠI. Hai endpoint chết vĩnh viễn, và không ai biết cho
+  // tới khi nút "Liên kết" được vá và console đỏ CORS. Che URL là bản vá TẬN GỐC: không URL nào
+  // trong cây vendored cần đổi tên (chúng là endpoint bên ngoài và liên kết tài liệu).
+  const khoUrl = []
+  js = js.replace(/https?:\/\/[^\s'"`)\\]+/g, (m) => {
+    khoUrl.push(m)
+    return `__DRT_URL_${khoUrl.length - 1}__`
+  })
+
   // 1. Biến CSS: --affine-xxx → --drt-xxx. Làm trước vì nó cũng khớp luật dưới.
   js = js.replace(/--affine-/g, `--${TIEN_TO}-`)
   // 2. Tên thẻ và class: affine-xxx → drt-xxx.
@@ -86,9 +98,32 @@ for await (const f of dietJs(BUILD)) {
 
   // Trả cả ba kho về nguyên trạng. Thứ tự giữa các lượt trả không quan trọng — ba loại mốc
   // (MAP, PKG, SPEC) không lồng vào nhau và nội dung gốc được trả về không chứa mốc của kho kia.
+  js = js.replace(/__DRT_URL_(\d+)__/g, (_m, i) => khoUrl[Number(i)])
   js = js.replace(/__DRT_MAP_(\d+)__/g, (_m, i) => khoMap[Number(i)])
   js = js.replace(/__DRT_PKG_(\d+)__/g, (_m, i) => khoGoi[Number(i)])
   js = js.replace(/__DRT_SPEC_(\d+)__/g, (_m, i) => kho[Number(i)])
+
+  // ─── Không bên thứ ba (chủ dự án chốt 2026-09-05) ────────────────────────────────────────────
+  // Che URL ở trên trả `affine-worker.toeverything.workers.dev` về NGUYÊN TRẠNG — tức một endpoint
+  // bên thứ ba SỐNG. Đó không phải thứ ta muốn: app này là sổ tay lâm sàng, URL bác sĩ dán và ảnh
+  // trong bệnh án không được rời máy. Trung hoà thành chuỗi rỗng, và chuỗi rỗng là đúng thứ thượng
+  // nguồn tự hiểu là "không proxy": `adapters/utils/fetch.ts:3` mở đầu bằng
+  // `if (!proxy) return await fetch(url, init)`, còn `ImageProxyService.buildUrl` trả URL nguyên
+  // vẹn khi nó `startsWith('')`. `ExportManager` cũng lật `useCORS` sang true khi endpoint rỗng.
+  // Đây là lớp thứ ba, sau CSP trong index.html và bản ghi đè trong src/board/khong-ben-thu-ba.ts.
+  js = js.replace(/https:\/\/affine-worker\.toeverything\.workers\.dev\/api\/worker\/[a-z-]+/g, '')
+
+  // Chốt chặn: sau tất cả, KHÔNG URL nào được mang tiền tố đã đổi tên. Nếu lớp che ở trên hỏng
+  // (đổi regex, thêm hình dạng URL mới), lỗi phải nổ ngay lúc dựng chứ không âm thầm đi vào bản
+  // phát hành rồi chờ một năm sau ai đó bấm trúng.
+  for (const u of js.match(/https?:\/\/[^\s'"`)\\]+/g) ?? []) {
+    if (/^https?:\/\/[^/]*drt-/.test(u)) {
+      throw new Error(
+        `doi-ten-vendor: luật đổi tên đã viết lại một TÊN MIỀN — "${u}" (gặp ở ${f}). ` +
+          `Tên miền không phải định danh mã; xem lớp che __DRT_URL_ ở trên.`,
+      )
+    }
+  }
 
   if (js !== goc) soDoiTen++
 

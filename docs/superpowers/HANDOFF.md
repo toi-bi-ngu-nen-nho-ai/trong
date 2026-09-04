@@ -120,9 +120,20 @@ nâng cấp sau sẽ thêm điểm mới mà không ai hay.
 Ca kiểm `khong-ben-thu-ba.spec.ts` canh cả ba, gồm một bẫy `fetch` toàn cục khẳng định KHÔNG lời gọi
 nào được phát. Đã chứng minh đỏ khi gỡ bản vá.
 
-**CÒN NỢ:** thêm guard hostname trong `doi-ten-vendor.mjs` để lượt đổi tên sau không âm thầm viết lại
-một URL nữa. Bản thân hai hằng số vẫn mang tên miền `drt-worker` vô nghĩa — vô hại vì đã có ba lớp
-trên, nhưng nó là dấu vết của đúng lỗi này và nên được dọn cùng lúc với guard.
+**Lớp thứ tư, vá TẬN GỐC trong `doi-ten-vendor.mjs` (2026-09-05, cùng ngày):** thêm kho che thứ tư
+cho URL tuyệt đối — đúng khuôn ba kho che đã có (specifier, tên gói, `sourceMappingURL`) — nên luật
+`\baffine-` không còn chạm được vào tên miền. Kèm hai thứ:
+- **Trung hoà hai endpoint worker thành `''`.** Che URL trả `affine-worker…` về NGUYÊN TRẠNG, tức
+  một endpoint bên thứ ba SỐNG — không phải thứ ta muốn. Chuỗi rỗng là đúng thứ thượng nguồn tự
+  hiểu là "không proxy" (`adapters/utils/fetch.ts:3` mở đầu `if (!proxy) return await fetch(...)`;
+  `ImageProxyService.buildUrl` trả URL nguyên vẹn khi `startsWith('')`; `ExportManager` lật
+  `useCORS` sang true).
+- **Chốt chặn:** sau mọi phép thay, script NÉM nếu còn URL nào có tên miền mang tiền tố `drt-`.
+  Lỗi nổ ngay lúc dựng, không âm thầm đi vào bản phát hành.
+
+Đã dựng lại và đo: `DEFAULT_IMAGE_PROXY_ENDPOINT = ''`, `DEFAULT_LINK_PREVIEW_ENDPOINT = ''`, không
+còn URL nào mang `drt-` trong `.vendor-build`. `khong-ben-thu-ba.spec.ts` khoá cả hai khẳng định ấy
+trên đầu ra thật, độc lập với chốt chặn trong script.
 
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 

@@ -67,6 +67,16 @@ describe('D16 — đổi tên affine-*', () => {
     // `drt-*.js.map` mỗi lượt nạp). Không che ở đây thì ca kiểm đỏ trên đúng một phép bảo toàn có
     // chủ đích. An toàn: bản build production tắt sourcemap và minifier bỏ chú thích, nên chuỗi
     // này KHÔNG bao giờ tới `dist/` — điều đó do `npm run kiem:dist` canh riêng.
+    // Bộ che thứ TƯ (2026-09-05, cùng lượt thêm lớp che URL trong doi-ten-vendor.mjs): URL TUYỆT
+    // ĐỐI. Luật `\baffine-` trước đây không phân biệt định danh mã với TÊN MIỀN, nên nó đã âm thầm
+    // đổi `https://affine-worker.toeverything.workers.dev/...` thành `drt-worker…` — một tên miền
+    // KHÔNG TỒN TẠI, hai endpoint chết vĩnh viễn suốt nhiều tháng. Nay URL được bảo toàn nguyên
+    // văn, và một URL HỢP LỆ có quyền chứa chữ `affine-`: `consts/index.js:58` có chú thích trỏ
+    // `https://github.com/toeverything/affine-workers/...`, đổi nó đi là tạo ra đúng loại liên kết
+    // chết mà lớp che sinh ra để chữa.
+    // Che ở đây KHÔNG nới lỏng cổng: phần ngoài URL vẫn bị soi nguyên vẹn, còn việc "không URL nào
+    // mang tên miền `drt-`" do chốt chặn trong chính doi-ten-vendor.mjs và
+    // khong-ben-thu-ba.spec.ts canh riêng.
     const boSpecifier = (js: string) =>
       js
         .replace(
@@ -75,6 +85,7 @@ describe('D16 — đổi tên affine-*', () => {
         )
         .replace(/@blocksuite\/affine-[\w/-]*/g, '@blocksuite/__PKG__')
         .replace(/sourceMappingURL=\S+/g, 'sourceMappingURL=__MAP__')
+        .replace(/https?:\/\/[^\s'"`)\\]+/g, '__URL__')
 
     const soPham: string[] = []
     for await (const f of diet(BUILD, '.js')) {
