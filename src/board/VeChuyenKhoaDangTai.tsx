@@ -89,7 +89,7 @@ function mauOnDinh(id: string): number {
 // id: id CỦA BẢNG — optional, chỉ truyền từ TheTrong (DanhSachBang.tsx). Hai lời gọi khác
 // (index.tsx, EdgelessBoard.tsx) không có board id sẵn trong ngữ cảnh của chúng (màn tải chunk lần
 // đầu / màn chờ nội bộ EdgelessBoard) nên không truyền — tự rơi về màu mờ cũ, không cần sửa gì ở đó.
-// mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (BangMeta.mauHue) — ưu tiên hơn mauOnDinh(id) khi có,
+// mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (MucMeta.mauHue) — ưu tiên hơn mauOnDinh(id) khi có,
 // cùng lý do/ưu tiên với TheTrong (xem đó): hash thuần không bảo đảm tách biệt khỏi sibling.
 export function VeChuyenKhoaDangTai({ khoa, id, mauHue }: { khoa?: string; id?: string; mauHue?: number }) {
   const bocRef = useRef<HTMLDivElement>(null)

@@ -10,8 +10,8 @@ import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
-import type { BangMeta } from './boardMeta'
-import { ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
+import type { MucMeta } from './mucMeta'
+import { ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './mucMeta'
 
 const TEN_CSDL_BANG = 'drtrong-board'
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
@@ -39,7 +39,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
   blobSources?: { main: BlobSource }
   hanGioMs?: number
 }): Promise<void> {
-  const dsHienCo = await idbGetAll<BangMeta>(IDB_STORES.boards)
+  const dsHienCo = await idbGetAll<MucMeta>(IDB_STORES.boards)
   if (dsHienCo.some((b) => b.id === 'board')) return
 
   const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
@@ -93,7 +93,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     if (!coNoiDungThat) return
 
     const bayGio = Date.now()
-    const meta: BangMeta = {
+    const meta: MucMeta = {
       id: 'board',
       ten: 'Bảng đầu tiên',
       taoLuc: bayGio,
@@ -118,7 +118,7 @@ export async function diTruNoiDungTimKiemNeuCo(tuyChon?: {
   blobSources?: { main: BlobSource }
   hanGioMs?: number
 }): Promise<void> {
-  const dsHienCo = await idbGetAll<BangMeta>(IDB_STORES.boards)
+  const dsHienCo = await idbGetAll<MucMeta>(IDB_STORES.boards)
   const canDiTru = dsHienCo.filter((b) => !b.noiDungTimKiem)
   if (canDiTru.length === 0) return
 

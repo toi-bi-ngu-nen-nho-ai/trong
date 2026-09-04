@@ -19,7 +19,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbGetAll, idbPut } from '../../lib/idb'
-import * as boardMeta from '../boardMeta'
+import * as mucMeta from '../mucMeta'
 import { EdgelessBoard } from '../EdgelessBoard'
 import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
@@ -246,8 +246,8 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     expect(coLoiSetStateSauUnmount).toBe(false)
   })
 
-  it('unmount → gọi capNhatSauKhiRoiBang với đúng boardId, KHÔNG phụ thuộc canvas', async () => {
-    const spy = vi.spyOn(boardMeta, 'capNhatSauKhiRoiBang').mockResolvedValue(undefined)
+  it('unmount → gọi capNhatSauKhiRoiMuc với đúng boardId, KHÔNG phụ thuộc canvas', async () => {
+    const spy = vi.spyOn(mucMeta, 'capNhatSauKhiRoiMuc').mockResolvedValue(undefined)
 
     await act(async () => {
       root.render(createElement(EdgelessBoard, { boardId: 'bang-roi-ra' }))
@@ -275,8 +275,8 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     spy.mockRestore()
   })
 
-  it('có thêm khối THẬT (store.addBlock) trong phiên mở → unmount gọi capNhatSauKhiRoiBang với coThayDoiNoiDung=true', async () => {
-    const spy = vi.spyOn(boardMeta, 'capNhatSauKhiRoiBang').mockResolvedValue(undefined)
+  it('có thêm khối THẬT (store.addBlock) trong phiên mở → unmount gọi capNhatSauKhiRoiMuc với coThayDoiNoiDung=true', async () => {
+    const spy = vi.spyOn(mucMeta, 'capNhatSauKhiRoiMuc').mockResolvedValue(undefined)
 
     await act(async () => {
       root.render(createElement(EdgelessBoard, { boardId: 'bang-co-sua' }))
@@ -308,9 +308,9 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     spy.mockRestore()
   })
 
-  it('rời bảng có ghi chú thật → noiDungTimKiem trong BangMeta chứa đúng chữ đó', async () => {
-    // Seed một BangMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatSauKhiRoiBang()
-    // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem boardMeta.ts, `if (!hienCo) return`).
+  it('rời bảng có ghi chú thật → noiDungTimKiem trong MucMeta chứa đúng chữ đó', async () => {
+    // Seed một MucMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatSauKhiRoiMuc()
+    // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem mucMeta.ts, `if (!hienCo) return`).
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
       id: 'bang-trich-chu', ten: 'Bảng test', taoLuc: bayGio, capNhatLuc: bayGio,

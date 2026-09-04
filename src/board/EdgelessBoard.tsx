@@ -33,7 +33,7 @@ import { laKhungHep, theoDoiKhungHep } from './chi-doc-khung-hep'
 import { type Hop as HopO, viTriMoiChoO } from './xep-o-tu-dong'
 import type { KetQuaXuat } from './xuatAnhBang'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
-import { capNhatSauKhiRoiBang, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
+import { capNhatSauKhiRoiMuc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './mucMeta'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -521,8 +521,8 @@ export function EdgelessBoard({
     if (!el) return
     let huyBo = false
     let workspaceHienTai: TestWorkspace | null = null
-    // Có sửa NỘI DUNG thật trong phiên mở bảng này hay không — xem chú thích ở capNhatSauKhiRoiBang
-    // (boardMeta.ts). Đăng ký lúc mount xong (sau seed, xem taoHoacMoBang), nên chỉ đếm thay đổi
+    // Có sửa NỘI DUNG thật trong phiên mở bảng này hay không — xem chú thích ở capNhatSauKhiRoiMuc
+    // (mucMeta.ts). Đăng ký lúc mount xong (sau seed, xem taoHoacMoBang), nên chỉ đếm thay đổi
     // PHÁT SINH TỪ đây trở đi, không tính lượt hydrate/seed đã xảy ra trước khi effect này chạy.
     let coThayDoiNoiDung = false
     let huyDangKyThayDoi: Array<() => void> = []
@@ -708,10 +708,10 @@ export function EdgelessBoard({
       // CHÍNH LÀ khung nhìn), và chất lượng bệt (0,17 MP + JPEG 0.6, sau đó bọc PNG chỉ đóng đinh
       // artefact lại). Thẻ giờ luôn dùng huy hiệu chuyên khoa; xuất PNG dựng lại từ tài liệu CRDT
       // qua ./xuatAnhBang.ts. Không còn ai đọc `anhXemTruoc`, nên tiếp tục ghi nó chỉ là bơm hàng
-      // trăm kB rác vào IndexedDB mỗi lần rời bảng — capNhatSauKhiRoiBang() còn chủ động bóc trường
+      // trăm kB rác vào IndexedDB mỗi lần rời bảng — capNhatSauKhiRoiMuc() còn chủ động bóc trường
       // đó ra để dọn dữ liệu đã ghi từ trước.
       //
-      // Lượt gọi capNhatSauKhiRoiBang() thì Ở LẠI, và giờ chạy VÔ ĐIỀU KIỆN (trước đây nó nằm lồng
+      // Lượt gọi capNhatSauKhiRoiMuc() thì Ở LẠI, và giờ chạy VÔ ĐIỀU KIỆN (trước đây nó nằm lồng
       // trong `if (canvasGoc && canvasGoc.width > 0 ...)` — điều kiện của việc CHỤP, không phải của
       // việc cập nhật): nó gánh bump capNhatLuc, backfill chuyenKhoa/tags và ghi noiDungTimKiem.
       try {
@@ -735,7 +735,7 @@ export function EdgelessBoard({
               // text/mindmap...), không lớp nào khai `text` ở kiểu CHUNG nên TypeScript từ chối gán
               // thẳng dù đúng ở runtime cho những lớp có field đó (đã xác nhận qua chính
               // element-model/{text,shape,connector}.ts của cây vendored, xem chú thích tại định
-              // nghĩa trichVanBanTuCanvas trong boardMeta.ts).
+              // nghĩa trichVanBanTuCanvas trong mucMeta.ts).
               surfaceHienTai
                 ? trichVanBanTuCanvas(surfaceHienTai.elementModels as unknown as Array<{ text?: unknown }>)
                 : '',
@@ -745,7 +745,7 @@ export function EdgelessBoard({
           // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng lượt
           // cập nhật metadata hay thao tác quay lại danh sách của người dùng.
         }
-        void capNhatSauKhiRoiBang(boardId, coThayDoiNoiDung, noiDungTimKiemMoi)
+        void capNhatSauKhiRoiMuc(boardId, coThayDoiNoiDung, noiDungTimKiemMoi)
       } catch {
         // Cập nhật metadata là tiện ích phụ — không được làm hỏng thao tác quay lại của người dùng.
       }

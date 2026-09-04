@@ -4,37 +4,37 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import type { BangMeta } from '../boardMeta'
+import type { MucMeta } from '../mucMeta'
 import {
-  bangKhopTimKiem,
-  capNhatSauKhiRoiBang,
+  mucKhopTimKiem,
+  capNhatSauKhiRoiMuc,
   ghepNoiDungTimKiem,
-  taoIdBang,
+  taoIdMuc,
   trichVanBanTuCanvas,
   trichVanBanTuKhoi,
-} from '../boardMeta'
+} from '../mucMeta'
 
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
   for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
 })
 
-describe('taoIdBang', () => {
+describe('taoIdMuc', () => {
   it('sinh id khác nhau ở hai lượt gọi liên tiếp, đúng tiền tố', () => {
-    const a = taoIdBang()
-    const b = taoIdBang()
+    const a = taoIdMuc()
+    const b = taoIdMuc()
     expect(a).not.toBe(b)
     expect(a).toMatch(/^bang-/)
   })
 })
 
-describe('capNhatSauKhiRoiBang', () => {
+describe('capNhatSauKhiRoiMuc', () => {
   it('coThayDoiNoiDung=true → cập nhật capNhatLuc', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
-    await capNhatSauKhiRoiBang('x', true)
+    await capNhatSauKhiRoiMuc('x', true)
 
     const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'x')!.capNhatLuc).toBeGreaterThan(bayGio)
@@ -45,7 +45,7 @@ describe('capNhatSauKhiRoiBang', () => {
     await idbPut(IDB_STORES.boards, { id: 'y', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
-    await capNhatSauKhiRoiBang('y', false)
+    await capNhatSauKhiRoiMuc('y', false)
 
     const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'y')!.capNhatLuc).toBe(bayGio)
@@ -68,7 +68,7 @@ describe('capNhatSauKhiRoiBang', () => {
       noiDungTimKiem: '',
     } as unknown as Parameters<typeof idbPut>[1])
 
-    await capNhatSauKhiRoiBang('con-anh', false)
+    await capNhatSauKhiRoiMuc('con-anh', false)
 
     const ds = await idbGetAll<{ id: string; anhXemTruoc?: string }>(IDB_STORES.boards)
     const sau = ds.find((b) => b.id === 'con-anh')
@@ -77,13 +77,13 @@ describe('capNhatSauKhiRoiBang', () => {
   })
 
   it('bảng KHÔNG tồn tại → không ném lỗi, không tạo mục mới', async () => {
-    await expect(capNhatSauKhiRoiBang('khong-ton-tai', false)).resolves.toBeUndefined()
+    await expect(capNhatSauKhiRoiMuc('khong-ton-tai', false)).resolves.toBeUndefined()
     const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
   })
 })
 
-describe('capNhatSauKhiRoiBang — backfill trường mới + noiDungTimKiemMoi', () => {
+describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi', () => {
   it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định', async () => {
     const bayGio = Date.now()
     // Mô phỏng bản ghi tạo TRƯỚC khi có ba trường mới — ép kiểu vì TS sẽ chặn thiếu trường bắt buộc.
@@ -94,7 +94,7 @@ describe('capNhatSauKhiRoiBang — backfill trường mới + noiDungTimKiemMoi'
       capNhatLuc: bayGio,
     } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
 
-    await capNhatSauKhiRoiBang('cu', false)
+    await capNhatSauKhiRoiMuc('cu', false)
 
     const ds = await idbGetAll<{
       id: string
@@ -120,7 +120,7 @@ describe('capNhatSauKhiRoiBang — backfill trường mới + noiDungTimKiemMoi'
       noiDungTimKiem: 'cũ',
     })
 
-    await capNhatSauKhiRoiBang('z', false, 'nội dung mới')
+    await capNhatSauKhiRoiMuc('z', false, 'nội dung mới')
 
     const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'z')?.noiDungTimKiem).toBe('nội dung mới')
@@ -138,7 +138,7 @@ describe('capNhatSauKhiRoiBang — backfill trường mới + noiDungTimKiemMoi'
       noiDungTimKiem: 'giữ nguyên',
     })
 
-    await capNhatSauKhiRoiBang('w', false)
+    await capNhatSauKhiRoiMuc('w', false)
 
     const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
     expect(ds.find((b) => b.id === 'w')?.noiDungTimKiem).toBe('giữ nguyên')
@@ -186,52 +186,52 @@ describe('ghepNoiDungTimKiem', () => {
   })
 })
 
-describe('bangKhopTimKiem', () => {
-  const bangMau: BangMeta = {
+describe('mucKhopTimKiem', () => {
+  const bangMau: MucMeta = {
     id: 'x', ten: 'Suy tim EF giảm', taoLuc: 0, capNhatLuc: 0,
     chuyenKhoa: 'cardiology', tags: ['nội trú', 'cấp cứu'], noiDungTimKiem: 'furosemide 40mg TM',
   }
 
   it('khớp theo tên, không phân biệt dấu/hoa-thường', () => {
-    expect(bangKhopTimKiem(bangMau, 'suy tim')).toBe(true)
-    expect(bangKhopTimKiem(bangMau, 'SUY TIM')).toBe(true)
-    expect(bangKhopTimKiem(bangMau, 'suy tim khong dau')).toBe(false)
+    expect(mucKhopTimKiem(bangMau, 'suy tim')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'SUY TIM')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'suy tim khong dau')).toBe(false)
   })
 
   it('khớp theo tag', () => {
-    expect(bangKhopTimKiem(bangMau, 'cấp cứu')).toBe(true)
-    expect(bangKhopTimKiem(bangMau, 'cap cuu')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'cấp cứu')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'cap cuu')).toBe(true)
   })
 
   it('khớp theo noiDungTimKiem', () => {
-    expect(bangKhopTimKiem(bangMau, 'furosemide')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'furosemide')).toBe(true)
   })
 
   it('truy vấn rỗng → luôn khớp (không lọc)', () => {
-    expect(bangKhopTimKiem(bangMau, '')).toBe(true)
-    expect(bangKhopTimKiem(bangMau, '   ')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, '')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, '   ')).toBe(true)
   })
 
   it('không khớp bất kỳ trường nào → false', () => {
     // 'tiêu hoá' là TÊN của khoa gastrointestinal, còn bangMau thuộc cardiology ('Tim mạch') — nên
     // kể cả khi tên chuyên khoa đã được đưa vào chuỗi so khớp, truy vấn này vẫn phải trượt.
-    expect(bangKhopTimKiem(bangMau, 'tiêu hoá')).toBe(false)
+    expect(mucKhopTimKiem(bangMau, 'tiêu hoá')).toBe(false)
   })
 
   it('khớp theo TÊN chuyên khoa người dùng thấy, không phải id nội bộ', () => {
     // Chip lọc ở DanhSachBang.tsx hiện `kh.name` ("Tim mạch"), bác sĩ gõ đúng chữ đó — nếu chỉ so
     // khớp `bang.chuyenKhoa` (id 'cardiology') thì truy vấn này trượt.
-    expect(bangKhopTimKiem(bangMau, 'Tim mạch')).toBe(true)
-    expect(bangKhopTimKiem(bangMau, 'tim mach')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'Tim mạch')).toBe(true)
+    expect(mucKhopTimKiem(bangMau, 'tim mach')).toBe(true)
   })
 
   it('bảng CŨ thiếu hẳn chuyenKhoa → không ném lỗi, vẫn khớp theo tên', () => {
     // Bản ghi tạo TRƯỚC lượt thêm ba trường mới — ép kiểu vì TS chặn thiếu trường bắt buộc.
     // normalizeSearch(undefined) sẽ ném TypeError nếu chỗ đọc chuyenKhoa không có giá trị dự phòng.
-    const bangCu = { id: 'cu', ten: 'Bảng cũ', taoLuc: 0, capNhatLuc: 0 } as unknown as BangMeta
-    expect(() => bangKhopTimKiem(bangCu, 'bảng')).not.toThrow()
-    expect(bangKhopTimKiem(bangCu, 'bảng cũ')).toBe(true)
-    expect(bangKhopTimKiem(bangCu, 'suy tim')).toBe(false)
-    expect(bangKhopTimKiem(bangCu, '')).toBe(true)
+    const bangCu = { id: 'cu', ten: 'Bảng cũ', taoLuc: 0, capNhatLuc: 0 } as unknown as MucMeta
+    expect(() => mucKhopTimKiem(bangCu, 'bảng')).not.toThrow()
+    expect(mucKhopTimKiem(bangCu, 'bảng cũ')).toBe(true)
+    expect(mucKhopTimKiem(bangCu, 'suy tim')).toBe(false)
+    expect(mucKhopTimKiem(bangCu, '')).toBe(true)
   })
 })

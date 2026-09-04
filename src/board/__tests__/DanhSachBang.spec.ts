@@ -1597,7 +1597,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
     expect(container.textContent).toContain('Hen phế quản')
 
-    // Truy vấn rỗng = trạng thái "chưa lọc" (bangKhopTimKiem trả true) — không được kẹt ở kết quả cũ.
+    // Truy vấn rỗng = trạng thái "chưa lọc" (mucKhopTimKiem trả true) — không được kẹt ở kết quả cũ.
     await goVaoOTim(oTim, '')
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1779,7 +1779,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
   })
 
   // onDoiChuyenKhoa đã vá cho chip lọc (chuyenKhoaLoc) từ review Task 2 nhưng KHÔNG vá cho ô tìm.
-  // bangKhopTimKiem so khớp cả TÊN HIỂN THỊ của chuyên khoa (boardMeta.ts) nên truy vấn "tim mach"
+  // mucKhopTimKiem so khớp cả TÊN HIỂN THỊ của chuyên khoa (mucMeta.ts) nên truy vấn "tim mach"
   // khớp được bảng khoa Tim mạch — đổi sang khoa khác là thẻ lẫn panel biến mất y hệt ca chip lọc.
   it('truy vấn chỉ khớp nhờ TÊN CHUYÊN KHOA → đổi chuyên khoa khi panel sửa đang mở: thẻ + panel không biến mất, ô tìm tự xoá trắng', async () => {
     const bayGio = Date.now()

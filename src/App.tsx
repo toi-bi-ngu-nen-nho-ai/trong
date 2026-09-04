@@ -14,9 +14,9 @@ import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // tách chunk mà vỏ nạp chậm tồn tại để giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem
 // comment trong board/index.tsx và board/BoardGallery.tsx).
 import { BoardGallery } from "./board/BoardGallery"
-// CHỈ import KIỂU từ boardMeta.ts — và bản thân boardMeta.ts KHÔNG import gì từ @blocksuite/* (D13),
+// CHỈ import KIỂU từ mucMeta.ts — và bản thân mucMeta.ts KHÔNG import gì từ @blocksuite/* (D13),
 // nên dòng này không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ.
-import type { BangMeta } from "./board/boardMeta"
+import type { MucMeta } from "./board/mucMeta"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -1348,7 +1348,7 @@ interface SearchResult {
   specialty?: string
   tags: string[]
   // CHỈ "board" set trường này — nội dung trích từ bảng (chữ trong khối/canvas, xem
-  // ghepNoiDungTimKiem ở board/boardMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG hiển thị trực tiếp
+  // ghepNoiDungTimKiem ở board/mucMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG hiển thị trực tiếp
   // (huy hiệu "Mindmap" + tên bảng đã đủ cho hiển thị).
   noiDung?: string
 }
@@ -1370,13 +1370,13 @@ export function SearchScreen({
 }) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("Tất cả")
-  // boardMeta.ts KHÔNG import BlockSuite (D13) — đọc ở đây chỉ chạm object store nhẹ của IndexedDB,
+  // mucMeta.ts KHÔNG import BlockSuite (D13) — đọc ở đây chỉ chạm object store nhẹ của IndexedDB,
   // không kéo theo chunk 994 kB của bảng vẽ.
   // `loading` KHÔNG bỏ đi được: IndexedDB đọc bất đồng bộ nên `boards` rỗng cho tới khi lượt đọc
   // lúc mount xong — trong cửa sổ đó, gõ đúng tên một bảng đã lưu vẫn rơi vào màn "Không có kết
   // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). DanhSachBang đã
   // xử đúng cùng cờ này (`if (loading) return null`).
-  const { items: boards, loading: dangNapBang, loiDoc: loiDocBang } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  const { items: boards, loading: dangNapBang, loiDoc: loiDocBang } = useIdbCollection<MucMeta>(IDB_STORES.boards)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1404,7 +1404,7 @@ export function SearchScreen({
           // cuối nhánh, mục 8). Dòng phụ đề tự ẩn khi rỗng (`{r.subtitle && …}` bên dưới) — thẻ bảng
           // gọn lại đúng bằng phần thật sự có thông tin.
           subtitle: "",
-          // KHÔNG dự phòng `?? SPECIALTIES[0].id` như bangKhopTimKiem (boardMeta.ts): ở đó chuỗi
+          // KHÔNG dự phòng `?? SPECIALTIES[0].id` như mucKhopTimKiem (mucMeta.ts): ở đó chuỗi
           // khớp bắt buộc phải là string nên phải có giá trị thay thế, còn ở đây `specialty` là
           // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Bảng
           // cũ thiếu `chuyenKhoa` ở runtime → .find() trả undefined → `?.name` cho undefined, an

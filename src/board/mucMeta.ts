@@ -1,13 +1,13 @@
-// Kiểu dữ liệu + tiện ích RIÊNG của subsystem bảng vẽ cho object store "boards" của
+// Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "boards" của
 // src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — DanhSachBang.tsx dùng thẳng
-// useIdbCollection<BangMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
+// useIdbCollection<MucMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
 // ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
 // DanhSachBang (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import { normalizeSearch } from '../lib/ui'
 
-export type BangMeta = {
+export type MucMeta = {
   id: string
   ten: string
   taoLuc: number
@@ -18,7 +18,7 @@ export type BangMeta = {
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
   // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), DanhSachBang.tsx). Bảng cũ
-  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatSauKhiRoiBang() bên dưới
+  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatSauKhiRoiMuc() bên dưới
   // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
   // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
   // ĐỌC ba trường này trước khi bảng đó từng được mở lại (chip lọc, tìm kiếm) phải tự
@@ -37,7 +37,9 @@ export type BangMeta = {
   mauHue?: number
 }
 
-export function taoIdBang(): string {
+export function taoIdMuc(): string {
+  // Tiền tố `bang-` GIỮ NGUYÊN dù hàm đã đổi tên: đổi nó là đổi id của mọi mục tạo từ nay, trong
+  // khi id cũ trong IndexedDB vẫn mang tiền tố cũ — hai họ id trong cùng một store, không được gì.
   return `bang-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
@@ -68,13 +70,13 @@ let ghiAnhDangCho: Promise<void> | null = null
  * hiệu chuyên khoa, xuất PNG dựng lại từ tài liệu qua ./xuatAnhBang.ts), nên giữ tên cũ chỉ là một
  * lời nói dối về việc hàm này làm gì.
  */
-export function capNhatSauKhiRoiBang(
+export function capNhatSauKhiRoiMuc(
   id: string,
   coThayDoiNoiDung: boolean,
   noiDungTimKiemMoi?: string,
 ): Promise<void> {
   const p = (async () => {
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
     const hienCo = ds.find((b) => b.id === id)
     if (!hienCo) return
     // Bóc `anhXemTruoc` RA KHỎI bản ghi trước khi ghi lại. Không có bước này thì spread `...hienCo`
@@ -82,8 +84,8 @@ export function capNhatSauKhiRoiBang(
     // IndexedDB vĩnh viễn dù không còn ai đọc — người dùng đang hỏi thẳng "lưu trữ sơ đồ đã đạt
     // chất lượng chưa", nên để lại rác của cơ chế vừa gỡ là câu trả lời sai. Mỗi bảng tự dọn ở lần
     // đóng kế tiếp, không cần script di trú riêng: đây vốn là hook DUY NHẤT chạy ở mọi lượt rời
-    // bảng. Kiểu `BangMeta` không còn khai trường này, nên phải đọc qua một kiểu nới rộng.
-    const { anhXemTruoc: _anhCu, ...conLai } = hienCo as BangMeta & { anhXemTruoc?: string }
+    // bảng. Kiểu `MucMeta` không còn khai trường này, nên phải đọc qua một kiểu nới rộng.
+    const { anhXemTruoc: _anhCu, ...conLai } = hienCo as MucMeta & { anhXemTruoc?: string }
     void _anhCu
     await idbPut(IDB_STORES.boards, {
       ...conLai,
@@ -147,7 +149,7 @@ export function trichVanBanTuCanvas(danhSachPhanTu: Array<{ text?: unknown }>): 
 
 const DO_DAI_TOI_DA_NOI_DUNG_TIM_KIEM = 5000
 
-// Cắt bớt để tránh BangMeta phình quá to với bảng nhiều chữ — 5000 ký tự đủ cho tìm kiếm con
+// Cắt bớt để tránh MucMeta phình quá to với bảng nhiều chữ — 5000 ký tự đủ cho tìm kiếm con
 // chuỗi, không cần giữ nguyên vẹn toàn bộ nội dung (đó là việc của chính bảng, không phải snapshot
 // tìm kiếm này).
 export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): string {
@@ -162,19 +164,19 @@ export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): st
 // Chuyên khoa được đưa vào chuỗi so khớp bằng TÊN HIỂN THỊ ("Tim mạch"), không phải id nội bộ
 // ('cardiology'): chip lọc ở DanhSachBang.tsx hiện `kh.name`, nên đó mới là chữ bác sĩ gõ vào ô tìm
 // kiếm. Id vẫn giữ lại trong chuỗi cho ai gõ đúng khoá kỹ thuật — vô hại.
-// `bang.chuyenKhoa` PHẢI có giá trị dự phòng: bảng cũ thiếu hẳn trường này ở runtime (xem chú thích
+// `muc.chuyenKhoa` PHẢI có giá trị dự phòng: bảng cũ thiếu hẳn trường này ở runtime (xem chú thích
 // ba trường mới ở đầu file) và normalizeSearch(undefined) sẽ ném lỗi, làm sập cả lượt lọc danh sách.
-export function bangKhopTimKiem(bang: BangMeta, truyVan: string): boolean {
+export function mucKhopTimKiem(muc: MucMeta, truyVan: string): boolean {
   const q = normalizeSearch(truyVan)
   if (!q) return true
-  const idChuyenKhoa = bang.chuyenKhoa ?? SPECIALTIES[0].id
+  const idChuyenKhoa = muc.chuyenKhoa ?? SPECIALTIES[0].id
   const tenChuyenKhoa = SPECIALTIES.find((kh) => kh.id === idChuyenKhoa)?.name ?? ''
   const doanKhop = [
-    bang.ten,
+    muc.ten,
     idChuyenKhoa,
     tenChuyenKhoa,
-    ...(bang.tags ?? []),
-    bang.noiDungTimKiem ?? '',
+    ...(muc.tags ?? []),
+    muc.noiDungTimKiem ?? '',
   ]
     .map(normalizeSearch)
     .join(' ')

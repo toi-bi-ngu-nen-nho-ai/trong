@@ -6,7 +6,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import type { BangMeta } from '../boardMeta'
+import type { MucMeta } from '../mucMeta'
 import { DanhSachBang } from '../DanhSachBang'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
@@ -35,7 +35,7 @@ function chuaLanhIdb() {
   IDBDatabase.prototype.transaction = txGoc
 }
 
-function bangMau(id: string, ten: string): BangMeta {
+function bangMau(id: string, ten: string): MucMeta {
   return {
     id,
     ten,

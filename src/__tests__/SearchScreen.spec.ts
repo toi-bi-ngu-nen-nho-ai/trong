@@ -215,7 +215,7 @@ describe('SearchScreen — kết quả loại "board"', () => {
   it('bảng cũ THIẾU chuyenKhoa/tags (bản ghi trước lượt di trú) không làm sập ô tìm kiếm', async () => {
     const bayGio = Date.now()
     // Cố ý ghi bản ghi KHÔNG có chuyenKhoa/tags/noiDungTimKiem — đúng hình dạng bảng tạo trước
-    // Task 1 ở runtime (kiểu BangMeta khai bắt buộc, nhưng dữ liệu cũ trong IndexedDB thì không có).
+    // Task 1 ở runtime (kiểu MucMeta khai bắt buộc, nhưng dữ liệu cũ trong IndexedDB thì không có).
     await idbPut(IDB_STORES.boards, {
       id: 'bang-cu',
       ten: 'Sốc nhiễm khuẩn',
@@ -256,7 +256,7 @@ describe('SearchScreen — kết quả loại "board"', () => {
 
 // ─── Nợ vặt HANDOFF mục 6: hai ô tìm kiếm xử lý dấu tiếng Việt khác nhau ──────
 //
-// Ô tìm của lưới Sơ đồ tư duy (`bangKhopTimKiem`, boardMeta.ts) bỏ dấu từ trước; ô tìm chính này
+// Ô tìm của lưới Sơ đồ tư duy (`mucKhopTimKiem`, mucMeta.ts) bỏ dấu từ trước; ô tìm chính này
 // thì `toLowerCase()`. Cùng một truy vấn không dấu ra kết quả ở màn kia mà không ra ở màn này —
 // người trực gõ nhanh không dấu sẽ kết luận "app không có bài đó". Chuẩn chung là bỏ dấu.
 describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {

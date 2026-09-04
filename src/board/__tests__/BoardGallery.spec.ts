@@ -7,15 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { capNhatSauKhiRoiBang, type BangMeta } from '../boardMeta'
+import { capNhatSauKhiRoiMuc, type MucMeta } from '../mucMeta'
 import { BoardGallery } from '../BoardGallery'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
 // Ghi thẳng qua idb.ts thay vì đi qua UI/hook — file này canh hành vi ĐIỀU HƯỚNG của BoardGallery
 // (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở DanhSachBang.spec.ts).
-function taoBangGia(ten: string): BangMeta {
+function taoBangGia(ten: string): MucMeta {
   const bayGio = Date.now()
-  const meta: BangMeta = {
+  const meta: MucMeta = {
     id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`,
     ten,
     taoLuc: bayGio,
@@ -32,7 +32,7 @@ function taoBangGia(ten: string): BangMeta {
 // Giả EdgelessBoard thật (chunk nặng, cần DOM canvas) bằng một component tối giản có thể quan sát
 // được prop boardId — đủ để canh ĐÚNG hành vi điều hướng/ẩn-hiện mà file này chịu trách nhiệm,
 // không lặp lại phạm vi của edgeless-board-mount.spec.ts. Cleanup effect gọi thẳng
-// capNhatSauKhiRoiBang() thật (cùng module boardMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
+// capNhatSauKhiRoiMuc() thật (cùng module mucMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
 // mô phỏng ĐÚNG thời điểm lượt ghi metadata bắt đầu (lúc unmount, xem EdgelessBoard.tsx thật),
 // để các ca kiểm dưới đây canh được đúng cuộc đua giữa lượt ghi đó và lượt đọc-lúc-mount của
 // DanhSachBang — không cần dựng canvas/BlockSuite thật.
@@ -62,7 +62,7 @@ vi.mock('../index', () => ({
       onXuatSanSang?.(xuatGia)
       return () => {
         onXuatSanSang?.(null)
-        void capNhatSauKhiRoiBang(boardId, true, NOI_DUNG_SAU_KHI_ROI)
+        void capNhatSauKhiRoiMuc(boardId, true, NOI_DUNG_SAU_KHI_ROI)
       }
     }, [boardId, onXuatSanSang])
     return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')

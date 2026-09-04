@@ -5,7 +5,7 @@
 // thật khi người dùng bấm quay lại danh sách, vì D4 đã đảm bảo không mất nội dung.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { doiGhiAnhXongNeuCo } from './boardMeta'
+import { doiGhiAnhXongNeuCo } from './mucMeta'
 import { DanhSachBang, TheTrong, type BoardOpenOrigin } from './DanhSachBang'
 import { EdgelessBoard, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
@@ -452,7 +452,7 @@ export function BoardGallery({
               // setTimeout(0) này của ta được gọi.
               await new Promise((r) => setTimeout(r, 0))
               // Giờ mới đợi lượt ghi (nếu cleanup ở trên đã kích hoạt một lượt) — có hạn giờ riêng
-              // (xem boardMeta.ts), không chặn vô thời hạn nếu việc ghi có vấn đề.
+              // (xem mucMeta.ts), không chặn vô thời hạn nếu việc ghi có vấn đề.
               await doiGhiAnhXongNeuCo()
               setDangDong(false)
             }}
