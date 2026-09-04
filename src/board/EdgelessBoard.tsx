@@ -173,7 +173,7 @@ async function doiNoiDungToi(
 
 // Xuất PNG/PDF KHÔNG có UI trong màn vẽ này (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của
 // đổi tên/chuyên khoa xuất file" ở màn vẽ, "tính năng xuất file chuyển ra board") — nút xuất sống
-// trong menu "⋯" của THẺ bảng ở lưới danh sách (DanhSachBang.tsx).
+// trong menu "⋯" của THẺ bảng ở lưới danh sách (LuoiMuc.tsx).
 // Từ 2026-08-30 lượt xuất đó KHÔNG còn đóng gói lại ảnh chụp khung nhìn nữa: ./xuatAnhBang.ts mở
 // bảng NGẦM rồi dựng ảnh từ tài liệu CRDT qua ExportManager, đóng khung theo `gfx.elementsBound`.
 // Nó dùng chung `taoHoacMoBang()` và `layExtensionsEdgeless()` của file này — đó là toàn bộ quan hệ

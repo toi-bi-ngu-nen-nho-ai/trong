@@ -15,7 +15,7 @@ import { choDenKhi } from './helpers/cho-den-khi'
 // happy-dom: gán thẳng `.value` KHÔNG đi qua setter React đã vá (_valueTracker) nên onChange im
 // lặng không bắn, ô tìm kiếm đứng yên ở trạng thái rỗng. Phải gọi setter GỐC của
 // HTMLInputElement.prototype rồi mới bắn 'input' — cùng mẫu đã dùng ở
-// src/board/__tests__/DanhSachBang.spec.ts (goVaoOTim).
+// src/board/__tests__/LuoiMuc.spec.ts (goVaoOTim).
 async function goVaoOTim(o: HTMLInputElement, chu: string) {
   const datGiaTriGoc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
   await act(async () => {

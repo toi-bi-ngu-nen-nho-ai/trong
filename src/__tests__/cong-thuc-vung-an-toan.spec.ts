@@ -15,7 +15,7 @@ const GOC = join(__dirname, '../..')
 const CSS = join(GOC, 'src/index.css')
 
 // Mọi file có thể đặt vị trí một phần tử nổi trên đáy màn hình.
-const FILE_TIEU_THU = ['src/App.tsx', 'src/board/DanhSachBang.tsx', 'src/board/BoardGallery.tsx', 'src/index.css']
+const FILE_TIEU_THU = ['src/App.tsx', 'src/board/LuoiMuc.tsx', 'src/board/BoardGallery.tsx', 'src/index.css']
 
 // Hai hình dạng của phép tính viết tay — đúng những gì đã sinh lỗi thật.
 const MANH_VUN_CAM = ['--nav-body-h) + 18px', '24px + var(--safe-bottom)']

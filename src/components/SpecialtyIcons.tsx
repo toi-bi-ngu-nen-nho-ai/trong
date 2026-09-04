@@ -165,9 +165,9 @@ function iconSoDoChuaGanKhoa(cls: string): React.ReactElement {
 }
 
 // Icon của MỘT BẢNG Sơ đồ tư duy. Khác specialtyIcon() ĐÚNG ở nhánh dự phòng, và đó là toàn bộ lý
-// do nó tồn tại: bảng chưa gắn khoa (`chuyenKhoa` là '' hoặc undefined — xem DanhSachBang.tsx) và
+// do nó tồn tại: bảng chưa gắn khoa (`chuyenKhoa` là '' hoặc undefined — xem LuoiMuc.tsx) và
 // bảng gắn một id không còn trong danh mục đều phải ra bóng đèn ở trên, chứ không phải tờ giấy của
-// bài viết. Dùng ở TheTrong (DanhSachBang.tsx) và VeChuyenKhoaDangTai — hai nhánh tĩnh/động của
+// bài viết. Dùng ở TheTrong (LuoiMuc.tsx) và VeChuyenKhoaDangTai — hai nhánh tĩnh/động của
 // cùng một huy hiệu, nên chúng BẮT BUỘC gọi cùng một hàm này (xem chú thích "Hai nhánh vẽ CÙNG..."
 // tại TheTrong).
 export function iconBangSoDo(id: string | undefined, cls = "w-5 h-5"): React.ReactElement {

@@ -1,8 +1,8 @@
 // Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "boards" của
-// src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — DanhSachBang.tsx dùng thẳng
+// src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — LuoiMuc.tsx dùng thẳng
 // useIdbCollection<MucMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
 // ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
-// DanhSachBang (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
+// LuoiMuc (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import { normalizeSearch } from '../lib/ui'
@@ -12,12 +12,12 @@ export type MucMeta = {
   ten: string
   taoLuc: number
   capNhatLuc: number
-  // Xoá MỀM — mốc thời gian đánh dấu "đã xoá", KHÔNG xoá bản ghi khỏi IndexedDB. DanhSachBang.tsx
+  // Xoá MỀM — mốc thời gian đánh dấu "đã xoá", KHÔNG xoá bản ghi khỏi IndexedDB. LuoiMuc.tsx
   // lọc bỏ mọi bang có trường này khỏi lưới hiển thị; "Hoàn tác" chỉ cần xoá lại trường này (set
   // undefined) để bang tái xuất hiện, không cần dựng lại object từ đầu. Không có cơ chế dọn vĩnh
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
-  // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), DanhSachBang.tsx). Bảng cũ
+  // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), LuoiMuc.tsx). Bảng cũ
   // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatSauKhiRoiMuc() bên dưới
   // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
   // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
@@ -27,7 +27,7 @@ export type MucMeta = {
   tags: string[]
   noiDungTimKiem: string
   // Hue (độ, [260,330)) cho badge/chấm màu khi bảng CHƯA gắn chuyên khoa — gán MỘT LẦN lúc tạo
-  // (taoBangMoi, DanhSachBang.tsx) bằng thuật toán chọn xa nhất các bảng đang có (mauHueChongTrung),
+  // (taoBangMoi, LuoiMuc.tsx) bằng thuật toán chọn xa nhất các bảng đang có (mauHueChongTrung),
   // KHÔNG phải hash thuần theo id: hai bảng tạo liên tiếp từng đo được hue cách nhau chỉ 6° — gần
   // như cùng màu (critique 2026-09-02 lượt 3, P2). Lưu cố định vào bản ghi để màu KHÔNG đổi sau đó
   // dù bảng khác được thêm/xoá (đúng triết lý "tờ giấy nằm yên trên bàn" — mauOnDinh(id) đã dùng cho
@@ -60,7 +60,7 @@ let ghiAnhDangCho: Promise<void> | null = null
  * hydrate) suốt phiên mở bảng rồi truyền kết quả vào đây lúc unmount.
  *
  * Đọc-sửa-ghi thẳng qua idb.ts (không qua hook, vì gọi từ NGOÀI cây React) — fire-and-forget, lúc
- * unmount không còn instance hook nào sống để báo lại. DanhSachBang.tsx đọc lại khi MOUNT, nhưng
+ * unmount không còn instance hook nào sống để báo lại. LuoiMuc.tsx đọc lại khi MOUNT, nhưng
  * lượt đọc đó có thể chạy TRƯỚC khi lượt ghi này xong (đua giữa "rời bảng" và "mount lại danh
  * sách"); `doiGhiAnhXongNeuCo()` ngay dưới tồn tại vì cuộc đua đó.
  *
@@ -162,7 +162,7 @@ export function ghepNoiDungTimKiem(vanBanKhoi: string, vanBanCanvas: string): st
 // Task 8, không cần xếp hạng độ liên quan. Truy vấn rỗng/toàn khoảng trắng → luôn khớp (trạng thái
 // "chưa lọc").
 // Chuyên khoa được đưa vào chuỗi so khớp bằng TÊN HIỂN THỊ ("Tim mạch"), không phải id nội bộ
-// ('cardiology'): chip lọc ở DanhSachBang.tsx hiện `kh.name`, nên đó mới là chữ bác sĩ gõ vào ô tìm
+// ('cardiology'): chip lọc ở LuoiMuc.tsx hiện `kh.name`, nên đó mới là chữ bác sĩ gõ vào ô tìm
 // kiếm. Id vẫn giữ lại trong chuỗi cho ai gõ đúng khoá kỹ thuật — vô hại.
 // `muc.chuyenKhoa` PHẢI có giá trị dự phòng: bảng cũ thiếu hẳn trường này ở runtime (xem chú thích
 // ba trường mới ở đầu file) và normalizeSearch(undefined) sẽ ném lỗi, làm sập cả lượt lọc danh sách.

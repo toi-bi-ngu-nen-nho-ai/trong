@@ -219,7 +219,7 @@ describe('mucKhopTimKiem', () => {
   })
 
   it('khớp theo TÊN chuyên khoa người dùng thấy, không phải id nội bộ', () => {
-    // Chip lọc ở DanhSachBang.tsx hiện `kh.name` ("Tim mạch"), bác sĩ gõ đúng chữ đó — nếu chỉ so
+    // Chip lọc ở LuoiMuc.tsx hiện `kh.name` ("Tim mạch"), bác sĩ gõ đúng chữ đó — nếu chỉ so
     // khớp `bang.chuyenKhoa` (id 'cardiology') thì truy vấn này trượt.
     expect(mucKhopTimKiem(bangMau, 'Tim mạch')).toBe(true)
     expect(mucKhopTimKiem(bangMau, 'tim mach')).toBe(true)

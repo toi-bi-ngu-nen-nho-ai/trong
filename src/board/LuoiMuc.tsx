@@ -1,4 +1,5 @@
-// Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. KHÔNG phụ thuộc BlockSuite (không import ./index hay
+// Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. Nay phục vụ CẢ bài viết lẫn sơ đồ (props lọc riêng
+// theo loại mục sẽ tới ở Plan 2). KHÔNG phụ thuộc BlockSuite (không import ./index hay
 // ./EdgelessBoard) — giữ file này nhẹ, tách hẳn khỏi ranh giới nạp chậm 994 kB. BoardGallery.tsx
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -406,7 +407,7 @@ function TheBang({
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
   const tenChuyenKhoa = SPECIALTIES.find((s) => s.id === (bang.chuyenKhoa ?? SPECIALTIES[0].id))?.name
 
-  // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc DanhSachBang mount —
+  // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc LuoiMuc mount —
   // trước đây parent chụp `Date.now()` một lần lúc MOUNT rồi so cho MỌI thẻ; bảng tạo SAU khi
   // gallery đã mở (đúng luồng "+" → mở ô đổi tên tại chỗ) có taoLuc > mốc đó, hiệu số luôn ÂM nên
   // `vuaTao` treo `true` suốt phiên xem thay vì tắt sau 3s — thẻ đóng băng ở khung hình đầu của
@@ -1000,7 +1001,7 @@ function TheBang({
               bàn phím ảo di động) hoặc chạm ra ngoài (không tín hiệu thị giác gợi ý), lệch chuẩn
               "luôn có hành động tường minh cho mọi thao tác, kể cả thoát" mà menu "⋯" liền kề đang
               giữ (critique 2026-09-03 lượt 6, P2). `onBatSuaTag` vốn đã là một TOGGLE (mở nếu đang
-              đóng, đóng nếu đang mở — xem chỗ gọi ở DanhSachBang) nên gọi lại chính nó lúc panel đang
+              đóng, đóng nếu đang mở — xem chỗ gọi ở LuoiMuc) nên gọi lại chính nó lúc panel đang
               mở là đóng panel, không cần thêm prop/state mới. */}
           <button
             type="button"
@@ -1050,7 +1051,7 @@ function LuoiChoTai() {
   )
 }
 
-export function DanhSachBang({
+export function LuoiMuc({
   onMoBang,
   dungTuBang,
   onHieuUngXong,
@@ -1247,7 +1248,7 @@ export function DanhSachBang({
 
   // Hiệu ứng .board-out chỉ chạy MỘT LẦN khi vừa đóng một bảng (dungTuBang=true) — tự báo xong
   // sau khi animation (0,2s, xem index.css) kết thúc, cộng biên an toàn nhỏ. KHÔNG chạy khi
-  // DanhSachBang mount vì lý do khác (vd lần đầu vào tab Mindmap) — dungTuBang khi đó là
+  // LuoiMuc mount vì lý do khác (vd lần đầu vào tab Mindmap) — dungTuBang khi đó là
   // undefined/false, effect này không làm gì.
   useEffect(() => {
     if (!dungTuBang) return

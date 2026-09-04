@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { iconBangSoDo, specialtyIcon } from '../../components/SpecialtyIcons'
-import { TheTrong } from '../DanhSachBang'
+import { TheTrong } from '../LuoiMuc'
 import { VeChuyenKhoaDangTai } from '../VeChuyenKhoaDangTai'
 
 const THU_MUC = path.dirname(fileURLToPath(import.meta.url))
@@ -62,7 +62,7 @@ const VIEWBOX_BONG_DEN = '30.5 16.4 300 300'
 
 describe('icon bảng chưa gắn chuyên khoa', () => {
   it('rơi vào bóng đèn với mọi kiểu "không có khoa"', async () => {
-    // '' là giá trị THẬT của bảng mới tạo (DanhSachBang.tsx: `chuyenKhoa: ''`); undefined là bảng
+    // '' là giá trị THẬT của bảng mới tạo (LuoiMuc.tsx: `chuyenKhoa: ''`); undefined là bảng
     // cũ thiếu hẳn trường; 'khoa-khong-ton-tai' là bảng gắn một khoa đã bị gỡ khỏi danh mục.
     for (const khoa of ['', undefined, 'khoa-khong-ton-tai']) {
       const svg = await ve(iconBangSoDo(khoa, 'w-full h-full'))

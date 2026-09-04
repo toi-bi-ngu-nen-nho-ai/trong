@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { DanhSachBang, mauHueChongTrung, nghiengOnDinh } from '../DanhSachBang'
+import { LuoiMuc, mauHueChongTrung, nghiengOnDinh } from '../LuoiMuc'
 import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -83,7 +83,7 @@ describe('DanhSachBang', () => {
 
   it('rỗng lúc đầu → chỉ hiện thẻ "+"', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -93,7 +93,7 @@ describe('DanhSachBang', () => {
 
   it('rỗng lúc đầu → có lời mời và minh hoạ, KHÔNG chỉ mỗi nút "+" trần', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -108,7 +108,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Phác đồ sốc nhiễm khuẩn', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -120,7 +120,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Test nghiêng', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -140,7 +140,7 @@ describe('DanhSachBang', () => {
     await idbPut(IDB_STORES.boards, { id: 'bang-cu', ten: 'Thẻ cũ', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
     await idbPut(IDB_STORES.boards, { id: 'bang-moi', ten: 'Thẻ mới', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -156,7 +156,7 @@ describe('DanhSachBang', () => {
   it('bấm thẻ "+" → thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB) VỚI ô đổi tên đã mở sẵn, KHÔNG mở thẳng vào canvas', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang }))
+      root.render(createElement(LuoiMuc, { onMoBang }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -199,7 +199,7 @@ describe('DanhSachBang', () => {
     // Hai `.click()` trong CÙNG một `act()` mô phỏng đúng cửa sổ đó: React chưa flush render giữa
     // hai lượt gọi, nên `dangSuaTenId` vẫn null ở lượt thứ hai.
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -229,7 +229,7 @@ describe('DanhSachBang', () => {
     // Chốt chặn cho cửa sổ này là `event.detail`: cú click thứ hai của một lần bấm đúp mang
     // `detail === 2`. Bàn phím (Enter/Space trên <button>) cho `detail === 0` nên không bị chặn.
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -279,11 +279,11 @@ describe('DanhSachBang', () => {
   // `focusout` (vì happy-dom không tự đá focus khi bắn `mousedown` bằng dispatchEvent, xem chú thích
   // tại đó) — nó khoá đúng "không nhân bản dữ liệu", nhưng không khoá được PHẦN CÒN LẠI của P2: cú
   // mousedown thật của trình duyệt tạo ra chính cái `focusout` đó, và đến giờ chưa ca kiểm nào chặn
-  // được NGUỒN của nó. Ca này khoá trực tiếp cơ chế chặn nguồn (`giuFocusKhiBamDup`, DanhSachBang.tsx
+  // được NGUỒN của nó. Ca này khoá trực tiếp cơ chế chặn nguồn (`giuFocusKhiBamDup`, LuoiMuc.tsx
   // — preventDefault trên mousedown khi `detail>1`) mà không cần happy-dom mô phỏng focus-shift thật.
   it('mousedown detail>1 trên "+" gọi preventDefault (giữ focus ô đổi tên khi double-tap thật); detail=1 thì không', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -306,7 +306,7 @@ describe('DanhSachBang', () => {
   // phút thật giữa hai lượt tạo.
   it('2 bảng tạo liên tiếp (chưa gắn khoa, còn tên mặc định) → aria-label KHÁC nhau', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -337,7 +337,7 @@ describe('DanhSachBang', () => {
   it('bấm thẻ "+", gõ tên rồi Enter → thoát ô đổi tên, bấm vào thẻ → GỌI onMoBang (mở canvas)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang }))
+      root.render(createElement(LuoiMuc, { onMoBang }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -375,7 +375,7 @@ describe('DanhSachBang', () => {
     // Nên cách vá đúng là bỏ hẳn chỗ dựa vào vùng chọn: ô để RỖNG, tên mặc định chỉ là placeholder.
     // Gõ ở bất kỳ vị trí caret nào cũng ra đúng thứ người dùng gõ.
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -406,7 +406,7 @@ describe('DanhSachBang', () => {
     // Mặt trái của ca trên: ô rỗng nghĩa là `onBlur` có thể lưu chuỗi rỗng đè lên tên bảng, để lại
     // một thẻ không nhãn không cách nào phân biệt trong lưới. Bấm "+" rồi đổi ý là luồng có thật.
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -431,7 +431,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Tên cũ', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -472,7 +472,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Tên thật', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -526,7 +526,7 @@ describe('DanhSachBang', () => {
       noiDungTimKiem: 'suy tim ef giảm',
     })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -565,7 +565,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -583,7 +583,7 @@ describe('DanhSachBang', () => {
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     expect(nutXoa().textContent).toContain('Chắc chắn')
 
-    // Chờ qua NGUONG_XAC_NHAN_MS (DanhSachBang.tsx) — dưới ngưỡng này chạm thứ hai bị coi là
+    // Chờ qua NGUONG_XAC_NHAN_MS (LuoiMuc.tsx) — dưới ngưỡng này chạm thứ hai bị coi là
     // double-tap vô tình và bị BỎ QUA (critique 2026-09-02 lượt 3, P1). Test này mô phỏng hai chạm
     // CHỦ Ý cách nhau thật, không phải một cử chỉ đúp.
     await act(async () => {
@@ -618,7 +618,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Xoá rồi hoàn tác', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -677,7 +677,7 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -718,7 +718,7 @@ describe('DanhSachBang', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Bảng còn sống', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -740,7 +740,7 @@ describe('DanhSachBang', () => {
       daXoaLuc: bayGio - 30_000,
     })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).not.toBeNull()
@@ -785,7 +785,7 @@ describe('DanhSachBang', () => {
         })
       }
       await act(async () => {
-        root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+        root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
       })
       await choDenKhi(() => {
         expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).not.toBeNull()
@@ -893,7 +893,7 @@ describe('DanhSachBang', () => {
     await idbPut(IDB_STORES.boards, { id: 'bang-a', ten: 'Bảng A', taoLuc: bayGio - 20_000, capNhatLuc: bayGio - 20_000 })
     await idbPut(IDB_STORES.boards, { id: 'bang-b', ten: 'Bảng B', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -938,7 +938,7 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -963,7 +963,7 @@ describe('DanhSachBang', () => {
     } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -992,7 +992,7 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1028,7 +1028,7 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -1051,7 +1051,7 @@ describe('DanhSachBang', () => {
     } as unknown as Parameters<typeof idbPut>[1])
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -1074,7 +1074,7 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-bang-chua-anh"]')).not.toBeNull()
@@ -1092,7 +1092,7 @@ describe('DanhSachBang', () => {
 
   it('lưới rỗng toàn bộ → hiện BIỂU TƯỢNG mindmap, KHÔNG còn huy hiệu doc phẳng', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -1115,7 +1115,7 @@ describe('DanhSachBang', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).not.toBeNull()
@@ -1167,7 +1167,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b1"]')).not.toBeNull()
@@ -1204,7 +1204,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b5"]')).not.toBeNull()
@@ -1238,7 +1238,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b6"]')).not.toBeNull()
@@ -1266,7 +1266,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b2"]')).not.toBeNull()
@@ -1318,7 +1318,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b-dedup"]')).not.toBeNull()
@@ -1361,7 +1361,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b-xong"]')).not.toBeNull()
@@ -1399,7 +1399,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector(`[data-testid="chip-chuyen-khoa-${SPECIALTIES[0].id}"]`)).not.toBeNull()
@@ -1452,7 +1452,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b4"]')).not.toBeNull()
@@ -1555,7 +1555,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1584,7 +1584,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1616,7 +1616,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1641,7 +1641,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1659,7 +1659,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
   })
 
   // Cùng lớp lỗi mà taoBangMoi() đã phải vá cho chip lọc chuyên khoa (xem chú thích ở
-  // DanhSachBang.tsx): bảng mới luôn tên "Bảng chưa đặt tên", nên nếu ô tìm còn giữ truy vấn cũ thì
+  // LuoiMuc.tsx): bảng mới luôn tên "Bảng chưa đặt tên", nên nếu ô tìm còn giữ truy vấn cũ thì
   // thẻ vừa tạo KHÔNG khớp và biến mất ngay khi vừa ghi xong — bấm "+" trông như không phản ứng gì,
   // trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB.
   it('đang gõ tìm kiếm → bấm "+" vẫn phải thấy thẻ mới + ô đổi tên (ô tìm tự xoá trắng)', async () => {
@@ -1670,7 +1670,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1695,7 +1695,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
 
   it('ô tìm chỉ hiện khi đã có ít nhất một bảng — lưới rỗng hoàn toàn thì không hiện', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -1710,7 +1710,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tim-kiem-bang"]')).not.toBeNull()
@@ -1745,7 +1745,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1793,7 +1793,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1838,7 +1838,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1886,7 +1886,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1923,7 +1923,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1948,7 +1948,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -2005,7 +2005,7 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-bang-1"]')).not.toBeNull()
@@ -2048,7 +2048,7 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
     }
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -2069,7 +2069,7 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
     })
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).not.toBeNull()
@@ -2127,7 +2127,7 @@ describe('DanhSachBang — chọn-nhiều (critique 2026-09-03 lượt 6)', () =
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chon-nhieu-song-toggle"]')).not.toBeNull()
@@ -2156,7 +2156,7 @@ describe('DanhSachBang — chọn-nhiều (critique 2026-09-03 lượt 6)', () =
   // chọn-nhiều, chạy lại chính luồng lưu có sẵn (onBlur → onLuuTen) thay vì âm thầm mất chữ gõ dở.
   it('[P3] vào chế độ chọn-nhiều trong khi ô đổi tên đang mở → ô đóng lại, tên gõ dở được LƯU, không chồng checkbox+input', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()

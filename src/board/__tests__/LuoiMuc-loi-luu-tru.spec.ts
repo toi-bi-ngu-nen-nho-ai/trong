@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { MucMeta } from '../mucMeta'
-import { DanhSachBang } from '../DanhSachBang'
+import { LuoiMuc } from '../LuoiMuc'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -72,7 +72,7 @@ describe('DanhSachBang — hỏng kho lưu trữ', () => {
     lamHongIdb('doc')
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="loi-doc-bang"]')).not.toBeNull()
@@ -93,7 +93,7 @@ describe('DanhSachBang — hỏng kho lưu trữ', () => {
     lamHongIdb('doc')
 
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="thu-lai-doc-bang"]')).not.toBeNull()
@@ -112,7 +112,7 @@ describe('DanhSachBang — hỏng kho lưu trữ', () => {
 
   it('ghi hỏng → báo ngay, và "Thử lại" ghi lại THẬT xuống IndexedDB', async () => {
     await act(async () => {
-      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()

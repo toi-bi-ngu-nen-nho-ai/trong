@@ -46,7 +46,7 @@ export const BUOC_POLL_MS = 50
  * Mỗi lượt `act()` ở đây chỉ ngủ một khoảng ngắn rồi đóng lại — tự flush xong TRƯỚC KHI lượt sau
  * kiểm tra lại điều kiện, nên không có vòng chờ lồng nhau nào để kẹt.
  *
- * Nhận điều kiện đồng bộ HOẶC async (bản DanhSachBang-loi-luu-tru cần `await` để đọc lại
+ * Nhận điều kiện đồng bộ HOẶC async (bản LuoiMuc-loi-luu-tru cần `await` để đọc lại
  * IndexedDB) — hợp nhất bề mặt của cả 4 bản chép tay cũ, không bản nào mất khả năng đang dùng.
  */
 export async function choDenKhi(

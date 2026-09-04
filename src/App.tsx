@@ -1374,7 +1374,7 @@ export function SearchScreen({
   // không kéo theo chunk 994 kB của bảng vẽ.
   // `loading` KHÔNG bỏ đi được: IndexedDB đọc bất đồng bộ nên `boards` rỗng cho tới khi lượt đọc
   // lúc mount xong — trong cửa sổ đó, gõ đúng tên một bảng đã lưu vẫn rơi vào màn "Không có kết
-  // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). DanhSachBang đã
+  // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). LuoiMuc đã
   // xử đúng cùng cờ này (`if (loading) return null`).
   const { items: boards, loading: dangNapBang, loiDoc: loiDocBang } = useIdbCollection<MucMeta>(IDB_STORES.boards)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -1597,7 +1597,7 @@ export function SearchScreen({
           </div>
         ) : dangNapBang ? null : (
           // Chưa nạp xong danh sách bảng thì KHÔNG kết luận "không có kết quả" — để trống một nhịp
-          // rất ngắn (cùng cách DanhSachBang tránh nháy lưới "rỗng" giả), thay vì khẳng định sai rồi
+          // rất ngắn (cùng cách LuoiMuc tránh nháy lưới "rỗng" giả), thay vì khẳng định sai rồi
           // tự lật lại ngay lượt render sau.
           <div className="text-center pt-16">
             <div className="mb-3 flex justify-center" style={{ color: "var(--c-muted)" }}>

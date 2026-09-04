@@ -13,7 +13,7 @@
 // dùng tưởng đã xoá sạch, dung lượng thì không giảm một byte.
 //
 // ─── Vì sao KHÔNG dùng lại `IndexedDBDocSource` ──────────────────────────────────────────────
-// D13: file này bị gọi từ DanhSachBang.tsx (chunk vỏ app). Import bất cứ thứ gì của BlockSuite vào
+// D13: file này bị gọi từ LuoiMuc.tsx (chunk vỏ app). Import bất cứ thứ gì của BlockSuite vào
 // đây là kéo cả chồng ra khỏi chunk nạp chậm cho mọi người dùng. IndexedDB thuần không phụ thuộc gì.
 
 /** DB nội dung bảng — cùng tên với `TEN_CSDL_BANG` mà EdgelessBoard/diTruBangCu truyền cho DocSource. */

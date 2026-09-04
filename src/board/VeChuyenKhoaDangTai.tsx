@@ -74,10 +74,10 @@ const AN_MUC = 0.64 // icon đặc hiện xong (1152ms)
 // `noUnusedLocals` làm ĐỎ cổng kiểu trên main.)
 const easeVe = 'cubic-bezier(0.65, 0.05, 0.36, 1)'
 
-// Băm id thành hue [260,330) — BẢN SAO CỦA mauOnDinh() (DanhSachBang.tsx), KHÔNG import: file này cố
+// Băm id thành hue [260,330) — BẢN SAO CỦA mauOnDinh() (LuoiMuc.tsx), KHÔNG import: file này cố
 // tình chỉ phụ thuộc React + SpecialtyIcons.tsx + specialties.ts (xem chú thích đầu file) để an toàn
 // cho cả index.tsx (màn tải chunk lần đầu, ranh giới nạp chậm D13) lẫn EdgelessBoard.tsx import tĩnh
-// — kéo theo DanhSachBang.tsx (2400+ dòng) vào chunk vỏ app chỉ để dùng 4 dòng hash là cái giá không
+// — kéo theo LuoiMuc.tsx (2400+ dòng) vào chunk vỏ app chỉ để dùng 4 dòng hash là cái giá không
 // đáng. Công thức PHẢI giữ y hệt bản gốc: cùng id phải ra cùng hue ở cả thẻ (TheTrong tĩnh) lẫn lớp
 // vẽ động này, nếu không cú FLIP đổi màu giữa chừng lúc mở bảng (critique 2026-09-02 lượt 2, P2).
 function mauOnDinh(id: string): number {
@@ -86,7 +86,7 @@ function mauOnDinh(id: string): number {
   return 260 + (Math.abs(h) % 70)
 }
 
-// id: id CỦA BẢNG — optional, chỉ truyền từ TheTrong (DanhSachBang.tsx). Hai lời gọi khác
+// id: id CỦA BẢNG — optional, chỉ truyền từ TheTrong (LuoiMuc.tsx). Hai lời gọi khác
 // (index.tsx, EdgelessBoard.tsx) không có board id sẵn trong ngữ cảnh của chúng (màn tải chunk lần
 // đầu / màn chờ nội bộ EdgelessBoard) nên không truyền — tự rơi về màu mờ cũ, không cần sửa gì ở đó.
 // mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (MucMeta.mauHue) — ưu tiên hơn mauOnDinh(id) khi có,
