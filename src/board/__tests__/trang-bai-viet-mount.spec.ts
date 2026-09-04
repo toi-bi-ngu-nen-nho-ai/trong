@@ -10,7 +10,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { IDB_STORES, idbGetAll, idbPut } from '../../lib/idb'
-import type { MucMeta } from '../mucMeta'
+import { doiGhiAnhXongNeuCo, type MucMeta } from '../mucMeta'
 import { TrangBaiViet } from '../TrangBaiViet'
 import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
@@ -142,5 +142,51 @@ describe('TrangBaiViet', () => {
       expect(muc!.capNhatLuc).toBe(capNhatLucGoc)
       expect(muc!.ten).toBe('Bài rời')
     })
+  })
+
+  it('rời bài viết TRƯỚC KHI taoHoacMoDoc xong thì KHÔNG xoá noiDungTimKiem đã lưu', async () => {
+    // Vết hồi quy (review 2026-09-04, TrangBaiViet.tsx:99-105): cleanup từng khởi tạo
+    // `noiDungTimKiem = ''` rồi gán lại '' trong catch. Nếu unmount chạy TRƯỚC khi `taoHoacMoDoc`
+    // resolve — `storeHienTai` vẫn null, `goc` falsy — biến đó giữ nguyên '' và bay thẳng vào
+    // `capNhatSauKhiRoiMuc(docId, false, '')`. mucMeta.ts:95 ghi
+    // `noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? ''`: '' không phải nullish nên `??` KHÔNG rơi
+    // qua giá trị cũ — chuỗi tìm kiếm đã lưu bị xoá sạch một cách âm thầm, không lỗi, không log.
+    // Đây đúng là đường mà cờ `daThao` tồn tại để phục vụ: người dùng mở bài rồi rời ngay, trước khi
+    // IndexedDB kịp trả lời.
+    await idbPut<MucMeta>(IDB_STORES.boards, {
+      id: 'bv-mount-4',
+      ten: 'Bài rời sớm',
+      taoLuc: Date.now(),
+      capNhatLuc: Date.now(),
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: 'GIU-NGUYEN',
+    })
+
+    // Hai lượt act() RỜI NHAU, không gộp render+unmount vào một act (đã thử — gộp vào một act khiến
+    // effect setup CHƯA từng chạy nên cleanup cũng không chạy, không kiểm được gì, xem báo cáo tự
+    // soát). Lượt đầu flush effect setup (gọi taoHoacMoDoc, bắt đầu promise IndexedDB thật —
+    // fake-indexeddb trả lời qua một tick task riêng, không phải microtask nên act() không tự chờ
+    // nó xong). Lượt thứ hai unmount NGAY SAU, trước khi promise đó kịp resolve.
+    await act(async () => {
+      root.render(createElement(TrangBaiViet, { docId: 'bv-mount-4' }))
+    })
+    await act(async () => {
+      root.unmount()
+    })
+
+    // `capNhatSauKhiRoiMuc` là fire-and-forget — chờ ĐÚNG bằng cơ chế mucMeta.ts đã cung cấp cho
+    // việc này (`doiGhiAnhXongNeuCo`), không dùng `choDom` poll: poll một giá trị "vẫn còn đúng như
+    // đã seed" có thể xanh giả TRƯỚC KHI lượt ghi kịp chạy, không chứng minh được gì.
+    await doiGhiAnhXongNeuCo()
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
+    const muc = ds.find((m) => m.id === 'bv-mount-4')
+    expect(muc?.noiDungTimKiem).toBe('GIU-NGUYEN')
+
+    // `afterEach` bên dưới còn gọi `root.unmount()` một lần nữa trên root đã unmount ở trên — đã
+    // xác nhận an toàn: `ReactDOMRoot.prototype.unmount` (react-dom-client.development.js) chỉ làm
+    // việc khi `this._internalRoot !== null`; lượt gọi thứ hai thấy nó đã là `null` (do lượt gọi
+    // đầu trong `act()` ở trên đã đặt) nên no-op, không ném lỗi. Không cần sửa hook hay ca này.
   })
 })

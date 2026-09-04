@@ -96,12 +96,16 @@ export function TrangBaiViet({
       daThao = true
       // Trích nội dung tìm kiếm TRƯỚC khi tháo cây Lit và dừng workspace — sau đó `store.root`
       // không còn đọc được.
-      let noiDungTimKiem = ''
+      let noiDungTimKiem: string | undefined
       try {
         const goc = storeHienTai?.root
         if (goc) noiDungTimKiem = ghepNoiDungTimKiem(trichVanBanTuKhoi(goc), '')
       } catch {
-        noiDungTimKiem = ''
+        // Trích văn bản là tiện ích phụ (phục vụ tìm kiếm) — lỗi ở đây không được làm hỏng lượt cập
+        // nhật metadata hay thao tác rời bài viết của người dùng. Để `noiDungTimKiem` ở nguyên
+        // `undefined` (KHÔNG gán '') — capNhatSauKhiRoiMuc/mucMeta.ts ghi
+        // `noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? ''`, `??` chỉ rơi qua giá trị cũ khi vế
+        // trái là null/undefined; gán '' ở đây từng xoá sạch chữ đã lưu vì '' là một giá trị THẬT.
       }
       boTheoDoiKhoi?.()
       boWatchTheme?.()
