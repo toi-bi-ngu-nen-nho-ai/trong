@@ -40,7 +40,7 @@ const TEN_MAC_DINH = 'Bảng chưa đặt tên'
 // sản dài hạn (tháng/năm), không phải một lượt tra cứu nhất thời — bác sĩ luôn làm việc trong một
 // chuyên khoa cố định phải "Thêm +N" rồi chọn lại chip đó mỗi lần mở tab là phí lặp lại thật cho
 // đúng người dùng trung thành nhất (critique 2026-09-01, P2; xác nhận lại với chủ dự án trước khi
-// làm — KHÔNG áp dụng ngoại lệ này cho `truyVan`/`hienHetChip`, hai state đó vẫn đúng nghĩa tạm
+// làm — KHÔNG áp dụng ngoại lệ này cho `truyVan`/`moChonKhoa`, hai state đó vẫn đúng nghĩa tạm
 // thời của một phiên xem lưới, giữ nguyên không lưu).
 const CHUYEN_KHOA_LOC_KEY = 'drtrong:mindmap-chuyen-khoa-loc'
 
@@ -1164,13 +1164,15 @@ export function DanhSachBang({
       // Không ghi được thì lần mở tab sau quay về "Tất cả" — chấp nhận được, không chặn dùng app.
     }
   }, [chuyenKhoaLoc])
-  // Dải chip chuyên khoa mặc định chỉ hiện 4 chip đầu + nút "Thêm" — 12 chip đồng hạng trên một
-  // hàng buộc cuộn-và-quét mới tìm ra một chuyên khoa, vi phạm luật ≤4 lựa chọn tại một điểm quyết
-  // định (critique 2026-08-25, mục "Hàng filter chuyên khoa"). Không lưu localStorage: KHÁC
-  // chuyenKhoaLoc ở trên (nay có ngoại lệ riêng), đây vẫn đúng nghĩa trạng thái mở-ra tạm thời của
-  // một phiên xem lưới — chip đang lọc luôn tự hiện dù đang gấp (xem chonNamOTrongPhanAn bên dưới),
-  // nên không cần nhớ luôn cả trạng thái mở/gấp mới khôi phục đúng bộ lọc đã lưu.
-  const [hienHetChip, setHienHetChip] = useState(false)
+  // "Chuyên khoa ▾" mở một BẢNG CHỌN (bottom sheet ≤640px, popover neo dưới hàng chip trên PC) liệt
+  // kê cả 11 khoa + số bảng mỗi khoa — THAY cho việc bung 11 chip inline vào chính dải cuộn ngang.
+  // Dải bung ra là 13 mục đồng hạng, scrollWidth ~1122px trên máy 375px, "Tất cả" cuộn khuất khỏi
+  // tầm mắt (critique 2026-09-01 P2 đã vá TẠM bằng fade tĩnh hai mép; critique 2026-09-03 nâng lên
+  // bảng chọn thật, chủ dự án chốt hướng "nặng" 2026-09-04). Không lưu localStorage — KHÁC
+  // chuyenKhoaLoc ở trên: đây là trạng thái mở/đóng của một phiên xem lưới; chip đang lọc luôn tự
+  // ghim vào dải dù bảng chọn đóng (chipDangChonNgoaiVISIBLE bên dưới).
+  const [moChonKhoa, setMoChonKhoa] = useState(false)
+  const nutChonKhoaRef = useRef<HTMLButtonElement>(null)
   // Truy vấn ô tìm nội bộ — vẫn đúng quy ước "chỉ sống trong phiên xem lưới" của phần còn lại của
   // app (không vào URL/localStorage, KHÁC chuyenKhoaLoc ở trên): một chuỗi tìm kiếm cũ mở lại vài
   // ngày sau dễ đọc thành "sao lưới trống/lạ" hơn là hữu ích, không giống một chuyên khoa cố định.
@@ -1289,6 +1291,30 @@ export function DanhSachBang({
       document.removeEventListener('keydown', dongNeuEscape)
     }
   }, [dangMoMenuId, dangSuaTagId])
+
+  // Đóng BẢNG CHỌN chuyên khoa ("Chuyên khoa ▾") khi bấm ra ngoài / Escape. KHÔNG gộp vào effect
+  // trên: effect đó gác theo dangMoMenuId/dangSuaTagId (menu "⋯" từng thẻ), khác vòng đời hẳn. Bấm
+  // vào chính nút mở (chip-chuyen-khoa-them) hoặc trong panel thì để onClick của phần tử đó tự lo.
+  // Escape trả focus về đúng nút "Chuyên khoa ▾".
+  useEffect(() => {
+    if (!moChonKhoa) return
+    const dongNeuNgoai = (e: PointerEvent) => {
+      const t = e.target as Element | null
+      if (t?.closest('[data-testid="chon-khoa-panel"], [data-testid="chip-chuyen-khoa-them"]')) return
+      setMoChonKhoa(false)
+    }
+    const dongNeuEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setMoChonKhoa(false)
+      nutChonKhoaRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', dongNeuNgoai)
+    document.addEventListener('keydown', dongNeuEsc)
+    return () => {
+      document.removeEventListener('pointerdown', dongNeuNgoai)
+      document.removeEventListener('keydown', dongNeuEsc)
+    }
+  }, [moChonKhoa])
 
   // Chưa nạp xong lần đầu — hiện tiêu đề + lưới giấy giữ chỗ (KHÔNG còn `return null` để tab trống
   // trơn, critique 2026-08-28 P3). Nút "+" ở tiêu đề mờ đi tới khi có dữ liệu thật.
@@ -2032,23 +2058,38 @@ export function DanhSachBang({
       {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn
           vào danh sách đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
       {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
-        // 2 chip đầu luôn hiện; phần còn lại gấp sau nút "Thêm" — cộng "Tất cả" + "Thêm" là ĐÚNG 4
-        // lựa chọn rời rạc tại điểm quyết định này (luật ≤4, Cognitive Load Checklist). Trước đây
-        // VISIBLE=4 cộng "Tất cả"+"Thêm" ra 6 lựa chọn cùng lúc, đã giảm từ 12 chip ở một lượt trước
-        // đó nhưng chưa đạt ngưỡng (critique 2026-08-25 rồi 2026-08-26, cùng một phát hiện tái diễn).
-        // Nếu bộ lọc ĐANG chọn nằm trong phần gấp mà dải đang thu gọn, vẫn chèn riêng đúng chip đó
-        // vào — ẩn hẳn chip đang bật sẽ khiến người dùng không hiểu vì sao lưới đang lọc theo một
-        // chuyên khoa "biến mất" khỏi dải. Nút "Thêm/Ẩn bớt" chỉ đổi `hienHetChip`, không bị khoá
-        // kẹt bởi lựa chọn hiện tại — "Ẩn bớt" luôn thu gọn về đúng {2 chip đầu + chip đang chọn
-        // nếu có}.
+        // 2 chip đầu (Tim mạch, Hô hấp) luôn hiện; chip ĐANG lọc, nếu nằm ngoài 2 đó, được ghim
+        // riêng vào dải để người dùng thấy vì sao lưới đang lọc. Mọi khoa còn lại nằm sau nút
+        // "Chuyên khoa ▾" — bấm mở BẢNG CHỌN (moChonKhoa) đủ 11 khoa + số bảng, thay cho việc bung
+        // 13 chip vào một dải cuộn ngang (critique 2026-09-03 P2, hướng "nặng" chủ dự án 2026-09-04).
         const VISIBLE = 2
         const chipHien = SPECIALTIES.slice(0, VISIBLE)
         const chipAn = SPECIALTIES.slice(VISIBLE)
-        const chonNamOTrongPhanAn = chuyenKhoaLoc !== null && chipAn.some((kh) => kh.id === chuyenKhoaLoc)
-        const chipDangHienNgoaiVISIBLE = hienHetChip
-          ? chipAn
-          : chipAn.filter((kh) => kh.id === chuyenKhoaLoc)
-        const soChipConLai = chipAn.length - chipDangHienNgoaiVISIBLE.length
+        const chipDangChonNgoaiVISIBLE = chipAn.filter((kh) => kh.id === chuyenKhoaLoc)
+        // Số bảng mỗi khoa — TÍNH ĐÚNG như bộ lọc thật ở `danhSachSapXep` (`.filter` gộp bảng chưa
+        // gắn khoa vào SPECIALTIES[0]), nên badge số khớp đúng thứ người dùng thấy sau khi bấm.
+        const demTheoKhoa = new Map<string, number>()
+        for (const b of danhSach) {
+          if (b.daXoaLuc) continue
+          const k = b.chuyenKhoa ?? SPECIALTIES[0].id
+          demTheoKhoa.set(k, (demTheoKhoa.get(k) ?? 0) + 1)
+        }
+        const tongBang = danhSach.filter((b) => !b.daXoaLuc).length
+        const hangChon = (dangChon: boolean): React.CSSProperties => ({
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          minHeight: 40,
+          padding: '0 10px',
+          textAlign: 'left',
+          border: 0,
+          borderRadius: 8,
+          background: dangChon ? 'var(--c-primary-soft, #eceefa)' : 'none',
+          color: 'var(--c-text, #12142b)',
+          fontSize: 13,
+          fontWeight: 600,
+        })
         const veChip = (kh: (typeof SPECIALTIES)[number]) => (
           <button
             key={kh.id}
@@ -2078,47 +2119,51 @@ export function DanhSachBang({
           </button>
         )
         return (
-          <div
-            // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc lập
-            // — KHÔNG dùng role="tablist" (đó là mẫu điều hướng dạng tab, đòi hỏi role="tab" +
-            // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây). Ruling
-            // review lượt 1.
-            role="group"
-            aria-label="Lọc theo chuyên khoa"
-            className="mind-chip-scroll"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 20px 8px' }}
-          >
-            <button
-              type="button"
-              data-testid="chip-chuyen-khoa-tat-ca"
-              onClick={() => setChuyenKhoaLoc(null)}
-              aria-pressed={chuyenKhoaLoc === null}
-              className="mind-focus-ring"
-              style={{
-                flexShrink: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                minHeight: 44,
-                fontSize: 12,
-                fontWeight: 600,
-                padding: '6px 12px',
-                borderRadius: 999,
-                border: '1px solid var(--c-line, #d9ddf4)',
-                background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
-                // Cùng vá với chip chuyên khoa (veChip ở trên): var(--c-on-bright) thay '#fff' cứng.
-                color: chuyenKhoaLoc === null ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
-              }}
+          // position:relative — mốc neo cho BẢNG CHỌN chuyên khoa (popover trên PC). Trên mobile
+          // .mind-menu-bang media query đổi panel sang position:fixed bottom-sheet nên mốc này thành
+          // vô hại ở đó.
+          <div style={{ position: 'relative' }}>
+            <div
+              // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc
+              // lập — KHÔNG dùng role="tablist" (mẫu điều hướng dạng tab, đòi role="tab" +
+              // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây).
+              role="group"
+              aria-label="Lọc theo chuyên khoa"
+              className="mind-chip-scroll"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 20px 8px' }}
             >
-              Tất cả
-            </button>
-            {chipHien.map(veChip)}
-            {chipDangHienNgoaiVISIBLE.map(veChip)}
-            {chipAn.length > 0 && (
               <button
                 type="button"
+                data-testid="chip-chuyen-khoa-tat-ca"
+                onClick={() => setChuyenKhoaLoc(null)}
+                aria-pressed={chuyenKhoaLoc === null}
+                className="mind-focus-ring"
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  minHeight: 44,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  border: '1px solid var(--c-line, #d9ddf4)',
+                  background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
+                  // Cùng vá với chip chuyên khoa (veChip ở trên): var(--c-on-bright) thay '#fff' cứng.
+                  color: chuyenKhoaLoc === null ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                }}
+              >
+                Tất cả
+              </button>
+              {chipHien.map(veChip)}
+              {chipDangChonNgoaiVISIBLE.map(veChip)}
+              <button
+                ref={nutChonKhoaRef}
+                type="button"
                 data-testid="chip-chuyen-khoa-them"
-                onClick={() => setHienHetChip((v) => !v)}
-                aria-expanded={hienHetChip}
+                onClick={() => setMoChonKhoa((v) => !v)}
+                aria-expanded={moChonKhoa}
+                aria-haspopup="dialog"
                 className="mind-focus-ring"
                 style={{
                   flexShrink: 0,
@@ -2134,14 +2179,81 @@ export function DanhSachBang({
                   color: 'var(--c-text-muted, #6b6e96)',
                 }}
               >
-                {hienHetChip
-                  ? 'Ẩn bớt ▴'
-                  : soChipConLai > 0
-                    ? `Thêm +${soChipConLai} ▾`
-                    : chonNamOTrongPhanAn
-                      ? 'Ẩn bớt ▴'
-                      : 'Thêm ▾'}
+                {moChonKhoa ? 'Chuyên khoa ▴' : 'Chuyên khoa ▾'}
               </button>
+            </div>
+            {moChonKhoa && (
+              <div
+                data-testid="chon-khoa-panel"
+                role="dialog"
+                aria-label="Lọc theo chuyên khoa"
+                // .mind-menu-bang (KHÔNG kèm .mind-menu-compact) → trên ≤640px media query ở index.css
+                // biến thành bottom-sheet full-width position:fixed (trong tầm ngón cái); trên PC giữ
+                // đúng vị trí neo tuyệt đối dưới đây. .mind-sheet: trượt lên nhẹ, tôn trọng
+                // prefers-reduced-motion (đã có trong khối @media ở index.css).
+                className="mind-menu-bang mind-sheet"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% - 2px)',
+                  left: 20,
+                  // width cố định (KHÔNG `right: 20` cũ — kéo panel rộng cả 1000px trên PC, badge số
+                  // bị đẩy xa nhãn cả màn hình, đọc rời rạc). 300px là bề rộng menu đọc thoải mái,
+                  // badge số căn phải gọn qua flex:1 ở nhãn. Trên ≤640px .mind-menu-bang media query
+                  // đặt left/right:12 + width:auto!important → sheet full-width tự thắng 300px này
+                  // (inline không !important), nên KHÔNG cần maxWidth và tránh lệch trái ở bottom-sheet.
+                  width: 300,
+                  maxHeight: 320,
+                  overflowY: 'auto',
+                  background: 'var(--c-surface, #fff)',
+                  boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)',
+                  border: '1px solid var(--c-line, #d9ddf4)',
+                  borderRadius: 12,
+                  padding: 4,
+                  zIndex: 30,
+                }}
+              >
+                {/* "Tất cả" hàng đầu — cùng hành động chip "Tất cả" trên dải, để trong bảng chọn luôn
+                    có đường về không-lọc, không phải đóng bảng rồi đi tìm chip. */}
+                <button
+                  type="button"
+                  data-testid="chon-khoa-tat-ca"
+                  onClick={() => {
+                    setChuyenKhoaLoc(null)
+                    setMoChonKhoa(false)
+                  }}
+                  aria-pressed={chuyenKhoaLoc === null}
+                  className="mind-focus-ring"
+                  style={hangChon(chuyenKhoaLoc === null)}
+                >
+                  <span style={{ flex: 1 }}>Tất cả</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>{tongBang}</span>
+                </button>
+                {SPECIALTIES.map((kh) => (
+                  <button
+                    key={kh.id}
+                    type="button"
+                    data-testid={`chon-khoa-${kh.id}`}
+                    onClick={() => {
+                      setChuyenKhoaLoc(kh.id)
+                      setMoChonKhoa(false)
+                    }}
+                    aria-pressed={chuyenKhoaLoc === kh.id}
+                    className="mind-focus-ring"
+                    style={hangChon(chuyenKhoaLoc === kh.id)}
+                  >
+                    {/* Chấm màu nhận diện khoa — cùng `kh.color` với chip/huy hiệu, aria-hidden vì
+                        tên khoa ngay cạnh đã mang đủ thông tin. */}
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 8, height: 8, borderRadius: '50%', background: kh.color, flexShrink: 0 }}
+                    />
+                    <span style={{ flex: 1 }}>{kh.name}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>
+                      {demTheoKhoa.get(kh.id) ?? 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )
