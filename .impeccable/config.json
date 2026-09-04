@@ -168,6 +168,11 @@
         ],
         "createdAt": "2026-09-01T16:11:59.593Z",
         "reason": "Fixture text mô phỏng nguyên văn CSS vendored .edgeless-templates-panel (BlockSuite thượng nguồn) để test hàm vá chuỗi vaKichThuocPanelMau — không phải giao diện thật của app, không dùng thang bo góc DESIGN.md"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-09-04T10:46:19.535Z"
       }
     ]
   }
