@@ -73,4 +73,22 @@ describe('đăng ký custom element từ danh sách view extension', () => {
     expect(customElements.get('drt-scroll-anchoring-widget'), 'ScrollAnchoring').toBeDefined()
     expect(customElements.get('drt-divider'), 'Divider').toBeDefined()
   })
+
+  it('nhóm 2: đăng ký đủ thẻ Lit', () => {
+    // Tên thẻ tra trực tiếp từ cây vendored (task-11-brief.md Step 1, đã hiệu chỉnh):
+    // - Table: `blocks/table/src/table-block.ts` định danh bằng hằng
+    //   `TableBlockComponentName = 'affine-table'`, effects.ts dùng lại hằng đó → `drt-table`.
+    // - Callout: `blocks/callout/src/effects.ts` viết thẳng chuỗi `'affine-callout'` → `drt-callout`.
+    // - Outline: `fragments/outline/src/outline-panel.ts` định danh bằng hằng
+    //   `AFFINE_OUTLINE_PANEL = 'affine-outline-panel'` → `drt-outline-panel`.
+    // - DataView: `blocks/data-view/src/effects.ts` viết thẳng chuỗi `'affine-data-view'` →
+    //   `drt-data-view`.
+    // Cả bốn đều mang tiền tố affine- gốc nên đổi thành drt- bình thường ở bước build vendor.
+    layExtensionsTrang()
+
+    expect(customElements.get('drt-table'), 'Table').toBeDefined()
+    expect(customElements.get('drt-callout'), 'Callout').toBeDefined()
+    expect(customElements.get('drt-outline-panel'), 'Outline').toBeDefined()
+    expect(customElements.get('drt-data-view'), 'DataView').toBeDefined()
+  })
 })

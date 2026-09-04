@@ -1,14 +1,14 @@
 // Danh sách extension cắt gọn (D13).
 //
-// GIỮ 43 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// GIỮ 47 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
 // src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
-// LÀ ĐÃ BỎ — 15 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
+// LÀ ĐÃ BỎ — 11 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
-// Phần bỏ đi trải trên bốn nhóm của thượng nguồn: 1 gfx (link), 7 block (Bookmark, Callout,
-// DataView — cố tình không bật, xem spec, Embed, EmbedDoc, LatexViewExtension — khối, xem lý do
-// dưới, Table), 4 widget (EdgelessAutoConnect, LinkedDoc, RemoteSelection, NoteSlicer) và 3 fragment
-// (FramePanel, Outline, AdapterPanel) — nhóm inline giờ ĐỦ 7/7, không góp vào phần loại
-// (1+7+4+3 = 15). Đếm bằng tay trên mảng bên dưới mỗi lần sửa số này — đừng suy diễn từ lượt trước.
+// Phần bỏ đi trải trên ba nhóm của thượng nguồn: 1 gfx (link), 4 block (Bookmark, Embed, EmbedDoc,
+// LatexViewExtension — khối, xem lý do dưới), 4 widget (EdgelessAutoConnect, LinkedDoc,
+// RemoteSelection, NoteSlicer) và 2 fragment (FramePanel, AdapterPanel) — nhóm inline giờ ĐỦ 7/7,
+// không góp vào phần loại (1+4+4+2 = 11). Đếm bằng tay trên mảng bên dưới mỗi lần sửa số này — đừng
+// suy diễn từ lượt trước.
 //
 // Chặng 2026-08-21 "Database + Note đầy đủ" (xem
 // docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
@@ -82,6 +82,32 @@
 // hiện trên DOM hay không mới phụ thuộc nó. Phần kiểm mắt (thanh công cụ bàn phím ảo dưới 768px)
 // nằm ngoài phạm vi Task 10, dời sau Task 13 (xem báo cáo).
 //
+// Chặng 2026-09-04, Task 11 (xem
+// docs/superpowers/specs/2026-09-04-kho-bai-viet-page-mode-design.md) bật thêm 4:
+// TableViewExtension, CalloutViewExtension, OutlineViewExtension, DataViewViewExtension — nhóm 2
+// trong bốn nhóm bật dần cho CHẾ ĐỘ TRANG: nội dung phong phú (bảng, khối nhấn mạnh, mục lục, ô dữ
+// liệu). DataViewViewExtension TRƯỚC ĐÂY (đoạn D13 gốc) ghi "cố tình không bật" — ghi chú đó đã LỖI
+// THỜI kể từ chặng này, spec kho-bai-viet-page-mode liệt nó vào diện BẬT ở nhóm 2 nên đã bật cùng ba
+// extension kia. TÊN THẺ THẬT tra từ cây vendored (không đoán theo tên lớp — hai trong bốn đoán ban
+// đầu SAI):
+//   - Table: `blocks/table/src/table-block.ts` định danh bằng hằng
+//     `TableBlockComponentName = 'affine-table'`, `effects.ts` dùng lại hằng đó → `drt-table` (KHÔNG
+//     phải `drt-table-block-component` như suy đoán ban đầu theo tên lớp `TableBlockComponent`).
+//   - Callout: `blocks/callout/src/effects.ts` viết thẳng chuỗi `'affine-callout'` → `drt-callout`.
+//   - Outline: `fragments/outline/src/outline-panel.ts` định danh bằng hằng
+//     `AFFINE_OUTLINE_PANEL = 'affine-outline-panel'` → `drt-outline-panel`. (Gói này còn định nghĩa
+//     `affine-outline-panel-header`/`-body`, không dùng làm đại diện vì đó là các mảnh con của cùng
+//     panel.)
+//   - DataView: `blocks/data-view/src/effects.ts` viết thẳng chuỗi `'affine-data-view'` →
+//     `drt-data-view` (KHÔNG phải `drt-data-view-block` như suy đoán ban đầu theo tên lớp
+//     `DataViewBlockComponent`).
+// Cả bốn đều mang tiền tố affine- gốc nên đổi thành drt- bình thường ở bước build vendor (không rơi
+// vào trường hợp đặc biệt như `doc-title` ở Task 10).
+//
+// Mục lục (Outline) thay cơ chế `blocksToToc()` tự chế của hệ bài viết cũ bằng chính
+// `OutlinePanel`/`AFFINE_OUTLINE_PANEL` của thượng nguồn — panel đọc trực tiếp cây block của doc,
+// không cần đồng bộ tay danh sách heading.
+//
 // Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong mo-doc.ts vẫn nạp nguyên
 // bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
 // block lạ vẫn nạp được vào store mà không vỡ, chỉ là không có gì vẽ nó ra. Cắt phía store là
@@ -118,10 +144,22 @@
 // Ngưỡng dừng §0 luật 6 của kế hoạch là 1.400 kB gzip — còn cách ~448,5 kB dù tính theo cách rộng
 // rãi nhất (951,47 kB).
 //
+// Nhóm 2 page mode thêm 2026-09-04, Task 11 (47 extension, xem đoạn giải thích ở trên) — đo lại ở
+// `npm run build` của chính lượt này, cùng máy, cùng cách tách chunk của Task 10:
+//   - `extensions-*.js` (mã chung): 4.023,91 kB → **957,87 kB gzip** (Task 10: 930,81 kB gzip, +27,06
+//     kB cho bốn extension Table/Callout/Outline/DataView).
+//   - `extensions-*.css` đi kèm: 96,94 kB → 15,61 kB gzip (Task 10: 14,41 kB gzip, +1,20 kB).
+//   - `EdgelessBoard-*.js`: 6,24 kB gzip (Task 10: 6,25 kB — không đổi đáng kể).
+//   - `TrangBaiViet-*.js`: 1,09 kB gzip (Task 10: 1,09 kB — không đổi).
+// Tổng đường mở nặng nhất (EdgelessBoard): 957,87 + 15,61 + 6,24 ≈ **979,72 kB gzip**. Ngưỡng dừng
+// vẫn 1.400 kB gzip — còn cách ~420,3 kB, KHÔNG vượt ngưỡng.
+//
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.
 import { AttachmentViewExtension } from '@blocksuite/affine-block-attachment/view'
+import { CalloutViewExtension } from '@blocksuite/affine-block-callout/view'
 import { CodeBlockViewExtension } from '@blocksuite/affine-block-code/view'
+import { DataViewViewExtension } from '@blocksuite/affine-block-data-view/view'
 import { DatabaseViewExtension } from '@blocksuite/affine-block-database/view'
 import { DividerViewExtension } from '@blocksuite/affine-block-divider/view'
 import { EdgelessTextViewExtension } from '@blocksuite/affine-block-edgeless-text/view'
@@ -133,8 +171,10 @@ import { ParagraphViewExtension } from '@blocksuite/affine-block-paragraph/view'
 import { RootViewExtension } from '@blocksuite/affine-block-root/view'
 import { SurfaceViewExtension } from '@blocksuite/affine-block-surface/view'
 import { SurfaceRefViewExtension } from '@blocksuite/affine-block-surface-ref/view'
+import { TableViewExtension } from '@blocksuite/affine-block-table/view'
 import { FoundationViewExtension } from '@blocksuite/affine-foundation/view'
 import { DocTitleViewExtension } from '@blocksuite/affine-fragment-doc-title/view'
+import { OutlineViewExtension } from '@blocksuite/affine-fragment-outline/view'
 import { BrushViewExtension } from '@blocksuite/affine-gfx-brush/view'
 import { ConnectorViewExtension } from '@blocksuite/affine-gfx-connector/view'
 import { GroupViewExtension } from '@blocksuite/affine-gfx-group/view'
@@ -182,7 +222,9 @@ export const viewExtensions = [
   TemplateViewExtension,
 
   AttachmentViewExtension,
+  CalloutViewExtension,
   CodeBlockViewExtension,
+  DataViewViewExtension,
   DatabaseViewExtension,
   DividerViewExtension,
   EdgelessTextViewExtension,
@@ -192,6 +234,7 @@ export const viewExtensions = [
   NoteViewExtension,
   ParagraphViewExtension,
   SurfaceRefViewExtension,
+  TableViewExtension,
   SurfaceViewExtension,
   RootViewExtension,
 
@@ -217,6 +260,7 @@ export const viewExtensions = [
   EdgelessToolbarViewExtension,
 
   DocTitleViewExtension,
+  OutlineViewExtension,
 ]
 
 const viewManager = new ViewExtensionManager(viewExtensions)
