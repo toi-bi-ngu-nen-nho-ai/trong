@@ -37,10 +37,17 @@ Muốn làm cho chạy thì KHÔNG đủ nếu chỉ cấp `QuickSearchProvider`
 bật Embed + bật Bookmark (và đo lại dung lượng bundle). Nhánh `docId` không áp dụng — app không có
 kho tài liệu để tìm.
 
-**Bảng Mẫu — chuỗi "Search file or anything..." vẫn tiếng Anh.** Chuỗi vendored trong
-`affine/gfx/template/src/toolbar/template-panel.ts` (ô tìm của panel Mẫu). Thuộc pipeline dịch D12,
-CHƯA có vị trí trong `vi.json`. Đây là khoản DUY NHẤT còn tồn của bảng Mẫu — bản thân tính năng đã
-xong (5 tab, 227 nhãn dán + 5 mẫu bảng, 2026-09-01): xem NHẬT KÝ chặng 43 và
+**Cập nhật 2026-09-05 — nay chỉ còn THIẾU MỘT trong ba.** Chặng page mode (Task 12) đã bật cả
+`BookmarkViewExtension` và `EmbedViewExtension` (`src/board/extensions.ts:108,115`). Khoản còn lại
+đúng một: cấp `QuickSearchProvider`. Khuôn cấp một service mà app chủ phải cung nay đã có sẵn để
+chép — `src/board/ban-phim-ao.ts` (`VirtualKeyboardProvider`, `di.addImpl` trong một `ExtensionType`,
+nối vào `layExtensionsTrang()`). Vẫn PHẢI đo lại dung lượng chunk soạn thảo sau khi bật: hiện
+1.159 kB gzip trên trần 1.400 kB, còn ~240 kB dư địa.
+
+~~**Bảng Mẫu — chuỗi "Search file or anything..." vẫn tiếng Anh.**~~ **ĐÃ ĐÓNG 2026-09-01**, mục
+này giữ lại để phiên sau khỏi mở điều tra lại. Vị trí dịch đã có:
+`scripts/luat-vi-tri-dich.mjs:890-911` (`RE_PLACEHOLDER_BANG_MAU`). Bảng Mẫu nay không còn khoản
+tồn nào — tính năng đã xong (5 tab, 227 nhãn dán + 5 mẫu bảng, 2026-09-01): xem NHẬT KÝ chặng 43 và
 [`plans/2026-09-01-mo-rong-bang-mau.md`](plans/2026-09-01-mo-rong-bang-mau.md).
 
 
@@ -189,6 +196,12 @@ hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch
   xanh cả khi guard bị vô hiệu hoá, hai lần, hai lý do khác nhau.
 - **Xác minh finding trước khi sửa** — tỉ lệ dương tính giả của critique/máy dò đã đo được là cao
   (2/6 một lượt; 4/9 một lượt khác).
+- **TÊN THẺ LIT viết trong plan/brief là ĐOÁN, không phải dữ kiện.** Chặng page mode sai 3 trên 4
+  task. Nguyên nhân: bước đổi tên D16 chỉ thay tiền tố `affine-` → `drt-`, mà một phần đáng kể thẻ
+  thượng nguồn KHÔNG mang tiền tố ấy từ đầu — `doc-title` (`fragments/doc-title/src/effects.ts`
+  gọi thẳng `customElements.define('doc-title', …)`), `edgeless-link-tool-button`, `note-slicer` —
+  nên tên runtime của chúng y hệt thượng nguồn, không có `drt-`. Tra `effects.ts` của gói vendored
+  TRƯỚC khi viết một `expect(customElements.get(...))`, đừng suy ra từ luật đổi tên.
 
 ### 2.4 Cây git dùng chung
 

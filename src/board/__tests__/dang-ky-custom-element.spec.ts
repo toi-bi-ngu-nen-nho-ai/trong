@@ -53,6 +53,17 @@ describe('đăng ký custom element từ danh sách view extension', () => {
     expect(customElements.get('edgeless-dragging-area-rect')).toBeDefined()
   })
 
+  // GIỚI HẠN CỦA BỐN CA "nhóm N" DƯỚI ĐÂY — đọc trước khi tin chúng (review toàn nhánh 2026-09-04,
+  // khoản Minor #13). `customElements.define()` ghi vào một registry TOÀN CỤC và không gỡ được, mà
+  // cả bốn ca nằm chung một tệp tức chung một tiến trình: lời gọi `layExtensionsTrang()` ở ca ĐẦU
+  // đã đăng ký trọn bộ thẻ Lit, nên ba ca sau sẽ xanh KỂ CẢ khi lời gọi của chính chúng là no-op.
+  // Chúng canh được "thẻ này có tồn tại sau khi bộ extension chạy", KHÔNG canh được "chính lượt
+  // gọi này đăng ký ra nó".
+  //
+  // CỐ Ý KHÔNG SỬA. Cách duy nhất phục hồi khả năng quy trách nhiệm là tách mỗi nhóm thành một tệp
+  // spec riêng (vitest cô lập theo TỆP), tức trả thêm ~90 giây transform cây vendored mỗi tệp để
+  // đổi lấy gần như không thêm độ phủ: đường end-to-end thật đã có `trang-bai-viet-mount.spec.ts`
+  // canh trên một registry sạch của riêng nó. Ghi giới hạn ra đây rẻ hơn và trung thực hơn.
   it('nhóm 1 page mode: đăng ký đủ thẻ Lit', () => {
     // `layExtensionsTrang()` gọi `viewManager.get('page')` — chạy chuỗi setup → effect → effects()
     // cho MỌI provider trong `viewExtensions` (không riêng những cái đăng ký extension cho scope
