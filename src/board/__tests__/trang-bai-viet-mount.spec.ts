@@ -189,4 +189,26 @@ describe('TrangBaiViet', () => {
     // việc khi `this._internalRoot !== null`; lượt gọi thứ hai thấy nó đã là `null` (do lượt gọi
     // đầu trong `act()` ở trên đã đặt) nên no-op, không ném lỗi. Không cần sửa hook hay ca này.
   })
+
+  it('dựng thẻ tiêu đề doc-title và gán doc — Task 10, spec §6.3', async () => {
+    // `DocTitleViewExtension` là FRAGMENT: không override `setup()`, chỉ đăng ký thẻ Lit qua
+    // `effect()` (xem extensions.ts). Ở AFFiNE thật, app chủ tự đặt thẻ tiêu đề quanh EditorHost —
+    // cây vendored/EditorHost không tự mount nó. Trước khi vá, `<doc-title>` KHÔNG tồn tại trong
+    // DOM sau mount (xác nhận RED ở báo cáo tự soát), tức bài viết không có ô gõ tiêu đề.
+    //
+    // Tên thẻ THẬT là `doc-title` — KHÔNG mang tiền tố affine-/drt- nào (xem chú thích ở
+    // extensions.ts và ca kiểm 'nhóm 1 page mode' trong dang-ky-custom-element.spec.ts).
+    await ghiMeta('bv-mount-5', 'Bài có tiêu đề')
+
+    await act(async () => {
+      root.render(createElement(TrangBaiViet, { docId: 'bv-mount-5' }))
+    })
+
+    await choDom(() => expect(boc.querySelector('doc-title')).not.toBeNull())
+    // Không chỉ có mặt trong DOM — còn RENDER ĐƯỢC nội dung thật (`.doc-title-container`, thấy ở
+    // `DocTitle.render()`). Nếu `.doc` không được gán, `connectedCallback()` ném lỗi ngay khi đọc
+    // `this.doc.readonly` và khối này sẽ KHÔNG hiện ra dù bản thân thẻ `<doc-title>` vẫn có mặt
+    // trong DOM — bằng chứng ".doc" đã được gán đúng, không chỉ "đặt thẻ suông".
+    await choDom(() => expect(boc.querySelector('doc-title .doc-title-container')).not.toBeNull())
+  })
 })

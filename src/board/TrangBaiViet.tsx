@@ -2,24 +2,22 @@
 // một thẻ div; BlockStdScope dựng cây Lit rồi Lit render vào đó), cùng `mo-doc.ts`, cùng theme
 // watcher, cùng cách đếm thay đổi nội dung để bump `capNhatLuc`.
 //
-// KHÁC edgeless đúng bốn điểm, tất cả đều cố ý:
+// KHÁC edgeless đúng năm điểm, tất cả đều cố ý:
 //   1. `layExtensionsTrang()` thay `layExtensionsEdgeless()`
 //   2. KHÔNG có `laKhungHep()`/`theoDoiKhungHep()` — bài viết sửa được ở MỌI bề ngang (quyết định
 //      của chủ dự án 2026-09-04). Gõ chữ trên điện thoại là chuyện bình thường, khác hẳn vẽ sơ đồ.
 //   3. KHÔNG cần dong-bo-toa-do-viewport / viewport-ios / xep-o-tu-dong — đều là chuyện của canvas.
 //   4. `noiDungTimKiem` chỉ lấy từ `trichVanBanTuKhoi(store.root)`; trang không có
 //      `surface.elementModels` mang chữ nên `trichVanBanTuCanvas` vô nghĩa ở đây.
+//   5. Tự dựng `<doc-title>` (Task 10) — EdgelessBoard.tsx không cần, canvas không có "tiêu đề bài
+//      viết" theo nghĩa này. Xem chú thích tại chỗ dựng bên dưới.
 import { BlockStdScope } from '@blocksuite/affine/std'
-import { render as litRender } from 'lit'
+import { html, render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
-// TẠM import từ EdgelessBoard: Task 1 đặt `layExtensionsTrang()` ở đó (lát cắt spike mỏng nhất),
-// Task 10 mới dời nó cùng `viewManager` sang `extensions.ts` rồi đổi dòng này thành
-// `from './extensions'`. Trong khoảng đó, TrangBaiViet kéo theo module edgeless — vô hại vì hai chế
-// độ DÙNG CHUNG MỘT CHUNK (viewManager là singleton, xem §3.4 của spec), chỉ là tạm xấu.
-import { layExtensionsTrang } from './EdgelessBoard'
+import { layExtensionsTrang } from './extensions'
 import { taoHoacMoDoc } from './mo-doc'
 import { capNhatSauKhiRoiMuc, ghepNoiDungTimKiem, trichVanBanTuKhoi } from './mucMeta'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
@@ -68,7 +66,16 @@ export function TrangBaiViet({
 
         // KHÔNG đặt `store.readonly` — xem điểm 2 ở đầu file.
         const std = new BlockStdScope({ store, extensions: layExtensionsTrang() })
-        litRender(std.render(), el)
+        // `DocTitleViewExtension` là FRAGMENT (xem extensions.ts): bật extension chỉ đăng ký thẻ
+        // Lit `<doc-title>`, KHÔNG có gì tự mount nó — ở AFFiNE thật, app chủ tự đặt thẻ này quanh
+        // EditorHost, còn cây vendored/EditorHost thì không (spec §6.3). Nên tự dựng ở đây, NGAY
+        // TRƯỚC `std.render()` trong CÙNG một cây Lit (một lời gọi `litRender` duy nhất) — không
+        // tách container riêng — để `<doc-title>` nằm bên trong `el` và `.closest('.drt-page-viewport')`
+        // của nó (xem doc-title.ts) khớp đúng CHÍNH `el`, cùng phần tử mà EditorHost dùng, không cần
+        // thêm lớp bọc riêng. `.doc=${store}` gán bằng thuộc tính JS (không phải attribute HTML) —
+        // đúng cách trường `doc` của DocTitle khai (`@property({attribute: false})`, kiểu `Store`,
+        // xem fragments/doc-title/src/doc-title.ts trong cây vendored) đòi hỏi.
+        litRender(html`<doc-title .doc=${store}></doc-title>${std.render()}`, el)
 
         // Chỉ đếm sự kiện CỤC BỘ (do người dùng gõ), bỏ qua lượt đồng bộ/hydrate — cùng luật đã
         // dùng cho bảng vẽ, để "mở ra xem rồi thoát" không làm nhãn "cập nhật lần cuối" nhảy.

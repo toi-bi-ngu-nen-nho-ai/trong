@@ -1,13 +1,14 @@
 // Danh sách extension cắt gọn (D13).
 //
-// GIỮ 37 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// GIỮ 43 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
 // src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
-// LÀ ĐÃ BỎ — 21 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
+// LÀ ĐÃ BỎ — 15 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
-// Phần bỏ đi trải trên bốn nhóm của thượng nguồn: 1 gfx (link), 9 block (Bookmark, Callout,
-// DataView — cố tình không bật, xem spec, Divider, EdgelessText, Embed, EmbedDoc, LatexViewExtension
-// — khối, xem lý do dưới, Table), 7 widget và TOÀN BỘ 4 fragment (1+9+7+4 = 21 — nhóm inline giờ
-// ĐỦ 7/7, không còn góp vào phần loại).
+// Phần bỏ đi trải trên bốn nhóm của thượng nguồn: 1 gfx (link), 7 block (Bookmark, Callout,
+// DataView — cố tình không bật, xem spec, Embed, EmbedDoc, LatexViewExtension — khối, xem lý do
+// dưới, Table), 4 widget (EdgelessAutoConnect, LinkedDoc, RemoteSelection, NoteSlicer) và 3 fragment
+// (FramePanel, Outline, AdapterPanel) — nhóm inline giờ ĐỦ 7/7, không góp vào phần loại
+// (1+7+4+3 = 15). Đếm bằng tay trên mảng bên dưới mỗi lần sửa số này — đừng suy diễn từ lượt trước.
 //
 // Chặng 2026-08-21 "Database + Note đầy đủ" (xem
 // docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
@@ -21,8 +22,9 @@
 // `insertEdgelessTextCommand` vì cờ `enable_edgeless_text` mặc định BẬT — nhưng không có extension
 // này thì không ai đăng ký `BlockViewExtension('affine:edgeless-text', …)` lẫn thẻ
 // `drt-edgeless-text`, nên khối vào store mà không có gì vẽ ra. Xem
-// src/board/__tests__/cong-cu-chu-tu-do.spec.ts. Ghi chú lịch sử: câu "9 block … EdgelessText" ở
-// đoạn đầu file nói về diện BỎ lúc D13 — kể từ chặng này EdgelessText KHÔNG còn trong diện đó nữa.
+// src/board/__tests__/cong-cu-chu-tu-do.spec.ts. Ghi chú lịch sử: đoạn đầu file lúc D13 liệt
+// EdgelessText vào diện BỎ — kể từ chặng này nó KHÔNG còn trong diện đó nữa (số liệu ở đoạn đầu đã
+// cập nhật theo qua các lượt sửa sau).
 //
 // Chặng 2026-08-23 (xem docs/superpowers/specs/2026-08-22-dich-be-mat-hien-thi-dot-2-design.md
 // mục "Ngoài phạm vi") bật thêm 4: AttachmentViewExtension, CodeBlockViewExtension,
@@ -56,6 +58,30 @@
 // `tooltips.ts` để không render KaTeX đồng bộ lúc import) thì đọc đó, đừng điều tra lại từ đầu.
 // "Equation" VẪN nằm trong diện hoãn.
 //
+// Chặng 2026-09-04, Task 10 (xem
+// docs/superpowers/specs/2026-09-04-kho-bai-viet-page-mode-design.md) bật thêm 5:
+// DocTitleViewExtension, KeyboardToolbarViewExtension, PageDraggingAreaViewExtension,
+// ScrollAnchoringViewExtension, DividerViewExtension — nhóm 1 trong bốn nhóm bật dần cho CHẾ ĐỘ
+// TRANG (bài viết): thiếu năm cái này thì page mode không dùng được. Cùng lượt, `viewManager` và
+// hai hàm `layExtensionsEdgeless`/`layExtensionsTrang` dời từ EdgelessBoard.tsx sang cuối file này
+// (nguyên văn, chỉ đổi đường import), để TrangBaiViet.tsx không còn phải kéo theo module edgeless.
+//
+// DocTitleViewExtension không override `setup()` — nó không đăng ký gì qua `context.register`, chỉ
+// đăng ký thẻ Lit qua `effect()`. Ở AFFiNE thật, app chủ tự đặt thẻ tiêu đề quanh EditorHost; cây
+// vendored không tự mount nó (đúng như spec §6.3 cảnh báo). TrangBaiViet.tsx vì vậy tự dựng thẻ này
+// và gán `.doc` — xem chú thích tại chỗ đặt trong file đó. TÊN THẺ THẬT: `doc-title`, KHÔNG mang
+// tiền tố affine-/drt- nào — `fragments/doc-title/src/effects.ts` viết thẳng
+// `customElements.define('doc-title', DocTitle)`, và luật đổi tên của `scripts/doi-ten-vendor.mjs`
+// chỉ khớp `\baffine-` (có gạch nối ngay sau), nên không đụng tới một chuỗi không có tiền tố đó.
+// Bốn extension còn lại đều ĐỊNH DANH bằng hằng `AFFINE_..._WIDGET = 'affine-...-widget'` (trừ
+// Divider, viết thẳng `'affine-divider'`) nên có prefix và ĐƯỢC đổi thành `drt-` bình thường.
+//
+// KeyboardToolbarViewExtension.setup() chỉ `context.register` widget khi `context.scope` là
+// 'mobile-page', hoặc 'page' VÀ `IS_MOBILE` (dò user agent thiết bị — KHÔNG phải media query bề
+// ngang). Thẻ Lit vẫn luôn được đăng ký qua `effect()` bất kể nhánh này; chỉ WIDGET có thật sự xuất
+// hiện trên DOM hay không mới phụ thuộc nó. Phần kiểm mắt (thanh công cụ bàn phím ảo dưới 768px)
+// nằm ngoài phạm vi Task 10, dời sau Task 13 (xem báo cáo).
+//
 // Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong mo-doc.ts vẫn nạp nguyên
 // bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
 // block lạ vẫn nạp được vào store mà không vỡ, chỉ là không có gì vẽ nó ra. Cắt phía store là
@@ -71,11 +97,33 @@
 // `git log -p -- src/board/extensions.ts` nếu cần con số chính xác thời điểm đó; ĐỪNG tin hai
 // con số "22"/"cắt gọn" ở trên nữa cho mục đích đo dung lượng, chúng chỉ còn giá trị lịch sử.
 //
+// Nhóm 1 page mode thêm 2026-09-04, Task 10 (43 extension, xem đoạn giải thích ở trên) — đo lại ở
+// `npm run build` của chính lượt này. HÌNH DẠNG DUNG LƯỢNG ĐÃ ĐỔI so với mọi lần đo trước: từ
+// Task 9 có HAI điểm vào nạp chậm (EdgelessBoard.tsx và TrangBaiViet.tsx, cùng import
+// `extensions.ts`), Rolldown tách phần DÙNG CHUNG ra một chunk riêng thay vì gộp hết vào một
+// "chunk bảng" duy nhất như trước:
+//   - `extensions-*.js` (mã chung — toàn bộ view extension + phụ thuộc vendor): 3.900,74 kB →
+//     930,81 kB gzip. Đây là chunk mang GẦN NHƯ TOÀN BỘ tải trọng BlockSuite, đặt tên trùng file
+//     này vì Rolldown tự chọn theo module chung lớn nhất — dùng số này làm "chunk soạn thảo" để so
+//     ngưỡng.
+//   - `extensions-*.css` đi kèm (theme vendor + ghi đè thương hiệu, dùng chung cả hai điểm vào):
+//     90,60 kB → 14,41 kB gzip.
+//   - Phần RIÊNG mỗi chế độ, nhỏ không đáng kể: `EdgelessBoard-*.js` 6,25 kB gzip (`TrangBaiViet-*.js`
+//     chỉ 1,09 kB — trang không cần dong-bo-toa-do-viewport/viewport-ios/xep-o-tu-dong).
+// Tổng đường mở EdgelessBoard (trường hợp nặng hơn): 930,81 + 14,41 + 6,25 ≈ 951,47 kB gzip.
+// `mucMeta-*.js`/`theme-*.js`/`rolldown-runtime-*.js`/`gfx-*.js`/`preload-helper-*.js` KHÔNG tính
+// vào đây dù hai entry điểm trên có nhắc tới — đã kiểm bằng `grep` thấy `index-*.js` (chunk VỎ APP)
+// cũng import đúng các tên đó, tức chúng đã nằm trong 332,01 kB gzip của vỏ app, tải dù không mở
+// bảng, không phải chi phí RIÊNG của việc mở bảng.
+// Ngưỡng dừng §0 luật 6 của kế hoạch là 1.400 kB gzip — còn cách ~448,5 kB dù tính theo cách rộng
+// rãi nhất (951,47 kB).
+//
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.
 import { AttachmentViewExtension } from '@blocksuite/affine-block-attachment/view'
 import { CodeBlockViewExtension } from '@blocksuite/affine-block-code/view'
 import { DatabaseViewExtension } from '@blocksuite/affine-block-database/view'
+import { DividerViewExtension } from '@blocksuite/affine-block-divider/view'
 import { EdgelessTextViewExtension } from '@blocksuite/affine-block-edgeless-text/view'
 import { FrameViewExtension } from '@blocksuite/affine-block-frame/view'
 import { ImageViewExtension } from '@blocksuite/affine-block-image/view'
@@ -86,6 +134,7 @@ import { RootViewExtension } from '@blocksuite/affine-block-root/view'
 import { SurfaceViewExtension } from '@blocksuite/affine-block-surface/view'
 import { SurfaceRefViewExtension } from '@blocksuite/affine-block-surface-ref/view'
 import { FoundationViewExtension } from '@blocksuite/affine-foundation/view'
+import { DocTitleViewExtension } from '@blocksuite/affine-fragment-doc-title/view'
 import { BrushViewExtension } from '@blocksuite/affine-gfx-brush/view'
 import { ConnectorViewExtension } from '@blocksuite/affine-gfx-connector/view'
 import { GroupViewExtension } from '@blocksuite/affine-gfx-group/view'
@@ -108,9 +157,16 @@ import { EdgelessSelectedRectViewExtension } from '@blocksuite/affine-widget-edg
 import { EdgelessToolbarViewExtension } from '@blocksuite/affine-widget-edgeless-toolbar/view'
 import { EdgelessZoomToolbarViewExtension } from '@blocksuite/affine-widget-edgeless-zoom-toolbar/view'
 import { FrameTitleViewExtension } from '@blocksuite/affine-widget-frame-title/view'
+import { KeyboardToolbarViewExtension } from '@blocksuite/affine-widget-keyboard-toolbar/view'
+import { PageDraggingAreaViewExtension } from '@blocksuite/affine-widget-page-dragging-area/view'
+import { ScrollAnchoringViewExtension } from '@blocksuite/affine-widget-scroll-anchoring/view'
 import { SlashMenuViewExtension } from '@blocksuite/affine-widget-slash-menu/view'
 import { ToolbarViewExtension } from '@blocksuite/affine-widget-toolbar/view'
 import { ViewportOverlayViewExtension } from '@blocksuite/affine-widget-viewport-overlay/view'
+import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
+
+import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
+import { phongChuBangExtension } from './phong-chu-bang'
 
 export const viewExtensions = [
   FoundationViewExtension,
@@ -128,6 +184,7 @@ export const viewExtensions = [
   AttachmentViewExtension,
   CodeBlockViewExtension,
   DatabaseViewExtension,
+  DividerViewExtension,
   EdgelessTextViewExtension,
   FrameViewExtension,
   ImageViewExtension,
@@ -148,11 +205,59 @@ export const viewExtensions = [
 
   DragHandleViewExtension,
   FrameTitleViewExtension,
+  KeyboardToolbarViewExtension,
+  ScrollAnchoringViewExtension,
   SlashMenuViewExtension,
   ToolbarViewExtension,
   ViewportOverlayViewExtension,
   EdgelessZoomToolbarViewExtension,
+  PageDraggingAreaViewExtension,
   EdgelessSelectedRectViewExtension,
   EdgelessDraggingAreaViewExtension,
   EdgelessToolbarViewExtension,
+
+  DocTitleViewExtension,
 ]
+
+const viewManager = new ViewExtensionManager(viewExtensions)
+
+/**
+ * Bộ extension cho chế độ edgeless, lấy từ ĐÚNG `viewManager` singleton của module này.
+ *
+ * Có hàm này vì `xuatAnhBang.ts` cũng cần mount một cây Lit (bảng ngầm để xuất PNG) và KHÔNG được
+ * phép tự dựng một `ViewExtensionManager` thứ hai: `.get('edgeless')` chạy chuỗi
+ * `ViewExtensionProvider.setup() → effect() → effects()`, tức là `customElements.define(...)` cho
+ * toàn bộ thẻ Lit — gọi lần hai trên cùng tên thẻ là `NotSupportedError` ném thẳng ra, hỏng cả
+ * bảng vẽ lẫn lượt xuất. Xuất một hàm rẻ hơn xuất chính `viewManager` (bên ngoài không cần biết
+ * manager tồn tại, chỉ cần đúng mảng extension).
+ *
+ * `cheDoEdgeless` nối vào CUỐI, sau mọi view extension: nó `di.override` `DocModeProvider` mà
+ * `FoundationViewExtension` (phần tử đầu mảng) vừa đăng ký. Không có nó thì `getEditorMode()` trả
+ * `null` và TOÀN BỘ thanh công cụ phần tử tắt câm — xem ./che-do-co-dinh.ts để biết chuỗi nhân quả
+ * đầy đủ. Đặt trong hàm dùng chung này để mọi đường mount cây Lit đều nhận đúng một bộ.
+ *
+ * `phongChuBangExtension` cùng lớp lý do: `FoundationViewExtension` chỉ đăng ký cấu hình phông KHI
+ * được truyền `options.fontConfig`, mà ta gọi `.get('edgeless')` không kèm options — nên không có
+ * FontFace nào mang tên họ `blocksuite:surface:*` và MỌI ô chọn phông/kiểu chữ mở ra đều rỗng. Xem
+ * ./phong-chu-bang.ts.
+ */
+export function layExtensionsEdgeless() {
+  return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension]
+}
+
+/**
+ * Bộ extension cho CHẾ ĐỘ TRANG, lấy từ ĐÚNG `viewManager` singleton của module này.
+ *
+ * Phải dùng chung manager với `layExtensionsEdgeless()`, không được dựng manager thứ hai: `.get()`
+ * chạy chuỗi `ViewExtensionProvider.setup() → effect() → effects()`, tức `customElements.define(...)`
+ * cho toàn bộ thẻ Lit — lý do đầy đủ đã ghi ở JSDoc của `layExtensionsEdgeless` ngay trên.
+ *
+ * `cheDoTrang` nối vào CUỐI vì `di.override` chỉ thay được một hiện thực ĐÃ đăng ký, mà
+ * `DocModeService` gốc do `FoundationViewExtension` (phần tử đầu mảng) đăng ký.
+ *
+ * `phongChuBangExtension` giữ nguyên như edgeless: `FoundationViewExtension` chỉ đăng ký cấu hình
+ * phông KHI được truyền `options.fontConfig`, mà ta gọi `.get()` không kèm options.
+ */
+export function layExtensionsTrang() {
+  return [...viewManager.get('page'), cheDoTrang, phongChuBangExtension]
+}

@@ -12,7 +12,7 @@ import { BlockStdScope } from '@blocksuite/affine/std'
 import { render as litRender } from 'lit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { layExtensionsTrang } from '../EdgelessBoard'
+import { layExtensionsTrang } from '../extensions'
 import { taoHoacMoDoc } from '../mo-doc'
 import { choDom } from '../../__tests__/helpers/cho-den-khi'
 

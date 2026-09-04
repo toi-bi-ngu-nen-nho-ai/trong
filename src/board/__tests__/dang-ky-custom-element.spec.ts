@@ -24,7 +24,7 @@
 import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { describe, expect, it } from 'vitest'
 
-import { viewExtensions } from '../extensions'
+import { layExtensionsTrang, viewExtensions } from '../extensions'
 
 describe('đăng ký custom element từ danh sách view extension', () => {
   it('nạp scope edgeless là các thẻ Lit có mặt trong customElements', () => {
@@ -51,5 +51,26 @@ describe('đăng ký custom element từ danh sách view extension', () => {
     // đăng ký và dòng dưới đỏ ngay — khác với hai kỳ vọng đầu, vốn chỉ đỏ khi mảng bị xoá gần sạch.
     expect(customElements.get('edgeless-zoom-toolbar')).toBeDefined()
     expect(customElements.get('edgeless-dragging-area-rect')).toBeDefined()
+  })
+
+  it('nhóm 1 page mode: đăng ký đủ thẻ Lit', () => {
+    // `layExtensionsTrang()` gọi `viewManager.get('page')` — chạy chuỗi setup → effect → effects()
+    // cho MỌI provider trong `viewExtensions` (không riêng những cái đăng ký extension cho scope
+    // 'page'; `effect()` không nhận tham số scope, xem ext-loader/src/view-provider.ts), tức
+    // `customElements.define(...)` cho toàn bộ thẻ Lit. Đây là đường THẬT `TrangBaiViet.tsx` dùng
+    // (extensions.ts), thay vì tự dựng một `ViewExtensionManager` thứ hai như ca trên.
+    layExtensionsTrang()
+
+    // Tên thẻ lấy từ cây vendored (task-10-brief.md Step 2), đổi tiền tố affine- → drt- ở bước
+    // build vendor — TRỪ DocTitle: `fragments/doc-title/src/effects.ts` viết thẳng
+    // `customElements.define('doc-title', DocTitle)`, không có tiền tố affine- nào từ đầu, nên luật
+    // đổi tên `\baffine-` của scripts/doi-ten-vendor.mjs không đụng tới — tên thật ở runtime vẫn là
+    // `doc-title`, y hệt thượng nguồn. Bốn thẻ còn lại ĐỀU có tiền tố affine- gốc nên đổi bình
+    // thường.
+    expect(customElements.get('doc-title'), 'DocTitle').toBeDefined()
+    expect(customElements.get('drt-keyboard-toolbar-widget'), 'KeyboardToolbar').toBeDefined()
+    expect(customElements.get('drt-page-dragging-area-widget'), 'PageDraggingArea').toBeDefined()
+    expect(customElements.get('drt-scroll-anchoring-widget'), 'ScrollAnchoring').toBeDefined()
+    expect(customElements.get('drt-divider'), 'Divider').toBeDefined()
   })
 })

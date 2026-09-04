@@ -8,11 +8,11 @@
 // Import một module rỗng không đăng ký gì; đã kiểm chứng bằng một ca chỉ import nó rồi hỏi
 // `customElements.get('drt-edgeless-root')` → undefined.
 // Nơi thật sự đăng ký là chuỗi `ViewExtensionProvider.setup() → effect() → effects()` của TỪNG gói
-// view extension, tức là qua `viewExtensions` ngay bên dưới. Vì thế bỏ hẳn dòng import đó thay vì
-// giữ một dòng vô tác dụng kèm chú thích sai. Đường đăng ký thật được canh bằng
-// `__tests__/dang-ky-custom-element.spec.ts`.
+// view extension, tức là qua `viewExtensions` (nay ở ./extensions.ts, dùng qua
+// `layExtensionsEdgeless()` bên dưới — xem đó để biết vì sao `viewManager` và hai hàm
+// `layExtensions*` dời sang đó từ Task 10). Vì thế bỏ hẳn dòng import đó thay vì giữ một dòng vô tác
+// dụng kèm chú thích sai. Đường đăng ký thật được canh bằng `__tests__/dang-ky-custom-element.spec.ts`.
 import { type SurfaceBlockModel } from '@blocksuite/affine/blocks/surface'
-import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { GfxControllerIdentifier } from '@blocksuite/affine/std/gfx'
 import { PanTool } from '@blocksuite/affine-gfx-pointer'
@@ -22,8 +22,6 @@ import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
-import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
-import { phongChuBangExtension } from './phong-chu-bang'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
 import { laKhungHep, theoDoiKhungHep } from './chi-doc-khung-hep'
@@ -51,7 +49,7 @@ import '../../.vendor-build/theme/style.css'
 // đặc hiệu thì luật khai sau thắng; xem chú thích trong chính file đó về lý do chọn độ đặc hiệu).
 import './cau-noi-thuong-hieu.css'
 
-import { viewExtensions } from './extensions'
+import { layExtensionsEdgeless } from './extensions'
 import { DongNaoTemplateManager } from './mau-dongnao'
 import { HandyTemplateManager } from './mau-handy'
 import { EdgelessTemplatePanel } from '@blocksuite/affine-gfx-template'
@@ -61,8 +59,6 @@ import { EdgelessTemplatePanel } from '@blocksuite/affine-gfx-template'
 // bắt buộc (SKIP_REFRESH_DURING_GESTURE là field initializer, chốt cứng lúc constructor chạy).
 apDungViewportChoIOS()
 
-const viewManager = new ViewExtensionManager(viewExtensions)
-
 // Bơm các bộ mẫu vào nút "Mẫu" của thanh công cụ edgeless. Thượng nguồn để `builtInTemplates`
 // rỗng, chờ app chủ gọi `extend()` (xem src/board/mau-handy.ts + scripts/dung-mau-handy.mjs). Chạy ở
 // cấp module, một lần khi chunk bảng nạp — `EdgelessTemplatePanel.templates` CHÍNH LÀ `builtInTemplates`.
@@ -70,54 +66,13 @@ const viewManager = new ViewExtensionManager(viewExtensions)
 EdgelessTemplatePanel.templates.extend(new HandyTemplateManager())
 EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
 
-/**
- * Bộ extension cho chế độ edgeless, lấy từ ĐÚNG `viewManager` singleton của module này.
- *
- * Có hàm này vì `xuatAnhBang.ts` cũng cần mount một cây Lit (bảng ngầm để xuất PNG) và KHÔNG được
- * phép tự dựng một `ViewExtensionManager` thứ hai: `.get('edgeless')` chạy chuỗi
- * `ViewExtensionProvider.setup() → effect() → effects()`, tức là `customElements.define(...)` cho
- * toàn bộ thẻ Lit — gọi lần hai trên cùng tên thẻ là `NotSupportedError` ném thẳng ra, hỏng cả
- * bảng vẽ lẫn lượt xuất. Xuất một hàm rẻ hơn xuất chính `viewManager` (bên ngoài không cần biết
- * manager tồn tại, chỉ cần đúng mảng extension).
- *
- * `cheDoEdgeless` nối vào CUỐI, sau mọi view extension: nó `di.override` `DocModeProvider` mà
- * `FoundationViewExtension` (phần tử đầu mảng) vừa đăng ký. Không có nó thì `getEditorMode()` trả
- * `null` và TOÀN BỘ thanh công cụ phần tử tắt câm — xem ./che-do-co-dinh.ts để biết chuỗi nhân quả
- * đầy đủ. Đặt trong hàm dùng chung này để mọi đường mount cây Lit đều nhận đúng một bộ.
- *
- * `phongChuBangExtension` cùng lớp lý do: `FoundationViewExtension` chỉ đăng ký cấu hình phông KHI
- * được truyền `options.fontConfig`, mà ta gọi `.get('edgeless')` không kèm options — nên không có
- * FontFace nào mang tên họ `blocksuite:surface:*` và MỌI ô chọn phông/kiểu chữ mở ra đều rỗng. Xem
- * ./phong-chu-bang.ts.
- */
-export function layExtensionsEdgeless() {
-  return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension]
-}
-
-/**
- * Bộ extension cho CHẾ ĐỘ TRANG, lấy từ ĐÚNG `viewManager` singleton của module này.
- *
- * Phải dùng chung manager với `layExtensionsEdgeless()`, không được dựng manager thứ hai: `.get()`
- * chạy chuỗi `ViewExtensionProvider.setup() → effect() → effects()`, tức `customElements.define(...)`
- * cho toàn bộ thẻ Lit — lý do đầy đủ đã ghi ở JSDoc của `layExtensionsEdgeless` ngay trên.
- *
- * `cheDoTrang` nối vào CUỐI vì `di.override` chỉ thay được một hiện thực ĐÃ đăng ký, mà
- * `DocModeService` gốc do `FoundationViewExtension` (phần tử đầu mảng) đăng ký.
- *
- * `phongChuBangExtension` giữ nguyên như edgeless: `FoundationViewExtension` chỉ đăng ký cấu hình
- * phông KHI được truyền `options.fontConfig`, mà ta gọi `.get()` không kèm options.
- */
-export function layExtensionsTrang() {
-  return [...viewManager.get('page'), cheDoTrang, phongChuBangExtension]
-}
-
 // Xuất PNG/PDF KHÔNG có UI trong màn vẽ này (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của
 // đổi tên/chuyên khoa xuất file" ở màn vẽ, "tính năng xuất file chuyển ra board") — nút xuất sống
 // trong menu "⋯" của THẺ bảng ở lưới danh sách (LuoiMuc.tsx).
 // Từ 2026-08-30 lượt xuất đó KHÔNG còn đóng gói lại ảnh chụp khung nhìn nữa: ./xuatAnhBang.ts mở
 // bảng NGẦM rồi dựng ảnh từ tài liệu CRDT qua ExportManager, đóng khung theo `gfx.elementsBound`.
-// Nó dùng chung `taoHoacMoDoc()` và `layExtensionsEdgeless()` của file này — đó là toàn bộ quan hệ
-// giữa hai module; component bên dưới không biết gì về việc xuất và không cần biết.
+// Nó dùng chung `taoHoacMoDoc()` và `layExtensionsEdgeless()` (nay ở ./extensions.ts, xem đó) — đó
+// là toàn bộ quan hệ giữa hai module; component bên dưới không biết gì về việc xuất và không cần biết.
 
 /** Hàm xuất PNG bảng đang mở — trả về mã kết quả để BoardGallery chọn thông báo. */
 export type XuatBangFn = (tenBang: string) => Promise<KetQuaXuat>
@@ -203,7 +158,7 @@ export function EdgelessBoard({
   // control không phải "công cụ" theo nghĩa sửa bài, chỉ là điều hướng khung nhìn.
   //
   // Không được vá zoom-toolbar.ts (D11). Thay vào đó dựng thêm MỘT bản `<edgeless-zoom-toolbar>`
-  // độc lập (đã đăng ký sẵn qua viewExtensions, xem đầu file), gán cho nó một Proxy bọc `std` thật
+  // độc lập (đã đăng ký sẵn qua viewExtensions, xem ./extensions.ts), gán cho nó một Proxy bọc `std` thật
   // — Proxy chỉ chặn ĐÚNG một điểm đọc (`.store.readonly` → luôn trả `false`), mọi thuộc tính khác
   // (kể cả `.get(GfxControllerIdentifier)`) đi thẳng qua `Reflect.get` tới đối tượng thật, nên
   // thanh này điều khiển ĐÚNG viewport thật của bảng, không phải một bản giả.
