@@ -1,11 +1,18 @@
 ---
 version: 1
-slug: "src-components-mindmapboard-tsx"
-primary_target: "src/components/MindmapBoard.tsx"
-related_targets: ["src/lib/mindmapStyle.ts","src/lib/ink.ts"]
+slug: "src-board-boardgallery-tsx"
+primary_target: "src/board/BoardGallery.tsx"
+related_targets: ["src/board/DanhSachBang.tsx","src/board/EdgelessBoard.tsx"]
 ---
 
-# Surface: Mindmap (MindmapScreen / MindmapGallery / MindmapBoard)
+# Surface: Mindmap (MindmapScreen / BoardGallery / DanhSachBang / EdgelessBoard)
+
+<!-- Trỏ lại 2026-09-04. Brief này viết khi bảng vẽ còn là src/components/MindmapBoard.tsx tự viết
+     (8949 dòng, xoá ở fd24576 ngày 2026-08-10) và được thay bằng bảng BlockSuite vendored trong
+     src/board/. Bề mặt DI CHUYỂN, không mất — hiến chương, mode Experience và chỉ thị ≥50% công sức
+     bên dưới vẫn nguyên hiệu lực, chỉ đường dẫn đổi. File brief cũng đổi tên theo: resolver tra brief
+     bằng slug SUY TỪ đường dẫn target (scripts/lib/target-slug.mjs), nên đổi mỗi frontmatter mà giữ
+     tên file cũ là brief thành vô hình. -->
 
 ## Mode
 
@@ -49,8 +56,10 @@ Consequences that follow from this and apply to every future task on this surfac
 
 ## Palette
 
-The Mindmap-only magenta (`--c-accent-2`) and the pen/highlighter palettes (built from HSL in
-`src/lib/mindmapStyle.ts`, deliberately *not* the note-card palette) belong to this surface alone.
+The Mindmap-only magenta (`--c-accent-2`) and the pen/highlighter palettes (nay do bảng BlockSuite
+vendored dựng, thay cho `src/lib/mindmapStyle.ts` đã xoá; vẫn deliberately *not* the note-card
+palette) belong to this surface alone. Magenta là màu của MẶT BÀN VẼ: nó không đi vào chrome quản lý
+danh sách của gallery (khay "Đã xoá gần đây", dải lọc) — xem DESIGN.md, The One Other Place Rule.
 The three paper tones (white / black / ivory) are a material choice, not a theme mirror — ink palettes
 must stay readable on all three.
 

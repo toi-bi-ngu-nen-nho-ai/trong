@@ -61,6 +61,26 @@ components:
     backgroundColor: "{colors.line-soft}"
     textColor: "var(--c-text-soft)"
     rounded: "{rounded.pill}"
+  button-secondary:
+    backgroundColor: "{colors.primary-soft}"
+    textColor: "{colors.primary}"
+    rounded: "{rounded.pill}"
+    padding: "10px 20px"
+  filter-chip-inactive:
+    backgroundColor: "transparent"
+    textColor: "var(--c-text-muted)"
+    rounded: "{rounded.pill}"
+    padding: "6px 12px"
+  checkbox:
+    backgroundColor: "{colors.surface}"
+    textColor: "var(--c-on-bright)"
+    rounded: "5px"
+    size: "18px"
+  checkbox-checked:
+    backgroundColor: "{colors.primary}"
+    textColor: "var(--c-on-bright)"
+    rounded: "5px"
+    size: "18px"
 ---
 
 # Design System: Bác sĩ Trọng
@@ -91,12 +111,24 @@ The palette reads as one confident, cool-violet system: electric indigo as the s
 - **Primary Line** (`#c3caf0` light / `#33407a` dark): border/accent-line weight, one step down from full-strength primary.
 
 ### Secondary
-- **Mindmap Magenta** (`#b8196f` light / `#f175a6` dark): a second hue reserved exclusively for the Mindmap canvas (region highlights, lasso selection). **The One Other Place Rule.** This color appears nowhere outside the Mindmap board — not in the dosing screens, not in navigation — specifically so it never competes with the hazard-signal palette for visual priority. Unchanged by the 2026-08 rebrand.
+- **Mindmap Magenta** (`#b8196f` light / `#f175a6` dark): a second hue reserved exclusively for the Mindmap **canvas** (region highlights, lasso selection) and the transient undo toast. **The One Other Place Rule.** This color appears nowhere outside the Mindmap board — not in the dosing screens, not in navigation — specifically so it never competes with the hazard-signal palette for visual priority. Unchanged by the 2026-08 rebrand.
+
+  **The scope is the canvas, not the whole Mindmap tab (tightened 2026-09-04).** Board Gallery's list-management chrome — the "Đã xoá gần đây" tray, the specialty filter strip — had drifted into magenta, and two independent failures came out of it. **(a) Repetition kills an accent.** With four deleted boards the tray showed five magenta labels ("Hoàn tác" ×4 + "Chọn tất cả") as its brightest ink while the *board names*, the thing you must read to pick the right row, sat in `--c-text-muted` — the reading order was inverted by the accent. A hue used N times per screen is not an accent, it is the body color. **(b) It landed next to a hazard signal.** In the bulk-action strip, magenta "Khôi phục" sat 4px from `--c-danger` "Xoá vĩnh viễn"; measured ΔE(CIE76) = 26 between `#f175a6` and `#ff8585` — two pinks at 12px, one restoring and one destroying permanently. That is the exact adjacency the indigo-over-teal brand decision exists to prevent. Both were repaired by removing magenta from the tray entirely: **in a bulk-action strip the only colored action is the destructive one.** Magenta lost nothing — it is the color of the drawing surface, and a list-management tray is not one.
 
 ### Neutral
 - **Cool Paper** (`#ffffff` surface / `#f1f2fb` page, light mode): a barely-tinted cool-violet neutral (same hue family as primary, near-zero chroma) so white cards visibly lift off a faintly-tinted page background without needing a border or shadow.
 - **Night Glass** (`#14162c` surface / `#0b0c1c` page, dark mode): near-OLED indigo-black, independently tuned — text/background pairs were re-measured for AA rather than assumed to transfer, and pushed noticeably darker than the old teal-gray dark surface for a more premium, more dramatic night identity.
 - **Note Paper** (`--c-note`, `#fbfaf7` light / `#efece3` dark, both near-white — the paper does not theme-swap to dark): reserved exclusively for the Mindmap board-card surface (`.mind-note-card`, `DanhSachBang.tsx`) — same "One Other Place Rule" as Mindmap Magenta above, scoped to material rather than hue. Revised 2026-08-26 from a second, more literal user-supplied reference (a white sticky note, curled bottom-left corner, drop shadow, pinned by a round-head pin): the card now carries a real `box-shadow` and a curled-corner pseudo-element (`.mind-note-card::before`) to read as a physical object lifted off the page. This is a deliberate, scoped exception to the Floating-Layer-Only Rule below — the Mindmap surface brief calls for literal material realism, so its resting cards are allowed a permanent shadow that the rest of the app's resting cards are not. `--c-note-shadow` uses **one 3-slot recipe shared across both themes** (ambient drop, contact drop, 1px edge) with identical offsets/blur — only the third slot flips role: a faint dark hairline in light (paper edge on a light ground), a faint warm rim in dark (paper edge catching light on the near-black ground, since a black drop shadow is invisible on `#0b0c1c`). Same object, two grounds — not an inverted filter and not two different effects (revised 2026-08-30 after "shadow/clip/curl differ a lot dark≠light"; the earlier dark-only 4th spread ring was dropped for cluttering the curl). The board grid behind these cards sits on the plain themed `--c-surface`, same as every other screen (a cork/desk-textured ground was tried 2026-08-28 and pulled back by the owner — the note cards carry the material load on their own). The **"+" new-board tile** (`.mind-o-tao-bang.mind-o-moi`) deliberately does *not* wear the paper material: it is a **dashed 1px border (short dashes) over a faint `--c-accent-2` wash (~0.05 alpha)** so it reads as an empty "create" slot that recedes behind the real cards. Owner preference recorded 2026-08-30 (reverses a 2026-08-29 critique that had solidified the border) — the dashed "+ new" convention is widely legible here and is *not* a fixed rule; a future pass may revisit it, but not silently re-solidify it.
+
+  **The paper material is create-only, and so is the dashed border (enforced 2026-09-04).** Two leaks were found and closed on the same screen. **(a) The material leaked.** The empty-search escape button ("Xoá bộ lọc") was wearing `.mind-o-tao-bang` — the class's own comment already said *"CHỈ ô này, KHÔNG áp cho nút Xoá bộ lọc"* while the code did the opposite. In dark mode this made a reset control render as a near-white cream slab, the highest-contrast object on the screen, inviting the one action the user had *not* asked for; worse, its `--c-accent-2` label on `--c-note` measured **2.27:1 — a hard AA failure**. It now uses `button-secondary` (see Components). **(b) The convention leaked.** The specialty filter's "Chuyên khoa" button had a dashed border, sitting under 40px from the dashed "+" tile — two unrelated meanings ("create a board" vs "open more filters") sharing one signal, which blurs both. Filter chips now use a single solid 1px `--c-line` outline; **a dashed border in this app means "make a new thing", nowhere else.**
+
+### Specialty Identity Colors (a separate, non-token family)
+
+Eleven fixed hex values in `src/data/specialties.ts` — one per clinical specialty (Tim mạch `#b13a34`, Hô hấp `#0079a8`, Tiêu hoá `#008030`, Thận học `#1468bf`, Nội tiết `#9f5300`, Thần kinh `#6f52b8`, Huyết học `#ad385f`, Nhiễm `#008248`, Cấp cứu `#b91c1c`, Sinh lý (bệnh) `#5b6470`, Dược lâm sàng `#7a6300`). They are **data, not design tokens**: they identify a domain the way a book spine color does, and they are the one place in the app where a color is not a `--c-*` custom property. That exception is deliberate and load-bearing — several call sites concatenate two alpha characters onto the hex (`${spec.color}15`), which only works on a hex literal, never on a `var()` reference.
+
+The set is tuned as a set, not individually: all eleven sit at L≈52, C≈0.155–0.20 so no specialty visually outranks another in a list, and each clears 4.5:1 on the light page. Cấp cứu deliberately *is* `--c-danger`'s red (it **is** the emergency) while Tim mạch was pushed to a different hue so the two most-adjacent specialties don't blur together.
+
+- **`--c-khoa-nang`** (`0%` light / `34%` dark) + **`--c-khoa-nang-toi`** (`#ffffff`): the one sanctioned bridge between this hex family and the theme system. The eleven values are tuned for a light ground, and the file itself records that a second dark set would mean touching ~15 call sites at high regression risk. Rather than that, any surface drawing a specialty color as a small graphic on a dark ground wraps it: `color-mix(in oklab, <hex>, var(--c-khoa-nang-toi) var(--c-khoa-nang))`. At 0% in light mode this is a no-op on the original value; at 34% in dark it lifts `#5b6470` and `#7a6300` off `#14162c`, where a 7–8px dot in the raw hex all but disappears. **Narrow by design** — currently only the Board Gallery filter-chip dot and the specialty-picker dot. Do not widen it into a general "make hex work in dark" helper; the real fix remains a second authored palette.
 
 ### Accent — Favorite Gold
 - **Favorite Gold** (`--c-fav` `#a16207` light / `#facc15` dark; `--c-fav-soft` `#fdf3d6` / `#2c2411`; `--c-fav-bright` `#facc15` both): the *only* warm hue in the app, scoped to one thing — the "pin this group to the front of the tab row" star toggle on `DungThuocScreen` (`icons.starPin`, used in two places: on the active tab chip, and in the search-panel jump list). Added 2026-09-03 at the owner's explicit direction ("the favorite star must be yellow"). A filled gold star is the universal favorite/bookmark affordance. **A deliberate, scoped exception to the cool-violet system** — same "One Other Place Rule" as Mindmap Magenta and Note Paper, scoped to a single ~14px glyph. It is **not** part of the `--c-warn*` family: the hue is pulled toward yellow-gold and away from clinical amber (`--c-warn-icon` `#b45309` rust / `#f0b429` orange-amber) so the two never read as the same signal, and it lives only in tab-row chrome, never on a dose or safety surface.
@@ -157,6 +189,20 @@ Global corner radius of 14px (`--radius`, up from 10px pre-rebrand — a deliber
 - **Press feedback:** every interactive control presses to `scale(0.94–0.97)` on `:active` via a shared transition class (`dose-press`, `nav-press`, `card-press`, `mind-btn`) using a custom spring-style cubic-bezier (`cubic-bezier(0.34, 1.4, 0.64, 1)` family) rather than linear/ease — this is universal and applies even under `prefers-reduced-motion` (only the *decorative* animations are disabled for reduced motion; tap confirmation always stays).
 - **Delight:** navigation tabs and the medication screen's tab row play a `pulse-scale` bounce (0.8→1.12→1, 0.45s) when a tab becomes active — scoped entirely to navigation, never to dose-result values.
 
+- **Secondary button** (`button-secondary`): `--c-primary-soft` fill, 1px `--c-primary-line` border, `--c-primary` label, pill, 44px min-height (measured 6.54:1 dark / 8.48:1 light). Use it for a real action that is not the screen's goal — the empty-search "Xoá bộ lọc" escape is the canonical case. **The fill is not optional.** No border token in this system reaches the 3:1 WCAG 1.4.11 floor against the page (`--c-line` measures 1.61 dark / 1.21 light; `--c-primary-line` 1.99 / 1.45), so an outline-only button on a bare page has no reliable shape. The fill carries the form, the border the edge, the brand-colored label the identity.
+
+### Checkbox
+- **Style** (`.mind-check`): 18px square, 5px radius, 1.5px `--c-text-muted` border, `--c-surface` fill; checked flips to `--c-primary` fill with an `--c-on-bright` tick drawn by `clip-path` polygon (not a font glyph), springing in over 0.14s. Wrapped in a 34px touch target.
+- **Why not the native control:** `accent-color` only paints the *checked* state — an unchecked `<input type=checkbox>` is still drawn by the OS, which in dark mode puts a gray box belonging to no palette at the head of every row, reading as "disabled" rather than "tickable".
+- **Border token:** `--c-text-muted` (5.08:1 dark / 4.57:1 light on the tray), **not** `--c-line`, which measures ~1.3:1 in dark — below the 3:1 WCAG 1.4.11 floor for a control boundary. A control's outline is not a divider; it does not get the divider token.
+- **Radius:** 5px is a sanctioned sub-scale exception. `rounded.sm` (14px) on an 18px box is 78% of the square and reads as a radio button; `pill` is semantically wrong for a checkbox.
+
+### Filter chips (Board Gallery)
+- **One outline for the whole row.** Every chip — "Tất cả", each specialty, and the picker button — shares a single 1px `--c-line` pill outline. Selected state is a solid fill, never a different border style. The row previously mixed solid-fill / solid-outline / **dashed** across four chips; dashed is reserved for "create new" (see Note Paper above).
+- **Membership is data, not array order.** The strip carries the three specialties with the most boards *in this user's library*, tie-broken by canonical specialty order so the row doesn't reshuffle on every save. A specialty with no boards never takes a slot, and the picker button hides entirely when no other specialty has boards — a control that can only produce an empty result should not be reachable.
+- **Identity survives the off state.** An unselected chip carries the specialty's 7px identity dot (lifted for dark via `--c-khoa-nang`). The filter row is where a user picks *by specialty*; it is the last place that specialty's color should be missing.
+- **Wrap, don't scroll.** A short filter row wraps to a second line rather than scrolling horizontally. An edge-fade mask on a row that doesn't overflow dims the default "Tất cả" chip to signal content that isn't there.
+
 ### Cards
 - **Corner Style:** 14px radius (`rounded-2xl` in Tailwind terms).
 - **Background:** `var(--c-surface)`, flat, no border or shadow at rest.
@@ -182,6 +228,8 @@ Global corner radius of 14px (`--radius`, up from 10px pre-rebrand — a deliber
 - **Do** keep tap-confirmation motion (`:active` scale) working even under `prefers-reduced-motion`; only decorative motion should respect that media query.
 - **Do** scope new delight/motion/glow additions to navigation, tabs, cards, and transitions — never to dose numbers or safety-tier text.
 - **Do** let dark mode be a *deliberately distinct* execution of the brand (deeper, more saturated-glow) rather than a mechanical inversion of light mode.
+- **Do** count how many times an accent color appears on one screen before shipping it. Used once it is emphasis; repeated per row it becomes the body color and quietly outranks the content it decorates.
+- **Do** give a secondary action a real fill (`button-secondary`), not an outline alone — no border token in this system clears 3:1 against the page.
 
 ### Don't:
 - **Don't** add bounce, pop, glow, or celebratory motion to a danger or warning state, ever — this is the system's one hard line, confirmed directly against clinical risk rather than a generic accessibility guess.
@@ -189,3 +237,6 @@ Global corner radius of 14px (`--radius`, up from 10px pre-rebrand — a deliber
 - **Don't** let any input, textarea, or select render below 16px font size.
 - **Don't** invert one theme to produce the other — light and dark are both independently authored and contrast-checked.
 - **Don't** let brand color (`--c-primary`) sit on a calm/"ok" clinical result — reserve it for chrome, navigation, and actions; a normal dose reads in `--c-text`.
+- **Don't** place a decorative accent immediately beside a hazard signal. Measure it: magenta `#f175a6` next to danger `#ff8585` is ΔE(CIE76) 26 at 4px apart — close enough to read as "two pinks" on a permanent-delete control. In any bulk-action strip, the destructive action is the *only* colored one.
+- **Don't** dress a non-create action in the paper material (`.mind-o-tao-bang`) or a dashed border. Both mean "make a new thing"; a reset, filter, or dismiss control wearing either is lying about what it does.
+- **Don't** hand a control's outline the divider token (`--c-line`). Dividers may sit near 1.3:1; a control boundary owes 3:1 (WCAG 1.4.11) and needs `--c-text-muted` or stronger.

@@ -1,125 +1,379 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-07T17:00:00Z",
+  "generatedAt": "2026-09-04T06:23:16.489Z",
   "title": "Design System: Bác sĩ Trọng",
   "extensions": {
     "colorMeta": {
       "primary": {
         "role": "primary",
-        "displayName": "Deep Azure",
-        "canonical": "#003152",
-        "tonalRamp": ["#001a2c", "#00243d", "#003152", "#0d4a70", "#2f6d94", "#5f97bd", "#addff1", "#eaf6fc"]
+        "displayName": "Electric Indigo",
+        "canonical": "#2d3a94",
+        "tonalRamp": [
+          "#0d1132",
+          "#171e52",
+          "#212b70",
+          "#2d3a94",
+          "#5361c4",
+          "#8b96e0",
+          "#c3caf0",
+          "#eceefa"
+        ]
+      },
+      "primary-soft": {
+        "role": "primary",
+        "displayName": "Indigo Wash",
+        "canonical": "#eceefa",
+        "tonalRamp": [
+          "#11172e",
+          "#182140",
+          "#232e5c",
+          "#33407a",
+          "#5c6aae",
+          "#9aa6e6",
+          "#c3caf0",
+          "#eceefa"
+        ]
       },
       "accent-2": {
         "role": "secondary",
         "displayName": "Mindmap Magenta",
         "canonical": "#b8196f",
-        "tonalRamp": ["#4a0a2c", "#7a1148", "#b8196f", "#d13d8d", "#e06fa9", "#ee9cc5", "#f7c6e0", "#fce8f1"]
+        "tonalRamp": [
+          "#3d0824",
+          "#5c0d36",
+          "#8a1253",
+          "#b8196f",
+          "#d4407f",
+          "#f175a6",
+          "#f8a8c6",
+          "#fde3ed"
+        ]
       },
       "danger": {
-        "role": "danger",
-        "displayName": "Hazard Red",
+        "role": "error",
+        "displayName": "Clinical Red",
         "canonical": "#b91c1c",
-        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fef2f2"]
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#ff8585",
+          "#fca5a5",
+          "#fef2f2"
+        ]
       },
       "warn": {
         "role": "warning",
-        "displayName": "Caution Amber",
+        "displayName": "Clinical Amber",
         "canonical": "#92400e",
-        "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f0b429", "#fde68a", "#fffbeb"]
+        "tonalRamp": [
+          "#3b1d05",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f0b429",
+          "#fcd34d",
+          "#fffbeb"
+        ]
       },
       "green": {
         "role": "success",
-        "displayName": "Confirmation Green",
+        "displayName": "Clinical Green",
         "canonical": "#15803d",
-        "tonalRamp": ["#052e16", "#14532d", "#15803d", "#16a34a", "#4ade80", "#86efac", "#bbf7d0", "#f0fdf4"]
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#4ade80",
+          "#86efac",
+          "#f0fdf4"
+        ]
+      },
+      "fav": {
+        "role": "tertiary",
+        "displayName": "Favorite Gold",
+        "canonical": "#a16207",
+        "tonalRamp": [
+          "#3f2707",
+          "#713f12",
+          "#854d0e",
+          "#a16207",
+          "#ca8a04",
+          "#facc15",
+          "#fde68a",
+          "#fdf3d6"
+        ]
+      },
+      "note": {
+        "role": "neutral",
+        "displayName": "Note Paper",
+        "canonical": "#fbfaf7",
+        "tonalRamp": [
+          "#3c3a33",
+          "#5e5a4f",
+          "#87816f",
+          "#b0a993",
+          "#cfc9b8",
+          "#e3ded1",
+          "#efece3",
+          "#fbfaf7"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0c1c",
+          "#14162c",
+          "#1b1e3d",
+          "#2e3260",
+          "#6b6e96",
+          "#d9ddf4",
+          "#f1f2fb",
+          "#ffffff"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#12142b",
+        "tonalRamp": [
+          "#12142b",
+          "#282c50",
+          "#454870",
+          "#6b6e96",
+          "#888eb8",
+          "#a8aeda",
+          "#d9ddf4",
+          "#eceffc"
+        ]
       }
     },
     "typographyMeta": {
-      "body": { "displayName": "Body", "purpose": "Default reading text throughout the app." },
-      "mono-dose": { "displayName": "Dose Mono", "purpose": "Reserved for numeric doses/concentrations in Mindmap-formatted notes; primary UI uses Inter tabular figures for on-screen dose numbers." },
-      "label": { "displayName": "Label", "purpose": "Bottom nav labels and small chip text, 10-12px, checked independently for AA at that size." },
-      "mindmap-emphasis": { "displayName": "Mindmap Emphasis", "purpose": "Formal emphasis inside Mindmap note formatting only, never in main app chrome." },
-      "mindmap-heading": { "displayName": "Mindmap Heading", "purpose": "Headings/emphasis inside Mindmap note formatting only, never in main app chrome." }
+      "body": {
+        "displayName": "Body",
+        "purpose": "Plus Jakarta Sans. Drug names, descriptions, everything read under time pressure."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Bottom-nav labels at 10px/700 — colour must clear AA 4.5:1 independently at that size."
+      },
+      "mono-dose": {
+        "displayName": "Dose / Number",
+        "purpose": "JetBrains Mono. Numeric doses and concentrations only — the signal for \"read every character\"."
+      },
+      "mindmap-emphasis": {
+        "displayName": "Mindmap Emphasis",
+        "purpose": "Source Serif 4. Formal emphasis inside Mindmap note formatting; never in app chrome."
+      },
+      "mindmap-heading": {
+        "displayName": "Mindmap Heading",
+        "purpose": "Space Grotesk. Headings inside Mindmap notes; never in app chrome."
+      }
     },
     "shadows": [
-      { "name": "floating-layer", "value": "0 8px 24px var(--c-shadow)", "purpose": "Reserved for genuinely elevated layers: pickers, toasts, modals, sheets. Never used on resting cards." }
+      {
+        "name": "floating-layer",
+        "value": "0 2px 8px var(--c-shadow), var(--c-shadow-glow)",
+        "purpose": "The only sanctioned shadow. Dropdowns, toasts, modals, sheets — anything genuinely above the page in z-order. Resting cards never get it."
+      },
+      {
+        "name": "note-paper",
+        "value": "var(--c-note-shadow)",
+        "purpose": "Scoped exception for Mindmap board cards. One 3-slot recipe (ambient drop, contact drop, 1px edge) shared across both themes; only the third slot flips role — dark hairline in light, warm rim in dark."
+      },
+      {
+        "name": "create-tile",
+        "value": "0 1px 2px var(--c-shadow)",
+        "purpose": "The \"+\" new-board tile. Lighter than note-paper by ratio — an unused sheet lies flatter than a pinned one — but never absent, or it goes flat among cards that have real shadows."
+      }
     ],
     "motion": [
-      { "name": "ease-bounce", "value": "cubic-bezier(0.34, 1.4, 0.64, 1)", "purpose": "Tap/selection feedback and delight entrances (tab pop, card rise-in, nav pill grow). Never applied to danger/warning states." },
-      { "name": "ease-standard", "value": "cubic-bezier(0.25, 0.9, 0.35, 1)", "purpose": "Disclosure expand/collapse and other functional (non-delight) transitions." }
+      {
+        "name": "ease-bounce",
+        "value": "cubic-bezier(0.34, 1.4, 0.64, 1)",
+        "purpose": "Spring-style easing for tap confirmation and nav/tab selection. Survives prefers-reduced-motion — only decorative motion is disabled."
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for colour and opacity state transitions."
+      },
+      {
+        "name": "press-scale",
+        "value": "scale(0.94-0.97)",
+        "purpose": "Universal :active feedback via dose-press / nav-press / card-press. Applies even under reduced motion."
+      },
+      {
+        "name": "pulse-scale",
+        "value": "0.8 -> 1.12 -> 1 over 0.45s",
+        "purpose": "Bounce on tab activation. Navigation and tab rows only — never a dose result or safety-tier value."
+      }
     ],
-    "breakpoints": []
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "640px",
+        "purpose": "The single device-class break. Board grid drops 4 columns to 2; anchored picker panels become full-width bottom sheets."
+      },
+      {
+        "name": "content-max",
+        "value": "1040px",
+        "purpose": "Max content column for the Mindmap board wrap — lets cards grow to ~240px on desktop without spreading infinitely on ultrawide."
+      }
+    ]
   },
   "components": [
-    {
-      "name": "Primary Tab Chip (active)",
-      "kind": "chip",
-      "refersTo": "tab-chip-active",
-      "description": "Selected tab in a horizontal-scroll tab row (e.g. Dùng thuốc screen). Plays a bounce pop on selection.",
-      "html": "<button class=\"ds-tab-chip ds-tab-chip--active\">Kháng sinh</button>",
-      "css": ".ds-tab-chip { height: 44px; padding: 0 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.16s ease, color 0.16s ease; } .ds-tab-chip:active { transform: scale(0.96); } .ds-tab-chip--active { background: #003152; color: #ffffff; animation: ds-pulse-scale 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); } @keyframes ds-pulse-scale { 0% { transform: scale(0.8); } 55% { transform: scale(1.12); } 100% { transform: scale(1); } }"
-    },
-    {
-      "name": "Primary Tab Chip (inactive)",
-      "kind": "chip",
-      "refersTo": "tab-chip-inactive",
-      "description": "Unselected tab in the same row.",
-      "html": "<button class=\"ds-tab-chip ds-tab-chip--inactive\">Vận mạch</button>",
-      "css": ".ds-tab-chip--inactive { background: #e9f3f3; color: #465d5d; }"
-    },
-    {
-      "name": "Resource Card",
-      "kind": "card",
-      "refersTo": "card",
-      "description": "Home-screen quick-access card. Flat at rest, no shadow; scales down on press; staggers in on mount.",
-      "html": "<button class=\"ds-card\"><span class=\"ds-card-icon\">💊</span><p class=\"ds-card-label\">Sử dụng thuốc</p></button>",
-      "css": ".ds-card { width: 136px; height: 152px; padding: 16px; border-radius: 16px; border: 1px solid #dae9e9; background: #ffffff; text-align: left; display: flex; flex-direction: column; transition: transform 0.1s; animation: ds-rise-in 0.22s cubic-bezier(0.25, 0.9, 0.35, 1) backwards; } .ds-card:active { transform: scale(0.97); } .ds-card:focus-visible { outline: 2px solid #003152; outline-offset: 2px; } .ds-card-icon { width: 36px; height: 36px; border-radius: 8px; background: #003152; color: #ffffff; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; } .ds-card-label { font-weight: 700; font-size: 14px; color: #0d2324; } @keyframes ds-rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }"
-    },
     {
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Solid primary action button (e.g. 'Thêm vào danh sách đang dùng').",
-      "html": "<button class=\"ds-btn-primary\">Thêm vào danh sách đang dùng</button>",
-      "css": ".ds-btn-primary { background: #003152; color: #ffffff; padding: 12px 20px; border-radius: 9999px; font-weight: 700; font-size: 14px; border: none; transition: transform 0.16s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.16s ease; } .ds-btn-primary:hover { background: #00243d; } .ds-btn-primary:active { transform: scale(0.96); } .ds-btn-primary:focus-visible { outline: 2px solid #003152; outline-offset: 2px; }"
+      "description": "The committed action on a screen. Solid brand fill, pill, theme-flipped text colour.",
+      "html": "<button class=\"ds-btn-primary\">Lưu thay đổi</button>",
+      "css": ".ds-btn-primary{background:var(--c-primary,#2d3a94);color:var(--c-on-bright,#fff);border:0;border-radius:9999px;padding:12px 24px;font:700 14px/1.2 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;min-height:44px;cursor:pointer;transition:transform .18s cubic-bezier(0.34,1.4,0.64,1),filter .18s ease}.ds-btn-primary:hover{filter:brightness(1.08)}.ds-btn-primary:active{transform:scale(.96)}.ds-btn-primary:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A real action that is not the screen goal — the empty-search \"Xoá bộ lọc\" escape. The fill is mandatory: no border token clears 3:1 against the page.",
+      "html": "<button class=\"ds-btn-secondary\">Xoá bộ lọc</button>",
+      "css": ".ds-btn-secondary{background:var(--c-primary-soft,#eceefa);color:var(--c-primary,#2d3a94);border:1px solid var(--c-primary-line,#c3caf0);border-radius:9999px;padding:10px 20px;font:700 14px/1.2 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;min-height:44px;cursor:pointer;transition:transform .18s cubic-bezier(0.34,1.4,0.64,1)}.ds-btn-secondary:active{transform:scale(.96)}.ds-btn-secondary:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:-2px}"
+    },
+    {
+      "name": "Quiet Row Action",
+      "kind": "button",
+      "refersTo": null,
+      "description": "A repeated per-row control (\"Hoàn tác\" in the deleted-boards tray). Deliberately outranked by the row content: an action repeated N times must not be the brightest ink on screen.",
+      "html": "<button class=\"ds-btn-quiet\"><svg viewBox=\"0 0 14 14\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path d=\"M2.2 5.4h6.3a3.4 3.4 0 1 1 0 6.8H5.1\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M4.6 2.6 1.9 5.4l2.7 2.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Hoàn tác</button>",
+      "css": ".ds-btn-quiet{display:inline-flex;align-items:center;gap:5px;background:none;color:var(--c-text-soft,#454870);border:1px solid var(--c-line,#d9ddf4);border-radius:9999px;padding:5px 11px;min-height:32px;font:600 12px/1.2 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;white-space:nowrap;cursor:pointer;transition:transform .18s cubic-bezier(0.34,1.4,0.64,1)}.ds-btn-quiet:active{transform:scale(.96)}.ds-btn-quiet:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:-2px}"
+    },
+    {
+      "name": "Tab Chip (active / inactive)",
+      "kind": "chip",
+      "refersTo": "tab-chip-active",
+      "description": "The medication screen horizontal tab row. Active is a solid brand fill with theme-flipped text so it always clears AA.",
+      "html": "<span class=\"ds-chips\"><button class=\"ds-chip ds-chip-on\">Vận mạch</button><button class=\"ds-chip\">Điện giải</button></span>",
+      "css": ".ds-chips{display:inline-flex;gap:8px}.ds-chip{background:var(--c-line-soft,#e9ebf9);color:var(--c-text-soft,#454870);border:0;border-radius:9999px;padding:8px 14px;min-height:36px;font:600 13px/1.2 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;cursor:pointer;transition:transform .18s cubic-bezier(0.34,1.4,0.64,1)}.ds-chip-on{background:var(--c-primary,#2d3a94);color:var(--c-on-bright,#fff);font-weight:700}.ds-chip:active{transform:scale(.96)}.ds-chip:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:2px}"
+    },
+    {
+      "name": "Filter Chip with Identity Dot",
+      "kind": "chip",
+      "refersTo": "filter-chip-inactive",
+      "description": "Board Gallery specialty filter. One outline for the whole row; the off state keeps the specialty identity dot, lifted for dark via --c-khoa-nang.",
+      "html": "<span class=\"ds-fchips\"><button class=\"ds-fchip ds-fchip-on\">Tất cả</button><button class=\"ds-fchip\"><i class=\"ds-dot\" style=\"--khoa:#b13a34\"></i>Tim mạch</button><button class=\"ds-fchip\"><i class=\"ds-dot\" style=\"--khoa:#0079a8\"></i>Hô hấp</button></span>",
+      "css": ".ds-fchips{display:flex;flex-wrap:wrap;gap:8px;row-gap:6px}.ds-fchip{display:inline-flex;align-items:center;gap:7px;background:none;color:var(--c-text-muted,#6b6e96);border:1px solid var(--c-line,#d9ddf4);border-radius:9999px;padding:6px 12px;min-height:40px;font:600 12px/1.2 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;cursor:pointer;transition:transform .18s cubic-bezier(0.34,1.4,0.64,1)}.ds-fchip-on{background:var(--c-primary,#2d3a94);color:var(--c-on-bright,#fff)}.ds-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:color-mix(in oklab, var(--khoa), var(--c-khoa-nang-toi,#fff) var(--c-khoa-nang,0%))}.ds-fchip:active{transform:scale(.96)}.ds-fchip:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:-2px}"
+    },
+    {
+      "name": "Checkbox",
+      "kind": "input",
+      "refersTo": "checkbox",
+      "description": "Palette-owned replacement for the native control — accent-color only paints the checked state, leaving an OS-grey box in dark mode. Border uses --c-text-muted because --c-line falls below the 3:1 control-boundary floor.",
+      "html": "<label class=\"ds-check-wrap\"><input type=\"checkbox\" class=\"ds-check\" checked><span>Bảng chưa đặt tên</span></label>",
+      "css": ".ds-check-wrap{display:inline-flex;align-items:center;gap:10px;font:600 13px/1.3 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;color:var(--c-text,#12142b);cursor:pointer}.ds-check{appearance:none;-webkit-appearance:none;width:18px;height:18px;flex-shrink:0;margin:0;border:1.5px solid var(--c-text-muted,#6b6e96);border-radius:5px;background:var(--c-surface,#fff);display:grid;place-content:center;cursor:pointer;transition:background-color .14s ease,border-color .14s ease}.ds-check::before{content:\"\";width:11px;height:11px;background:var(--c-on-bright,#fff);clip-path:polygon(14% 44%,0 60%,39% 100%,100% 16%,84% 0,39% 68%);transform:scale(0);transition:transform .14s cubic-bezier(0.34,1.4,0.64,1)}.ds-check:checked{background:var(--c-primary,#2d3a94);border-color:var(--c-primary,#2d3a94)}.ds-check:checked::before{transform:scale(1)}.ds-check:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:2px}"
+    },
+    {
+      "name": "Search Pill",
+      "kind": "input",
+      "refersTo": null,
+      "description": "The app-wide search field. Tinted fill rather than an outline, 16px minimum font (iOS zoom guard plus the 16px Floor Rule).",
+      "html": "<div class=\"ds-search\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><input type=\"search\" placeholder=\"Tìm bảng theo tên, tag, nội dung...\"></div>",
+      "css": ".ds-search{display:flex;align-items:center;gap:12px;background:var(--c-line-soft,#e9ebf9);border-radius:14px;padding:12px 16px;min-height:44px;color:var(--c-text-muted,#6b6e96)}.ds-search input{flex:1;min-width:0;border:0;background:transparent;color:var(--c-text,#12142b);font:400 16px/1.3 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;outline:none}.ds-search:focus-within{outline:2px solid var(--c-primary,#2d3a94);outline-offset:-2px}"
+    },
+    {
+      "name": "Note Card (Mindmap board tile)",
+      "kind": "card",
+      "refersTo": null,
+      "description": "The signature component. A physical sheet of paper — the one sanctioned exception to the Floating-Layer-Only Rule, with a real shadow and a curled bottom-left corner. Paper does not theme-swap to dark.",
+      "html": "<div class=\"ds-note\"><span class=\"ds-note-body\"></span></div>",
+      "css": ".ds-note{position:relative;width:180px;aspect-ratio:4/3;background:var(--c-note,#fbfaf7);border-radius:2px;box-shadow:0 6px 14px -6px rgba(18,20,43,.28),0 1px 2px rgba(18,20,43,.14),0 0 0 1px rgba(18,20,43,.06);transform:rotate(-1.4deg);transition:transform .18s cubic-bezier(0.34,1.4,0.64,1)}.ds-note::before{content:\"\";position:absolute;left:0;bottom:0;width:30px;height:30px;background:linear-gradient(45deg,var(--c-page,#f1f2fb) 50%,rgba(18,20,43,.10) 52%,var(--c-note,#fbfaf7) 56%);border-bottom-left-radius:2px}.ds-note-body{position:absolute;inset:0;border-radius:2px;background:radial-gradient(circle at 50% 45%,rgba(177,58,52,.16),transparent 62%)}.ds-note:hover{transform:rotate(-0.6deg) translateY(-2px)}"
+    },
+    {
+      "name": "Create Tile (\"+\" new board)",
+      "kind": "card",
+      "refersTo": null,
+      "description": "The blank sheet. Dashed border over a faint magenta wash — an owner-pinned preference (2026-08-30). The dashed border means \"make a new thing\" and appears nowhere else.",
+      "html": "<button class=\"ds-create\" aria-label=\"Tạo bảng mới\">+</button>",
+      "css": ".ds-create{width:180px;aspect-ratio:4/3;display:grid;place-items:center;border:1px dashed rgba(var(--c-accent-2-rgb,184,25,111),.5);border-radius:2px;background:rgba(var(--c-accent-2-rgb,184,25,111),.05);box-shadow:0 1px 2px var(--c-shadow,rgba(18,20,43,.1));color:var(--c-accent-2,#b8196f);font:400 28px/1 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;cursor:pointer;transition:transform .18s cubic-bezier(0.34,1.4,0.64,1)}.ds-create:active{transform:scale(.97)}.ds-create:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:-2px}"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Frosted tab bar. Labels always shown, never icon-only; the active pill grows in width with bounce easing.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-i ds-nav-on\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Trang chủ</span></a><a class=\"ds-nav-i\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M5 4h5v16H5zM14 4h5v16h-5z\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Thư viện</span></a></nav>",
+      "css": ".ds-nav{display:flex;gap:4px;padding:6px 10px;background:color-mix(in srgb, var(--c-surface,#fff) 78%, transparent);backdrop-filter:blur(20px) saturate(1.8);border-radius:14px}.ds-nav-i{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 14px;border-radius:9999px;color:var(--c-text-muted,#6b6e96);font:500 10px/1.2 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;cursor:pointer;transition:background .28s cubic-bezier(0.34,1.4,0.64,1)}.ds-nav-on{background:var(--c-primary-soft,#eceefa);color:var(--c-primary,#2d3a94);font-weight:700}.ds-nav-i:hover{color:var(--c-text-soft,#454870)}.ds-nav-i:active{transform:scale(.94)}.ds-nav-i:focus-visible{outline:2px solid var(--c-primary,#2d3a94);outline-offset:-2px}"
     },
     {
       "name": "Danger Severity Banner",
       "kind": "custom",
-      "refersTo": "danger-banner",
-      "description": "Highest-tier dose-safety warning. Flat, serious, no bounce or decorative motion — the system's protected zone.",
-      "html": "<div class=\"ds-danger-banner\"><strong>GẤP 10 LẦN LIỀU THƯỜNG DÙNG</strong><p>Kiểm tra lại dấu thập phân hoặc sai đơn vị.</p></div>",
-      "css": ".ds-danger-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 14px; color: #b91c1c; } .ds-danger-banner strong { display: block; text-transform: uppercase; font-size: 13px; font-weight: 800; margin-bottom: 4px; }"
+      "refersTo": null,
+      "description": "The untouchable end of the system. Flat, serious, never animated — no bounce, glow, or celebratory motion is permitted on a danger state.",
+      "html": "<div class=\"ds-danger\"><strong>Chống chỉ định</strong><span>Không dùng khi CrCl &lt; 30 mL/phút.</span></div>",
+      "css": ".ds-danger{display:flex;flex-direction:column;gap:3px;background:var(--c-danger-soft,#fef2f2);border-left:3px solid var(--c-danger,#b91c1c);border-radius:8px;padding:10px 14px;font:400 13px/1.45 \"Plus Jakarta Sans\",-apple-system,\"Segoe UI\",sans-serif;color:var(--c-text,#12142b)}.ds-danger strong{color:var(--c-danger,#b91c1c);font-weight:700;font-size:12px;letter-spacing:.01em}"
     }
   ],
   "narrative": {
     "northStar": "The Bedside Precision Panel",
-    "overview": "Every screen exists to answer one question fast and correctly, then get out of the way. The system is token-driven end to end — every color in the app reads from a --c-* CSS custom property, never a hardcoded hex — so a single palette swap recolors the entire product without touching component code. The palette is Deep Azure, replacing an earlier teal identity. The system deliberately draws a hard line between two zones: decoration (navigation, tabs, cards, screen transitions) and diagnosis (dose numbers, safety-tier colors, warning language). Delight lives entirely in the first zone; the second is untouchable.",
+    "overview": "Every screen exists to answer one question fast and correctly, then get out of the way. The system is token-driven end to end — every color in the app reads from a `--c-*` CSS custom property, never a hardcoded hex — so a single palette swap recolors the entire product without touching component code. That architecture is itself a design principle: it makes the system honest about what's decoration and what's load-bearing. It's also what made this rebrand (2026-08, Deep Azure → Electric Indigo) a token-file change rather than a component-by-component rewrite.\r\n\r\nThe palette is Electric Indigo, replacing the earlier Deep Azure identity (which itself replaced an original teal). The system deliberately draws a hard line between two zones: **decoration** (navigation, tabs, cards, screen transitions) and **diagnosis** (dose numbers, safety-tier colors, warning language). Delight — spring/bounce motion, a livelier accent color — lives entirely in the first zone. The second zone is untouchable: red always means danger, amber always means caution, and neither one bounces, glows, or competes with a decorative accent for attention. This isn't timidity; it's the system's one non-negotiable rule, confirmed directly against real clinical stakes rather than assumed, and it survived the rebrand untouched — the whole reason indigo was chosen over a green/teal candidate palette was to keep the brand hue maximally distinct from all three safety hues, not just red and amber.\r\n\r\nNight-shift use is a first-class constraint, not an afterthought: dark mode is not a lightened/darkened mirror of light mode — it's an independently authored, deliberately more dramatic identity (near-OLED-black surfaces, a luminous glow accent) so light and dark read as two confident executions of one brand rather than one screen with an inverted filter. Both are independently contrast-verified (WCAG AA, most pairs well past AAA), and a manual in-app override beats the OS preference, because clinicians often leave their phone in light mode system-wide but need this one app dark at 2am.",
     "keyCharacteristics": [
       "Every color is a CSS custom property; there are no hardcoded hex values in components.",
-      "Danger/warning/success semantics are colorblind-safe and are a separate, protected token family from the primary brand color.",
-      "Motion answers a specific question, with one exception zone (nav/tabs/cards) that now also carries brand personality.",
-      "Both light and dark mode are independently authored and contrast-verified, not generated by inverting one palette."
+      "Danger/warning/success semantics are colorblind-safe (never color-only) and are a separate, protected token family from the primary brand color — unchanged across the 2026-08 rebrand.",
+      "Motion answers a specific question (\"did my tap register,\" \"did this number change,\" \"did this action finish\") — never pure decoration, with one exception zone (nav/tabs/cards) that now also carries brand personality.",
+      "Both light and dark mode are independently authored and contrast-verified, not generated by inverting one palette — and now deliberately *not* the same lightness relationship either (dark is darker and more saturated-glow than a simple light-mode inversion would produce)."
     ],
     "rules": [
-      { "name": "The Untouchable Signal Rule", "body": "--c-danger*, --c-warn*, and --c-green* are a separate token family from --c-primary*/--c-accent* and are never restyled, retinted, or animated as part of a brand refresh.", "section": "colors" },
-      { "name": "The Decoration/Diagnosis Split Rule", "body": "Delight is scoped to navigation, tabs, cards, and screen transitions. Dose numbers and safety-tier text stay calm by comparison.", "section": "colors" },
-      { "name": "The 16px Floor Rule", "body": "No input, textarea, or select ever renders below 16px font size, without exception.", "section": "typography" },
-      { "name": "The Floating-Layer-Only Rule", "body": "box-shadow appears only on elements genuinely elevated above the page (dropdowns, toasts, modals, sheets); a resting card never has one.", "section": "elevation" }
+      {
+        "name": "The One Other Place Rule",
+        "body": "This color appears nowhere outside the Mindmap board — not in the dosing screens, not in navigation — specifically so it never competes with the hazard-signal palette for visual priority. Unchanged by the 2026-08 rebrand.",
+        "section": "colors"
+      },
+      {
+        "name": "The Untouchable Signal Rule",
+        "body": "`--c-danger*`, `--c-warn*`, and `--c-green*` are a separate token family from `--c-primary*`/`--c-accent*` and are never restyled, retinted, or animated as part of a brand refresh — confirmed by surviving the 2026-08 Azure→Indigo rebrand completely unchanged, byte-for-byte. Red is always danger, amber is always caution, and neither one gets the bounce/pop/glow treatment the rest of the UI uses for delight — a flat, serious presentation at the exact moment a clinician needs to trust the color without a second thought. **Favorite Gold (`--c-fav`) is not part of this family** and not a signal — it is a scoped decorative accent (see above), kept chromatically distinct from clinical amber on purpose.",
+        "section": "colors"
+      },
+      {
+        "name": "The Decoration/Diagnosis Split Rule",
+        "body": "Delight (spring motion, brand color, glow, playful entrance animation) is scoped to navigation, tabs, cards, and screen transitions. Dose numbers, calculated results, and safety-tier text are typographically and chromatically calm by comparison — the loudest thing on a dosing screen is always the danger signal, never the brand. A calm \"ok\" dose result reads in `--c-text`, not `--c-primary` — brand color is chrome, not a stamp of approval on a clinical number.",
+        "section": "colors"
+      },
+      {
+        "name": "The 16px Floor Rule",
+        "body": "No input, textarea, or select ever renders below 16px, without exception — this is an accessibility fix (prevents unwanted iOS zoom) and a safety fix (dose entry text is never allowed to be small) enforced by the same line of CSS.",
+        "section": "typography"
+      },
+      {
+        "name": "The Floating-Layer-Only Rule",
+        "body": "`box-shadow` (and, in dark mode, the glow halo) appears only on elements that are genuinely elevated above the page in z-order (dropdowns, toasts, modals, sheets). A card at rest never has a shadow or a glow; if something needs one to look important, it should have moved into a floating layer instead.",
+        "section": "elevation & depth"
+      }
     ],
     "dos": [
-      "Do read every color from a --c-* CSS custom property.",
-      "Do keep --c-danger*, --c-warn*, and --c-green* completely independent of the primary/accent palette.",
-      "Do verify new color pairs against WCAG AA before shipping them.",
-      "Do keep tap-confirmation motion working even under prefers-reduced-motion.",
-      "Do scope new delight/motion additions to navigation, tabs, cards, and transitions."
+      "**Do** read every color from a `--c-*` CSS custom property — a hardcoded hex anywhere in a component is a bug, not a style choice.",
+      "**Do** keep `--c-danger*`, `--c-warn*`, and `--c-green*` completely independent of the primary/accent palette, including through any future rebrand.",
+      "**Do** verify new color pairs against WCAG AA (4.5:1 for text, higher for small label text) before shipping them, the way every existing token was verified.",
+      "**Do** keep tap-confirmation motion (`:active` scale) working even under `prefers-reduced-motion`; only decorative motion should respect that media query.",
+      "**Do** scope new delight/motion/glow additions to navigation, tabs, cards, and transitions — never to dose numbers or safety-tier text.",
+      "**Do** let dark mode be a *deliberately distinct* execution of the brand (deeper, more saturated-glow) rather than a mechanical inversion of light mode.",
+      "**Do** count how many times an accent color appears on one screen before shipping it. Used once it is emphasis; repeated per row it becomes the body color and quietly outranks the content it decorates.",
+      "**Do** give a secondary action a real fill (`button-secondary`), not an outline alone — no border token in this system clears 3:1 against the page."
     ],
     "donts": [
-      "Don't add bounce, pop, or celebratory motion to a danger or warning state, ever.",
-      "Don't use the Mindmap-only magenta accent anywhere in the medication or dosing screens.",
-      "Don't let any input, textarea, or select render below 16px font size.",
-      "Don't invert one theme to produce the other."
+      "**Don't** add bounce, pop, glow, or celebratory motion to a danger or warning state, ever — this is the system's one hard line, confirmed directly against clinical risk rather than a generic accessibility guess.",
+      "**Don't** use the Mindmap-only magenta accent (`--c-accent-2`) anywhere in the medication or dosing screens.",
+      "**Don't** let any input, textarea, or select render below 16px font size.",
+      "**Don't** invert one theme to produce the other — light and dark are both independently authored and contrast-checked.",
+      "**Don't** let brand color (`--c-primary`) sit on a calm/\"ok\" clinical result — reserve it for chrome, navigation, and actions; a normal dose reads in `--c-text`.",
+      "**Don't** place a decorative accent immediately beside a hazard signal. Measure it: magenta `#f175a6` next to danger `#ff8585` is ΔE(CIE76) 26 at 4px apart — close enough to read as \"two pinks\" on a permanent-delete control. In any bulk-action strip, the destructive action is the *only* colored one.",
+      "**Don't** dress a non-create action in the paper material (`.mind-o-tao-bang`) or a dashed border. Both mean \"make a new thing\"; a reset, filter, or dismiss control wearing either is lying about what it does.",
+      "**Don't** hand a control's outline the divider token (`--c-line`). Dividers may sit near 1.3:1; a control boundary owes 3:1 (WCAG 1.4.11) and needs `--c-text-muted` or stronger."
     ]
   }
 }
