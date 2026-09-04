@@ -56,7 +56,7 @@
 // `tooltips.ts` để không render KaTeX đồng bộ lúc import) thì đọc đó, đừng điều tra lại từ đầu.
 // "Equation" VẪN nằm trong diện hoãn.
 //
-// Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong EdgelessBoard.tsx vẫn nạp nguyên
+// Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong mo-doc.ts vẫn nạp nguyên
 // bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
 // block lạ vẫn nạp được vào store mà không vỡ, chỉ là không có gì vẽ nó ra. Cắt phía store là
 // việc riêng, chưa làm.

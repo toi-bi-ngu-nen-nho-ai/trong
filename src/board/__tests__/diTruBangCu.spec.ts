@@ -126,7 +126,7 @@ describe('diTruBangCuNeuCo', () => {
     const blobSources = { main: dungBlobSourceGia() }
 
     // Dựng THỦ CÔNG qua TestWorkspace trực tiếp — KHÔNG dùng taoHoacMoBang(), vì hàm đó luôn seed
-    // đủ CẢ HAI affine:page + affine:surface (xem EdgelessBoard.tsx, nhánh `!store.root`). Ca kiểm
+    // đủ CẢ HAI affine:page + affine:surface (xem mo-doc.ts, nhánh `!store.root`). Ca kiểm
     // này cần đúng trạng thái "đăng ký dở dang": doc 'board' tồn tại và có root, nhưng thiếu hẳn
     // affine:surface — mô phỏng một lượt ghi seed bị cắt ngang giữa chừng (tab đóng đúng lúc) hoặc
     // một doc do một phiên bản code cũ hơn/khác tạo ra mà chưa từng vẽ gì. diTruBangCuNeuCo() PHẢI

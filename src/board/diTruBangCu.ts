@@ -46,7 +46,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
   const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
 
-  // KHÔNG truyền `idGenerator` — cùng lý do đã ghi ở EdgelessBoard.tsx (fix bug id trùng lúc remount):
+  // KHÔNG truyền `idGenerator` — cùng lý do đã ghi ở mo-doc.ts (fix bug id trùng lúc remount):
   // hàm này CHỈ ĐỌC (`store.root?.children`, không bao giờ `addBlock`/`createDoc`) nên thuật toán
   // sinh id không ảnh hưởng hành vi hiện tại, nhưng để lại `createAutoIncrementIdGenerator()` ở đây
   // là một bẫy — nếu hàm di trú này sau này được mở rộng để ghi khối, đúng lớp bug đó sẽ tái xuất.

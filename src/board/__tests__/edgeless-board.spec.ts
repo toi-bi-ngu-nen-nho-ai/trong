@@ -191,7 +191,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     lanMot.store.addBlock('affine:paragraph', { text: new Text(noiDungMau) }, noteId)
 
     // Đợi lượt ghi này đẩy xong lên cặp source giả trước khi đóng — cùng lý do đã giải thích trong
-    // EdgelessBoard.tsx cho lượt ghi seed: forceStop() không điều kiện có thể cắt ngang lượt ghi
+    // mo-doc.ts cho lượt ghi seed: forceStop() không điều kiện có thể cắt ngang lượt ghi
     // đang dở, làm mất đúng nội dung ca kiểm này định kiểm tra.
     await lanMot.workspace.waitForSynced()
     lanMot.workspace.forceStop()
