@@ -1,14 +1,14 @@
 // Danh sách extension cắt gọn (D13).
 //
-// GIỮ 47 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// GIỮ 52 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
 // src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
-// LÀ ĐÃ BỎ — 11 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
+// LÀ ĐÃ BỎ — 6 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
 // cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
-// Phần bỏ đi trải trên ba nhóm của thượng nguồn: 1 gfx (link), 4 block (Bookmark, Embed, EmbedDoc,
-// LatexViewExtension — khối, xem lý do dưới), 4 widget (EdgelessAutoConnect, LinkedDoc,
-// RemoteSelection, NoteSlicer) và 2 fragment (FramePanel, AdapterPanel) — nhóm inline giờ ĐỦ 7/7,
-// không góp vào phần loại (1+4+4+2 = 11). Đếm bằng tay trên mảng bên dưới mỗi lần sửa số này — đừng
-// suy diễn từ lượt trước.
+// Phần bỏ đi trải trên BA nhóm của thượng nguồn (gfx giờ ĐỦ, không còn góp phần loại kể từ Task 12
+// bật GfxLinkViewExtension): 1 block (LatexViewExtension — khối, xem lý do dưới), 3 widget
+// (EdgelessAutoConnect, RemoteSelection, NoteSlicer), 2 fragment (FramePanel, AdapterPanel) — nhóm
+// inline vẫn ĐỦ 7/7, không góp vào phần loại (1+3+2 = 6). Đếm bằng tay trên mảng bên dưới mỗi lần
+// sửa số này — đừng suy diễn từ lượt trước.
 //
 // Chặng 2026-08-21 "Database + Note đầy đủ" (xem
 // docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
@@ -108,6 +108,33 @@
 // `OutlinePanel`/`AFFINE_OUTLINE_PANEL` của thượng nguồn — panel đọc trực tiếp cây block của doc,
 // không cần đồng bộ tay danh sách heading.
 //
+// Chặng 2026-09-04, Task 12 (xem
+// docs/superpowers/specs/2026-09-04-kho-bai-viet-page-mode-design.md) bật thêm 5:
+// LinkedDocViewExtension, BookmarkViewExtension, EmbedViewExtension, EmbedDocViewExtension,
+// GfxLinkViewExtension — nhóm 3 trong bốn nhóm bật dần cho CHẾ ĐỘ TRANG: liên kết và nhúng (gõ `@`
+// mở bảng chọn tài liệu, dán URL tự bọc bookmark/embed, nhúng bài viết vào bài viết). TÊN THẺ THẬT
+// tra từ cây vendored (task-12-brief.md Step 1, cả bốn brief nêu đều ĐÚNG lần này):
+//   - LinkedDoc: `widgets/linked-doc/src/config.ts` định danh bằng hằng
+//     `AFFINE_LINKED_DOC_WIDGET = 'affine-linked-doc-widget'` → `drt-linked-doc-widget`.
+//   - Bookmark: `blocks/bookmark/src/effects.ts` viết thẳng chuỗi `'affine-bookmark'` →
+//     `drt-bookmark`.
+//   - Embed: `blocks/embed/src/effects.ts` viết thẳng chuỗi `'affine-embed-figma-block'` →
+//     `drt-embed-figma-block` (đại diện — gói còn đăng ký nhiều thẻ embed khác: GitHub, HTML,
+//     iframe, Loom, YouTube... cùng lượt `effects()`).
+//   - EmbedDoc: `blocks/embed-doc/src/effects.ts` viết thẳng chuỗi
+//     `'affine-embed-linked-doc-block'` → `drt-embed-linked-doc-block`.
+// Bốn thẻ trên đều mang tiền tố affine- gốc nên đổi thành drt- bình thường. GfxLink KHÁC:
+// `gfx/link/src/effects.ts` viết thẳng chuỗi `'edgeless-link-tool-button'` — KHÔNG mang tiền tố
+// affine- nên luật đổi tên `\baffine-` của `scripts/doi-ten-vendor.mjs` không đụng tới, tên runtime
+// giữ nguyên `edgeless-link-tool-button` (cùng lớp bẫy với `doc-title` ở Task 10).
+//
+// VA CHẠM TÊN: thượng nguồn có HAI extension cùng tên lớp `LinkViewExtension` — một ở
+// `@blocksuite/affine-inline-link/view` (đã bật từ trước, nhóm Inline) và một ở
+// `@blocksuite/affine-gfx-link/view` (nhóm 3 này). Theo đúng cách thượng nguồn giải va chạm
+// (`affine/all/src/extensions/view.ts:29`), import cái sau với bí danh `GfxLinkViewExtension` —
+// KHÔNG tự đặt tên khác: `thu-tu-view-extension.spec.ts` so định danh bằng VĂN BẢN, một bí danh
+// khác khiến ca "mọi extension của dự án đều có thật ở thượng nguồn" đỏ.
+//
 // Phía STORE thì KHÔNG cắt: `getInternalStoreExtensions()` trong mo-doc.ts vẫn nạp nguyên
 // bộ schema của mọi loại block, kể cả những loại không có view ở đây. Nghĩa là một tài liệu chứa
 // block lạ vẫn nạp được vào store mà không vỡ, chỉ là không có gì vẽ nó ra. Cắt phía store là
@@ -154,15 +181,45 @@
 // Tổng đường mở nặng nhất (EdgelessBoard): 957,87 + 15,61 + 6,24 ≈ **979,72 kB gzip**. Ngưỡng dừng
 // vẫn 1.400 kB gzip — còn cách ~420,3 kB, KHÔNG vượt ngưỡng.
 //
+// Nhóm 3 page mode thêm 2026-09-04, Task 12 (52 extension, xem đoạn giải thích ở trên) — đo lại ở
+// `npm run build` của chính lượt này, cùng máy, cùng cách tách chunk. Đây là nhóm NẶNG NHẤT trong
+// bốn nhóm, đúng như brief cảnh báo (Embed kéo theo hàng chục khối nhúng: Figma, GitHub, HTML,
+// iframe, Loom, YouTube, synced-doc...):
+//   - `extensions-*.js` (mã chung): 4.547,34 kB → **1.145,31 kB gzip** (Task 11: 957,87 kB gzip,
+//     +187,44 kB cho LinkedDoc/Bookmark/Embed/EmbedDoc/GfxLink — bước nhảy lớn nhất trong ba nhóm
+//     đã bật, khớp cảnh báo của brief).
+//   - `extensions-*.css` đi kèm: 96,94 kB → 15,61 kB gzip — KHÔNG đổi so với Task 11. CSS của các
+//     component Embed/Bookmark/LinkedDoc là style Lit `css\`...\`` nằm trong bản thân lớp (đi vào
+//     chunk JS), không tách ra file .css riêng như theme vendor/vanilla-extract.
+//   - `EdgelessBoard-*.js`: 6,25 kB gzip (Task 11: 6,24 kB — không đổi đáng kể).
+//   - `TrangBaiViet-*.js`: 1,09 kB gzip (Task 11: 1,09 kB — không đổi).
+// Tổng đường mở nặng nhất (EdgelessBoard): 1.145,31 + 15,61 + 6,25 ≈ **1.167,17 kB gzip**. Ngưỡng
+// dừng vẫn 1.400 kB gzip — còn cách ~232,83 kB, KHÔNG vượt ngưỡng nhưng biên độ đã hẹp lại đáng kể
+// (từ ~420,3 kB xuống ~232,83 kB chỉ sau một nhóm) — nhóm 4 (Task 13) nên đo cẩn thận, khả năng
+// chạm ngưỡng không còn xa như trước.
+//
+// VA CHẠM TÊN `LinkViewExtension`: thượng nguồn có hai extension trùng tên lớp (inline link và gfx
+// link) — dự án import cái sau với bí danh `GfxLinkViewExtension`, ĐÚNG NHƯ thượng nguồn tự đặt ở
+// `affine/all/src/extensions/view.ts:29`, để `thu-tu-view-extension.spec.ts` (so định danh bằng
+// văn bản) không đỏ vì bí danh lệch.
+//
+// KaTeX/DOMPurify KHÔNG bị kéo theo bởi Task 12 dù Embed cũng có mã render đồng bộ ở cấp module tại
+// một vài nơi (`embed-html-fullscreen-toolbar` dùng `unsafeHTML` cho HTML người dùng nhúng, khác
+// hẳn `sanitizeHTML()`/KaTeX của Latex) — bộ test đầy đủ (754 ca, xem log Step 5) chạy trọn một lượt
+// không timeout, không cần tách lượt như Latex ở trên.
+//
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.
 import { AttachmentViewExtension } from '@blocksuite/affine-block-attachment/view'
+import { BookmarkViewExtension } from '@blocksuite/affine-block-bookmark/view'
 import { CalloutViewExtension } from '@blocksuite/affine-block-callout/view'
 import { CodeBlockViewExtension } from '@blocksuite/affine-block-code/view'
 import { DataViewViewExtension } from '@blocksuite/affine-block-data-view/view'
 import { DatabaseViewExtension } from '@blocksuite/affine-block-database/view'
 import { DividerViewExtension } from '@blocksuite/affine-block-divider/view'
 import { EdgelessTextViewExtension } from '@blocksuite/affine-block-edgeless-text/view'
+import { EmbedViewExtension } from '@blocksuite/affine-block-embed/view'
+import { EmbedDocViewExtension } from '@blocksuite/affine-block-embed-doc/view'
 import { FrameViewExtension } from '@blocksuite/affine-block-frame/view'
 import { ImageViewExtension } from '@blocksuite/affine-block-image/view'
 import { ListViewExtension } from '@blocksuite/affine-block-list/view'
@@ -178,6 +235,7 @@ import { OutlineViewExtension } from '@blocksuite/affine-fragment-outline/view'
 import { BrushViewExtension } from '@blocksuite/affine-gfx-brush/view'
 import { ConnectorViewExtension } from '@blocksuite/affine-gfx-connector/view'
 import { GroupViewExtension } from '@blocksuite/affine-gfx-group/view'
+import { LinkViewExtension as GfxLinkViewExtension } from '@blocksuite/affine-gfx-link/view'
 import { MindmapViewExtension } from '@blocksuite/affine-gfx-mindmap/view'
 import { NoteViewExtension as GfxNoteViewExtension } from '@blocksuite/affine-gfx-note/view'
 import { PointerViewExtension } from '@blocksuite/affine-gfx-pointer/view'
@@ -198,6 +256,7 @@ import { EdgelessToolbarViewExtension } from '@blocksuite/affine-widget-edgeless
 import { EdgelessZoomToolbarViewExtension } from '@blocksuite/affine-widget-edgeless-zoom-toolbar/view'
 import { FrameTitleViewExtension } from '@blocksuite/affine-widget-frame-title/view'
 import { KeyboardToolbarViewExtension } from '@blocksuite/affine-widget-keyboard-toolbar/view'
+import { LinkedDocViewExtension } from '@blocksuite/affine-widget-linked-doc/view'
 import { PageDraggingAreaViewExtension } from '@blocksuite/affine-widget-page-dragging-area/view'
 import { ScrollAnchoringViewExtension } from '@blocksuite/affine-widget-scroll-anchoring/view'
 import { SlashMenuViewExtension } from '@blocksuite/affine-widget-slash-menu/view'
@@ -220,14 +279,18 @@ export const viewExtensions = [
   GroupViewExtension,
   TextViewExtension,
   TemplateViewExtension,
+  GfxLinkViewExtension,
 
   AttachmentViewExtension,
+  BookmarkViewExtension,
   CalloutViewExtension,
   CodeBlockViewExtension,
   DataViewViewExtension,
   DatabaseViewExtension,
   DividerViewExtension,
   EdgelessTextViewExtension,
+  EmbedViewExtension,
+  EmbedDocViewExtension,
   FrameViewExtension,
   ImageViewExtension,
   ListViewExtension,
@@ -249,6 +312,7 @@ export const viewExtensions = [
   DragHandleViewExtension,
   FrameTitleViewExtension,
   KeyboardToolbarViewExtension,
+  LinkedDocViewExtension,
   ScrollAnchoringViewExtension,
   SlashMenuViewExtension,
   ToolbarViewExtension,

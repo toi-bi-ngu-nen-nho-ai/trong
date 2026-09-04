@@ -60,15 +60,27 @@ const DUOI = new Set(['.js', '.css', '.html', '.json', '.txt', '.webmanifest'])
 // khai TĨNH trong một stylesheet (`.vendor-build/theme/style.css`). Thiếu một cái là thiếu thật.
 const KHONG_GIAN_TEN = '--drt-'
 
-// Ngoại lệ có lý do, KHÔNG phải danh sách để nhét thêm cho cổng xanh. Ba tên dưới đây thượng nguồn
+// Ngoại lệ có lý do, KHÔNG phải danh sách để nhét thêm cho cổng xanh. Bốn tên dưới đây thượng nguồn
 // AFFiNE cũng không định nghĩa trong `@toeverything/theme` — chúng được khai trong CSS vỏ app của
-// chính AFFiNE, thứ không nằm trong phạm vi vendored. Cả ba chỉ được dùng ở date-picker và
-// kanban-card, không nằm trên đường render của bảng vẽ edgeless. Thêm tên vào đây bắt buộc phải
-// kèm lý do tương đương; mặc định của một tên `--drt-*` thiếu định nghĩa là SỬA, không phải miễn.
+// chính AFFiNE, thứ không nằm trong phạm vi vendored. Thêm tên vào đây bắt buộc phải kèm lý do
+// tương đương; mặc định của một tên `--drt-*` thiếu định nghĩa là SỬA, không phải miễn.
 const MIEN = new Set([
   '--drt-icon-hover-color', // affine/components/src/date-picker/style.ts
   '--drt-icon-hover-background', // affine/components/src/date-picker/style.ts
   '--drt-background-kanban-card-color', // affine/data-view/.../kanban/{pc,mobile}/card.ts
+  // Thêm ở Task 12 (nhóm 3, bật EmbedViewExtension): `affine/blocks/embed/src/embed-iframe-block/
+  // components/embed-iframe-link-edit-popup.ts:34` dùng `var(--affine-background-color)` — tên
+  // BẲN, không có hậu tố (khác `--affine-background-primary-color` và tám tên background-* khác
+  // mà `affine/shared/src/theme/css-variables.ts` có khai). Đã kiểm bằng grep: đây là nơi DUY NHẤT
+  // trong toàn cây vendored dùng tên bẳn này, và `.vendor-build/theme/style.css` (bản dựng thật)
+  // không định nghĩa nó — cùng dạng lỗ với ba tên trên, không phải lỗi của bước đổi tên D16. KHÔNG
+  // đoán giá trị thay: file này chỉ tô nền `.input-container` bên trong popup sửa URL của khối
+  // nhúng iframe (chỉ hiện khi người dùng bấm sửa liên kết một embed đã có, không phải đường render
+  // chính của khối), và không có cách nào kiểm bằng mắt trong lượt này (Step 7 hoãn theo hiệu chỉnh
+  // D của Task 12 — dồn hết phần thị giác của bốn nhóm vào một lượt hợp nhất sau Task 13). Đoán một
+  // giá trị không kiểm chứng được rủi ro hơn để trống — thiếu biến này chỉ khiến `.input-container`
+  // không có màu nền (viền + chữ vẫn còn), không vỡ layout hay ném lỗi.
+  '--drt-background-color',
 ])
 
 // Luật C — bản dịch phải tới được tay người dùng. Gộp CẢ HAI file: vi.json (thay theo vị trí

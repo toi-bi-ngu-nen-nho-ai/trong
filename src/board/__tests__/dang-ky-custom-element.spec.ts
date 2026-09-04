@@ -91,4 +91,28 @@ describe('đăng ký custom element từ danh sách view extension', () => {
     expect(customElements.get('drt-outline-panel'), 'Outline').toBeDefined()
     expect(customElements.get('drt-data-view'), 'DataView').toBeDefined()
   })
+
+  it('nhóm 3: đăng ký đủ thẻ Lit', () => {
+    // Tên thẻ tra trực tiếp từ cây vendored (task-12-brief.md Step 1, đã hiệu chỉnh):
+    // - LinkedDoc: `widgets/linked-doc/src/config.ts` định danh bằng hằng
+    //   `AFFINE_LINKED_DOC_WIDGET = 'affine-linked-doc-widget'` → `drt-linked-doc-widget`.
+    // - Bookmark: `blocks/bookmark/src/effects.ts` viết thẳng chuỗi `'affine-bookmark'` →
+    //   `drt-bookmark`.
+    // - Embed: `blocks/embed/src/effects.ts` viết thẳng chuỗi `'affine-embed-figma-block'` →
+    //   `drt-embed-figma-block` (đại diện — gói này còn đăng ký nhiều thẻ embed khác cùng lượt
+    //   effect(), không cần liệt hết).
+    // - EmbedDoc: `blocks/embed-doc/src/effects.ts` viết thẳng chuỗi
+    //   `'affine-embed-linked-doc-block'` → `drt-embed-linked-doc-block`.
+    // - GfxLink: `gfx/link/src/effects.ts` viết thẳng chuỗi `'edgeless-link-tool-button'` — KHÔNG
+    //   mang tiền tố affine- nên luật đổi tên `\baffine-` của scripts/doi-ten-vendor.mjs không đụng
+    //   tới, tên runtime giữ nguyên `edgeless-link-tool-button` (cùng lớp bẫy với `doc-title` ở
+    //   Task 10).
+    layExtensionsTrang()
+
+    expect(customElements.get('drt-linked-doc-widget'), 'LinkedDoc').toBeDefined()
+    expect(customElements.get('drt-bookmark'), 'Bookmark').toBeDefined()
+    expect(customElements.get('drt-embed-figma-block'), 'Embed').toBeDefined()
+    expect(customElements.get('drt-embed-linked-doc-block'), 'EmbedDoc').toBeDefined()
+    expect(customElements.get('edgeless-link-tool-button'), 'GfxLink').toBeDefined()
+  })
 })
