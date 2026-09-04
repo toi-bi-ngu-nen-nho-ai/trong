@@ -82,6 +82,32 @@ tồn nào — tính năng đã xong (5 tab, 227 nhãn dán + 5 mẫu bảng, 20
 [`plans/2026-09-01-mo-rong-bang-mau.md`](plans/2026-09-01-mo-rong-bang-mau.md).
 
 
+**MỚI 2026-09-05 — bước đổi tên D16 đã viết lại nhầm HAI HOSTNAME BÊN NGOÀI. Cần chủ dự án quyết,
+tôi KHÔNG tự sửa.** Phát hiện khi kiểm nút "Liên kết" trên trình duyệt thật: tạo một thẻ liên kết
+xong, console đỏ `CORS ... drt-worker.toeverything.workers.dev`. Đối chiếu nguồn:
+
+| | |
+|---|---|
+| `src/vendor/.../shared/src/consts/index.ts:76,80` (gốc) | `https://affine-worker.toeverything.workers.dev/api/worker/{image-proxy,link-preview}` |
+| `.vendor-build/.../consts/index.js:57,59` (sau D16) | `https://drt-worker.toeverything.workers.dev/...` |
+
+Luật đổi `affine-` → `drt-` không phân biệt tên miền với định danh mã, mà `drt-worker` thì không tồn
+tại trong namespace `toeverything.workers.dev`. Hệ quả: **hai endpoint chết vĩnh viễn** — xem trước
+liên kết (thẻ liên kết không lấy được tiêu đề/mô tả/biểu tượng) và proxy ảnh (ảnh ngoài phải đi vòng
+CORS). Script `doi-ten-vendor.mjs` CÓ cơ chế che (`sourceMappingURL`) nhưng không có guard nào cho
+hostname.
+
+**Vì sao KHÔNG tự sửa — đây là quyết định sản phẩm, không phải quyết định kỹ thuật.** Khôi phục tên
+miền gốc nghĩa là MỖI liên kết bác sĩ dán vào bảng sẽ được gửi tới một worker của bên thứ ba
+(`toeverything.workers.dev` là hạ tầng của AFFiNE) để lấy bản xem trước. Với một app y khoa, lỗi
+tình cờ này đang vô tình đóng vai một lớp bảo vệ riêng tư. Ba hướng, chủ dự án chọn:
+1. **Giữ nguyên (chết im lặng)** — nhưng nên chặn hẳn lời gọi để console khỏi đỏ mỗi lần tạo thẻ.
+2. **Khôi phục tên miền thượng nguồn** — thẻ liên kết đẹp hơn, đổi lại URL người dùng dán rời máy.
+3. **Tự dựng endpoint riêng** — giữ dữ liệu trong tầm kiểm soát, tốn một hạ tầng nhỏ.
+
+Dù chọn hướng nào cũng nên thêm một guard trong `doi-ten-vendor.mjs` để lượt đổi tên sau không âm
+thầm viết lại một URL nữa.
+
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 
 Các mục dưới đây đã được cân nhắc và chốt là không làm. Ghi lại để phiên sau **khỏi phát hiện lại
