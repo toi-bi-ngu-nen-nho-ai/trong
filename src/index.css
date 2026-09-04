@@ -283,6 +283,17 @@
   /* Bộ ba R,G,B của accent-2 — cùng khuôn với --c-primary-rgb, để nhét vào rgba() cho viền/nền mờ
      (khung khoanh vùng, vệt lasso) ăn theo sắc này mà vẫn tự đổi theo sáng/tối. */
   --c-accent-2-rgb: 184, 25, 111;
+  /* Độ "nâng sáng" áp cho 11 màu nhận diện chuyên khoa (src/data/specialties.ts) khi vẽ chúng làm
+     chấm/viền trên nền TỐI. Bộ 11 màu đó là hằng số hex cứng, tối ưu cho nền sáng (L≈52) — chính
+     file dữ liệu ghi rõ là chưa có bộ thứ hai cho bản tối và đổi nó phải sửa ~15 nơi đang dùng
+     `spec.color` trực tiếp (kèm cả mẹo nối alpha `${spec.color}15` chỉ chạy với hex), rủi ro hồi quy
+     cao hơn hẳn phạm vi lượt này. Token này là đường vòng CÓ CHỦ Ý và có phạm vi hẹp: chỉ nơi nào
+     tự bọc màu qua color-mix mới ăn theo (hiện là chấm khoa ở dải chip + bảng chọn của
+     DanhSachBang.tsx). Trên nền #14162c, #5b6470 (Sinh lý) và #7a6300 (Dược lâm sàng) gần như chìm
+     hẳn; nâng 34% về phía --c-khoa-nang-toi kéo chúng lên mức đọc được mà vẫn giữ nguyên sắc để
+     người dùng nhận ra cùng một khoa giữa hai chế độ. 0% ở bản sáng = không đụng gì tới màu gốc. */
+  --c-khoa-nang: 0%;
+  --c-khoa-nang-toi: #ffffff;
   /* Dải "Hoàn tác" sau khi xoá mềm một bảng (DanhSachBang.tsx). CỐ TÌNH không đổi theo sáng/tối —
      giống --c-note, đây là một vật thể chất liệu cố định: một tấm thẻ tối nổi hẳn trên mọi nền ở
      cả hai theme, để hành động phục hồi cuối cùng luôn đọc ra ngay. Trước đây nền là
@@ -443,6 +454,8 @@
     --c-accent-line: var(--c-primary-line);
     --c-accent-2: #f175a6;
     --c-accent-2-rgb: 241, 117, 166;
+    /* Xem chú thích --c-khoa-nang ở :root — bản tối nâng 34% về trắng cho chấm màu chuyên khoa. */
+    --c-khoa-nang: 34%;
 
     --c-danger-icon: #ff6b6b;
     --c-danger: #ff8585;
@@ -536,6 +549,8 @@
   --c-accent-line: var(--c-primary-line);
   --c-accent-2: #f175a6;
   --c-accent-2-rgb: 241, 117, 166;
+  /* Xem chú thích --c-khoa-nang ở :root — bản tối nâng 34% về trắng cho chấm màu chuyên khoa. */
+  --c-khoa-nang: 34%;
 
   --c-danger-icon: #ff6b6b;
   --c-danger: #ff8585;
@@ -1456,16 +1471,76 @@ html.theme-shift * {
   color: var(--c-text-placeholder, #5f628a);
 }
 
-/* Hàng chip lọc chuyên khoa (DanhSachBang.tsx, role="group") — cuộn ngang khi mở rộng "Thêm +N",
-   tới 13 chip trên iPhone (đo thật: scrollWidth 1122px so với clientWidth 375px) mà không có dấu
-   hiệu thị giác nào báo còn nội dung ngoài khung nhìn — "Tất cả" cuộn khuất khỏi tầm mắt ngay khi
-   mở rộng, không mũi tên/fade/scrollbar nào gợi ý cuộn lại được (critique 2026-09-01, P2). Fade
-   tĩnh hai cạnh — KHÔNG theo vị trí cuộn (cần JS mới làm được) — vẫn là tín hiệu đủ rõ, đúng mẫu
-   quen thuộc (tab bar cuộn ngang của nhiều app khác). 20px đủ để mờ hẳn viền chip đầu/cuối mà
-   không nuốt cả nhãn chữ bên trong. */
+/* Hàng chip lọc chuyên khoa (DanhSachBang.tsx, role="group") — XUỐNG HÀNG, không cuộn ngang.
+   Lịch sử: hàng này từng bung tới 13 chip (scrollWidth 1122px so với clientWidth 375px trên iPhone)
+   nên critique 2026-09-01 P2 dán fade tĩnh hai mép làm dấu hiệu "còn nội dung ngoài khung" — chính
+   comment cũ ghi rõ đó là "vá TẠM", và critique 2026-09-03 đã thay bằng cơ chế thật: mọi khoa ngoài
+   vài chip đầu chuyển hẳn vào BẢNG CHỌN "Chuyên khoa" (chủ dự án chốt hướng "nặng" 2026-09-04).
+   Từ lượt này hàng chỉ còn tối đa 5 mục (Tất cả + 3 khoa nhiều bảng nhất + nút mở bảng chọn), nên
+   cuộn ngang không còn lý do tồn tại — mà cái giá của nó thì vẫn nguyên: mask ăn 20px MỖI BÊN kể cả
+   khi hàng KHÔNG tràn, làm mờ đúng mép trái chip "Tất cả" (chip mặc định, quan trọng nhất) và mép
+   phải nút mở bảng chọn — một tín hiệu "còn nữa ngoài kia" trỏ vào chỗ không có gì. Cho xuống hàng
+   thì mọi chip luôn hiện đủ, không mép nào bị nuốt, không cử chỉ ẩn nào phải khám phá. Ở 375px, 5
+   chip vừa 1 hàng trong hầu hết trường hợp; tên khoa dài (Sinh lý (bệnh), Dược lâm sàng) rớt xuống
+   hàng thứ hai — thấy hết vẫn hơn cuộn khuất. row-gap nhỏ hơn column-gap để hai hàng đọc ra là MỘT
+   cụm, không phải hai dải rời. */
 .mind-chip-scroll {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
-  mask-image: linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent);
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+/* Ô tích chọn trong panel "Đã xoá gần đây" (DanhSachBang.tsx). Trước đây là <input type=checkbox>
+   NGUYÊN BẢN của trình duyệt + `accentColor` — mà accentColor CHỈ tô trạng thái ĐÃ TÍCH; ô CHƯA
+   tích vẫn do hệ điều hành vẽ, nên ở bản tối Chromium sơn ra một khối xám-nâu không thuộc bảng màu
+   nào của app, đứng ngay đầu mỗi dòng của khay tối #1b1e3d — đọc thành "ô bị vô hiệu hoá" hơn là
+   "ô tích được" (thấy trực tiếp trên ảnh chụp bản tối 2026-09-04).
+   Viền dùng --c-text-muted (KHÔNG --c-line): --c-line ở bản tối là #2e3260, đặt trên khay #1b1e3d
+   chỉ được ~1,3:1 — dưới hẳn ngưỡng 3:1 của WCAG 1.4.11 cho ranh giới một control. --c-text-muted
+   đo được 5,08:1 (tối) và 4,57:1 (sáng) trên chính nền khay đó. Dấu tích vẽ bằng clip-path, không
+   phải ký tự "✓" — cùng lý do mọi icon khác trong app là SVG chứ không phải glyph font hệ thống. */
+.mind-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin: 0;
+  border: 1.5px solid var(--c-text-muted, #6b6e96);
+  border-radius: 5px;
+  background: var(--c-surface, #fff);
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+.mind-check::before {
+  content: '';
+  width: 11px;
+  height: 11px;
+  background: var(--c-on-bright, #fff);
+  clip-path: polygon(14% 44%, 0 60%, 39% 100%, 100% 16%, 84% 0, 39% 68%);
+  transform: scale(0);
+  transition: transform 0.14s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.mind-check:checked {
+  background: var(--c-primary, #2d3a94);
+  border-color: var(--c-primary, #2d3a94);
+}
+.mind-check:checked::before {
+  transform: scale(1);
+}
+
+/* Trạng thái RỖNG của lưới bảng — modifier riêng, KHÔNG sửa .mind-board-wrap chung (lưới thật dùng
+   chung khung đó; đổi bố cục của nó là thay đổi lan rộng, rủi ro hồi quy cao hơn hẳn phần việc này).
+   Lý do cần: khối rỗng trước đây dùng `height: 70%`, mà cha (.mind-board-wrap) cao AUTO nên phần
+   trăm ấy giải về `auto` — khối chỉ cao bằng nội dung (đo được 205px) rồi xếp ngay dưới thanh công
+   cụ, để lại 256px trống bên dưới trong vùng cuộn 755px: cả cụm trôi lên một phần ba trên màn, phần
+   còn lại là khoảng chết. min-height:100% ở đây + flex:1 ở khối con cho nó căn giữa trong ĐÚNG phần
+   chiều cao còn lại. */
+.mind-board-wrap-trong {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 /* Lưới danh sách bảng (DanhSachBang.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng

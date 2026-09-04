@@ -12,6 +12,28 @@ import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+// Bốn bảng ở bốn khoa khác nhau — bộ seed dùng chung cho mọi ca cần tới BẢNG CHỌN chuyên khoa.
+// Vì sao phải bốn: từ 2026-09-04 dải chip chỉ mang khoa CÓ bảng (tối đa 3, nhiều bảng nhất trước),
+// và nút mở bảng chọn chỉ hiện khi CÒN khoa khác thật sự có bảng — ba khoa thì cả ba lên chip và
+// nút biến mất. Khoa thứ tư là thứ giữ nút mở bảng chọn tồn tại. Mọi bảng cùng số lượng (1) nên
+// thứ tự chip rơi về thứ tự SPECIALTIES: cardiology → pulmonology → gastrointestinal lên dải,
+// nephrology nằm sau nút.
+const SEED_BON_KHOA: ReadonlyArray<readonly [string, string, string]> = [
+  ['bang-tim', 'Bảng tim mạch', 'cardiology'],
+  ['bang-ho-hap', 'Bảng hô hấp', 'pulmonology'],
+  ['bang-tieu-hoa', 'Bảng tiêu hoá', 'gastrointestinal'],
+  ['bang-than', 'Bảng thận học', 'nephrology'],
+]
+
+async function seedBonKhoa() {
+  const bayGio = Date.now()
+  for (const [id, ten, chuyenKhoa] of SEED_BON_KHOA) {
+    await idbPut(IDB_STORES.boards, {
+      id, ten, taoLuc: bayGio, capNhatLuc: bayGio, chuyenKhoa, tags: [], noiDungTimKiem: '',
+    })
+  }
+}
+
 describe('nghiengOnDinh', () => {
   it('cùng id → luôn cùng một góc (ổn định qua nhiều lần gọi)', () => {
     expect(nghiengOnDinh('bang-abc')).toBe(nghiengOnDinh('bang-abc'))
@@ -1107,22 +1129,29 @@ describe('DanhSachBang', () => {
   // Đổi kỳ vọng 2026-08-29 (critique P2): rỗng DO LỌC nay mời GỠ BỘ LỌC chứ không mời tạo bảng
   // mới — ca này giữ nguyên phần nó vốn canh (minh hoạ mindmap thay huy hiệu doc phẳng), chỉ đổi
   // nút được chờ. Kỳ vọng đầy đủ về đường thoát nằm ở ca "[P2] lưới rỗng DO LỌC…" cuối file.
-  it('lưới rỗng do LỌC hết (chip chuyên khoa) → vẫn hiện biểu tượng mindmap + đường thoát bộ lọc', async () => {
-    const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
-      id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
-      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
-    })
+  // Cập nhật 2026-09-04: dải chip nay chỉ mang khoa CÓ bảng (xem `khoaCoBang` trong DanhSachBang.tsx),
+  // nên không còn chip nào bấm được để ra lưới rỗng. Đường tới trạng thái đó giờ là BẢNG CHỌN
+  // "Chuyên khoa" — nó vẫn liệt kê đủ 11 khoa kèm số 0, đúng chủ ý (bảng chọn kiêm luôn cái nhìn
+  // tổng quan "mình chưa có gì ở khoa nào"). Seed 4 khoa để nút mở bảng chọn hiện ra (nó ẩn khi
+  // không còn khoa nào khác THẬT SỰ có bảng).
+  it('lưới rỗng do LỌC hết (bảng chọn chuyên khoa) → vẫn hiện biểu tượng mindmap + đường thoát bộ lọc', async () => {
+    await seedBonKhoa()
 
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).not.toBeNull()
     })
 
     await act(async () => {
-      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-them"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chon-khoa-endocrine"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-khoa-endocrine"]') as HTMLButtonElement).click()
     })
 
     await choDenKhi(() => {
@@ -1938,24 +1967,27 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
     expect(container.textContent).not.toContain('Bắt đầu một sơ đồ tư duy mới')
   })
 
-  // Cùng nhánh copy, nhưng nguyên nhân là chip lọc chứ không phải ô tìm — cả hai đều phải kích hoạt
-  // thông báo "không khớp", nếu không thì lọc theo một khoa chưa có bảng nào cũng ra lời mời sai.
-  it('lưới rỗng vì chip lọc chuyên khoa → hiện thông báo không tìm thấy', async () => {
-    const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
-      id: 'a', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
-      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
-    })
+  // Cùng nhánh copy, nhưng nguyên nhân là bộ lọc chuyên khoa chứ không phải ô tìm — cả hai đều phải
+  // kích hoạt thông báo "không khớp", nếu không thì lọc theo một khoa chưa có bảng nào cũng ra lời
+  // mời sai. Đi qua bảng chọn thay vì chip: xem chú thích ở ca cùng lớp phía trên.
+  it('lưới rỗng vì lọc chuyên khoa → hiện thông báo không tìm thấy', async () => {
+    await seedBonKhoa()
 
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
-      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(4)
     })
 
     await act(async () => {
-      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-them"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chon-khoa-endocrine"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-khoa-endocrine"]') as HTMLButtonElement).click()
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
@@ -2062,21 +2094,23 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
   })
 
   it('[P2] lưới rỗng DO LỌC → nút "Xoá bộ lọc" thay cho ô "+"; bấm vào là thấy lại bảng', async () => {
-    const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
-      id: 'bang-khoa-khac', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
-      chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
-    })
+    await seedBonKhoa()
 
     await act(async () => {
       root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
     })
     await choDenKhi(() => {
-      expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).not.toBeNull()
+      expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).not.toBeNull()
     })
 
     await act(async () => {
-      ;(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]') as HTMLButtonElement).click()
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-them"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chon-khoa-endocrine"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-khoa-endocrine"]') as HTMLButtonElement).click()
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(0)
@@ -2092,8 +2126,123 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
       nutXoaLoc!.click()
     })
     await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(SEED_BON_KHOA.length)
+    })
+  })
+})
+
+// ─── Dải chip chuyên khoa: chọn theo DỮ LIỆU, không theo chỉ số mảng (2026-09-04) ────────────────
+//
+// Trước lượt này dải luôn ghim `SPECIALTIES.slice(0, 2)` — Tim mạch + Hô hấp — bất kể người dùng có
+// bảng ở đó hay không, trong khi 9 khoa còn lại (kể cả khoa họ dùng suốt ca trực) bị đẩy hết vào
+// bảng chọn. Ba ca dưới canh đúng ba mệnh đề của quy tắc mới; gỡ bản vá là cả ba đỏ.
+describe('DanhSachBang — chip chuyên khoa theo dữ liệu thật', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    localStorage.clear()
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => root.unmount())
+    container.remove()
+    for (const b of await idbGetAll<{ id: string }>(IDB_STORES.boards)) await idbDelete(IDB_STORES.boards, b.id)
+  })
+
+  it('khoa KHÔNG có bảng nào thì không chiếm chip; khoa có bảng thì có', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.boards, {
+      id: 'chi-mot', ten: 'Cơn tăng huyết áp', taoLuc: bayGio, capNhatLuc: bayGio,
+      chuyenKhoa: 'neurology', tags: [], noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     })
+
+    // Thần kinh (khoa thứ 6 trong SPECIALTIES) LÊN dải vì nó là khoa duy nhất có bảng…
+    expect(container.querySelector('[data-testid="chip-chuyen-khoa-neurology"]')).not.toBeNull()
+    // …còn Tim mạch/Hô hấp — hai khoa từng được ghim cứng vì đứng đầu MẢNG — biến mất, vì thư viện
+    // này không có bảng nào ở đó.
+    expect(container.querySelector('[data-testid="chip-chuyen-khoa-cardiology"]')).toBeNull()
+    expect(container.querySelector('[data-testid="chip-chuyen-khoa-pulmonology"]')).toBeNull()
+    // Không còn khoa nào khác có bảng → nút mở bảng chọn cũng không có việc gì để làm.
+    expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).toBeNull()
+  })
+
+  it('nhiều bảng hơn thì lên trước, và dải dừng ở 3 chip khoa', async () => {
+    const bayGio = Date.now()
+    // hematology ×3, infectious ×2, emergency ×1, cardiology ×1 → thứ tự mong đợi:
+    // hematology, infectious, rồi cardiology (hoà 1-1 với emergency, thắng nhờ đứng trước trong
+    // SPECIALTIES). emergency là khoa thứ tư → rơi ra sau nút "Chuyên khoa".
+    const seed: ReadonlyArray<readonly [string, string]> = [
+      ['h1', 'hematology'], ['h2', 'hematology'], ['h3', 'hematology'],
+      ['i1', 'infectious'], ['i2', 'infectious'],
+      ['e1', 'emergency'],
+      ['c1', 'cardiology'],
+    ]
+    for (const [id, chuyenKhoa] of seed) {
+      await idbPut(IDB_STORES.boards, {
+        id, ten: `Bảng ${id}`, taoLuc: bayGio, capNhatLuc: bayGio, chuyenKhoa, tags: [], noiDungTimKiem: '',
+      })
+    }
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(seed.length)
+    })
+
+    const idChip = [...container.querySelectorAll('[data-testid^="chip-chuyen-khoa-"]')]
+      .map((n) => n.getAttribute('data-testid'))
+      .filter((t) => t !== 'chip-chuyen-khoa-tat-ca' && t !== 'chip-chuyen-khoa-them')
+    expect(idChip).toEqual([
+      'chip-chuyen-khoa-hematology',
+      'chip-chuyen-khoa-infectious',
+      'chip-chuyen-khoa-cardiology',
+    ])
+    // Đúng MỘT khoa còn lại có bảng (emergency) → nhãn số trên nút mở bảng chọn phải là "1".
+    const nutThem = container.querySelector('[data-testid="chip-chuyen-khoa-them"]')
+    expect(nutThem).not.toBeNull()
+    expect(nutThem!.textContent).toContain('1')
+  })
+
+  it('khoa đang lọc nằm ngoài 3 chip đầu vẫn được ghim vào dải', async () => {
+    await seedBonKhoa()
+
+    await act(async () => {
+      root.render(createElement(DanhSachBang, { onMoBang: () => {} }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).not.toBeNull()
+    })
+    // nephrology là khoa thứ tư — KHÔNG có chip lúc đầu.
+    expect(container.querySelector('[data-testid="chip-chuyen-khoa-nephrology"]')).toBeNull()
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chip-chuyen-khoa-them"]') as HTMLButtonElement).click()
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chon-khoa-nephrology"]')).not.toBeNull()
+    })
+    await act(async () => {
+      ;(container.querySelector('[data-testid="chon-khoa-nephrology"]') as HTMLButtonElement).click()
+    })
+
+    // Sau khi chọn, nó phải XUẤT HIỆN trên dải — nếu không, lưới bị lọc mà không có gì trên màn nói
+    // vì sao, và không có chip nào để bấm lại cho tắt.
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="chip-chuyen-khoa-nephrology"]')).not.toBeNull()
+    })
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
   })
 })
 

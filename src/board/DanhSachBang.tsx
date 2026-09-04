@@ -1677,7 +1677,10 @@ export function DanhSachBang({
           được lớn lên cùng khung — đúng triệu chứng người dùng báo. 1040px cho thẻ ~240px ở PC/iPad
           rộng (lớn hơn hẳn 140px cũ) mà vẫn có trần, không phình vô hạn trên màn siêu rộng. KHÔNG
           ảnh hưởng màn hẹp (điện thoại) — max-width chỉ có tác dụng khi khung cha rộng hơn nó. */}
-      <div className="mind-board-wrap">
+      {/* .mind-board-wrap-trong CHỈ khi lưới rỗng — biến khung thành cột flex cao tối thiểu 100% để
+          khối rỗng bên dưới (flex: 1) căn giữa trong đúng phần chiều cao còn lại. Xem chú thích tại
+          lớp đó (index.css) về lý do không sửa thẳng .mind-board-wrap. */}
+      <div className={`mind-board-wrap${danhSachSapXep.length === 0 ? ' mind-board-wrap-trong' : ''}`}>
       {/* Ô tìm đứng TRƯỚC "Đã xoá gần đây" — công cụ tìm chính phải nằm trên affordance phục hồi
           hiếm dùng (critique 2026-08-28: recovery-panel nằm trên ô tìm). Cổng hiện/ẩn gắn vào
           danhSach GỐC (chỉ trừ bang xoá mềm), KHÔNG phải danh sách đã lọc — gõ tới ký tự không khớp
@@ -1755,13 +1758,299 @@ export function DanhSachBang({
           </div>
         </div>
       )}
+      {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn
+          vào danh sách đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
+      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
+        // Số bảng mỗi khoa — TÍNH ĐÚNG như bộ lọc thật ở `danhSachSapXep` (`.filter` gộp bảng chưa
+        // gắn khoa vào SPECIALTIES[0]), nên badge số khớp đúng thứ người dùng thấy sau khi bấm.
+        const demTheoKhoa = new Map<string, number>()
+        for (const b of danhSach) {
+          if (b.daXoaLuc) continue
+          const k = b.chuyenKhoa ?? SPECIALTIES[0].id
+          demTheoKhoa.set(k, (demTheoKhoa.get(k) ?? 0) + 1)
+        }
+        const tongBang = danhSach.filter((b) => !b.daXoaLuc).length
+
+        // Chip nào được lên dải: 3 khoa CÓ NHIỀU BẢNG NHẤT của chính người dùng này. Trước đây là
+        // `SPECIALTIES.slice(0, 2)` — tức Tim mạch + Hô hấp, được chọn vì chúng đứng đầu MẢNG DỮ
+        // LIỆU, không vì thư viện của người dùng có gì trong đó. Với một thư viện trải đều 10 khoa
+        // (dựng thử 2026-09-04), dải quảng bá đúng hai khoa ngẫu nhiên và giấu tám khoa còn lại,
+        // trong đó có thể là khoa người dùng dùng suốt ca trực. Lối tắt phải phản ánh thói quen
+        // thật; khoa KHÔNG có bảng nào thì không bao giờ chiếm một chip.
+        // Sắp xếp ổn định: số bảng giảm dần, hoà thì theo đúng thứ tự SPECIALTIES (không phải thứ tự
+        // ngẫu nhiên của Map) — nếu không, mỗi lần thêm/xoá một bảng dải chip lại nhảy chỗ.
+        const VISIBLE = 3
+        const thuTuGoc = new Map(SPECIALTIES.map((kh, i) => [kh.id, i]))
+        const khoaCoBang = SPECIALTIES.filter((kh) => (demTheoKhoa.get(kh.id) ?? 0) > 0).sort(
+          (a, b) =>
+            (demTheoKhoa.get(b.id) ?? 0) - (demTheoKhoa.get(a.id) ?? 0) ||
+            (thuTuGoc.get(a.id) ?? 0) - (thuTuGoc.get(b.id) ?? 0),
+        )
+        const chipHien = khoaCoBang.slice(0, VISIBLE)
+        const chipAn = SPECIALTIES.filter((kh) => !chipHien.some((c) => c.id === kh.id))
+        // Chip ĐANG lọc mà không nằm trong 3 chip trên vẫn được ghim riêng vào dải — người dùng phải
+        // thấy vì sao lưới đang bị lọc, kể cả khi họ chọn một khoa hiếm từ bảng chọn.
+        const chipDangChonNgoaiVISIBLE = chipAn.filter((kh) => kh.id === chuyenKhoaLoc)
+        // Số khoa CÒN LẠI thật sự có bảng — vừa là nhãn số trên nút mở bảng chọn, vừa là cổng ẩn/hiện
+        // chính nút đó (xem chú thích tại nút).
+        const conKhoaKhac = chipAn.filter((kh) => (demTheoKhoa.get(kh.id) ?? 0) > 0).length
+        // Màu khoa đã nâng sáng cho nền tối — xem chú thích --c-khoa-nang (index.css). Ở bản sáng
+        // --c-khoa-nang là 0% nên color-mix trả về đúng màu gốc, không lệch một chút nào.
+        const mauKhoa = (hex: string) => `color-mix(in oklab, ${hex}, var(--c-khoa-nang-toi, #fff) var(--c-khoa-nang, 0%))`
+        const chamKhoa = (hex: string, size: number) => (
+          <span
+            aria-hidden="true"
+            style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: mauKhoa(hex) }}
+          />
+        )
+        const hangChon = (dangChon: boolean): React.CSSProperties => ({
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          minHeight: 40,
+          padding: '0 10px',
+          textAlign: 'left',
+          border: 0,
+          borderRadius: 8,
+          background: dangChon ? 'var(--c-primary-soft, #eceefa)' : 'none',
+          color: 'var(--c-text, #12142b)',
+          fontSize: 13,
+          fontWeight: 600,
+        })
+        // Dấu tích ở MÉP PHẢI hàng đang chọn. Trước đây trạng thái "đang lọc khoa này" chỉ được báo
+        // bằng một mảng nền --c-primary-soft rất nhạt (đo được ~1,1:1 so với nền bảng chọn ở bản
+        // tối) — tức gần như CHỈ bằng màu, và bằng một sắc màu yếu. Dấu tích là tín hiệu thứ hai,
+        // không phụ thuộc màu, và nó lấp đúng khoảng trống mép phải mà badge số vừa nhường lại.
+        const dauTich = (
+          <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden="true" focusable="false" style={{ flexShrink: 0, color: 'var(--c-primary, #2d3a94)' }}>
+            <path d="M2.6 7.4 5.6 10.4 11.4 4.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )
+        // Khuôn chung cho MỌI chip trên dải (Tất cả / khoa / nút mở bảng chọn) — một khuôn duy nhất
+        // để hàng không còn ba kiểu viền khác nhau trong bốn nút như trước (đặc/viền liền/viền ĐỨT).
+        const khuonChip: React.CSSProperties = {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 7,
+          minHeight: 40,
+          fontSize: 12,
+          fontWeight: 600,
+          padding: '6px 12px',
+          borderRadius: 999,
+          border: '1px solid var(--c-line, #d9ddf4)',
+        }
+        const veChip = (kh: (typeof SPECIALTIES)[number]) => {
+          const dangChon = chuyenKhoaLoc === kh.id
+          return (
+            <button
+              key={kh.id}
+              type="button"
+              data-testid={`chip-chuyen-khoa-${kh.id}`}
+              onClick={() => setChuyenKhoaLoc(kh.id)}
+              aria-pressed={dangChon}
+              className="mind-focus-ring"
+              style={{
+                ...khuonChip,
+                background: dangChon ? kh.color : 'none',
+                // chuTrenNen(kh.color), KHÔNG var(--c-on-bright) — xem comment tại định nghĩa hàm:
+                // token đó chỉ đúng cho nền --c-primary, không đúng cho nền kh.color cố định qua theme
+                // (critique 2026-08-26 P1, lượt 2).
+                color: dangChon ? chuTrenNen(kh.color) : 'var(--c-text-muted, #6b6e96)',
+              }}
+            >
+              {/* Chấm màu nhận diện khoa khi CHƯA chọn. Màu khoa vốn đã sống ở icon thẻ bảng, ở huy
+                  hiệu, và ở bảng chọn — nhưng dải lọc, đúng nơi người dùng CHỌN theo khoa, lại là
+                  nơi duy nhất nó biến mất (chip tắt trước đây chỉ có chữ xám + viền xám). Chấm 7px
+                  đủ mang danh tính mà không tranh trọng lượng với chip đang bật. Chip ĐANG bật không
+                  cần chấm: cả nền đã là màu khoa rồi, thêm chấm là nói hai lần.
+                  Nền chip bật giữ hex GỐC (không qua mauKhoa): chuTrenNen() tính màu chữ từ chính
+                  hex đó, nâng sáng nền mà không tính lại chữ là tự phá tương phản đã kiểm. */}
+              {!dangChon && chamKhoa(kh.color, 7)}
+              {kh.name}
+            </button>
+          )
+        }
+        return (
+          // position:relative — mốc neo cho BẢNG CHỌN chuyên khoa (popover trên PC). Trên mobile
+          // .mind-menu-bang media query đổi panel sang position:fixed bottom-sheet nên mốc này thành
+          // vô hại ở đó.
+          <div style={{ position: 'relative' }}>
+            <div
+              // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc
+              // lập — KHÔNG dùng role="tablist" (mẫu điều hướng dạng tab, đòi role="tab" +
+              // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây).
+              role="group"
+              aria-label="Lọc theo chuyên khoa"
+              className="mind-chip-scroll"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 20px 8px' }}
+            >
+              <button
+                type="button"
+                data-testid="chip-chuyen-khoa-tat-ca"
+                onClick={() => setChuyenKhoaLoc(null)}
+                aria-pressed={chuyenKhoaLoc === null}
+                className="mind-focus-ring"
+                style={{
+                  ...khuonChip,
+                  background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
+                  // Cùng vá với chip chuyên khoa (veChip ở trên): var(--c-on-bright) thay '#fff' cứng.
+                  color: chuyenKhoaLoc === null ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                }}
+              >
+                Tất cả
+              </button>
+              {chipHien.map(veChip)}
+              {chipDangChonNgoaiVISIBLE.map(veChip)}
+              {/* Nút mở bảng chọn CHỈ hiện khi còn khoa khác THẬT SỰ có bảng. Trước đây nó luôn hiện:
+                  người mới có 2 bảng thấy một nút mở ra danh sách 11 khoa mà 9 khoa đếm 0 — bấm vào
+                  khoa nào cũng ra lưới rỗng. Nút đi mất khi không còn gì để mở là bớt đúng một control
+                  chết khỏi hàng. */}
+              {conKhoaKhac > 0 && (
+                <button
+                  ref={nutChonKhoaRef}
+                  type="button"
+                  data-testid="chip-chuyen-khoa-them"
+                  onClick={() => setMoChonKhoa((v) => !v)}
+                  aria-expanded={moChonKhoa}
+                  aria-haspopup="dialog"
+                  className="mind-focus-ring"
+                  // Viền LIỀN, không còn nét ĐỨT. Nét đứt trong app này đã có nghĩa riêng và được
+                  // chủ dự án ghim: ô "+" tạo bảng mới (.mind-o-tao-bang.mind-o-moi, viền đứt + nền
+                  // phớt) — mà ô đó nằm ngay dưới hàng chip, cách chưa tới 40px. Hai nghĩa khác hẳn
+                  // nhau ("tạo mới" vs "mở thêm bộ lọc") dùng chung một quy ước thị giác thì cả hai
+                  // cùng mờ nghĩa. Trả nét đứt về đúng chủ của nó; hàng chip giờ dùng MỘT khuôn viền
+                  // duy nhất (khuonChip) cho cả bốn-năm nút.
+                  style={{ ...khuonChip, background: 'none', color: 'var(--c-text-muted, #6b6e96)' }}
+                >
+                  Chuyên khoa
+                  {/* Số trong NGOẶC, không phải số trần: "Chuyên khoa 1" đọc được thành "Chuyên khoa
+                      số 1" (thấy ngay trên ảnh chụp 2026-09-04). Ngoặc + trọng lượng nhẹ hơn là đúng
+                      khuôn đã dùng ngay trên màn này cho nút mở khay — "Đã xoá gần đây (9)". */}
+                  <span style={{ fontWeight: 600, opacity: 0.7 }}>({conKhoaKhac})</span>
+                  {/* Chevron SVG, không phải ký tự ▾/▴ mượn từ font hệ thống (mỗi máy vẽ một cỡ/một
+                      baseline khác nhau). Cùng nét 1.7 với chevron của nút mở khay "Đã xoá gần đây". */}
+                  <svg
+                    width="10" height="10" viewBox="0 0 12 12" aria-hidden="true" focusable="false"
+                    style={{ flexShrink: 0, transition: 'transform .18s cubic-bezier(0.34, 1.4, 0.64, 1)', transform: moChonKhoa ? 'rotate(180deg)' : 'none' }}
+                  >
+                    <path d="M2.4 4.4 6 8l3.6-3.6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {moChonKhoa && conKhoaKhac > 0 && (
+              <div
+                data-testid="chon-khoa-panel"
+                role="dialog"
+                aria-label="Lọc theo chuyên khoa"
+                // .mind-menu-bang (KHÔNG kèm .mind-menu-compact) → trên ≤640px media query ở index.css
+                // biến thành bottom-sheet full-width position:fixed (trong tầm ngón cái); trên PC giữ
+                // đúng vị trí neo tuyệt đối dưới đây. .mind-sheet: trượt lên nhẹ, tôn trọng
+                // prefers-reduced-motion (đã có trong khối @media ở index.css).
+                className="mind-menu-bang mind-sheet"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% - 2px)',
+                  left: 20,
+                  // width cố định (KHÔNG `right: 20` cũ — kéo panel rộng cả 1000px trên PC, badge số
+                  // bị đẩy xa nhãn cả màn hình, đọc rời rạc). 300px là bề rộng menu đọc thoải mái,
+                  // badge số căn phải gọn qua flex:1 ở nhãn. Trên ≤640px .mind-menu-bang media query
+                  // đặt left/right:12 + width:auto!important → sheet full-width tự thắng 300px này
+                  // (inline không !important), nên KHÔNG cần maxWidth và tránh lệch trái ở bottom-sheet.
+                  width: 300,
+                  maxHeight: 320,
+                  overflowY: 'auto',
+                  background: 'var(--c-surface, #fff)',
+                  boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)',
+                  border: '1px solid var(--c-line, #d9ddf4)',
+                  borderRadius: 12,
+                  padding: 4,
+                  zIndex: 30,
+                }}
+              >
+                {/* "Tất cả" hàng đầu — cùng hành động chip "Tất cả" trên dải, để trong bảng chọn luôn
+                    có đường về không-lọc, không phải đóng bảng rồi đi tìm chip. */}
+                <button
+                  type="button"
+                  data-testid="chon-khoa-tat-ca"
+                  onClick={() => {
+                    setChuyenKhoaLoc(null)
+                    setMoChonKhoa(false)
+                  }}
+                  aria-pressed={chuyenKhoaLoc === null}
+                  className="mind-focus-ring"
+                  style={hangChon(chuyenKhoaLoc === null)}
+                >
+                  {/* Ô giữ chỗ đúng cỡ chấm màu — không có nó, nhãn "Tất cả" bắt đầu ở x=27 trong khi
+                      mọi nhãn khoa bắt đầu ở x=43 (đo thật 2026-09-04): hàng đầu tiên của bảng chọn
+                      thụt ra ngoài cột chữ của cả danh sách. */}
+                  <span aria-hidden="true" style={{ width: 8, flexShrink: 0 }} />
+                  <span>Tất cả</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>{tongBang}</span>
+                  <span style={{ flex: 1 }} />
+                  {chuyenKhoaLoc === null && dauTich}
+                </button>
+                {SPECIALTIES.map((kh) => (
+                  <button
+                    key={kh.id}
+                    type="button"
+                    data-testid={`chon-khoa-${kh.id}`}
+                    onClick={() => {
+                      setChuyenKhoaLoc(kh.id)
+                      setMoChonKhoa(false)
+                    }}
+                    aria-pressed={chuyenKhoaLoc === kh.id}
+                    className="mind-focus-ring"
+                    style={hangChon(chuyenKhoaLoc === kh.id)}
+                  >
+                    {/* Chấm màu nhận diện khoa — cùng `kh.color` với chip/huy hiệu (qua mauKhoa để
+                        đọc được cả trên nền tối), aria-hidden vì tên khoa ngay cạnh đã mang đủ thông tin. */}
+                    {chamKhoa(kh.color, 8)}
+                    <span>{kh.name}</span>
+                    {/* Số bảng ĐỨNG NGAY SAU tên, không còn bị `flex: 1` đẩy ra mép phải. Đo trên
+                        iPhone 375: nhãn "Tim mạch" kết thúc ở x≈100 còn số "1" ngồi ở x=344 — 244px
+                        khoảng chết giữa hai thứ thuộc về nhau (đúng lớp lỗi comment về `width: 300`
+                        phía trên nói đã sửa cho PC, nhưng bottom-sheet mobile rộng cả màn nên nó
+                        sống lại nguyên vẹn ở đúng thiết bị chính). Số là phần BỔ NGHĨA cho tên khoa,
+                        nên nó phải đi cùng tên; mép phải để dành cho TRẠNG THÁI (dấu tích). */}
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>
+                      {demTheoKhoa.get(kh.id) ?? 0}
+                    </span>
+                    <span style={{ flex: 1 }} />
+                    {chuyenKhoaLoc === kh.id && dauTich}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
       {daXoaGanDay.length > 0 && (() => {
         // Ô "Đã xoá gần đây" là lưới an toàn PHỤ, nằm dưới lưới bảng thật về mặt ưu tiên — nên nó phải
-        // ĐỌC RA là một khay để-riêng, không phải một bảng dữ liệu ngang hàng. Toàn bộ (tiêu đề + hành
-        // động + danh sách) gói trong MỘT khay --c-surface-alt bo góc, tách rõ khỏi ô tìm ở trên và
-        // dải chip ở dưới bằng lề rộng; các dòng bên trong để phẳng, chỉ ngăn nhau bằng đường mảnh —
-        // thay cho ngăn xếp thẻ pill giống hệt nhau trước đây (đọc thành bảng admin, hành động bị đẩy
-        // ra tận mép phải cách tên bảng cả một khoảng chết).
+        // ĐỌC RA là một khay để-riêng, không phải một bảng dữ liệu ngang hàng. Các dòng bên trong để
+        // phẳng, chỉ ngăn nhau bằng đường mảnh — thay cho ngăn xếp thẻ pill giống hệt nhau trước đây
+        // (đọc thành bảng admin, hành động bị đẩy ra tận mép phải cách tên bảng cả một khoảng chết).
+        //
+        // ─── VỊ TRÍ: dưới dải chip, ngay trên lưới (đổi 2026-09-04) ─────────────────────────────
+        // Luật đã ghim từ critique 2026-08-28 là "ô TÌM phải đứng TRƯỚC affordance phục hồi hiếm
+        // dùng" — luật đó vẫn giữ nguyên. Cái sai là khối này từng chen vào GIỮA ô tìm và dải chip,
+        // tức cắt đôi đúng cụm "thu hẹp danh sách" mà chính comment của ô tìm ở trên mô tả là MỘT
+        // nhóm ("vẫn giữ chúng trong cùng một cụm"). Giá đo được trên iPhone 375×812: mở khay với 4
+        // dòng thì lưới bảng thật bắt đầu ở y≈990/1218 — quá nửa khung nhìn dành cho những bảng
+        // người dùng ĐÃ VỨT ĐI, trước khi thấy được một bảng thật nào. Đưa xuống dưới dải chip giữ
+        // trọn luật cũ (vẫn sau ô tìm), trả lại cụm lọc cho nhau, và đặt lưới an toàn ngay cạnh thứ
+        // nó bảo vệ.
+        //
+        // ─── ÍT vs NHIỀU bảng đã xoá ───────────────────────────────────────────────────────────
+        // Khác nhau ở LỚP VỎ, không ở KHẢ NĂNG: mọi mức đều giữ ô tích + dải hành động hàng loạt,
+        // nên đường "xoá vĩnh viễn" không bao giờ biến mất theo số lượng.
+        //   • ÍT (≤2): KHÔNG khay. Các dòng nằm thẳng trên trang dưới nút mở — một khay
+        //     --c-surface-alt bo góc + đệm 12px + chân "Xem tất cả" là bộ máy lưu trữ dựng cho một
+        //     tờ giấy lỡ tay; đo được nó ngốn 210px chỉ để phục hồi MỘT bảng.
+        //   • NHIỀU (≥3): giữ khay — lúc này nó thật sự là một danh sách cần được quây lại, và
+        //     "Chọn tất cả" / "Xem tất cả" mới có việc để làm.
+        const itBangDaXoa = daXoaGanDay.length <= 2
         const chevron = (
           <svg
             width="11" height="11" viewBox="0 0 12 12" aria-hidden="true" focusable="false"
@@ -1816,15 +2105,41 @@ export function DanhSachBang({
           borderColor: 'var(--c-line-soft, #e9ebf9)', background: 'none',
           fontSize: 12, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)',
         }
+        // "Hoàn tác" TỪNG DÒNG — pill viền mảnh, chữ --c-text-soft. TRƯỚC ĐÂY là chữ trần
+        // --c-accent-2 (magenta), "đồng ngôn ngữ màu với nút Hoàn tác ở toast" (critique 2026-08-26
+        // P2). Lý do đảo: toast có ĐÚNG MỘT nút Hoàn tác, sống vài giây, là khoảnh khắc điểm nhấn
+        // thật. Panel này có N — ảnh chụp bản tối 2026-09-04 cho thấy 4 dòng magenta + "Chọn tất cả"
+        // magenta là năm mảng sáng nhất khay, trong khi TÊN BẢNG (thứ phải đọc để bấm đúng nút) là
+        // chữ mờ nhất. Lặp lại một màu điểm nhấn N lần thì nó không còn là điểm nhấn, chỉ còn là
+        // nhiễu — và ở đây nó còn đảo ngược trật tự đọc. Magenta rời hẳn panel này (xem thêm chú
+        // thích tại nút "Khôi phục": nó cũng bỏ magenta, vì đứng cách "Xoá vĩnh viễn" đỏ đúng 4px).
+        // Không mất mát gì: magenta là màu của MẶT BÀN VẼ Mindmap (DESIGN.md "The One Other Place
+        // Rule"), còn đây là một khay quản lý danh sách — nó vẫn nguyên vẹn ở toast "Hoàn tác" và
+        // trên canvas, đúng những nơi nó là điểm nhấn thật.
+        // Viền --c-line ở bản tối khá mờ trên khay; chấp nhận được vì nhãn chữ + icon mới là
+        // affordance chính, viền chỉ để nút có hình dạng.
+        const nutHoanTac: React.CSSProperties = {
+          flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
+          minHeight: 32, padding: '5px 11px', borderRadius: 9999,
+          border: '1px solid var(--c-line, #d9ddf4)', background: 'none',
+          fontSize: 12, fontWeight: 600, color: 'var(--c-text-soft, #454870)', whiteSpace: 'nowrap',
+        }
+
+        // ÍT (≤2) thì bỏ hẳn vỏ khay: không nền --c-surface-alt, không bo góc, không đệm trong —
+        // các dòng nằm thẳng trên trang, thẳng hàng với mọi thứ khác ở lề 20px. NHIỀU (≥3) mới quây
+        // khay. `maxWidth 560` giữ nguyên ở cả hai để danh sách không kéo dài hết 1040px trên PC.
+        const khungKhay: React.CSSProperties = itBangDaXoa
+          ? { maxWidth: 560 }
+          : { maxWidth: 560, borderRadius: 12, background: 'var(--c-surface-alt, #f6f7fd)', padding: '6px 12px 12px' }
 
         return (
-          <div style={{ padding: '10px 20px 4px' }}>
-            <div
-              style={{
-                maxWidth: 560, borderRadius: 12, background: 'var(--c-surface-alt, #f6f7fd)',
-                padding: '6px 12px 12px',
-              }}
-            >
+          // Đáy 4px → 16px: số 4 được đặt khi khối này còn đứng TRƯỚC dải chip (hai hàng cùng một
+          // cụm "thu hẹp danh sách" nên cố tình sát nhau). Sau khi chuyển xuống dưới dải chip, thứ
+          // đứng kế tiếp là LƯỚI BẢNG — một mục khác hẳn — mà khoảng hở đo được chỉ còn 4px giữa
+          // dòng cuối và ô "+", đọc thành hai khối dính vào nhau (rõ nhất ở nhánh ÍT, nơi không có
+          // nền khay nào tự tách nó ra). 16px đủ tách hai mục mà vẫn nhỏ hơn nhịp giữa các mục lớn.
+          <div style={{ padding: '10px 20px 16px' }}>
+            <div style={khungKhay}>
               {/* Tiêu đề khay: toggle bên trái, "Chọn tất cả" bên phải — MỘT hàng, thay cho ba dòng
                   chữ xám 12px xếp chồng trước đây (tiêu đề / chọn tất cả / xem tất cả nhìn y hệt nhau). */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 34 }}>
@@ -1846,10 +2161,13 @@ export function DanhSachBang({
                       }
                     }}
                     className="mind-focus-ring"
+                    // --c-text-soft, KHÔNG --c-accent-2: đây là công tắc tiện ích của khay, không
+                    // phải một hành động điểm nhấn — xem chú thích dài ở `nutHoanTac` phía trên về
+                    // việc gom magenta về đúng MỘT chỗ trong panel này.
                     style={{
                       marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', minHeight: 30,
                       padding: '4px 6px', fontSize: 12, fontWeight: 600,
-                      color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, whiteSpace: 'nowrap',
+                      color: 'var(--c-text-soft, #454870)', background: 'none', border: 0, whiteSpace: 'nowrap',
                     }}
                   >
                     {tatCaDaChon ? 'Bỏ chọn tất cả' : `Chọn tất cả (${daLoc.length})`}
@@ -1924,7 +2242,18 @@ export function DanhSachBang({
                         data-testid="khoi-phuc-chon"
                         onClick={() => khoiPhucNhieu(chonDaXoa)}
                         className="mind-focus-ring"
-                        style={{ ...nutPhu, color: 'var(--c-accent-2, #b8196f)' }}
+                        // --c-text-soft, KHÔNG --c-accent-2. Đo trên trang thật (bản tối,
+                        // 2026-09-04): magenta #f175a6 của "Khôi phục" và đỏ #ff8585 của "Xoá vĩnh
+                        // viễn" cách nhau ΔE(CIE76) = 26 và đứng cách nhau ĐÚNG 4px — hai chữ hồng
+                        // 12px kề nhau, một cái phục hồi, một cái phá huỷ vĩnh viễn. Ở 2 giờ sáng
+                        // giữa ca trực, cái đọc ra là "hai chữ hồng". Đây đúng lớp rủi ro mà kiến
+                        // trúc màu của DESIGN.md dựng ra để chặn (chọn indigo thay vì xanh lá/teal
+                        // cốt để màu thương hiệu không bao giờ lẫn với màu tín hiệu an toàn).
+                        // Trong một dải hành động hàng loạt, thứ PHẢI được đánh dấu bằng màu là hành
+                        // động PHÁ HUỶ, không phải hành động an toàn — "Khôi phục" không cần màu để
+                        // tìm thấy, nó chỉ cần đọc được. Bỏ magenta ở đây để --c-danger là màu DUY
+                        // NHẤT trong dải, đúng thứ tự ưu tiên cảnh báo.
+                        style={{ ...nutPhu, color: 'var(--c-text-soft, #454870)' }}
                       >
                         Khôi phục
                       </button>
@@ -1962,13 +2291,16 @@ export function DanhSachBang({
                       key={b.id}
                       data-testid={`da-xoa-gan-day-${b.id}`}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 4px',
+                        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px',
                         borderTop: i === 0 ? 'none' : '1px solid var(--c-line-soft, #e9ebf9)',
                         background: daChon ? 'var(--c-primary-soft, #eceefa)' : 'transparent',
                       }}
                     >
-                      {/* Vùng chạm 34px quanh checkbox 17px — vẫn xa ngưỡng WCAG 2.5.8 (24px), gọn hơn
-                          gutter 40px cũ vốn đọc thành một khoảng trống rộng trước một ô tí xíu. */}
+                      {/* Vùng chạm 34px quanh ô tích 18px — vẫn xa ngưỡng WCAG 2.5.8 (24px), gọn hơn
+                          gutter 40px cũ vốn đọc thành một khoảng trống rộng trước một ô tí xíu.
+                          `.mind-check` (index.css) thay hẳn ô tích NGUYÊN BẢN của trình duyệt: xem
+                          chú thích tại lớp đó — `accentColor` chỉ tô trạng thái ĐÃ tích, ô CHƯA tích
+                          vẫn là khối xám hệ điều hành, lạc khỏi bảng màu app ở bản tối. */}
                       <label style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 34, minHeight: 34, flexShrink: 0, cursor: 'pointer' }}>
                         <input
                           type="checkbox"
@@ -1976,31 +2308,46 @@ export function DanhSachBang({
                           checked={daChon}
                           onChange={() => chuyenChon(b.id)}
                           aria-label={`Chọn bảng ${b.ten}${moTaXoa}`}
-                          style={{ width: 17, height: 17, accentColor: 'var(--c-primary, #2d3a94)' }}
+                          className="mind-check mind-focus-ring"
                         />
                       </label>
-                      {/* Chấm màu ổn định theo id ÔM SÁT tên (cùng nhóm flex, gap 6) — phân biệt hai
-                          bảng trùng tên "Bảng chưa đặt tên" trước khi bấm nhầm (critique lượt 3) mà
-                          không còn trôi lửng giữa checkbox và tên. Cả cụm tên co được (flex 0 1 auto),
-                          "Hoàn tác" đứng NGAY sau, khoảng trống dồn về bên phải — không bắt mắt băng
-                          qua một khoảng chết như bố cục justify-between cũ. */}
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '0 1 auto', minWidth: 0 }}>
-                        <span
-                          aria-hidden="true"
-                          style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mauTrungTinhTheoBang(b.id, b.mauHue) }}
-                        />
-                        <span style={{ minWidth: 0, fontSize: 12.5, color: 'var(--c-text-muted, #6b6e96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {b.ten}
+                      {/* HAI DÒNG, không phải một — đây là phép đo, không phải sở thích. Ở 375px, bề
+                          rộng dùng được của một dòng là 303px; trừ vùng chạm ô tích (34+10) và nút
+                          "Hoàn tác" (~95 kể cả gap) còn 164px cho chấm + tên + mốc thời gian. Riêng
+                          "Bảng chưa đặt tên" @13/600 đã ~112px và "17 phút trước" @11 ~72px = 184px
+                          — nên bố cục một dòng BUỘC phải cắt cụt tên, đúng như đo được: tên bị cắt
+                          thành "Bảng chưa đặt t…" ngay cả khi khay chỉ có MỘT dòng và còn 200px
+                          trống bên phải. Tách mốc thời gian xuống dòng dưới trả lại 150px cho tên
+                          (đủ, không cắt) mà chiều cao dòng gần như không đổi (~49px, y hệt cũ).
+                          Mốc thời gian thụt vào 13px = chấm 6 + gap 7, để nó thẳng cột với tên.
+                          THỨ BẬC MÀU ba bậc, sửa đúng chỗ trước đây bị đảo (tên là chữ mờ nhất khay
+                          trong khi động từ "Hoàn tác" là chữ sáng nhất): tên --c-text (đậm nhất) >
+                          nút --c-text-soft > mốc thời gian --c-text-muted. */}
+                      <span style={{ flex: '1 1 auto', minWidth: 0 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                          {/* Chấm màu ổn định theo id ÔM SÁT tên — phân biệt hai bảng trùng tên
+                              "Bảng chưa đặt tên" trước khi bấm nhầm (critique lượt 3). */}
+                          <span
+                            aria-hidden="true"
+                            style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: mauTrungTinhTheoBang(b.id, b.mauHue) }}
+                          />
+                          <span style={{ minWidth: 0, fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: 'var(--c-text, #12142b)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {b.ten}
+                          </span>
                         </span>
                         {b.daXoaLuc && (
-                          <span style={{ flexShrink: 0, fontSize: 11, color: 'var(--c-text-muted, #6b6e96)', opacity: 0.75 }}>
-                            {formatReadTime(b.daXoaLuc)}
+                          <span style={{ display: 'block', marginLeft: 13, marginTop: 1, fontSize: 11, lineHeight: 1.25, color: 'var(--c-text-muted, #6b6e96)' }}>
+                            Xoá {formatReadTime(b.daXoaLuc)}
                           </span>
                         )}
                       </span>
                       {/* "Hoàn tác" từng-dòng chỉ khi CHƯA chọn gì — có tích chọn thì dải hàng loạt ở
-                          trên tiếp quản. --c-accent-2 đồng ngôn ngữ màu với nút Hoàn tác ở toast
-                          (critique 2026-08-26 P2); weight 600 để bốn dòng không hét lên cùng lúc.
+                          trên tiếp quản. Nút NEO CỨNG vào mép phải (cụm tên `flex: 1 1 auto` nuốt hết
+                          chỗ thừa) — bố cục cũ để nút chạy ngay sau tên nên mép phải răng cưa theo độ
+                          dài tên, đo được lệch 18px giữa các dòng (339/339/339/321). Cột phải thẳng
+                          băng thì bốn-chín dòng đọc ra một danh sách, không phải mấy dòng xô lệch.
+                          Icon mũi tên quay-lại (nét 1.7, cùng khuôn với chevron của nút mở khay) đứng
+                          trước nhãn: động từ lặp N lần cần một mỏ neo hình để mắt bắt nhanh hơn đọc.
                           aria-label riêng (khác chữ hiện "Hoàn tác" trần) — cùng lý do moTaXoa ở trên. */}
                       {soChon === 0 && (
                         <button
@@ -2009,8 +2356,12 @@ export function DanhSachBang({
                           onClick={() => khoiPhucBang(b)}
                           aria-label={`Hoàn tác xoá bảng ${b.ten}${moTaXoa}`}
                           className="mind-focus-ring"
-                          style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', minHeight: 32, fontSize: 12, fontWeight: 600, color: 'var(--c-accent-2, #b8196f)', background: 'none', border: 0, padding: '4px 6px', whiteSpace: 'nowrap' }}
+                          style={nutHoanTac}
                         >
+                          <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true" focusable="false" style={{ flexShrink: 0 }}>
+                            <path d="M2.2 5.4h6.3a3.4 3.4 0 1 1 0 6.8H5.1" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M4.6 2.6 1.9 5.4l2.7 2.8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                           Hoàn tác
                         </button>
                       )}
@@ -2055,209 +2406,6 @@ export function DanhSachBang({
           </div>
         )
       })()}
-      {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn
-          vào danh sách đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
-      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
-        // 2 chip đầu (Tim mạch, Hô hấp) luôn hiện; chip ĐANG lọc, nếu nằm ngoài 2 đó, được ghim
-        // riêng vào dải để người dùng thấy vì sao lưới đang lọc. Mọi khoa còn lại nằm sau nút
-        // "Chuyên khoa ▾" — bấm mở BẢNG CHỌN (moChonKhoa) đủ 11 khoa + số bảng, thay cho việc bung
-        // 13 chip vào một dải cuộn ngang (critique 2026-09-03 P2, hướng "nặng" chủ dự án 2026-09-04).
-        const VISIBLE = 2
-        const chipHien = SPECIALTIES.slice(0, VISIBLE)
-        const chipAn = SPECIALTIES.slice(VISIBLE)
-        const chipDangChonNgoaiVISIBLE = chipAn.filter((kh) => kh.id === chuyenKhoaLoc)
-        // Số bảng mỗi khoa — TÍNH ĐÚNG như bộ lọc thật ở `danhSachSapXep` (`.filter` gộp bảng chưa
-        // gắn khoa vào SPECIALTIES[0]), nên badge số khớp đúng thứ người dùng thấy sau khi bấm.
-        const demTheoKhoa = new Map<string, number>()
-        for (const b of danhSach) {
-          if (b.daXoaLuc) continue
-          const k = b.chuyenKhoa ?? SPECIALTIES[0].id
-          demTheoKhoa.set(k, (demTheoKhoa.get(k) ?? 0) + 1)
-        }
-        const tongBang = danhSach.filter((b) => !b.daXoaLuc).length
-        const hangChon = (dangChon: boolean): React.CSSProperties => ({
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          width: '100%',
-          minHeight: 40,
-          padding: '0 10px',
-          textAlign: 'left',
-          border: 0,
-          borderRadius: 8,
-          background: dangChon ? 'var(--c-primary-soft, #eceefa)' : 'none',
-          color: 'var(--c-text, #12142b)',
-          fontSize: 13,
-          fontWeight: 600,
-        })
-        const veChip = (kh: (typeof SPECIALTIES)[number]) => (
-          <button
-            key={kh.id}
-            type="button"
-            data-testid={`chip-chuyen-khoa-${kh.id}`}
-            onClick={() => setChuyenKhoaLoc(kh.id)}
-            aria-pressed={chuyenKhoaLoc === kh.id}
-            className="mind-focus-ring"
-            style={{
-              flexShrink: 0,
-              display: 'inline-flex',
-              alignItems: 'center',
-              minHeight: 44,
-              fontSize: 12,
-              fontWeight: 600,
-              padding: '6px 12px',
-              borderRadius: 999,
-              border: '1px solid var(--c-line, #d9ddf4)',
-              background: chuyenKhoaLoc === kh.id ? kh.color : 'none',
-              // chuTrenNen(kh.color), KHÔNG var(--c-on-bright) — xem comment tại định nghĩa hàm:
-              // token đó chỉ đúng cho nền --c-primary, không đúng cho nền kh.color cố định qua theme
-              // (critique 2026-08-26 P1, lượt 2).
-              color: chuyenKhoaLoc === kh.id ? chuTrenNen(kh.color) : 'var(--c-text-muted, #6b6e96)',
-            }}
-          >
-            {kh.name}
-          </button>
-        )
-        return (
-          // position:relative — mốc neo cho BẢNG CHỌN chuyên khoa (popover trên PC). Trên mobile
-          // .mind-menu-bang media query đổi panel sang position:fixed bottom-sheet nên mốc này thành
-          // vô hại ở đó.
-          <div style={{ position: 'relative' }}>
-            <div
-              // role="group" + nút toggle aria-pressed là mẫu ARIA đúng cho một cụm nút bật/tắt độc
-              // lập — KHÔNG dùng role="tablist" (mẫu điều hướng dạng tab, đòi role="tab" +
-              // aria-selected + roving tabindex, không khớp cấu trúc button/aria-pressed ở đây).
-              role="group"
-              aria-label="Lọc theo chuyên khoa"
-              className="mind-chip-scroll"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', padding: '0 20px 8px' }}
-            >
-              <button
-                type="button"
-                data-testid="chip-chuyen-khoa-tat-ca"
-                onClick={() => setChuyenKhoaLoc(null)}
-                aria-pressed={chuyenKhoaLoc === null}
-                className="mind-focus-ring"
-                style={{
-                  flexShrink: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  minHeight: 44,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  border: '1px solid var(--c-line, #d9ddf4)',
-                  background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
-                  // Cùng vá với chip chuyên khoa (veChip ở trên): var(--c-on-bright) thay '#fff' cứng.
-                  color: chuyenKhoaLoc === null ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
-                }}
-              >
-                Tất cả
-              </button>
-              {chipHien.map(veChip)}
-              {chipDangChonNgoaiVISIBLE.map(veChip)}
-              <button
-                ref={nutChonKhoaRef}
-                type="button"
-                data-testid="chip-chuyen-khoa-them"
-                onClick={() => setMoChonKhoa((v) => !v)}
-                aria-expanded={moChonKhoa}
-                aria-haspopup="dialog"
-                className="mind-focus-ring"
-                style={{
-                  flexShrink: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  minHeight: 44,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  border: '1px dashed var(--c-line, #d9ddf4)',
-                  background: 'none',
-                  color: 'var(--c-text-muted, #6b6e96)',
-                }}
-              >
-                {moChonKhoa ? 'Chuyên khoa ▴' : 'Chuyên khoa ▾'}
-              </button>
-            </div>
-            {moChonKhoa && (
-              <div
-                data-testid="chon-khoa-panel"
-                role="dialog"
-                aria-label="Lọc theo chuyên khoa"
-                // .mind-menu-bang (KHÔNG kèm .mind-menu-compact) → trên ≤640px media query ở index.css
-                // biến thành bottom-sheet full-width position:fixed (trong tầm ngón cái); trên PC giữ
-                // đúng vị trí neo tuyệt đối dưới đây. .mind-sheet: trượt lên nhẹ, tôn trọng
-                // prefers-reduced-motion (đã có trong khối @media ở index.css).
-                className="mind-menu-bang mind-sheet"
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% - 2px)',
-                  left: 20,
-                  // width cố định (KHÔNG `right: 20` cũ — kéo panel rộng cả 1000px trên PC, badge số
-                  // bị đẩy xa nhãn cả màn hình, đọc rời rạc). 300px là bề rộng menu đọc thoải mái,
-                  // badge số căn phải gọn qua flex:1 ở nhãn. Trên ≤640px .mind-menu-bang media query
-                  // đặt left/right:12 + width:auto!important → sheet full-width tự thắng 300px này
-                  // (inline không !important), nên KHÔNG cần maxWidth và tránh lệch trái ở bottom-sheet.
-                  width: 300,
-                  maxHeight: 320,
-                  overflowY: 'auto',
-                  background: 'var(--c-surface, #fff)',
-                  boxShadow: '0 2px 8px var(--c-shadow), var(--c-shadow-glow)',
-                  border: '1px solid var(--c-line, #d9ddf4)',
-                  borderRadius: 12,
-                  padding: 4,
-                  zIndex: 30,
-                }}
-              >
-                {/* "Tất cả" hàng đầu — cùng hành động chip "Tất cả" trên dải, để trong bảng chọn luôn
-                    có đường về không-lọc, không phải đóng bảng rồi đi tìm chip. */}
-                <button
-                  type="button"
-                  data-testid="chon-khoa-tat-ca"
-                  onClick={() => {
-                    setChuyenKhoaLoc(null)
-                    setMoChonKhoa(false)
-                  }}
-                  aria-pressed={chuyenKhoaLoc === null}
-                  className="mind-focus-ring"
-                  style={hangChon(chuyenKhoaLoc === null)}
-                >
-                  <span style={{ flex: 1 }}>Tất cả</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>{tongBang}</span>
-                </button>
-                {SPECIALTIES.map((kh) => (
-                  <button
-                    key={kh.id}
-                    type="button"
-                    data-testid={`chon-khoa-${kh.id}`}
-                    onClick={() => {
-                      setChuyenKhoaLoc(kh.id)
-                      setMoChonKhoa(false)
-                    }}
-                    aria-pressed={chuyenKhoaLoc === kh.id}
-                    className="mind-focus-ring"
-                    style={hangChon(chuyenKhoaLoc === kh.id)}
-                  >
-                    {/* Chấm màu nhận diện khoa — cùng `kh.color` với chip/huy hiệu, aria-hidden vì
-                        tên khoa ngay cạnh đã mang đủ thông tin. */}
-                    <span
-                      aria-hidden="true"
-                      style={{ width: 8, height: 8, borderRadius: '50%', background: kh.color, flexShrink: 0 }}
-                    />
-                    <span style={{ flex: 1 }}>{kh.name}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-text-muted, #6b6e96)' }}>
-                      {demTheoKhoa.get(kh.id) ?? 0}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })()}
       {danhSachSapXep.length === 0 ? (
         <div
           style={{
@@ -2265,9 +2413,17 @@ export function DanhSachBang({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            height: '70%',
+            // flex:1 + minHeight:0 thay cho `height: '70%'`. Phần trăm đó KHÔNG bao giờ chạy như
+            // viết: cha (.mind-board-wrap) cao auto nên CSS giải "70%" về "auto", khối chỉ cao bằng
+            // nội dung — đo được 205px, kết thúc ở y=499 trong vùng cuộn cao 755px, để lại 256px
+            // (34%) khoảng chết bên dưới và đẩy cả cụm lên một phần ba trên màn. Với
+            // .mind-board-wrap-trong ở cha, flex:1 cho khối ăn đúng chiều cao còn lại và
+            // justifyContent:center căn nó vào GIỮA phần đó — thứ mà "70%" chỉ định làm chứ chưa
+            // từng làm được. paddingBottom rộng hơn để cụm không tì vào mép dưới vùng cuộn.
+            flex: 1,
+            minHeight: 0,
             gap: 12,
-            padding: 16,
+            padding: '16px 16px 40px',
             textAlign: 'center',
           }}
         >
@@ -2330,6 +2486,18 @@ export function DanhSachBang({
             // đường thoát — nhưng phần tử lớn nhất, màu nhất của khung nhìn lại đang mời làm một
             // việc KHÁC hẳn việc họ vừa cố làm; người vội bấm vào là có một bảng rác. Đổi đích của
             // đúng cái nút to đó, không thêm nút mới.
+            // KHÔNG còn .mind-o-tao-bang. Lớp đó là VẬT LIỆU GIẤY dành riêng cho "tờ giấy chưa
+            // viết" = tạo bảng mới — chính comment của nó ở index.css đã ghi "CHỈ ô này, KHÔNG áp
+            // cho nút Xoá bộ lọc", nhưng mã lại đang mâu thuẫn với comment. Hai hệ quả đo được ở
+            // bản tối: (1) nút reset mặc bộ đồ của hành động TẠO MỚI — một tấm giấy kem gần trắng,
+            // vật thể sáng nhất và tương phản mạnh nhất toàn màn, mời làm đúng cái việc KHÁC hẳn
+            // việc người dùng vừa cố làm; (2) chữ --c-accent-2 (#f175a6) trên nền --c-note
+            // (#efece3) chỉ đạt 2,27:1 — trượt hẳn AA 4,5:1. Đây là lỗi tiếp cận thật, không phải
+            // chuyện gu.
+            // Thay bằng đúng thứ nó là: một nút PHỤ của app — pill (bo tròn như mọi nút khác trên
+            // màn, thay cho bo 2px của vật liệu giấy), nền --c-surface, viền 1px --c-line, chữ
+            // --c-text (15,5:1 ở bản tối, 16,6:1 ở bản sáng). Hành động thì giữ nguyên: gỡ bộ lọc,
+            // không phải tạo bảng mới (critique 2026-08-29, P2).
             <button
               type="button"
               data-testid="xoa-bo-loc"
@@ -2337,8 +2505,32 @@ export function DanhSachBang({
                 setTruyVan('')
                 setChuyenKhoaLoc(null)
               }}
-              className="mind-focus-ring mind-o-tao-bang"
-              style={{ padding: '10px 16px', fontSize: 14, fontWeight: 600 }}
+              // dose-press: phản hồi chạm scale(0.96) dùng chung toàn app (DESIGN.md — mọi control
+              // bấm được đều nhún, kể cả dưới prefers-reduced-motion).
+              className="mind-focus-ring dose-press"
+              // Mảng nền --c-primary-soft + viền --c-primary-line + chữ --c-primary: khuôn "nút phụ
+              // trong thương hiệu" mà DESIGN.md đã định nghĩa cho --c-primary-soft ("background tint
+              // cho bề mặt phụ muốn nằm trong thương hiệu mà không cần màu full-strength"). Đo trên
+              // trang thật: chữ đạt 6,54:1 (tối) và 8,48:1 (sáng) — vượt AA thoải mái.
+              // Vì sao KHÔNG để nền trong suốt + viền không: không token viền nào của app đạt nổi 3:1
+              // trên nền trang (--c-line đo được 1,61 tối / 1,21 sáng; --c-primary-line 1,99 / 1,45),
+              // nên một nút "chỉ có viền" trên màn rỗng gần như không có hình dạng. Mảng nền cấp hình,
+              // viền cấp mép, nhãn màu thương hiệu cấp nhận diện.
+              // Vì sao KHÔNG tô đặc --c-primary (khuôn nút chính của DESIGN.md): việc người dùng đang
+              // làm là TÌM một bảng, không phải "xoá bộ lọc" — nút này là bậc thang gỡ bí, không phải
+              // đích đến của màn. Đúng lý do critique 2026-08-29 P2 gỡ ô "+" khỏi đây ngay từ đầu.
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: 44,
+                padding: '10px 20px',
+                borderRadius: 9999,
+                border: '1px solid var(--c-primary-line, #c3caf0)',
+                background: 'var(--c-primary-soft, #eceefa)',
+                color: 'var(--c-primary, #2d3a94)',
+                fontSize: 14,
+                fontWeight: 700,
+              }}
             >
               Xoá bộ lọc
             </button>

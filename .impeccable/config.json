@@ -168,6 +168,12 @@
         ],
         "createdAt": "2026-09-01T16:11:59.593Z",
         "reason": "Fixture text mô phỏng nguyên văn CSS vendored .edgeless-templates-panel (BlockSuite thượng nguồn) để test hàm vá chuỗi vaKichThuocPanelMau — không phải giao diện thật của app, không dùng thang bo góc DESIGN.md"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "5px",
+        "createdAt": "2026-09-04T03:02:49.571Z",
+        "reason": "Claude decision: .mind-check is an 18px checkbox; DESIGN.md rounded.sm 14px would be 78% of the box (reads as a radio button) and pill is semantically wrong for a checkbox. Same class of scoped sub-scale radius as .mind-o-tao-bang 2px."
       }
     ]
   }
