@@ -52,15 +52,28 @@ hoặc Escape chỉ gọi `this.remove()`, nên `openQuickSearch()` treo vĩnh v
 đổi một lỗi im lặng lấy một promise rò rỉ. Bản vá tự dựng modal để giữ tham chiếu rồi móc vào
 `remove()`, điểm chung của cả ba đường.
 
-**MỚI 2026-09-05 — hộp thoại "Chèn liên kết" còn ba chuỗi tiếng Anh (D12).** Chính bản vá trên làm
-lộ ra: `titleText`/`descriptionText` do app truyền nên đã tiếng Việt, nhưng ba chuỗi viết cứng trong
-cây vendored thì chưa — placeholder `Input in https://...` và nút `Confirm`
-(`components/src/embed-card-modal/embed-card-create-modal.ts`), cùng toast `Invalid link` cùng tệp.
-Khảo sát sẵn để phiên sau khỏi dò lại: `Invalid link` chỉ cần MỘT khoá trong `src/board/vi.json` vì
-`toast` đã nằm trong `DOI_SO_HIEN_THI` (bộ duyệt AST bắt được); hai chuỗi kia là chữ TRẦN trong
-template Lit nên cần luật riêng theo đúng khuôn `RE_PLACEHOLDER_BANG_MAU`
-(`scripts/luat-vi-tri-dich.mjs:890-935`), và phải dạy CẢ HAI cổng — `vendor-dich.spec.ts` lẫn
-`kiem-dist.mjs`.
+~~**Hộp thoại "Chèn liên kết" còn ba chuỗi tiếng Anh (D12).**~~ **ĐÃ VÁ 2026-09-05, cùng ngày.**
+Bản vá nút làm lộ ra ba chuỗi viết cứng trong cây vendored. Kết quả: `Invalid link` hoá ra ĐÃ có sẵn
+bản dịch ("Liên kết không hợp lệ") — chỉ chưa ai với tới được vì hộp thoại chưa mở được; hai chuỗi
+còn lại nay đi qua một bộ thay mới `thayChuTranHopThoaiLienKet`
+(`placeholder="Input in https://..."` → "Dán liên kết https://...", nhãn nút `Confirm` → "Xác nhận").
+
+**Lượt này là ví dụ mẫu cho luật "dạy CẢ HAI cổng" — cả hai đều đỏ, mỗi cổng một lý do KHÁC nhau,
+và cả hai đều đúng:**
+- `vendor-dich.spec.ts` (cổng độc lập, tính lại trên `.vendor-build`) đỏ vì nó tự viết lại regex cho
+  TỪNG hình dạng chữ trần và chưa biết hình dạng `<button …>nhãn</button>`. Placeholder thì không
+  cần thêm gì — regex `placeholder="…"` ở đó vốn đã tổng quát.
+- `kiem-dist.mjs` (Luật C, soát `dist/`) đỏ vì `coNhuLiteral` đòi chuỗi nằm TRỌN trong MỘT literal,
+  mà nhãn nút nằm giữa hai nhịp `${…}` của cùng một template. Phải thêm `coTrongNutTran` vào
+  `scripts/so-khop-ban-dich.mjs` rồi nối vào danh sách bộ dò của Luật C.
+
+Và một bước nữa dễ quên: hàm mới phải được khai trong `scripts/luat-vi-tri-dich.d.mts` (khai báo
+kiểu viết TAY, không sinh tự động) — thiếu nó thì `tsc` đỏ với `TS2305 has no exported member` dù
+hàm đã export đúng.
+
+Cuối cùng: đổi luật dịch mà quên `npm run dung:vendor` thì cổng phủ chuỗi đỏ với thông điệp trỏ
+đúng hướng — `.vendor-build` là artifact cục bộ (gitignored), luật nằm trong `scripts/` mới được
+commit.
 
 ~~**Bảng Mẫu — chuỗi "Search file or anything..." vẫn tiếng Anh.**~~ **ĐÃ ĐÓNG 2026-09-01**, mục
 này giữ lại để phiên sau khỏi mở điều tra lại. Vị trí dịch đã có:

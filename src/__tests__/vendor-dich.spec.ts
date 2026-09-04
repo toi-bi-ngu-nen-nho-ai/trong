@@ -19,6 +19,7 @@ import {
   thayChuCustomFrameMenu,
   thayChuTranTrongDiv,
   thayChuTrongTagTooltip,
+  thayChuTranHopThoaiLienKet,
   thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
@@ -595,6 +596,20 @@ describe('D12 — cổng độc lập trên đầu ra thật', () => {
         if (banDich.has(chu)) daThay.add(chu)
       }
 
+      // Hình dạng thứ tư: nhãn TRẦN trong `<button …>` — nút xác nhận hộp thoại "Chèn liên kết"
+      // (thayChuTranHopThoaiLienKet, 2026-09-05). Khác ba hình dạng trên ở chỗ thẻ mở trải nhiều
+      // dòng và mang nhịp động (`class=${classMap({…})}`, `@click=${…}`), nên phần thuộc tính dùng
+      // `[\s\S]*?` chứ không `[^"]*`. Chữ bên trong vẫn loại `{`/`}` để không bắt nhầm nhãn động.
+      // Regex viết LẠI, không gọi hàm thật và không đọc neo của bộ thay — đúng tinh thần cổng độc
+      // lập: neo trong luat-vi-tri-dich.mjs sai thì cổng phải đỏ, chứ không sai theo.
+      //
+      // Placeholder của cùng hộp thoại KHÔNG cần thêm gì: regex `placeholder="…"` tổng quát ở trên
+      // đã phủ.
+      for (const mm of src.matchAll(/<button[\s\S]*?>\s*([^<>{}]+?)\s*<\/button>/g)) {
+        const chu = mm[1].trim()
+        if (banDich.has(chu)) daThay.add(chu)
+      }
+
       if (soPham.length > 5) return expect(soPham).toEqual([])
     }
 
@@ -878,6 +893,84 @@ describe('thayPlaceholderBangMau — placeholder tĩnh của ô tìm panel Mẫu
       thayPlaceholderBangMau(
         NGUON,
         { 'Search file or anything...': 42 } as unknown as Record<string, string>,
+        TEP,
+      ),
+    ).toThrow(/KHÔNG PHẢI CHUỖI/)
+  })
+})
+
+// Hộp thoại "Chèn liên kết" — hai chữ trần trong CÙNG một file, nên một bộ thay lo cả hai. Hộp
+// thoại này chỉ mở được từ 2026-09-05, khi nút "Liên kết" trong menu Ghi chú được vá bằng
+// `QuickSearchProvider` (nợ §1.1 của HANDOFF); trước đó nút thoát im lặng nên không ai thấy hai chữ
+// tiếng Anh này. Chuỗi thứ ba của hộp thoại — toast `Invalid link` — KHÔNG có ca ở đây vì nó đi
+// đường AST thường (`toast` nằm trong DOI_SO_HIEN_THI), không phải chữ trần.
+describe('thayChuTranHopThoaiLienKet — placeholder + nút xác nhận hộp thoại Chèn liên kết', () => {
+  const TEP = 'affine/components/src/embed-card-modal/embed-card-create-modal.js'
+  const NGUON = [
+    'const t = html`<div>',
+    '          <input',
+    '            class="embed-card-modal-input link"',
+    '            type="text"',
+    '            placeholder="Input in https://..."',
+    '            @input=${this._handleInput}',
+    '          />',
+    '          <button',
+    '            class=${classMap({ save: true })}',
+    '            @click=${this._onConfirm}',
+    '          >',
+    '            Confirm',
+    '          </button>',
+    '        </div>`',
+  ].join('\n')
+  const dungBanDo = {
+    'Input in https://...': 'Dán liên kết https://...',
+    Confirm: 'Xác nhận',
+  }
+
+  it('thay CẢ HAI chữ trong file đã đo/duyệt', () => {
+    const { js, cacLuot } = thayChuTranHopThoaiLienKet(NGUON, dungBanDo, TEP)
+    expect(js).toContain('placeholder="Dán liên kết https://..."')
+    expect(js).toContain('Xác nhận')
+    expect(js).not.toContain('Input in https')
+    // `Confirm` không được còn sót ở dạng nhãn — nhưng `_onConfirm` (tên phương thức) PHẢI còn
+    // nguyên: neo của regex chính là nó, và đổi tên phương thức của cây vendored là vi phạm D11.
+    expect(js).not.toMatch(/>\s*Confirm\s*<\/button>/)
+    expect(js).toContain('@click=${this._onConfirm}')
+    expect(cacLuot.map((l) => l.chuoiGoc)).toEqual(['Input in https://...', 'Confirm'])
+  })
+
+  it('CÙNG hình dạng ở file KHÁC thì không đụng', () => {
+    expect(
+      thayChuTranHopThoaiLienKet(NGUON, dungBanDo, 'affine/components/src/khac.js').js,
+    ).toBe(NGUON)
+  })
+
+  it('placeholder KHÔNG đứng sau class="embed-card-modal-input link" thì không đụng', () => {
+    const khac = 'const t = html`<input type="text" placeholder="Input in https://...">`'
+    expect(thayChuTranHopThoaiLienKet(khac, dungBanDo, TEP).js).toBe(khac)
+  })
+
+  it('chữ Confirm KHÔNG đứng sau @click=${this._onConfirm} thì không đụng', () => {
+    const khac = 'const t = html`<button class="x">Confirm</button>`'
+    expect(thayChuTranHopThoaiLienKet(khac, dungBanDo, TEP).js).toBe(khac)
+  })
+
+  it('thiếu MỘT khoá thì vẫn thay khoá còn lại, không hỏng cả bộ', () => {
+    const { js, cacLuot } = thayChuTranHopThoaiLienKet(NGUON, { Confirm: 'Xác nhận' }, TEP)
+    expect(js).toContain('Input in https://...')
+    expect(js).not.toMatch(/>\s*Confirm\s*<\/button>/)
+    expect(cacLuot.map((l) => l.chuoiGoc)).toEqual(['Confirm'])
+  })
+
+  it('không có khoá nào trong bản đồ thì giữ nguyên', () => {
+    expect(thayChuTranHopThoaiLienKet(NGUON, {}, TEP).js).toBe(NGUON)
+  })
+
+  it('giá trị bản đồ không phải chuỗi thì DỪNG bằng lỗi', () => {
+    expect(() =>
+      thayChuTranHopThoaiLienKet(
+        NGUON,
+        { 'Input in https://...': 42 } as unknown as Record<string, string>,
         TEP,
       ),
     ).toThrow(/KHÔNG PHẢI CHUỖI/)

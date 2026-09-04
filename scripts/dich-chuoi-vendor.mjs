@@ -19,6 +19,7 @@ import {
   thayChuTranTrongDiv,
   thayChuTrongTagTooltip,
   thayNutHomNay,
+  thayChuTranHopThoaiLienKet,
   thayPlaceholderBangMau,
   thayTenNhomSlashMenu,
   thayNutDongMenuMobile,
@@ -301,13 +302,26 @@ for await (const f of dietJs(BUILD)) {
   }
   const coDoiPlaceholderMau = ketQuaPlaceholderMau.cacLuot.length > 0
 
+  // Hai chữ trần của hộp thoại "Chèn liên kết" (placeholder ô nhập + nhãn nút xác nhận). Cùng cơ
+  // chế quét văn bản thô, chạy SAU thayPlaceholderBangMau theo đúng nguyên tắc thứ tự của khối này;
+  // embed-card-create-modal.js không nằm trong bảng của bất kỳ bộ thay nào ở trên nên hai bộ không
+  // bao giờ đụng nhau.
+  let ketQuaHopThoaiLienKet
+  try {
+    ketQuaHopThoaiLienKet = thayChuTranHopThoaiLienKet(ketQuaPlaceholderMau.js, banDo, rel)
+  } catch (err) {
+    console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
+    process.exit(1)
+  }
+  const coDoiHopThoaiLienKet = ketQuaHopThoaiLienKet.cacLuot.length > 0
+
   // Chữ trần giữa `<div class="…">…</div>` — bốn nhãn của thanh công cụ phần tử và menu ngữ cảnh
   // (xem CHU_TRAN_DIV_CO_CLASS trong luat-vi-tri-dich.mjs). Cùng cơ chế quét văn bản thô, chạy SAU
   // thayPlaceholderBangMau theo đúng nguyên tắc thứ tự "tiền tố trước, phần còn lại sau" của khối
   // này — bốn file bị đụng không trùng file nào của các bộ thay ở trên.
   let ketQuaDiv
   try {
-    ketQuaDiv = thayChuTranTrongDiv(ketQuaPlaceholderMau.js, banDo, rel)
+    ketQuaDiv = thayChuTranTrongDiv(ketQuaHopThoaiLienKet.js, banDo, rel)
   } catch (err) {
     console.error(`dich-chuoi-vendor: DỪNG — ${err.message}`)
     process.exit(1)
@@ -347,6 +361,7 @@ for await (const f of dietJs(BUILD)) {
     !coDoiSlide &&
     !coDoiCustom &&
     !coDoiPlaceholderMau &&
+    !coDoiHopThoaiLienKet &&
     !coDoiDiv &&
     !coDoiHomNay &&
     !coDoiNhom
@@ -397,6 +412,15 @@ for await (const f of dietJs(BUILD)) {
     theoKhoa[l.chuoiGoc].push({
       file: rel,
       viTri: 'placeholder-bang-mau',
+      dong: l.dong,
+      chuoiDich: l.chuoiDich,
+    })
+    tongLuot++
+  }
+  for (const l of ketQuaHopThoaiLienKet.cacLuot) {
+    theoKhoa[l.chuoiGoc].push({
+      file: rel,
+      viTri: 'chu-tran-hop-thoai-lien-ket',
       dong: l.dong,
       chuoiDich: l.chuoiDich,
     })

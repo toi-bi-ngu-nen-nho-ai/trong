@@ -166,6 +166,17 @@ export function coTrongSpanTran(noiDung, s) {
   return re.test(noiDung)
 }
 
+// Nhãn TRẦN trong `<button …>` — nút xác nhận hộp thoại "Chèn liên kết"
+// (thayChuTranHopThoaiLienKet, 2026-09-05). Khác `coTrongSpanTran`/`coTrongDivCoClass` ở chỗ thẻ mở
+// trải nhiều dòng và mang nhịp động (`class=${classMap({…})}`, `?disabled=${…}`, `@click=${…}`),
+// nên phần thuộc tính phải là `[\s\S]*?` chứ không một lớp ký tự hẹp. Nhãn nằm giữa hai nhịp `${…}`
+// của cùng một template lớn hơn nên không đứng một mình trong MỘT literal — `coNhuLiteral` không
+// bao giờ thấy nó (đo được thật: luật C báo "Xác nhận" thiếu dù bản dịch đã tới dist/).
+export function coTrongNutTran(noiDung, s) {
+  const re = new RegExp(`<button[\\s\\S]*?>\\s*${thoatRegex(s)}\\s*<\\/button>`)
+  return re.test(noiDung)
+}
+
 // Hai khoá cùng dịch ra MỘT chuỗi y hệt là lớp lỗi mà phép chặt KHÔNG cứu được — hai chuỗi bằng
 // nhau từng ký tự, nên một cái còn sống trong dist/ là cả hai được tính có mặt. Chặn ở bảng dịch
 // là nơi duy nhất chặn được.

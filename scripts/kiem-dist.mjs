@@ -32,6 +32,7 @@ import {
   coTrongDivCoClass,
   coTrongKhoaNhomSlashMenu,
   coTrongNutDongMenuMobile,
+  coTrongNutTran,
   coTrongSpanTran,
   coTrongTagTooltip,
   coTrongTienToTemplateHead,
@@ -231,7 +232,8 @@ for (const f of dietFile(DIST)) {
         coTrongTienToTemplateHead(noiDung, v) ||
         coTrongKhoaNhomSlashMenu(noiDung, v) ||
         coTrongDivCoClass(noiDung, v) ||
-        coTrongSpanTran(noiDung, v)
+        coTrongSpanTran(noiDung, v) ||
+        coTrongNutTran(noiDung, v)
       )
         thieuBanDich.delete(v)
       // Phép THÔ chỉ còn dùng làm CHẨN ĐOÁN, không còn dùng để kết luận "có mặt". Một chuỗi vừa

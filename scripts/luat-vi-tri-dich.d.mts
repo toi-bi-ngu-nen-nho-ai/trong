@@ -114,6 +114,16 @@ export declare function thayPlaceholderBangMau(
   tenFile?: string,
 ): { js: string; cacLuot: LuotPlaceholderBangMau[] }
 
+/**
+ * Hai chữ trần của hộp thoại "Chèn liên kết" (placeholder ô nhập + nhãn nút xác nhận) — cùng một
+ * tệp vendored nên gom một bộ thay. Lượt trả về cùng hình dạng với LuotPlaceholderBangMau.
+ */
+export declare function thayChuTranHopThoaiLienKet(
+  js: string,
+  banDo: Record<string, string>,
+  tenFile?: string,
+): { js: string; cacLuot: LuotPlaceholderBangMau[] }
+
 /** Chung cho hai bộ thay chữ trần thêm 2026-09-02 — cùng hình dạng lượt trả về. */
 export interface LuotChuTran {
   chuoiGoc: string

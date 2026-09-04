@@ -932,6 +932,77 @@ export function thayPlaceholderBangMau(js, banDo, tenFile = 'khong-ten.js') {
   }
 }
 
+// Hai chữ TRẦN của hộp thoại "Chèn liên kết" — placeholder ô nhập và nhãn nút xác nhận
+// (`components/src/embed-card-modal/embed-card-create-modal.ts`). Hộp thoại này TRƯỚC 2026-09-05
+// không ai mở được: nút "Liên kết" trong menu Ghi chú thoát im lặng vì thiếu `QuickSearchProvider`
+// (nợ §1.1 của HANDOFF). Vá xong nút thì hộp thoại hiện ra, và hai chữ này lộ tiếng Anh.
+//
+// Cùng lớp lỗi chữ trần như "Custom"/"Done"/"Slide "/"Search file or anything..." ở trên: cả
+// `placeholder="…"` lẫn nhãn `>Confirm</button>` đều là văn bản TĨNH trong template (không qua nhịp
+// `${…}`), nên không phải StringLiteral/NoSubstitutionTemplateLiteral và `dichMotFile` không bao giờ
+// thấy chúng.
+//
+// GOM MỘT BỘ THAY cho cả hai vì chúng nằm trong CÙNG một file — hai hàm riêng sẽ phải lặp y hệt
+// phần kiểm tên file, kiểm khoá và thoát ký tự.
+//
+// Neo, đo trên `.vendor-build` ngày 2026-09-05, mỗi neo ĐÚNG MỘT lượt trong toàn file:
+//   - placeholder: `class="embed-card-modal-input link"` đứng ngay trước (file chỉ có một `<input>`).
+//   - nút:         `@click=${this._onConfirm}` rồi `>` — không dùng `class=` làm neo được vì nút này
+//                  gắn class qua `classMap({…})`, tức một nhịp `${…}`, không phải chuỗi tĩnh.
+// Danh sách ĐÓNG theo đường dẫn, cùng nguyên tắc mọi bộ thay-chữ-trần khác ở trên.
+//
+// Chuỗi thứ BA của hộp thoại — toast `Invalid link` — KHÔNG cần luật riêng: nó là đối số của
+// `toast(…)`, mà `toast` đã nằm trong DOI_SO_HIEN_THI nên bộ duyệt AST bắt được. Chỉ cần khoá trong
+// vi.json.
+const RE_PLACEHOLDER_HOP_THOAI_LIEN_KET =
+  /(class="embed-card-modal-input link"[\s\S]*?placeholder=")Input in https:\/\/\.\.\.(")/
+const RE_NUT_XAC_NHAN_HOP_THOAI_LIEN_KET =
+  /(@click=\$\{this\._onConfirm\}\s*>\s*)Confirm(\s*<\/button>)/
+
+const TEP_HOP_THOAI_LIEN_KET =
+  'affine/components/src/embed-card-modal/embed-card-create-modal.js'
+
+export function thayChuTranHopThoaiLienKet(js, banDo, tenFile = 'khong-ten.js') {
+  if (tenFile !== TEP_HOP_THOAI_LIEN_KET) return { js, cacLuot: [] }
+
+  // Cùng lý do thoát ký tự với thayPlaceholderBangMau: chèn thẳng vào phần TEXT tĩnh của một
+  // template literal đang mở, không qua JSON.stringify. Dấu `"` phải thoát vì giá trị placeholder
+  // nằm giữa hai dấu nháy kép của một thuộc tính HTML; với nhãn nút thì thừa nhưng vô hại.
+  const thoat = (s) => s.replace(/[`$\\"]/g, (c) => `\\${c}`)
+
+  const cacBo = [
+    {
+      re: RE_PLACEHOLDER_HOP_THOAI_LIEN_KET,
+      khoa: 'Input in https://...',
+      ten: 'placeholder ô nhập',
+    },
+    { re: RE_NUT_XAC_NHAN_HOP_THOAI_LIEN_KET, khoa: 'Confirm', ten: 'nhãn nút xác nhận' },
+  ]
+
+  let ketQua = js
+  const cacLuot = []
+
+  for (const { re, khoa, ten } of cacBo) {
+    const m = ketQua.match(re)
+    if (!m || !Object.hasOwn(banDo, khoa)) continue
+
+    const vi = banDo[khoa]
+    if (typeof vi !== 'string') {
+      throw new Error(
+        `luat-vi-tri-dich: khoá "${khoa}" (${ten} hộp thoại Chèn liên kết, ` +
+          `thayChuTranHopThoaiLienKet) có giá trị KHÔNG PHẢI CHUỖI ` +
+          `(kiểu ${vi === null ? 'null' : typeof vi}), gặp ở ${tenFile}.`,
+      )
+    }
+
+    const dong = ketQua.slice(0, m.index + m[1].length).split('\n').length
+    ketQua = ketQua.replace(re, (_all, truoc, sau) => `${truoc}${thoat(vi)}${sau}`)
+    cacLuot.push({ chuoiGoc: khoa, chuoiDich: vi, dong })
+  }
+
+  return { js: ketQua, cacLuot }
+}
+
 // Tiền tố TRẦN "Slide " đứng ĐẦU một template literal (`` name: `Slide ${config.name}` ``,
 // frame-dense-menu.ts — mục 34, 2026-08-25, điều tra "Custom"/"Slide" còn tiếng Anh khi bấm nút
 // "Khung"). Cùng lớp lỗi chữ trần như thayNutDongMenuMobile ở trên (TemplateHead không phải
