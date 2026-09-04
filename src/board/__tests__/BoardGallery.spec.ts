@@ -51,7 +51,7 @@ const xuatGia = vi.fn<(tenBang: string) => Promise<'xong' | 'xong-thieu-the-ghi-
 )
 
 vi.mock('../index', () => ({
-  EdgelessBoard: ({
+  VoMuc: ({
     boardId,
     onXuatSanSang,
   }: {
