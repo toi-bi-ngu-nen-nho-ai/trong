@@ -7,14 +7,14 @@
 //
 // docSources/blobSources GIẢ ở dưới đây thay cho IndexedDB thật — không cần DOM, không cần
 // happy-dom, mô phỏng đúng "đóng rồi mở lại app" bằng cách TÁI SỬ DỤNG cùng một kho biến JS giữa
-// hai lượt gọi taoHoacMoBang() trong cùng một ca kiểm.
+// hai lượt gọi taoHoacMoDoc() trong cùng một ca kiểm.
 import { describe, expect, it } from 'vitest'
 import { mergeUpdates } from 'yjs'
 
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { Text } from '@blocksuite/store'
 
-import { taoHoacMoBang } from '../EdgelessBoard'
+import { taoHoacMoDoc } from '../mo-doc'
 
 function dungDocSourceGia(): DocSource & { kho: Map<string, Uint8Array[]> } {
   const kho = new Map<string, Uint8Array[]>()
@@ -58,9 +58,9 @@ function dungBlobSourceGia(): BlobSource {
   }
 }
 
-describe('taoHoacMoBang — đường cơ bản', () => {
+describe('taoHoacMoDoc — đường cơ bản', () => {
   it('lần đầu trên cặp source rỗng → đúng 1 page, 1 surface, surface rỗng', async () => {
-    const { store } = await taoHoacMoBang('board', {
+    const { store } = await taoHoacMoDoc('board', 'so-do', {
       docSources: { main: dungDocSourceGia() },
       blobSources: { main: dungBlobSourceGia() },
     })
@@ -75,16 +75,16 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanMot = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     lanMot.workspace.forceStop()
 
     // store.root CHÍNH LÀ block affine:page (nó là root của store, không phải con của root) — nên
     // không thể có "affine:page trong children của root" để đếm; đó là kiểm tra bất khả thi, không
-    // phải bug thật. Nếu taoHoacMoBang gọi createDoc('board') không điều kiện (bỏ nhánh rẽ đã
+    // phải bug thật. Nếu taoHoacMoDoc gọi createDoc('board') không điều kiện (bỏ nhánh rẽ đã
     // có/chưa có), dòng await ngay dưới đây sẽ NÉM LỖI "doc already exists" — đó chính là ca đỏ
     // ghim đúng lỗi mấu chốt §3 của spec. Sau khi qua được dòng đó, kiểm số affine:surface (con
     // thật của root) vẫn đúng 1 là bằng chứng seed không chạy lần hai.
-    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanHai = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     const surfaces = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
     expect(surfaces).toHaveLength(1)
     lanHai.workspace.forceStop()
@@ -94,19 +94,19 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanMot = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     lanMot.workspace.forceStop()
 
     // Mô phỏng ghi dở dang: xoá đúng lượt ghi của SUBDOC 'board' (nội dung khối: page + surface)
     // khỏi kho giả lập, NHƯNG giữ nguyên lượt ghi của ROOT doc (guid 'bs-trong-board' — id truyền
-    // vào TestWorkspace trong EdgelessBoard.tsx, chứa metadata đăng ký doc 'board'). Kết quả giống
+    // vào TestWorkspace trong mo-doc.ts, chứa metadata đăng ký doc 'board'). Kết quả giống
     // hệt một tab bị đóng đúng vào khe giữa hai lượt ghi lúc mở app lần đầu: getDoc('board') vẫn
     // thấy doc (meta đã lưu), nhưng store.root sẽ là null (khối chưa từng được lưu) — đúng ca mà
-    // guard `!store.root` trong taoHoacMoBang() (EdgelessBoard.tsx) phải bắt được, thay vì chỉ dựa
+    // guard `!store.root` trong taoHoacMoDoc() (mo-doc.ts) phải bắt được, thay vì chỉ dựa
     // vào "doc có tồn tại trong meta hay không".
     docSources.main.kho.delete('board')
 
-    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanHai = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     expect(lanHai.store.root).not.toBeNull()
     const surfacesHoiPhuc = lanHai.store.root!.children.filter((c) => c.flavour === 'affine:surface')
     expect(surfacesHoiPhuc).toHaveLength(1)
@@ -115,7 +115,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
 
   it('HAI lượt mở ĐỒNG THỜI cùng một bảng mới → đúng 1 page, 1 surface (HANDOFF 1.3)', async () => {
     // Đây là cơ chế THẬT của lỗi seed trùng, đo trên máy 2026-08-30 ở dev: React StrictMode mount
-    // rồi remount, hai lượt `taoHoacMoBang()` chạy CHỒNG NHAU trên cùng một CSDL. Cả hai đều thấy
+    // rồi remount, hai lượt `taoHoacMoDoc()` chạy CHỒNG NHAU trên cùng một CSDL. Cả hai đều thấy
     // `getDoc()` trả null (lượt kia chưa kịp đẩy metadata), cả hai đều `createDoc` + seed, rồi CRDT
     // hợp nhất cả hai lượt ghi → doc có 2 `affine:page` và 2 `affine:surface`.
     // Hậu quả: `gfx.surface` bám vào surface MỒ CÔI (không phải con của `store.root`) nên
@@ -130,8 +130,8 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const blobSources = { main: dungBlobSourceGia() }
 
     const [motA, motB] = await Promise.all([
-      taoHoacMoBang('board', { docSources, blobSources }),
-      taoHoacMoBang('board', { docSources, blobSources }),
+      taoHoacMoDoc('board', 'so-do', { docSources, blobSources }),
+      taoHoacMoDoc('board', 'so-do', { docSources, blobSources }),
     ])
 
     await Promise.all([motA.workspace.waitForSynced(), motB.workspace.waitForSynced()])
@@ -142,7 +142,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     // CỦA CHÍNH NÓ (lượt kia chưa được kéo về), nên đếm tại chỗ luôn ra 1 và ca kiểm mất răng. Chỉ
     // sau khi cả hai lượt ghi đã đẩy xong và được hợp nhất lại thì bản trùng mới lộ ra — đúng cách
     // người dùng gặp nó: lần mở kế tiếp.
-    const lanBa = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanBa = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     // Đếm qua getBlocksByFlavour, KHÔNG qua `store.root.children`: một root thứ hai bị seed nhầm
     // nằm NGOÀI cây của root thứ nhất nên `children` không bao giờ nhìn thấy nó — đúng lý do lỗi
     // này sống sót qua mọi ca kiểm cũ trong chính file này.
@@ -157,11 +157,11 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanMot = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     lanMot.workspace.forceStop()
     docSources.main.kho.delete('board')
 
-    const lanHai = await taoHoacMoBang('board', {
+    const lanHai = await taoHoacMoDoc('board', 'so-do', {
       docSources,
       blobSources,
       // Hạn giờ ngắn để ca kiểm không phải đứng chờ 3 giây mặc định.
@@ -181,7 +181,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanMot = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     // 'affine:note' có `parent: ['@root']` (xem note-model.ts) nên gắn thẳng vào store.root — cùng
     // hình dạng cây mà một bảng vẽ thật có khi người dùng gõ nội dung. 'affine:paragraph' là con
     // hợp lệ của 'affine:note' (xem paragraph-model.ts) và mang một `Text` — kiểu dữ liệu văn bản
@@ -191,12 +191,12 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     lanMot.store.addBlock('affine:paragraph', { text: new Text(noiDungMau) }, noteId)
 
     // Đợi lượt ghi này đẩy xong lên cặp source giả trước khi đóng — cùng lý do đã giải thích trong
-    // EdgelessBoard.tsx cho lượt ghi seed: forceStop() không điều kiện có thể cắt ngang lượt ghi
+    // mo-doc.ts cho lượt ghi seed: forceStop() không điều kiện có thể cắt ngang lượt ghi
     // đang dở, làm mất đúng nội dung ca kiểm này định kiểm tra.
     await lanMot.workspace.waitForSynced()
     lanMot.workspace.forceStop()
 
-    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanHai = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     const note = lanHai.store.root!.children.find((c) => c.flavour === 'affine:note')
     expect(note).toBeDefined()
     const doanVan = note!.children.find((c) => c.flavour === 'affine:paragraph')
@@ -207,8 +207,8 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     lanHai.workspace.forceStop()
   })
 
-  it('workspace.forceStop() gọi được ngay sau taoHoacMoBang() mà không ném lỗi', async () => {
-    const { workspace } = await taoHoacMoBang('board', {
+  it('workspace.forceStop() gọi được ngay sau taoHoacMoDoc() mà không ném lỗi', async () => {
+    const { workspace } = await taoHoacMoDoc('board', 'so-do', {
       docSources: { main: dungDocSourceGia() },
       blobSources: { main: dungBlobSourceGia() },
     })
@@ -217,7 +217,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
 
   it('mở lại bảng đã có nội dung (remount) rồi thêm note → note thật sự có trong store (không bị Yjs từ chối âm thầm)', async () => {
     // Ca này ghim đúng lỗi đã điều tra ở .superpowers/sdd/2026-08-21-database-note-day-du/progress.md
-    // (mục "Điều tra thêm"): mỗi lần taoHoacMoBang() chạy, nó dựng một TestWorkspace MỚI với
+    // (mục "Điều tra thêm"): mỗi lần taoHoacMoDoc() chạy, nó dựng một TestWorkspace MỚI với
     // createAutoIncrementIdGenerator() MỚI — bộ đếm luôn bắt đầu lại từ 0, không biết gì về các id
     // đã dùng trong nội dung ĐÃ LƯU. Lần mở đầu tiên seed root="0", surface="1" bằng generator của
     // chính lượt đó nên không va chạm. Nhưng lần MỞ LẠI (remount — người dùng rời rồi quay lại bảng,
@@ -229,11 +229,11 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const lanMot = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanMot = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     await lanMot.workspace.waitForSynced()
     lanMot.workspace.forceStop()
 
-    const lanHai = await taoHoacMoBang('board', { docSources, blobSources })
+    const lanHai = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     const noteId = lanHai.store.addBlock('affine:note', {}, lanHai.store.root!.id)
     const note = lanHai.store.root!.children.find((c) => c.id === noteId)
     expect(note).toBeDefined()
@@ -245,14 +245,14 @@ describe('taoHoacMoBang — đường cơ bản', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const bangA = await taoHoacMoBang('bang-a', { docSources, blobSources })
+    const bangA = await taoHoacMoDoc('bang-a', 'so-do', { docSources, blobSources })
     const noteId = bangA.store.addBlock('affine:note', {}, bangA.store.root!.id)
     bangA.store.addBlock('affine:paragraph', { text: new Text('nội dung riêng của bảng A') }, noteId)
     await bangA.workspace.waitForSynced()
     bangA.workspace.forceStop()
 
-    const bangB = await taoHoacMoBang('bang-b', { docSources, blobSources })
-    // Bảng B không có note nào — nếu taoHoacMoBang bỏ sót boardId và luôn đọc/ghi docId 'board' cố
+    const bangB = await taoHoacMoDoc('bang-b', 'so-do', { docSources, blobSources })
+    // Bảng B không có note nào — nếu taoHoacMoDoc bỏ sót boardId và luôn đọc/ghi docId 'board' cố
     // định, ca này sẽ thấy note của bảng A lọt sang bảng B, đỏ ngay ở expect dưới.
     const noteBangB = bangB.store.root!.children.find((c) => c.flavour === 'affine:note')
     expect(noteBangB).toBeUndefined()
@@ -260,7 +260,7 @@ describe('taoHoacMoBang — đường cơ bản', () => {
   })
 })
 
-describe('taoHoacMoBang — hạn giờ khi IndexedDB không đồng bộ được', () => {
+describe('taoHoacMoDoc — hạn giờ khi IndexedDB không đồng bộ được', () => {
   it('pull/push không bao giờ resolve + hanGioMs nhỏ → vẫn trả về (không treo), rơi về bộ nhớ', async () => {
     const docSourceTreo: DocSource = {
       name: 'treo-mai',
@@ -277,7 +277,7 @@ describe('taoHoacMoBang — hạn giờ khi IndexedDB không đồng bộ đư�
       list: () => new Promise(() => {}),
     }
 
-    const { store, workspace } = await taoHoacMoBang('board', {
+    const { store, workspace } = await taoHoacMoDoc('board', 'so-do', {
       docSources: { main: docSourceTreo },
       blobSources: { main: blobSourceTreo },
       hanGioMs: 20,

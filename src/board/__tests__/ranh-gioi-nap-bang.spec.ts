@@ -13,6 +13,14 @@
 // Ca kiểm dựng lại đúng cảnh đó bằng cách cho module `../EdgelessBoard` ném lỗi lúc nạp, rồi đòi
 // hai điều: (1) tab Mindmap hiện pane tiếng Việt thay vì trang trắng, (2) phần còn lại của cây —
 // ở đây là thanh nav giả bên cạnh — vẫn còn nguyên trong tài liệu.
+import { readFileSync } from 'node:fs'
+// `URL as NodeURL`: file này chạy dưới `@vitest-environment happy-dom` (xem đầu file), môi trường
+// đó GHI ĐÈ `URL` global bằng bản polyfill riêng của nó. `fs.readFileSync` nhận diện một URL bằng
+// `instanceof URL` của CHÍNH Node, nên truyền thẳng URL global (happy-dom) vào sẽ không khớp và
+// ném `TypeError: The URL must be of scheme file` dù chuỗi URL hoàn toàn hợp lệ — phải import
+// tường minh URL của node:url để né polyfill.
+import { URL as NodeURL } from 'node:url'
+
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -52,7 +60,11 @@ describe('Vỏ nạp chậm của bảng vẽ — chunk tải hỏng', () => {
           'div',
           null,
           createElement('nav', { 'data-nav': 'true' }, 'Trang chủ'),
-          createElement(EdgelessBoard),
+          // `boardId` không ảnh hưởng ca kiểm này (module bị mock ném lỗi ngay khi nạp, chưa tới
+          // lượt dùng boardId) — vẫn truyền một giá trị hợp lệ thay vì object props rỗng, vì
+          // `createElement` chỉ bỏ qua việc kiểm PropsBang khi KHÔNG truyền props nào cả; một khi
+          // đã truyền object thì mọi trường bắt buộc (kể cả boardId) phải có mặt.
+          createElement(EdgelessBoard, { boardId: 'boardId-gia', loai: 'so-do' }),
         ),
       )
     })
@@ -65,5 +77,26 @@ describe('Vỏ nạp chậm của bảng vẽ — chunk tải hỏng', () => {
     //    boundary trong ./index.tsx thì cả cây (kể cả thẻ <nav> dưới đây) biến mất.
     expect(container.querySelector('nav[data-nav]')).not.toBeNull()
     expect(container.querySelector('nav[data-nav]')!.textContent).toBe('Trang chủ')
+  })
+})
+
+describe('index.tsx — ranh giới D13 (không kéo BlockSuite vào chunk vỏ app)', () => {
+  // Đọc mã nguồn THẬT của index.tsx (không mock) để soát tĩnh — hai ca dưới đây không render gì,
+  // chỉ kiểm câu chữ import.
+  const nguon = readFileSync(new NodeURL('../index.tsx', import.meta.url), 'utf8')
+
+  it('index.tsx không import tĩnh TrangBaiViet (ranh giới D13)', () => {
+    // Chỉ được nhắc tới trong một `import()` động bên trong lazy(). Một dòng
+    // `import … from './TrangBaiViet'` ở đầu file kéo cả khối BlockSuite vào chunk vỏ app.
+    expect(nguon).not.toMatch(/^import\s+[^\n]*from\s+['"]\.\/TrangBaiViet['"]/m)
+    expect(nguon).toMatch(/import\(['"]\.\/TrangBaiViet['"]\)/)
+  })
+
+  it('index.tsx chỉ import KIỂU từ mo-doc (ranh giới D13)', () => {
+    // `mo-doc.ts` import @blocksuite/*. Một import GIÁ TRỊ từ đó kéo cả khối BlockSuite vào chunk
+    // vỏ app. Chỉ `import type` (bị xoá lúc biên dịch) mới được phép — cùng luật App.tsx đang theo.
+    const dongMoDoc = nguon.match(/^import\s+[^\n]*from\s+['"]\.\/mo-doc['"]/m)
+    expect(dongMoDoc).not.toBeNull()
+    expect(dongMoDoc![0]).toMatch(/^import\s+type\s/)
   })
 })

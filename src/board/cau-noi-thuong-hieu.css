@@ -41,7 +41,7 @@
    = NoteBackgroundColorMap.White): #ffffff ở bản sáng, #252525 ở bản tối.
 
    Vì sao KHÔNG ghi đè ở bản tối: mực trên khối ghi chú là `--drt-text-primary-color`, LẬT sang gần
-   trắng ở bản tối. Thẻ bảng ở DanhSachBang giải được bài này vì nó ghim mực riêng (--c-on-note,
+   trắng ở bản tối. Thẻ bảng ở LuoiMuc giải được bài này vì nó ghim mực riêng (--c-on-note,
    xem src/index.css) — trên bảng vẽ thì KHÔNG ghim được: màu nền mỗi khối do người dùng chọn và
    được áp bằng inline style (blocks/note/.../edgeless-note-background.js), không để lại thuộc tính
    DOM nào cho CSS bám vào, nên không có cách nào ghim mực cho ĐÚNG những khối đang dùng nền trắng

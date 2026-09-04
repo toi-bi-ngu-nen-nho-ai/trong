@@ -10,11 +10,11 @@ import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { Text } from '@blocksuite/store'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import type { BangMeta } from '../boardMeta'
+import type { MucMeta } from '../mucMeta'
 import { diTruBangCuNeuCo, diTruNoiDungTimKiemNeuCo } from '../diTruBangCu'
-import { taoHoacMoBang } from '../EdgelessBoard'
+import { taoHoacMoDoc } from '../mo-doc'
 
-function bangMetaGia(overrides: Partial<BangMeta> & { id: string }): BangMeta {
+function bangMetaGia(overrides: Partial<MucMeta> & { id: string }): MucMeta {
   return {
     ten: 'Bảng',
     taoLuc: 1,
@@ -79,7 +79,7 @@ describe('diTruBangCuNeuCo', () => {
     const blobSources = { main: dungBlobSourceGia() }
 
     // Dựng nội dung "bảng cũ" giống hệt cách EdgelessBoard.tsx đã làm trước chặng BoardGallery.
-    const bangCu = await taoHoacMoBang('board', { docSources, blobSources })
+    const bangCu = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     const noteId = bangCu.store.addBlock('affine:note', {}, bangCu.store.root!.id)
     bangCu.store.addBlock('affine:paragraph', { text: new Text('nội dung bảng cũ') }, noteId)
     await bangCu.workspace.waitForSynced()
@@ -107,7 +107,7 @@ describe('diTruBangCuNeuCo', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const bangCu = await taoHoacMoBang('board', { docSources, blobSources })
+    const bangCu = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     bangCu.workspace.forceStop()
 
     // Người dùng đã tự đổi tên bảng cũ TRƯỚC lượt di trú này chạy (vd đã chạy di trú một lần rồi).
@@ -125,8 +125,8 @@ describe('diTruBangCuNeuCo', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    // Dựng THỦ CÔNG qua TestWorkspace trực tiếp — KHÔNG dùng taoHoacMoBang(), vì hàm đó luôn seed
-    // đủ CẢ HAI affine:page + affine:surface (xem EdgelessBoard.tsx, nhánh `!store.root`). Ca kiểm
+    // Dựng THỦ CÔNG qua TestWorkspace trực tiếp — KHÔNG dùng taoHoacMoDoc(), vì hàm đó luôn seed
+    // đủ CẢ HAI affine:page + affine:surface (xem mo-doc.ts, nhánh `!store.root`). Ca kiểm
     // này cần đúng trạng thái "đăng ký dở dang": doc 'board' tồn tại và có root, nhưng thiếu hẳn
     // affine:surface — mô phỏng một lượt ghi seed bị cắt ngang giữa chừng (tab đóng đúng lúc) hoặc
     // một doc do một phiên bản code cũ hơn/khác tạo ra mà chưa từng vẽ gì. diTruBangCuNeuCo() PHẢI
@@ -187,7 +187,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const bang = await taoHoacMoBang('bang-1', { docSources, blobSources })
+    const bang = await taoHoacMoDoc('bang-1', 'so-do', { docSources, blobSources })
     const noteId = bang.store.addBlock('affine:note', {}, bang.store.root!.id)
     bang.store.addBlock('affine:paragraph', { text: new Text('nội dung cần tìm') }, noteId)
     await bang.workspace.waitForSynced()
@@ -197,7 +197,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
 
     await diTruNoiDungTimKiemNeuCo({ docSources, blobSources })
 
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
     expect(ds[0].noiDungTimKiem).toContain('nội dung cần tìm')
   })
 
@@ -215,7 +215,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
     // có sẵn", không phụ thuộc hành vi mở doc thất bại.
     await diTruNoiDungTimKiemNeuCo({ docSources, blobSources })
 
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
     expect(ds[0].noiDungTimKiem).toBe('đã trích từ trước')
   })
 
@@ -227,7 +227,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
 
     await diTruNoiDungTimKiemNeuCo({ docSources, blobSources })
 
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
     expect(ds).toHaveLength(1)
     expect(ds[0].noiDungTimKiem).toBe('sẵn rồi')
   })
@@ -240,7 +240,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
 
     await expect(diTruNoiDungTimKiemNeuCo({ docSources, blobSources })).resolves.toBeUndefined()
 
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
     expect(ds[0].noiDungTimKiem).toBe('')
   })
 
@@ -268,7 +268,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
       hanGioMs: 20,
     })
 
-    const ds = await idbGetAll<BangMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
     expect(ds[0].noiDungTimKiem).toBe('')
   }, 10_000)
 })

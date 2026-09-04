@@ -15,7 +15,9 @@ import 'fake-indexeddb/auto'
 import { act } from 'react'
 import { createElement } from 'react'
 import type { Root } from 'react-dom/client'
-import { expect, vi } from 'vitest'
+import { expect } from 'vitest'
+
+import { choDom } from '../../../__tests__/helpers/cho-den-khi'
 
 import { TextSelection } from '@blocksuite/std'
 
@@ -95,7 +97,7 @@ export async function taoNoteQuaCongCuThat(container: HTMLDivElement) {
   canvas.dispatchEvent(new PointerEvent('pointerdown', opts))
   canvas.dispatchEvent(new PointerEvent('pointerup', opts))
 
-  await vi.waitFor(() => {
+  await choDom(() => {
     expect(document.querySelector('.inline-editor')).not.toBeNull()
   })
 }
@@ -170,7 +172,7 @@ export async function moBangVaTaoNoteCoNoiDung(
     root.render(createElement(EdgelessBoard, { boardId }))
   })
   await act(async () => {
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(document.querySelector('editor-host')).not.toBeNull()
     })
   })
@@ -186,13 +188,13 @@ export async function moBangVaTaoNoteCoNoiDung(
 
   await act(async () => {
     ie.insertText({ index: 0, length: 0 }, vanBan)
-    await vi.waitFor(() => {
+    await choDom(() => {
       const vText = document.querySelector('[data-v-text]')
       expect(vText?.textContent).toBe(vanBan)
     })
 
     datConTroCuoiDoanVan(inlineEl)
-    await vi.waitFor(() => {
+    await choDom(() => {
       const eh = document.querySelector('editor-host') as unknown as {
         std: { selection: { value: Array<{ type: string }> } }
       }
@@ -215,7 +217,7 @@ export async function moSlashMenuTuNote(inlineEl: HTMLElement) {
         data: '/',
       }),
     )
-    await vi.waitFor(() => {
+    await choDom(() => {
       expect(document.querySelector('drt-slash-menu')).not.toBeNull()
     })
   })

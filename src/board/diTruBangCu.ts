@@ -10,17 +10,17 @@ import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
-import type { BangMeta } from './boardMeta'
-import { ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './boardMeta'
+import type { MucMeta } from './mucMeta'
+import { ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './mucMeta'
 
 const TEN_CSDL_BANG = 'drtrong-board'
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 
-// Giống HAN_GIO_MAC_DINH_MS của EdgelessBoard.tsx — 4 giây là hào phóng cho IndexedDB cục bộ (bình
+// Giống HAN_GIO_MAC_DINH_MS của mo-doc.ts — 4 giây là hào phóng cho IndexedDB cục bộ (bình
 // thường xong trong vài chục ms), nhưng vẫn chặn treo vô thời hạn nếu IndexedDB hỏng vĩnh viễn.
 const HAN_GIO_MAC_DINH_MS = 4000
 
-// Bản sao cục bộ của doiCoHanGio() (EdgelessBoard.tsx, không export) — cùng lý do đã ghi ở đầu file
+// Bản sao cục bộ của doiCoHanGio() (mo-doc.ts, không export) — cùng lý do đã ghi ở đầu file
 // cho việc lặp lại cụm TestWorkspace/IndexedDBDocSource/IndexedDBBlobSource: không tách helper dùng
 // chung giữa hai file trong phạm vi lượt sửa này. `waitForSynced()` KHÔNG tự bỏ cuộc khi IndexedDB
 // hỏng vĩnh viễn — DocEngine thử lại mỗi 5 giây vô thời hạn (framework/sync/src/doc/peer.ts,
@@ -39,14 +39,14 @@ export async function diTruBangCuNeuCo(tuyChon?: {
   blobSources?: { main: BlobSource }
   hanGioMs?: number
 }): Promise<void> {
-  const dsHienCo = await idbGetAll<BangMeta>(IDB_STORES.boards)
+  const dsHienCo = await idbGetAll<MucMeta>(IDB_STORES.boards)
   if (dsHienCo.some((b) => b.id === 'board')) return
 
   const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
   const blobSources = tuyChon?.blobSources ?? { main: new IndexedDBBlobSource(TEN_CSDL_BANG) }
   const hanGioMs = tuyChon?.hanGioMs ?? HAN_GIO_MAC_DINH_MS
 
-  // KHÔNG truyền `idGenerator` — cùng lý do đã ghi ở EdgelessBoard.tsx (fix bug id trùng lúc remount):
+  // KHÔNG truyền `idGenerator` — cùng lý do đã ghi ở mo-doc.ts (fix bug id trùng lúc remount):
   // hàm này CHỈ ĐỌC (`store.root?.children`, không bao giờ `addBlock`/`createDoc`) nên thuật toán
   // sinh id không ảnh hưởng hành vi hiện tại, nhưng để lại `createAutoIncrementIdGenerator()` ở đây
   // là một bẫy — nếu hàm di trú này sau này được mở rộng để ghi khối, đúng lớp bug đó sẽ tái xuất.
@@ -56,9 +56,9 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     blobSources,
   })
   try {
-    // CHỜ ĐỒNG BỘ TRƯỚC RỒI MỚI `meta.initialize()` — thứ tự NGƯỢC với taoHoacMoBang() (EdgelessBoard.tsx).
+    // CHỜ ĐỒNG BỘ TRƯỚC RỒI MỚI `meta.initialize()` — thứ tự NGƯỢC với taoHoacMoDoc() (mo-doc.ts).
     // Lý do: `meta.initialize()` ghi `pages = []` cục bộ ngay trên Y.Doc RỖNG trong bộ nhớ nếu
-    // `_proxy.pages` chưa có giá trị. Gọi nó TRƯỚC `waitForSynced()` (như taoHoacMoBang() làm, chấp
+    // `_proxy.pages` chưa có giá trị. Gọi nó TRƯỚC `waitForSynced()` (như taoHoacMoDoc() làm, chấp
     // nhận được ở đó vì có nhánh `createDoc` dự phòng nếu doc "biến mất") tạo ra một cuộc ĐUA CRDT
     // thật: nếu bản ghi từ xa (chứa đăng ký bảng 'board' cũ) ĐANG TRÊN ĐƯỜNG kéo về cùng lúc ta gán
     // `pages = []` cục bộ, hai giá trị `pages` (một rỗng cục bộ, một có nội dung từ xa) ĐUA NHAU ở
@@ -72,7 +72,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     workspace.start()
     const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
     if (ketQua === 'het-gio') {
-      // Hàm này CHỈ ĐỌC — không như taoHoacMoBang(), không có nội dung người dùng nào đang chờ ghi
+      // Hàm này CHỈ ĐỌC — không như taoHoacMoDoc(), không có nội dung người dùng nào đang chờ ghi
       // để phải rơi về workspace bộ nhớ. Hết giờ ở đây nghĩa là "chưa di trú được lần này" — bỏ
       // cuộc êm, lượt mount BoardGallery kế tiếp (lần sau mở app) sẽ tự thử lại từ đầu.
       console.warn(
@@ -93,7 +93,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     if (!coNoiDungThat) return
 
     const bayGio = Date.now()
-    const meta: BangMeta = {
+    const meta: MucMeta = {
       id: 'board',
       ten: 'Bảng đầu tiên',
       taoLuc: bayGio,
@@ -118,7 +118,7 @@ export async function diTruNoiDungTimKiemNeuCo(tuyChon?: {
   blobSources?: { main: BlobSource }
   hanGioMs?: number
 }): Promise<void> {
-  const dsHienCo = await idbGetAll<BangMeta>(IDB_STORES.boards)
+  const dsHienCo = await idbGetAll<MucMeta>(IDB_STORES.boards)
   const canDiTru = dsHienCo.filter((b) => !b.noiDungTimKiem)
   if (canDiTru.length === 0) return
 

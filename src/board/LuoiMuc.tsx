@@ -1,4 +1,5 @@
-// Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. KHÔNG phụ thuộc BlockSuite (không import ./index hay
+// Lưới thẻ danh sách bảng — tạo/đổi tên/xoá. Nay phục vụ CẢ bài viết lẫn sơ đồ (props lọc riêng
+// theo loại mục sẽ tới ở Plan 2). KHÔNG phụ thuộc BlockSuite (không import ./index hay
 // ./EdgelessBoard) — giữ file này nhẹ, tách hẳn khỏi ranh giới nạp chậm 994 kB. BoardGallery.tsx
 // (bao ngoài) mới là nơi quyết định khi nào mount bảng vẽ thật.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -10,7 +11,7 @@ import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
-import { bangKhopTimKiem, type BangMeta, taoIdBang } from './boardMeta'
+import { mucKhopTimKiem, type MucMeta, taoIdMuc } from './mucMeta'
 import { donRacBlobBang, xoaNoiDungBang } from './xoaNoiDungBang'
 import { normalizeSearch } from '../lib/ui'
 
@@ -71,7 +72,7 @@ export type BoardOpenOrigin = {
   // với thẻ gốc thay vì rơi về một xám trung tính chung cho mọi bảng chưa gắn khoa (critique
   // 2026-09-02 lượt 2, P2). undefined cùng điều kiện với chuyenKhoa ở trên.
   id?: string
-  // Hue cố định đã gán lúc tạo bảng (BangMeta.mauHue) — cùng lý do id ở trên, ưu tiên hơn hash
+  // Hue cố định đã gán lúc tạo bảng (MucMeta.mauHue) — cùng lý do id ở trên, ưu tiên hơn hash
   // mauOnDinh(id) khi có (critique 2026-09-02 lượt 3, P2).
   mauHue?: number
 }
@@ -130,7 +131,7 @@ export function mauOnDinh(id: string): number {
 const CAC_MOC_HUE: number[] = [260, 290, 320]
 
 // Chọn MỘT hue trong CAC_MOC_HUE xa nhất (theo khoảng cách gần nhất) các hue ĐANG CÓ — greedy
-// farthest-point, gọi MỘT LẦN lúc tạo bảng (taoBangMoi) rồi lưu cố định vào BangMeta.mauHue, KHÔNG
+// farthest-point, gọi MỘT LẦN lúc tạo bảng (taoBangMoi) rồi lưu cố định vào MucMeta.mauHue, KHÔNG
 // gọi lại mỗi lần render. Vì sao không thể là hash thuần theo id: hai giá trị hash độc lập của hai id
 // bất kỳ không có bảo đảm khoảng cách tối thiểu nào — đo được trực tiếp 2 bảng tạo liên tiếp ra hue
 // cách nhau chỉ 6°, gần như cùng màu (critique 2026-09-02 lượt 3, P2). Thuật toán này thì có: nó NHÌN
@@ -215,7 +216,7 @@ function chuTrenNen(hexNen: string): string {
 // icon — chỉ cần tự lo phần MÀU (spec undefined thì không có spec.color để đọc).
 // id: id CỦA BẢNG (không phải chuyên khoa) — chỉ dùng khi spec undefined, để tô màu trung tính ổn
 // định theo từng bảng thay vì một xám dùng chung cho mọi bảng chưa gắn khoa (mauTrungTinhTheoBang).
-// mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (BangMeta.mauHue, xem mauHueChongTrung) — ưu tiên hơn hash
+// mauHue: hue CỐ ĐỊNH đã gán lúc tạo bảng (MucMeta.mauHue, xem mauHueChongTrung) — ưu tiên hơn hash
 // mauOnDinh(id) khi có, vì bảo đảm tách biệt khỏi sibling lúc tạo mà hash thuần không có.
 // Export vì BoardGallery.tsx dùng CHÍNH component này cho lớp phủ chuyển cảnh FLIP: lớp phủ phải
 // là đúng thứ người dùng vừa bấm, và từ 2026-08-30 thứ đó luôn là huy hiệu chuyên khoa. Dựng lại
@@ -329,7 +330,7 @@ function TheBang({
   onThemTag,
   onXoaTag,
 }: {
-  bang: BangMeta
+  bang: MucMeta
   index: number
   dangXoa: boolean
   dangSuaTen: boolean
@@ -406,7 +407,7 @@ function TheBang({
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
   const tenChuyenKhoa = SPECIALTIES.find((s) => s.id === (bang.chuyenKhoa ?? SPECIALTIES[0].id))?.name
 
-  // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc DanhSachBang mount —
+  // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc LuoiMuc mount —
   // trước đây parent chụp `Date.now()` một lần lúc MOUNT rồi so cho MỌI thẻ; bảng tạo SAU khi
   // gallery đã mở (đúng luồng "+" → mở ô đổi tên tại chỗ) có taoLuc > mốc đó, hiệu số luôn ÂM nên
   // `vuaTao` treo `true` suốt phiên xem thay vì tắt sau 3s — thẻ đóng băng ở khung hình đầu của
@@ -1000,7 +1001,7 @@ function TheBang({
               bàn phím ảo di động) hoặc chạm ra ngoài (không tín hiệu thị giác gợi ý), lệch chuẩn
               "luôn có hành động tường minh cho mọi thao tác, kể cả thoát" mà menu "⋯" liền kề đang
               giữ (critique 2026-09-03 lượt 6, P2). `onBatSuaTag` vốn đã là một TOGGLE (mở nếu đang
-              đóng, đóng nếu đang mở — xem chỗ gọi ở DanhSachBang) nên gọi lại chính nó lúc panel đang
+              đóng, đóng nếu đang mở — xem chỗ gọi ở LuoiMuc) nên gọi lại chính nó lúc panel đang
               mở là đóng panel, không cần thêm prop/state mới. */}
           <button
             type="button"
@@ -1050,7 +1051,7 @@ function LuoiChoTai() {
   )
 }
 
-export function DanhSachBang({
+export function LuoiMuc({
   onMoBang,
   dungTuBang,
   onHieuUngXong,
@@ -1078,7 +1079,7 @@ export function DanhSachBang({
     // effect dangChoXoa). Chỉ panel "Đã xoá gần đây" bên dưới dùng: tích chọn kiểu Recycle Bin rồi
     // xoá hẳn hoặc khôi phục hàng loạt. Không hoàn tác được nên có bước xác nhận riêng.
     remove,
-  } = useIdbCollection<BangMeta>(IDB_STORES.boards)
+  } = useIdbCollection<MucMeta>(IDB_STORES.boards)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
   // Bản sao ĐỒNG BỘ của "đang có bảng chờ đặt tên", chỉ dùng làm khoá cho taoBangMoi — xem chú
   // thích dài tại đó. Ref chứ không phải state vì state React chỉ thấy được ở lượt render SAU.
@@ -1100,9 +1101,9 @@ export function DanhSachBang({
   // "Xuất PNG" chuyển ra nút tròn ở màn vẽ (BoardGallery.tsx) — không còn state xuất ở lưới.
   // Mang cả OBJECT (không chỉ id) — cần đủ dữ liệu gốc để đánh dấu daXoaLuc rồi đưa thẳng cho dải
   // "Hoàn tác" mà không phải tra lại danhSach sau khi bang đã bị lọc khỏi danh sách hiển thị.
-  const [dangChoXoa, setDangChoXoa] = useState<BangMeta | null>(null)
+  const [dangChoXoa, setDangChoXoa] = useState<MucMeta | null>(null)
   // Bang vừa xoá mềm xong — điều khiển dải "Hoàn tác". null nghĩa là không có dải nào đang hiện.
-  const [vuaXoa, setVuaXoa] = useState<BangMeta | null>(null)
+  const [vuaXoa, setVuaXoa] = useState<MucMeta | null>(null)
   // ─── Chọn nhiều trên LƯỚI SỐNG (khác chonDaXoa — đó là chọn nhiều trong panel trash) ───────────
   // Bấm "Chọn" ở ScreenHeader bật dangChonNhieu; tap vào thẻ khi đang bật chuyển thành chọn/bỏ chọn
   // thay vì mở bảng (xem onMo đổi ở .map() bên dưới) — mượn NGUYÊN thị giác checkbox của panel trash
@@ -1128,8 +1129,8 @@ export function DanhSachBang({
   // Cùng khuôn "chờ animation rồi mới đánh dấu xoá mềm" với dangChoXoa/vuaXoa ở trên — mảng thay vì
   // một object vì xoá NHIỀU bảng cùng lúc. TheBang đọc mảng này để biết thẻ nào đang chạy
   // .card-slide-out (xem dangXoa ở .map() bên dưới).
-  const [dangChoXoaNhieu, setDangChoXoaNhieu] = useState<BangMeta[] | null>(null)
-  const [vuaXoaNhieu, setVuaXoaNhieu] = useState<BangMeta[] | null>(null)
+  const [dangChoXoaNhieu, setDangChoXoaNhieu] = useState<MucMeta[] | null>(null)
+  const [vuaXoaNhieu, setVuaXoaNhieu] = useState<MucMeta[] | null>(null)
   // Dải "Hoàn tác" (vuaXoa) chỉ sống HOAN_TAC_XOA_MS rồi tắt im lặng — nếu người dùng bị gọi đi
   // giữa ca trực (đúng bối cảnh PRODUCT.md mô tả) và bỏ lỡ, bảng vẫn còn thật trong IndexedDB
   // (daXoaLuc được set) nhưng trước đây KHÔNG có đường nào lấy lại nữa — vi phạm thẳng lời hứa "xoá
@@ -1176,7 +1177,7 @@ export function DanhSachBang({
   // Truy vấn ô tìm nội bộ — vẫn đúng quy ước "chỉ sống trong phiên xem lưới" của phần còn lại của
   // app (không vào URL/localStorage, KHÁC chuyenKhoaLoc ở trên): một chuỗi tìm kiếm cũ mở lại vài
   // ngày sau dễ đọc thành "sao lưới trống/lạ" hơn là hữu ích, không giống một chuyên khoa cố định.
-  // Chuỗi rỗng = chưa lọc (bangKhopTimKiem trả true).
+  // Chuỗi rỗng = chưa lọc (mucKhopTimKiem trả true).
   const [truyVan, setTruyVan] = useState('')
 
   useEffect(() => {
@@ -1247,7 +1248,7 @@ export function DanhSachBang({
 
   // Hiệu ứng .board-out chỉ chạy MỘT LẦN khi vừa đóng một bảng (dungTuBang=true) — tự báo xong
   // sau khi animation (0,2s, xem index.css) kết thúc, cộng biên an toàn nhỏ. KHÔNG chạy khi
-  // DanhSachBang mount vì lý do khác (vd lần đầu vào tab Mindmap) — dungTuBang khi đó là
+  // LuoiMuc mount vì lý do khác (vd lần đầu vào tab Mindmap) — dungTuBang khi đó là
   // undefined/false, effect này không làm gì.
   useEffect(() => {
     if (!dungTuBang) return
@@ -1406,13 +1407,13 @@ export function DanhSachBang({
 
   // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
   // Chip chuyên khoa lọc THÊM sau đó — bang thiếu chuyenKhoa (bản ghi cũ chưa backfill, xem
-  // boardMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES.
-  // Ô tìm lọc THÊM lần nữa (giao của cả hai, không phải hoặc): bangKhopTimKiem gộp tên/chuyên
-  // khoa/tag/nội dung trích được và bỏ dấu hai phía (xem boardMeta.ts), truy vấn rỗng luôn khớp.
+  // mucMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES.
+  // Ô tìm lọc THÊM lần nữa (giao của cả hai, không phải hoặc): mucKhopTimKiem gộp tên/chuyên
+  // khoa/tag/nội dung trích được và bỏ dấu hai phía (xem mucMeta.ts), truy vấn rỗng luôn khớp.
   const danhSachSapXep = [...danhSach]
     .filter((b) => !b.daXoaLuc)
     .filter((b) => !chuyenKhoaLoc || (b.chuyenKhoa ?? SPECIALTIES[0].id) === chuyenKhoaLoc)
-    .filter((b) => bangKhopTimKiem(b, truyVan))
+    .filter((b) => mucKhopTimKiem(b, truyVan))
     .sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
   const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
@@ -1443,14 +1444,14 @@ export function DanhSachBang({
   // khớp chip lọc/ô tìm đang bật nên vẫn vô hình trong lưới — người dùng thấy nút "Hoàn tác" như
   // bấm hụt, không có gì xảy ra (review cuối nhánh, mục 2). Cùng cách vá với các callback kia: đưa
   // bộ lọc khiến bảng vừa thao tác rớt khỏi lưới về trạng thái không lọc.
-  const khoiPhucBang = (b: BangMeta) => {
+  const khoiPhucBang = (b: MucMeta) => {
     const bangMoi = { ...b, daXoaLuc: undefined }
     update(bangMoi)
     // So cùng biểu thức với bộ lọc của lưới ở trên (bảng thiếu chuyenKhoa coi như SPECIALTIES[0]).
     if (chuyenKhoaLoc && (bangMoi.chuyenKhoa ?? SPECIALTIES[0].id) !== chuyenKhoaLoc) setChuyenKhoaLoc(null)
     // Ô tìm là bộ lọc THỨ HAI, rớt khỏi nó cũng giấu thẻ y hệt — phải canh riêng. Truy vấn rỗng
     // luôn khớp nên nhánh này tự im lặng khi chưa lọc gì.
-    if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
+    if (!mucKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
   }
 
   // ─── Thao tác hàng loạt trong panel "Đã xoá gần đây" (kiểu Recycle Bin) ───────────────────────
@@ -1563,8 +1564,8 @@ export function DanhSachBang({
     // mềm, đúng như mọi chỗ lọc lưới khác trong file) để chọn mốc xa nhất, không phải hue của MỌI
     // bản ghi từng có kể cả đã xoá (critique 2026-09-02 lượt 3, P2).
     const hueHienCo = danhSach.filter((b) => !b.daXoaLuc).map((b) => b.mauHue ?? mauOnDinh(b.id))
-    const meta: BangMeta = {
-      id: taoIdBang(),
+    const meta: MucMeta = {
+      id: taoIdMuc(),
       ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,
@@ -1578,7 +1579,7 @@ export function DanhSachBang({
       // 2026-09-02, P2). '' KHÔNG kích hoạt fallback `?? SPECIALTIES[0].id` ở mọi nơi đọc trường này
       // (nullish coalescing chỉ bắt null/undefined, không bắt chuỗi rỗng) — fallback đó vẫn đúng
       // nguyên cho bảng CŨ thật sự thiếu hẳn trường (dữ liệu tạo trước lượt thêm 3 trường bắt buộc,
-      // xem boardMeta.ts). TheTrong/iconBangSoDo/VeChuyenKhoaDangTai đã sẵn nhánh trung tính cho
+      // xem mucMeta.ts). TheTrong/iconBangSoDo/VeChuyenKhoaDangTai đã sẵn nhánh trung tính cho
       // khoa lạ/rỗng — không cần sửa gì ở đó.
       chuyenKhoa: '',
       tags: [],
@@ -2085,7 +2086,7 @@ export function DanhSachBang({
 
         // Rút gọn RUT_GON_DA_XOA dòng mới nhất; "Xem tất cả" mở toàn bộ + ô tìm + cuộn trong hộp.
         const daLoc = xemTatCaDaXoa
-          ? daXoaGanDay.filter((b) => bangKhopTimKiem(b, timDaXoa))
+          ? daXoaGanDay.filter((b) => mucKhopTimKiem(b, timDaXoa))
           : daXoaGanDay
         const hienThi = xemTatCaDaXoa ? daLoc : daXoaGanDay.slice(0, RUT_GON_DA_XOA)
         const soChon = chonDaXoa.size
@@ -2644,11 +2645,11 @@ export function DanhSachBang({
                 if (chuyenKhoaLoc && chuyenKhoaLoc !== id) setChuyenKhoaLoc(null)
                 // Ô tìm (Task 8) là bộ lọc THỨ HAI, rớt khỏi nó cũng làm thẻ + panel biến mất y hệt,
                 // nên phải vá RIÊNG — chặn được chip lọc không có nghĩa là chặn được ô tìm.
-                // bangKhopTimKiem gộp cả TÊN HIỂN THỊ của chuyên khoa ("Tim mạch", xem boardMeta.ts)
+                // mucKhopTimKiem gộp cả TÊN HIỂN THỊ của chuyên khoa ("Tim mạch", xem mucMeta.ts)
                 // nên đổi khoa thật sự đổi kết quả so khớp. Kiểm bằng chính bản ghi MỚI (bangMoi):
                 // `bang` trong closure vẫn là bản cũ, so khớp nó sẽ ra kết luận sai. Truy vấn rỗng
                 // luôn khớp nên nhánh này tự im lặng khi chưa lọc gì.
-                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
+                if (!mucKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
               onLuuTen={(tenMoi) => {
                 setDangSuaTenId(null)
@@ -2664,7 +2665,7 @@ export function DanhSachBang({
                 // tiếp — nhẹ hơn hai ca kia (ô đổi tên đã tự đóng ở dòng đầu callback nên không có
                 // panel nào bị giật mất) nhưng vẫn là "vừa lưu xong thì mất thẻ". Cùng cách vá với
                 // chip lọc ngay trên: xoá trắng bộ lọc khiến bảng đang thao tác rớt khỏi lưới.
-                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
+                if (!mucKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
               onXoa={() => {
                 if (dangXacNhanXoaId !== bang.id) {
@@ -2683,7 +2684,7 @@ export function DanhSachBang({
               onThemTag={(tag) => {
                 const hienCo = bang.tags ?? []
                 // So khớp CHUẨN HOÁ (bỏ dấu, không phân biệt hoa/thường — cùng hàm `normalizeSearch`
-                // dùng cho tìm kiếm, `boardMeta.ts`), không phải `Array.includes` thô: trước bản vá
+                // dùng cho tìm kiếm, `mucMeta.ts`), không phải `Array.includes` thô: trước bản vá
                 // này, "Tim mạch" rồi "tim mạch" (gõ lại, quên đã có) thành hai tag khác nhau, hai
                 // chip gần giống hệt nhau xếp cạnh nhau không cách nào hợp nhất ngoài xoá thủ công
                 // (critique 2026-09-03 lượt 6, P3). Giữ NGUYÊN VĂN bản gõ trước (không ép về tag đã
@@ -2698,7 +2699,7 @@ export function DanhSachBang({
                 // Panel sửa tag đang mở ngay dưới con trỏ, xoá xong là bảng thôi khớp truyVan → thẻ
                 // rớt khỏi lưới kéo panel unmount cùng lượt render, người dùng mất chỗ đang thao tác
                 // giữa chừng. Cùng cách vá với chip lọc ở onDoiChuyenKhoa phía trên.
-                if (!bangKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
+                if (!mucKhopTimKiem(bangMoi, truyVan)) setTruyVan('')
               }}
             />
           ))}

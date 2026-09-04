@@ -12,7 +12,7 @@
 // GIEO SẴN BẢNG thay vì bấm "Tạo bảng mới": đường tạo bảng qua giao diện không chạy tới nơi trong
 // happy-dom (bấm xong 8 giây vẫn không có thẻ nào — đã đo, danh sách nút chỉ còn "Tạo bảng mới" và
 // 5 tab). Đó là hạn chế của môi trường kiểm, không phải thứ ca này muốn canh; gieo thẳng một
-// `BangMeta` vào IndexedDB là đúng cùng mẫu hình `edgeless-board-mount.spec.ts` đã dùng.
+// `MucMeta` vào IndexedDB là đúng cùng mẫu hình `edgeless-board-mount.spec.ts` đã dùng.
 import 'fake-indexeddb/auto'
 
 import { act, createElement } from 'react'

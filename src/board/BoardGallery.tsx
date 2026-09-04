@@ -5,8 +5,8 @@
 // thật khi người dùng bấm quay lại danh sách, vì D4 đã đảm bảo không mất nội dung.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { doiGhiAnhXongNeuCo } from './boardMeta'
-import { DanhSachBang, TheTrong, type BoardOpenOrigin } from './DanhSachBang'
+import { doiGhiAnhXongNeuCo } from './mucMeta'
+import { LuoiMuc, TheTrong, type BoardOpenOrigin } from './LuoiMuc'
 import { EdgelessBoard, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
 
@@ -58,7 +58,7 @@ export function BoardGallery({
   onDangMoBang?: (dangMo: boolean) => void
 }) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
-  // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm (xem BoardOpenOrigin, DanhSachBang.tsx) —
+  // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm (xem BoardOpenOrigin, LuoiMuc.tsx) —
   // null khi bảng được mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn app, moBangYeuCau
   // ngay dưới): không có thẻ nào để đo, chuyển cảnh rơi về .board-in cũ (scale-fade chung chung).
   const [openOrigin, setOpenOrigin] = useState<BoardOpenOrigin | null>(null)
@@ -102,9 +102,9 @@ export function BoardGallery({
   }, [moBangYeuCau, onMoBangYeuCauXong])
   // true trong khoảng ngắn giữa lúc bấm "quay lại" và lúc lưới danh sách THẬT SỰ được phép mount —
   // xem chú thích dài ở nút "quay lại" bên dưới để hiểu vì sao cần một cờ riêng thay vì mount
-  // DanhSachBang NGAY khi openBoardId về null.
+  // LuoiMuc NGAY khi openBoardId về null.
   const [dangDong, setDangDong] = useState(false)
-  // "vừa đóng một bảng" — cho DanhSachBang biết để chạy .board-out đúng MỘT lần khi nó tái xuất
+  // "vừa đóng một bảng" — cho LuoiMuc biết để chạy .board-out đúng MỘT lần khi nó tái xuất
   // hiện. KHÔNG dùng chung với dangDong (dangDong canh cuộc đua ảnh xem trước, không liên quan
   // animation) — hai mối quan tâm tách biệt dù cùng bật/tắt gần nhau trong thời gian.
   const [vuaDongBang, setVuaDongBang] = useState(false)
@@ -318,7 +318,7 @@ export function BoardGallery({
   return (
     <>
       {!openBoardId && !dangDong && dangHienTab && (
-        <DanhSachBang
+        <LuoiMuc
           onMoBang={(id, origin, ten) => {
             setOpenOrigin(origin ?? null)
             setOpenTen(ten ?? null)
@@ -366,6 +366,7 @@ export function BoardGallery({
         >
           <EdgelessBoard
             boardId={openBoardId}
+            loai="so-do"
             khoa={openOrigin?.chuyenKhoa}
             onReady={() => setDangChoCanvas(false)}
             onXuatSanSang={nhanXuatSanSang}
@@ -433,9 +434,9 @@ export function BoardGallery({
               setTimeout(() => setDangGapLai(null), giamChuyenDong ? 10 : 260)
 
               // Tháo EdgelessBoard TRƯỚC (kích hoạt cleanup effect của nó — nơi bắt đầu lượt ghi ảnh
-              // xem trước, xem EdgelessBoard.tsx), nhưng CHƯA cho DanhSachBang mount lại ngay: cờ
+              // xem trước, xem EdgelessBoard.tsx), nhưng CHƯA cho LuoiMuc mount lại ngay: cờ
               // `dangDong` giữ cả hai nhánh vắng mặt (màn hình trống một nhịp rất ngắn) để tránh
-              // đúng cuộc đua đã đo được — nếu DanhSachBang mount CÙNG một lượt commit với việc
+              // đúng cuộc đua đã đo được — nếu LuoiMuc mount CÙNG một lượt commit với việc
               // EdgelessBoard unmount, lượt đọc-lúc-mount của nó hầu như luôn xong TRƯỚC lượt ghi
               // (đọc đơn so với đọc-rồi-ghi), nên thẻ hiện bản ghi CŨ mãi tới lần mount SAU.
               setDangDong(true)
@@ -452,7 +453,7 @@ export function BoardGallery({
               // setTimeout(0) này của ta được gọi.
               await new Promise((r) => setTimeout(r, 0))
               // Giờ mới đợi lượt ghi (nếu cleanup ở trên đã kích hoạt một lượt) — có hạn giờ riêng
-              // (xem boardMeta.ts), không chặn vô thời hạn nếu việc ghi có vấn đề.
+              // (xem mucMeta.ts), không chặn vô thời hạn nếu việc ghi có vấn đề.
               await doiGhiAnhXongNeuCo()
               setDangDong(false)
             }}
@@ -460,7 +461,7 @@ export function BoardGallery({
             className="mind-focus-ring"
             // 44×44 (chuẩn tối thiểu cho ngón tay) — cũ 36×36 dưới mức khuyến nghị, xem critique
             // mục "Vùng chạm dưới chuẩn". Đây là một nút tròn thật (có nền/bóng), khác nút "⋯" của
-            // DanhSachBang.tsx (chỉ ba dấu chấm, không nền) — phóng to cả hình tròn thấy được luôn,
+            // LuoiMuc.tsx (chỉ ba dấu chấm, không nền) — phóng to cả hình tròn thấy được luôn,
             // không cần tách vùng chạm khỏi vùng thị giác.
             // Shadow đổi từ rgba(0,0,0,.2) trần sang --c-shadow/--c-shadow-glow (critique
             // 2026-08-25, mục "Chrome chung chung phá vỡ ảo giác vật liệu").
@@ -613,7 +614,7 @@ export function BoardGallery({
             </div>
           )}
 
-          {/* Dòng kết quả xuất — cùng token/hình dạng dải "Hoàn tác" của DanhSachBang (--c-toast-*,
+          {/* Dòng kết quả xuất — cùng token/hình dạng dải "Hoàn tác" của LuoiMuc (--c-toast-*,
               bottom 10, left/right 12, rounded-2xl). Không nút hành động, không thanh đếm. */}
           {thongBaoXuat && (
             <div

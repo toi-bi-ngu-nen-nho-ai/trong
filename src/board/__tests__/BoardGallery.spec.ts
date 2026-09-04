@@ -7,15 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { capNhatSauKhiRoiBang, type BangMeta } from '../boardMeta'
+import { capNhatSauKhiRoiMuc, type MucMeta } from '../mucMeta'
 import { BoardGallery } from '../BoardGallery'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 
 // Ghi thẳng qua idb.ts thay vì đi qua UI/hook — file này canh hành vi ĐIỀU HƯỚNG của BoardGallery
-// (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở DanhSachBang.spec.ts).
-function taoBangGia(ten: string): BangMeta {
+// (mount/unmount/ẩn), không phải hành vi tạo bảng (đã canh riêng ở LuoiMuc.spec.ts).
+function taoBangGia(ten: string): MucMeta {
   const bayGio = Date.now()
-  const meta: BangMeta = {
+  const meta: MucMeta = {
     id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`,
     ten,
     taoLuc: bayGio,
@@ -32,16 +32,16 @@ function taoBangGia(ten: string): BangMeta {
 // Giả EdgelessBoard thật (chunk nặng, cần DOM canvas) bằng một component tối giản có thể quan sát
 // được prop boardId — đủ để canh ĐÚNG hành vi điều hướng/ẩn-hiện mà file này chịu trách nhiệm,
 // không lặp lại phạm vi của edgeless-board-mount.spec.ts. Cleanup effect gọi thẳng
-// capNhatSauKhiRoiBang() thật (cùng module boardMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
+// capNhatSauKhiRoiMuc() thật (cùng module mucMeta.ts mà BoardGallery.tsx dùng, không mock riêng) —
 // mô phỏng ĐÚNG thời điểm lượt ghi metadata bắt đầu (lúc unmount, xem EdgelessBoard.tsx thật),
 // để các ca kiểm dưới đây canh được đúng cuộc đua giữa lượt ghi đó và lượt đọc-lúc-mount của
-// DanhSachBang — không cần dựng canvas/BlockSuite thật.
+// LuoiMuc — không cần dựng canvas/BlockSuite thật.
 // `../diTruBangCu` KHÔNG mock ở đây (vẫn đúng như trước) — giờ nó chỉ tự `import()` khi
 // `dangHienTab` true VÀ cờ localStorage "đã chạy" chưa được đặt (xem BoardGallery.tsx), nên chunk
 // nặng đó chỉ thật sự tải NHIỀU NHẤT một lần cho cả file này, không phải mỗi lượt mount như trước
 // lượt sửa D13. Không thêm mock riêng vì các ca kiểm dưới đây vẫn xanh và đủ nhanh mà không cần.
 // Chuỗi mà "bảng giả" ghi vào noiDungTimKiem lúc unmount — cố ý KHÔNG xuất hiện trong tên bảng,
-// nên tìm thấy nó nghĩa là lượt mount lại của DanhSachBang đã đọc được bản ghi MỚI.
+// nên tìm thấy nó nghĩa là lượt mount lại của LuoiMuc đã đọc được bản ghi MỚI.
 const NOI_DUNG_SAU_KHI_ROI = 'suy tim ef giam'
 
 // Hàm xuất giả mà "EdgelessBoard giả" đẩy lên BoardGallery qua onXuatSanSang — module-scope để ca
@@ -62,7 +62,7 @@ vi.mock('../index', () => ({
       onXuatSanSang?.(xuatGia)
       return () => {
         onXuatSanSang?.(null)
-        void capNhatSauKhiRoiBang(boardId, true, NOI_DUNG_SAU_KHI_ROI)
+        void capNhatSauKhiRoiMuc(boardId, true, NOI_DUNG_SAU_KHI_ROI)
       }
     }, [boardId, onXuatSanSang])
     return createElement('div', { 'data-testid': 'bang-gia', 'data-board-id': boardId }, 'BẢNG GIẢ')
@@ -143,7 +143,7 @@ describe('BoardGallery', () => {
   // hoạt ảnh line-drawing nằm DƯỚI lớp phủ nên không bao giờ thấy được ở đường mở-qua-thẻ (đường
   // thường dùng nhất). Lớp phủ CHÍNH LÀ màn chờ ở đường này, nên nó phải là thứ đang vẽ.
   it('bấm một thẻ bảng → lớp phủ FLIP tự vẽ icon khoa (màn chờ), không phải huy hiệu tĩnh', async () => {
-    // happy-dom không có engine layout nên getBoundingClientRect() trả 0×0, mà DanhSachBang CHỈ
+    // happy-dom không có engine layout nên getBoundingClientRect() trả 0×0, mà LuoiMuc CHỈ
     // dựng origin khi rect có kích thước thật (>0) — không giả rect thì openOrigin là undefined và
     // lớp phủ FLIP không bao giờ render, ca kiểm sẽ đỏ vì lý do sai. Giả đúng một rect có thật.
     const rectThat = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -227,7 +227,7 @@ describe('BoardGallery', () => {
 
   it('bấm quay lại → metadata vừa ghi đã thấy NGAY trên lưới (không phải chờ lượt mount sau)', async () => {
     // Ca kiểm này canh CUỘC ĐUA giữa lượt ghi fire-and-forget lúc rời bảng và lượt đọc-lúc-mount
-    // của DanhSachBang — `doiGhiAnhXongNeuCo()` trong BoardGallery.tsx tồn tại vì nó.
+    // của LuoiMuc — `doiGhiAnhXongNeuCo()` trong BoardGallery.tsx tồn tại vì nó.
     // Trước 2026-08-30 nó quan sát cuộc đua qua ảnh xem trước trên thẻ; ảnh đó đã bị gỡ, nên giờ
     // quan sát qua `noiDungTimKiem` — cũng do đúng lượt ghi đó sinh ra, và vẫn thấy được từ ngoài
     // (ô tìm kiếm). Bản chất cuộc đua không đổi, chỉ đổi cái kính soi.
@@ -263,7 +263,7 @@ describe('BoardGallery', () => {
     expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
   })
 
-  it('bấm quay lại → DanhSachBang tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {
+  it('bấm quay lại → LuoiMuc tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {
     await idbPut(IDB_STORES.boards, taoBangGia('Bảng test'))
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))

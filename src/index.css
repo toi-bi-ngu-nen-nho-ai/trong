@@ -177,7 +177,7 @@
      tới — xem "Untouchable Signal Rule" trong DESIGN.md, giữ nguyên bất kể đổi bảng màu chủ đạo. */
   --c-surface: #ffffff;
   --c-surface-alt: #f6f7fd;
-  /* --c-note: mặt "tờ giấy ghim" của thẻ bảng Mindmap trống (DanhSachBang.tsx, .mind-note-card) —
+  /* --c-note: mặt "tờ giấy ghim" của thẻ bảng Mindmap trống (LuoiMuc.tsx, .mind-note-card) —
      GIẤY LUÔN TRẮNG bất kể theme app sáng/tối (giấy thật không đổi màu theo ánh sáng phòng — đúng
      ảnh tham chiếu lần 2, 2026-08-26, không còn tông kem ấm của ảnh lần 1). Cùng tinh thần "One
      Other Place Rule" đã áp cho --c-accent-2 — Mindmap có vật liệu riêng. */
@@ -289,12 +289,12 @@
      `spec.color` trực tiếp (kèm cả mẹo nối alpha `${spec.color}15` chỉ chạy với hex), rủi ro hồi quy
      cao hơn hẳn phạm vi lượt này. Token này là đường vòng CÓ CHỦ Ý và có phạm vi hẹp: chỉ nơi nào
      tự bọc màu qua color-mix mới ăn theo (hiện là chấm khoa ở dải chip + bảng chọn của
-     DanhSachBang.tsx). Trên nền #14162c, #5b6470 (Sinh lý) và #7a6300 (Dược lâm sàng) gần như chìm
+     LuoiMuc.tsx). Trên nền #14162c, #5b6470 (Sinh lý) và #7a6300 (Dược lâm sàng) gần như chìm
      hẳn; nâng 34% về phía --c-khoa-nang-toi kéo chúng lên mức đọc được mà vẫn giữ nguyên sắc để
      người dùng nhận ra cùng một khoa giữa hai chế độ. 0% ở bản sáng = không đụng gì tới màu gốc. */
   --c-khoa-nang: 0%;
   --c-khoa-nang-toi: #ffffff;
-  /* Dải "Hoàn tác" sau khi xoá mềm một bảng (DanhSachBang.tsx). CỐ TÌNH không đổi theo sáng/tối —
+  /* Dải "Hoàn tác" sau khi xoá mềm một bảng (LuoiMuc.tsx). CỐ TÌNH không đổi theo sáng/tối —
      giống --c-note, đây là một vật thể chất liệu cố định: một tấm thẻ tối nổi hẳn trên mọi nền ở
      cả hai theme, để hành động phục hồi cuối cùng luôn đọc ra ngay. Trước đây nền là
      rgba(15,23,42,.94) viết cứng tại chỗ (vi phạm "mọi màu là token") và nút "Hoàn tác" tô
@@ -861,7 +861,7 @@ html.theme-shift * {
 }
 /* Lớp phủ ảnh xem trước của thẻ, che canvas cho tới khi EdgelessBoard báo sẵn sàng (onReady) —
    người dùng thấy đúng tấm ảnh vừa bấm phóng to liền mạch, không phải canvas trống xuất hiện đột
-   ngột. object-fit: cover khớp cách ảnh xem trước được vẽ trong DanhSachBang.tsx.
+   ngột. object-fit: cover khớp cách ảnh xem trước được vẽ trong LuoiMuc.tsx.
    -hide LẬT NHƯ GIỞ MỘT TRANG GIẤY (overdrive 2026-08-26, Hướng 2 "Cổng chuyển cảnh vật liệu") thay
    vì chỉ mờ dần phẳng — bản lề bên trái (transform-origin: left), perspective cục bộ đặt ngay trong
    transform (không cần đụng ancestor). Đây là MỘT PHẦN của cơ chế continuity đã được gate reduced-
@@ -948,7 +948,7 @@ html.theme-shift * {
      "nếp gấp giấy sơ sài, thô cứng, không có mềm mại, khuôn giấy cứng ngắc"). Đường cong mới bo tròn
      dần từ mép trái xuống mép dưới, ôm sát góc thật của tờ giấy — dáng một mẩu giấy nhỏ tự cuộn lên,
      không phải một tam giác hình học. Kích thước CỐ ĐỊNH (không còn % + max-width) — nay `.mind-note-
-     card` đã có cỡ ổn định trong một khoảng hẹp (lưới auto-fill 110-140px, xem DanhSachBang.tsx),
+     card` đã có cỡ ổn định trong một khoảng hẹp (lưới auto-fill 110-140px, xem LuoiMuc.tsx),
      không còn cần co giãn theo cỡ thẻ như hồi thẻ có thể phình tới 900px+. path() dùng toạ độ px
      TUYỆT ĐỐI theo đúng hộp 30×30 khai báo ngay dưới — không tự co giãn theo box như polygon(%), nên
      PHẢI giữ nguyên cặp width/height này nếu đổi path. */
@@ -991,7 +991,7 @@ html.theme-shift * {
   );
 }
 
-/* Ô "+" tạo bảng mới — dùng ở CẢ HAI chỗ (trạng thái rỗng và cuối lưới, DanhSachBang.tsx), gộp về
+/* Ô "+" tạo bảng mới — dùng ở CẢ HAI chỗ (trạng thái rỗng và cuối lưới, LuoiMuc.tsx), gộp về
    một lớp thay vì hai khối style nội tuyến chép tay song song nhau như trước.
    `1px` thay `2px`: viền đứt của trình duyệt vẽ nét và khoảng hở TỈ LỆ THUẬN với độ dày viền, nên
    2px cho nét dài ~6px — đọc thành mấy vạch to thưa thớt, không ra "đường cắt rời". Hạ xuống 1px
@@ -1041,7 +1041,7 @@ html.theme-shift * {
   background: rgba(var(--c-accent-2-rgb, 184, 25, 111), 0.05);
 }
 
-/* Lưới thẻ Board Gallery (DanhSachBang.tsx: cả lưới thật lẫn LuoiChoTai giữ chỗ lúc tải dùng chung
+/* Lưới thẻ Board Gallery (LuoiMuc.tsx: cả lưới thật lẫn LuoiChoTai giữ chỗ lúc tải dùng chung
    lớp này, để bộ khung không nhảy cỡ khi dữ liệu thật thay thế). Cột dùng 1fr (không phải minmax cố
    định như trước) nên thẻ DÃN theo bề ngang khung chứa thay vì đứng yên ở cỡ tối đa 140px — phản hồi
    thật 2026-08-28: "không gian bảng bị ép hẹp hai bên trên PC/iPad, bảng nên to hơn". Mặc định (viết
@@ -1082,7 +1082,7 @@ html.theme-shift * {
   }
 }
 
-/* Cột nội dung co giãn của Board Gallery (DanhSachBang.tsx) — CĂN GIỮA, trần 1040px. Trần nới từ
+/* Cột nội dung co giãn của Board Gallery (LuoiMuc.tsx) — CĂN GIỮA, trần 1040px. Trần nới từ
    720px cũ (2026-08-28, phản hồi thật: "không gian bảng bị ép hẹp hai bên") vì .mind-board-grid giờ
    dùng cột 1fr co GIÃN theo bề ngang khung chứa thay vì cỡ ô cố định — trần hẹp cũ ép cả 4 thẻ dừng
    lại ở ~140px trên PC/iPad rộng dù còn thừa chỗ. 1040px cho thẻ ~240px ở 4 cột (1040 - 32px padding
@@ -1094,7 +1094,7 @@ html.theme-shift * {
 }
 
 /* Thẻ "rơi vào chỗ" lúc lưới vào màn — biến thể của .rise-in nhưng dừng ở góc nghiêng NGHỈ của
-   từng thẻ (--tilt, xem nghiengOnDinh trong DanhSachBang.tsx) thay vì luôn thẳng đứng. Dùng lại
+   từng thẻ (--tilt, xem nghiengOnDinh trong LuoiMuc.tsx) thay vì luôn thẳng đứng. Dùng lại
    NGUYÊN VẸN cơ chế --i/28ms/cap-8 mà .rise-in đã có — không phát minh cách stagger khác. */
 @keyframes cardSettle {
   from { opacity: 0; transform: translateY(10px) scale(0.96); }
@@ -1116,7 +1116,7 @@ html.theme-shift * {
   animation: cardPlop 0.34s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-/* Nháy xác nhận khi HUỶ đổi tên bảng bằng Escape (DanhSachBang.tsx, ten-bang-vua-huy) — Escape hoàn
+/* Nháy xác nhận khi HUỶ đổi tên bảng bằng Escape (LuoiMuc.tsx, ten-bang-vua-huy) — Escape hoàn
    tác đúng tên cũ nhưng trước bản vá này không có gì cho người gõ nhanh THẤY việc huỷ đã xảy ra, chỉ
    có thể tin (critique 2026-09-02 lượt 3, P3). Một cú "settle" rất ngắn — không phải chào mừng vật gì
    mới (khác .card-plop), chỉ xác nhận "đã quay lại" — cùng họ easing lò xo dùng xuyên app. Trang trí
@@ -1133,7 +1133,7 @@ html.theme-shift * {
 
 /* Thẻ bị xoá trượt/rút khỏi chồng thay vì biến mất tức thì. forwards giữ trạng thái cuối (opacity
    0) trong khoảng chờ ngắn trước khi component thật sự gỡ nó khỏi DOM (XOA_TRE_MS trong
-   DanhSachBang.tsx).
+   LuoiMuc.tsx).
    KHÔNG dùng var(--tilt) ở đây — SỬA THEO RULING review Task 2 (ledger): .the-bang-vat (nút con)
    đã có rotate(var(--tilt)) CỐ ĐỊNH suốt vòng đời; nếu outer div này CŨNG animate rotate(var(--tilt)
    ...) thì hai rotate lồng nhau cộng dồn (nghiêng gấp đôi rồi giật khi animation hết fill-mode —
@@ -1147,7 +1147,7 @@ html.theme-shift * {
 /* 0.2s + easing chỉ tăng tốc (cubic-bezier(0.4,0,1,1)) đọc như "có như không có" — gần như đứng yên
    nửa đầu rồi vụt biến mất (debug 2026-08-26, test tay). Đổi sang 0.4s + easing chuẩn hai đầu mượt
    (material "standard" — chậm-nhanh-chậm) để mắt kịp thấy cả quãng đường trượt/xoay/co lại, không
-   chỉ một cú giật cuối. QUAN TRỌNG: XOA_TRE_MS trong DanhSachBang.tsx PHẢI khớp 400ms này — nó là
+   chỉ một cú giật cuối. QUAN TRỌNG: XOA_TRE_MS trong LuoiMuc.tsx PHẢI khớp 400ms này — nó là
    thời gian component đợi trước khi thật sự đánh dấu xoá mềm, lệch với animation sẽ cắt ngang giữa
    chừng (jump-cut) hoặc để khoảng trắng chết sau khi animation đã xong. */
 .card-slide-out {
@@ -1194,7 +1194,7 @@ html.theme-shift * {
   pointer-events: none;
 }
 
-/* LỚP C (chuột/bút mảnh) — nghiêng nhẹ theo vị trí con trỏ khi hover. JS (DanhSachBang.tsx,
+/* LỚP C (chuột/bút mảnh) — nghiêng nhẹ theo vị trí con trỏ khi hover. JS (LuoiMuc.tsx,
    datNghiengTheoDiem()) cập nhật --con-tro-x/--con-tro-y qua pointermove; nếu JS không chạy (hoặc
    trên cảm ứng, nơi media query dưới đây không khớp), thẻ vẫn dùng đúng .the-bang-vat:hover tĩnh
    của Task 1 — không có gì hỏng nếu bỏ qua lớp này. Tương đương cho CON TRỎ THÔ (cảm ứng) đứng ở
@@ -1298,7 +1298,7 @@ html.theme-shift * {
   animation: toastInFull 0.28s cubic-bezier(0.34, 1.45, 0.64, 1);
 }
 
-/* Thanh đếm ngược của dải "Hoàn tác" — rút cạn dần trong đúng HOAN_TAC_XOA_MS (DanhSachBang.tsx)
+/* Thanh đếm ngược của dải "Hoàn tác" — rút cạn dần trong đúng HOAN_TAC_XOA_MS (LuoiMuc.tsx)
    để người dùng đo được còn bao lâu trước khi dải tự tắt, thay vì biến mất không báo trước đúng
    lúc họ có thể bị gọi đi giữa ca trực. scaleX (transform-origin: left) rẻ hơn animate width.
    Đây là TÍN HIỆU TRẠNG THÁI, không phải trang trí — nên KHÔNG nằm trong khối
@@ -1356,7 +1356,7 @@ html.theme-shift * {
   }
 }
 
-/* Menu "⋯" / panel chuyên khoa-tag của một thẻ bảng (DanhSachBang.tsx) — trên màn hẹp, ghim xuống
+/* Menu "⋯" / panel chuyên khoa-tag của một thẻ bảng (LuoiMuc.tsx) — trên màn hẹp, ghim xuống
    ĐÁY màn hình (bottom sheet) thay vì neo cứng top:30 RELATIVE TỚI THẺ: một thẻ ở hàng trên cùng
    của lưới dài mở panel ngay gần rìa trên màn hình, ngoài tầm ngón cái thoải mái khi cầm điện thoại
    một tay (critique 2026-08-26). !important cần thiết vì các thuộc tính vị trí được đặt qua inline
@@ -1377,14 +1377,14 @@ html.theme-shift * {
     width: auto !important;
   }
 
-  /* KHÔNG có luật bottom-sheet cho `.mind-menu-compact` (menu "⋯" của DanhSachBang.tsx). Ở đây
+  /* KHÔNG có luật bottom-sheet cho `.mind-menu-compact` (menu "⋯" của LuoiMuc.tsx). Ở đây
      TỪNG có một luật ghim nó xuống đáy màn hình như panel chuyên khoa/tag ngay trên, với lý do "luôn
      trong tầm ngón cái" (critique 2026-08-26). Gỡ hẳn 2026-08-30 sau khi đo trên iPhone 375×812:
      bấm "⋯" của thẻ hàng đầu (nút ở y=196) thì menu hiện ở y=585 — cách nút 345px, mép dưới chạm
      đúng mép trên thanh nav. Menu mất liên hệ với thẻ đã mở nó, mà đây là menu CÓ mục "Xoá": trên
      lưới nhiều thẻ, không còn gì cho biết sắp xoá bảng nào (phản hồi chủ dự án: lỗi RẤT NẶNG).
      Menu giờ neo vào thẻ ở mọi bề rộng và tự LẬT LÊN TRÊN khi dưới hết chỗ — logic đo nằm ở
-     `useLayoutEffect` trong DanhSachBang.tsx, không phải ở CSS, vì nó cần chiều cao thật của menu.
+     `useLayoutEffect` trong LuoiMuc.tsx, không phải ở CSS, vì nó cần chiều cao thật của menu.
      Panel chuyên khoa/tag phía trên GIỮ bottom-sheet: nó có select + dải chip + ô nhập, thật sự cần
      bề ngang mà một menu neo-vào-thẻ 161px không cấp được. */
 }
@@ -1410,7 +1410,7 @@ html.theme-shift * {
   .card-plop,
   .card-slide-out,
   .empty-breathe,
-  /* .screen-transition (fadeSlideIn, DanhSachBang.tsx) sót khỏi danh sách này — người bật giảm
+  /* .screen-transition (fadeSlideIn, LuoiMuc.tsx) sót khỏi danh sách này — người bật giảm
      chuyển động vẫn thấy đúng một hiệu ứng trượt-mờ 0,22s mỗi lần vào màn Mindmap (critique
      2026-09-01, P3). Cùng khối, không cần rule riêng. */
   .screen-transition {
@@ -1471,7 +1471,7 @@ html.theme-shift * {
   color: var(--c-text-placeholder, #5f628a);
 }
 
-/* Hàng chip lọc chuyên khoa (DanhSachBang.tsx, role="group") — XUỐNG HÀNG, không cuộn ngang.
+/* Hàng chip lọc chuyên khoa (LuoiMuc.tsx, role="group") — XUỐNG HÀNG, không cuộn ngang.
    Lịch sử: hàng này từng bung tới 13 chip (scrollWidth 1122px so với clientWidth 375px trên iPhone)
    nên critique 2026-09-01 P2 dán fade tĩnh hai mép làm dấu hiệu "còn nội dung ngoài khung" — chính
    comment cũ ghi rõ đó là "vá TẠM", và critique 2026-09-03 đã thay bằng cơ chế thật: mọi khoa ngoài
@@ -1489,7 +1489,7 @@ html.theme-shift * {
   row-gap: 6px;
 }
 
-/* Ô tích chọn trong panel "Đã xoá gần đây" (DanhSachBang.tsx). Trước đây là <input type=checkbox>
+/* Ô tích chọn trong panel "Đã xoá gần đây" (LuoiMuc.tsx). Trước đây là <input type=checkbox>
    NGUYÊN BẢN của trình duyệt + `accentColor` — mà accentColor CHỈ tô trạng thái ĐÃ TÍCH; ô CHƯA
    tích vẫn do hệ điều hành vẽ, nên ở bản tối Chromium sơn ra một khối xám-nâu không thuộc bảng màu
    nào của app, đứng ngay đầu mỗi dòng của khay tối #1b1e3d — đọc thành "ô bị vô hiệu hoá" hơn là
@@ -1543,7 +1543,7 @@ html.theme-shift * {
   min-height: 100%;
 }
 
-/* Lưới danh sách bảng (DanhSachBang.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng
+/* Lưới danh sách bảng (LuoiMuc.tsx) + nút "quay lại" (BoardGallery.tsx) — cùng lý do và cùng
    giá trị đã dùng cho .scr-dose ở trên: input:focus tắt outline mặc định toàn app, không có gì thay
    thế ở màn này trước đây (không nằm trong 3 nơi DESIGN.md liệt kê có vòng focus riêng). Đặt tên
    riêng theo chức năng (không neo theo `.scr-dose`, màn khác hẳn) để dùng lại được cho mọi nút rời

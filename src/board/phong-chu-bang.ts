@@ -15,7 +15,7 @@
 //
 // `FoundationViewExtension` chỉ đăng ký `FontConfigExtension` KHI được truyền `options.fontConfig`
 // (affine/foundation/src/view.ts). Ta gọi `viewManager.get('edgeless')` không kèm options, nên
-// không ai truyền — cùng lớp lỗi với `che-do-edgeless.ts`: một mẩu cấu hình mà vỏ app của AFFiNE tự
+// không ai truyền — cùng lớp lỗi với `che-do-co-dinh.ts`: một mẩu cấu hình mà vỏ app của AFFiNE tự
 // lo, còn vỏ app của ta thì chưa.
 //
 // Đo thật trước khi vá: `document.fonts` có 77 face nhưng TOÀN của app (Plus Jakarta Sans, Space

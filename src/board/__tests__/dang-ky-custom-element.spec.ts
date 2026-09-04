@@ -24,7 +24,7 @@
 import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { describe, expect, it } from 'vitest'
 
-import { viewExtensions } from '../extensions'
+import { layExtensionsEdgeless, layExtensionsTrang, viewExtensions } from '../extensions'
 
 describe('đăng ký custom element từ danh sách view extension', () => {
   it('nạp scope edgeless là các thẻ Lit có mặt trong customElements', () => {
@@ -51,5 +51,92 @@ describe('đăng ký custom element từ danh sách view extension', () => {
     // đăng ký và dòng dưới đỏ ngay — khác với hai kỳ vọng đầu, vốn chỉ đỏ khi mảng bị xoá gần sạch.
     expect(customElements.get('edgeless-zoom-toolbar')).toBeDefined()
     expect(customElements.get('edgeless-dragging-area-rect')).toBeDefined()
+  })
+
+  it('nhóm 1 page mode: đăng ký đủ thẻ Lit', () => {
+    // `layExtensionsTrang()` gọi `viewManager.get('page')` — chạy chuỗi setup → effect → effects()
+    // cho MỌI provider trong `viewExtensions` (không riêng những cái đăng ký extension cho scope
+    // 'page'; `effect()` không nhận tham số scope, xem ext-loader/src/view-provider.ts), tức
+    // `customElements.define(...)` cho toàn bộ thẻ Lit. Đây là đường THẬT `TrangBaiViet.tsx` dùng
+    // (extensions.ts), thay vì tự dựng một `ViewExtensionManager` thứ hai như ca trên.
+    layExtensionsTrang()
+
+    // Tên thẻ lấy từ cây vendored (task-10-brief.md Step 2), đổi tiền tố affine- → drt- ở bước
+    // build vendor — TRỪ DocTitle: `fragments/doc-title/src/effects.ts` viết thẳng
+    // `customElements.define('doc-title', DocTitle)`, không có tiền tố affine- nào từ đầu, nên luật
+    // đổi tên `\baffine-` của scripts/doi-ten-vendor.mjs không đụng tới — tên thật ở runtime vẫn là
+    // `doc-title`, y hệt thượng nguồn. Bốn thẻ còn lại ĐỀU có tiền tố affine- gốc nên đổi bình
+    // thường.
+    expect(customElements.get('doc-title'), 'DocTitle').toBeDefined()
+    expect(customElements.get('drt-keyboard-toolbar-widget'), 'KeyboardToolbar').toBeDefined()
+    expect(customElements.get('drt-page-dragging-area-widget'), 'PageDraggingArea').toBeDefined()
+    expect(customElements.get('drt-scroll-anchoring-widget'), 'ScrollAnchoring').toBeDefined()
+    expect(customElements.get('drt-divider'), 'Divider').toBeDefined()
+  })
+
+  it('nhóm 2: đăng ký đủ thẻ Lit', () => {
+    // Tên thẻ tra trực tiếp từ cây vendored (task-11-brief.md Step 1, đã hiệu chỉnh):
+    // - Table: `blocks/table/src/table-block.ts` định danh bằng hằng
+    //   `TableBlockComponentName = 'affine-table'`, effects.ts dùng lại hằng đó → `drt-table`.
+    // - Callout: `blocks/callout/src/effects.ts` viết thẳng chuỗi `'affine-callout'` → `drt-callout`.
+    // - Outline: `fragments/outline/src/outline-panel.ts` định danh bằng hằng
+    //   `AFFINE_OUTLINE_PANEL = 'affine-outline-panel'` → `drt-outline-panel`.
+    // - DataView: `blocks/data-view/src/effects.ts` viết thẳng chuỗi `'affine-data-view'` →
+    //   `drt-data-view`.
+    // Cả bốn đều mang tiền tố affine- gốc nên đổi thành drt- bình thường ở bước build vendor.
+    layExtensionsTrang()
+
+    expect(customElements.get('drt-table'), 'Table').toBeDefined()
+    expect(customElements.get('drt-callout'), 'Callout').toBeDefined()
+    expect(customElements.get('drt-outline-panel'), 'Outline').toBeDefined()
+    expect(customElements.get('drt-data-view'), 'DataView').toBeDefined()
+  })
+
+  it('nhóm 3: đăng ký đủ thẻ Lit', () => {
+    // Tên thẻ tra trực tiếp từ cây vendored (task-12-brief.md Step 1, đã hiệu chỉnh):
+    // - LinkedDoc: `widgets/linked-doc/src/config.ts` định danh bằng hằng
+    //   `AFFINE_LINKED_DOC_WIDGET = 'affine-linked-doc-widget'` → `drt-linked-doc-widget`.
+    // - Bookmark: `blocks/bookmark/src/effects.ts` viết thẳng chuỗi `'affine-bookmark'` →
+    //   `drt-bookmark`.
+    // - Embed: `blocks/embed/src/effects.ts` viết thẳng chuỗi `'affine-embed-figma-block'` →
+    //   `drt-embed-figma-block` (đại diện — gói này còn đăng ký nhiều thẻ embed khác cùng lượt
+    //   effect(), không cần liệt hết).
+    // - EmbedDoc: `blocks/embed-doc/src/effects.ts` viết thẳng chuỗi
+    //   `'affine-embed-linked-doc-block'` → `drt-embed-linked-doc-block`.
+    // - GfxLink: `gfx/link/src/effects.ts` viết thẳng chuỗi `'edgeless-link-tool-button'` — KHÔNG
+    //   mang tiền tố affine- nên luật đổi tên `\baffine-` của scripts/doi-ten-vendor.mjs không đụng
+    //   tới, tên runtime giữ nguyên `edgeless-link-tool-button` (cùng lớp bẫy với `doc-title` ở
+    //   Task 10).
+    layExtensionsTrang()
+
+    expect(customElements.get('drt-linked-doc-widget'), 'LinkedDoc').toBeDefined()
+    expect(customElements.get('drt-bookmark'), 'Bookmark').toBeDefined()
+    expect(customElements.get('drt-embed-figma-block'), 'Embed').toBeDefined()
+    expect(customElements.get('drt-embed-linked-doc-block'), 'EmbedDoc').toBeDefined()
+    expect(customElements.get('edgeless-link-tool-button'), 'GfxLink').toBeDefined()
+  })
+
+  it('nhóm 4: đăng ký đủ thẻ Lit (edgeless)', () => {
+    // Nhóm 4 chỉ phục vụ edgeless (cắt note, tự nối phần tử, panel khung) — gọi
+    // layExtensionsEdgeless(), KHÔNG phải layExtensionsTrang() như ba nhóm trước.
+    // Tên thẻ tra trực tiếp từ cây vendored (task-13-brief.md Step 1, đã hiệu chỉnh):
+    // - NoteSlicer: `widgets/note-slicer/src/note-slicer.ts` định danh bằng hằng
+    //   `NOTE_SLICER_WIDGET = 'note-slicer'` — KHÔNG mang tiền tố affine- nên luật đổi tên
+    //   `\baffine-` của scripts/doi-ten-vendor.mjs không đụng tới, tên runtime giữ nguyên
+    //   `note-slicer` (cùng lớp bẫy với `doc-title` ở Task 10 và `edgeless-link-tool-button` ở
+    //   Task 12 — ba lần liên tiếp trong plan này).
+    // - EdgelessAutoConnect: `widgets/edgeless-auto-connect/src/index.ts` định danh bằng hằng
+    //   `AFFINE_EDGELESS_AUTO_CONNECT_WIDGET = 'affine-edgeless-auto-connect-widget'` →
+    //   `drt-edgeless-auto-connect-widget`.
+    // - FramePanel: `fragments/frame-panel/src/frame-panel.ts` định danh bằng hằng
+    //   `AFFINE_FRAME_PANEL = 'affine-frame-panel'` → `drt-frame-panel`.
+    layExtensionsEdgeless()
+
+    expect(customElements.get('note-slicer'), 'NoteSlicer').toBeDefined()
+    expect(
+      customElements.get('drt-edgeless-auto-connect-widget'),
+      'EdgelessAutoConnect'
+    ).toBeDefined()
+    expect(customElements.get('drt-frame-panel'), 'FramePanel').toBeDefined()
   })
 })
