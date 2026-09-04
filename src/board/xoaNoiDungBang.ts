@@ -16,7 +16,7 @@
 // D13: file này bị gọi từ LuoiMuc.tsx (chunk vỏ app). Import bất cứ thứ gì của BlockSuite vào
 // đây là kéo cả chồng ra khỏi chunk nạp chậm cho mọi người dùng. IndexedDB thuần không phụ thuộc gì.
 
-/** DB nội dung bảng — cùng tên với `TEN_CSDL_BANG` mà EdgelessBoard/diTruBangCu truyền cho DocSource. */
+/** DB nội dung bảng — cùng tên với `TEN_CSDL_BANG` mà mo-doc/diTruBangCu truyền cho DocSource. */
 const TEN_CSDL_BANG = 'drtrong-board'
 
 /** Store và khoá do `IndexedDBDocSource` của thượng nguồn định nghĩa (`sync/src/doc/impl/indexeddb.ts`). */

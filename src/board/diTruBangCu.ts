@@ -16,11 +16,11 @@ import { ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './mu
 const TEN_CSDL_BANG = 'drtrong-board'
 const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 
-// Giống HAN_GIO_MAC_DINH_MS của EdgelessBoard.tsx — 4 giây là hào phóng cho IndexedDB cục bộ (bình
+// Giống HAN_GIO_MAC_DINH_MS của mo-doc.ts — 4 giây là hào phóng cho IndexedDB cục bộ (bình
 // thường xong trong vài chục ms), nhưng vẫn chặn treo vô thời hạn nếu IndexedDB hỏng vĩnh viễn.
 const HAN_GIO_MAC_DINH_MS = 4000
 
-// Bản sao cục bộ của doiCoHanGio() (EdgelessBoard.tsx, không export) — cùng lý do đã ghi ở đầu file
+// Bản sao cục bộ của doiCoHanGio() (mo-doc.ts, không export) — cùng lý do đã ghi ở đầu file
 // cho việc lặp lại cụm TestWorkspace/IndexedDBDocSource/IndexedDBBlobSource: không tách helper dùng
 // chung giữa hai file trong phạm vi lượt sửa này. `waitForSynced()` KHÔNG tự bỏ cuộc khi IndexedDB
 // hỏng vĩnh viễn — DocEngine thử lại mỗi 5 giây vô thời hạn (framework/sync/src/doc/peer.ts,

@@ -160,7 +160,7 @@ export type PhuThuocXuat = {
    * `requestAnimationFrame` và chia lô `maxConcurrentRenders` khối mỗi khung
    * (`framework/std/src/gfx/viewport-element.ts`, `scheduleUpdateChildren`). Một sơ đồ nhiều thẻ
    * cần NHIỀU khung hình mới hiện đủ, và số khung đó không đoán trước được — nên phải kiểm THẲNG
-   * trạng thái muốn có, đúng cách `doiNoiDungToi()` ở EdgelessBoard.tsx đã làm cho subdoc.
+   * trạng thái muốn có, đúng cách `doiNoiDungToi()` ở mo-doc.ts đã làm cho subdoc.
    */
   choKhoiHien: (xong: () => boolean) => Promise<void>
   taiVe: (duLieu: string, tenTep: string) => void

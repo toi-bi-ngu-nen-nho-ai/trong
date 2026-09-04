@@ -99,10 +99,10 @@ describe('taoHoacMoBang — đường cơ bản', () => {
 
     // Mô phỏng ghi dở dang: xoá đúng lượt ghi của SUBDOC 'board' (nội dung khối: page + surface)
     // khỏi kho giả lập, NHƯNG giữ nguyên lượt ghi của ROOT doc (guid 'bs-trong-board' — id truyền
-    // vào TestWorkspace trong EdgelessBoard.tsx, chứa metadata đăng ký doc 'board'). Kết quả giống
+    // vào TestWorkspace trong mo-doc.ts, chứa metadata đăng ký doc 'board'). Kết quả giống
     // hệt một tab bị đóng đúng vào khe giữa hai lượt ghi lúc mở app lần đầu: getDoc('board') vẫn
     // thấy doc (meta đã lưu), nhưng store.root sẽ là null (khối chưa từng được lưu) — đúng ca mà
-    // guard `!store.root` trong taoHoacMoBang() (EdgelessBoard.tsx) phải bắt được, thay vì chỉ dựa
+    // guard `!store.root` trong taoHoacMoBang() (mo-doc.ts) phải bắt được, thay vì chỉ dựa
     // vào "doc có tồn tại trong meta hay không".
     docSources.main.kho.delete('board')
 
