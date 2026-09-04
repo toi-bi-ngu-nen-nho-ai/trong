@@ -2278,7 +2278,14 @@ export function DanhSachBang({
             // Cùng .mind-o-tao-bang + .mind-o-moi với ô "+" ở trạng thái rỗng phía trên — một nguồn
             // sự thật cho viền đứt/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
             className="mind-focus-ring mind-o-tao-bang mind-o-moi"
-            style={{ aspectRatio: '4 / 3', fontSize: 24, opacity: dangChonNhieu ? 0.4 : 1 }}
+            // height:100% (thay aspectRatio:'4/3' cũ) — thẻ .the-bang cao = mặt 4:3 CỘNG hai dòng
+            // tên + mốc thời gian bên dưới, nên ô "+" 4:3-trơn thấp hơn thẻ cùng hàng ~37px, để lại
+            // một khe trống dưới hành động chính ngay ở màn hình đầu, đọc thành lỗi render (critique
+            // 2026-09-03, P3). Grid item mặc định `align-self: stretch` nên bỏ chiều cao cố định là
+            // ô tự cao bằng hàng; display:grid + placeItems:center giữ dấu "+" ở giữa toàn bộ chiều
+            // cao mới đó. minHeight 96 chỉ là sàn cho ca suy biến (một hàng chỉ có ô "+" + một thẻ
+            // tên rất ngắn) — hàng có thẻ thật luôn cao hơn nhiều.
+            style={{ height: '100%', minHeight: 96, display: 'grid', placeItems: 'center', fontSize: 24, opacity: dangChonNhieu ? 0.4 : 1 }}
             aria-label="Tạo bảng mới"
           >
             +

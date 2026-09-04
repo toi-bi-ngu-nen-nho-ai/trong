@@ -1324,6 +1324,23 @@ html.theme-shift * {
   animation: mindSheetUp 0.24s cubic-bezier(0.22, 1.1, 0.36, 1);
 }
 
+/* Nhãn tên bảng đang mở (BoardGallery.tsx) — hiện rõ ~3,3s để định hướng ngay sau khi mở bảng (một
+   cú chạm nhầm thẻ được phát hiện tức thì thay vì phải đọc nội dung canvas — critique 2026-09-03,
+   P3), rồi mờ hẳn để không tranh chỗ với canvas lâu dài. `forwards` giữ opacity 0 sau khi xong.
+   Chạy lại mỗi lần mở bảng khác vì lớp bọc canvas remount theo `key={openBoardId}` ở BoardGallery.
+   Người bật giảm-chuyển-động: nhãn ĐỨNG YÊN hiện suốt (không có rule animation ngoài @media dưới) —
+   một pill nhỏ chồng nút quay-lại đỡ phiền hơn một thứ tự dưng biến mất, và pointer-events:none nên
+   không che thao tác nào. */
+@keyframes boardTitleFade {
+  0%, 60% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .board-title-fade {
+    animation: boardTitleFade 5.5s ease-out forwards;
+  }
+}
+
 /* Menu "⋯" / panel chuyên khoa-tag của một thẻ bảng (DanhSachBang.tsx) — trên màn hẹp, ghim xuống
    ĐÁY màn hình (bottom sheet) thay vì neo cứng top:30 RELATIVE TỚI THẺ: một thẻ ở hàng trên cùng
    của lưới dài mở panel ngay gần rìa trên màn hình, ngoài tầm ngón cái thoải mái khi cầm điện thoại

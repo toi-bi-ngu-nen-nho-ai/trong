@@ -553,6 +553,46 @@ export function BoardGallery({
             )}
           </button>
 
+          {/* Nhãn tên bảng đang mở — định hướng nhẹ. Mọi thẻ trong lưới mang icon CHUYÊN KHOA chứ
+              không mang danh tính bảng (chủ dự án chốt GIỮ mặt thẻ icon — critique 2026-09-03 P1),
+              và khi bảng đã mở thì chrome CHỈ có hai nút tròn quay-lại/xuất, không tên/breadcrumb —
+              một cú chạm nhầm thẻ chỉ phát hiện được bằng cách đọc nội dung canvas (critique
+              2026-09-03 P3). Pill này nằm giữa hai nút, cùng `top`, mờ hẳn sau ~3s (.board-title-fade
+              ở index.css) như tiêu đề video để không tranh chỗ với canvas lâu dài. pointer-events
+              none: không bao giờ chặn thao tác canvas bên dưới. aria-hidden: nhắc lại thị giác thuần
+              tuý, người dùng trình đọc màn hình định hướng thẳng trên canvas. Chỉ render khi mở qua
+              một thẻ (onMoBang truyền `ten` → openTen); mở từ kết quả tìm toàn app không có tên để
+              hiện, chấp nhận được. */}
+          {openTen && (
+            <div
+              aria-hidden="true"
+              className="board-title-fade"
+              style={{
+                position: 'absolute',
+                top: 'calc(var(--safe-top, 0px) + 11px)',
+                left: 'calc(var(--safe-left, 0px) + 61px)',
+                maxWidth: 'calc(100% - var(--safe-left, 0px) - var(--safe-right, 0px) - 122px)',
+                zIndex: 19,
+                height: 30,
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 12px',
+                borderRadius: 999,
+                background: 'var(--c-surface, #fff)',
+                border: '1px solid var(--c-line, #d9ddf4)',
+                boxShadow: '0 1px 4px var(--c-shadow), var(--c-shadow-glow)',
+                pointerEvents: 'none',
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: 'var(--c-text, #12142b)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {openTen}
+            </div>
+          )}
           {/* LỚP CHE suốt lượt xuất. Khi còn thẻ ghi chú chưa render (bị cull vì nằm ngoài khung),
               lượt xuất phải fit khung nhìn rồi trả lại — bảng thu nhỏ hết cỡ rồi nhảy về, đọc
               thành "màn hình cứ nhấp nháy" (phản hồi thật 2026-08-31). Lớp này ĐỤC (không phải mờ)
