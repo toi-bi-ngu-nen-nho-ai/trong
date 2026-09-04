@@ -9,7 +9,7 @@
 // NGUYÊN NHÂN CƠ CHẾ CHƯA XÁC ĐỊNH.
 //
 // Ca kiểm này ĐÃ TỪNG xác nhận thêm việc đổi chủ đề có lan xuống thuộc tính `data-theme` trên chính
-// `.drt-edgeless-viewport` (nơi EdgelessBoard.tsx:317 gắn state `chuDe`) hay không. Lượt đo ĐẦU
+// `.drt-edgeless-viewport` (nơi EdgelessBoard.tsx:517 gắn state `chuDe`) hay không. Lượt đo ĐẦU
 // TIÊN: applyTheme('dark') gọi đúng mọi listener, <html> đúng data-theme="dark" — nhưng thuộc tính
 // trên viewport KHÔNG đổi, kể cả chờ 5000ms.
 //
@@ -24,7 +24,7 @@
 //
 // ĐÍNH CHÍNH (review toàn nhánh bắt được): bản trước của đoạn này kết luận "do tải máy" — SAI Ở CHỖ
 // KHẲNG ĐỊNH MỘT CƠ CHẾ CHƯA CHỨNG MINH. Đọc lại toàn bộ đường dữ liệu (`theme.ts:104` →
-// `EdgelessBoard.tsx:233-236,317`): applyTheme() → lặp gọi listener → setChuDe() → re-render → gắn
+// `EdgelessBoard.tsx:197,200,517`): applyTheme() → lặp gọi listener → setChuDe() → re-render → gắn
 // thuộc tính là một chuỗi HOÀN TOÀN ĐỒNG BỘ, không rAF/setTimeout/I-O — "tải máy" là lời giải thích
 // hợp lý cho các đường ĐUA THẬT khác của dự án (rAF, IndexedDB, timeout — ba lớp giới hạn đã ghi ở
 // Step 2/4/5), nhưng KHÔNG có cơ chế rõ ràng để tải máy ảnh hưởng một chuỗi gọi hàm đồng bộ bên

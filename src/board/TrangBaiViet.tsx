@@ -95,6 +95,12 @@ export function TrangBaiViet({
         onReady?.()
       })
       .catch((loi) => {
+        // Cùng bảo vệ như nhánh `.then()` ngay trên và như song sinh `EdgelessBoard.tsx:380`
+        // (`if (huyBo) return`): component có thể đã tháo trong lúc `taoHoacMoDoc()` còn chạy. React
+        // 18 không ném khi setState sau unmount, nên đây không phải lỗi — nhưng thiếu nó thì một
+        // lượt huỷ đúng lúc mở lỗi vẫn ghi một dòng `console.error` cho màn hình không còn ai xem,
+        // và lời hứa "tháo rồi thì không làm gì nữa" của effect này thành nửa vời.
+        if (daThao) return
         console.error('Không mở được bài viết:', loi)
         setDangMo(false)
       })

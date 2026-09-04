@@ -79,7 +79,7 @@ describe('mauHueChongTrung', () => {
   })
 })
 
-describe('DanhSachBang', () => {
+describe('LuoiMuc', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -1164,7 +1164,7 @@ describe('DanhSachBang', () => {
   })
 })
 
-describe('DanhSachBang — sửa chuyên khoa/tag', () => {
+describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -1536,7 +1536,7 @@ describe('DanhSachBang — sửa chuyên khoa/tag', () => {
   })
 })
 
-describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
+describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -2005,7 +2005,7 @@ describe('DanhSachBang — ô tìm kiếm nội bộ', () => {
 // vẫn mời tạo bảng mới). Cả ba đều là lỗi TRẠNG THÁI/THỨ TỰ, kiểm được bằng máy — khác hai phát
 // hiện còn lại của cùng lượt critique (màu placeholder, hình dáng ô "+") vốn thuần CSS, canh ở
 // `token-mau-bo-mat-mindmap.spec.ts`.
-describe('DanhSachBang — nợ critique 2026-08-29', () => {
+describe('LuoiMuc — nợ critique 2026-08-29', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -2136,7 +2136,7 @@ describe('DanhSachBang — nợ critique 2026-08-29', () => {
 // Trước lượt này dải luôn ghim `SPECIALTIES.slice(0, 2)` — Tim mạch + Hô hấp — bất kể người dùng có
 // bảng ở đó hay không, trong khi 9 khoa còn lại (kể cả khoa họ dùng suốt ca trực) bị đẩy hết vào
 // bảng chọn. Ba ca dưới canh đúng ba mệnh đề của quy tắc mới; gỡ bản vá là cả ba đỏ.
-describe('DanhSachBang — chip chuyên khoa theo dữ liệu thật', () => {
+describe('LuoiMuc — chip chuyên khoa theo dữ liệu thật', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -2246,7 +2246,7 @@ describe('DanhSachBang — chip chuyên khoa theo dữ liệu thật', () => {
   })
 })
 
-describe('DanhSachBang — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
+describe('LuoiMuc — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
   let container: HTMLDivElement
   let root: Root
 

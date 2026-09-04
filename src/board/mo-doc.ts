@@ -85,15 +85,15 @@ async function doiNoiDungToi(
  * `tuyChon` CHỈ dùng để ca kiểm tiêm docSources/blobSources/hanGioMs giả — gọi không đối số trong
  * app thật.
  *
- * QUAN TRỌNG: `createDoc(boardId)` ném lỗi nếu doc đã tồn tại. Với người dùng cũ, sau khi đồng bộ
- * xong thì `getDoc(boardId)` đã trả về non-null — PHẢI kiểm trước khi gọi `createDoc`, nếu không
+ * QUAN TRỌNG: `createDoc(docId)` ném lỗi nếu doc đã tồn tại. Với người dùng cũ, sau khi đồng bộ
+ * xong thì `getDoc(docId)` đã trả về non-null — PHẢI kiểm trước khi gọi `createDoc`, nếu không
  * mọi lần mở app sau lần đầu đều vỡ ngay lúc mount.
  *
  * Trả về `khongLuuDuoc: true` khi (và chỉ khi) lượt race đồng bộ ĐẦU TIÊN hết giờ và workspace phải
  * dựng lại ở chế độ chỉ-trong-bộ-nhớ — bên gọi (EdgelessBoard()) dùng cờ này để hiện một băng cảnh
  * báo thay vì im lặng để người dùng mất nội dung mà không biết.
  */
-// Nối tiếp các lượt mở CÙNG một `boardId` — mỗi lượt đợi lượt trước xong mới bắt đầu.
+// Nối tiếp các lượt mở CÙNG một `docId` — mỗi lượt đợi lượt trước xong mới bắt đầu.
 //
 // Vì sao cần: hai lượt `taoHoacMoDoc()` chạy CHỒNG NHAU trên cùng một bảng MỚI đều thấy
 // `getDoc()` trả null (lượt kia chưa kịp đẩy metadata), nên cả hai cùng `createDoc` + seed, rồi
@@ -113,36 +113,34 @@ async function doiNoiDungToi(
 // Locks API), chưa cần tới mức đó.
 const luotMoDangCho = new Map<string, Promise<void>>()
 
-export async function taoHoacMoDoc(boardId: string, loai: LoaiMuc, tuyChon?: {
+export async function taoHoacMoDoc(docId: string, loai: LoaiMuc, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
-  khongSeed?: boolean
   hanGioNoiDungMs?: number
 }) {
-  const cho = luotMoDangCho.get(boardId)
+  const cho = luotMoDangCho.get(docId)
   let bao!: () => void
   const luotCuaToi = new Promise<void>((giai) => {
     bao = giai
   })
-  luotMoDangCho.set(boardId, luotCuaToi)
+  luotMoDangCho.set(docId, luotCuaToi)
   // `cho` có thể đã bị từ chối — lượt trước hỏng KHÔNG được kéo lượt này hỏng theo, nó chỉ cần
   // biết lượt kia đã kết thúc.
   if (cho) await cho.catch(() => {})
   try {
-    return await moDocThat(boardId, loai, tuyChon)
+    return await moDocThat(docId, loai, tuyChon)
   } finally {
     bao()
     // Chỉ xoá nếu mình vẫn là lượt cuối — nếu đã có lượt khác xếp hàng sau, để nguyên cho nó.
-    if (luotMoDangCho.get(boardId) === luotCuaToi) luotMoDangCho.delete(boardId)
+    if (luotMoDangCho.get(docId) === luotCuaToi) luotMoDangCho.delete(docId)
   }
 }
 
-async function moDocThat(boardId: string, loai: LoaiMuc, tuyChon?: {
+async function moDocThat(docId: string, loai: LoaiMuc, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
-  khongSeed?: boolean
   hanGioNoiDungMs?: number
 }) {
   const docSources = tuyChon?.docSources ?? { main: new IndexedDBDocSource(TEN_CSDL_BANG) }
@@ -191,13 +189,13 @@ async function moDocThat(boardId: string, loai: LoaiMuc, tuyChon?: {
       workspace.start()
     }
 
-    let doc = workspace.getDoc(boardId)
+    let doc = workspace.getDoc(docId)
     // `getDoc()` trả null = doc CHƯA ĐĂNG KÝ trong metadata workspace, tức chưa từng có nội dung —
     // tín hiệu DUY NHẤT đáng tin để phân biệt "bảng mới tinh" với "bảng có nội dung đang trên đường
     // tới". Xem khối quyết định seed bên dưới.
     const laDocMoi = !doc
     if (!doc) {
-      doc = workspace.createDoc(boardId)
+      doc = workspace.createDoc(docId)
     }
     const store = doc.getStore({ extensions: storeManager.get('store') })
     doc.load()
@@ -227,36 +225,31 @@ async function moDocThat(boardId: string, loai: LoaiMuc, tuyChon?: {
     // || !store.root`) nên nó THÊM một đường seed đè lên nội dung có sẵn. Cờ này đi hướng ngược
     // lại — nó chỉ dùng để quyết định CÓ ĐỢI HAY KHÔNG, không bao giờ tự nó cho phép seed.
     let daGhiKhoiMoi = false
-    if (tuyChon?.khongSeed) {
-      // `khongSeed`: mở CHỈ ĐỌC, tuyệt đối không tạo nội dung (dùng bởi ./xuatAnhBang.ts). Bên gọi
-      // tự đợi và tự kiểm `store.root`.
-    } else {
-      if (!laDocMoi && !store.root?.children.some((khoi) => khoi.flavour === 'affine:surface')) {
-        await doiNoiDungToi(store, hanGioNoiDungMs)
+    if (!laDocMoi && !store.root?.children.some((khoi) => khoi.flavour === 'affine:surface')) {
+      await doiNoiDungToi(store, hanGioNoiDungMs)
+    }
+    if (!store.root) {
+      const rootId = store.addBlock('affine:page', {})
+      store.addBlock('affine:surface', {}, rootId)
+      // Bài viết cần một note + một đoạn văn rỗng để mở ra là có chỗ gõ ngay.
+      // `page-root-block.ts:162` của thượng nguồn tự tạo note khi bấm vào vùng trống, nên đây là
+      // TIỆN NGHI chứ không phải bắt buộc — nhưng thiếu nó thì bài mới mở ra là một trang trắng
+      // không con trỏ, đọc như lỗi.
+      //
+      // Sơ đồ VẪN chỉ page+surface như trước: một note mặc định trên canvas là một ô trống lơ
+      // lửng người dùng không đặt ở đó.
+      if (loai === 'bai-viet') {
+        const noteId = store.addBlock('affine:note', {}, rootId)
+        store.addBlock('affine:paragraph', {}, noteId)
       }
-      if (!store.root) {
-        const rootId = store.addBlock('affine:page', {})
-        store.addBlock('affine:surface', {}, rootId)
-        // Bài viết cần một note + một đoạn văn rỗng để mở ra là có chỗ gõ ngay.
-        // `page-root-block.ts:162` của thượng nguồn tự tạo note khi bấm vào vùng trống, nên đây là
-        // TIỆN NGHI chứ không phải bắt buộc — nhưng thiếu nó thì bài mới mở ra là một trang trắng
-        // không con trỏ, đọc như lỗi.
-        //
-        // Sơ đồ VẪN chỉ page+surface như trước: một note mặc định trên canvas là một ô trống lơ
-        // lửng người dùng không đặt ở đó.
-        if (loai === 'bai-viet') {
-          const noteId = store.addBlock('affine:note', {}, rootId)
-          store.addBlock('affine:paragraph', {}, noteId)
-        }
-        daGhiKhoiMoi = true
-      } else if (!store.root.children.some((khoi) => khoi.flavour === 'affine:surface')) {
-        // Nhánh hẹp hơn: đã có `store.root` nhưng thiếu hẳn con `affine:surface`. Khó xảy ra ĐỘC
-        // LẬP với nhánh trên vì hai addBlock luôn nằm cùng một giao dịch Yjs, nhưng đây chính là
-        // điều kiện literal mà lỗi runtime thật kiểm tra (`EdgelessRootService`, "missing surface
-        // block"), nên rẻ để bọc thêm cho chắc.
-        store.addBlock('affine:surface', {}, store.root.id)
-        daGhiKhoiMoi = true
-      }
+      daGhiKhoiMoi = true
+    } else if (!store.root.children.some((khoi) => khoi.flavour === 'affine:surface')) {
+      // Nhánh hẹp hơn: đã có `store.root` nhưng thiếu hẳn con `affine:surface`. Khó xảy ra ĐỘC
+      // LẬP với nhánh trên vì hai addBlock luôn nằm cùng một giao dịch Yjs, nhưng đây chính là
+      // điều kiện literal mà lỗi runtime thật kiểm tra (`EdgelessRootService`, "missing surface
+      // block"), nên rẻ để bọc thêm cho chắc.
+      store.addBlock('affine:surface', {}, store.root.id)
+      daGhiKhoiMoi = true
     }
 
     if (daGhiKhoiMoi) {

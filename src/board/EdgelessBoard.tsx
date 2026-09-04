@@ -69,10 +69,16 @@ EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
 // Xuất PNG/PDF KHÔNG có UI trong màn vẽ này (phản hồi thật 2026-08-27, lần 3: "xoá luôn nút ... của
 // đổi tên/chuyên khoa xuất file" ở màn vẽ, "tính năng xuất file chuyển ra board") — nút xuất sống
 // trong menu "⋯" của THẺ bảng ở lưới danh sách (LuoiMuc.tsx).
-// Từ 2026-08-30 lượt xuất đó KHÔNG còn đóng gói lại ảnh chụp khung nhìn nữa: ./xuatAnhBang.ts mở
-// bảng NGẦM rồi dựng ảnh từ tài liệu CRDT qua ExportManager, đóng khung theo `gfx.elementsBound`.
-// Nó dùng chung `taoHoacMoDoc()` và `layExtensionsEdgeless()` (nay ở ./extensions.ts, xem đó) — đó
-// là toàn bộ quan hệ giữa hai module; component bên dưới không biết gì về việc xuất và không cần biết.
+// Từ 2026-08-30 lượt xuất đó KHÔNG còn đóng gói lại ảnh chụp khung nhìn nữa: ./xuatAnhBang.ts dựng
+// ảnh từ tài liệu CRDT qua ExportManager, đóng khung theo `gfx.elementsBound`.
+//
+// ĐÍNH CHÍNH 2026-09-04: bản trước của đoạn này viết ./xuatAnhBang.ts "mở bảng NGẦM" và "dùng chung
+// `taoHoacMoDoc()` và `layExtensionsEdgeless()`". SAI CẢ HAI, và sai từ trước lượt bóc mo-doc.ts —
+// đo lại trên mã thật: ./xuatAnhBang.ts chỉ có ĐÚNG MỘT import nội bộ (`./ve-khoi-len-canvas`), nó
+// không mở bảng nào cả. Nó xuất từ bảng ĐANG MỞ: dòng ~285 dưới đây gọi
+// `xuatPngBang(std, el, tenBang)`, truyền thẳng `BlockStdScope` và phần tử bọc của cây Lit sống
+// trong component này. Toàn bộ quan hệ giữa hai module là lời gọi ấy cộng một `import type` cho
+// `KetQuaXuat`; component bên dưới không biết gì thêm về việc xuất và không cần biết.
 
 /** Hàm xuất PNG bảng đang mở — trả về mã kết quả để BoardGallery chọn thông báo. */
 export type XuatBangFn = (tenBang: string) => Promise<KetQuaXuat>

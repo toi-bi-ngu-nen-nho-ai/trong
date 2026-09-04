@@ -47,7 +47,7 @@ function bangMau(id: string, ten: string): MucMeta {
   }
 }
 
-describe('DanhSachBang — hỏng kho lưu trữ', () => {
+describe('LuoiMuc — hỏng kho lưu trữ', () => {
   let container: HTMLDivElement
   let root: Root
 

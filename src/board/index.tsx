@@ -1,5 +1,6 @@
-// Vỏ nạp chậm của bảng vẽ — MỌI chỗ trong app phải đi qua đây, không import thẳng
-// `./EdgelessBoard`.
+// Vỏ nạp chậm của MỌI mục BlockSuite — bảng vẽ lẫn bài viết. Mọi chỗ trong app phải đi qua đây,
+// không import thẳng `./EdgelessBoard` HAY `./TrangBaiViet`. Cả hai chiều đều do
+// `ranh-gioi-nap-bang.spec.ts` canh; chú thích này chỉ là tài liệu phụ.
 //
 // Nạp chậm (D13): 993,69 kB gzip chỉ tải khi người dùng thật sự mở một bảng — gấp ba lần vỏ app,
 // vốn giữ nguyên 332,01 kB gzip. Import tĩnh ở đây là mất trọn lợi ích đó.
@@ -151,7 +152,11 @@ export class EdgelessBoard extends Component<PropsBang, State> {
             <div style={{ width: 72, height: 72 }}>
               <VeChuyenKhoaDangTai khoa={this.props.khoa} />
             </div>
-            <span className="sr-only">Đang tải bảng vẽ…</span>
+            {/* Nhãn phải theo `loai`: người dùng trình đọc màn hình nghe đúng thứ họ vừa mở. Cùng
+                cặp chữ với thông điệp lỗi ở dòng 115 — đổi một chỗ thì đổi cả hai. */}
+            <span className="sr-only">
+              {this.props.loai === 'bai-viet' ? 'Đang tải bài viết…' : 'Đang tải bảng vẽ…'}
+            </span>
           </div>
         }
       >

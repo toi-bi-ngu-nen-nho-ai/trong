@@ -95,8 +95,13 @@ describe('index.tsx — ranh giới D13 (không kéo BlockSuite vào chunk vỏ 
   it('index.tsx chỉ import KIỂU từ mo-doc (ranh giới D13)', () => {
     // `mo-doc.ts` import @blocksuite/*. Một import GIÁ TRỊ từ đó kéo cả khối BlockSuite vào chunk
     // vỏ app. Chỉ `import type` (bị xoá lúc biên dịch) mới được phép — cùng luật App.tsx đang theo.
-    const dongMoDoc = nguon.match(/^import\s+[^\n]*from\s+['"]\.\/mo-doc['"]/m)
-    expect(dongMoDoc).not.toBeNull()
-    expect(dongMoDoc![0]).toMatch(/^import\s+type\s/)
+    // `matchAll` + cờ `g`, không phải `match` một lần: bản trước thiếu `g` nên chỉ soi dòng import
+    // `./mo-doc` ĐẦU TIÊN — thêm một dòng import giá trị thứ hai là lọt cổng mà ca kiểm vẫn xanh.
+    // Hiện chỉ có một dòng, nhưng cổng chặn phải đúng bất kể có bao nhiêu.
+    const dongMoDoc = [...nguon.matchAll(/^import\s+[^\n]*from\s+['"]\.\/mo-doc['"]/gm)].map(
+      (khop) => khop[0],
+    )
+    expect(dongMoDoc.length).toBeGreaterThan(0)
+    for (const dong of dongMoDoc) expect(dong).toMatch(/^import\s+type\s/)
   })
 })
