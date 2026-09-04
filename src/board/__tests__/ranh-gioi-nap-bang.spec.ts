@@ -30,7 +30,7 @@ vi.mock('../EdgelessBoard', () => {
   throw new Error('Failed to fetch dynamically imported module: /assets/EdgelessBoard-abc123.js')
 })
 
-import { EdgelessBoard } from '../index'
+import { VoMuc } from '../index'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -64,7 +64,7 @@ describe('Vỏ nạp chậm của bảng vẽ — chunk tải hỏng', () => {
           // lượt dùng boardId) — vẫn truyền một giá trị hợp lệ thay vì object props rỗng, vì
           // `createElement` chỉ bỏ qua việc kiểm PropsBang khi KHÔNG truyền props nào cả; một khi
           // đã truyền object thì mọi trường bắt buộc (kể cả boardId) phải có mặt.
-          createElement(EdgelessBoard, { boardId: 'boardId-gia', loai: 'so-do' }),
+          createElement(VoMuc, { boardId: 'boardId-gia', loai: 'so-do' }),
         ),
       )
     })

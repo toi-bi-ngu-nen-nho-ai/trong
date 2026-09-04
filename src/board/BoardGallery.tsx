@@ -7,7 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 import { doiGhiAnhXongNeuCo } from './mucMeta'
 import { LuoiMuc, TheTrong, type BoardOpenOrigin } from './LuoiMuc'
-import { EdgelessBoard, type KetQuaXuat, type XuatBangFn } from './index'
+import { VoMuc, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
@@ -364,7 +364,7 @@ export function BoardGallery({
             if (e.target === e.currentTarget) setDangPhongTo(false)
           }}
         >
-          <EdgelessBoard
+          <VoMuc
             boardId={openBoardId}
             loai="so-do"
             khoa={openOrigin?.chuyenKhoa}

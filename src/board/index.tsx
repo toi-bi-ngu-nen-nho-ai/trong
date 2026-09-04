@@ -93,7 +93,7 @@ interface State {
   lan: number
 }
 
-export class EdgelessBoard extends Component<PropsBang, State> {
+export class VoMuc extends Component<PropsBang, State> {
   state: State = { loi: null, lan: 0 }
 
   static getDerivedStateFromError(loi: Error): Partial<State> {
