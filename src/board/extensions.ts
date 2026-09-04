@@ -327,6 +327,7 @@ import { ToolbarViewExtension } from '@blocksuite/affine-widget-toolbar/view'
 import { ViewportOverlayViewExtension } from '@blocksuite/affine-widget-viewport-overlay/view'
 import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 
+import { banPhimAoTrang } from './ban-phim-ao'
 import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
 import { phongChuBangExtension } from './phong-chu-bang'
 
@@ -431,7 +432,13 @@ export function layExtensionsEdgeless() {
  *
  * `phongChuBangExtension` giữ nguyên như edgeless: `FoundationViewExtension` chỉ đăng ký cấu hình
  * phông KHI được truyền `options.fontConfig`, mà ta gọi `.get()` không kèm options.
+ *
+ * `banPhimAoTrang` CHỈ có ở đây, không có ở `layExtensionsEdgeless()`: `KeyboardToolbarViewExtension`
+ * gắn widget bàn phím khi `scope === 'page'` VÀ `IS_MOBILE`, rồi widget ấy gọi
+ * `std.get(VirtualKeyboardProvider)` — `get`, không `getOptional` — nên NÉM ở `connectedCallback()`
+ * nếu app chủ chưa cấp. Lỗi chỉ hiện trên thiết bị di động. Xem ./ban-phim-ao.ts cho chuỗi nhân quả
+ * đầy đủ và lý do provider tĩnh là đúng.
  */
 export function layExtensionsTrang() {
-  return [...viewManager.get('page'), cheDoTrang, phongChuBangExtension]
+  return [...viewManager.get('page'), cheDoTrang, phongChuBangExtension, banPhimAoTrang]
 }
