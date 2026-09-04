@@ -159,6 +159,24 @@ hẳn thẻ xem trước bằng một luật CSS phía app, không phải dịch
   điều đó, và mẫu vẫn hiện ra gần đúng. Mỗi lượt kiểm trình duyệt phải đọc console + network, và với
   lỗi khó bắt thì gắn `window.addEventListener('error'|'unhandledrejection')` rồi mới thao tác —
   bộ đệm console sống qua cả lần tải lại nên phải phân biệt lỗi CŨ với lỗi MỚI.
+- **`preview_start` LUÔN dựng dev server từ THƯ MỤC DỰ ÁN CHÍNH, không phải worktree đang làm việc.**
+  Thêm một configuration vào `.claude/launch.json` của worktree KHÔNG có tác dụng — công cụ vẫn trả
+  về `name` của cây chính. Server dựng lên phục vụ mã CÂY CHÍNH, tức đo nhầm nhánh, và **không có
+  dấu hiệu nào báo**. Cách phát hiện: `fetch` một file rồi tìm một định danh chỉ có ở nhánh này.
+  Cách phục vụ mã worktree qua server ấy: `/@fs/<đường dẫn tuyệt đối>` — worktree nằm trong
+  `.claude/worktrees/` tức BÊN TRONG gốc repo chính nên `server.fs.allow` mặc định của Vite cho phép;
+  `import('/@fs/C:/.../<nhánh>/src/board/EdgelessBoard.tsx')` nạp đúng bản nhánh, import tương đối
+  của nó cũng phân giải trong nhánh. Nạp nguội mất ~60–90 giây (dev không gói, ~250 request) — phải
+  kick off rồi poll, `await` thẳng sẽ vượt hạn giờ 45 giây của công cụ.
+- **`computer{action:"key"}` gửi keydown với `e.key` RỖNG.** Enter/BackSpace tới được phần tử nhưng
+  BlockSuite không nhận ra phím nào, nên đoạn không tách và ký tự không xoá — trông y hệt lỗi của
+  editor. `computer{action:"type"}` thì đúng (sinh `beforeinput:insertText`). Muốn kiểm phím điều
+  hướng thì tự bắn `new KeyboardEvent('keydown', {key:'Enter', bubbles:true, composed:true,
+  cancelable:true})`; BlockSuite xử lý được và trả `defaultPrevented: true`.
+- **ĐỪNG dùng `document.execCommand` để mô phỏng thao tác soạn thảo trên BlockSuite.** Nó ghi thẳng
+  vào DOM của contenteditable, vượt mặt inline editor, làm hỏng model và đẻ ra một chuỗi
+  `TypeError: ... reading 'attributeService'` trông y như lỗi kiến trúc. Mất nửa tiếng mới tách được
+  khỏi lỗi thật (2026-09-04).
 - **Dọn sau khi đo:** xoá bảng/dữ liệu thử khỏi IndexedDB + localStorage, tắt dev server.
 
 ### 2.3 Tin vào ca kiểm tới đâu
