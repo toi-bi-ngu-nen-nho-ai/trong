@@ -1,14 +1,26 @@
 // Danh sách extension cắt gọn (D13).
 //
-// GIỮ 52 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
+// GIỮ 55 / 58 view extension của thượng nguồn (`getInternalViewExtensions()` trong
 // src/vendor/blocksuite/affine/all/src/extensions/view.ts). MỌI THỨ KHÔNG CÓ TRONG MẢNG BÊN DƯỚI
-// LÀ ĐÃ BỎ — 6 mục, cố tình không liệt kê ra đây vì một danh sách chép tay sẽ mục ngay lần nâng
-// cấp cây vendored tiếp theo; muốn biết chính xác thì so mảng dưới với file thượng nguồn nói trên.
-// Phần bỏ đi trải trên BA nhóm của thượng nguồn (gfx giờ ĐỦ, không còn góp phần loại kể từ Task 12
-// bật GfxLinkViewExtension): 1 block (LatexViewExtension — khối, xem lý do dưới), 3 widget
-// (EdgelessAutoConnect, RemoteSelection, NoteSlicer), 2 fragment (FramePanel, AdapterPanel) — nhóm
-// inline vẫn ĐỦ 7/7, không góp vào phần loại (1+3+2 = 6). Đếm bằng tay trên mảng bên dưới mỗi lần
-// sửa số này — đừng suy diễn từ lượt trước.
+// LÀ ĐÃ BỎ — kể từ Task 13 (bật xong bốn nhóm page mode) chỉ còn ĐÚNG 3 mục, đủ ngắn để liệt kê
+// thẳng ở đây (vẫn nên so mảng dưới với file thượng nguồn nói trên nếu cần chắc chắn tuyệt đối, vì
+// một con số chép tay có thể mục theo lần nâng cấp cây vendored tiếp theo):
+//   - LatexViewExtension (block, khối công thức toán trên canvas — khác InlineLatexViewExtension ở
+//     nhóm Inline, nhóm đó ĐÃ bật đủ) — HOÃN, không phải bỏ hẳn. Thử bật hai lần đều phải gỡ lại vì
+//     kéo theo DOMPurify/KaTeX chạy đồng bộ ở cấp module, gây timeout chập chờn cho các ca dùng
+//     SlashMenu khi chạy TRỌN bộ test. Xem điều tra đầy đủ (và đường thử lại nếu cần) ở đoạn "THỬ
+//     bật HAI LẦN" bên dưới, và §6.1 của
+//     docs/superpowers/specs/2026-09-04-kho-bai-viet-page-mode-design.md.
+//   - RemoteSelectionViewExtension (widget, vẽ con trỏ + vùng chọn của người dùng KHÁC trên cùng
+//     tài liệu) — BỎ HẲN: ứng dụng hiện chỉ phục vụ một người dùng offline trên một máy, không có
+//     kênh đồng bộ nhiều người để cần hiển thị con trỏ ai khác.
+//   - AdapterPanelViewExtension (fragment, panel DEBUG hiển thị kết quả các adapter chuyển đổi định
+//     dạng tài liệu — Markdown/HTML/Notion...) — BỎ HẲN: công cụ dành cho người phát triển BlockSuite
+//     tự kiểm adapter, không phải tính năng người dùng cuối của app này.
+// Theo nhóm thượng nguồn: Foundation 1/1, Gfx 10/10, Block 19/20 (thiếu Latex), Inline 7/7, Widget
+// 15/16 (thiếu RemoteSelection), Fragment 3/4 (thiếu AdapterPanel) — cộng lại 55/58. Đếm bằng tay
+// trên mảng bên dưới mỗi lần sửa số này — đừng suy diễn từ lượt trước (chặng Task 11 từng đếm sai
+// một lần).
 //
 // Chặng 2026-08-21 "Database + Note đầy đủ" (xem
 // docs/superpowers/specs/2026-08-21-database-note-day-du-design.md) bật thêm 10 extension:
@@ -208,6 +220,54 @@
 // hẳn `sanitizeHTML()`/KaTeX của Latex) — bộ test đầy đủ (754 ca, xem log Step 5) chạy trọn một lượt
 // không timeout, không cần tách lượt như Latex ở trên.
 //
+// Chặng 2026-09-04, Task 13 (xem
+// docs/superpowers/specs/2026-09-04-kho-bai-viet-page-mode-design.md) bật thêm 3:
+// NoteSlicerViewExtension, EdgelessAutoConnectViewExtension, FramePanelViewExtension — nhóm 4,
+// nhóm CUỐI trong bốn nhóm bật dần cho page mode, nhưng cả ba đều chỉ phục vụ EDGELESS (cắt một
+// Note thành hai bằng cách kéo chuột giữa các khối con, tự vẽ đường nối khi kéo hai phần tử lại gần
+// nhau, panel liệt kê + xem trước mọi Frame trên canvas) — KHÔNG ảnh hưởng chế độ trang. TÊN THẺ
+// THẬT tra từ cây vendored (task-13-brief.md Step 1, MỘT trong ba đoán SAI — lần thứ BA liên tiếp
+// trong plan này gặp đúng lớp bẫy `doc-title` ở Task 10 và `edgeless-link-tool-button` ở Task 12):
+//   - NoteSlicer: `widgets/note-slicer/src/note-slicer.ts` định danh bằng hằng
+//     `NOTE_SLICER_WIDGET = 'note-slicer'` — KHÔNG mang tiền tố affine- nên luật đổi tên `\baffine-`
+//     của scripts/doi-ten-vendor.mjs không đụng tới, tên runtime giữ nguyên `note-slicer` (brief
+//     đoán `drt-note-slicer` — SAI).
+//   - EdgelessAutoConnect: `widgets/edgeless-auto-connect/src/index.ts` định danh bằng hằng
+//     `AFFINE_EDGELESS_AUTO_CONNECT_WIDGET = 'affine-edgeless-auto-connect-widget'` →
+//     `drt-edgeless-auto-connect-widget` (brief đoán đúng).
+//   - FramePanel: `fragments/frame-panel/src/frame-panel.ts` định danh bằng hằng
+//     `AFFINE_FRAME_PANEL = 'affine-frame-panel'` → `drt-frame-panel` (brief đoán đúng).
+// Cả ba đều thuộc phạm vi EDGELESS nên ca kiểm gọi `layExtensionsEdgeless()`, KHÔNG phải
+// `layExtensionsTrang()` như ba nhóm trước — xem dang-ky-custom-element.spec.ts.
+//
+// Đo lại ở `npm run build` của chính lượt này, cùng máy, cùng cách tách chunk từ Task 10:
+//   - `extensions-*.js` (mã chung): 4.619,10 kB → **1.159,87 kB gzip** (Task 12: 1.145,31 kB gzip,
+//     +14,56 kB cho ba extension NoteSlicer/EdgelessAutoConnect/FramePanel — bước nhảy NHỎ nhất
+//     trong bốn nhóm, khớp cảnh báo "nhóm dễ bỏ nhất nếu đụng ngưỡng" của brief chủ yếu vì nhẹ, chứ
+//     không phải vì kém giá trị).
+//   - `extensions-*.css` đi kèm: 96,94 kB → 15,61 kB gzip — KHÔNG đổi so với Task 12 (ba extension
+//     này không mang theo theme vendor/vanilla-extract riêng, style Lit nằm ngay trong chunk JS).
+//   - `EdgelessBoard-*.js`: 6,25 kB gzip (Task 12: 6,25 kB — không đổi).
+//   - `TrangBaiViet-*.js`: 1,09 kB gzip (Task 12: 1,09 kB — không đổi, đúng như dự kiến vì nhóm 4
+//     không đụng page mode).
+// Tổng đường mở nặng nhất (EdgelessBoard): 1.159,87 + 15,61 + 6,25 ≈ **1.181,73 kB gzip**. Ngưỡng
+// dừng §0 luật 6 vẫn 1.400 kB gzip — còn cách ~218,27 kB, KHÔNG vượt ngưỡng.
+//
+// ĐÂY LÀ LƯỢT ĐO CUỐI của kế hoạch bốn nhóm page mode. Bảng tổng hợp gzip chunk `extensions-*.js`
+// (mã chung, dùng để so ngưỡng) qua cả bốn nhóm, cùng máy, cùng cách tách chunk:
+//
+//   | Nhóm (Task)  | extensions-*.js gzip | Δ so nhóm trước | đường mở nặng nhất (≈)  |
+//   |--------------|-----------------------|-------------------|-------------------------|
+//   | 1 (Task 10)  |             930,81 kB |                 — |              951,47 kB  |
+//   | 2 (Task 11)  |             957,87 kB |          +27,06 kB |              979,72 kB  |
+//   | 3 (Task 12)  |           1.145,31 kB |         +187,44 kB |            1.167,17 kB  |
+//   | 4 (Task 13)  |           1.159,87 kB |          +14,56 kB |            1.181,73 kB  |
+//
+// Bốn nhóm (Task 10-13) cộng lại bật thêm 5+4+5+3 = 17 view extension, đưa tổng từ 38 (43 của Task
+// 10 trừ đúng 5 cái Task 10 vừa thêm — xem đoạn Task 10 phía trên) lên 55/58 hiện tại. Ba cái CÒN
+// THIẾU so với 58 của thượng nguồn — Latex (hoãn), RemoteSelection, AdapterPanel — không thuộc nhóm
+// nào trong bốn nhóm page mode; xem giải thích ở đầu file.
+//
 // Thứ tự widget ảnh hưởng z-index — giữ đúng thứ tự thượng nguồn khai trong
 // `affine/all/src/extensions/view.ts`.
 import { AttachmentViewExtension } from '@blocksuite/affine-block-attachment/view'
@@ -231,6 +291,7 @@ import { SurfaceRefViewExtension } from '@blocksuite/affine-block-surface-ref/vi
 import { TableViewExtension } from '@blocksuite/affine-block-table/view'
 import { FoundationViewExtension } from '@blocksuite/affine-foundation/view'
 import { DocTitleViewExtension } from '@blocksuite/affine-fragment-doc-title/view'
+import { FramePanelViewExtension } from '@blocksuite/affine-fragment-frame-panel/view'
 import { OutlineViewExtension } from '@blocksuite/affine-fragment-outline/view'
 import { BrushViewExtension } from '@blocksuite/affine-gfx-brush/view'
 import { ConnectorViewExtension } from '@blocksuite/affine-gfx-connector/view'
@@ -250,6 +311,7 @@ import { MentionViewExtension } from '@blocksuite/affine-inline-mention/view'
 import { InlinePresetViewExtension } from '@blocksuite/affine-inline-preset/view'
 import { ReferenceViewExtension } from '@blocksuite/affine-inline-reference/view'
 import { DragHandleViewExtension } from '@blocksuite/affine-widget-drag-handle/view'
+import { EdgelessAutoConnectViewExtension } from '@blocksuite/affine-widget-edgeless-auto-connect/view'
 import { EdgelessDraggingAreaViewExtension } from '@blocksuite/affine-widget-edgeless-dragging-area/view'
 import { EdgelessSelectedRectViewExtension } from '@blocksuite/affine-widget-edgeless-selected-rect/view'
 import { EdgelessToolbarViewExtension } from '@blocksuite/affine-widget-edgeless-toolbar/view'
@@ -257,6 +319,7 @@ import { EdgelessZoomToolbarViewExtension } from '@blocksuite/affine-widget-edge
 import { FrameTitleViewExtension } from '@blocksuite/affine-widget-frame-title/view'
 import { KeyboardToolbarViewExtension } from '@blocksuite/affine-widget-keyboard-toolbar/view'
 import { LinkedDocViewExtension } from '@blocksuite/affine-widget-linked-doc/view'
+import { NoteSlicerViewExtension } from '@blocksuite/affine-widget-note-slicer/view'
 import { PageDraggingAreaViewExtension } from '@blocksuite/affine-widget-page-dragging-area/view'
 import { ScrollAnchoringViewExtension } from '@blocksuite/affine-widget-scroll-anchoring/view'
 import { SlashMenuViewExtension } from '@blocksuite/affine-widget-slash-menu/view'
@@ -310,6 +373,7 @@ export const viewExtensions = [
   InlinePresetViewExtension,
 
   DragHandleViewExtension,
+  EdgelessAutoConnectViewExtension,
   FrameTitleViewExtension,
   KeyboardToolbarViewExtension,
   LinkedDocViewExtension,
@@ -321,9 +385,11 @@ export const viewExtensions = [
   PageDraggingAreaViewExtension,
   EdgelessSelectedRectViewExtension,
   EdgelessDraggingAreaViewExtension,
+  NoteSlicerViewExtension,
   EdgelessToolbarViewExtension,
 
   DocTitleViewExtension,
+  FramePanelViewExtension,
   OutlineViewExtension,
 ]
 

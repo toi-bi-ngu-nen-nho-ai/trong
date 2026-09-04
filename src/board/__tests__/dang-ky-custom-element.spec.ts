@@ -24,7 +24,7 @@
 import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 import { describe, expect, it } from 'vitest'
 
-import { layExtensionsTrang, viewExtensions } from '../extensions'
+import { layExtensionsEdgeless, layExtensionsTrang, viewExtensions } from '../extensions'
 
 describe('đăng ký custom element từ danh sách view extension', () => {
   it('nạp scope edgeless là các thẻ Lit có mặt trong customElements', () => {
@@ -114,5 +114,29 @@ describe('đăng ký custom element từ danh sách view extension', () => {
     expect(customElements.get('drt-embed-figma-block'), 'Embed').toBeDefined()
     expect(customElements.get('drt-embed-linked-doc-block'), 'EmbedDoc').toBeDefined()
     expect(customElements.get('edgeless-link-tool-button'), 'GfxLink').toBeDefined()
+  })
+
+  it('nhóm 4: đăng ký đủ thẻ Lit (edgeless)', () => {
+    // Nhóm 4 chỉ phục vụ edgeless (cắt note, tự nối phần tử, panel khung) — gọi
+    // layExtensionsEdgeless(), KHÔNG phải layExtensionsTrang() như ba nhóm trước.
+    // Tên thẻ tra trực tiếp từ cây vendored (task-13-brief.md Step 1, đã hiệu chỉnh):
+    // - NoteSlicer: `widgets/note-slicer/src/note-slicer.ts` định danh bằng hằng
+    //   `NOTE_SLICER_WIDGET = 'note-slicer'` — KHÔNG mang tiền tố affine- nên luật đổi tên
+    //   `\baffine-` của scripts/doi-ten-vendor.mjs không đụng tới, tên runtime giữ nguyên
+    //   `note-slicer` (cùng lớp bẫy với `doc-title` ở Task 10 và `edgeless-link-tool-button` ở
+    //   Task 12 — ba lần liên tiếp trong plan này).
+    // - EdgelessAutoConnect: `widgets/edgeless-auto-connect/src/index.ts` định danh bằng hằng
+    //   `AFFINE_EDGELESS_AUTO_CONNECT_WIDGET = 'affine-edgeless-auto-connect-widget'` →
+    //   `drt-edgeless-auto-connect-widget`.
+    // - FramePanel: `fragments/frame-panel/src/frame-panel.ts` định danh bằng hằng
+    //   `AFFINE_FRAME_PANEL = 'affine-frame-panel'` → `drt-frame-panel`.
+    layExtensionsEdgeless()
+
+    expect(customElements.get('note-slicer'), 'NoteSlicer').toBeDefined()
+    expect(
+      customElements.get('drt-edgeless-auto-connect-widget'),
+      'EdgelessAutoConnect'
+    ).toBeDefined()
+    expect(customElements.get('drt-frame-panel'), 'FramePanel').toBeDefined()
   })
 })

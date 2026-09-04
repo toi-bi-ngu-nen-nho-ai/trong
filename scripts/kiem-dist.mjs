@@ -70,7 +70,7 @@ const MIEN = new Set([
   '--drt-background-kanban-card-color', // affine/data-view/.../kanban/{pc,mobile}/card.ts
   // Thêm ở Task 12 (nhóm 3, bật EmbedViewExtension): `affine/blocks/embed/src/embed-iframe-block/
   // components/embed-iframe-link-edit-popup.ts:34` dùng `var(--affine-background-color)` — tên
-  // BẲN, không có hậu tố (khác `--affine-background-primary-color` và tám tên background-* khác
+  // BẲN, không có hậu tố (khác `--affine-background-primary-color` và chín tên background-* khác
   // mà `affine/shared/src/theme/css-variables.ts` có khai). Đã kiểm bằng grep: đây là nơi DUY NHẤT
   // trong toàn cây vendored dùng tên bẳn này, và `.vendor-build/theme/style.css` (bản dựng thật)
   // không định nghĩa nó — cùng dạng lỗ với ba tên trên, không phải lỗi của bước đổi tên D16. KHÔNG
