@@ -43,34 +43,34 @@
 import type { DocMode } from '@blocksuite/affine-model'
 import { DocModeExtension, DocModeService } from '@blocksuite/affine-shared/services'
 
-class CheDoLuonEdgeless extends DocModeService {
+/**
+ * Ghi đè `DocModeProvider.getEditorMode()` bằng MỘT chế độ cố định.
+ *
+ * Trước 2026-09-04 file này tên `che-do-edgeless.ts` và lớp trả cứng `'edgeless'` — đúng vì lúc đó
+ * app chỉ có bảng vẽ. Khi thêm chế độ trang, chốt cứng thành ra sai ở ba chỗ đã mô tả đầu file:
+ * thanh công cụ đọc nhầm `isEdgelessMode`, `topContenteditableElement` trả root thay vì note, và
+ * kéo đổi cỡ ảnh lệch đúng hệ số thu phóng.
+ *
+ * PHẠM VI VẪN CỐ Ý HẸP: chỉ `getEditorMode`. `getPrimaryMode` để nguyên mặc định `'page'` — nó nói
+ * về chế độ CHÍNH của một tài liệu khi bị tài liệu khác tham chiếu tới, không phải chế độ trình
+ * soạn đang mở.
+ */
+class CheDoCoDinh extends DocModeService {
+  constructor(private readonly cheDo: DocMode) {
+    super()
+  }
+
   override getEditorMode(): DocMode {
-    return 'edgeless'
+    return this.cheDo
   }
 }
 
-/**
- * Extension ghi đè `DocModeProvider`. PHẢI đứng SAU `viewManager.get('edgeless')` trong mảng truyền
- * cho `BlockStdScope` — `di.override` chỉ thay được một hiện thực đã đăng ký, mà `DocModeService`
- * gốc do `FoundationViewExtension` (phần tử ĐẦU của `viewExtensions`) đăng ký.
- */
-export const cheDoEdgeless = DocModeExtension(new CheDoLuonEdgeless())
+/** Extension ghi đè `DocModeProvider` cho CHẾ ĐỘ TRANG. Xem ghi chú thứ tự ở `cheDoEdgeless`. */
+export const cheDoTrang = DocModeExtension(new CheDoCoDinh('page'))
 
 /**
- * Bản song sinh của `cheDoEdgeless` cho CHẾ ĐỘ TRANG.
- *
- * Không dùng lại `cheDoEdgeless` được: nó trả cứng `'edgeless'`, và ba hệ quả đã ghi ở đầu file
- * này (`ToolbarContext.editorMode` → `isEdgelessMode` TRUE giữa một trang page;
- * `topContenteditableElement` trả root thay vì thẻ note bọc ngoài; `image-resize-manager.ts` đọc
- * sai `viewport.zoom`) đều lật ngược dấu khi mang sang page mode.
- *
- * Task 3 sẽ gộp hai hằng này thành `CheDoCoDinh(mode)` và đổi tên file. Ở đây cố ý viết trùng lặp
- * một lớp con nữa để lát cắt spike mỏng nhất có thể — không đổi tên gì trong lượt chứng minh.
+ * Extension ghi đè `DocModeProvider` cho CHẾ ĐỘ BẢNG VẼ. PHẢI đứng SAU `viewManager.get('edgeless')`
+ * trong mảng truyền cho `BlockStdScope` — `di.override` chỉ thay được một hiện thực đã đăng ký, mà
+ * `DocModeService` gốc do `FoundationViewExtension` (phần tử ĐẦU của `viewExtensions`) đăng ký.
  */
-class CheDoLuonTrang extends DocModeService {
-  override getEditorMode(): DocMode {
-    return 'page'
-  }
-}
-
-export const cheDoTrang = DocModeExtension(new CheDoLuonTrang())
+export const cheDoEdgeless = DocModeExtension(new CheDoCoDinh('edgeless'))

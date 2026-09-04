@@ -6,10 +6,10 @@
 // `viewManager.get('page')` tự nó đã đăng ký BlockViewExtension('affine:page', 'affine-page-root')).
 //
 // Ca dưới đây kiểm đúng mắt xích mà `ToolbarContext.editorMode` tiêu thụ — xem chuỗi nhân quả đầy
-// đủ ở đầu che-do-edgeless.ts.
+// đủ ở đầu che-do-co-dinh.ts.
 import { describe, expect, it } from 'vitest'
 
-import { cheDoEdgeless, cheDoTrang } from '../che-do-edgeless'
+import { cheDoEdgeless, cheDoTrang } from '../che-do-co-dinh'
 
 /**
  * Lấy lại instance `DocModeService` mà `DocModeExtension(service)` bọc bên trong, bằng cách chạy

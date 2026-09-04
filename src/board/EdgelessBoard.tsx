@@ -25,7 +25,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
-import { cheDoEdgeless, cheDoTrang } from './che-do-edgeless'
+import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
 import { phongChuBangExtension } from './phong-chu-bang'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
@@ -85,7 +85,7 @@ EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
  *
  * `cheDoEdgeless` nối vào CUỐI, sau mọi view extension: nó `di.override` `DocModeProvider` mà
  * `FoundationViewExtension` (phần tử đầu mảng) vừa đăng ký. Không có nó thì `getEditorMode()` trả
- * `null` và TOÀN BỘ thanh công cụ phần tử tắt câm — xem ./che-do-edgeless.ts để biết chuỗi nhân quả
+ * `null` và TOÀN BỘ thanh công cụ phần tử tắt câm — xem ./che-do-co-dinh.ts để biết chuỗi nhân quả
  * đầy đủ. Đặt trong hàm dùng chung này để mọi đường mount cây Lit đều nhận đúng một bộ.
  *
  * `phongChuBangExtension` cùng lớp lý do: `FoundationViewExtension` chỉ đăng ký cấu hình phông KHI
