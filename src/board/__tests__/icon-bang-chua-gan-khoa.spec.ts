@@ -121,12 +121,37 @@ describe('viền hai nút tròn nổi của màn vẽ (Quay lại / Xuất PNG)'
   // magenta vào đây với lý do "cho thuộc bộ nhận diện Mindmap" — lượt sau rất dễ làm lại y thế.
   const NGUON = readFileSync(path.resolve(THU_MUC, '../BoardGallery.tsx'), 'utf8')
 
+  // NEO THEO TỪNG NÚT, không đếm mọi dòng `border:` trong file: bản đầu của ca kiểm này khẳng định
+  // "đúng hai khai báo border" và đỏ ngay hôm sau khi một phần tử KHÁC trong cùng file mọc thêm một
+  // viền. Ca kiểm phải nói về hai nút nó quan tâm, không phải về số lượng viền của cả file.
+  const NHAN_NUT = ['Quay lại danh sách bảng', 'Xuất PNG sơ đồ']
+
+  /** Dòng `border:` nằm trong khối `style` của chính nút mang nhãn này. */
+  function dongVienCuaNut(nhan: string): string {
+    const mo = NGUON.indexOf(`aria-label="${nhan}"`)
+    expect(mo, `không thấy nút "${nhan}" trong BoardGallery.tsx`).toBeGreaterThan(-1)
+    // Cắt tới nhãn KẾ TIẾP để không bao giờ đọc lấn sang nút khác.
+    const ke = NGUON.indexOf('aria-label="', mo + 1)
+    const khoi = NGUON.slice(mo, ke === -1 ? undefined : ke)
+    const dong = khoi.split(/\r?\n/).find((d) => /^\s*border:/.test(d))
+    expect(dong, `nút "${nhan}" không còn khai báo border nào`).toBeDefined()
+    return dong as string
+  }
+
   it('dùng hairline trung tính --c-line, không dùng mực magenta', () => {
-    const dongVien = NGUON.split(/\r?\n/).filter((d) => /^\s*border:/.test(d))
-    expect(dongVien.length, 'hai nút tròn, hai khai báo border').toBe(2)
-    for (const d of dongVien) {
-      expect(d).toContain('var(--c-line')
+    for (const nhan of NHAN_NUT) {
+      const d = dongVienCuaNut(nhan)
+      expect(d, `viền nút "${nhan}"`).toContain('var(--c-line')
       expect(d, 'magenta quay lại là đỏ quay lại').not.toContain('accent-2')
+    }
+  })
+
+  it('không phần tử nào trong màn vẽ dựng lại viền magenta', () => {
+    // Rộng hơn hai nút trên: cả file. Đây mới là chỗ chặn một lượt critique sau đặt lại
+    // --c-accent-2 lên một nút chrome mới — nhưng nó chỉ CẤM, không đếm, nên phần tử mới thêm vào
+    // file không làm ca kiểm đỏ oan.
+    for (const d of NGUON.split(/\r?\n/).filter((x) => /^\s*border:/.test(x))) {
+      expect(d, 'viền magenta trên chrome đọc thành màu cảnh báo').not.toContain('accent-2')
     }
   })
 })

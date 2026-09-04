@@ -54,7 +54,12 @@
 //      Bốn khoản còn lại (bỏ nút chủ đề ở Dùng thuốc; khung hẹp kéo công cụ về bàn tay; viền hai
 //      nút tròn của Sơ đồ đổi từ magenta sang --c-line; icon "chưa gắn chuyên khoa" thành bóng đèn
 //      + bút chì + bánh răng, có line-drawing) đều nằm trong bundle JS/CSS.
-const CACHE = "drtrong-v18"
+// v19: dọn phần sót của f516701 ("xóa nhóm thuốc An thần + Thần kinh") — hai lời gọi
+//      `useLocalCollection` mồ côi trong App.tsx (3 lỗi tsc), hai module dữ liệu không còn ai đọc,
+//      và phép lọc tab đã lưu trỏ vào nhóm vừa bị gỡ. Chính chỗ cuối là lý do PHẢI bump: máy đang
+//      mở app ở tab "An thần" khi bản mới về sẽ giữ nguyên tab đó trong sessionStorage; bundle cũ
+//      trong cache thì màn hiện nửa vời (tiêu đề rỗng, không tab nào sáng) mãi.
+const CACHE = "drtrong-v19"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]

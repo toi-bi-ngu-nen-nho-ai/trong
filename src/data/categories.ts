@@ -113,7 +113,16 @@ export const INFUSION_CATEGORIES: InfusionCategoryConfig[] = [
 
 export function infusionCategory(id: InfusionCategory): InfusionCategoryConfig {
   const found = INFUSION_CATEGORIES.find((c) => c.id === id)
-  // Không bao giờ xảy ra với dữ liệu hợp lệ, nhưng thà rơi về nhóm đầu tiên còn hơn để undefined
-  // lan xuống giao diện thành một màn trắng không giải thích được.
-  return found ?? INFUSION_CATEGORIES[0]
+  if (found) return found
+  // Nhánh này KHÔNG vô hại như chú thích cũ ("không bao giờ xảy ra với dữ liệu hợp lệ") ngụ ý — nó
+  // đã che một lỗi thật suốt một ngày: commit f516701 gỡ hai nhóm "sedation"/"neuro" khỏi danh mục
+  // nhưng để sót hai lời gọi trong App.tsx, và vì nhánh này im lặng trả về NHÓM ĐẦU TIÊN, hai lời
+  // gọi đó mở collection trỏ vào đúng khoá lưu trữ của nhóm Co bóp mà không có dấu hiệu gì. Cùng
+  // cơ chế còn làm màn Dùng thuốc hiện nửa vời (tiêu đề rỗng, không tab nào sáng) khi tab lưu trong
+  // sessionStorage là một nhóm vừa bị gỡ.
+  // VẪN GIỮ phương án rơi về nhóm đầu — ném ở đây là biến một sai lệch dữ liệu thành màn trắng giữa
+  // ca trực, đắt hơn hẳn. Nhưng phải KÊU THÀNH TIẾNG thay vì im lặng: cảnh báo hiện ngay ở console
+  // trong lúc phát triển, còn cổng thật là src/__tests__/nhom-thuoc-truyen-dong-bo.spec.ts.
+  console.warn(`infusionCategory: id "${id}" không có trong INFUSION_CATEGORIES — tạm dùng "${INFUSION_CATEGORIES[0].id}".`)
+  return INFUSION_CATEGORIES[0]
 }

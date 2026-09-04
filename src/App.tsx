@@ -11366,7 +11366,15 @@ export function DungThuocScreen({
   onDeleteInfusion: (category: InfusionCategory, id: string) => void
 }) {
   // Tab đang mở phải sống sót qua việc rời màn hình rồi quay lại — xem lib/uiState.ts.
-  const [tab, setTab] = useStickyState<MixingTab>("dungthuoc.tab", "antibiotics")
+  const [tabDaLuu, setTab] = useStickyState<MixingTab>("dungthuoc.tab", "antibiotics")
+  // Giá trị đọc lên có thể là một tab KHÔNG CÒN TỒN TẠI — bản cập nhật ứng dụng gỡ một nhóm thuốc
+  // trong lúc phiên trình duyệt vẫn đang chạy (service worker nạp bundle mới ở lần tải lại kế tiếp,
+  // còn sessionStorage thì sống nguyên qua đó). Đã đo trên trang thật với "sedation": tiêu đề màn
+  // RỖNG (MIXING_TITLES không có khoá đó), KHÔNG tab nào sáng, mà thân màn vẫn hiện nhóm Co bóp —
+  // vì infusionCategory() rơi về nhóm đầu tiên. Một màn nửa vời, không có gì báo cho người dùng.
+  // Lọc ở ĐÂY, ngay điểm đọc, chứ không vá từng nơi tiêu thụ: mọi thứ phía dưới (tiêu đề, chip đang
+  // chọn, nội dung tab) đều ăn theo `tab` nên một phép lọc là đủ cho cả ba.
+  const tab: MixingTab = MIXING_TABS.some((t) => t.id === tabDaLuu) ? tabDaLuu : "antibiotics"
   // Thứ tự HIỂN THỊ của hàng tab (khác `tab` ở trên — đó là tab đang MỞ) theo tần suất đã chọn,
   // tích luỹ nhiều ca trực qua localStorage (lib/tabUsage.ts). Xem
   // docs/superpowers/specs/2026-08-17-dungthuoc-tab-mru-design.md.
@@ -12337,14 +12345,21 @@ export default function App() {
   // Mỗi nhóm thuốc truyền một collection, khoá lưu trữ lấy từ data/categories.ts. Danh sách nhóm là
   // hằng số ở cấp module (không đổi giữa các lần vẽ lại) nên số lượng và THỨ TỰ các lời gọi hook ở
   // đây luôn cố định — đúng điều kiện duy nhất mà React yêu cầu.
+  //
+  // PHẢI VIẾT TAY, không map được từ INFUSION_CATEGORIES: luật hook của React cấm gọi hook trong
+  // vòng lặp. Cái giá là object này có thể LỆCH khỏi danh mục, và đã lệch thật — commit f516701
+  // ("xóa nhóm thuốc An thần + Thần kinh") chỉ sửa data/categories.ts, để lại ở đây hai dòng
+  // `sedation`/`neuro`. `infusionCategory()` với id lạ rơi về NHÓM ĐẦU TIÊN, nên hai dòng đó âm
+  // thầm mở thêm hai collection trỏ vào đúng khoá "customInotropes" của nhóm Co bóp. Không hỏng dữ
+  // liệu (useLocalCollection chỉ ghi khi add/update/remove, mà không ai đọc hai dòng này) nhưng
+  // `tsc` đỏ suốt một ngày mà không cổng nào chạy `tsc`.
+  // Nay có src/__tests__/nhom-thuoc-truyen-dong-bo.spec.ts canh đúng chuyện đó trong `npm test`.
   const infusionCols: Record<InfusionCategory, ReturnType<typeof useLocalCollection<InfusionDrug>>> = {
     inotrope: useLocalCollection<InfusionDrug>(infusionCategory("inotrope").storageKey),
     vasoactive: useLocalCollection<InfusionDrug>(infusionCategory("vasoactive").storageKey),
     vasodilator: useLocalCollection<InfusionDrug>(infusionCategory("vasodilator").storageKey),
     arrhythmia: useLocalCollection<InfusionDrug>(infusionCategory("arrhythmia").storageKey),
     electrolyte: useLocalCollection<InfusionDrug>(infusionCategory("electrolyte").storageKey),
-    sedation: useLocalCollection<InfusionDrug>(infusionCategory("sedation").storageKey),
-    neuro: useLocalCollection<InfusionDrug>(infusionCategory("neuro").storageKey),
     other: useLocalCollection<InfusionDrug>(infusionCategory("other").storageKey),
     antidote: useLocalCollection<InfusionDrug>(infusionCategory("antidote").storageKey),
   }
