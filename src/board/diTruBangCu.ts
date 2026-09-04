@@ -56,9 +56,9 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     blobSources,
   })
   try {
-    // CHỜ ĐỒNG BỘ TRƯỚC RỒI MỚI `meta.initialize()` — thứ tự NGƯỢC với taoHoacMoBang() (mo-doc.ts).
+    // CHỜ ĐỒNG BỘ TRƯỚC RỒI MỚI `meta.initialize()` — thứ tự NGƯỢC với taoHoacMoDoc() (mo-doc.ts).
     // Lý do: `meta.initialize()` ghi `pages = []` cục bộ ngay trên Y.Doc RỖNG trong bộ nhớ nếu
-    // `_proxy.pages` chưa có giá trị. Gọi nó TRƯỚC `waitForSynced()` (như taoHoacMoBang() làm, chấp
+    // `_proxy.pages` chưa có giá trị. Gọi nó TRƯỚC `waitForSynced()` (như taoHoacMoDoc() làm, chấp
     // nhận được ở đó vì có nhánh `createDoc` dự phòng nếu doc "biến mất") tạo ra một cuộc ĐUA CRDT
     // thật: nếu bản ghi từ xa (chứa đăng ký bảng 'board' cũ) ĐANG TRÊN ĐƯỜNG kéo về cùng lúc ta gán
     // `pages = []` cục bộ, hai giá trị `pages` (một rỗng cục bộ, một có nội dung từ xa) ĐUA NHAU ở
@@ -72,7 +72,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     workspace.start()
     const ketQua = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
     if (ketQua === 'het-gio') {
-      // Hàm này CHỈ ĐỌC — không như taoHoacMoBang(), không có nội dung người dùng nào đang chờ ghi
+      // Hàm này CHỈ ĐỌC — không như taoHoacMoDoc(), không có nội dung người dùng nào đang chờ ghi
       // để phải rơi về workspace bộ nhớ. Hết giờ ở đây nghĩa là "chưa di trú được lần này" — bỏ
       // cuộc êm, lượt mount BoardGallery kế tiếp (lần sau mở app) sẽ tự thử lại từ đầu.
       console.warn(

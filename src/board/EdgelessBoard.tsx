@@ -31,7 +31,7 @@ import { type Hop as HopO, viTriMoiChoO } from './xep-o-tu-dong'
 import type { KetQuaXuat } from './xuatAnhBang'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { capNhatSauKhiRoiMuc, ghepNoiDungTimKiem, trichVanBanTuCanvas, trichVanBanTuKhoi } from './mucMeta'
-import { storeManager, taoHoacMoBang } from './mo-doc'
+import { storeManager, taoHoacMoDoc } from './mo-doc'
 
 // ĐỊNH NGHĨA của toàn bộ token thiết kế mà cây Lit bên dưới tiêu thụ. Cây vendored dùng 81 biến
 // `--drt-*` (thanh công cụ, khung chọn, khung kéo, mọi widget) nhưng KHÔNG khai một biến nào —
@@ -116,7 +116,7 @@ export function layExtensionsTrang() {
 // trong menu "⋯" của THẺ bảng ở lưới danh sách (LuoiMuc.tsx).
 // Từ 2026-08-30 lượt xuất đó KHÔNG còn đóng gói lại ảnh chụp khung nhìn nữa: ./xuatAnhBang.ts mở
 // bảng NGẦM rồi dựng ảnh từ tài liệu CRDT qua ExportManager, đóng khung theo `gfx.elementsBound`.
-// Nó dùng chung `taoHoacMoBang()` và `layExtensionsEdgeless()` của file này — đó là toàn bộ quan hệ
+// Nó dùng chung `taoHoacMoDoc()` và `layExtensionsEdgeless()` của file này — đó là toàn bộ quan hệ
 // giữa hai module; component bên dưới không biết gì về việc xuất và không cần biết.
 
 /** Hàm xuất PNG bảng đang mở — trả về mã kết quả để BoardGallery chọn thông báo. */
@@ -221,12 +221,12 @@ export function EdgelessBoard({
   // không được chèn phần tử ngoài ý muốn của BlockSuite vào giữa.
   const zoomHostRef = useRef<HTMLDivElement>(null)
   // Lỗi không mở được bảng — vd IndexedDB ném lỗi thật (không phải chỉ hết giờ, nhánh đó đã tự rơi
-  // về bộ nhớ ở taoHoacMoBang() chứ không reject). Trước lượt sửa này, một promise reject ở đây
+  // về bộ nhớ ở taoHoacMoDoc() chứ không reject). Trước lượt sửa này, một promise reject ở đây
   // không có .catch() nào bắt: React ném "Đang mở bảng…" treo mãi, còn lỗi thật thì trôi thành một
   // unhandled rejection không ai thấy. Component này không có cơ chế thử lại riêng (khác error
   // boundary ở src/board/index.tsx, nơi có nút "Thử lại" thật) nên chỉ cần gợi ý tải lại trang.
   const [loi, setLoi] = useState<Error | null>(null)
-  // true khi taoHoacMoBang() phải rơi về workspace chỉ-trong-bộ-nhớ (lượt race đồng bộ đầu tiên hết
+  // true khi taoHoacMoDoc() phải rơi về workspace chỉ-trong-bộ-nhớ (lượt race đồng bộ đầu tiên hết
   // giờ) — quyết định của chủ dự án sau lượt review toàn nhánh: hiện băng cảnh báo thay vì im lặng.
   const [khongLuuDuoc, setKhongLuuDuoc] = useState(false)
 
@@ -263,12 +263,12 @@ export function EdgelessBoard({
     let huyBo = false
     let workspaceHienTai: TestWorkspace | null = null
     // Có sửa NỘI DUNG thật trong phiên mở bảng này hay không — xem chú thích ở capNhatSauKhiRoiMuc
-    // (mucMeta.ts). Đăng ký lúc mount xong (sau seed, xem taoHoacMoBang), nên chỉ đếm thay đổi
+    // (mucMeta.ts). Đăng ký lúc mount xong (sau seed, xem taoHoacMoDoc), nên chỉ đếm thay đổi
     // PHÁT SINH TỪ đây trở đi, không tính lượt hydrate/seed đã xảy ra trước khi effect này chạy.
     let coThayDoiNoiDung = false
     let huyDangKyThayDoi: Array<() => void> = []
 
-    taoHoacMoBang(boardId)
+    taoHoacMoDoc(boardId, 'so-do')
       .then(({ workspace, store, khongLuuDuoc: khongLuuDuocKetQua }) => {
         if (huyBo) {
           // Component đã unmount trong lúc đang đợi đồng bộ — đóng ngay, không render, không giữ
@@ -458,7 +458,7 @@ export function EdgelessBoard({
       try {
         // Trích văn bản NGAY TRƯỚC forceStop(). Tự lấy lại store qua
         // `workspaceHienTai.getDoc(boardId).getStore(...)` — con đường CHẮC CHẮN sống nếu
-        // taoHoacMoBang đã resolve, không phụ thuộc bất kỳ state React nào có thể lệch nhịp lúc
+        // taoHoacMoDoc đã resolve, không phụ thuộc bất kỳ state React nào có thể lệch nhịp lúc
         // unmount.
         let noiDungTimKiemMoi: string | undefined
         try {

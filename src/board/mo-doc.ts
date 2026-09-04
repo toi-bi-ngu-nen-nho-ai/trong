@@ -12,6 +12,13 @@ import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 
+// `LoaiMuc` khai TẠM THỜI ở đây, không phải mucMeta.ts — vì chiều phụ thuộc bắt buộc là
+// mo-doc → mucMeta, không được ngược lại: mucMeta.ts nằm NGOÀI ranh giới nạp chậm D13 (App.tsx
+// import kiểu từ nó), còn mo-doc.ts thì import `@blocksuite/*` nên PHẢI ở trong ranh giới. Khai
+// LoaiMuc ở mucMeta.ts rồi import ngược lại đây sẽ kéo cả chuỗi import của mo-doc.ts ra ngoài ranh
+// giới đó qua mucMeta. Plan 2 sẽ dời khai báo này sang mucMeta.ts và mo-doc.ts import lại.
+export type LoaiMuc = 'bai-viet' | 'so-do'
+
 export const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 
 // Tên CSDL IndexedDB riêng cho NỘI DUNG bảng (CRDT nhị phân + blob ảnh) — tách hẳn khỏi
@@ -88,7 +95,7 @@ async function doiNoiDungToi(
  */
 // Nối tiếp các lượt mở CÙNG một `boardId` — mỗi lượt đợi lượt trước xong mới bắt đầu.
 //
-// Vì sao cần: hai lượt `taoHoacMoBang()` chạy CHỒNG NHAU trên cùng một bảng MỚI đều thấy
+// Vì sao cần: hai lượt `taoHoacMoDoc()` chạy CHỒNG NHAU trên cùng một bảng MỚI đều thấy
 // `getDoc()` trả null (lượt kia chưa kịp đẩy metadata), nên cả hai cùng `createDoc` + seed, rồi
 // CRDT hợp nhất cả hai lượt ghi → doc có 2 `affine:page` và 2 `affine:surface`. Bản trùng không
 // lộ ra ngay: mỗi lượt chỉ thấy seed của chính nó, phải tới lần mở KẾ TIẾP mới thấy cả hai.
@@ -106,7 +113,7 @@ async function doiNoiDungToi(
 // Locks API), chưa cần tới mức đó.
 const luotMoDangCho = new Map<string, Promise<void>>()
 
-export async function taoHoacMoBang(boardId: string, tuyChon?: {
+export async function taoHoacMoDoc(boardId: string, loai: LoaiMuc, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
@@ -123,7 +130,7 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   // biết lượt kia đã kết thúc.
   if (cho) await cho.catch(() => {})
   try {
-    return await moBangThat(boardId, tuyChon)
+    return await moDocThat(boardId, loai, tuyChon)
   } finally {
     bao()
     // Chỉ xoá nếu mình vẫn là lượt cuối — nếu đã có lượt khác xếp hàng sau, để nguyên cho nó.
@@ -131,7 +138,7 @@ export async function taoHoacMoBang(boardId: string, tuyChon?: {
   }
 }
 
-async function moBangThat(boardId: string, tuyChon?: {
+async function moDocThat(boardId: string, loai: LoaiMuc, tuyChon?: {
   docSources?: { main: DocSource }
   blobSources?: { main: BlobSource }
   hanGioMs?: number
@@ -172,7 +179,7 @@ async function moBangThat(boardId: string, tuyChon?: {
 
     if (ketQua === 'het-gio') {
       console.warn(
-        `taoHoacMoBang: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — dùng bảng chỉ trong ` +
+        `taoHoacMoDoc: không đồng bộ được với IndexedDB trong ${hanGioMs}ms — dùng bảng chỉ trong ` +
           'bộ nhớ, nội dung sẽ không được lưu.',
       )
       khongLuuDuoc = true
@@ -230,6 +237,17 @@ async function moBangThat(boardId: string, tuyChon?: {
       if (!store.root) {
         const rootId = store.addBlock('affine:page', {})
         store.addBlock('affine:surface', {}, rootId)
+        // Bài viết cần một note + một đoạn văn rỗng để mở ra là có chỗ gõ ngay.
+        // `page-root-block.ts:162` của thượng nguồn tự tạo note khi bấm vào vùng trống, nên đây là
+        // TIỆN NGHI chứ không phải bắt buộc — nhưng thiếu nó thì bài mới mở ra là một trang trắng
+        // không con trỏ, đọc như lỗi.
+        //
+        // Sơ đồ VẪN chỉ page+surface như trước: một note mặc định trên canvas là một ô trống lơ
+        // lửng người dùng không đặt ở đó.
+        if (loai === 'bai-viet') {
+          const noteId = store.addBlock('affine:note', {}, rootId)
+          store.addBlock('affine:paragraph', {}, noteId)
+        }
         daGhiKhoiMoi = true
       } else if (!store.root.children.some((khoi) => khoi.flavour === 'affine:surface')) {
         // Nhánh hẹp hơn: đã có `store.root` nhưng thiếu hẳn con `affine:surface`. Khó xảy ra ĐỘC
@@ -253,7 +271,7 @@ async function moBangThat(boardId: string, tuyChon?: {
       const ketQuaSeed = await doiCoHanGio(workspace.waitForSynced(), hanGioMs)
       if (ketQuaSeed === 'het-gio') {
         console.warn(
-          'taoHoacMoBang: lượt ghi nội dung ban đầu chưa xác nhận đẩy xong lên IndexedDB trong ' +
+          'taoHoacMoDoc: lượt ghi nội dung ban đầu chưa xác nhận đẩy xong lên IndexedDB trong ' +
             `${hanGioMs}ms — tiếp tục, nội dung vẫn còn trong bộ nhớ.`,
         )
       }

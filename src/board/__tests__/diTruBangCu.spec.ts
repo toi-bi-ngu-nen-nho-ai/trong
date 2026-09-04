@@ -12,7 +12,7 @@ import { Text } from '@blocksuite/store'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { MucMeta } from '../mucMeta'
 import { diTruBangCuNeuCo, diTruNoiDungTimKiemNeuCo } from '../diTruBangCu'
-import { taoHoacMoBang } from '../mo-doc'
+import { taoHoacMoDoc } from '../mo-doc'
 
 function bangMetaGia(overrides: Partial<MucMeta> & { id: string }): MucMeta {
   return {
@@ -79,7 +79,7 @@ describe('diTruBangCuNeuCo', () => {
     const blobSources = { main: dungBlobSourceGia() }
 
     // Dựng nội dung "bảng cũ" giống hệt cách EdgelessBoard.tsx đã làm trước chặng BoardGallery.
-    const bangCu = await taoHoacMoBang('board', { docSources, blobSources })
+    const bangCu = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     const noteId = bangCu.store.addBlock('affine:note', {}, bangCu.store.root!.id)
     bangCu.store.addBlock('affine:paragraph', { text: new Text('nội dung bảng cũ') }, noteId)
     await bangCu.workspace.waitForSynced()
@@ -107,7 +107,7 @@ describe('diTruBangCuNeuCo', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const bangCu = await taoHoacMoBang('board', { docSources, blobSources })
+    const bangCu = await taoHoacMoDoc('board', 'so-do', { docSources, blobSources })
     bangCu.workspace.forceStop()
 
     // Người dùng đã tự đổi tên bảng cũ TRƯỚC lượt di trú này chạy (vd đã chạy di trú một lần rồi).
@@ -125,7 +125,7 @@ describe('diTruBangCuNeuCo', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    // Dựng THỦ CÔNG qua TestWorkspace trực tiếp — KHÔNG dùng taoHoacMoBang(), vì hàm đó luôn seed
+    // Dựng THỦ CÔNG qua TestWorkspace trực tiếp — KHÔNG dùng taoHoacMoDoc(), vì hàm đó luôn seed
     // đủ CẢ HAI affine:page + affine:surface (xem mo-doc.ts, nhánh `!store.root`). Ca kiểm
     // này cần đúng trạng thái "đăng ký dở dang": doc 'board' tồn tại và có root, nhưng thiếu hẳn
     // affine:surface — mô phỏng một lượt ghi seed bị cắt ngang giữa chừng (tab đóng đúng lúc) hoặc
@@ -187,7 +187,7 @@ describe('diTruNoiDungTimKiemNeuCo', () => {
     const docSources = { main: dungDocSourceGia() }
     const blobSources = { main: dungBlobSourceGia() }
 
-    const bang = await taoHoacMoBang('bang-1', { docSources, blobSources })
+    const bang = await taoHoacMoDoc('bang-1', 'so-do', { docSources, blobSources })
     const noteId = bang.store.addBlock('affine:note', {}, bang.store.root!.id)
     bang.store.addBlock('affine:paragraph', { text: new Text('nội dung cần tìm') }, noteId)
     await bang.workspace.waitForSynced()

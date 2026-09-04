@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Ca kiểm CẦU NỐI React↔Lit — thứ mà `edgeless-board.spec.ts` không chạm tới (file đó chỉ gọi
-// `taoHoacMoBang()`, nên xoá sạch component `EdgelessBoard` nó vẫn xanh).
+// `taoHoacMoDoc()`, nên xoá sạch component `EdgelessBoard` nó vẫn xanh).
 //
 // Vì sao có dòng `@vitest-environment happy-dom` ở đầu file: environment mặc định của dự án là
 // 'node' (xem vite.config.ts) và mọi thứ chạm DOM sẽ đâm `DOMRect is not defined`. Chỉ thị trên
@@ -78,10 +78,10 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
 
-    // taoHoacMoBang() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
+    // taoHoacMoDoc() giờ bất đồng bộ (đợi đồng bộ IndexedDB, dù cục bộ và nhanh) — cây Lit chỉ
     // được gắn SAU khi promise đó xong, không còn ngay trong lượt act() đầu tiên. Đợi tường minh
     // thay vì giả định act() một lượt là đủ.
-    // Bọc trong act(): taoHoacMoBang() resolve xong còn kéo theo setDangMo(false) — một cập nhật
+    // Bọc trong act(): taoHoacMoDoc() resolve xong còn kéo theo setDangMo(false) — một cập nhật
     // state React thật, cần một lượt render nữa để gỡ div "Đang mở bảng…" khỏi DOM. vi.waitFor
     // trần (không bọc act) chỉ đợi được điều kiện của nó, không flush lượt render đó: React cảnh
     // báo "not wrapped in act(...)" và div loading vẫn còn nằm trước div gắn Lit, khiến phép kiểm
@@ -141,7 +141,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       root.render(createElement(EdgelessBoard, { boardId: 'board' }))
     })
 
-    // Ngay sau lượt render đầu — trước khi taoHoacMoBang() kịp resolve — trạng thái chờ phải đã
+    // Ngay sau lượt render đầu — trước khi taoHoacMoDoc() kịp resolve — trạng thái chờ phải đã
     // hiện. Đây là khẳng định "hiện TRƯỚC", không chỉ "cuối cùng có hiện qua" — nếu bỏ qua bước
     // này, một cài đặt render đồng thời cả hai trạng thái vẫn qua được ca kiểm dưới.
     expect(container.textContent).toContain('Đang mở bảng…')
@@ -220,11 +220,11 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       // nếu `litRender()` THẬT SỰ chưa từng chạy vào đó.
       const boc = container.querySelector('.drt-edgeless-viewport')!
       const hostDiv = boc.querySelector(':scope > div:last-child')!
-      // KHÔNG đợi taoHoacMoBang() xong — tháo component NGAY trong lúc còn "Đang mở bảng…".
+      // KHÔNG đợi taoHoacMoDoc() xong — tháo component NGAY trong lúc còn "Đang mở bảng…".
       await act(async () => {
         root.unmount()
       })
-      // Cho vòng lặp sự kiện thêm một nhịp để promise taoHoacMoBang() (nếu vẫn đang chạy) có cơ
+      // Cho vòng lặp sự kiện thêm một nhịp để promise taoHoacMoDoc() (nếu vẫn đang chạy) có cơ
       // hội resolve VÀ chạm nhánh `huyBo` — đây chính là nhánh ca kiểm này canh.
       await new Promise((resolve) => setTimeout(resolve, 50))
 

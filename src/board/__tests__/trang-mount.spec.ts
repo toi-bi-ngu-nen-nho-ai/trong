@@ -13,7 +13,7 @@ import { render as litRender } from 'lit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { layExtensionsTrang } from '../EdgelessBoard'
-import { taoHoacMoBang } from '../mo-doc'
+import { taoHoacMoDoc } from '../mo-doc'
 import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 // Ngữ cảnh 2D của <canvas> phải chế tay — happy-dom trả `null` từ `getContext('2d')`, và một khối
@@ -60,13 +60,7 @@ afterEach(() => {
 
 describe('mount chế độ trang', () => {
   it('dựng được thẻ gốc drt-page-root', async () => {
-    const { store, workspace } = await taoHoacMoBang('spike-trang-1')
-    // Page mode cần một note để có chỗ gõ. `taoHoacMoBang` hiện chỉ seed page+surface (Task 7 mới
-    // thêm nhánh theo loại), nên ca kiểm này tự thêm — đúng tinh thần spike: chứng minh khả năng,
-    // chưa đụng vào hàm dùng chung.
-    const rootId = store.root!.id
-    const noteId = store.addBlock('affine:note', {}, rootId)
-    store.addBlock('affine:paragraph', {}, noteId)
+    const { store, workspace } = await taoHoacMoDoc('spike-trang-1', 'bai-viet')
 
     const std = new BlockStdScope({ store, extensions: layExtensionsTrang() })
     litRender(std.render(), el)
@@ -79,10 +73,7 @@ describe('mount chế độ trang', () => {
   })
 
   it('đoạn văn trong note soạn thảo được', async () => {
-    const { store, workspace } = await taoHoacMoBang('spike-trang-2')
-    const rootId = store.root!.id
-    const noteId = store.addBlock('affine:note', {}, rootId)
-    store.addBlock('affine:paragraph', {}, noteId)
+    const { store, workspace } = await taoHoacMoDoc('spike-trang-2', 'bai-viet')
 
     const std = new BlockStdScope({ store, extensions: layExtensionsTrang() })
     litRender(std.render(), el)
@@ -98,7 +89,7 @@ describe('mount chế độ trang', () => {
   })
 
   it('chế độ trang KHÔNG dựng thẻ gốc edgeless', async () => {
-    const { store, workspace } = await taoHoacMoBang('spike-trang-3')
+    const { store, workspace } = await taoHoacMoDoc('spike-trang-3', 'bai-viet')
     const std = new BlockStdScope({ store, extensions: layExtensionsTrang() })
     litRender(std.render(), el)
 
