@@ -55,3 +55,22 @@ class CheDoLuonEdgeless extends DocModeService {
  * gốc do `FoundationViewExtension` (phần tử ĐẦU của `viewExtensions`) đăng ký.
  */
 export const cheDoEdgeless = DocModeExtension(new CheDoLuonEdgeless())
+
+/**
+ * Bản song sinh của `cheDoEdgeless` cho CHẾ ĐỘ TRANG.
+ *
+ * Không dùng lại `cheDoEdgeless` được: nó trả cứng `'edgeless'`, và ba hệ quả đã ghi ở đầu file
+ * này (`ToolbarContext.editorMode` → `isEdgelessMode` TRUE giữa một trang page;
+ * `topContenteditableElement` trả root thay vì thẻ note bọc ngoài; `image-resize-manager.ts` đọc
+ * sai `viewport.zoom`) đều lật ngược dấu khi mang sang page mode.
+ *
+ * Task 3 sẽ gộp hai hằng này thành `CheDoCoDinh(mode)` và đổi tên file. Ở đây cố ý viết trùng lặp
+ * một lớp con nữa để lát cắt spike mỏng nhất có thể — không đổi tên gì trong lượt chứng minh.
+ */
+class CheDoLuonTrang extends DocModeService {
+  override getEditorMode(): DocMode {
+    return 'page'
+  }
+}
+
+export const cheDoTrang = DocModeExtension(new CheDoLuonTrang())

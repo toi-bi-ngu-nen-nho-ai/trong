@@ -25,7 +25,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { resolveTheme, watchResolvedTheme } from '../lib/theme'
 import { ganMoiBanPhimIOS } from './ban-phim-ios'
-import { cheDoEdgeless } from './che-do-edgeless'
+import { cheDoEdgeless, cheDoTrang } from './che-do-edgeless'
 import { phongChuBangExtension } from './phong-chu-bang'
 import { ganDongBoToaDoSauHieuUng, type ViewportCoDoLai } from './dong-bo-toa-do-viewport'
 import { apDungViewportChoIOS } from './viewport-ios'
@@ -95,6 +95,23 @@ EdgelessTemplatePanel.templates.extend(new DongNaoTemplateManager())
  */
 export function layExtensionsEdgeless() {
   return [...viewManager.get('edgeless'), cheDoEdgeless, phongChuBangExtension]
+}
+
+/**
+ * Bộ extension cho CHẾ ĐỘ TRANG, lấy từ ĐÚNG `viewManager` singleton của module này.
+ *
+ * Phải dùng chung manager với `layExtensionsEdgeless()`, không được dựng manager thứ hai: `.get()`
+ * chạy chuỗi `ViewExtensionProvider.setup() → effect() → effects()`, tức `customElements.define(...)`
+ * cho toàn bộ thẻ Lit — lý do đầy đủ đã ghi ở JSDoc của `layExtensionsEdgeless` ngay trên.
+ *
+ * `cheDoTrang` nối vào CUỐI vì `di.override` chỉ thay được một hiện thực ĐÃ đăng ký, mà
+ * `DocModeService` gốc do `FoundationViewExtension` (phần tử đầu mảng) đăng ký.
+ *
+ * `phongChuBangExtension` giữ nguyên như edgeless: `FoundationViewExtension` chỉ đăng ký cấu hình
+ * phông KHI được truyền `options.fontConfig`, mà ta gọi `.get()` không kèm options.
+ */
+export function layExtensionsTrang() {
+  return [...viewManager.get('page'), cheDoTrang, phongChuBangExtension]
 }
 
 // Tên CSDL IndexedDB riêng cho NỘI DUNG bảng (CRDT nhị phân + blob ảnh) — tách hẳn khỏi
