@@ -12,7 +12,7 @@ import { Text } from '@blocksuite/store'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { MucMeta } from '../mucMeta'
 import { diTruBangCuNeuCo, diTruNoiDungTimKiemNeuCo } from '../diTruBangCu'
-import { taoHoacMoBang } from '../EdgelessBoard'
+import { taoHoacMoBang } from '../mo-doc'
 
 function bangMetaGia(overrides: Partial<MucMeta> & { id: string }): MucMeta {
   return {

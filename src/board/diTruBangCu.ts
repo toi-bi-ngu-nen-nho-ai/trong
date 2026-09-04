@@ -56,7 +56,7 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     blobSources,
   })
   try {
-    // CHỜ ĐỒNG BỘ TRƯỚC RỒI MỚI `meta.initialize()` — thứ tự NGƯỢC với taoHoacMoBang() (EdgelessBoard.tsx).
+    // CHỜ ĐỒNG BỘ TRƯỚC RỒI MỚI `meta.initialize()` — thứ tự NGƯỢC với taoHoacMoBang() (mo-doc.ts).
     // Lý do: `meta.initialize()` ghi `pages = []` cục bộ ngay trên Y.Doc RỖNG trong bộ nhớ nếu
     // `_proxy.pages` chưa có giá trị. Gọi nó TRƯỚC `waitForSynced()` (như taoHoacMoBang() làm, chấp
     // nhận được ở đó vì có nhánh `createDoc` dự phòng nếu doc "biến mất") tạo ra một cuộc ĐUA CRDT

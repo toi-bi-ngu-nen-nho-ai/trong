@@ -14,7 +14,7 @@ import { mergeUpdates } from 'yjs'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { Text } from '@blocksuite/store'
 
-import { taoHoacMoBang } from '../EdgelessBoard'
+import { taoHoacMoBang } from '../mo-doc'
 
 function dungDocSourceGia(): DocSource & { kho: Map<string, Uint8Array[]> } {
   const kho = new Map<string, Uint8Array[]>()

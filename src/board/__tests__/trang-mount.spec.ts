@@ -12,7 +12,8 @@ import { BlockStdScope } from '@blocksuite/affine/std'
 import { render as litRender } from 'lit'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { layExtensionsTrang, taoHoacMoBang } from '../EdgelessBoard'
+import { layExtensionsTrang } from '../EdgelessBoard'
+import { taoHoacMoBang } from '../mo-doc'
 import { choDom } from '../../__tests__/helpers/cho-den-khi'
 
 // Ngữ cảnh 2D của <canvas> phải chế tay — happy-dom trả `null` từ `getContext('2d')`, và một khối
