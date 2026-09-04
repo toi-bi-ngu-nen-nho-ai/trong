@@ -23,6 +23,10 @@ import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type Rea
 
 import type { XuatBangFn } from './EdgelessBoard'
 import { batLopCssVendor } from './lop-css-vendor'
+// CHỈ import KIỂU: mo-doc.ts import @blocksuite/*, một import GIÁ TRỊ từ đó kéo cả khối BlockSuite
+// vào chunk vỏ app (phá thẳng D13). `import type` bị xoá lúc biên dịch nên an toàn — cùng cách
+// src/App.tsx đang import BangMeta.
+import type { LoaiMuc } from './mo-doc'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 
 export type { XuatBangFn } from './EdgelessBoard'
@@ -35,24 +39,51 @@ export type { KetQuaXuat } from './xuatAnhBang'
 // không dựng lại (và không tháo/lắp lại) bảng vẽ đang chạy.
 type PropsBang = {
   boardId: string
+  /**
+   * Loại mục — quyết định vỏ nào được nạp. Cùng MỘT chunk cho cả hai (viewManager là singleton, xem
+   * extensions.ts), nên đây chỉ chọn component chứ không đổi khối lượng tải.
+   */
+  loai: LoaiMuc
   // Chuyên khoa của bảng đang mở — chỉ để màn chờ vẽ đúng icon nét-đơn + màu nhận diện. Đi thẳng
   // qua cả hai màn chờ nối tiếp: Suspense fallback (tải chunk) và "Đang mở bảng…" trong EdgelessBoard.
   khoa?: string
   onReady?: () => void
   // Chuyển thẳng xuống EdgelessBoard thật — nhận hàm xuất PNG khi cây Lit gắn xong, null khi tháo.
+  // TrangBaiViet không nhận prop này (bài viết không xuất PNG); adapter của nhánh 'bai-viet' bên
+  // dưới đơn giản không chuyển tiếp nó.
   onXuatSanSang?: (xuat: XuatBangFn | null) => void
 }
-const kho = new Map<number, ComponentType<PropsBang>>()
-function layBang(lan: number): ComponentType<PropsBang> {
-  const co = kho.get(lan)
+// Props của CHÍNH component được nạp — không có `loai`, vì `loai` chỉ dùng ở tầng vỏ này để CHỌN
+// component, không phải một prop mà EdgelessBoard/TrangBaiViet thật sự khai báo.
+type PropsVoTrong = Omit<PropsBang, 'loai'>
+
+// Khoá gồm CẢ loại: hai vỏ là hai đối tượng lazy khác nhau, và cơ chế "thử lại bằng cách dựng một
+// lazy MỚI" (xem chú thích dài ở đầu file về việc React.lazy nhớ vĩnh viễn promise bị từ chối) phải
+// thử lại đúng vỏ đang hỏng.
+const kho = new Map<string, ComponentType<PropsVoTrong>>()
+function layBang(lan: number, loai: LoaiMuc): ComponentType<PropsVoTrong> {
+  const khoaKho = `${loai}:${lan}`
+  const co = kho.get(khoaKho)
   if (co) return co
   // PHẢI đứng trước `import()`: chunk bảng vẽ tiêm ~190 thẻ <style> vào <head> ngay khi nạp, và bộ
   // theo dõi bên trong chỉ bọc được thẻ nào rơi vào SAU khi nó chạy (xem ./lop-css-vendor.ts —
   // không bọc thì CSS không-lớp của BlockSuite đè mọi utility Tailwind của app, hỏng vĩnh viễn cả
   // những màn không liên quan). Hàm tự chặn gọi lại lần hai nên đặt trong layBang() là an toàn.
   batLopCssVendor()
-  const moi = lazy(() => import('./EdgelessBoard').then((m) => ({ default: m.EdgelessBoard })))
-  kho.set(lan, moi)
+  const moi =
+    loai === 'bai-viet'
+      ? // TrangBaiViet nhận `docId`, không phải `boardId` — adapter đổi tên prop ngay trong factory
+        // thay vì ép kiểu (`as`) ở lời gọi: một cú `as` ở đây sẽ im lặng cho `docId` chạy
+        // `undefined` bất cứ khi nào vỏ ngoài đổi tên prop mà không sửa tới đây.
+        lazy(() =>
+          import('./TrangBaiViet').then((m) => ({
+            default: ({ boardId, khoa, onReady }: PropsVoTrong) => (
+              <m.TrangBaiViet docId={boardId} khoa={khoa} onReady={onReady} />
+            ),
+          })),
+        )
+      : lazy(() => import('./EdgelessBoard').then((m) => ({ default: m.EdgelessBoard })))
+  kho.set(khoaKho, moi)
   return moi
 }
 
@@ -74,13 +105,14 @@ export class EdgelessBoard extends Component<PropsBang, State> {
 
   thuLai = () => {
     // Xoá đối tượng lazy hỏng khỏi kho rồi tăng số lần: lượt render kế tiếp dựng một lazy mới và
-    // thật sự gọi `import()` lần nữa.
-    kho.delete(this.state.lan)
+    // thật sự gọi `import()` lần nữa. Khoá phải khớp CHÍNH XÁC khoá đã dùng để lưu (loai:lan).
+    kho.delete(`${this.props.loai}:${this.state.lan}`)
     this.setState((s) => ({ loi: null, lan: s.lan + 1 }))
   }
 
   render(): ReactNode {
     if (this.state.loi) {
+      const tenMuc = this.props.loai === 'bai-viet' ? 'Bài viết' : 'Bảng vẽ'
       return (
         <div
           className="h-full flex flex-col items-center justify-center gap-4 px-8 text-center"
@@ -88,7 +120,7 @@ export class EdgelessBoard extends Component<PropsBang, State> {
         >
           <p className="text-[15px] font-bold">Cần mạng để tải lần đầu</p>
           <p className="text-[13px] max-w-[320px]" style={{ color: 'var(--c-text-muted)' }}>
-            Bảng vẽ được tải riêng và chỉ dùng được ngoại tuyến sau lần mở đầu tiên có mạng. Các
+            {tenMuc} được tải riêng và chỉ dùng được ngoại tuyến sau lần mở đầu tiên có mạng. Các
             phần còn lại của app vẫn dùng bình thường.
           </p>
           <button
@@ -105,7 +137,7 @@ export class EdgelessBoard extends Component<PropsBang, State> {
 
     // Suspense nằm TRONG boundary, không ngoài: chunk chưa tải xong thì hiện dòng chờ, tải hỏng
     // thì `getDerivedStateFromError` ở trên bắt trước khi lỗi kịp nổi lên tới src/main.tsx.
-    const Bang = layBang(this.state.lan)
+    const Bang = layBang(this.state.lan, this.props.loai)
     return (
       <Suspense
         fallback={

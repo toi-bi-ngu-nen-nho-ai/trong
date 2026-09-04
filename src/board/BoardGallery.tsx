@@ -366,6 +366,7 @@ export function BoardGallery({
         >
           <EdgelessBoard
             boardId={openBoardId}
+            loai="so-do"
             khoa={openOrigin?.chuyenKhoa}
             onReady={() => setDangChoCanvas(false)}
             onXuatSanSang={nhanXuatSanSang}
