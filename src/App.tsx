@@ -5537,6 +5537,11 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
     dismissPatientChangedElsewhere,
   } = useDosing()
   const hasData = patientHasData(patient)
+  // Hai nút gấp/mở khung (nút chữ chứa tóm tắt sinh hiệu + nút chevron) thiếu `aria-expanded` — trình
+  // đọc màn hình không biết khung đang mở hay đóng, và tên khả truy cập của nút chữ là NGUYÊN chuỗi
+  // "80 kg · 170 cm · Nữ · 72 tuổi · CrCl 36" không có ngữ nghĩa toggle (/impeccable critique
+  // 2026-09-04, P2). Cùng khuôn với Disclosure: aria-expanded + aria-controls trỏ vào thân khung.
+  const panelBodyId = useId()
   // "Bệnh nhân mới" xoá SẠCH thông số lẫn bảng đang dùng — hành động phá huỷ nhất màn hình, nên
   // bắt xác nhận hai bước như mọi nút xoá khác thay vì thực thi ngay từ một chạm.
   const [confirmReset, setConfirmReset] = useState(false)
@@ -5630,7 +5635,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
   return (
     <div className="mx-5 mb-3 rounded-[20px]" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
-        <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left">
+        <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left" aria-expanded={open} aria-controls={panelBodyId}>
           <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
             Bệnh nhân hiện tại
           </p>
@@ -5720,7 +5725,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
           </span>
           </>
         )}
-        <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }} aria-label={open ? "Thu gọn" : "Mở rộng"}>
+        <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }} aria-label={open ? "Thu gọn" : "Mở rộng"} aria-expanded={open} aria-controls={panelBodyId}>
           <span style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}>{icons.chevronDown()}</span>
         </button>
       </div>
@@ -5771,7 +5776,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
       {/* Trước đây `{open && <div>}` — gấp/mở khối ~700px này NHẢY TỨC THÌ, đúng khoảnh khắc "chọn
           thuốc → panel gấp lại → cuộn tới thẻ" bị giật nhiều nhất màn hình. Dùng lại kỹ thuật
           .disc-body (grid-template-rows 0fr→1fr, xem Disclosure) để chiều cao co giãn mượt. */}
-      <div className="disc-body disc-body--flush" data-open={open}>
+      <div id={panelBodyId} className="disc-body disc-body--flush" data-open={open}>
         <div className="px-4 pb-4">
           {/* Mọi ô đều có hàng nhãn CAO BẰNG NHAU (PatientField) nên đáy các ô nhập thẳng một đường.
               Trước đây ô Creatinin có thêm bộ chọn đơn vị nằm chung hàng nhãn, đẩy ô nhập của nó
@@ -11330,6 +11335,31 @@ const TAB_SEARCH_HINT_KEY = "drtrong:tabSearchHintSeen"
 // tabOrderIds trong DungThuocScreen (/impeccable critique 2026-08-26, P1).
 const TAB_REORDER_HINT_KEY = "drtrong:tabReorderHintSeen"
 
+// Hai gợi ý trên trước đây lưu cờ "1" VĨNH VIỄN: nhưng đây là máy trực dùng chung, luân phiên nhiều
+// bác sĩ — chỉ người đầu tiên từng thấy, người vào ca sau gặp 2 nút icon trần / hàng tab tự sắp lại
+// mà không lời giải thích nào (/impeccable critique 2026-09-04, P3). Nay lưu MỐC THỜI GIAN lúc tắt và
+// tự nạp lại sau HINT_REARM_MS — một lần nữa cho ca sau, vẫn không phải một hàng thường trực.
+const HINT_REARM_MS = 45 * 24 * 60 * 60 * 1000
+// "đã thấy gần đây" = có mốc thời gian hợp lệ và chưa quá HINT_REARM_MS. `Number(null)` = 0 và cờ "1"
+// kiểu cũ → 1 → `Date.now() - at` vượt xa HINT_REARM_MS → cả hai coi như hết hạn: gợi ý hiện lại đúng
+// một lần rồi được markHintSeen() ghi đè bằng mốc thật. Lỗi đọc localStorage → false (coi như chưa
+// thấy: thà báo thừa một lần còn hơn mất vĩnh viễn — cùng lựa chọn đã ghi ở hai chỗ đọc bên dưới).
+function hintSeenRecently(key: string): boolean {
+  try {
+    const at = Number(localStorage.getItem(key))
+    return Number.isFinite(at) && at > 0 && Date.now() - at < HINT_REARM_MS
+  } catch {
+    return false
+  }
+}
+function markHintSeen(key: string): void {
+  try {
+    localStorage.setItem(key, String(Date.now()))
+  } catch {
+    // Không lưu được thì lần sau có thể hiện lại — chấp nhận được, không chặn việc dùng app.
+  }
+}
+
 
 // Đóng băng thứ tự tab theo phiên (xem comment ở khai báo tabOrderIds trong DungThuocScreen) tránh
 // được nạn xáo trộn mỗi lần dựng lại màn, nhưng đóng băng VĨNH VIỄN cho tới khi đóng hẳn tab trình
@@ -11466,12 +11496,9 @@ export function DungThuocScreen({
       setTabOrderIds(next)
       setTabOrderAt(Date.now())
       if (changed) {
-        let seen = false
-        try {
-          seen = localStorage.getItem(TAB_REORDER_HINT_KEY) === "1"
-        } catch {
-          // Không đọc được thì coi như chưa thấy — thà báo thừa một lần còn hơn không báo lần nào.
-        }
+        // Cờ hết hạn sau HINT_REARM_MS (xem hintSeenRecently); lỗi đọc → false (báo thừa một lần còn
+        // hơn không báo lần nào).
+        const seen = hintSeenRecently(TAB_REORDER_HINT_KEY)
         // Không báo nếu gợi ý "Tìm" (showTabHint, khai báo bên dưới trong cùng component — closure
         // đọc đúng giá trị vì effect này chạy SAU khi cả hàm component đã dựng xong) đang hiện: hai
         // banner một-lần giống hệt khuôn dạng (fade-in, primarySoft, nút "Đã hiểu") đứng liền kề nhau
@@ -11479,11 +11506,7 @@ export function DungThuocScreen({
         // TIẾP THEO (sau TAB_ORDER_REFRESH_MS) còn cơ hội báo, thay vì mất vĩnh viễn chỉ vì trùng thời
         // điểm với gợi ý Tìm (/impeccable critique 2026-08-26 lượt 2, P3).
         if (!seen && !showTabHint) {
-          try {
-            localStorage.setItem(TAB_REORDER_HINT_KEY, "1")
-          } catch {
-            // Không lưu được thì lần sau có thể báo lại — chấp nhận được, không chặn việc dùng app.
-          }
+          markHintSeen(TAB_REORDER_HINT_KEY)
           setTabReorderNotice(true)
           tabReorderNoticeTimer.current = setTimeout(() => setTabReorderNotice(false), 6000)
         }
@@ -11586,17 +11609,16 @@ export function DungThuocScreen({
   // lặp lại mãi phiền hơn mất một lần gợi ý).
   const [showTabHint, setShowTabHint] = useState(() => {
     try {
-      return localStorage.getItem(TAB_SEARCH_HINT_KEY) !== "1"
+      // null→0, cờ "1" cũ→1, mốc đã quá HINT_REARM_MS → tất cả coi như CHƯA thấy (hiện lại một lần);
+      // lỗi đọc → false (ẨN — gợi ý lặp mãi phiền hơn mất một lần, ngược DisclaimerGate).
+      const at = Number(localStorage.getItem(TAB_SEARCH_HINT_KEY))
+      return !(Number.isFinite(at) && at > 0 && Date.now() - at < HINT_REARM_MS)
     } catch {
       return false
     }
   })
   function dismissTabHint() {
-    try {
-      localStorage.setItem(TAB_SEARCH_HINT_KEY, "1")
-    } catch {
-      // Không lưu được thì gợi ý có thể hiện lại lần sau — chấp nhận được, không chặn việc dùng app.
-    }
+    markHintSeen(TAB_SEARCH_HINT_KEY)
     setShowTabHint(false)
   }
 
