@@ -90,14 +90,37 @@ describe('capNhatSauKhiRoiMuc', () => {
   })
 })
 
-describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi', () => {
+describe('capNhatSauKhiRoiMuc — KHÔNG backfill trường cũ + noiDungTimKiemMoi', () => {
   // Ca "bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định" đã bị XOÁ ở
   // giai đoạn 5-6 (task-1-brief.md Bước 5): nó canh đúng ba nhánh `??` phòng vệ vừa bị gỡ khỏi
-  // capNhatSauKhiRoiMuc. Gỡ vá thật để xác nhận: bỏ `?? SPECIALTIES[0].id`/`?? []`/`?? ''` ra khỏi
-  // idbPut bên dưới thì ca đó đỏ đúng như mong đợi (thông báo lỗi thật: "expected undefined to be
-  // 'cardiology'") — nay hàm này chỉ còn ghi vào store MỚI (mucs, xem Task 2), không có bản ghi
-  // thiếu trường nào để backfill, nên giữ lại ca cũ là giữ một lời nói dối về hình dạng dữ liệu
-  // (spec §3.1).
+  // capNhatSauKhiRoiMuc, vì hàm này giờ chỉ còn ghi vào store MỚI (mucs, xem Task 2), không có bản
+  // ghi thiếu trường nào để backfill — giữ lại ca cũ là giữ một lời nói dối về hình dạng dữ liệu
+  // (spec §3.1). Thay vào đó là ca ĐẢO NGƯỢC ngay dưới đây, khẳng định điều NGƯỢC LẠI: bản ghi cũ
+  // thiếu trường KHÔNG được backfill. Nếu ai phục hồi một nhánh `?? SPECIALTIES[0].id`/`?? []`/
+  // `?? ''` vào idbPut trong capNhatSauKhiRoiMuc, ca dưới đây đỏ (đã tự tay gỡ vá tạm để xác nhận —
+  // xem task-9-report.md).
+  it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → KHÔNG backfill (bỏ 2026-09-05, spec §3.1)', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'cu',
+      ten: 'Bảng cũ',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+    } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
+    await capNhatSauKhiRoiMuc('cu', false)
+    const ds = await idbGetAll<{
+      id: string
+      chuyenKhoa?: string
+      tags?: string[]
+      noiDungTimKiem?: string
+    }>(IDB_STORES.mucs)
+    const sau = ds.find((b) => b.id === 'cu')
+    expect(sau).toBeDefined()
+    expect(sau?.chuyenKhoa).toBeUndefined()
+    expect(sau?.tags).toBeUndefined()
+    expect(sau?.noiDungTimKiem).toBeUndefined()
+  })
+
   it('truyền noiDungTimKiemMoi → ghi đè noiDungTimKiem cũ', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.mucs, {

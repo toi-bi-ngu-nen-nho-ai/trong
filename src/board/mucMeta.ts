@@ -90,8 +90,8 @@ let ghiAnhDangCho: Promise<void> | null = null
 
 /**
  * Gọi lúc RỜI một bảng (xem EdgelessBoard.tsx). Cập nhật metadata của bảng vừa đóng:
- * `capNhatLuc` (CHỈ khi có sửa nội dung thật), `noiDungTimKiem`, và backfill chuyenKhoa/tags cho
- * bản ghi cũ.
+ * `capNhatLuc` (CHỈ khi có sửa nội dung thật) và `noiDungTimKiem`. KHÔNG backfill chuyenKhoa/tags
+ * cho bản ghi cũ nữa (bỏ 2026-09-05, xem chú thích trên `chuyenKhoa` ở khai báo `MucMeta`).
  *
  * `capNhatLuc` chỉ bump khi `coThayDoiNoiDung` — trước đây (tới mục 30 của HANDOFF.md) hai việc
  * này gộp làm một vì "chặng đó chưa dựng cơ chế phát hiện thay đổi thật", hệ quả là MỞ bảng ra xem
