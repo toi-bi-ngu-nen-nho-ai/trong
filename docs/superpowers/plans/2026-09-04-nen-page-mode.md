@@ -1964,6 +1964,42 @@ Thêm nữa, ba thứ Plan 2 cần biết chỉ lộ ra **sau khi** Plan 1 chạ
 - `DocTitle` mount ra sao trong thực tế (spec §6.3 — có thể phải tự đặt thẻ; Task 10 Step 8 trả lời).
 - Số đo dung lượng thật, quyết định có phải bỏ bớt nhóm 4 hay không.
 
+### BA CÂU HỎI TRÊN — ĐÃ CÓ CÂU TRẢ LỜI (2026-09-05, Plan 1 đã hợp nhất vào `main`)
+
+Ghi ở đây để lượt viết Plan 2 khỏi phải đo lại.
+
+1. **Props `TrangBaiViet`:** `{ docId: string; khoa?: string; onReady?: () => void }`. Nó KHÔNG nhận
+   `boardId` — vỏ `index.tsx` chuyển đổi. Cờ `khongLuuDuoc` là state nội bộ lấy từ giá trị thứ ba mà
+   `taoHoacMoDoc()` trả về, không phải prop. Băng cảnh báo đã có ca kiểm riêng
+   (`trang-bai-viet-khong-luu-duoc.spec.ts`).
+2. **`DocTitle`:** spec §6.3 đoán đúng — nó là FRAGMENT, không tự mount. `TrangBaiViet.tsx:153` phải
+   tự đặt `<doc-title .doc=${store}>` NGAY TRƯỚC `std.render()` trong CÙNG một lời gọi `litRender`,
+   và bọc trong phần tử mang lớp `.drt-page-viewport` để `closest()` của nó tìm được.
+3. **Dung lượng:** KHÔNG phải bỏ nhóm nào. Chunk soạn thảo **1.159,48 kB gzip** trên trần 1.400 —
+   còn ~240 kB dư địa. Bốn nhóm đủ chỗ, `viewExtensions` = 55/58.
+
+### BỐN THỨ MỚI, PHÁT SINH SAU PLAN 1 — PLAN 2 PHẢI TÍNH TỚI
+
+- **`QuickSearchProvider` đã cấp** (`src/board/tim-nhanh-lien-ket.ts`, chỉ bộ edgeless). Nút "Liên
+  kết" chạy được. Nếu Plan 2 mở khối nhúng cho bài viết thì phải quyết có nối provider này sang bộ
+  trang không.
+- **"Không bên thứ ba" đã cưỡng chế bằng CSP** (`index.html`): `connect-src 'self'`,
+  `img-src 'self' data: blob:`, `frame-src 'none'`. Mọi tính năng Plan 2 chạm mạng sẽ bị chặn ở tầng
+  trình duyệt — thiết kế phải giả định NGOẠI TUYẾN hoàn toàn. Xem `src/board/khong-ben-thu-ba.ts`.
+- **Hai khoản Minor nên trả trong giai đoạn 6**, vì chúng chỉ lộ ra khi có luồng bài viết thật:
+  nhãn `sr-only` của Suspense (đã sửa theo `loai`, kiểm lại khi có màn mới) và khoảng hở coverage
+  của băng `khongLuuDuoc` (đã thêm ca kiểm, mở rộng khi UI thật xuất hiện).
+- **Bẫy đã trả giá, đừng lặp lại:** factory `vi.mock` KHÔNG được `tsc` kiểm kiểu — sau mỗi lượt đổi
+  tên export phải `grep -rn "<TênCũ>:" src/` rồi chạy trọn bộ test, `tsc` xanh không đủ. Giai đoạn 8
+  ("gỡ hệ cũ") sẽ đổi tên hàng loạt nên đây là rủi ro thật.
+
+### TRẠNG THÁI HIỆN TẠI — VÌ SAO CHỦ DỰ ÁN CHƯA THẤY TÍNH NĂNG
+
+`src/board/BoardGallery.tsx:369` vẫn viết cứng `loai="so-do"`, và chuỗi `'bai-viet'` không xuất hiện
+lần nào trong `BoardGallery.tsx` / `LuoiMuc.tsx` / `App.tsx`. Toàn bộ động cơ chạy được và có test,
+nhưng **chưa có đường nào cho người dùng bấm tới**. Đó đúng là ranh giới Plan 1 / Plan 2 mà spec §4
+vạch ra: giai đoạn 6 mới là lúc tính năng hiện ra.
+
 **Plan 2 sẽ gồm** (giai đoạn 5–9 của spec §4):
 
 | Task | Việc | Hoàn tác được? |
