@@ -1993,6 +1993,29 @@ Ghi ở đây để lượt viết Plan 2 khỏi phải đo lại.
   tên export phải `grep -rn "<TênCũ>:" src/` rồi chạy trọn bộ test, `tsc` xanh không đủ. Giai đoạn 8
   ("gỡ hệ cũ") sẽ đổi tên hàng loạt nên đây là rủi ro thật.
 
+### ĐÍNH CHÍNH CỦA CHỦ DỰ ÁN (2026-09-05) — LUỒNG "TẠO BÀI MỚI"
+
+Một phiên trước đã mô tả sai là *"thêm nút Tạo bài viết cạnh nút tạo bảng"*. **SAI.** Đúng là:
+
+**Điểm vào duy nhất để tạo bài viết là nút "Tạo bài mới" ĐÃ CÓ SẴN ở HomeScreen**
+(`src/App.tsx:1128-1143`, trong mục "Học tập", ngay trên "Đồng bộ dữ liệu"). Chủ dự án yêu cầu
+**đập đi xây lại chính nút đó** — không phải chỉ đổi `onClick`.
+
+Trạng thái hiện tại của nó, đo 2026-09-05:
+- `onClick={() => onNavigate("addEntry")}` — dẫn vào `AddEntryScreen` (`src/App.tsx:1950`), màn nhập
+  liệu của HỆ CŨ, thứ giai đoạn 8 sẽ xoá.
+- Nhãn "Tạo bài mới" / phụ đề "Nhập thêm dữ liệu mới vào kho kiến thức", icon `icons.docCross()`,
+  vòng tròn `--c-primary-soft`.
+
+**Tháo dây nút này ở giai đoạn 6 là AN TOÀN** — đã kiểm: `addEntry` còn lối vào thứ hai
+(`goToEditArticle()` ở `src/App.tsx:12545` dùng nó làm màn SỬA bài cũ), nên màn ấy không mồ côi và
+chỉ thực sự chết ở giai đoạn 8. Mất đường tạo bài viết hệ cũ từ Trang chủ là CÓ CHỦ Ý (spec §2
+quyết định 3 và 4).
+
+Luồng đích, theo spec §3.5: bấm → bảng chọn danh mục (**4 lựa chọn**, vì `DANH_MUC` có 4 mục và
+`bai-viet` được phép ở cả bốn) → tạo `MucMeta` loại `bai-viet` → **mở thẳng `TrangBaiViet`**. Không
+có trạng thái chưa-phân-loại (spec §2 quyết định 7).
+
 ### TRẠNG THÁI HIỆN TẠI — VÌ SAO CHỦ DỰ ÁN CHƯA THẤY TÍNH NĂNG
 
 `src/board/BoardGallery.tsx:369` vẫn viết cứng `loai="so-do"`, và chuỗi `'bai-viet'` không xuất hiện
