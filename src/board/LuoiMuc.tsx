@@ -285,11 +285,32 @@ export function TheTrong({
           data-testid="menu-bang-…") đã đứng SẴN đúng góc đó — absolute top:4px right:4px, 44×44px
           (xem JSX nút bên dưới) — badge 23×23px lọt gọn bên trong hộp 44×44 đó, đè trực tiếp lên
           nút bấm. Góc trên-trái không có phần tử absolute nào khác (kiểm toàn bộ cây con lúc vá).
-          Chỉ render khi có `loai` — lớp phủ FLIP không truyền nó. */}
+          Chỉ render khi có `loai` — lớp phủ FLIP không truyền nó.
+
+          CỐ Ý vẫn nằm trong cây `aria-hidden="true"` của div ngoài cùng (VÒNG SỬA 1, P1) — đây là
+          hình TRANG TRÍ nhân đôi bằng hình một thông tin đã có TÊN ở nơi khác, đúng mẫu huy hiệu
+          chuyên khoa ngay phía trên (xem `tenChuyenKhoa` trong TheBang): `<title>` bên trong
+          `iconLoaiMuc()` không bao giờ tới trình đọc màn hình ở ĐÂY vì `aria-hidden` ở tổ tiên nuốt
+          toàn bộ hậu duệ — loại mục được đưa vào `aria-label` của nút "Mở bảng…" thay (biến
+          `tenLoai`, TheBang). Không chọn phương án kéo badge ra NGOÀI cây aria-hidden: cây đó ở
+          đây là CHỦ Ý (còn giấu ghim/doodle trang trí khác của thẻ), và một `<span>` không tương
+          tác đứng ngoài cây vẫn phải tự quản lý để không lẫn vào thứ tự tab — phức tạp hơn hẳn một
+          đoạn nối chuỗi vào aria-label đã có sẵn.
+
+          Màu: `--c-on-note-muted` chữ / `--c-note-edge` nền tròn — CẶP TOKEN CỦA GIẤY (xem
+          --c-on-note/--c-on-note-muted tại :root, index.css: "Thêm bất cứ thứ gì vẽ trên
+          .mind-note-card thì tô bằng hai token này, đừng dùng --c-text*"). Badge vẽ TRÊN
+          .mind-note-card, mà giấy đó CỐ Ý không đổi màu theo theme — bản đầu (VÒNG SỬA 1, P2)
+          dùng `--c-text-soft`/`--c-surface`: --c-text-soft LẬT gần-trắng ở bản tối (đúng khiếm
+          khuyết P0 mà --c-on-note/-muted sinh ra để chặn — nút "⋯" từng đo 1,03:1, huy hiệu chuyên
+          khoa 2,69:1, xem comment tại --c-on-note) và --c-surface lật tối, đục một đĩa tối lên tờ
+          giấy sáng. `--c-note-edge` là VẬT LIỆU của giấy (mép đáy, tối hơn mặt giấy một bậc, dịch
+          cùng bậc với --c-note ở cả hai bản — xem comment tại đó) nên nền tròn vẫn đọc là một phần
+          của tờ giấy, không phải vỏ app. */}
       {loai && (
         <span
           className="absolute top-1 left-1 rounded-full p-1"
-          style={{ background: 'var(--c-surface)', color: 'var(--c-text-soft)' }}
+          style={{ background: 'var(--c-note-edge, #e6e4dc)', color: 'var(--c-on-note-muted, #5c5f7a)' }}
         >
           {iconLoaiMuc(loai, 'w-3.5 h-3.5')}
         </span>
@@ -427,6 +448,12 @@ function TheBang({
   // vào artwork trang trí), nên người dùng trình đọc màn hình không có cách nào khác biết bảng này
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
   const tenChuyenKhoa = SPECIALTIES.find((s) => s.id === (bang.chuyenKhoa ?? SPECIALTIES[0].id))?.name
+  // Tên LOẠI mục cho aria-label — CÙNG LÝ DO đúng phía trên nhưng cho badge loại (bài viết ↔ sơ
+  // đồ) ở TheTrong: badge đó CỐ Ý vẫn nằm trong cây `aria-hidden="true"` (hình trang trí, xem
+  // comment tại chỗ render badge trong TheTrong), nên `<title>` bên trong `iconLoaiMuc()` không
+  // bao giờ tới trình đọc màn hình — trước bản vá này, người dùng trình đọc màn hình có 0 tín hiệu
+  // phân biệt bài viết với sơ đồ trong lưới dù người sáng mắt thấy ngay qua icon (VÒNG SỬA 1, P1).
+  const tenLoai = bang.loai === 'bai-viet' ? 'bài viết' : 'sơ đồ'
 
   // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc LuoiMuc mount —
   // trước đây parent chụp `Date.now()` một lần lúc MOUNT rồi so cho MỌI thẻ; bảng tạo SAU khi
@@ -631,10 +658,10 @@ function TheBang({
         // mang tên mặc định — đúng nhánh gây nhầm lẫn, không đụng tới bảng đã có tên/khoa riêng.
         aria-label={
           tenChuyenKhoa
-            ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+            ? `Mở bảng ${bang.ten}, loại ${tenLoai}, chuyên khoa ${tenChuyenKhoa}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
             : bang.ten === TEN_MAC_DINH
-              ? `Mở bảng chưa đặt tên thứ ${index + 1}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
-              : `Mở bảng ${bang.ten}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+              ? `Mở bảng chưa đặt tên thứ ${index + 1}, loại ${tenLoai}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+              : `Mở bảng ${bang.ten}, loại ${tenLoai}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
         }
       >
         <div

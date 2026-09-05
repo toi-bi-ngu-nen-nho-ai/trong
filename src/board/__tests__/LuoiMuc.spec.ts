@@ -158,6 +158,34 @@ describe('LuoiMuc', () => {
     expect(tilt).toBe(`${nghiengOnDinh('bang-1')}deg`)
   })
 
+  // VÒNG SỬA 1, P1: badge icon phân biệt loại mục (LuoiMuc.tsx, TheTrong) nằm trong một cây
+  // `aria-hidden="true"` — CỐ Ý, cùng cây còn giấu huy hiệu chuyên khoa và ghim/doodle trang trí
+  // khác của thẻ (xem comment tại chỗ render badge). `aria-hidden` ở tổ tiên nuốt TOÀN BỘ hậu duệ,
+  // nên `<title>Bài viết</title>`/`<title>Sơ đồ</title>` bên trong badge KHÔNG BAO GIỜ tới trình
+  // đọc màn hình ở đây — một ca kiểm render thẳng `iconLoaiMuc()` cô lập (không có tổ tiên
+  // aria-hidden, xem the-icon-loai.spec.tsx) không thấy được điều đó. Ca TÍCH HỢP này dựng cả lưới
+  // thật và kiểm đúng nơi tín hiệu phải tới: `aria-label` của nút "Mở bảng…" — cùng mẫu tenChuyenKhoa
+  // đã dùng cho chuyên khoa (huy hiệu chuyên khoa cũng aria-hidden, tên khoa cũng đi qua aria-label).
+  it('loại mục (bài viết ↔ sơ đồ) tới được tên trợ năng của nút mở thẻ — badge chỉ là hình trang trí trong cây aria-hidden', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'bang-bv', ten: 'Ghi chú X', taoLuc: bayGio, capNhatLuc: bayGio, loai: 'bai-viet',
+    })
+    await idbPut(IDB_STORES.mucs, {
+      id: 'bang-sd', ten: 'Minh hoạ Y', taoLuc: bayGio + 1, capNhatLuc: bayGio + 1, loai: 'so-do',
+    })
+    await act(async () => {
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: [] }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const nhan = Array.from(container.querySelectorAll('.the-bang-vat')).map((el) => el.getAttribute('aria-label'))
+    expect(nhan.some((n) => n?.includes('bài viết'))).toBe(true)
+    expect(nhan.some((n) => n?.includes('sơ đồ'))).toBe(true)
+  })
+
   it('thẻ vừa tạo (taoLuc gần đây) có class "card-plop"; thẻ cũ có class "card-settle"', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.mucs, { id: 'bang-cu', ten: 'Thẻ cũ', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
