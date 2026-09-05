@@ -63,6 +63,9 @@ quyết định 4"). Nội dung doc BlockSuite không mất (nó nằm ở Index
   `loai: 'so-do'` + `danhMuc: 'tiep-can'`, ghi sang `mucs`, ghim bằng cờ localStorage) trước Task 3.
   Việc này KHÔNG có trong spec vì spec giả định không có dữ liệu thật.
 
+> **ĐÃ TRẢ LỜI (chủ dự án, 2026-09-05): (a).** Bảng sơ đồ hiện có là bảng thử, mất được. Chạy plan
+> đúng như viết, KHÔNG thêm task di trú. Bản ghi trong `boards` vẫn nằm nguyên đó cho tới giai đoạn 9.
+
 ---
 
 ## File Structure
