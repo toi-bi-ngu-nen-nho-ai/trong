@@ -354,4 +354,52 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
       )
     })
   })
+
+  it('CHỐNG HỒI QUY (kho bài viết giai đoạn 5-6): rời sơ đồ có sửa nội dung thật → ten KHÔNG bị đụng', async () => {
+    // Bản vá đồng bộ tiêu đề bài viết (TrangBaiViet.tsx) truyền thêm tham số thứ 4 `tenMoi` cho
+    // capNhatSauKhiRoiMuc(). Ca này canh ĐÚNG đường EdgelessBoard.tsx:450 gọi hàm đó — 3 tham số,
+    // KHÔNG có tenMoi — với coThayDoiNoiDung=true (trường hợp XẤU NHẤT, dễ lộ hồi quy nhất nếu ai
+    // lỡ tay để logic đồng bộ tiêu đề chạy chung cho cả hai đường). Không mock capNhatSauKhiRoiMuc
+    // (khác hai ca "unmount → gọi..." phía trên) — đây là lượt ĐỌC LẠI IndexedDB thật sau khi hàm
+    // thật đã chạy, không phải chỉ kiểm tham số truyền vào.
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'bang-ten-tu-dat',
+      ten: 'Tên sơ đồ tự đặt',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(createElement(EdgelessBoard, { boardId: 'bang-ten-tu-dat' }))
+    })
+    await act(async () => {
+      await choDom(() => {
+        expect(document.querySelector('editor-host')).not.toBeNull()
+      })
+    })
+
+    const eh = document.querySelector('editor-host') as unknown as {
+      std: { store: { root: { id: string } | null; addBlock: (f: string, p?: object, parent?: string) => string } }
+    }
+    await act(async () => {
+      const store = eh.std.store
+      if (store.root) {
+        const noteId = store.addBlock('affine:note', {}, store.root.id)
+        store.addBlock('affine:paragraph', { text: new Text('Nội dung canvas không phải tên bảng') }, noteId)
+      }
+    })
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    await choDom(async () => {
+      const ds = await idbGetAll<{ id: string; ten: string }>(IDB_STORES.mucs)
+      expect(ds.find((b) => b.id === 'bang-ten-tu-dat')?.ten).toBe('Tên sơ đồ tự đặt')
+    })
+  })
 })

@@ -93,6 +93,18 @@ let ghiAnhDangCho: Promise<void> | null = null
  * `capNhatLuc` (CHỈ khi có sửa nội dung thật) và `noiDungTimKiem`. KHÔNG backfill chuyenKhoa/tags
  * cho bản ghi cũ nữa (bỏ 2026-09-05, xem chú thích trên `chuyenKhoa` ở khai báo `MucMeta`).
  *
+ * Tham số `tenMoi` (giai đoạn 5-6, kho bài viết): CHỈ `TrangBaiViet.tsx` truyền — trích từ
+ * `<doc-title>` lúc rời bài viết, để thẻ ở lưới ngừng hiện cứng "Bài chưa đặt tên" (tiêu đề gõ
+ * trong bài không có đường chảy ngược ra MucMeta.ten nếu không có bước này). `EdgelessBoard.tsx`
+ * KHÔNG truyền tham số này — sơ đồ có tên do người dùng tự đặt qua ô đổi tên tại chỗ ở lưới
+ * (LuoiMuc.tsx), đồng bộ tiêu đề vào MỌI lượt rời mục sẽ làm nội dung canvas ghi đè tên đó, một
+ * hồi quy tệ hơn lỗi "Bài chưa đặt tên" đang vá. Hai lớp phòng vệ chuỗi rỗng — cả ở đây (dưới) LẪN
+ * ở nơi gọi (TrangBaiViet.tsx chỉ đưa `tieuDeMoi` khi trim() khác rỗng) — cố ý trùng: mất một lớp
+ * (một caller mới quên trim, hoặc ai đó truyền chuỗi trắng thẳng) vẫn không xoá tên bảng thành nhãn
+ * trắng. `tenMoi` rỗng/toàn khoảng trắng/undefined ⇒ giữ nguyên `hienCo.ten`, không có giới hạn độ
+ * dài (thẻ ở lưới đã tự line-clamp 2 dòng bằng CSS, và ô đổi tên tại chỗ của sơ đồ cũng không cắt
+ * — xem `onLuuTen` ở LuoiMuc.tsx — nên tiêu đề bài viết dài đi theo đúng quy ước sẵn có).
+ *
  * `capNhatLuc` chỉ bump khi `coThayDoiNoiDung` — trước đây (tới mục 30 của HANDOFF.md) hai việc
  * này gộp làm một vì "chặng đó chưa dựng cơ chế phát hiện thay đổi thật", hệ quả là MỞ bảng ra xem
  * rồi quay lại (không sửa gì) vẫn khiến nhãn "cập nhật lần cuối" nhảy thành "Vừa xong". Mục 31 vá
@@ -115,6 +127,7 @@ export function capNhatSauKhiRoiMuc(
   id: string,
   coThayDoiNoiDung: boolean,
   noiDungTimKiemMoi?: string,
+  tenMoi?: string,
 ): Promise<void> {
   const p = (async () => {
     const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
@@ -128,10 +141,17 @@ export function capNhatSauKhiRoiMuc(
     // bảng. Kiểu `MucMeta` không còn khai trường này, nên phải đọc qua một kiểu nới rộng.
     const { anhXemTruoc: _anhCu, ...conLai } = hienCo as MucMeta & { anhXemTruoc?: string }
     void _anhCu
+    // `tenMoi?.trim()` rỗng ('', toàn khoảng trắng, hoặc tham số không được truyền) ⇒ chuỗi rỗng
+    // là falsy ⇒ rơi về `hienCo.ten`. KHÔNG dùng `??` như noiDungTimKiem ngay dưới: `??` chỉ chặn
+    // null/undefined, để lọt chuỗi rỗng '' đè lên tên đang có — đúng lỗi mà noiDungTimKiem CỐ Ý cho
+    // qua (xoá sạch nội dung tìm kiếm khi bài viết rỗng là đúng) nhưng lại là hồi quy nếu áp cho
+    // `ten` (thẻ ở lưới thành nhãn trắng).
+    const tenDaTrim = tenMoi?.trim()
     await idbPut(IDB_STORES.mucs, {
       ...conLai,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
       noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem,
+      ten: tenDaTrim ? tenDaTrim : hienCo.ten,
     })
   })()
   ghiAnhDangCho = p

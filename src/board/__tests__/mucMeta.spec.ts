@@ -158,6 +158,85 @@ describe('capNhatSauKhiRoiMuc — KHÔNG backfill trường cũ + noiDungTimKiem
   })
 })
 
+// Tham số thứ 4 `tenMoi` (giai đoạn 5-6, kho bài viết) — CHỈ TrangBaiViet.tsx truyền, để tiêu đề
+// gõ trong bài viết chảy ngược ra `MucMeta.ten` cho thẻ ở lưới. Bốn ca dưới đây canh đúng phần
+// hợp đồng nằm ở mucMeta.ts (nơi bảo vệ chuỗi rỗng THẬT SỰ nằm) — phần TrangBaiViet.tsx trích tiêu
+// đề từ `<doc-title>` được canh riêng, tích hợp thật, ở trang-bai-viet-mount.spec.ts.
+describe('capNhatSauKhiRoiMuc — tham số tenMoi (đồng bộ tiêu đề bài viết)', () => {
+  it('truyền tenMoi có dấu tiếng Việt → ghi đè ten cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-1',
+      ten: 'Bài chưa đặt tên',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await capNhatSauKhiRoiMuc('ten-1', false, undefined, 'Tiếp cận đau ngực cấp')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-1')?.ten).toBe('Tiếp cận đau ngực cấp')
+  })
+
+  it('tenMoi chuỗi rỗng → giữ nguyên ten cũ, KHÔNG ghi đè thành nhãn trắng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-2',
+      ten: 'Tên đang có',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await capNhatSauKhiRoiMuc('ten-2', false, undefined, '')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-2')?.ten).toBe('Tên đang có')
+  })
+
+  it('tenMoi chỉ toàn khoảng trắng → xử như rỗng, giữ nguyên ten cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-3',
+      ten: 'Tên đang có',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await capNhatSauKhiRoiMuc('ten-3', false, undefined, '   ')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-3')?.ten).toBe('Tên đang có')
+  })
+
+  it('KHÔNG truyền tenMoi (đường EdgelessBoard.tsx gọi) → giữ nguyên ten cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-4',
+      ten: 'Tên sơ đồ tự đặt',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    // Đúng chữ ký EdgelessBoard.tsx:450 gọi — ba tham số, không có tenMoi.
+    await capNhatSauKhiRoiMuc('ten-4', true, 'nội dung canvas')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-4')?.ten).toBe('Tên sơ đồ tự đặt')
+  })
+})
+
 describe('trichVanBanTuKhoi', () => {
   it('gộp text của mọi khối con có props.text, đệ quy nhiều cấp, cách nhau bằng dấu cách', () => {
     const goc = {

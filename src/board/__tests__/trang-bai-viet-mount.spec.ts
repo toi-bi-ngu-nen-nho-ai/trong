@@ -222,4 +222,53 @@ describe('TrangBaiViet', () => {
     // trong DOM — bằng chứng ".doc" đã được gán đúng, không chỉ "đặt thẻ suông".
     await choDom(() => expect(boc.querySelector('doc-title .doc-title-container')).not.toBeNull())
   })
+
+  it('rời bài viết SAU KHI gõ tiêu đề có dấu → MucMeta.ten được đồng bộ đúng tiêu đề đó', async () => {
+    // Vết lỗi người dùng thấy: tiêu đề gõ trong bài không bao giờ lên thẻ, thẻ luôn hiện "Bài chưa
+    // đặt tên" — vì capNhatSauKhiRoiMuc() (trước bản vá) chỉ ghi capNhatLuc/noiDungTimKiem, không
+    // đụng `ten`. Ca này gõ thẳng qua `<doc-title>.doc.root.props.title` (Y.Text CHÍNH trường
+    // RootBlockModel/DocTitle đọc/ghi, xem root-block-model.ts) — không phải lối tắt giả lập riêng
+    // — rồi rời trang và xác nhận `ten` khớp ĐÚNG tiêu đề có dấu tiếng Việt.
+    await ghiMeta('bv-mount-6', 'Bài chưa đặt tên')
+
+    await act(async () => {
+      root.render(createElement(TrangBaiViet, { docId: 'bv-mount-6' }))
+    })
+    await choDom(() => expect(boc.querySelector('doc-title .doc-title-container')).not.toBeNull())
+
+    const dt = boc.querySelector('doc-title') as unknown as {
+      doc: {
+        root: { props: { title: { insert: (content: string, index: number) => void } } } | null
+      }
+    }
+    await act(async () => {
+      dt.doc.root?.props.title.insert('Tiếp cận đau ngực cấp ở khoa Cấp cứu', 0)
+    })
+
+    await act(async () => root.unmount())
+
+    // `capNhatSauKhiRoiMuc` là fire-and-forget; chờ tới khi bản ghi hiện ra.
+    await choDom(async () => {
+      const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+      const muc = ds.find((m) => m.id === 'bv-mount-6')
+      expect(muc?.ten).toBe('Tiếp cận đau ngực cấp ở khoa Cấp cứu')
+    })
+  })
+
+  it('rời bài viết KHI tiêu đề rỗng (chưa gõ gì) → ten giữ nguyên, KHÔNG bị ghi đè thành nhãn trắng', async () => {
+    await ghiMeta('bv-mount-7', 'Tên đã lưu trước đó')
+
+    await act(async () => {
+      root.render(createElement(TrangBaiViet, { docId: 'bv-mount-7' }))
+    })
+    await choDom(() => expect(boc.querySelector('doc-title .doc-title-container')).not.toBeNull())
+
+    await act(async () => root.unmount())
+
+    await choDom(async () => {
+      const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+      const muc = ds.find((m) => m.id === 'bv-mount-7')
+      expect(muc?.ten).toBe('Tên đã lưu trước đó')
+    })
+  })
 })
