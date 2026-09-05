@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { IconChevronBack } from '../components/IconChevronBack'
-import { iconBangSoDo } from '../components/SpecialtyIcons'
+import { iconBangSoDo, iconLoaiMuc } from '../components/SpecialtyIcons'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { ChonDanhMuc } from './ChonDanhMuc'
 import { IDB_STORES } from '../lib/idb'
@@ -230,11 +230,15 @@ export function TheTrong({
   id,
   mauHue,
   dangVe = false,
+  loai,
 }: {
   khoa?: string
   id?: string
   mauHue?: number
   dangVe?: boolean
+  // Optional: lớp phủ FLIP (BoardGallery.tsx) dựng lại đúng cú chuyển cảnh của huy hiệu chuyên
+  // khoa, không cần badge loại — chỉ truyền từ chỗ dựng thẻ TĨNH trong lưới (xem dưới).
+  loai?: LoaiMuc
 }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
@@ -275,6 +279,21 @@ export function TheTrong({
             lớp phủ "gập lại" lúc đóng) vẫn tĩnh: cú gập chỉ dài 260ms, không đủ để vẽ gì. */}
         {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} mauHue={mauHue} /> : iconBangSoDo(khoa, 'w-full h-full')}
       </div>
+      {/* Badge LOẠI (bài viết ↔ sơ đồ) — góc trên-TRÁI của CẢ ô thẻ (div ngoài cùng, không phải ô
+          34% ở trên): huy hiệu chuyên khoa chiếm chính giữa nên không đụng. Không đặt top-right
+          (bản đầu tiên) vì đo trên Chrome thật (375px) lộ ra nút "Tuỳ chọn bảng" (LuoiMuc.tsx,
+          data-testid="menu-bang-…") đã đứng SẴN đúng góc đó — absolute top:4px right:4px, 44×44px
+          (xem JSX nút bên dưới) — badge 23×23px lọt gọn bên trong hộp 44×44 đó, đè trực tiếp lên
+          nút bấm. Góc trên-trái không có phần tử absolute nào khác (kiểm toàn bộ cây con lúc vá).
+          Chỉ render khi có `loai` — lớp phủ FLIP không truyền nó. */}
+      {loai && (
+        <span
+          className="absolute top-1 left-1 rounded-full p-1"
+          style={{ background: 'var(--c-surface)', color: 'var(--c-text-soft)' }}
+        >
+          {iconLoaiMuc(loai, 'w-3.5 h-3.5')}
+        </span>
+      )}
     </div>
   )
 }
@@ -647,7 +666,7 @@ function TheBang({
               color: 'var(--c-text-muted, #6b6e96)',
             }}
           >
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} mauHue={bang.mauHue} />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} mauHue={bang.mauHue} loai={bang.loai} />
           </div>
           {/* Không còn cây ghim vẽ trên thẻ — chủ dự án yêu cầu bỏ hẳn (2026-08-29: "xóa ghim").
               Phân biệt bảng cùng tên mặc định vẫn còn: icon + màu chuyên khoa trong TheTrong, tên,

@@ -175,6 +175,34 @@ export function iconBangSoDo(id: string | undefined, cls = "w-5 h-5"): React.Rea
   return draw ? draw(cls) : iconSoDoChuaGanKhoa(cls)
 }
 
+/**
+ * Icon LOẠI mục — trang giấy (bài viết) ↔ ba nút nối (sơ đồ). Khác `iconBangSoDo`, thứ vẽ CHUYÊN
+ * KHOA: hai trục thông tin khác nhau, nên hai icon khác nhau ở hai chỗ khác nhau trên thẻ.
+ *
+ * `<title>` chứ không phải `aria-label`: SVG inline được đọc như hình, và `<title>` là cách duy
+ * nhất trình đọc màn hình lấy được tên cho nó ở mọi trình duyệt.
+ */
+export function iconLoaiMuc(loai: 'bai-viet' | 'so-do', cls = 'w-4 h-4'): React.ReactElement {
+  if (loai === 'bai-viet') {
+    return (
+      <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <title>Bài viết</title>
+        <path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+        <path d="M14 3v5h4M8.5 12h7M8.5 16h5" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  return (
+    <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <title>Sơ đồ</title>
+      <circle cx="5.5" cy="12" r="2.5" />
+      <circle cx="18" cy="6.5" r="2.5" />
+      <circle cx="18" cy="17.5" r="2.5" />
+      <path d="M8 11l7.5-3.5M8 13l7.5 3.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 // Icon của một chuyên khoa theo id. Id lạ (bài tự nhập ghi tên chuyên khoa ngoài danh mục) trả về
 // icon trang giấy chung, không bao giờ trả về rỗng để ô icon không bị trống trơn.
 export function specialtyIcon(id: string | undefined, cls = "w-5 h-5"): React.ReactElement {
