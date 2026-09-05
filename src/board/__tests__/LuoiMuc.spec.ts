@@ -318,6 +318,49 @@ describe('LuoiMuc', () => {
     })
   })
 
+  // critique 2026-09-05: hai ca bấm-đúp trên chỉ khoá NÚT "+". Từ Task 4, "+" không còn ghi gì —
+  // nó mở ChonDanhMuc, và chính NÚT DANH MỤC bên trong đó mới đi tới `taoMucVoiDanhMuc` (ghi bản
+  // ghi thật). `onChon` của ChonDanhMuc gọi `setDangChonDanhMuc(null)` (state, chỉ có tác dụng ở
+  // lượt render SAU) rồi gọi ĐỒNG BỘ `taoMucVoiDanhMuc` — đúng hệt lớp lỗi mà khoá ref của "+" từng
+  // được dựng lên để chặn (xem chú thích dài ở taoBangMoi), nhưng `taoMucVoiDanhMuc` không tự kiểm
+  // `dangSuaTenRef.current` ở đầu hàm. Bấm đúp một nút danh mục (hai `click` trước khi React kịp
+  // đóng bảng chọn) do đó lọt qua, y hệt cửa sổ "+" đã lọt trước khi có khoá ref.
+  it('bấm ĐÚP một nút danh mục trong bảng chọn (hai cú click trước khi React kịp đóng bảng) → chỉ MỘT bản ghi', async () => {
+    await act(async () => {
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    // Không dùng chonDanhMucDauTien ở đây — ca này cần GIỮ THAM CHIẾU tới đúng một nút để bắn hai
+    // sự kiện click LIÊN TIẾP lên CÙNG một node, mô phỏng double-fire trên trình duyệt cảm ứng mà
+    // chú thích của taoBangMoi đã ghi nhận là CÓ THẬT (đo trên trình duyệt).
+    const nutDanhMuc = Array.from(container.querySelectorAll('[role="dialog"] button')).find(
+      (b) => b.textContent === 'Tiếp cận vấn đề',
+    ) as HTMLButtonElement | undefined
+    expect(nutDanhMuc, 'bấm "+" phải mở bảng chọn danh mục (role="dialog")').not.toBeUndefined()
+
+    // Hai `dispatchEvent` trong CÙNG một `act()`, cú thứ hai mang `detail: 2` — cùng kỹ thuật với
+    // ca "hai cú click trước khi React kịp render lại" ở trên: React chưa flush render giữa hai
+    // lượt gọi nên `setDangChonDanhMuc(null)` (state) chưa có tác dụng, nút danh mục còn nguyên
+    // trong DOM cho cú thứ hai.
+    await act(async () => {
+      nutDanhMuc!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+      nutDanhMuc!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }))
+    })
+
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    await choDom(async () => {
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+      expect(ds).toHaveLength(1)
+    })
+  })
+
   // critique 2026-09-03 lượt 4, P2: ca kiểm ngay trên mô phỏng ĐÚNG cửa sổ lọt bằng cách bắn thẳng
   // `focusout` (vì happy-dom không tự đá focus khi bắn `mousedown` bằng dispatchEvent, xem chú thích
   // tại đó) — nó khoá đúng "không nhân bản dữ liệu", nhưng không khoá được PHẦN CÒN LẠI của P2: cú

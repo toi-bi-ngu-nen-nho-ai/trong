@@ -1626,6 +1626,16 @@ export function LuoiMuc({
   // `loaiMuc`/`danhMucChon` truyền tay thay vì đọc `loaiTaoDuoc[0]`/`danhMuc` từ closure vì đường
   // thứ hai không có cả hai giá trị đó sẵn trong prop — chúng đến từ lựa chọn thật của người dùng.
   const taoMucVoiDanhMuc = (loaiMuc: LoaiMuc, danhMucChon: IdDanhMuc) => {
+    // Khoá chống bấm đúp — CÙNG lớp lỗi đã vá cho nút "+" ở taoBangMoi (đọc chú thích dài ở đó),
+    // nay lặp lại ở đường thứ hai: nút danh mục trong ChonDanhMuc không mang khoá `e.detail>1`
+    // (component đó chỉ được phép import React + ./mucMeta — không thêm logic khoá), và `onChon`
+    // gọi `setDangChonDanhMuc(null)` là một state React (chỉ có tác dụng ở lượt render SAU) trước
+    // khi gọi ĐỒNG BỘ hàm này. Hai cú click trúng nút danh mục trước khi React kịp gỡ lớp phủ
+    // (double-fire trên một số trình duyệt cảm ứng — xem taoBangMoi) sẽ chạy trọn hàm này hai lần
+    // nếu không có khoá: `taoIdMuc()` sinh hai id khác nhau, `add()` ghi hai bản ghi cho một cú
+    // bấm. `dangSuaTenRef` là ref — cập nhật NGAY (không đợi render) — nên cú gọi thứ hai đọc được
+    // giá trị 'dang-tao' mà cú gọi đầu vừa gán và thoát sớm ở đây, trước khi tới `add()`.
+    if (dangSuaTenRef.current) return
     dangSuaTenRef.current = 'dang-tao'
     const luc = Date.now()
     // Tính TRƯỚC lúc tạo bản ghi — mauHueChongTrung cần biết hue các bảng ĐANG SỐNG (bỏ qua xoá
