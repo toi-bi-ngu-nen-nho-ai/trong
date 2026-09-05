@@ -9,6 +9,7 @@ import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { LuoiMuc, mauHueChongTrung, nghiengOnDinh } from '../LuoiMuc'
 import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
+import { chonDanhMucDauTien } from './helpers/chon-danh-muc-trong-test'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -187,6 +188,10 @@ describe('LuoiMuc', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước, chưa ghi gì — xem chonDanhMucDauTien ở đầu file.
+    await act(async () => {
+      chonDanhMucDauTien(container)
+    })
 
     // Trước đây bấm "+" gọi onMoBang() ngay, mở thẳng vào canvas — ba bảng tạo liên tiếp đều dừng ở
     // tên mặc định + ảnh xem trước giống hệt nhau, không phân biệt được trong lưới (critique lượt
@@ -220,6 +225,11 @@ describe('LuoiMuc', () => {
     //
     // Hai `.click()` trong CÙNG một `act()` mô phỏng đúng cửa sổ đó: React chưa flush render giữa
     // hai lượt gọi, nên `dangSuaTenId` vẫn null ở lượt thứ hai.
+    //
+    // Task 4: từ nay "+" không ghi gì nữa, nó chỉ mở bảng chọn danh mục (`setDangChonDanhMuc`) —
+    // hai cú gọi liên tiếp cùng giá trị chỉ khiến React bỏ qua lượt render thừa (State giống hệt),
+    // không mở hai bảng chọn. Vẫn giữ ca kiểm này vì nó khoá đúng phần còn lại của rủi ro gốc: bấm
+    // đúp lên "+" rồi chọn danh mục MỘT LẦN chỉ được sinh ra ĐÚNG MỘT bảng — không phải hai.
     await act(async () => {
       root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
@@ -231,6 +241,9 @@ describe('LuoiMuc', () => {
     await act(async () => {
       nut.click()
       nut.click()
+    })
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -250,6 +263,11 @@ describe('LuoiMuc', () => {
     //
     // Chốt chặn cho cửa sổ này là `event.detail`: cú click thứ hai của một lần bấm đúp mang
     // `detail === 2`. Bàn phím (Enter/Space trên <button>) cho `detail === 0` nên không bị chặn.
+    //
+    // Task 4: cú click đầu giờ chỉ MỞ BẢNG CHỌN DANH MỤC, chưa ghi gì — chọn một danh mục để có
+    // đúng trạng thái "một bảng vừa tạo, ô đổi tên đang mở" mà kịch bản mousedown/focusout bên dưới
+    // cần tới. Khoá `detail>1` vẫn nằm Ở ĐẦU taoBangMoi (chạy TRƯỚC nhánh mở bảng chọn), nên vẫn
+    // chặn được đúng cú click#2 — bất kể "+" lúc đó dẫn tới ghi ngay hay tới một bảng chọn.
     await act(async () => {
       root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
@@ -260,6 +278,9 @@ describe('LuoiMuc', () => {
     const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
     await act(async () => {
       nut.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+    })
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
 
@@ -334,6 +355,9 @@ describe('LuoiMuc', () => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì — chọn danh mục đầu tiên để thật sự có
+    // một bảng (xem chonDanhMucDauTien ở đầu file).
+    await choDenKhi(() => chonDanhMucDauTien(container))
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     })
@@ -347,6 +371,7 @@ describe('LuoiMuc', () => {
       expect(container.querySelector('[data-testid^="input-ten-"]')).toBeNull()
     })
     ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    await choDenKhi(() => chonDanhMucDauTien(container))
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
     })
@@ -366,6 +391,10 @@ describe('LuoiMuc', () => {
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
@@ -405,6 +434,10 @@ describe('LuoiMuc', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
+    })
 
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
     expect(oNhap.value).toBe('')
@@ -435,6 +468,10 @@ describe('LuoiMuc', () => {
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
@@ -1033,6 +1070,8 @@ describe('LuoiMuc', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await choDenKhi(() => chonDanhMucDauTien(container))
 
     // Thẻ mới phải HIỆN RA ngay (2 thẻ trong lưới) với ô đổi tên đã mở sẵn — không bị chip lọc cũ
     // (chuyên khoa thứ hai) âm thầm nuốt mất thẻ vừa tạo (chuyenKhoa mặc định là SPECIALTIES[0].id).
@@ -1714,6 +1753,8 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await choDenKhi(() => chonDanhMucDauTien(container))
 
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -2312,6 +2353,10 @@ describe('LuoiMuc — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
     expect(oNhap, 'cú bấm "+" phải mở ô đổi tên').not.toBeNull()

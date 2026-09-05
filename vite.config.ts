@@ -299,7 +299,17 @@ export default defineConfig(({ mode }) => {
       // đổi cho một file, không kéo theo 15 file spec còn lại và không phải trả giá khởi tạo DOM
       // cho những ca không cần. Vì thế mặc định ở đây vẫn là 'node'.
       environment: 'node',
-      include: ['src/**/__tests__/**/*.spec.ts'],
+      // `.spec.tsx` thêm từ Task 4 (kho-bai-viet-giai-doan-5-6): `ChonDanhMuc.spec.tsx` là ca kiểm
+      // đầu tiên của dự án dựng cây React thật bằng @testing-library/react (`render`/`screen`/
+      // `fireEvent`) thay vì `createRoot` + `act` thủ công — cần cú pháp JSX ngay trong file spec,
+      // nên đuôi file phải là `.tsx`. Glob cũ chỉ khớp `.spec.ts` nên bỏ sót hoàn toàn, không báo lỗi
+      // gì (vitest chỉ nói "No test files found" khi lọc đúng đường dẫn) — dễ nhầm là ca kiểm đã
+      // chạy và xanh trong khi nó chưa từng được thu thập.
+      include: ['src/**/__tests__/**/*.spec.ts', 'src/**/__tests__/**/*.spec.tsx'],
+      // Chỉ dọn DOM sau mỗi ca của @testing-library/react — xem chú thích đầy đủ tại file đó. Không
+      // ảnh hưởng 90+ file spec còn lại: chúng không import `render`/`cleanup` của RTL nên file này
+      // chỉ đăng ký một `afterEach` gọi `cleanup()` (an toàn, không làm gì nếu chưa từng `render`).
+      setupFiles: ['./src/__tests__/helpers/don-dep-testing-library.ts'],
       // `src/vendor/blocksuite/` là bản vendor nguyên trạng của AFFiNE (D11 — cấm sửa), và glob
       // `include` ở trên khớp cả 75 file spec gốc của thượng nguồn nằm trong đó. Dự án này chỉ
       // kiểm mã mình sở hữu — AFFiNE có bộ test riêng của họ, không phải việc của dự án — nên phải

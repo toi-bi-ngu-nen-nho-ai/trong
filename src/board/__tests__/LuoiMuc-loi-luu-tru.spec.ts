@@ -9,6 +9,7 @@ import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { MucMeta } from '../mucMeta'
 import { LuoiMuc } from '../LuoiMuc'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
+import { chonDanhMucDauTien } from './helpers/chon-danh-muc-trong-test'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -125,6 +126,12 @@ describe('LuoiMuc — hỏng kho lưu trữ', () => {
     lamHongIdb('ghi')
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước — bảng chọn tự nó không đụng IndexedDB (chỉ đổi state
+    // `dangChonDanhMuc`), lượt ghi hỏng chỉ xảy ra SAU khi chọn xong một danh mục (taoMucVoiDanhMuc
+    // gọi add()).
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="thu-lai-ghi-bang"]')).not.toBeNull()

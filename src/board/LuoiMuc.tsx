@@ -8,6 +8,7 @@ import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { iconBangSoDo } from '../components/SpecialtyIcons'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
+import { ChonDanhMuc } from './ChonDanhMuc'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
@@ -1123,6 +1124,9 @@ export function LuoiMuc({
     remove,
   } = useIdbCollection<MucMeta>(IDB_STORES.mucs)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
+  // Danh mục chưa chọn xong thì chưa có bản ghi nào — quyết định 7 cấm trạng thái chưa-phân-loại,
+  // nên bảng chọn phải đứng TRƯỚC lượt `add()`, không phải sau.
+  const [dangChonDanhMuc, setDangChonDanhMuc] = useState<LoaiMuc | null>(null)
   // Bản sao ĐỒNG BỘ của "đang có bảng chờ đặt tên", chỉ dùng làm khoá cho taoBangMoi — xem chú
   // thích dài tại đó. Ref chứ không phải state vì state React chỉ thấy được ở lượt render SAU.
   const dangSuaTenRef = useRef<string | null>(null)
@@ -1607,6 +1611,21 @@ export function LuoiMuc({
     // đường đó vẫn do khoá ref bên dưới trông.
     if ((e?.detail ?? 0) > 1) return
     if (dangSuaTenRef.current) return
+    // Màn đã lọc sẵn theo một danh mục (thẻ Trang chủ) thì không hỏi lại — người dùng vừa đứng
+    // trong đúng danh mục đó.
+    if (danhMuc) {
+      taoMucVoiDanhMuc(loaiTaoDuoc[0], danhMuc)
+      return
+    }
+    setDangChonDanhMuc(loaiTaoDuoc[0])
+  }
+
+  // Phần TẠO BẢN GHI thật của taoBangMoi (xem chú thích khoá chống bấm đúp ở đó) — tách ra vì giờ có
+  // HAI đường tới đây: bấm "+" khi màn đã lọc sẵn một danh mục (gọi thẳng), hoặc bấm "+" khi màn
+  // KHÔNG lọc (đợi người dùng chọn qua ChonDanhMuc rồi mới gọi, xem `dangChonDanhMuc` bên dưới).
+  // `loaiMuc`/`danhMucChon` truyền tay thay vì đọc `loaiTaoDuoc[0]`/`danhMuc` từ closure vì đường
+  // thứ hai không có cả hai giá trị đó sẵn trong prop — chúng đến từ lựa chọn thật của người dùng.
+  const taoMucVoiDanhMuc = (loaiMuc: LoaiMuc, danhMucChon: IdDanhMuc) => {
     dangSuaTenRef.current = 'dang-tao'
     const luc = Date.now()
     // Tính TRƯỚC lúc tạo bản ghi — mauHueChongTrung cần biết hue các bảng ĐANG SỐNG (bỏ qua xoá
@@ -1615,10 +1634,8 @@ export function LuoiMuc({
     const hueHienCo = danhSach.filter((b) => !b.daXoaLuc).map((b) => b.mauHue ?? mauOnDinh(b.id))
     const meta: MucMeta = {
       id: taoIdMuc(),
-      // Task 4 thay bằng lựa chọn thật từ bảng chọn danh mục. Ở bước này lấy loại duy nhất mà màn
-      // cho phép tạo — đúng cho mọi màn hiện có (Mindmap chỉ tạo sơ đồ, Hướng dẫn chỉ tạo bài viết).
-      loai: loaiTaoDuoc[0],
-      danhMuc: danhMuc ?? 'tiep-can',
+      loai: loaiMuc,
+      danhMuc: danhMucChon,
       ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,
@@ -3068,6 +3085,16 @@ export function LuoiMuc({
         </div>
       )
     })()}
+    {dangChonDanhMuc && (
+      <ChonDanhMuc
+        loai={dangChonDanhMuc}
+        onChon={(d) => {
+          setDangChonDanhMuc(null)
+          taoMucVoiDanhMuc(dangChonDanhMuc, d)
+        }}
+        onHuy={() => setDangChonDanhMuc(null)}
+      />
+    )}
     </>
   )
 }
