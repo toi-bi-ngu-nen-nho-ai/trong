@@ -96,6 +96,11 @@ describe('Tạo bài mới từ Trang chủ', () => {
   // tạo THỨ HAI sẽ bị khoá oan, không ghi thêm bản ghi nào dù người dùng thao tác hoàn toàn bình
   // thường. Hai ca kiểm bấm-đúp/bấm-đơn ở trên không bắt được lỗi này vì mỗi ca chỉ render App() một
   // lần rồi tạo đúng MỘT bài.
+  //
+  // Đợt vá cuối trước hợp nhất — C2: lối "quay lại Trang chủ" đổi từ thanh nav dưới (nút "Trang chủ")
+  // sang HAI bước — "quay-lai" (BoardGallery, thoát vỏ soạn thảo về lưới danh mục) rồi
+  // "quay-lai-danh-muc" (App, thoát màn danh mục về Trang chủ) — vì taoBaiVietMoi nay hạ cánh ở màn
+  // "danhMuc" (NON_TAB_SCREENS), nơi thanh nav dưới LUÔN ẩn, không còn nút "Trang chủ" nào để bấm.
   it('tạo xong một bài rồi quay lại Trang chủ tạo bài THỨ HAI vẫn được (khoá không kẹt lại)', async () => {
     const { default: App } = await import('../App')
     render(<App />)
@@ -109,11 +114,19 @@ describe('Tạo bài mới từ Trang chủ', () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
       expect(ds.filter((m) => m.loai === 'bai-viet')).toHaveLength(1)
     })
-    // Bảng chọn phải tự đóng sau khi tạo xong — không còn dialog nào che mất Trang chủ/tab Mindmap.
+    // Bảng chọn phải tự đóng sau khi tạo xong — không còn dialog nào che mất Trang chủ/màn danh mục.
     expect(screen.queryByRole('dialog', { name: /Chọn danh mục/ })).toBeNull()
 
-    // Rời vỏ trang, quay lại Trang chủ qua thanh điều hướng dưới.
-    fireEvent.click(screen.getByRole('button', { name: 'Trang chủ' }))
+    // Vỏ soạn thảo mở qua đường moBangYeuCau tự tra `loai` bằng một idbGetAll BẤT ĐỒNG BỘ RIÊNG
+    // (BoardGallery.tsx) — chậm hơn lượt idbGetAll của chính test này ở trên, nên phải đợi vo-muc
+    // THẬT SỰ xuất hiện trước khi tìm nút "quay-lai" của nó, không suy đoán từ việc bản ghi đã tồn
+    // tại trong store.
+    await waitFor(() => expect(screen.getByTestId('vo-muc')).toBeTruthy())
+
+    // Rời vỏ trang (về lưới danh mục "Phác đồ"), rồi rời màn danh mục đó (về Trang chủ).
+    fireEvent.click(screen.getByTestId('quay-lai'))
+    await screen.findByTestId('quay-lai-danh-muc')
+    fireEvent.click(screen.getByTestId('quay-lai-danh-muc'))
     await screen.findByRole('button', { name: /Tạo bài mới/ })
 
     fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
@@ -124,5 +137,46 @@ describe('Tạo bài mới từ Trang chủ', () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
       expect(ds.filter((m) => m.loai === 'bai-viet')).toHaveLength(2)
     })
+  })
+
+  // ─── Đợt vá cuối trước hợp nhất — C2 ─────────────────────────────────────────────────────────
+  // taoBaiVietMoi (App.tsx) từng kết thúc bằng navigate("mindmap"): bài viết mở đúng vỏ (VoMuc
+  // loai:'bai-viet') nhưng bấm "quay lại" thì rơi vào LƯỚI MINDMAP — lưới đó lọc CỨNG loai:'so-do',
+  // nên bài viết vừa tạo KHÔNG BAO GIỜ hiện ra ở đó. Đọc như "bài viết vừa viết biến mất", trong khi
+  // thanh nav dưới lại sáng đèn "Mindmap" — sai cả nơi hạ cánh lẫn tín hiệu điều hướng.
+  //
+  // Bản vá: taoBaiVietMoi đặt danhMucDangXem = danhMuc rồi navigate("danhMuc") thay vì "mindmap".
+  // Người dùng rơi vào lưới lọc theo DANH MỤC (không lọc loai) — nơi bài viết vừa tạo CÓ hiện.
+  //
+  // Ca này đi trọn hành trình "vào rồi RA" (bài học đã ghi của dự án — "mở lên chạy đúng" không đủ):
+  // tạo bài → thoát vỏ soạn thảo → khẳng định bài HIỆN trong lưới đang đứng, VÀ đang đứng đúng màn
+  // "danhMuc" (data-testid="quay-lai-danh-muc" CHỈ tồn tại ở màn đó — LuoiMuc.tsx chỉ render nút này
+  // khi onQuayLai được truyền, và trong App.tsx hiện chỉ instance BoardGallery của màn "danhMuc"
+  // truyền onQuayLai) chứ không phải kẹt ở Mindmap.
+  it('C2: thoát vỏ soạn thảo bài mới → thấy bài trong lưới danh mục đang đứng, KHÔNG kẹt ở Mindmap', async () => {
+    const { default: App } = await import('../App')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
+    const bangChon = await screen.findByRole('dialog', { name: /Chọn danh mục/ })
+    fireEvent.click(within(bangChon).getByRole('button', { name: 'ECG' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('vo-muc').getAttribute('data-loai')).toBe('bai-viet')
+    })
+
+    // Thoát vỏ soạn thảo — nút "quay lại" của BoardGallery (data-testid="quay-lai"). Nếu đường
+    // mở-theo-id (moBangYeuCau) vô tình kích hoạt CẢ HAI instance BoardGallery cùng lúc (Mindmap
+    // luôn mount + instance màn "danhMuc" vừa mount cho lượt tạo này), sẽ có HAI phần tử cùng testid
+    // này và getByTestId ném lỗi "multiple elements" ngay tại đây — đúng thứ BoardGallery.tsx phải
+    // chặn (guard theo dangHienTab trên effect tiêu thụ moBangYeuCau).
+    fireEvent.click(screen.getByTestId('quay-lai'))
+
+    // Đứng đúng màn "danhMuc" (ECG), không phải Mindmap.
+    await screen.findByTestId('quay-lai-danh-muc')
+
+    // Bài vừa tạo PHẢI hiện trong lưới đang đứng — hành vi TRƯỚC bản vá không có: bài hiện trong
+    // lưới Mindmap (lọc loai:'so-do', bài viết không lọt qua), không phải lưới danh mục này.
+    await waitFor(() => expect(screen.getByText('Bài chưa đặt tên')).toBeTruthy())
   })
 })

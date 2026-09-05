@@ -12365,12 +12365,16 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
   const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
-  // Bảng Mindmap cần mở thẳng khi bấm một kết quả tìm kiếm loại "board" — BoardGallery tiêu thụ rồi
-  // gọi onMoBangYeuCauXong() để đưa state này về undefined (xem BoardGallery.tsx).
+  // Mở thẳng một mục theo id — dùng bởi kết quả tìm kiếm loại "board" (luôn nhắm instance Mindmap,
+  // đi kèm navigate("mindmap", id)) VÀ luồng "Tạo bài mới" (nhắm instance màn "danhMuc", xem
+  // taoBaiVietMoi). Đợt vá cuối trước hợp nhất — C2: TỔNG QUÁT HOÁ từ chỗ chỉ instance Mindmap tiêu
+  // thụ được state này — nay CẢ HAI instance nhận cùng moBangYeuCau/onMoBangYeuCauXong, mỗi instance
+  // tự bỏ qua nếu không phải instance đang hiển thị (guard `dangHienTab`, xem BoardGallery.tsx).
+  // Instance tiêu thụ rồi gọi onMoBangYeuCauXong() để đưa state này về undefined.
   const [moBangYeuCau, setMoBangYeuCau] = useState<string | undefined>(undefined)
   // Luồng "Tạo bài mới" ở Trang chủ (spec §3.5). Bảng chọn danh mục đứng ở App chứ không trong
-  // HomeScreen vì sau khi tạo xong phải chuyển tab sang Mindmap và mở mục — hai việc chỉ App làm
-  // được (setMoBangYeuCau + navigate ở trên/dưới đây).
+  // HomeScreen vì sau khi tạo xong phải chuyển sang màn "danhMuc" đúng danh mục vừa chọn và mở mục
+  // vừa tạo — hai việc chỉ App làm được (setMoBangYeuCau + navigate ở trên/dưới đây).
   const [taoBaiMoiDangMo, setTaoBaiMoiDangMo] = useState(false)
   // Khoá chống bấm đúp — CÙNG lớp lỗi đã vá cho taoMucVoiDanhMuc (LuoiMuc.tsx, Task 4, xem chú
   // thích dài ở đó): nút danh mục trong ChonDanhMuc không tự mang khoá `e.detail>1` (component đó
@@ -12536,6 +12540,20 @@ export default function App() {
   // THẲNG vào trang soạn thảo — spec §3.5 "mở thẳng TrangBaiViet", KHÁC luồng tạo sơ đồ (sơ đồ dừng
   // lại ở lưới để đặt tên vì ba bảng trống trông giống hệt nhau; bài viết thì tiêu đề gõ ngay trong
   // trang, không cần dừng lại).
+  //
+  // Đợt vá cuối trước hợp nhất — C2: TỪNG kết thúc bằng navigate("mindmap") — lý do lịch sử là
+  // đường mở-thẳng-một-mục-theo-id (moBangYeuCau/onMoBangYeuCauXong) chỉ được nối dây vào ĐÚNG MỘT
+  // BoardGallery (instance tab Mindmap). Hệ quả thật: vỏ soạn thảo mở đúng loại, nhưng bấm "quay
+  // lại" thì rơi vào LƯỚI MINDMAP — lưới đó lọc CỨNG loai:'so-do', nên bài viết vừa tạo không bao
+  // giờ hiện ra ở đó (đọc như "bài viết biến mất"), và thanh nav dưới sáng đèn "Mindmap" dù người
+  // dùng chưa từng chạm tab đó. Bản vá: TỔNG QUÁT HOÁ đường mở-theo-id thay vì vá chỗ hạ cánh bằng
+  // một navigate khác — đặt danhMucDangXem = danhMuc (danh mục vừa chọn) rồi navigate("danhMuc").
+  // Instance BoardGallery của nhánh "danhMuc" (bên dưới, JSX chính) nay cũng nhận
+  // moBangYeuCau/onMoBangYeuCauXong như instance Mindmap — người dùng rơi vào lưới lọc theo DANH
+  // MỤC (không lọc loai), nơi bài viết vừa tạo CÓ hiện. Xem BoardGallery.tsx (guard `dangHienTab`
+  // trên effect tiêu thụ moBangYeuCau) để biết vì sao hai instance dùng CHUNG state này không mở
+  // nhầm cả hai cùng lúc — instance Mindmap luôn mount nhưng `dangHienTab` của nó chỉ true khi
+  // screen thật sự là "mindmap".
   const taoBaiVietMoi = async (danhMuc: IdDanhMuc) => {
     if (dangTaoBaiVietRef.current) return
     dangTaoBaiVietRef.current = true
@@ -12553,8 +12571,9 @@ export default function App() {
     }
     await idbPut(IDB_STORES.mucs, meta)
     setTaoBaiMoiDangMo(false)
+    setDanhMucDangXem(danhMuc)
     setMoBangYeuCau(meta.id)
-    navigate("mindmap")
+    navigate("danhMuc")
   }
 
   // Sửa thuốc trong "Dùng thuốc": khác các mục khác (tra theo id từ một danh sách có sẵn ở đây),
@@ -12994,16 +13013,31 @@ export default function App() {
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
           {/* Task 7: ba thẻ Truy cập nhanh "Tiếp cận vấn đề"/"ECG"/"Phác đồ" ở Trang chủ đều mở màn
               này — cùng component, chỉ khác `danhMucDangXem` (state App(), đặt bởi onMoDanhMuc).
-              Trộn cả hai `loai` (bài viết + sơ đồ), phân biệt bằng icon trên thẻ (LuoiMuc.tsx), nên
-              loaiTaoDuoc liệt kê cả hai. Thay EcgScreen (mở qua thẻ "ECG" trước Task 7) và
-              ComingSoonScreen của "Tiếp cận vấn đề"/"Phác đồ" — cả ba định nghĩa cũ vẫn còn, chỉ
-              không còn đường nào trỏ tới EcgScreen nữa (giai đoạn 8 mới xoá). */}
+              Trộn cả hai `loai` (bài viết + sơ đồ) khi HIỂN THỊ, phân biệt bằng icon trên thẻ
+              (LuoiMuc.tsx). Thay EcgScreen (mở qua thẻ "ECG" trước Task 7) và ComingSoonScreen của
+              "Tiếp cận vấn đề"/"Phác đồ" — cả ba định nghĩa cũ vẫn còn, chỉ không còn đường nào trỏ
+              tới EcgScreen nữa (giai đoạn 8 mới xoá).
+              Đợt vá cuối trước hợp nhất — I1: loaiTaoDuoc CHỈ còn 'bai-viet' (trước là cả hai loại) —
+              LuoiMuc.tsx chỉ từng đọc loaiTaoDuoc[0] khi dựng nút "+" (loaiTaoDuoc[1] không được đọc
+              ở đâu cả, xác nhận bằng grep), nên khai cả hai loại ở đây là NÓI DỐI về khả năng thật:
+              nút "+" luôn tạo bài viết dù cấu hình ngụ ý tạo được cả sơ đồ. Không thêm UI chọn loại
+              (ngoài phạm vi cổng hợp nhất) — sơ đồ trong danh mục này vẫn tạo được, chỉ là qua tab
+              Mindmap (loaiTaoDuoc ['so-do'] ở đó), rồi tự HIỆN LẠI ở đây nhờ lọc theo `danhMuc`
+              (không lọc `loai`) — không mất khả năng, chỉ đổi lối vào cho khớp với mã thật. */}
           {screen === "danhMuc" && danhMucDangXem && (
             <BoardGallery
               dangHienTab
               tieuDe={DANH_MUC.find((d) => d.id === danhMucDangXem)?.ten ?? ''}
               danhMuc={danhMucDangXem}
-              loaiTaoDuoc={['bai-viet', 'so-do']}
+              loaiTaoDuoc={['bai-viet']}
+              // Đợt vá cuối trước hợp nhất — C2: cùng state với instance Mindmap ở trên (taoBaiVietMoi
+              // đặt moBangYeuCau rồi navigate("danhMuc") thay vì "mindmap") — xem chú thích dài tại
+              // taoBaiVietMoi. Guard `dangHienTab` trong BoardGallery.tsx (effect tiêu thụ
+              // moBangYeuCau) đảm bảo CHỈ instance đang thật sự hiển thị mới tiêu thụ giá trị này —
+              // instance Mindmap luôn mount nhưng dangHienTab của nó false khi screen là "danhMuc",
+              // nên nó bỏ qua, không mở nhầm bài viết vào lưới sơ đồ.
+              moBangYeuCau={moBangYeuCau}
+              onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
               onDangMoBang={setBangDangMo}
               // Task 7 review (I2): màn này không có tab riêng trong thanh nav dưới (nay bị ẩn hẳn,
               // xem NON_TAB_SCREENS) và không nằm trong cụm nút nổi (chỉ "home"/"specialty") — không
@@ -13331,7 +13365,8 @@ export default function App() {
         )}
 
         {/* Bảng chọn danh mục cho luồng "Tạo bài mới" ở Trang chủ (spec §3.5) — đứng ở App vì sau
-            khi chọn xong phải chuyển tab sang Mindmap và mở mục vừa tạo, xem taoBaiVietMoi. */}
+            khi chọn xong phải chuyển sang màn "danhMuc" đúng danh mục vừa chọn và mở mục vừa tạo,
+            xem taoBaiVietMoi (đợt vá cuối trước hợp nhất — C2, KHÔNG còn chuyển sang tab Mindmap). */}
         {taoBaiMoiDangMo && (
           <ChonDanhMuc
             loai="bai-viet"

@@ -114,12 +114,24 @@ export function BoardGallery({
   // bắt buộc; lớp phủ này chỉ là trang trí CHẠY SONG SONG, không chặn hay trì hoãn bất cứ bước nào
   // của chuỗi đó.
   const [dangGapLai, setDangGapLai] = useState<{ chuyenKhoa?: string; id?: string; mauHue?: number } | null>(null)
-  // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app — xem App.tsx
-  // navigate()). Gọi onMoBangYeuCauXong() ngay sau khi tiêu thụ để App.tsx reset state về undefined
-  // — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó lần hai (cùng id, state App.tsx không đổi giá trị)
-  // sẽ không kích hoạt lại effect này (dependency không đổi).
+  // Mở thẳng một bảng cụ thể khi được yêu cầu từ ngoài (kết quả tìm kiếm toàn app, hoặc luồng "Tạo
+  // bài mới" ở Trang chủ — xem App.tsx navigate()/taoBaiVietMoi). Gọi onMoBangYeuCauXong() ngay sau
+  // khi tiêu thụ để App.tsx reset state về undefined — nếu không, bấm lại ĐÚNG kết quả tìm kiếm đó
+  // lần hai (cùng id, state App.tsx không đổi giá trị) sẽ không kích hoạt lại effect này (dependency
+  // không đổi).
+  //
+  // Đợt vá cuối trước hợp nhất — C2: `dangHienTab` là điều kiện THỨ HAI bắt buộc, không chỉ
+  // `moBangYeuCau`. Từ bản vá này, App.tsx nối moBangYeuCau/onMoBangYeuCauXong vào HAI instance
+  // BoardGallery dùng CHUNG state đó — instance Mindmap (LUÔN mount, chỉ ẩn/hiện qua `dangHienTab`)
+  // và instance màn "danhMuc" (mount CÓ ĐIỀU KIỆN, dangHienTab luôn true khi tồn tại). Khi
+  // taoBaiVietMoi đặt moBangYeuCau rồi navigate("danhMuc"), CẢ HAI instance đều thấy prop này đổi
+  // trong cùng một lượt render — thiếu guard này, instance Mindmap (dù đang ẩn) cũng sẽ tự mở bài
+  // viết vừa tạo vào lưới sơ đồ của nó (gọi onMoBangYeuCauXong hai lần, và để lại `openBoardId` treo
+  // trong instance Mindmap — lần sau người dùng mở tab Mindmap thật sẽ thấy nhầm bài viết đó thay vì
+  // lưới sơ đồ). Guard theo `dangHienTab` đảm bảo CHỈ instance đang thật sự hiển thị tại thời điểm
+  // này mới tiêu thụ — đúng một lần, đúng instance.
   useEffect(() => {
-    if (!moBangYeuCau) return
+    if (!moBangYeuCau || !dangHienTab) return
     // Mở từ kết quả tìm kiếm toàn app — không có thẻ nào trong lưới để đo rect, nên KHÔNG có origin
     // FLIP (rơi về .board-in scale-fade cũ, xem className của lớp bọc canvas bên dưới).
     setOpenOrigin(null)
@@ -132,7 +144,7 @@ export function BoardGallery({
       setOpenBoardId(moBangYeuCau)
     })
     onMoBangYeuCauXong?.()
-  }, [moBangYeuCau, onMoBangYeuCauXong])
+  }, [moBangYeuCau, onMoBangYeuCauXong, dangHienTab])
   // true trong khoảng ngắn giữa lúc bấm "quay lại" và lúc lưới danh sách THẬT SỰ được phép mount —
   // xem chú thích dài ở nút "quay lại" bên dưới để hiểu vì sao cần một cờ riêng thay vì mount
   // LuoiMuc NGAY khi openBoardId về null.
