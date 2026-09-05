@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
+import { IconChevronBack } from '../components/IconChevronBack'
 import { iconBangSoDo } from '../components/SpecialtyIcons'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 import { ChonDanhMuc } from './ChonDanhMuc'
@@ -1094,6 +1095,7 @@ export function LuoiMuc({
   danhMucLoaiTru,
   chuyenKhoa,
   loaiTaoDuoc,
+  onQuayLai,
 }: {
   // Tham số thứ tư `loai` — thêm ở Task 5: đường mở-qua-thẻ (đây, KHÁC đường `moBangYeuCau` của
   // App.tsx đi thẳng qua IndexedDB) là con đường CHÍNH người dùng dùng để mở một mục, nên nó phải tự
@@ -1106,6 +1108,12 @@ export function LuoiMuc({
   tieuDe: string
   /** `[]` = màn này KHÔNG có nút tạo (Thư viện, màn chuyên khoa). */
   loaiTaoDuoc: LoaiMuc[]
+  /**
+   * Task 7 review (I2) — chỉ màn "danhMuc" của App.tsx truyền prop này (xem BoardGallery.tsx).
+   * Render một nút quay lại vào slot `actions` của ScreenHeader, CẠNH nút "Chọn" nếu nút đó cũng
+   * đang hiện — hai màn này không loại trừ nhau (lưới có mục thì cả hai cùng hiện).
+   */
+  onQuayLai?: () => void
 } & BoLocMuc) {
   // useIdbCollection tự nạp danh sách lúc mount (fetch một lần, xem src/lib/useIdbCollection.ts)
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
@@ -1687,6 +1695,10 @@ export function LuoiMuc({
     setTruyVan('')
   }
 
+  // Tách khỏi JSX actions bên dưới (Task 7 review, I2) — giờ actions còn phải xét thêm `onQuayLai`,
+  // để điều kiện gốc lẫn vào một biểu thức dài hơn dễ đọc sai.
+  const hienNutChon = danhSachSapXep.length > 0 || dangChonNhieu
+
   return (
     <>
     {/* `screen-transition` (index.css: fadeSlideIn) — CÙNG hiệu ứng vào màn với "Hướng dẫn"/"Thẻ ghi
@@ -1713,42 +1725,73 @@ export function LuoiMuc({
           // vô hình qua 3 lượt critique, không nên chồng thêm một chức năng ẩn nữa lên nó). Ẩn khi
           // lưới trống thật (không có gì để chọn) — vẫn hiện nếu đang bật dở (dangChonNhieu) để
           // luôn có đường "Huỷ", kể cả khi bộ lọc vừa đổi làm lưới hiện tại trống.
+          //
+          // Task 7 review (I2): nút quay lại (onQuayLai, chỉ màn "danhMuc" truyền) đứng TRƯỚC nút
+          // "Chọn" trong CÙNG slot `actions` — hai điều kiện độc lập, có thể cùng hiện (lưới có mục
+          // VÀ đang ở màn danhMuc). `hienNutChon`/`onQuayLai` không loại trừ nhau nên bọc chung
+          // trong Fragment thay vì if/else.
           actions={
-            danhSachSapXep.length > 0 || dangChonNhieu ? (
-              <button
-                type="button"
-                data-testid="chon-nhieu-song-toggle"
-                onClick={() => {
-                  if (!dangChonNhieu) {
-                    // Trước bản vá này, bật chọn-nhiều trong khi một ô đổi tên đang mở (autoFocus
-                    // sau khi bấm "+") để lại CẢ HAI affordance chỉnh sửa cùng hiện trên một thẻ:
-                    // checkbox (nhánh `chonNhieu &&`) và ô nhập tên (nhánh `dangSuaTen &&`) là hai
-                    // điều kiện render ĐỘC LẬP, không cái nào biết tới cái kia (critique 2026-09-03
-                    // lượt 6, P3). Blur() phần tử đang focus (nếu đúng là ô đổi tên) chạy lại CHÍNH
-                    // luồng lưu đã có sẵn (`onBlur` → `onLuuTen(tenCanLuu())`) thay vì âm thầm bỏ
-                    // qua/mất chữ đang gõ dở — không cần lift state `tenNhap` lên đây.
-                    ;(document.activeElement as HTMLElement | null)?.blur?.()
-                  }
-                  dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true)
-                }}
-                aria-pressed={dangChonNhieu}
-                className="mind-focus-ring"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  minHeight: 36,
-                  padding: '0 14px',
-                  borderRadius: 9999,
-                  border: '1px solid var(--c-line, #d9ddf4)',
-                  background: dangChonNhieu ? 'var(--c-primary, #2d3a94)' : 'none',
-                  color: dangChonNhieu ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {dangChonNhieu ? 'Huỷ' : 'Chọn'}
-              </button>
+            onQuayLai || hienNutChon ? (
+              <>
+                {onQuayLai && (
+                  <button
+                    type="button"
+                    data-testid="quay-lai-danh-muc"
+                    onClick={onQuayLai}
+                    aria-label="Quay lại Trang chủ"
+                    className="mind-focus-ring"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 9999,
+                      border: '1px solid var(--c-line, #d9ddf4)',
+                      background: 'none',
+                      color: 'var(--c-text, #1c1f36)',
+                    }}
+                  >
+                    <IconChevronBack style={{ width: 18, height: 18 }} />
+                  </button>
+                )}
+                {hienNutChon && (
+                  <button
+                    type="button"
+                    data-testid="chon-nhieu-song-toggle"
+                    onClick={() => {
+                      if (!dangChonNhieu) {
+                        // Trước bản vá này, bật chọn-nhiều trong khi một ô đổi tên đang mở (autoFocus
+                        // sau khi bấm "+") để lại CẢ HAI affordance chỉnh sửa cùng hiện trên một thẻ:
+                        // checkbox (nhánh `chonNhieu &&`) và ô nhập tên (nhánh `dangSuaTen &&`) là hai
+                        // điều kiện render ĐỘC LẬP, không cái nào biết tới cái kia (critique 2026-09-03
+                        // lượt 6, P3). Blur() phần tử đang focus (nếu đúng là ô đổi tên) chạy lại CHÍNH
+                        // luồng lưu đã có sẵn (`onBlur` → `onLuuTen(tenCanLuu())`) thay vì âm thầm bỏ
+                        // qua/mất chữ đang gõ dở — không cần lift state `tenNhap` lên đây.
+                        ;(document.activeElement as HTMLElement | null)?.blur?.()
+                      }
+                      dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true)
+                    }}
+                    aria-pressed={dangChonNhieu}
+                    className="mind-focus-ring"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 36,
+                      padding: '0 14px',
+                      borderRadius: 9999,
+                      border: '1px solid var(--c-line, #d9ddf4)',
+                      background: dangChonNhieu ? 'var(--c-primary, #2d3a94)' : 'none',
+                      color: dangChonNhieu ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {dangChonNhieu ? 'Huỷ' : 'Chọn'}
+                  </button>
+                )}
+              </>
             ) : undefined
           }
         />

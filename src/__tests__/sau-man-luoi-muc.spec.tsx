@@ -66,6 +66,57 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     expect(screen.queryByText('bv-pd3')).toBeNull()
   })
 
+  // ─── Review Task 7 — I1: thanh nav dưới không được hiện ở màn "danhMuc" ─────────────────────────
+  // Trước bản vá: "danhMuc" vắng mặt trong NON_TAB_SCREENS (App.tsx) → isDetailScreen tính sai →
+  // anThanhNav === false → <nav aria-label="Điều hướng chính"> render dù đang xem lưới mở từ một
+  // thẻ Truy cập nhanh. Gỡ dòng thêm "danhMuc" vào NON_TAB_SCREENS thì ca này phải ĐỎ lại.
+  it('I1: màn mở từ thẻ Truy cập nhanh (danhMuc) không hiện thanh nav dưới', async () => {
+    const { default: App } = await import('../App')
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /ECG/ }))
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'ECG' })).toBeTruthy())
+    expect(screen.queryByRole('navigation', { name: 'Điều hướng chính' })).toBeNull()
+  })
+
+  // ─── Review Task 7 — I2: màn "danhMuc" phải có đường quay lại Trang chủ của riêng nó ────────────
+  // I1 tắt thanh nav ở màn này (đúng) nhưng nếu KHÔNG bù affordance nào khác, ba thẻ Truy cập nhanh
+  // trở thành ngõ cụt (cụm nút nổi ThemeToggle/SpecialtyPicker cũng không hiện ở màn "danhMuc" — chỉ
+  // "home"/"specialty"). Nút quay lại render trong slot `actions` của ScreenHeader (LuoiMuc.tsx, qua
+  // onQuayLai) là lối thoát DUY NHẤT còn lại — gỡ onQuayLai (App.tsx) hoặc gỡ nhánh render nó
+  // (LuoiMuc.tsx) thì ca này phải ĐỎ lại: hoặc không tìm thấy nút, hoặc bấm xong không thấy lại
+  // Trang chủ.
+  it('I2: màn "danhMuc" có nút quay lại riêng, bấm nó thì về Trang chủ', async () => {
+    const { default: App } = await import('../App')
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /ECG/ }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'ECG' })).toBeTruthy())
+    // Nút quay lại nằm trong slot `actions` của ScreenHeader — KHÔNG render trong nhánh `loading`
+    // (LuoiMuc.tsx: `if (loading) return <ScreenHeader title={tieuDe} />`, không có actions). Phải
+    // đợi useIdbCollection đọc xong lần đầu, không lấy heading làm tín hiệu "đã sẵn sàng" vì cả hai
+    // nhánh loading/loaded đều render heading giống hệt nhau.
+    const nutQuayLai = await screen.findByTestId('quay-lai-danh-muc')
+    fireEvent.click(nutQuayLai)
+
+    // Về đúng Trang chủ — kiểm bằng một affordance CHỈ có ở Trang chủ (nút "Tạo bài mới" nổi, xem
+    // tao-bai-moi-tu-trang-chu.spec.tsx), không phải chỉ "màn danhMuc đã unmount".
+    await waitFor(() => expect(screen.getByRole('button', { name: /Tạo bài mới/ })).toBeTruthy())
+  })
+
+  // ─── Review Task 7 — I3: thẻ ECG không được hiện số đếm SAI ─────────────────────────────────────
+  // Trước bản vá: caption thẻ ECG đọc `ecgCount` = allEcgLessons.length (ecgCol IndexedDB CŨ +
+  // ECG_LESSONS tĩnh — ECG_LESSONS nay rỗng, xem src/data/ecg.ts). Với người dùng mới (không có bài
+  // học ECG hệ cũ nào), số này luôn là 0 → in hẳn "(0)" dù lưới `mucs` thật (thứ thẻ này mở ra từ
+  // Task 7) có thể có nội dung. Gỡ bản vá (khôi phục `count: ecgCount` + nhánh `(${c.count})` trong
+  // cardCaption) thì ca này phải ĐỎ lại.
+  it('I3: thẻ ECG ở Trang chủ không hiển thị số đếm giả "(0)"', async () => {
+    const { default: App } = await import('../App')
+    render(<App />)
+
+    const the = screen.getByRole('button', { name: /ECG/ })
+    expect(the.textContent).not.toContain('(0)')
+  })
+
   // ─── Tự soát: "vào rồi RA" ────────────────────────────────────────────────────────────────────
   // Bài học đã ghi của dự án: "mở lên chạy đúng" không đủ — phải bấm VÀO, THOÁT RA, sang màn khác
   // rồi quay lại, xem có rò rỉ trạng thái không. Sáu màn ở Task 7 dùng CHUNG một BoardGallery/LuoiMuc
@@ -107,6 +158,11 @@ describe('sáu màn dùng chung LuoiMuc', () => {
   // `danhMucDangXem` — rủi ro thật là danh mục CŨ còn dính lại khi bấm thẻ khác, vì hai lượt mở chỉ
   // khác nhau ở MỘT state, không phải một Screen riêng. Ca này bấm ECG rồi quay Trang chủ rồi bấm
   // Phác đồ, xác nhận lưới đổi đúng nội dung, không cộng dồn dữ liệu của thẻ trước.
+  //
+  // Review Task 7 (I1): trước bản vá này, quay Trang chủ đi qua thanh nav dưới (bấm nút "Trang chủ")
+  // vì thanh nav SAI hiện ra ở màn "danhMuc". Sau khi I1 tắt đúng thanh nav ở màn này, lối quay về
+  // duy nhất là nút quay lại của I2 (data-testid="quay-lai-danh-muc") — đổi ca kiểm theo đúng lối đó,
+  // không phải giữ nguyên rồi để nó đỏ vì lý do KHÔNG liên quan tới thứ ca kiểm này định phủ.
   it('bấm ECG rồi Trang chủ rồi Phác đồ — lưới đổi đúng danh mục, không cộng dồn thẻ trước', async () => {
     await idbPut(IDB_STORES.mucs, muc('ecg-rieng5', 'bai-viet', 'ecg'))
     await idbPut(IDB_STORES.mucs, muc('pd-rieng5', 'bai-viet', 'phac-do'))
@@ -118,7 +174,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     await waitFor(() => expect(screen.getByText('ecg-rieng5')).toBeTruthy())
     expect(screen.queryByText('pd-rieng5')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Trang chủ' }))
+    fireEvent.click(screen.getByTestId('quay-lai-danh-muc'))
     await screen.findByRole('button', { name: /Tạo bài mới/ })
 
     fireEvent.click(screen.getByRole('button', { name: 'Phác đồ' }))

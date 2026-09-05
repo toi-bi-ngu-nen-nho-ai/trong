@@ -50,6 +50,7 @@ export function BoardGallery({
   danhMuc,
   danhMucLoaiTru,
   chuyenKhoa,
+  onQuayLai,
 }: {
   dangHienTab: boolean
   moBangYeuCau?: string
@@ -67,6 +68,17 @@ export function BoardGallery({
   tieuDe: string
   /** `[]` = màn này KHÔNG có nút tạo (Thư viện, màn chuyên khoa). Chuyển tiếp thẳng xuống LuoiMuc. */
   loaiTaoDuoc: LoaiMuc[]
+  /**
+   * Task 7 review (I2): màn "danhMuc" (mở từ ba thẻ Truy cập nhanh ở Trang chủ) không có tab riêng
+   * trong thanh nav dưới VÀ không nằm trong cụm nút nổi (ThemeToggle/SpecialtyPicker — cụm đó chỉ
+   * hiện cho "home"/"specialty", cố tình không mở rộng thêm ở đây để tránh nhân bản đúng lỗi chồng
+   * z-50 mà I4 đang nói tới). Không có prop này thì màn "danhMuc" không có đường quay lại Trang chủ
+   * nào của riêng nó — chỉ optional, các màn khác (Thư viện/Hướng dẫn/Mindmap/chuyên khoa) đều có
+   * tab dưới hoặc mục "Trang chủ" trong SpecialtyPicker nên không cần. Chuyển tiếp thẳng xuống
+   * LuoiMuc, render vào slot `actions` SẴN CÓ của ScreenHeader (cạnh nút "Chọn") — không sửa
+   * ScreenHeader (dùng chung cho mọi màn, thay đổi lan rộng phải là một lượt riêng).
+   */
+  onQuayLai?: () => void
 } & BoLocMuc) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
   // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm (xem BoardOpenOrigin, LuoiMuc.tsx) —
@@ -360,6 +372,7 @@ export function BoardGallery({
           danhMuc={danhMuc}
           danhMucLoaiTru={danhMucLoaiTru}
           chuyenKhoa={chuyenKhoa}
+          onQuayLai={onQuayLai}
         />
       )}
       {/* Lớp phủ "gập lại" — RENDER NGOÀI {openBoardId && ...} nên vẫn sống tiếp sau khi openBoardId

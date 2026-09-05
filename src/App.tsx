@@ -674,7 +674,26 @@ const ARC_MAX_X = ARC_RADIUS * (1 - Math.cos((MAX_ROW_ANGLE * Math.PI) / 180))
 const PICKER_H = Math.ceil(2 * ARC_RADIUS * Math.sin((MAX_ROW_ANGLE * Math.PI) / 180)) + 16
 const PICKER_W = 288
 
-function SpecialtyPicker({ onSelect, currentId }: { onSelect: (id: string, isFinal: boolean) => void; currentId: string }) {
+function SpecialtyPicker({
+  onSelect,
+  currentId,
+  thuGon,
+}: {
+  onSelect: (id: string, isFinal: boolean) => void
+  currentId: string
+  /**
+   * Task 7 review (I4) — CHỈ truyền `true` cho màn "specialty". Ẩn tên chuyên khoa trong nút mở
+   * (chỉ còn icon + chevron), giữ nguyên `aria-label` đầy đủ cho trình đọc màn hình. Lý do: đo
+   * thật bằng getBoundingClientRect() ở 375px (xem chú thích tại cụm nút nổi, App shell) cho thấy
+   * bản đầy nhãn (rộng tới 138px khi tên dài như "Sinh lý (bệnh)") không có cách nào vừa tránh đè
+   * lên nút "Chọn" của ScreenHeader (bên phải) VỪA tránh đè lên tiêu đề màn (bên trái) cùng lúc —
+   * hai điều kiện đó triệt tiêu lẫn nhau ở MỌI giá trị `right` khi nhãn còn giữ nguyên bề rộng tối
+   * đa. Bỏ nhãn thu nút xuống còn ~55px, mở đủ khoảng trống để dịch cụm nút sang trái mà không chạm
+   * cả hai phía. Tên chuyên khoa không mất thông tin: `h1` của ScreenHeader đã hiển thị nó to và rõ
+   * ngay cạnh, nhãn nhỏ trong nút vốn chỉ lặp lại đúng chữ đó.
+   */
+  thuGon?: boolean
+}) {
   const N = PICKER_ITEMS.length
   const initialIndex = Math.max(0, PICKER_ITEMS.findIndex((s) => s.id === currentId))
 
@@ -943,7 +962,10 @@ function SpecialtyPicker({ onSelect, currentId }: { onSelect: (id: string, isFin
         }}
       >
         <span className="flex-none" style={{ color: current.color }}>{specialtyIcon(current.id, "w-[17px] h-[17px]")}</span>
-        <span className="text-xs font-bold max-w-[76px] truncate" style={{ color: "var(--c-text)" }}>{current.name}</span>
+        {/* Task 7 review (I4): ẩn ở màn "specialty" — xem chú thích dài tại prop `thuGon` phía trên. */}
+        {!thuGon && (
+          <span className="text-xs font-bold max-w-[76px] truncate" style={{ color: "var(--c-text)" }}>{current.name}</span>
+        )}
         <svg
           viewBox="0 0 24 24" fill="none" stroke="var(--c-text-muted)" strokeWidth={2.5}
           className="w-3.5 h-3.5 flex-shrink-0"
@@ -1060,7 +1082,6 @@ function HomeScreen({
   onNavigate,
   onTaoBaiMoi,
   onMoDanhMuc,
-  ecgCount,
   recentReads,
 }: {
   onNavigate: (s: Screen, id?: string) => void
@@ -1068,7 +1089,6 @@ function HomeScreen({
   /** Task 7: ba thẻ "Tiếp cận vấn đề"/"ECG"/"Phác đồ" mở màn lưới lọc theo danh mục (App() sở hữu
    * state `danhMucDangXem` + nhánh Screen "danhMuc"), không còn là các Screen rời (comingSoon/ecg). */
   onMoDanhMuc: (d: IdDanhMuc) => void
-  ecgCount: number
   recentReads: RecentReadItem[]
 }) {
   // "Sử dụng thuốc"/"Công cụ" vẫn trỏ một Screen thật (mixing/comingSoon) — không thuộc kho bài
@@ -1077,7 +1097,6 @@ function HomeScreen({
   // EcgScreen (danh sách bài học ECG cũ) mà mở lưới `mucs` lọc theo danhMuc 'ecg'.
   const resourceCards: {
     label: string
-    count?: number
     icon: ReactElement
     target: { screen: Screen; id?: string } | { danhMuc: IdDanhMuc }
   }[] = [
@@ -1085,14 +1104,18 @@ function HomeScreen({
     { label: "Phác đồ", icon: icons.flow(), target: { danhMuc: "phac-do" } },
     { label: "Sử dụng thuốc", icon: icons.dungThuoc(true), target: { screen: "mixing" } },
     { label: "Công cụ", icon: icons.calculator(), target: { screen: "comingSoon", id: "Công cụ" } },
-    { label: "ECG", count: ecgCount, icon: icons.ecg(), target: { danhMuc: "ecg" } },
+    { label: "ECG", icon: icons.ecg(), target: { danhMuc: "ecg" } },
   ]
-  // Thẻ nào trỏ vào "comingSoon" thì dòng dưới nói "Sắp ra mắt"; thẻ trỏ vào tính năng thật (kể cả
-  // ba thẻ trỏ `danhMuc`, từ Task 7 đều có màn thật) thì im lặng (không có số đếm thật để đưa ra)
-  // hoặc in số đếm thật (ECG) — không còn "(0)" giả cho tính năng đã xong lẫn chưa xong đọc giống
-  // hệt nhau.
+  // Task 7 review (I3): thẻ "ECG" TỪNG in caption `(${ecgCount})` — ecgCount tính từ hệ ECG CŨ
+  // (ecgCol IndexedDB + ECG_LESSONS tĩnh, nay ECG_LESSONS rỗng — xem src/data/ecg.ts), không còn
+  // liên quan gì tới nội dung lưới `mucs` lọc theo danhMuc 'ecg' mà thẻ này mở ra từ Task 7. Người
+  // dùng mới thấy hẳn "(0)" dù lưới thật có thể có nội dung — đúng anti-pattern mà chú thích dưới
+  // đây từng chốt bỏ. Tính số ĐÚNG từ store `mucs` cần một lượt đọc async trong HomeScreen (ngoài
+  // phạm vi Task 7) — bỏ hẳn caption số cho ba thẻ mở lưới `mucs` thay vì hiển thị số sai.
+  // Thẻ nào trỏ vào "comingSoon" thì dòng dưới nói "Sắp ra mắt"; mọi thẻ khác (kể cả ba thẻ trỏ
+  // `danhMuc`) im lặng — không còn "(0)" giả cho tính năng đã xong lẫn chưa xong đọc giống hệt nhau.
   const cardCaption = (c: (typeof resourceCards)[number]) =>
-    "screen" in c.target && c.target.screen === "comingSoon" ? "Sắp ra mắt" : c.count != null ? `(${c.count})` : ""
+    "screen" in c.target && c.target.screen === "comingSoon" ? "Sắp ra mắt" : ""
 
   return (
     <div className="scroll-ios h-full pt-2 pb-4">
@@ -12472,6 +12495,13 @@ export default function App() {
     "addEcg",
     "addFlashcard",
     "comingSoon",
+    // Task 7 review (I1): "danhMuc" (màn lưới lọc theo MỘT danh mục — mở từ ba thẻ Truy cập nhanh
+    // "Tiếp cận vấn đề"/"ECG"/"Phác đồ") thiếu ở đây làm HAI thứ sai cùng lúc: (a) isDetailScreen
+    // (dưới) tính sai → thanh nav dưới HIỆN RA khi xem màn này, dù ba đích CŨ nó thay thế
+    // (comingSoon/ecg) đều nằm trong mảng này nên nav luôn ẩn đúng; (b) navigate() gọi
+    // setActiveTab("danhMuc") — "danhMuc" không khớp id nào trong NAV_ITEMS (chỉ có 5 tab cố định)
+    // nên KHÔNG tab nào trong thanh nav vừa hiện ra được đánh dấu active. Thêm vào đây sửa cả hai.
+    "danhMuc",
   ]
 
   function navigate(s: Screen, id?: string) {
@@ -12847,14 +12877,35 @@ export default function App() {
             // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
             // trim, header bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG MỘT LƯỢNG
             // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
+            //
+            // Task 7 review (I4) — chú thích "31px" ở trên giờ mô tả một header ĐÃ NGỪNG RENDER
+            // (SpecialtyScreen hệ cũ, thay bằng ScreenHeader dùng chung từ Task 7). Con số 31 tình
+            // cờ vẫn khớp gần đúng hàng tiêu đề MỚI (đo thật: hàng ScreenHeader cao 12→48px, tâm
+            // 30px) nên KHÔNG cần đổi trục dọc. Trục NGANG thì có: đo thật bằng
+            // getBoundingClientRect() ở 375px, màn chuyên khoa có ≥1 mục (nút "Chọn" thật sự hiện)
+            // — với `right: 18` cũ, cụm nút (chỉ SpecialtyPicker, không có ThemeToggle ở màn này)
+            // choán x:[239.78,357.33], còn nút "Chọn" choán x:[292.04,355.33] — ĐÈ HẲN lên nhau
+            // (63/63px bề ngang nút "Chọn" nằm dưới cụm nút, y cũng trùng gần hết: 13→49 so với
+            // 12→48) — chụp màn hình xác nhận nút "Chọn" biến mất hoàn toàn phía sau cụm nút.
+            // `right: 92` (đo lại SAU khi ẩn nhãn tên qua prop `thuGon` của SpecialtyPicker — xem
+            // chú thích tại đó) đẩy cụm nút sang trái đủ để hết đè "Chọn" (buffer ~9px ở mọi bề
+            // ngang màn hình, vì cả hai mép đều lấy theo `right`/padding cố định, không phải theo
+            // % — xem chứng minh trong chú thích prop `thuGon`), mà vẫn không chạm tới tiêu đề dài
+            // nhất ("Sinh lý (bệnh)", đo thật: text thật chỉ tới x=150, cụm nút thu gọn bắt đầu ở
+            // x≈223 — dư khoảng 70px). CHỈ áp dụng cho "specialty": màn "home" không có nút "Chọn"
+            // nào để đè lên, giữ nguyên 18 để cụm nút vẫn sát cạnh logo như cũ.
             style={{
               top: `calc(var(--safe-top-trim) + ${screen === "home" ? 35 : 31}px)`,
-              right: 18,
+              right: screen === "specialty" ? 92 : 18,
               transform: "translateY(-50%)",
             }}
           >
             {screen === "home" && <ThemeToggle />}
-            <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
+            <SpecialtyPicker
+              onSelect={jumpTo}
+              currentId={screen === "home" ? "home" : specialtyId}
+              thuGon={screen === "specialty"}
+            />
           </div>
         )}
 
@@ -12882,7 +12933,6 @@ export default function App() {
                 setDanhMucDangXem(d)
                 navigate("danhMuc")
               }}
-              ecgCount={allEcgLessons.length}
               recentReads={recentReadItems}
             />
           )}
@@ -12955,6 +13005,12 @@ export default function App() {
               danhMuc={danhMucDangXem}
               loaiTaoDuoc={['bai-viet', 'so-do']}
               onDangMoBang={setBangDangMo}
+              // Task 7 review (I2): màn này không có tab riêng trong thanh nav dưới (nay bị ẩn hẳn,
+              // xem NON_TAB_SCREENS) và không nằm trong cụm nút nổi (chỉ "home"/"specialty") — không
+              // có prop này thì ba thẻ Truy cập nhanh mở vào một màn không lối thoát nào khác ngoài
+              // vuốt-lùi hệ điều hành. navigate("home") lặp lại đúng chuỗi push-history/setActiveTab/
+              // setScreen mà mọi lượt điều hướng khác trong App() đều đi qua.
+              onQuayLai={() => navigate("home")}
             />
           )}
           {/* Task 7: màn chuyên khoa (mở từ dải chọn khoa cong, SpecialtyPicker) dùng chung
