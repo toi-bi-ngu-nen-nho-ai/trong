@@ -181,4 +181,29 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     await waitFor(() => expect(screen.getByText('pd-rieng5')).toBeTruthy())
     expect(screen.queryByText('ecg-rieng5')).toBeNull()
   })
+
+  // ─── C1 (Critical, đợt vá cuối trước hợp nhất) — Mindmap: lưới CHỈ hiện sơ đồ ───────────────────
+  // Ca "CA GHIM Ở MỨC COMPONENT" ở BoardGallery.spec.ts mount <BoardGallery> TRỰC TIẾP và tự truyền
+  // lại `loai="so-do"` NGAY TRONG LỆNH GỌI TEST — nó ghim đúng hành vi lọc của LuoiMuc khi NHẬN được
+  // prop đó, nhưng không chạm gì tới việc App.tsx có thật sự truyền prop đó cho instance tab Mindmap
+  // hay không. Gỡ `loai="so-do"` khỏi dòng dựng instance Mindmap thật trong App.tsx không làm ca đó
+  // đỏ (đã tự kiểm bằng thực nghiệm: 30/30 ca liên quan vẫn xanh) — xem chú thích sửa lại tại
+  // BoardGallery.spec.ts để không còn tuyên bố sai chỗ đó.
+  //
+  // Ca này mount <App/> THẬT rồi bấm ĐÚNG nút thanh nav dưới ("Mindmap") mà người dùng bấm hàng
+  // ngày — chạm đúng dây nối thật giữa App.tsx và BoardGallery. Gỡ `loai="so-do"` khỏi App.tsx (dòng
+  // dựng instance Mindmap) thì ca này phải ĐỎ: LuoiMuc nhận loai: undefined, locTheoProps() bỏ điều
+  // kiện lọc, bản ghi 'bai-viet' lọt vào lưới sơ đồ.
+  it('C1: tab Mindmap chỉ hiện sơ đồ, bài viết cùng danh mục không lẫn vào', async () => {
+    await idbPut(IDB_STORES.mucs, muc('sd-mindmap6', 'so-do', 'ecg'))
+    await idbPut(IDB_STORES.mucs, muc('bv-mindmap6', 'bai-viet', 'ecg'))
+
+    const { default: App } = await import('../App')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mindmap' }))
+
+    await waitFor(() => expect(screen.getByText('sd-mindmap6')).toBeTruthy())
+    expect(screen.queryByText('bv-mindmap6')).toBeNull()
+  })
 })

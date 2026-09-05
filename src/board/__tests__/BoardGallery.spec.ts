@@ -442,23 +442,29 @@ describe('BoardGallery', () => {
     expect(nutXuat()).toBeNull()
   })
 
-  // ─── CA GHIM Ở MỨC COMPONENT — chạm đúng dây nối thật ────────────────────────────────────────
+  // ─── CA GHIM Ở MỨC COMPONENT — canh hành vi LỌC của BoardGallery/LuoiMuc, KHÔNG canh dây nối
+  //      App.tsx→BoardGallery (đính chính đợt vá cuối trước hợp nhất, C1) ───────────────────────
   // Soát lại lượt Task 3 (2026-09-05) phát hiện: "CA GHIM tab Mindmap" ở LuoiMuc-loc.spec.ts gọi
   // THẲNG locTheoProps(KHO, { loai: 'so-do' }) — một unit test của hàm lọc thuần với đối số hard-code
-  // ngay trong ca kiểm, không chạm tới dây nối thật. spec §3.5: tab Mindmap là thứ chủ dự án dùng
-  // thật hàng ngày, hồi quy ở đây đắt hơn mọi thứ khác trong chặng — nên ca này mount ĐÚNG cây mà
-  // App.tsx dựng cho tab đó (BoardGallery, không phải locTheoProps trần), seed cả 'so-do' lẫn
-  // 'bai-viet' vào store mucs dùng chung, và khẳng định lưới CHỈ hiện sơ đồ. Ca unit test cũ ở
-  // LuoiMuc-loc.spec.ts vẫn giữ nguyên — nó rẻ và vẫn phủ đúng hợp đồng của locTheoProps(); ca này bổ
-  // sung lớp nối dây mà ca kia không chạm tới, không thay thế nó.
+  // ngay trong ca kiểm, không chạm tới dây nối thật. Ca này được viết để mount ĐÚNG cây mà App.tsx
+  // dựng cho tab Mindmap (BoardGallery, không phải locTheoProps trần), seed cả 'so-do' lẫn 'bai-viet'
+  // vào store mucs dùng chung, và khẳng định lưới CHỈ hiện sơ đồ.
   //
-  // CẬP NHẬT Task 5 (2026-09-05): BoardGallery không còn TỰ hardcode `loai="so-do"` khi gọi LuoiMuc —
-  // nó chỉ chuyển tiếp prop `loai` nhận từ NGOÀI (App.tsx giờ là nơi truyền `loai="so-do"` thật, xem
-  // App.tsx dòng gọi `<BoardGallery>`). Ca này giờ tự truyền `loai="so-do"` khi dựng BoardGallery —
-  // ĐÚNG những gì App.tsx làm — để vẫn ghim được cùng hợp đồng: xoá `loai="so-do"` khỏi lượt gọi
-  // App.tsx thì tab Mindmap trộn lẫn cả bài viết, đo được ngay ở ca kiểm này (không cần sửa gì thêm
-  // trong BoardGallery.tsx để thấy lại đúng lỗi cũ).
-  it('CA GHIM Ở MỨC COMPONENT: mount BoardGallery thật với mucs lẫn cả bài viết → lưới chỉ hiện sơ đồ', async () => {
+  // ĐÍNH CHÍNH (đợt vá cuối trước hợp nhất — C1): chú thích cũ ở đây (và tên ca kiểm) tuyên bố ca
+  // này "chạm đúng dây nối thật" và sẽ đỏ nếu ai xoá `loai="so-do"` khỏi lượt gọi <BoardGallery> THẬT
+  // trong App.tsx. TUYÊN BỐ ĐÓ SAI — đã tự kiểm bằng thực nghiệm: gỡ `loai="so-do"` khỏi App.tsx rồi
+  // chạy lại bộ ba spec liên quan (spec này, sau-man-luoi-muc.spec.tsx, LuoiMuc-loc.spec.ts), 30/30
+  // ca VẪN XANH. Lý do: dòng 486 dưới đây (`loai: 'so-do'`) là một giá trị HARD-CODE ngay trong lệnh
+  // gọi createElement(BoardGallery, ...) của CHÍNH ca kiểm này — nó không đọc lại prop thật mà
+  // App.tsx truyền, nên xoá prop đó ở App.tsx không ảnh hưởng gì tới ca kiểm này. Ca này chỉ ghim
+  // đúng MỘT thứ: "nếu BoardGallery/LuoiMuc NHẬN được loai='so-do', chúng lọc đúng" — một hợp đồng
+  // có thật và đáng giữ, nhưng không phải là ghim dây nối App.tsx→BoardGallery như tên cũ ngụ ý.
+  //
+  // Ca ghim dây nối THẬT (mount <App/> thật, bấm nút nav "Mindmap", gỡ `loai="so-do"` khỏi App.tsx
+  // để xác nhận đỏ) nay ở src/__tests__/sau-man-luoi-muc.spec.tsx, ca "C1: tab Mindmap chỉ hiện sơ
+  // đồ, bài viết cùng danh mục không lẫn vào". Ca đó mới là hàng rào thật cho hồi quy này; ca dưới
+  // đây vẫn giữ vì rẻ và vẫn phủ đúng hợp đồng lọc, không xoá.
+  it('canh hành vi lọc: BoardGallery nhận loai="so-do" thì lưới chỉ hiện sơ đồ (KHÔNG canh dây nối App.tsx — xem C1 ở sau-man-luoi-muc.spec.tsx)', async () => {
     const bayGio = Date.now()
     const soDoMeta = taoBangGia('Sơ đồ ECG')
     const baiVietMeta: MucMeta = {
@@ -481,8 +487,9 @@ describe('BoardGallery', () => {
           dangHienTab: true,
           tieuDe: 'Sơ đồ tư duy',
           loaiTaoDuoc: ['so-do'],
-          // Đúng giá trị App.tsx truyền thật cho tab Mindmap (xem App.tsx) — từ Task 5, BoardGallery
-          // không còn tự hardcode giá trị này.
+          // HARD-CODE ngay trong lệnh gọi test — KHÔNG đọc lại giá trị App.tsx truyền thật cho tab
+          // Mindmap. Xoá `loai="so-do"` khỏi App.tsx không đổi gì ở đây (xem đính chính C1 phía
+          // trên). Dòng này chỉ dựng đúng ĐẦU VÀO để ca kiểm phủ hợp đồng lọc của BoardGallery/LuoiMuc.
           loai: 'so-do',
         }),
       )
@@ -492,10 +499,10 @@ describe('BoardGallery', () => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
     })
 
-    // Đúng MỘT thẻ — bản ghi so-do. Nếu ai xoá prop loai="so-do" khỏi lượt gọi <BoardGallery> ở
-    // App.tsx, LuoiMuc nhận loai: undefined, locTheoProps() bỏ qua điều kiện lọc và CẢ HAI bản ghi
-    // lọt vào lưới — ca này đỏ ngay ở dòng đếm số thẻ dưới đây (xem báo cáo task-3-report.md để đọc
-    // thông báo lỗi thật khi gỡ prop để chứng minh ca này ghim đúng thứ nó nhận ghim).
+    // Đúng MỘT thẻ — bản ghi so-do. Ca này canh: "BoardGallery/LuoiMuc, khi NHẬN loai='so-do', lọc
+    // đúng" — gỡ dòng `loai: 'so-do'` NGAY TRONG LỆNH GỌI PHÍA TRÊN (không phải ở App.tsx) thì ca
+    // này mới đỏ. Ghim dây nối App.tsx thật sự truyền đúng prop này nằm ở ca "C1" tại
+    // sau-man-luoi-muc.spec.tsx (xem đính chính phía trên).
     expect(container.querySelectorAll('[data-testid="the-bang"]').length).toBe(1)
     expect(container.textContent).toContain(soDoMeta.ten)
     expect(container.textContent).not.toContain(baiVietMeta.ten)
