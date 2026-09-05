@@ -1095,7 +1095,11 @@ export function LuoiMuc({
   chuyenKhoa,
   loaiTaoDuoc,
 }: {
-  onMoBang: (boardId: string, origin?: BoardOpenOrigin, ten?: string) => void
+  // Tham số thứ tư `loai` — thêm ở Task 5: đường mở-qua-thẻ (đây, KHÁC đường `moBangYeuCau` của
+  // App.tsx đi thẳng qua IndexedDB) là con đường CHÍNH người dùng dùng để mở một mục, nên nó phải tự
+  // báo loại của bản ghi vừa bấm lên BoardGallery — thiếu tham số này thì BoardGallery không có cách
+  // nào biết chọn vỏ EdgelessBoard hay TrangBaiViet cho MỌI lượt mở qua lưới.
+  onMoBang: (boardId: string, origin?: BoardOpenOrigin, ten?: string, loai?: LoaiMuc) => void
   dungTuBang?: boolean
   onHieuUngXong?: () => void
   /** Tiêu đề màn — trước lượt này viết cứng "Sơ đồ tư duy" ở ba chỗ. */
@@ -2698,7 +2702,7 @@ export function LuoiMuc({
               // Đang chọn-nhiều thì tap vào thẻ = chọn/bỏ chọn, KHÔNG mở bảng — đổi ngay tại đây,
               // không phải trong TheBang, nên nút vật lý/pointer-handling của TheBang không cần biết
               // gì về chế độ chọn (xem chú thích tại prop chonNhieu của TheBang).
-              onMo={dangChonNhieu ? () => chuyenChonNhieuSong(bang.id) : (origin) => onMoBang(bang.id, origin, bang.ten)}
+              onMo={dangChonNhieu ? () => chuyenChonNhieuSong(bang.id) : (origin) => onMoBang(bang.id, origin, bang.ten, bang.loai)}
               onBatMenu={
                 dangChonNhieu
                   ? () => {}

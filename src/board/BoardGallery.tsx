@@ -5,10 +5,11 @@
 // thật khi người dùng bấm quay lại danh sách, vì D4 đã đảm bảo không mất nội dung.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { doiGhiAnhXongNeuCo } from './mucMeta'
-import { LuoiMuc, TheTrong, type BoardOpenOrigin } from './LuoiMuc'
+import { doiGhiAnhXongNeuCo, type LoaiMuc, type MucMeta } from './mucMeta'
+import { LuoiMuc, TheTrong, type BoardOpenOrigin, type BoLocMuc } from './LuoiMuc'
 import { VoMuc, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
+import { IDB_STORES, idbGetAll } from '../lib/idb'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
 // không. Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board'
@@ -43,6 +44,12 @@ export function BoardGallery({
   moBangYeuCau,
   onMoBangYeuCauXong,
   onDangMoBang,
+  tieuDe,
+  loaiTaoDuoc,
+  loai,
+  danhMuc,
+  danhMucLoaiTru,
+  chuyenKhoa,
 }: {
   dangHienTab: boolean
   moBangYeuCau?: string
@@ -56,7 +63,11 @@ export function BoardGallery({
    * khi người dùng sang tab khác. Báo `true` lúc đó là thanh nav biến mất ở MỌI tab.
    */
   onDangMoBang?: (dangMo: boolean) => void
-}) {
+  /** Tiêu đề màn — chuyển tiếp thẳng xuống LuoiMuc (spec §3.5, không còn viết cứng "Sơ đồ tư duy"). */
+  tieuDe: string
+  /** `[]` = màn này KHÔNG có nút tạo (Thư viện, màn chuyên khoa). Chuyển tiếp thẳng xuống LuoiMuc. */
+  loaiTaoDuoc: LoaiMuc[]
+} & BoLocMuc) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null)
   // Vị trí/góc nghiêng/ảnh xem trước của đúng thẻ vừa bấm (xem BoardOpenOrigin, LuoiMuc.tsx) —
   // null khi bảng được mở KHÔNG qua một thẻ trong lưới (vd kết quả tìm kiếm toàn app, moBangYeuCau
@@ -65,6 +76,10 @@ export function BoardGallery({
   // Tên bảng đang mở — chỉ để đặt tên tệp khi bấm "Xuất PNG". Tách khỏi `openOrigin` (thuần hình
   // học + chuyên khoa, và null khi rect thẻ đo ra 0): tên phải sống kể cả khi không có FLIP.
   const [openTen, setOpenTen] = useState<string | null>(null)
+  // Loại của mục đang mở — quyết định `index.tsx` nạp `TrangBaiViet` hay `EdgelessBoard`. Tách khỏi
+  // `openOrigin` (thuần hình học, và null khi mở không qua thẻ trong lưới) vì loại PHẢI có ở mọi
+  // đường mở, kể cả `moBangYeuCau` từ kết quả tìm kiếm toàn app.
+  const [openLoai, setOpenLoai] = useState<LoaiMuc>('so-do')
   // true từ lúc mở một bảng tới khi EdgelessBoard báo canvas thật đã sẵn sàng (onReady) — điều khiển
   // lớp phủ ảnh xem trước (bocRef bên dưới): người dùng thấy đúng tấm ảnh của thẻ vừa bấm PHÓNG TO
   // liền mạch theo chuyển động FLIP, rồi mới mờ dần lộ ra canvas thật bên dưới, thay vì canvas trống
@@ -97,7 +112,13 @@ export function BoardGallery({
     // FLIP (rơi về .board-in scale-fade cũ, xem className của lớp bọc canvas bên dưới).
     setOpenOrigin(null)
     setDangPhongTo(true)
-    setOpenBoardId(moBangYeuCau)
+    // Đường này KHÔNG đi qua một thẻ trong lưới (khác onMoBang bên dưới, đã tự mang `loai` của bản
+    // ghi từ Task 5) — phải tự tra `loai` trong store trước khi mở, vì đọc loại TRƯỚC khi mở: mở
+    // nhầm vỏ rồi sửa sau nghĩa là tháo/lắp lại cả cây Lit (EdgelessBoard hay TrangBaiViet).
+    void idbGetAll<MucMeta>(IDB_STORES.mucs).then((ds) => {
+      setOpenLoai(ds.find((m) => m.id === moBangYeuCau)?.loai ?? 'so-do')
+      setOpenBoardId(moBangYeuCau)
+    })
     onMoBangYeuCauXong?.()
   }, [moBangYeuCau, onMoBangYeuCauXong])
   // true trong khoảng ngắn giữa lúc bấm "quay lại" và lúc lưới danh sách THẬT SỰ được phép mount —
@@ -319,20 +340,26 @@ export function BoardGallery({
     <>
       {!openBoardId && !dangDong && dangHienTab && (
         <LuoiMuc
-          onMoBang={(id, origin, ten) => {
+          onMoBang={(id, origin, ten, loaiMoi) => {
             setOpenOrigin(origin ?? null)
             setOpenTen(ten ?? null)
+            // `bang.loai` luôn có giá trị thật ở đường mở-qua-thẻ (LuoiMuc.tsx truyền thẳng từ
+            // MucMeta, trường bắt buộc) — fallback 'so-do' chỉ phòng hờ kiểu optional của tham số.
+            setOpenLoai(loaiMoi ?? 'so-do')
             setDangChoCanvas(true)
             setDangPhongTo(true)
             setOpenBoardId(id)
           }}
           dungTuBang={vuaDongBang}
           onHieuUngXong={() => setVuaDongBang(false)}
-          // BoardGallery lồng bên trong tab Mindmap — CHỈ hiện/tạo sơ đồ (Task 5 sẽ nối màn Thư
-          // viện/chuyên khoa khác qua cùng LuoiMuc với bộ props khác).
-          tieuDe="Sơ đồ tư duy"
-          loai="so-do"
-          loaiTaoDuoc={['so-do']}
+          // Từ Task 5: BoardGallery không còn viết cứng tiêu đề/bộ lọc — mọi màn dùng chung vỏ này
+          // (Mindmap, Thư viện, chuyên khoa sau này) tự truyền qua props riêng của mình.
+          tieuDe={tieuDe}
+          loaiTaoDuoc={loaiTaoDuoc}
+          loai={loai}
+          danhMuc={danhMuc}
+          danhMucLoaiTru={danhMucLoaiTru}
+          chuyenKhoa={chuyenKhoa}
         />
       )}
       {/* Lớp phủ "gập lại" — RENDER NGOÀI {openBoardId && ...} nên vẫn sống tiếp sau khi openBoardId
@@ -371,7 +398,7 @@ export function BoardGallery({
         >
           <VoMuc
             boardId={openBoardId}
-            loai="so-do"
+            loai={openLoai}
             khoa={openOrigin?.chuyenKhoa}
             onReady={() => setDangChoCanvas(false)}
             onXuatSanSang={nhanXuatSanSang}

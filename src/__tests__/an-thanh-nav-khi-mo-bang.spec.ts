@@ -122,7 +122,14 @@ describe('thanh điều hướng dưới — ẩn khi đang dùng sơ đồ', ()
     const bao = vi.fn()
 
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, onDangMoBang: bao }))
+      root.render(
+        createElement(BoardGallery, {
+          dangHienTab: true,
+          onDangMoBang: bao,
+          tieuDe: 'Sơ đồ tư duy',
+          loaiTaoDuoc: ['so-do'],
+        }),
+      )
     })
     await act(async () => {
       await choDom(() => {
@@ -137,7 +144,14 @@ describe('thanh điều hướng dưới — ẩn khi đang dùng sơ đồ', ()
     })
 
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: false, onDangMoBang: bao }))
+      root.render(
+        createElement(BoardGallery, {
+          dangHienTab: false,
+          onDangMoBang: bao,
+          tieuDe: 'Sơ đồ tư duy',
+          loaiTaoDuoc: ['so-do'],
+        }),
+      )
     })
     await choDom(() => {
       expect(bao, 'rời tab phải báo false dù bảng vẫn còn mount').toHaveBeenLastCalledWith(false)

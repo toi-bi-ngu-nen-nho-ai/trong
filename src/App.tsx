@@ -12813,6 +12813,9 @@ export default function App() {
               BoardGallery.tsx) — nên không cần cờ "đã từng vào tab" riêng như trước. */}
           <BoardGallery
             dangHienTab={screen === "mindmap"}
+            tieuDe="Sơ đồ tư duy"
+            loai="so-do"
+            loaiTaoDuoc={['so-do']}
             moBangYeuCau={moBangYeuCau}
             onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
             onDangMoBang={setBangDangMo}

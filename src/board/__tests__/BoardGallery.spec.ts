@@ -96,7 +96,7 @@ describe('BoardGallery', () => {
 
   it('mặc định hiện lưới danh sách, chưa có bảng nào mount', async () => {
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -108,7 +108,7 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -129,7 +129,7 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -158,7 +158,7 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -183,7 +183,7 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -195,7 +195,7 @@ describe('BoardGallery', () => {
 
     // Mô phỏng người dùng chuyển sang tab khác (Home) — App.tsx sẽ đổi prop này, KHÔNG unmount.
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: false }))
+      root.render(createElement(BoardGallery, { dangHienTab: false, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
 
     // Vẫn còn trong DOM (đúng kỹ thuật ẩn-không-tháo đã đo cho ResizeObserver) — VÀ vẫn ĐÚNG node
@@ -211,7 +211,7 @@ describe('BoardGallery', () => {
   it('bấm nút quay lại → EdgelessBoard unmount thật, lưới hiện lại', async () => {
     await idbPut(IDB_STORES.mucs, taoBangGia('Bảng test'))
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -238,7 +238,7 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -270,7 +270,7 @@ describe('BoardGallery', () => {
   it('bấm quay lại → LuoiMuc tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {
     await idbPut(IDB_STORES.mucs, taoBangGia('Bảng test'))
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -303,7 +303,14 @@ describe('BoardGallery', () => {
     })
 
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, moBangYeuCau: 'muc-tieu' }))
+      root.render(
+        createElement(BoardGallery, {
+          dangHienTab: true,
+          moBangYeuCau: 'muc-tieu',
+          tieuDe: 'Sơ đồ tư duy',
+          loaiTaoDuoc: ['so-do'],
+        }),
+      )
     })
 
     await choDenKhi(() => {
@@ -332,6 +339,8 @@ describe('BoardGallery', () => {
         dangHienTab: true,
         moBangYeuCau: 'muc-tieu',
         onMoBangYeuCauXong,
+        tieuDe: 'Sơ đồ tư duy',
+        loaiTaoDuoc: ['so-do'],
       }))
     })
 
@@ -345,7 +354,7 @@ describe('BoardGallery', () => {
   async function moBang(ten = 'Bảng xuất'): Promise<void> {
     await idbPut(IDB_STORES.mucs, taoBangGia(ten))
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -436,17 +445,19 @@ describe('BoardGallery', () => {
   // ─── CA GHIM Ở MỨC COMPONENT — chạm đúng dây nối thật ────────────────────────────────────────
   // Soát lại lượt Task 3 (2026-09-05) phát hiện: "CA GHIM tab Mindmap" ở LuoiMuc-loc.spec.ts gọi
   // THẲNG locTheoProps(KHO, { loai: 'so-do' }) — một unit test của hàm lọc thuần với đối số hard-code
-  // ngay trong ca kiểm. Ca đó không hề chạm tới dây nối thật loai="so-do" ở BoardGallery.tsx:334 (chỗ
-  // BoardGallery truyền prop xuống LuoiMuc). Hệ quả đo được: xoá hẳn prop loai="so-do" ở dòng 334 thì
-  // LuoiMuc nhận loai: undefined, locTheoProps() bỏ qua điều kiện lọc (`if (p.loai && ...)`), tab
-  // Mindmap trộn lẫn cả bài viết — MÀ TOÀN BỘ BỘ TEST VẪN XANH, vì không ca nào seed một bản ghi
-  // 'bai-viet' rồi mount BoardGallery/LuoiMuc thật để soát lưới hiển thị (taoBangGia() ở trên luôn
-  // đặt loai: 'so-do' cứng). spec §3.5: tab Mindmap là thứ chủ dự án dùng thật hàng ngày, hồi quy ở
-  // đây đắt hơn mọi thứ khác trong chặng — nên ca này mount ĐÚNG cây mà App.tsx dựng cho tab đó
-  // (BoardGallery, không phải locTheoProps trần), seed cả 'so-do' lẫn 'bai-viet' vào store mucs
-  // dùng chung, và khẳng định lưới CHỈ hiện sơ đồ. Ca unit test cũ ở LuoiMuc-loc.spec.ts vẫn giữ
-  // nguyên — nó rẻ và vẫn phủ đúng hợp đồng của locTheoProps(); ca này bổ sung lớp nối dây mà ca kia
-  // không chạm tới, không thay thế nó.
+  // ngay trong ca kiểm, không chạm tới dây nối thật. spec §3.5: tab Mindmap là thứ chủ dự án dùng
+  // thật hàng ngày, hồi quy ở đây đắt hơn mọi thứ khác trong chặng — nên ca này mount ĐÚNG cây mà
+  // App.tsx dựng cho tab đó (BoardGallery, không phải locTheoProps trần), seed cả 'so-do' lẫn
+  // 'bai-viet' vào store mucs dùng chung, và khẳng định lưới CHỈ hiện sơ đồ. Ca unit test cũ ở
+  // LuoiMuc-loc.spec.ts vẫn giữ nguyên — nó rẻ và vẫn phủ đúng hợp đồng của locTheoProps(); ca này bổ
+  // sung lớp nối dây mà ca kia không chạm tới, không thay thế nó.
+  //
+  // CẬP NHẬT Task 5 (2026-09-05): BoardGallery không còn TỰ hardcode `loai="so-do"` khi gọi LuoiMuc —
+  // nó chỉ chuyển tiếp prop `loai` nhận từ NGOÀI (App.tsx giờ là nơi truyền `loai="so-do"` thật, xem
+  // App.tsx dòng gọi `<BoardGallery>`). Ca này giờ tự truyền `loai="so-do"` khi dựng BoardGallery —
+  // ĐÚNG những gì App.tsx làm — để vẫn ghim được cùng hợp đồng: xoá `loai="so-do"` khỏi lượt gọi
+  // App.tsx thì tab Mindmap trộn lẫn cả bài viết, đo được ngay ở ca kiểm này (không cần sửa gì thêm
+  // trong BoardGallery.tsx để thấy lại đúng lỗi cũ).
   it('CA GHIM Ở MỨC COMPONENT: mount BoardGallery thật với mucs lẫn cả bài viết → lưới chỉ hiện sơ đồ', async () => {
     const bayGio = Date.now()
     const soDoMeta = taoBangGia('Sơ đồ ECG')
@@ -465,17 +476,26 @@ describe('BoardGallery', () => {
     await idbPut(IDB_STORES.mucs, baiVietMeta)
 
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true }))
+      root.render(
+        createElement(BoardGallery, {
+          dangHienTab: true,
+          tieuDe: 'Sơ đồ tư duy',
+          loaiTaoDuoc: ['so-do'],
+          // Đúng giá trị App.tsx truyền thật cho tab Mindmap (xem App.tsx) — từ Task 5, BoardGallery
+          // không còn tự hardcode giá trị này.
+          loai: 'so-do',
+        }),
+      )
     })
 
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
     })
 
-    // Đúng MỘT thẻ — bản ghi so-do. Nếu ai xoá prop loai="so-do" ở BoardGallery.tsx:334, LuoiMuc
-    // nhận loai: undefined, locTheoProps() bỏ qua điều kiện lọc và CẢ HAI bản ghi lọt vào lưới —
-    // ca này đỏ ngay ở dòng đếm số thẻ dưới đây (xem báo cáo task-3-report.md để đọc thông báo lỗi
-    // thật khi gỡ prop để chứng minh ca này ghim đúng thứ nó nhận ghim).
+    // Đúng MỘT thẻ — bản ghi so-do. Nếu ai xoá prop loai="so-do" khỏi lượt gọi <BoardGallery> ở
+    // App.tsx, LuoiMuc nhận loai: undefined, locTheoProps() bỏ qua điều kiện lọc và CẢ HAI bản ghi
+    // lọt vào lưới — ca này đỏ ngay ở dòng đếm số thẻ dưới đây (xem báo cáo task-3-report.md để đọc
+    // thông báo lỗi thật khi gỡ prop để chứng minh ca này ghim đúng thứ nó nhận ghim).
     expect(container.querySelectorAll('[data-testid="the-bang"]').length).toBe(1)
     expect(container.textContent).toContain(soDoMeta.ten)
     expect(container.textContent).not.toContain(baiVietMeta.ten)
