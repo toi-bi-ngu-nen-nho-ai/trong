@@ -17,6 +17,10 @@ import {
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
   for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  // capNhatSauKhiRoiMuc() ghi vào store `mucs` từ Task 2 (task-2-brief.md Bước 4) — dọn luôn store
+  // này, không thì bản ghi test rò rỉ sang ca sau (fake-indexeddb không tự reset giữa các `it`).
+  const dsMuc = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+  for (const m of dsMuc) await idbDelete(IDB_STORES.mucs, m.id)
 })
 
 describe('taoIdMuc', () => {
@@ -29,25 +33,28 @@ describe('taoIdMuc', () => {
 })
 
 describe('capNhatSauKhiRoiMuc', () => {
+  // Store đọc/ghi của capNhatSauKhiRoiMuc đổi từ `boards` sang `mucs` ở Task 2 (task-2-brief.md
+  // Bước 4) — mọi ca trong describe này seed/đọc lại qua IDB_STORES.mucs để khớp store THẬT hàm
+  // đang thao tác, không phải store cũ nó không còn chạm tới nữa.
   it('coThayDoiNoiDung=true → cập nhật capNhatLuc', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
     await capNhatSauKhiRoiMuc('x', true)
 
-    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'x')!.capNhatLuc).toBeGreaterThan(bayGio)
   })
 
   it('coThayDoiNoiDung=false → capNhatLuc giữ nguyên (mở xem, không sửa)', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'y', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'y', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
     await capNhatSauKhiRoiMuc('y', false)
 
-    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'y')!.capNhatLuc).toBe(bayGio)
   })
 
@@ -57,7 +64,7 @@ describe('capNhatSauKhiRoiMuc', () => {
     // chiếm quota. Đây là đường di trú: hook này vốn đã chạy ở MỌI lượt rời bảng, không cần script
     // riêng. Nếu ai đó sau này khôi phục `...hienCo` nguyên khối, ca kiểm này đỏ.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'con-anh',
       ten: 'Bảng cũ',
       taoLuc: bayGio,
@@ -70,7 +77,7 @@ describe('capNhatSauKhiRoiMuc', () => {
 
     await capNhatSauKhiRoiMuc('con-anh', false)
 
-    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string }>(IDB_STORES.mucs)
     const sau = ds.find((b) => b.id === 'con-anh')
     expect(sau).toBeDefined()
     expect(sau).not.toHaveProperty('anhXemTruoc')
@@ -78,7 +85,7 @@ describe('capNhatSauKhiRoiMuc', () => {
 
   it('bảng KHÔNG tồn tại → không ném lỗi, không tạo mục mới', async () => {
     await expect(capNhatSauKhiRoiMuc('khong-ton-tai', false)).resolves.toBeUndefined()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
   })
 })
@@ -93,7 +100,7 @@ describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi',
   // (spec §3.1).
   it('truyền noiDungTimKiemMoi → ghi đè noiDungTimKiem cũ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'z',
       ten: 'Test',
       taoLuc: bayGio,
@@ -105,13 +112,13 @@ describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi',
 
     await capNhatSauKhiRoiMuc('z', false, 'nội dung mới')
 
-    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'z')?.noiDungTimKiem).toBe('nội dung mới')
   })
 
   it('KHÔNG truyền noiDungTimKiemMoi → giữ nguyên noiDungTimKiem cũ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'w',
       ten: 'Test',
       taoLuc: bayGio,
@@ -123,7 +130,7 @@ describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi',
 
     await capNhatSauKhiRoiMuc('w', false)
 
-    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'w')?.noiDungTimKiem).toBe('giữ nguyên')
   })
 })

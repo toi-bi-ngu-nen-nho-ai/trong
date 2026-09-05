@@ -1,4 +1,4 @@
-// Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "boards" của
+// Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "mucs" của
 // src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — LuoiMuc.tsx dùng thẳng
 // useIdbCollection<MucMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
 // ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
@@ -116,7 +116,7 @@ export function capNhatSauKhiRoiMuc(
   noiDungTimKiemMoi?: string,
 ): Promise<void> {
   const p = (async () => {
-    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
     const hienCo = ds.find((b) => b.id === id)
     if (!hienCo) return
     // Bóc `anhXemTruoc` RA KHỎI bản ghi trước khi ghi lại. Không có bước này thì spread `...hienCo`
@@ -127,7 +127,7 @@ export function capNhatSauKhiRoiMuc(
     // bảng. Kiểu `MucMeta` không còn khai trường này, nên phải đọc qua một kiểu nới rộng.
     const { anhXemTruoc: _anhCu, ...conLai } = hienCo as MucMeta & { anhXemTruoc?: string }
     void _anhCu
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       ...conLai,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
       noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem,

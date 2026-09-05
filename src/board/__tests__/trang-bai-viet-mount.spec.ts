@@ -33,8 +33,11 @@ HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement) {
 let boc: HTMLDivElement
 let root: Root
 
+// capNhatSauKhiRoiMuc() (gọi lúc TrangBaiViet unmount) đọc/ghi store `mucs` từ Task 2
+// (task-2-brief.md Bước 4) — mọi seed/đọc lại trong file này qua IDB_STORES.mucs để khớp store
+// THẬT hàm đang thao tác.
 async function ghiMeta(id: string, ten: string, noiDungTimKiem = '') {
-  await idbPut<MucMeta>(IDB_STORES.boards, {
+  await idbPut<MucMeta>(IDB_STORES.mucs, {
     id,
     // File này mount thẳng TrangBaiViet — bản ghi phải khai đúng loai 'bai-viet', không phải giá
     // trị mặc định 'so-do' của bảng sơ đồ đời cũ (dù component chưa đọc trường này lúc mount).
@@ -116,7 +119,7 @@ describe('TrangBaiViet', () => {
     // `capNhatSauKhiRoiMuc` trong cleanup thì 'RAC-CU' còn nguyên và ca này phải đỏ (kiểm bằng tay ở
     // bước tự soát, xem báo cáo).
     const capNhatLucGoc = Date.now()
-    await idbPut<MucMeta>(IDB_STORES.boards, {
+    await idbPut<MucMeta>(IDB_STORES.mucs, {
       id: 'bv-mount-3',
       loai: 'bai-viet',
       danhMuc: 'tiep-can',
@@ -137,7 +140,7 @@ describe('TrangBaiViet', () => {
 
     // `capNhatSauKhiRoiMuc` là fire-and-forget; chờ tới khi bản ghi hiện ra.
     await choDom(async () => {
-      const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
+      const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
       const muc = ds.find((m) => m.id === 'bv-mount-3')
       expect(muc, 'metadata phải còn sau khi rời bài').toBeDefined()
       // (a) noiDungTimKiem phải bị ghi đè về '' — bằng chứng lượt ghi metadata lúc unmount THẬT SỰ
@@ -159,7 +162,7 @@ describe('TrangBaiViet', () => {
     // qua giá trị cũ — chuỗi tìm kiếm đã lưu bị xoá sạch một cách âm thầm, không lỗi, không log.
     // Đây đúng là đường mà cờ `daThao` tồn tại để phục vụ: người dùng mở bài rồi rời ngay, trước khi
     // IndexedDB kịp trả lời.
-    await idbPut<MucMeta>(IDB_STORES.boards, {
+    await idbPut<MucMeta>(IDB_STORES.mucs, {
       id: 'bv-mount-4',
       loai: 'bai-viet',
       danhMuc: 'tiep-can',
@@ -188,7 +191,7 @@ describe('TrangBaiViet', () => {
     // đã seed" có thể xanh giả TRƯỚC KHI lượt ghi kịp chạy, không chứng minh được gì.
     await doiGhiAnhXongNeuCo()
 
-    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
     const muc = ds.find((m) => m.id === 'bv-mount-4')
     expect(muc?.noiDungTimKiem).toBe('GIU-NGUYEN')
 

@@ -310,9 +310,10 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
 
   it('rời bảng có ghi chú thật → noiDungTimKiem trong MucMeta chứa đúng chữ đó', async () => {
     // Seed một MucMeta tối thiểu cho id 'bang-trich-chu' TRƯỚC khi mount — capNhatSauKhiRoiMuc()
-    // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem mucMeta.ts, `if (!hienCo) return`).
+    // chỉ ghi nếu bản ghi ĐÃ tồn tại (xem mucMeta.ts, `if (!hienCo) return`), và từ Task 2
+    // (task-2-brief.md Bước 4) hàm đó đọc/ghi store `mucs`, không còn là `boards`.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-trich-chu', ten: 'Bảng test', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
@@ -347,7 +348,7 @@ describe('EdgelessBoard — cầu nối React↔Lit', () => {
     })
 
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.mucs)
       expect(ds.find((b) => b.id === 'bang-trich-chu')?.noiDungTimKiem).toContain(
         'Ghi chú suy tim EF giảm',
       )
