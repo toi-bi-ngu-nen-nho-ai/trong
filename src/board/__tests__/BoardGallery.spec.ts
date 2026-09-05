@@ -432,4 +432,52 @@ describe('BoardGallery', () => {
     })
     expect(nutXuat()).toBeNull()
   })
+
+  // ─── CA GHIM Ở MỨC COMPONENT — chạm đúng dây nối thật ────────────────────────────────────────
+  // Soát lại lượt Task 3 (2026-09-05) phát hiện: "CA GHIM tab Mindmap" ở LuoiMuc-loc.spec.ts gọi
+  // THẲNG locTheoProps(KHO, { loai: 'so-do' }) — một unit test của hàm lọc thuần với đối số hard-code
+  // ngay trong ca kiểm. Ca đó không hề chạm tới dây nối thật loai="so-do" ở BoardGallery.tsx:334 (chỗ
+  // BoardGallery truyền prop xuống LuoiMuc). Hệ quả đo được: xoá hẳn prop loai="so-do" ở dòng 334 thì
+  // LuoiMuc nhận loai: undefined, locTheoProps() bỏ qua điều kiện lọc (`if (p.loai && ...)`), tab
+  // Mindmap trộn lẫn cả bài viết — MÀ TOÀN BỘ BỘ TEST VẪN XANH, vì không ca nào seed một bản ghi
+  // 'bai-viet' rồi mount BoardGallery/LuoiMuc thật để soát lưới hiển thị (taoBangGia() ở trên luôn
+  // đặt loai: 'so-do' cứng). spec §3.5: tab Mindmap là thứ chủ dự án dùng thật hàng ngày, hồi quy ở
+  // đây đắt hơn mọi thứ khác trong chặng — nên ca này mount ĐÚNG cây mà App.tsx dựng cho tab đó
+  // (BoardGallery, không phải locTheoProps trần), seed cả 'so-do' lẫn 'bai-viet' vào store mucs
+  // dùng chung, và khẳng định lưới CHỈ hiện sơ đồ. Ca unit test cũ ở LuoiMuc-loc.spec.ts vẫn giữ
+  // nguyên — nó rẻ và vẫn phủ đúng hợp đồng của locTheoProps(); ca này bổ sung lớp nối dây mà ca kia
+  // không chạm tới, không thay thế nó.
+  it('CA GHIM Ở MỨC COMPONENT: mount BoardGallery thật với mucs lẫn cả bài viết → lưới chỉ hiện sơ đồ', async () => {
+    const bayGio = Date.now()
+    const soDoMeta = taoBangGia('Sơ đồ ECG')
+    const baiVietMeta: MucMeta = {
+      id: `bai-viet-tron-${bayGio}`,
+      loai: 'bai-viet',
+      danhMuc: 'ecg',
+      ten: 'Bài viết ECG',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: '',
+      tags: [],
+      noiDungTimKiem: '',
+    }
+    await idbPut(IDB_STORES.mucs, soDoMeta)
+    await idbPut(IDB_STORES.mucs, baiVietMeta)
+
+    await act(async () => {
+      root.render(createElement(BoardGallery, { dangHienTab: true }))
+    })
+
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
+    })
+
+    // Đúng MỘT thẻ — bản ghi so-do. Nếu ai xoá prop loai="so-do" ở BoardGallery.tsx:334, LuoiMuc
+    // nhận loai: undefined, locTheoProps() bỏ qua điều kiện lọc và CẢ HAI bản ghi lọt vào lưới —
+    // ca này đỏ ngay ở dòng đếm số thẻ dưới đây (xem báo cáo task-3-report.md để đọc thông báo lỗi
+    // thật khi gỡ prop để chứng minh ca này ghim đúng thứ nó nhận ghim).
+    expect(container.querySelectorAll('[data-testid="the-bang"]').length).toBe(1)
+    expect(container.textContent).toContain(soDoMeta.ten)
+    expect(container.textContent).not.toContain(baiVietMeta.ten)
+  })
 })
