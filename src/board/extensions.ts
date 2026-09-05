@@ -88,7 +88,7 @@ import { ViewExtensionManager } from '@blocksuite/affine/ext-loader'
 
 import { banPhimAoTrang } from './ban-phim-ao'
 import { cheDoEdgeless, cheDoTrang } from './che-do-co-dinh'
-import { khongXemTruocQuaMang } from './khong-ben-thu-ba'
+import { khongNhungBenThuBa, khongXemTruocQuaMang } from './khong-ben-thu-ba'
 import { phongChuBangExtension } from './phong-chu-bang'
 import { timNhanhLienKet } from './tim-nhanh-lien-ket'
 
@@ -190,6 +190,7 @@ export function layExtensionsEdgeless() {
     phongChuBangExtension,
     timNhanhLienKet,
     khongXemTruocQuaMang,
+    khongNhungBenThuBa,
   ]
 }
 
@@ -222,5 +223,10 @@ export function layExtensionsTrang() {
     // chế độ: thẻ liên kết sống được ở cả bảng vẽ lẫn bài viết, nên đường xem trước phải bị chặn ở
     // cả hai. Xem ./khong-ben-thu-ba.ts.
     khongXemTruocQuaMang,
+    // Cùng lý do "cả hai bộ" như trên: khối nhúng bên thứ ba tạo được ở cả bài viết lẫn sơ đồ, và
+    // `frame-src 'none'` biến chúng thành khối xám lỗi ở cả hai. Đứng SAU `khongXemTruocQuaMang`
+    // không phải vì phụ thuộc nhau — hai extension độc lập — mà vì cả hai đều `di.override`, nên
+    // chỗ của chúng là cuối mảng, sau mọi extension đăng ký hiện thực gốc.
+    khongNhungBenThuBa,
   ]
 }

@@ -6,6 +6,7 @@
 //
 // File này KHÔNG biết gì về React và KHÔNG biết gì về chế độ hiển thị. Nó chỉ trả về `store` +
 // `workspace`; ai mount cây Lit nào lên đó là việc của bên gọi.
+import { FeatureFlagService } from '@blocksuite/affine-shared/services'
 import { StoreExtensionManager } from '@blocksuite/affine/ext-loader'
 import { getInternalStoreExtensions } from '@blocksuite/affine/extensions/store'
 import { TestWorkspace } from '@blocksuite/affine/store/test'
@@ -199,6 +200,27 @@ async function moDocThat(docId: string, loai: LoaiMuc, tuyChon?: {
     }
     const store = doc.getStore({ extensions: storeManager.get('store') })
     doc.load()
+
+    // ─── Bật thanh công cụ bàn phím ảo cho BÀI VIẾT ───────────────────────────────────────────
+    //
+    // Nửa còn lại của tiêu chí 5 Plan 1. `banPhimAoTrang` (./ban-phim-ao.ts) lo cho widget không
+    // NÉM; lượt bật này lo cho nó RENDER. `widgets/keyboard-toolbar/src/widget.ts:100-104` trả
+    // `nothing` khi cờ tắt, mà mặc định thượng nguồn là `false`
+    // (`affine/shared/src/services/feature-flag-service.ts:40`) — nên trước bản vá này mọi mảnh
+    // khác đã đúng (widget gắn, `_show$` true, `IS_MOBILE` true, provider phân giải được) mà người
+    // dùng vẫn không thấy thanh nào. Đo trên Chrome thật giả lập Pixel 8, 2026-09-05: bật cờ ngay
+    // trong phiên ⇒ thanh hiện tức thì, 390×46 px sát đáy.
+    //
+    // Ở ĐÂY chứ không ở `extensions.ts` vì `FeatureFlagService` là `StoreExtension` — nó sống trong
+    // `storeManager.get('store')` và chỉ với được qua một `Store` đã dựng, còn `layExtensionsTrang()`
+    // trả extension tầng view.
+    //
+    // CHỈ bài viết: widget bàn phím chỉ gắn ở scope `page`, nên bật cho sơ đồ là mở rộng diện rủi ro
+    // cho thứ không ai dùng — cùng lập luận đã giữ `banPhimAoTrang` khỏi `layExtensionsEdgeless()`.
+    // Cả hai chiều do `co-ban-phim-mobile.spec.ts` canh.
+    if (loai === 'bai-viet') {
+      store.get(FeatureFlagService).setFlag('enable_mobile_keyboard_toolbar', true)
+    }
 
     // ─── Quyết định có SEED khối gốc hay không ────────────────────────────────────────────────
     //

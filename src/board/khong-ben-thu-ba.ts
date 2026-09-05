@@ -21,7 +21,8 @@
 // đoạn cuối đường dẫn là thông tin CÓ SẴN trong chuỗi người dùng vừa dán — không tốn một byte mạng
 // nào mà thẻ vẫn đọc được.
 import type { LinkPreviewData } from '@blocksuite/affine-model'
-import { LinkPreviewServiceIdentifier } from '@blocksuite/affine-shared/services'
+import { EmbedOptionProvider, LinkPreviewServiceIdentifier } from '@blocksuite/affine-shared/services'
+import { SlashMenuConfigIdentifier } from '@blocksuite/affine-widget-slash-menu'
 import type { ServiceProvider } from '@blocksuite/global/di'
 import type { ExtensionType } from '@blocksuite/store'
 
@@ -69,6 +70,64 @@ export const khongXemTruocQuaMang: ExtensionType = {
       endpoint: '',
       setEndpoint: () => {},
       query: (url: string) => Promise.resolve(docNhanTuUrl(url)),
+    }))
+  },
+}
+
+// ─── Không tạo được khối nhúng bên thứ ba ───────────────────────────────────────────────────────
+//
+// Lớp thứ ba, và là lớp DUY NHẤT người dùng nhìn thấy. Hai lớp kia (CSP ở index.html,
+// `khongXemTruocQuaMang` ở trên) chặn lời gọi mạng; lớp này gỡ luôn cái nút mời người ta tạo ra một
+// khối không bao giờ hiển thị được.
+//
+// ĐO ĐƯỢC, không suy đoán (Chrome thật qua CDP, 2026-09-05): dán một liên kết YouTube vào bài viết
+// cho ra một khối xám 752×545 px mang icon trang lỗi của Chrome — `iframe` bị `frame-src 'none'` từ
+// chối, `img-src` từ chối ảnh đại diện, `connect-src` từ chối oembed. Ở khung 390 px nó chiếm gần
+// trọn màn hình, không một chữ giải thích. Chức năng này KHÔNG THỂ chạy trong app ngoại tuyến hoàn
+// toàn; để nó trong menu chỉ là một ngõ cụt có hình dạng tính năng.
+//
+// HAI ĐƯỜNG TẠO, bịt cả hai — chặn một đường là hở đường kia:
+//   1. Menu lệnh `/`: mỗi khối embed tự đăng ký `SlashMenuConfigExtension(<flavour>, …)` và gọi
+//      THẲNG `toggleEmbedCardCreateModal`, không hỏi `EmbedOptionProvider` câu nào.
+//   2. Dán URL, hoặc nút "chuyển thành Embed view" trên thẻ liên kết: đều hỏi
+//      `EmbedOptionProvider.getEmbedBlockOptions(url)`. Trả `null` là URL ở lại dạng thẻ liên kết
+//      thường — vẫn đọc được offline nhờ `docNhanTuUrl` suy nhan đề từ chính URL.
+//
+// `di.override` chứ không `addImpl`, và extension này phải đứng CUỐI mảng: `override` chỉ thay được
+// hiện thực ĐÃ đăng ký, mà cả hai thứ trên do các extension embed/shared đăng ký trước. Cùng lý do
+// `cheDoTrang`/`cheDoEdgeless` phải đứng cuối — xem ./che-do-co-dinh.ts.
+//
+// CỐ Ý KHÔNG ĐỤNG `affine:embed-linked-doc` và `affine:embed-synced-doc`: chúng nhúng tài liệu NỘI
+// BỘ của chính app, không chạm mạng, không phải bên thứ ba. `affine:embed-html` cũng không có ở đây
+// vì nó không đăng ký mục menu `/` nào.
+const FLAVOUR_NHUNG_BEN_THU_BA = [
+  'affine:embed-youtube',
+  'affine:embed-figma',
+  'affine:embed-loom',
+  'affine:embed-github',
+  // Khối iframe "tuỳ ý": người dùng dán bất kỳ URL nào và thượng nguồn dựng một iframe quanh nó —
+  // đúng thứ `frame-src 'none'` sinh ra để chặn.
+  'affine:embed-iframe',
+]
+
+/**
+ * Gỡ mọi đường tạo khối nhúng bên thứ ba. Dùng cho CẢ HAI chế độ (xem `layExtensionsTrang` và
+ * `layExtensionsEdgeless`): khối nhúng sống được ở cả bài viết lẫn sơ đồ, và CSP chặn ở cả hai.
+ *
+ * Không gỡ khối đã có sẵn trong tài liệu cũ — chỉ chặn đường tạo mới. Một tài liệu lỡ chứa khối
+ * nhúng từ trước vẫn mở được bình thường (khối đó vẫn là khối xám, nhưng không có gì mới hỏng thêm).
+ */
+export const khongNhungBenThuBa: ExtensionType = {
+  setup: (di) => {
+    for (const flavour of FLAVOUR_NHUNG_BEN_THU_BA) {
+      di.override(SlashMenuConfigIdentifier(flavour), () => ({ items: [] }))
+    }
+
+    di.override(EmbedOptionProvider, () => ({
+      getEmbedBlockOptions: () => null,
+      // Interface đòi hàm này. No-op: có mã thượng nguồn gọi nó để đăng ký thêm lúc chạy, và ở đây
+      // "đăng ký thêm" phải là việc không có tác dụng gì, chứ không phải một lỗi ném ra.
+      registerEmbedBlockOptions: () => {},
     }))
   },
 }

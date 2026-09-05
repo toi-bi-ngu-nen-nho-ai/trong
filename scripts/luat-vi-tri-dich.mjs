@@ -138,6 +138,33 @@ export const FILE_CHO_PHEP_NAME_SLASH_MENU = new Set([
   'affine/blocks/attachment/src/configs/slash-menu.js',
   'affine/blocks/surface-ref/src/configs/slash-menu.js',
   'affine/widgets/slash-menu/src/config.js',
+  // ─── Thêm 2026-09-05, sau lượt kiểm tay chế độ TRANG trên Chrome thật ────────────────────────
+  // Ba file dưới đây chỉ lộ ra khi có luồng bài viết: menu `/` trong bài viết bày thêm mục "Table"
+  // và nhóm "Basic → Callout" mà bảng vẽ không bày, còn menu `@` là widget của riêng chế độ trang.
+  //
+  // Triệu chứng đắt nhất trong ba: mục bảng tên "Table" nên gõ "Bảng" trong menu `/` ra ĐÚNG 0 kết
+  // quả — người dùng Việt không có cách nào tìm ra nó bằng tiếng mẹ đẻ.
+  //
+  // Đo tiêu thụ ngược từng file, đúng nguyên tắc "danh sách ĐÓNG, thêm file mới phải đo lại":
+  //   • `blocks/table/src/configs/slash-menu.js` — `grep '\.name'` trong file: 0 kết quả. Toàn cây
+  //     không có `=== 'Table'`, `includes('Table')` hay `['Table'` nào. `caption: 'Table'` trong
+  //     tooltip cùng file đi đường `caption` (đã nằm trong THUOC_TINH_HIEN_THI), không liên quan.
+  //   • `blocks/callout/src/configs/slash-menu.js` — cùng hình dạng: 0 lượt đọc lại `.name`, toàn
+  //     cây không so sánh với `'Callout'`.
+  //   • `widgets/linked-doc/src/config.js` — KHÁC hai file trên, ở đây `name` CÓ bị đọc lại, nhưng
+  //     chỉ là `group.name` (`linked-doc-popover.ts:129,142` `_expanded.get/set`,
+  //     `mobile-linked-doc-menu.ts:42,51` `_expand.has/add`, và `key:` của `keyed()`). Cả vế ghi lẫn
+  //     vế đọc đều lấy từ CHÍNH `group.name`, nên bảng trạng thái mở/thu tự nhất quán sau khi dịch —
+  //     đúng lập luận đã dùng cho `menu.search()` ở FILE_CHO_PHEP_NAME_DENSE_MENU. `item.name` của
+  //     các mục ("New Doc", "Import") không bị đọc lại ở đâu trong toàn cây.
+  //
+  // GIỚI HẠN ĐÃ BIẾT, cố ý không vá: mục `name` của "tạo tài liệu mới theo tên đang gõ"
+  // (config.ts:134) là template literal CÓ NỘI SUY — phép thay literal không với tới, nên nó ở lại
+  // tiếng Anh. Vá nó đòi một loại vị trí mới (ghép TemplateHead + TemplateTail) và phải dạy cả hai
+  // cổng; chưa đáng ở lượt này vì mục đó chỉ hiện khi người dùng gõ `@` kèm một tên chưa tồn tại.
+  'affine/blocks/table/src/configs/slash-menu.js',
+  'affine/blocks/callout/src/configs/slash-menu.js',
+  'affine/widgets/linked-doc/src/config.js',
 ])
 
 // Mảnh 1 của cặp ghép: KHOÁ của bảng `tooltips`. Bảng này là object DUY NHẤT có khoá trong cả file

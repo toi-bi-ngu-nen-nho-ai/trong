@@ -24,6 +24,8 @@ import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
 
 import '../../.vendor-build/theme/style.css'
 import './cau-noi-thuong-hieu.css'
+// Chỉ chế độ trang cần: `doc-title` (và placeholder "Title" của nó) không tồn tại ở bảng vẽ.
+import './dich-placeholder-trang.css'
 
 export function TrangBaiViet({
   docId,

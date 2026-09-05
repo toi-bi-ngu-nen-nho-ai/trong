@@ -313,5 +313,12 @@
   "Sep": "Th9",
   "Oct": "Th10",
   "Nov": "Th11",
-  "Dec": "Th12"
+  "Dec": "Th12",
+  "Table": "Bảng",
+  "Create a simple table.": "Tạo một bảng đơn giản.",
+  "Callout": "Khung nhấn mạnh",
+  "Let your words stand out.": "Làm nổi bật đoạn chữ.",
+  "New Doc": "Tài liệu mới",
+  "Import": "Nhập tệp",
+  "Link to Doc": "Liên kết tài liệu"
 }

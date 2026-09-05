@@ -1,0 +1,30 @@
+/* ─── Dịch placeholder tiêu đề bài viết ─────────────────────────────────────────────────────────
+   Mở một bài viết trống thì chữ mờ to nhất trên màn hình là "Title" — tiếng Anh, ngay giữa một app
+   tiếng Việt. Đo trên Chrome thật 2026-09-05.
+
+   VÌ SAO KHÔNG ĐI QUA HỆ DỊCH D12 NHƯ MỌI CHUỖI KHÁC. Chuỗi này không phải một thuộc tính JS mà là
+   một luật CSS trong `static styles` của Lit:
+
+       .doc-title-container-empty::before { content: 'Title'; … }
+       (affine/fragments/doc-title/src/doc-title.ts:65)
+
+   `scripts/luat-vi-tri-dich.mjs` là DANH SÁCH CHO PHÉP theo vị trí cú pháp, và `content:` trong CSS
+   không có trong đó. Mở một loại vị trí mới cho `content:` là đổi luật cho TOÀN CÂY, mà phần lớn
+   `content:` trong cây vendored là ký tự trang trí, dấu ngoặc, hoặc chuỗi rỗng — nới ra để dịch một
+   chuỗi là mở đúng kiểu cửa mà danh sách cho phép sinh ra để đóng. Một luật CSS phía app hẹp hơn
+   nhiều và không đụng tới D11 (không sửa cây vendored).
+
+   VÌ SAO ĐỦ SỨC GHI ĐÈ. `doc-title` render vào LIGHT DOM (đo trên trình duyệt: `<doc-title>` chứa
+   thẳng `<div class="doc-title-container">`, không có shadow root), nên luật này với tới được. CSS
+   của app không nằm trong `@layer` nào — khác CSS vendor vốn bị `batLopCssVendor()` bọc vào
+   `drt-vendor`/`drt-vendor-tran` — mà mọi khai báo ngoài layer đều thắng mọi khai báo trong layer,
+   bất kể độ đặc hiệu. Thêm `.drt-page-viewport` phía trước vẫn là có chủ ý: nó giới hạn luật đúng
+   trong khung soạn thảo bài viết, để một `.doc-title-container-empty` lỡ xuất hiện ở chỗ khác
+   không bị đụng.
+
+   CHỈ chế độ trang: `doc-title` không tồn tại ở bảng vẽ, nên file này import ở TrangBaiViet.tsx
+   chứ không ở cau-noi-thuong-hieu.css (vốn dùng chung cho cả hai). */
+
+.drt-page-viewport .doc-title-container-empty::before {
+  content: 'Tiêu đề';
+}
