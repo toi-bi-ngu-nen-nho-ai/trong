@@ -10,7 +10,7 @@ import 'fake-indexeddb/auto'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { IDB_STORES, idbPut } from '../lib/idb'
+import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import type { MucMeta } from '../board/mucMeta'
 
 vi.mock('../board/index', () => ({ VoMuc: () => <div data-testid="vo-muc" /> }))
@@ -205,5 +205,43 @@ describe('sáu màn dùng chung LuoiMuc', () => {
 
     await waitFor(() => expect(screen.getByText('sd-mindmap6')).toBeTruthy())
     expect(screen.queryByText('bv-mindmap6')).toBeNull()
+  })
+
+  // ─── I1 (Important, đợt vá cuối trước hợp nhất) — nút "+" ở màn danh mục tạo bài-viết ───────────
+  // LuoiMuc.tsx (nút "+", ~dòng 1675/1678) chỉ từng đọc `loaiTaoDuoc[0]` — `loaiTaoDuoc[1]` không
+  // được đọc ở đâu cả (xác nhận bằng grep). Trước bản vá, ba màn danh mục hỗn hợp (Tiếp cận vấn đề/
+  // ECG/Phác đồ) khai `loaiTaoDuoc={['bai-viet', 'so-do']}` — NGỤ Ý nút "+" tạo được cả hai loại,
+  // nhưng vì chỉ [0] được đọc, nút đó luôn tạo 'bai-viet' dù cấu hình khai cả 'so-do'. App.tsx nay
+  // chỉ còn khai loaiTaoDuoc={['bai-viet']} cho instance này (xem chú thích tại App.tsx, khối JSX
+  // "danhMuc") — cấu hình khớp với mã thật, không nói dối khả năng. Sơ đồ trong danh mục này vẫn
+  // tạo được, chỉ đổi lối vào: qua tab Mindmap (loaiTaoDuoc=['so-do'] ở đó), rồi tự HIỆN LẠI ở màn
+  // danh mục nhờ lọc theo `danhMuc` (không lọc `loai`) — không mất khả năng, không thêm UI chọn loại
+  // (ngoài phạm vi cổng hợp nhất).
+  //
+  // Ca này ghim đúng quan sát được của người dùng: bấm "+" ở màn danh mục (ECG) → bản ghi mới trong
+  // IndexedDB phải là loại 'bai-viet'. Gỡ 'bai-viet' khỏi loaiTaoDuoc (đưa 'so-do' lên [0], hoặc
+  // đổi App.tsx trở lại ['bai-viet', 'so-do'] với thứ tự khác) sẽ làm ca này đỏ.
+  it('I1: nút "+" ở màn danh mục (ECG) tạo mục loại bài-viết', async () => {
+    // idb dùng chung KHÔNG reset giữa các ca trong file này (nhiều ca khác cũng seed danhMuc
+    // 'ecg') — so sánh TẬP id trước/sau cú bấm thay vì đếm tổng số bản ghi 'ecg', để không lẫn với
+    // dữ liệu các ca kiểm khác để lại.
+    const idTruoc = new Set((await idbGetAll<MucMeta>(IDB_STORES.mucs)).map((m) => m.id))
+
+    const { default: App } = await import('../App')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: /ECG/ }))
+    await screen.findByTestId('quay-lai-danh-muc')
+
+    fireEvent.click(screen.getByTestId('tao-bang'))
+
+    let mucMoi: MucMeta | undefined
+    await waitFor(async () => {
+      const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+      mucMoi = ds.find((m) => !idTruoc.has(m.id))
+      expect(mucMoi).toBeTruthy()
+    })
+    expect(mucMoi?.danhMuc).toBe('ecg')
+    expect(mucMoi?.loai).toBe('bai-viet')
   })
 })
