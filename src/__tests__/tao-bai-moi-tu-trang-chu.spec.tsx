@@ -7,7 +7,7 @@
 import 'fake-indexeddb/auto'
 
 import { act } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll } from '../lib/idb'
@@ -33,7 +33,13 @@ describe('Tạo bài mới từ Trang chủ', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Phác đồ' }))
+    // Quét TRONG bảng chọn danh mục (role="dialog"), không phải toàn `screen`: từ Task 7, thẻ Truy
+    // cập nhanh "Phác đồ" ở Trang chủ không còn nhãn "Sắp ra mắt" (nó nay mở màn lưới lọc theo danh
+    // mục thật) nên tên hiển thị của nó trùng HỆT nút "Phác đồ" trong bảng chọn này — hai nút cùng
+    // tồn tại trong DOM cùng lúc (bảng chọn là lớp phủ, không unmount Trang chủ bên dưới), khiến
+    // `screen.findByRole` không phân biệt được nữa nếu không thu hẹp phạm vi.
+    const bangChon = await screen.findByRole('dialog', { name: /Chọn danh mục/ })
+    fireEvent.click(within(bangChon).getByRole('button', { name: 'Phác đồ' }))
 
     await waitFor(async () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
@@ -65,7 +71,10 @@ describe('Tạo bài mới từ Trang chủ', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
-    const nutDanhMuc = await screen.findByRole('button', { name: 'Phác đồ' })
+    // Cùng lý do thu hẹp phạm vi vào bảng chọn đã ghi ở ca kiểm đầu file (Task 7: nhãn thẻ Trang chủ
+    // và nhãn nút trong bảng chọn nay trùng nhau).
+    const bangChon = await screen.findByRole('dialog', { name: /Chọn danh mục/ })
+    const nutDanhMuc = within(bangChon).getByRole('button', { name: 'Phác đồ' })
 
     // Hai dispatchEvent trong CÙNG một act() — React chưa flush render giữa hai lượt gọi nên nút
     // danh mục còn nguyên trong DOM cho cú thứ hai, mô phỏng đúng cửa sổ lọt double-fire (kỹ thuật
@@ -92,7 +101,9 @@ describe('Tạo bài mới từ Trang chủ', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Phác đồ' }))
+    // Cùng lý do thu hẹp phạm vi vào bảng chọn đã ghi ở ca kiểm đầu file.
+    let bangChon = await screen.findByRole('dialog', { name: /Chọn danh mục/ })
+    fireEvent.click(within(bangChon).getByRole('button', { name: 'Phác đồ' }))
 
     await waitFor(async () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
@@ -106,7 +117,8 @@ describe('Tạo bài mới từ Trang chủ', () => {
     await screen.findByRole('button', { name: /Tạo bài mới/ })
 
     fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
-    fireEvent.click(await screen.findByRole('button', { name: 'ECG' }))
+    bangChon = await screen.findByRole('dialog', { name: /Chọn danh mục/ })
+    fireEvent.click(within(bangChon).getByRole('button', { name: 'ECG' }))
 
     await waitFor(async () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
