@@ -1566,6 +1566,12 @@ export function LuoiMuc({
     const hueHienCo = danhSach.filter((b) => !b.daXoaLuc).map((b) => b.mauHue ?? mauOnDinh(b.id))
     const meta: MucMeta = {
       id: taoIdMuc(),
+      // Nút "+" của lưới này CHỈ tạo sơ đồ (chưa có đường tạo bài viết ở đây, xem HomeScreen).
+      loai: 'so-do',
+      // Danh mục mặc định cho MỌI bảng mới tạo qua nút này — chưa có UI chọn danh mục ở chặng này
+      // (spec §3.5 để dành cho sau). 'tiep-can' đứng đầu DANH_MUC và luôn nhận cả hai loại mục
+      // (danhMucNhanLoai), nên là lựa chọn trung tính nhất trong lúc chờ task sau nối UI thật.
+      danhMuc: 'tiep-can',
       ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,

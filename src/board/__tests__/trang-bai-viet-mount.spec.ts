@@ -36,6 +36,10 @@ let root: Root
 async function ghiMeta(id: string, ten: string, noiDungTimKiem = '') {
   await idbPut<MucMeta>(IDB_STORES.boards, {
     id,
+    // File này mount thẳng TrangBaiViet — bản ghi phải khai đúng loai 'bai-viet', không phải giá
+    // trị mặc định 'so-do' của bảng sơ đồ đời cũ (dù component chưa đọc trường này lúc mount).
+    loai: 'bai-viet',
+    danhMuc: 'tiep-can',
     ten,
     taoLuc: Date.now(),
     capNhatLuc: Date.now(),
@@ -114,6 +118,8 @@ describe('TrangBaiViet', () => {
     const capNhatLucGoc = Date.now()
     await idbPut<MucMeta>(IDB_STORES.boards, {
       id: 'bv-mount-3',
+      loai: 'bai-viet',
+      danhMuc: 'tiep-can',
       ten: 'Bài rời',
       taoLuc: capNhatLucGoc,
       capNhatLuc: capNhatLucGoc,
@@ -155,6 +161,8 @@ describe('TrangBaiViet', () => {
     // IndexedDB kịp trả lời.
     await idbPut<MucMeta>(IDB_STORES.boards, {
       id: 'bv-mount-4',
+      loai: 'bai-viet',
+      danhMuc: 'tiep-can',
       ten: 'Bài rời sớm',
       taoLuc: Date.now(),
       capNhatLuc: Date.now(),

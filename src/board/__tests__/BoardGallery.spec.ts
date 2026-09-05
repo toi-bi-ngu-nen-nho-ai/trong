@@ -17,6 +17,10 @@ function taoBangGia(ten: string): MucMeta {
   const bayGio = Date.now()
   const meta: MucMeta = {
     id: `bang-gia-${bayGio}-${Math.random().toString(36).slice(2, 6)}`,
+    // File này canh hành vi điều hướng của BoardGallery, không canh phân loại — giá trị của bảng
+    // sơ đồ đời cũ (xem task-1-brief.md) là đủ, không cần đa dạng hoá.
+    loai: 'so-do',
+    danhMuc: 'tiep-can',
     ten,
     taoLuc: bayGio,
     capNhatLuc: bayGio,

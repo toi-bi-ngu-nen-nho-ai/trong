@@ -84,30 +84,13 @@ describe('capNhatSauKhiRoiMuc', () => {
 })
 
 describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi', () => {
-  it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định', async () => {
-    const bayGio = Date.now()
-    // Mô phỏng bản ghi tạo TRƯỚC khi có ba trường mới — ép kiểu vì TS sẽ chặn thiếu trường bắt buộc.
-    await idbPut(IDB_STORES.boards, {
-      id: 'cu',
-      ten: 'Bảng cũ',
-      taoLuc: bayGio,
-      capNhatLuc: bayGio,
-    } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
-
-    await capNhatSauKhiRoiMuc('cu', false)
-
-    const ds = await idbGetAll<{
-      id: string
-      chuyenKhoa: string
-      tags: string[]
-      noiDungTimKiem: string
-    }>(IDB_STORES.boards)
-    const sau = ds.find((b) => b.id === 'cu')
-    expect(sau?.chuyenKhoa).toBe(SPECIALTIES[0].id)
-    expect(sau?.tags).toEqual([])
-    expect(sau?.noiDungTimKiem).toBe('')
-  })
-
+  // Ca "bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định" đã bị XOÁ ở
+  // giai đoạn 5-6 (task-1-brief.md Bước 5): nó canh đúng ba nhánh `??` phòng vệ vừa bị gỡ khỏi
+  // capNhatSauKhiRoiMuc. Gỡ vá thật để xác nhận: bỏ `?? SPECIALTIES[0].id`/`?? []`/`?? ''` ra khỏi
+  // idbPut bên dưới thì ca đó đỏ đúng như mong đợi (thông báo lỗi thật: "expected undefined to be
+  // 'cardiology'") — nay hàm này chỉ còn ghi vào store MỚI (mucs, xem Task 2), không có bản ghi
+  // thiếu trường nào để backfill, nên giữ lại ca cũ là giữ một lời nói dối về hình dạng dữ liệu
+  // (spec §3.1).
   it('truyền noiDungTimKiemMoi → ghi đè noiDungTimKiem cũ', async () => {
     const bayGio = Date.now()
     await idbPut(IDB_STORES.boards, {
@@ -189,6 +172,9 @@ describe('ghepNoiDungTimKiem', () => {
 describe('mucKhopTimKiem', () => {
   const bangMau: MucMeta = {
     id: 'x', ten: 'Suy tim EF giảm', taoLuc: 0, capNhatLuc: 0,
+    // Ca này canh so khớp tìm kiếm, không canh phân loại — giá trị của bảng sơ đồ đời cũ
+    // (xem task-1-brief.md) là đủ.
+    loai: 'so-do', danhMuc: 'tiep-can',
     chuyenKhoa: 'cardiology', tags: ['nội trú', 'cấp cứu'], noiDungTimKiem: 'furosemide 40mg TM',
   }
 

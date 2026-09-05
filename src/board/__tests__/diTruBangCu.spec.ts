@@ -16,6 +16,10 @@ import { taoHoacMoDoc } from '../mo-doc'
 
 function bangMetaGia(overrides: Partial<MucMeta> & { id: string }): MucMeta {
   return {
+    // Toàn bộ ca kiểm trong file này di trú "bảng cũ" trước khi có phân loại — giá trị của bảng
+    // sơ đồ đời cũ (xem task-1-brief.md) là đủ, `overrides` vẫn ghi đè được nếu một ca cần khác.
+    loai: 'so-do',
+    danhMuc: 'tiep-can',
     ten: 'Bảng',
     taoLuc: 1,
     capNhatLuc: 1,

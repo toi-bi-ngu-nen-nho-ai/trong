@@ -38,6 +38,10 @@ function chuaLanhIdb() {
 function bangMau(id: string, ten: string): MucMeta {
   return {
     id,
+    // File này canh hành vi khi IndexedDB hỏng, không canh phân loại — giá trị của bảng sơ đồ
+    // đời cũ (xem task-1-brief.md) là đủ.
+    loai: 'so-do',
+    danhMuc: 'tiep-can',
     ten,
     taoLuc: 1_700_000_000_000,
     capNhatLuc: 1_700_000_000_000,

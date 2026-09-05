@@ -95,6 +95,11 @@ export async function diTruBangCuNeuCo(tuyChon?: {
     const bayGio = Date.now()
     const meta: MucMeta = {
       id: 'board',
+      // Bảng docId 'board' cố định CHỈ có thể là một sơ đồ vẽ (không gian này tồn tại từ trước khi
+      // có chế độ bài viết) — 'tiep-can' là danh mục mặc định cho mọi bảng đời cũ chưa từng được
+      // phân loại (xem task-1-brief.md).
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Bảng đầu tiên',
       taoLuc: bayGio,
       capNhatLuc: bayGio,

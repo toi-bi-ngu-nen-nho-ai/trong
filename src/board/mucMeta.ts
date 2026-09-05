@@ -7,8 +7,46 @@ import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import { normalizeSearch } from '../lib/ui'
 
+/**
+ * Loại mục — chốt lúc tạo, KHÔNG đổi được sau (spec §7 "Ngoài phạm vi"). Trước lượt này kiểu sống ở
+ * `mo-doc.ts` vì nơi tiêu thụ đầu tiên là `taoHoacMoDoc`; nay metadata mới là nguồn thật của khái
+ * niệm, còn `mo-doc.ts` chỉ là một nơi dùng. `mo-doc.ts` re-export để D13 không bị đụng: `index.tsx`
+ * đang `import type { LoaiMuc } from './mo-doc'`, và một `import type` không kéo gì vào chunk vỏ app.
+ */
+export type LoaiMuc = 'bai-viet' | 'so-do'
+
+export type IdDanhMuc = 'tiep-can' | 'ecg' | 'phac-do' | 'huong-dan'
+
+/**
+ * Bốn danh mục của kho. `loaiChoPhep` là ràng buộc HIỂN THỊ (bảng chọn danh mục lọc theo nó), không
+ * phải ràng buộc lưu trữ — không có lớp kiểm nào chặn một bản ghi lệch, vì bản ghi lệch chỉ sinh ra
+ * được bằng cách sửa tay IndexedDB.
+ *
+ * `as const satisfies` chứ không phải `as const` trần: `satisfies` bắt lỗi ngay tại đây nếu ai thêm
+ * một `id` không có trong `IdDanhMuc`, trong khi vẫn giữ kiểu literal hẹp cho `DANH_MUC[n].id`.
+ */
+export const DANH_MUC = [
+  { id: 'tiep-can', ten: 'Tiếp cận vấn đề', loaiChoPhep: ['bai-viet', 'so-do'] },
+  { id: 'ecg', ten: 'ECG', loaiChoPhep: ['bai-viet', 'so-do'] },
+  { id: 'phac-do', ten: 'Phác đồ', loaiChoPhep: ['bai-viet', 'so-do'] },
+  { id: 'huong-dan', ten: 'Hướng dẫn', loaiChoPhep: ['bai-viet'] },
+] as const satisfies readonly { id: IdDanhMuc; ten: string; loaiChoPhep: readonly LoaiMuc[] }[]
+
+/** Danh mục này có nhận loại mục kia không. Bảng chọn danh mục dùng để ẩn lựa chọn không hợp lệ. */
+export function danhMucNhanLoai(danhMuc: IdDanhMuc, loai: LoaiMuc): boolean {
+  const muc = DANH_MUC.find((d) => d.id === danhMuc)
+  return muc ? (muc.loaiChoPhep as readonly LoaiMuc[]).includes(loai) : false
+}
+
 export type MucMeta = {
   id: string
+  /**
+   * Chốt lúc tạo, KHÔNG đổi được — spec §7. Quyết định mở `TrangBaiViet` hay `EdgelessBoard`
+   * (`index.tsx` chọn vỏ theo trường này), và là trục lọc của tab Thư viện / Mindmap.
+   */
+  loai: LoaiMuc
+  /** Đổi được sau, qua menu "⋯" trên thẻ (spec §3.5 để dành, không làm ở chặng này). */
+  danhMuc: IdDanhMuc
   ten: string
   taoLuc: number
   capNhatLuc: number
@@ -18,10 +56,12 @@ export type MucMeta = {
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
   // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), LuoiMuc.tsx). Bảng cũ
-  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatSauKhiRoiMuc() bên dưới
-  // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
-  // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
-  // ĐỌC ba trường này trước khi bảng đó từng được mở lại (chip lọc, tìm kiếm) phải tự
+  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc. TRƯỚC giai đoạn 5-6,
+  // capNhatSauKhiRoiMuc() bên dưới tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế
+  // tiếp; giai đoạn 5-6 bỏ backfill đó (spec §3.1: "giữ lại là giữ một lời nói dối về hình dạng dữ
+  // liệu") vì hàm này giờ ghi vào store `mucs` MỚI, không có bản ghi thiếu trường nào để backfill.
+  // Bảng CŨ còn ở store `boards` (chưa migrate sang `mucs`) vẫn thiếu ba trường này — mọi nơi ĐỌC
+  // chúng trước khi bảng đó từng được mở lại qua đường mới (chip lọc, tìm kiếm) phải tự
   // `?? SPECIALTIES[0].id`/`?? []`/`?? ''` — xem Task 2/3/7.
   chuyenKhoa: string
   tags: string[]
@@ -90,9 +130,7 @@ export function capNhatSauKhiRoiMuc(
     await idbPut(IDB_STORES.boards, {
       ...conLai,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
-      chuyenKhoa: hienCo.chuyenKhoa ?? SPECIALTIES[0].id,
-      tags: hienCo.tags ?? [],
-      noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? '',
+      noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem,
     })
   })()
   ghiAnhDangCho = p
