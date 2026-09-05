@@ -90,8 +90,8 @@ describe('BoardGallery', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   it('mặc định hiện lưới danh sách, chưa có bảng nào mount', async () => {
@@ -106,7 +106,7 @@ describe('BoardGallery', () => {
 
   it('bấm một thẻ bảng → mount EdgelessBoard với đúng boardId, lưới ẩn đi', async () => {
     const meta = taoBangGia('Bảng test')
-    await idbPut(IDB_STORES.boards, meta)
+    await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -127,7 +127,7 @@ describe('BoardGallery', () => {
 
   it('bấm một thẻ bảng → boc-bang có class "board-in"', async () => {
     const meta = taoBangGia('Bảng test')
-    await idbPut(IDB_STORES.boards, meta)
+    await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -156,7 +156,7 @@ describe('BoardGallery', () => {
     } as DOMRect)
     try {
     const meta = taoBangGia('Bảng test')
-    await idbPut(IDB_STORES.boards, meta)
+    await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -181,7 +181,7 @@ describe('BoardGallery', () => {
 
   it('dangHienTab=false trong khi có bảng mở → EdgelessBoard VẪN mount (không unmount), chỉ ẩn', async () => {
     const meta = taoBangGia('Bảng test')
-    await idbPut(IDB_STORES.boards, meta)
+    await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -209,7 +209,7 @@ describe('BoardGallery', () => {
   })
 
   it('bấm nút quay lại → EdgelessBoard unmount thật, lưới hiện lại', async () => {
-    await idbPut(IDB_STORES.boards, taoBangGia('Bảng test'))
+    await idbPut(IDB_STORES.mucs, taoBangGia('Bảng test'))
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -229,23 +229,14 @@ describe('BoardGallery', () => {
     expect(container.querySelector('[data-testid="bang-gia"]')).toBeNull()
   })
 
-  // SKIP tạm thời từ giai đoạn 5-6 (task-2-brief.md Bước 4): capNhatSauKhiRoiMuc() nay đọc/ghi
-  // store `mucs`, nhưng LuoiMuc.tsx (component thật đứng sau lưới của BoardGallery) vẫn đọc
-  // danh sách qua `useIdbCollection<MucMeta>(IDB_STORES.boards)` — việc dời phía ĐỌC sang `mucs`
-  // là phạm vi Task 3 (nền dữ liệu hai task này KHÔNG bao gồm nối UI, xem ghi chú điều phối).
-  // Ca này canh đúng cuộc đua write-rồi-đọc-lại giữa hai phía đó; khi hai phía nằm ở hai store
-  // khác nhau, bản ghi vừa ghi (`noiDungTimKiem`) KHÔNG THỂ hiện ra qua lượt đọc lại của LuoiMuc —
-  // không phải lỗi logic ở test hay ở capNhatSauKhiRoiMuc, mà là trạng thái CHUYỂN TIẾP có chủ đích
-  // giữa hai task nền dữ liệu và task nối UI. Mở lại `.skip` này ngay khi Task 3 chuyển
-  // LuoiMuc.tsx/BoardGallery.tsx sang đọc `IDB_STORES.mucs`.
-  it.skip('bấm quay lại → metadata vừa ghi đã thấy NGAY trên lưới (không phải chờ lượt mount sau)', async () => {
+  it('bấm quay lại → metadata vừa ghi đã thấy NGAY trên lưới (không phải chờ lượt mount sau)', async () => {
     // Ca kiểm này canh CUỘC ĐUA giữa lượt ghi fire-and-forget lúc rời bảng và lượt đọc-lúc-mount
     // của LuoiMuc — `doiGhiAnhXongNeuCo()` trong BoardGallery.tsx tồn tại vì nó.
     // Trước 2026-08-30 nó quan sát cuộc đua qua ảnh xem trước trên thẻ; ảnh đó đã bị gỡ, nên giờ
     // quan sát qua `noiDungTimKiem` — cũng do đúng lượt ghi đó sinh ra, và vẫn thấy được từ ngoài
     // (ô tìm kiếm). Bản chất cuộc đua không đổi, chỉ đổi cái kính soi.
     const meta = taoBangGia('Bảng test')
-    await idbPut(IDB_STORES.boards, meta)
+    await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -277,7 +268,7 @@ describe('BoardGallery', () => {
   })
 
   it('bấm quay lại → LuoiMuc tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {
-    await idbPut(IDB_STORES.boards, taoBangGia('Bảng test'))
+    await idbPut(IDB_STORES.mucs, taoBangGia('Bảng test'))
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })
@@ -306,7 +297,7 @@ describe('BoardGallery', () => {
 
   it('truyền moBangYeuCau khớp một bảng đã lưu → mở thẳng bảng đó, không cần bấm qua danh sách', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'muc-tieu', ten: 'Bảng mục tiêu', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
@@ -330,7 +321,7 @@ describe('BoardGallery', () => {
   // cũ vẫn xanh — nên phải canh riêng hợp đồng này (review cuối nhánh, mục 6).
   it('mở bảng theo yêu cầu xong → gọi onMoBangYeuCauXong để cha reset state', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'muc-tieu', ten: 'Bảng mục tiêu', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
@@ -352,7 +343,7 @@ describe('BoardGallery', () => {
 
   // ─── Nút "Xuất PNG" ở màn vẽ ───────────────────────────────────────────────────────────────
   async function moBang(ten = 'Bảng xuất'): Promise<void> {
-    await idbPut(IDB_STORES.boards, taoBangGia(ten))
+    await idbPut(IDB_STORES.mucs, taoBangGia(ten))
     await act(async () => {
       root.render(createElement(BoardGallery, { dangHienTab: true }))
     })

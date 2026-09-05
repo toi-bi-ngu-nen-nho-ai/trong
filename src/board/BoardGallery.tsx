@@ -328,6 +328,11 @@ export function BoardGallery({
           }}
           dungTuBang={vuaDongBang}
           onHieuUngXong={() => setVuaDongBang(false)}
+          // BoardGallery lồng bên trong tab Mindmap — CHỈ hiện/tạo sơ đồ (Task 5 sẽ nối màn Thư
+          // viện/chuyên khoa khác qua cùng LuoiMuc với bộ props khác).
+          tieuDe="Sơ đồ tư duy"
+          loai="so-do"
+          loaiTaoDuoc={['so-do']}
         />
       )}
       {/* Lớp phủ "gập lại" — RENDER NGOÀI {openBoardId && ...} nên vẫn sống tiếp sau khi openBoardId

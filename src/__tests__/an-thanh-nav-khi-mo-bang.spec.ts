@@ -37,8 +37,13 @@ function nut(bd: string): HTMLElement | undefined {
 
 async function gieoBang(id: string) {
   const bayGio = Date.now()
-  await idbPut(IDB_STORES.boards, {
+  await idbPut(IDB_STORES.mucs, {
     id,
+    // BoardGallery.tsx (Task 3) giờ truyền `loai="so-do"` thật cho LuoiMuc — thiếu hai trường này
+    // khiến locTheoProps() lọc thẳng bản ghi khỏi lưới (chốt lúc tạo, không có fallback `??`, xem
+    // mucMeta.ts). Cùng giá trị bảng sơ đồ đời cũ mà taoBangGia() của BoardGallery.spec.ts dùng.
+    loai: 'so-do',
+    danhMuc: 'tiep-can',
     ten: 'Bảng test nav',
     taoLuc: bayGio,
     capNhatLuc: bayGio,

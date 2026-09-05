@@ -1,8 +1,9 @@
 // Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "mucs" của
 // src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — LuoiMuc.tsx dùng thẳng
-// useIdbCollection<MucMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
-// ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
-// LuoiMuc (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
+// useIdbCollection<MucMeta>(IDB_STORES.mucs) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
+// ECG lessons/bài viết đang dùng — chuyển từ IDB_STORES.boards sang mucs ở Task 3). Hàm dưới đây
+// tồn tại vì nó được gọi từ NGOÀI cây component của LuoiMuc (EdgelessBoard.tsx lúc unmount) —
+// không có instance hook nào để gọi.
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import { normalizeSearch } from '../lib/ui'
