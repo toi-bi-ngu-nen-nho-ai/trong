@@ -32,6 +32,10 @@ describe('CSP — lưới an toàn do trình duyệt cưỡng chế', () => {
     const luat = the![1]
     expect(luat).toContain("connect-src 'self'")
     expect(luat).toContain("img-src 'self' data: blob:")
+    // `frame-src 'none'` (chốt 2026-09-05): thứ nặng nhất mà `connect-src` không chạm tới — một
+    // `<iframe>` chạy MÃ của bên thứ ba ngay trong app y khoa. Chỉ `affine:embed-iframe` và
+    // `affine:embed-youtube` bị ảnh hưởng; `affine:embed-linked-doc` là nội bộ.
+    expect(luat).toContain("frame-src 'none'")
 
     // `script-src`/`style-src` CỐ Ý vắng mặt: khai chúng là giết script nội tuyến phân giải chủ đề
     // ngay trong index.html và script của Vite — đổi một rủi ro riêng tư lấy app trắng màn hình.

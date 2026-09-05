@@ -16,7 +16,7 @@
          manh — D11 cấm sửa cây vendored, và bản nâng cấp sau sẽ thêm điểm mới mà không ai hay.
          CSP là lớp DUY NHẤT cưỡng chế được: trình duyệt chặn, không phải JS tự hứa.
 
-         CỐ Ý CHỈ KHAI HAI CHỈ THỊ:
+         CỐ Ý CHỈ KHAI BA CHỈ THỊ:
          - `connect-src 'self'` — chặn mọi fetch/XHR/WebSocket/beacon ra khác nguồn. Mọi lời gọi của
            chính app đều là đường dẫn tương đối cùng nguồn (`/static/templates/…`, xem mau-dongnao.ts
            và mau-handy.ts) nên không gãy gì. Vite HMR dùng ws cùng nguồn, cũng qua.
@@ -24,12 +24,17 @@
            ảnh người dùng dán vào kho blob. Chặn luôn đường "tải ảnh từ URL ngoài" ngầm.
          KHÔNG khai `script-src`/`style-src`: script nội tuyến ngay dưới đây và của Vite sẽ chết,
          đổi một rủi ro riêng tư lấy một app trắng màn hình.
-         KHÔNG khai `frame-src`: khối nhúng là nội dung bác sĩ CHỦ ĐỘNG dán và muốn xem, khác hẳn
-         lời gọi ngầm sau lưng. Muốn siết tuyệt đối thì thêm `frame-src 'none'` — đổi lại thẻ nhúng
-         thành ô trống. -->
+         - `frame-src 'none'` (chủ dự án chốt 2026-09-05, sau khi cân nhắc riêng khoản này). Đây là
+           thứ NẶNG NHẤT mà `connect-src` không chạm tới được: một `<iframe>` chạy MÃ JS CỦA BÊN THỨ
+           BA ngay bên trong app y khoa, kèm IP, referrer và cookie theo dõi. Chỉ hai loại khối nhúng
+           trong app đi ra ngoài — `affine:embed-iframe` (URL bất kỳ) và `affine:embed-youtube`;
+           `affine:embed-linked-doc` là nội bộ, trỏ sang bảng/bài viết khác nên không bị ảnh hưởng.
+           KHÔNG mất dữ liệu: URL vẫn lưu trong bảng và vẫn mở tab mới được.
+         KHÔNG khai `script-src`/`style-src`: script nội tuyến ngay dưới đây và của Vite sẽ chết,
+         đổi một rủi ro riêng tư lấy một app trắng màn hình. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="connect-src 'self'; img-src 'self' data: blob:"
+      content="connect-src 'self'; img-src 'self' data: blob:; frame-src 'none'"
     />
     <title>Bác sĩ Trọng — Sổ tay lâm sàng</title>
     <meta name="description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
