@@ -135,6 +135,20 @@ cho URL tuyệt đối — đúng khuôn ba kho che đã có (specifier, tên g�
 còn URL nào mang `drt-` trong `.vendor-build`. `khong-ben-thu-ba.spec.ts` khoá cả hai khẳng định ấy
 trên đầu ra thật, độc lập với chốt chặn trong script.
 
+**ĐÃ KIỂM TRÊN TRÌNH DUYỆT THẬT (2026-09-05)** — bắt buộc, vì một thẻ `<meta>` CSP sai cú pháp thì
+trình duyệt BỎ QUA IM LẶNG và không ca kiểm nào phát hiện được:
+- CSP thật sự được cưỡng chế. Thử `fetch('https://api.fxtwitter.com/…')` từ console → console trả
+  nguyên văn *"violates the following Content Security Policy directive: `connect-src 'self'`. The
+  action has been blocked."* Đây là chính sách chặn, không phải lỗi mạng.
+- Tạo một thẻ liên kết qua ĐÚNG lệnh của nút "Liên kết" → **0 vi phạm CSP, 0 lỗi console**. Nghĩa là
+  lớp 2 làm đúng việc: không lời gọi nào được thử, nên không có gì để CSP phải chặn. (Cùng thao tác
+  này ngày hôm trước đẻ 4 dòng lỗi CORS.)
+- Nhật ký mạng: lọc `https://` → **không một yêu cầu nào**, kể cả lời gọi thử ở trên — CSP chặn
+  TRƯỚC khi nó thành yêu cầu mạng. Server dev chạy `http://localhost` nên mọi `https://` đều là bên
+  thứ ba; đó là phép lọc đủ để kết luận.
+- Khối được chèn mang đúng nhan đề suy cục bộ: `title: "Suy tim"`, `description: "vi.wikipedia.org"`,
+  `url` nguyên vẹn. `docNhanTuUrl` đi vào dữ liệu thật, không chỉ sống trong unit test.
+
 ### 1.2 ĐÃ QUYẾT: KHÔNG LÀM — thông tin, KHÔNG phải việc tồn
 
 Các mục dưới đây đã được cân nhắc và chốt là không làm. Ghi lại để phiên sau **khỏi phát hiện lại
