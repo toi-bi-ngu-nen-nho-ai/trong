@@ -5,7 +5,7 @@ import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
 import { useIdbCollection } from "./lib/useIdbCollection"
-import { IDB_STORES } from "./lib/idb"
+import { IDB_STORES, idbPut } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
 import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // BoardGallery (không phải EdgelessBoard) là điểm vào duy nhất cho tab Mindmap — nó tự import
@@ -14,9 +14,12 @@ import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // tách chunk mà vỏ nạp chậm tồn tại để giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem
 // comment trong board/index.tsx và board/BoardGallery.tsx).
 import { BoardGallery } from "./board/BoardGallery"
-// CHỈ import KIỂU từ mucMeta.ts — và bản thân mucMeta.ts KHÔNG import gì từ @blocksuite/* (D13),
-// nên dòng này không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ.
-import type { MucMeta } from "./board/mucMeta"
+// mucMeta.ts KHÔNG import gì từ @blocksuite/* (D13), nên nhập cả GIÁ TRỊ (taoIdMuc) lẫn kiểu ở đây
+// không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ. ChonDanhMuc.tsx cũng chỉ phụ
+// thuộc React + mucMeta.ts, an toàn cùng lý do — xác nhận bằng ranh-gioi-nap-bang.spec.ts, không
+// suy luận.
+import { ChonDanhMuc } from "./board/ChonDanhMuc"
+import { taoIdMuc, type IdDanhMuc, type MucMeta } from "./board/mucMeta"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -1050,10 +1053,12 @@ interface RecentReadItem {
 
 function HomeScreen({
   onNavigate,
+  onTaoBaiMoi,
   ecgCount,
   recentReads,
 }: {
   onNavigate: (s: Screen, id?: string) => void
+  onTaoBaiMoi: () => void
   ecgCount: number
   recentReads: RecentReadItem[]
 }) {
@@ -1125,7 +1130,7 @@ function HomeScreen({
       <div className="px-5 mb-6">
         <h2 className="text-lg font-bold text-slate-900 mb-3">Học tập</h2>
         <button
-          onClick={() => onNavigate("addEntry")}
+          onClick={onTaoBaiMoi}
           className="w-full flex items-center gap-3 p-4 rounded-2xl card-press text-left"
           style={{ background: "var(--c-surface)" }}
         >
@@ -1137,7 +1142,7 @@ function HomeScreen({
           </div>
           <div>
             <p className="font-bold text-slate-900 text-[15px] leading-snug">Tạo bài mới</p>
-            <p className="text-xs text-slate-400 mt-0.5">Nhập thêm dữ liệu mới vào kho kiến thức</p>
+            <p className="text-xs text-slate-400 mt-0.5">Chọn danh mục rồi viết ngay</p>
           </div>
         </button>
         <div className="h-px mx-1" style={{ background: "var(--c-line-soft)" }} />
@@ -12322,6 +12327,21 @@ export default function App() {
   // Bảng Mindmap cần mở thẳng khi bấm một kết quả tìm kiếm loại "board" — BoardGallery tiêu thụ rồi
   // gọi onMoBangYeuCauXong() để đưa state này về undefined (xem BoardGallery.tsx).
   const [moBangYeuCau, setMoBangYeuCau] = useState<string | undefined>(undefined)
+  // Luồng "Tạo bài mới" ở Trang chủ (spec §3.5). Bảng chọn danh mục đứng ở App chứ không trong
+  // HomeScreen vì sau khi tạo xong phải chuyển tab sang Mindmap và mở mục — hai việc chỉ App làm
+  // được (setMoBangYeuCau + navigate ở trên/dưới đây).
+  const [taoBaiMoiDangMo, setTaoBaiMoiDangMo] = useState(false)
+  // Khoá chống bấm đúp — CÙNG lớp lỗi đã vá cho taoMucVoiDanhMuc (LuoiMuc.tsx, Task 4, xem chú
+  // thích dài ở đó): nút danh mục trong ChonDanhMuc không tự mang khoá `e.detail>1` (component đó
+  // chỉ được phép import React + ./mucMeta, không thêm logic khoá), và onChon gọi
+  // setTaoBaiMoiDangMo(false) — một state React, chỉ có tác dụng ở lượt render SAU — TRƯỚC khi gọi
+  // ĐỒNG BỘ taoBaiVietMoi. Hai cú click trúng nút danh mục trước khi React kịp gỡ lớp phủ
+  // (double-fire trên một số trình duyệt cảm ứng) sẽ chạy trọn taoBaiVietMoi hai lần nếu không có
+  // khoá riêng cho đường này. Đây là ref — cập nhật NGAY (không đợi render) — nên cú gọi thứ hai
+  // đọc được giá trị `true` mà cú gọi đầu vừa gán và thoát sớm, trước khi tới idbPut(). Đặt lại
+  // `false` mỗi lần MỞ bảng chọn (xem onTaoBaiMoi của HomeScreen bên dưới) để lượt tạo TIẾP THEO
+  // không bị khoá oan bởi lượt tạo TRƯỚC đã thành công.
+  const dangTaoBaiVietRef = useRef(false)
   const [viewCustomId, setViewCustomId] = useState<string | null>(null)
   const [viewEcgId, setViewEcgId] = useState<string | null>(null)
   // Tên tính năng đang xem ở màn "Sắp ra mắt" — id truyền qua navigate() khi bấm một thẻ Truy cập
@@ -12457,6 +12477,31 @@ export default function App() {
     if (!NON_TAB_SCREENS.includes(s)) setActiveTab(s)
     setHistory((h) => [...h, screen])
     setScreen(s)
+  }
+
+  // Sinh một MucMeta loại "bai-viet" từ danh mục người dùng vừa chọn trong ChonDanhMuc, rồi mở
+  // THẲNG vào trang soạn thảo — spec §3.5 "mở thẳng TrangBaiViet", KHÁC luồng tạo sơ đồ (sơ đồ dừng
+  // lại ở lưới để đặt tên vì ba bảng trống trông giống hệt nhau; bài viết thì tiêu đề gõ ngay trong
+  // trang, không cần dừng lại).
+  const taoBaiVietMoi = async (danhMuc: IdDanhMuc) => {
+    if (dangTaoBaiVietRef.current) return
+    dangTaoBaiVietRef.current = true
+    const luc = Date.now()
+    const meta: MucMeta = {
+      id: taoIdMuc(),
+      loai: "bai-viet",
+      danhMuc,
+      ten: "Bài chưa đặt tên",
+      taoLuc: luc,
+      capNhatLuc: luc,
+      chuyenKhoa: "",
+      tags: [],
+      noiDungTimKiem: "",
+    }
+    await idbPut(IDB_STORES.mucs, meta)
+    setTaoBaiMoiDangMo(false)
+    setMoBangYeuCau(meta.id)
+    navigate("mindmap")
   }
 
   // Sửa thuốc trong "Dùng thuốc": khác các mục khác (tra theo id từ một danh sách có sẵn ở đây),
@@ -12789,7 +12834,20 @@ export default function App() {
             kể cả khi màn hình khác đang hiển thị. Không có nó, thẻ bọc `absolute inset-0` kia sẽ
             neo lên #app-shell và đổi kích thước mỗi lần ẩn/hiện — đúng thứ làm mất zoom. */}
         <main className={`relative flex-1 overflow-hidden${anThanhNav ? "" : " has-nav"}`}>
-          {screen === "home" && <HomeScreen onNavigate={navigate} ecgCount={allEcgLessons.length} recentReads={recentReadItems} />}
+          {screen === "home" && (
+            <HomeScreen
+              onNavigate={navigate}
+              onTaoBaiMoi={() => {
+                // Đặt lại khoá chống bấm đúp mỗi lần MỞ bảng chọn — xem chú thích dài ở
+                // dangTaoBaiVietRef: không đặt lại thì lượt tạo bài THỨ HAI (sau khi lượt đầu đã
+                // thành công) sẽ bị khoá oan mãi mãi.
+                dangTaoBaiVietRef.current = false
+                setTaoBaiMoiDangMo(true)
+              }}
+              ecgCount={allEcgLessons.length}
+              recentReads={recentReadItems}
+            />
+          )}
           {screen === "library" && <LibraryScreen onNavigate={navigate} customArticles={customArticlesCol.items} />}
           {screen === "search" && (
             <SearchScreen
@@ -13136,6 +13194,16 @@ export default function App() {
               Sao lưu
             </button>
           </div>
+        )}
+
+        {/* Bảng chọn danh mục cho luồng "Tạo bài mới" ở Trang chủ (spec §3.5) — đứng ở App vì sau
+            khi chọn xong phải chuyển tab sang Mindmap và mở mục vừa tạo, xem taoBaiVietMoi. */}
+        {taoBaiMoiDangMo && (
+          <ChonDanhMuc
+            loai="bai-viet"
+            onChon={(d) => void taoBaiVietMoi(d)}
+            onHuy={() => setTaoBaiMoiDangMo(false)}
+          />
         )}
     </div>
   )
