@@ -2041,3 +2041,48 @@ vạch ra: giai đoạn 6 mới là lúc tính năng hiện ra.
 
 **Việc của chủ dự án trước Plan 2 Task 11:** xuất một file sao lưu bằng màn Đồng bộ dữ liệu **hiện
 có**. Bảo hiểm rẻ nhất cho quyết định "bỏ toàn bộ dữ liệu cũ".
+
+### KIỂM TAY TIÊU CHÍ 4–5 — ĐÃ CHẠY THẬT (2026-09-05, Chrome thật qua CDP)
+
+Không dùng Browser pane (nó không sinh sự kiện chuẩn hoá của `UIEventDispatcher`, và không chạy
+rAF). Dùng `chrome-devtools` MCP lái Chrome thật: phím đi qua `Input.dispatchKeyEvent`, iframe và
+CSP hành xử y như máy người dùng. Lối vào tạm: đổi `BoardGallery.tsx:369` sang `loai="bai-viet"`
+trong lúc kiểm, **đã hoàn nguyên**, cây làm việc sạch.
+
+**Tiêu chí 4 — ĐẠT trọn.**
+- Gõ tiếng Việt có dấu trong thân bài: "Chào bác sĩ Trọng" ✓
+- `/` → SlashMenu bung, 45 mục, nhãn tiếng Việt (Chữ, Tiêu đề 1/2/3, Khối mã) ✓
+- `@` → bảng chọn tài liệu bung ✓
+- Chèn bảng: `drt-table` 752×108, có ô + nút thêm hàng/cột ✓
+- Tiêu đề gõ được: `doc-title` nhận "Viêm phổi cộng đồng" ✓
+- Mount thật: `drt-page-root`, `doc-title`, `drt-slash-menu-widget`, `drt-linked-doc-widget`,
+  `drt-toolbar-widget`, `drt-drag-handle-widget` — tiền tố vendored là `drt-`, không phải `affine-`.
+
+**Tiêu chí 5 — MỘT NỬA. Gõ được ở 390 px ✓, thanh công cụ bàn phím ảo KHÔNG hiện ✗.**
+Nguyên nhân đã truy tới dòng và **chứng minh bằng thí nghiệm**, không phải suy đoán:
+`widgets/keyboard-toolbar/src/widget.js:75-82` render `nothing` trừ khi
+`FeatureFlagService.getFlag('enable_mobile_keyboard_toolbar')` — cờ ấy mặc định `false`
+(`affine/shared/src/services/feature-flag-service.js:27`) và **app chưa bật ở đâu cả**. Đo trên
+trang: cờ `false`; `IS_MOBILE` true, `readonly` false, `_show$` true — mọi điều kiện khác đã đạt.
+Bật cờ ngay trong phiên → thanh công cụ hiện tức thì, 390×46 px sát đáy, đủ nút (+, Aa, ảnh,
+undo/redo, thụt lề, bullet, đánh số, bàn phím). Tức `banPhimAoTrang` cấp provider ĐÚNG và không
+ném; chỉ thiếu một dòng bật cờ phía app. **Việc của Plan 2 (hoặc một vá nhỏ trước đó).**
+Lưu ý khi kiểm lại: `IS_MOBILE` đọc user agent, nên chỉ thu hẹp viewport là widget KHÔNG gắn —
+phải giả lập cả UA di động rồi tải lại trang.
+
+**Thẻ nhúng dưới `frame-src 'none'` — ĐÃ THẤY TẬN MẮT.** Dán một liên kết YouTube: CSP chặn cả ba
+đường đúng như thiết kế (`connect-src` chặn oembed, `img-src` chặn ảnh thumbnail, `frame-src` chặn
+iframe) — không byte nào rời máy. Nhưng cái người dùng nhìn thấy là **một khối xám 752×545 px với
+icon trang lỗi của Chrome** (`iframe src=chrome-error://chromewebdata/`), không một chữ giải thích;
+trên khung 390 px nó chiếm gần trọn màn hình. ⇒ Plan 2 **không được** mở nhóm nhúng cho bài viết mà
+không xử lý: hoặc gỡ các mục Embed khỏi SlashMenu chế độ trang, hoặc thay bằng thẻ liên kết thường.
+
+**Phát hiện phụ 1 — tiêu đề không đồng bộ sang lưới.** Gõ `doc-title` = "Viêm phổi cộng đồng", thoát
+ra lưới: thẻ vẫn "Bảng chưa đặt tên". Với sơ đồ thì đúng (không có `doc-title`), với bài viết thì
+sai kỳ vọng. Plan 2 phải nối `doc-title` ↔ `MucMeta.ten` theo một chiều rõ ràng.
+
+**Phát hiện phụ 2 — ba chỗ chưa dịch, chỉ lộ ra ở chế độ trang.** Placeholder tiêu đề "Title";
+nhóm SlashMenu "Basic → Callout / Let your words stand out"; mục bảng tên "Table / Create a simple
+table" (nên gõ "Bảng" trong SlashMenu ra **0 kết quả** — người dùng Việt không tìm được bảng bằng
+tiếng Việt); menu `@` toàn tiếng Anh ("New Doc", "Create \"Untitled\" doc", "Import"); hộp thoại
+nhúng YouTube tiêu đề + mô tả tiếng Anh (placeholder và nút "Xác nhận" thì đã dịch).
