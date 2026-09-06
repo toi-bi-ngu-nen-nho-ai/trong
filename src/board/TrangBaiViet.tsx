@@ -11,6 +11,10 @@
 //      `surface.elementModels` mang chữ nên `trichVanBanTuCanvas` vô nghĩa ở đây.
 //   5. Tự dựng `<doc-title>` (Task 10) — EdgelessBoard.tsx không cần, canvas không có "tiêu đề bài
 //      viết" theo nghĩa này. Xem chú thích tại chỗ dựng bên dưới.
+//   6. Lúc RỜI trang, trích tiêu đề từ `store.root.props.title` và truyền vào
+//      `capNhatSauKhiRoiMuc()` làm `tenMoi` (giai đoạn 5-6) — CHỈ file này truyền tham số đó.
+//      EdgelessBoard.tsx tuyệt đối không, vì tên sơ đồ do người dùng tự đặt qua ô đổi tên tại chỗ
+//      ở lưới, không phải nội dung canvas.
 import { BlockStdScope } from '@blocksuite/affine/std'
 import { html, render as litRender } from 'lit'
 import { useEffect, useRef, useState } from 'react'
@@ -122,12 +126,35 @@ export function TrangBaiViet({
         // `noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? ''`, `??` chỉ rơi qua giá trị cũ khi vế
         // trái là null/undefined; gán '' ở đây từng xoá sạch chữ đã lưu vì '' là một giá trị THẬT.
       }
+      // Trích TIÊU ĐỀ từ `<doc-title>` (điểm khác biệt 6 ở đầu file) — nguồn thật là
+      // `store.root.props.title`, một `Text` (Y.Text) của BlockSuite, CÙNG trường mà
+      // `DocTitle`/`RootBlockModel` (cây vendored, root-block-model.ts) đọc/ghi. `store.root` gõ
+      // kiểu `BlockModel<object>` (tham số Props mặc định `object`) nên `.props.title` không lên
+      // kiểu được — ép qua một kiểu tối thiểu tại chỗ, cùng tinh thần `KhoiCoTheCoChu` ở
+      // mucMeta.ts, không import kiểu `RootBlockProps` thật (không cần, cũng tránh kéo thêm import
+      // BlockSuite vào nơi vốn không cần).
+      let tieuDeMoi: string | undefined
+      try {
+        const goc = storeHienTai?.root as { props?: { title?: unknown } } | null | undefined
+        const tieuDeRaw = goc?.props?.title
+        const tieuDeDaTrim = tieuDeRaw != null ? String(tieuDeRaw).trim() : ''
+        // Tiêu đề RỖNG (chưa gõ gì, hoặc xoá hết) ⇒ để `tieuDeMoi` là `undefined`, KHÔNG truyền
+        // chuỗi rỗng — capNhatSauKhiRoiMuc/mucMeta.ts tự giữ nguyên `ten` cũ khi tham số này rỗng/
+        // undefined, nhưng để trắng ngay từ đây là lớp phòng vệ thứ hai, cố ý trùng (xem chú thích
+        // tại định nghĩa hàm đó).
+        if (tieuDeDaTrim) tieuDeMoi = tieuDeDaTrim
+      } catch {
+        // Trích tiêu đề cũng là tiện ích phụ (đồng bộ tên hiển thị) — lỗi ở đây không được chặn
+        // dọn dẹp hay thao tác rời bài viết của người dùng, cùng lý do với khối trích nội dung tìm
+        // kiếm ngay trên. Để `tieuDeMoi` ở nguyên `undefined` ⇒ capNhatSauKhiRoiMuc giữ nguyên tên
+        // cũ, không có gì bị ghi đè bởi lỗi ở đây.
+      }
       boTheoDoiKhoi?.()
       boWatchTheme?.()
       boBanPhim?.()
       litRender(null, el)
       ws?.forceStop()
-      void capNhatSauKhiRoiMuc(docId, coThayDoiNoiDung, noiDungTimKiem)
+      void capNhatSauKhiRoiMuc(docId, coThayDoiNoiDung, noiDungTimKiem, tieuDeMoi)
     }
   }, [docId])
 

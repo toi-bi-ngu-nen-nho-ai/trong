@@ -9,6 +9,7 @@ import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { LuoiMuc, mauHueChongTrung, nghiengOnDinh } from '../LuoiMuc'
 import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
+import { chonDanhMucDauTien } from './helpers/chon-danh-muc-trong-test'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -28,7 +29,7 @@ const SEED_BON_KHOA: ReadonlyArray<readonly [string, string, string]> = [
 async function seedBonKhoa() {
   const bayGio = Date.now()
   for (const [id, ten, chuyenKhoa] of SEED_BON_KHOA) {
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id, ten, taoLuc: bayGio, capNhatLuc: bayGio, chuyenKhoa, tags: [], noiDungTimKiem: '',
     })
   }
@@ -99,13 +100,13 @@ describe('LuoiMuc', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   it('rỗng lúc đầu → chỉ hiện thẻ "+"', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -115,7 +116,7 @@ describe('LuoiMuc', () => {
 
   it('rỗng lúc đầu → có lời mời và minh hoạ, KHÔNG chỉ mỗi nút "+" trần', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -128,9 +129,9 @@ describe('LuoiMuc', () => {
 
   it('có sẵn bảng trong metadata (ghi thẳng qua idb.ts, mô phỏng phiên trước) → hiện đúng tên trên thẻ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Phác đồ sốc nhiễm khuẩn', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Phác đồ sốc nhiễm khuẩn', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -140,9 +141,9 @@ describe('LuoiMuc', () => {
 
   it('mặt thẻ có class "the-bang-vat", thẻ ngoài có biến CSS --tilt hợp lệ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Test nghiêng', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Test nghiêng', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -157,12 +158,40 @@ describe('LuoiMuc', () => {
     expect(tilt).toBe(`${nghiengOnDinh('bang-1')}deg`)
   })
 
+  // VÒNG SỬA 1, P1: badge icon phân biệt loại mục (LuoiMuc.tsx, TheTrong) nằm trong một cây
+  // `aria-hidden="true"` — CỐ Ý, cùng cây còn giấu huy hiệu chuyên khoa và ghim/doodle trang trí
+  // khác của thẻ (xem comment tại chỗ render badge). `aria-hidden` ở tổ tiên nuốt TOÀN BỘ hậu duệ,
+  // nên `<title>Bài viết</title>`/`<title>Sơ đồ</title>` bên trong badge KHÔNG BAO GIỜ tới trình
+  // đọc màn hình ở đây — một ca kiểm render thẳng `iconLoaiMuc()` cô lập (không có tổ tiên
+  // aria-hidden, xem the-icon-loai.spec.tsx) không thấy được điều đó. Ca TÍCH HỢP này dựng cả lưới
+  // thật và kiểm đúng nơi tín hiệu phải tới: `aria-label` của nút "Mở bảng…" — cùng mẫu tenChuyenKhoa
+  // đã dùng cho chuyên khoa (huy hiệu chuyên khoa cũng aria-hidden, tên khoa cũng đi qua aria-label).
+  it('loại mục (bài viết ↔ sơ đồ) tới được tên trợ năng của nút mở thẻ — badge chỉ là hình trang trí trong cây aria-hidden', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'bang-bv', ten: 'Ghi chú X', taoLuc: bayGio, capNhatLuc: bayGio, loai: 'bai-viet',
+    })
+    await idbPut(IDB_STORES.mucs, {
+      id: 'bang-sd', ten: 'Minh hoạ Y', taoLuc: bayGio + 1, capNhatLuc: bayGio + 1, loai: 'so-do',
+    })
+    await act(async () => {
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: [] }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
+    })
+
+    const nhan = Array.from(container.querySelectorAll('.the-bang-vat')).map((el) => el.getAttribute('aria-label'))
+    expect(nhan.some((n) => n?.includes('bài viết'))).toBe(true)
+    expect(nhan.some((n) => n?.includes('sơ đồ'))).toBe(true)
+  })
+
   it('thẻ vừa tạo (taoLuc gần đây) có class "card-plop"; thẻ cũ có class "card-settle"', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-cu', ten: 'Thẻ cũ', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
-    await idbPut(IDB_STORES.boards, { id: 'bang-moi', ten: 'Thẻ mới', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-cu', ten: 'Thẻ cũ', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-moi', ten: 'Thẻ mới', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -178,7 +207,7 @@ describe('LuoiMuc', () => {
   it('bấm thẻ "+" → thẻ mới xuất hiện NGAY (state cục bộ, không đợi IndexedDB) VỚI ô đổi tên đã mở sẵn, KHÔNG mở thẳng vào canvas', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang }))
+      root.render(createElement(LuoiMuc, { onMoBang, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -186,6 +215,10 @@ describe('LuoiMuc', () => {
 
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước, chưa ghi gì — xem chonDanhMucDauTien ở đầu file.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     // Trước đây bấm "+" gọi onMoBang() ngay, mở thẳng vào canvas — ba bảng tạo liên tiếp đều dừng ở
@@ -206,7 +239,7 @@ describe('LuoiMuc', () => {
     // bằng vi.waitFor (đọc thẳng bằng idbGetAll, không đụng state React nên không kẹt như trên)
     // thay vì đọc ngay, tránh ca kiểm chập chờn theo tốc độ máy.
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
       expect(ds.map((b) => b.id)).toContain(idMoi)
     })
   })
@@ -220,8 +253,13 @@ describe('LuoiMuc', () => {
     //
     // Hai `.click()` trong CÙNG một `act()` mô phỏng đúng cửa sổ đó: React chưa flush render giữa
     // hai lượt gọi, nên `dangSuaTenId` vẫn null ở lượt thứ hai.
+    //
+    // Task 4: từ nay "+" không ghi gì nữa, nó chỉ mở bảng chọn danh mục (`setDangChonDanhMuc`) —
+    // hai cú gọi liên tiếp cùng giá trị chỉ khiến React bỏ qua lượt render thừa (State giống hệt),
+    // không mở hai bảng chọn. Vẫn giữ ca kiểm này vì nó khoá đúng phần còn lại của rủi ro gốc: bấm
+    // đúp lên "+" rồi chọn danh mục MỘT LẦN chỉ được sinh ra ĐÚNG MỘT bảng — không phải hai.
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -232,10 +270,13 @@ describe('LuoiMuc', () => {
       nut.click()
       nut.click()
     })
+    await act(async () => {
+      chonDanhMucDauTien(container)
+    })
 
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
       expect(ds).toHaveLength(1)
     })
   })
@@ -250,8 +291,13 @@ describe('LuoiMuc', () => {
     //
     // Chốt chặn cho cửa sổ này là `event.detail`: cú click thứ hai của một lần bấm đúp mang
     // `detail === 2`. Bàn phím (Enter/Space trên <button>) cho `detail === 0` nên không bị chặn.
+    //
+    // Task 4: cú click đầu giờ chỉ MỞ BẢNG CHỌN DANH MỤC, chưa ghi gì — chọn một danh mục để có
+    // đúng trạng thái "một bảng vừa tạo, ô đổi tên đang mở" mà kịch bản mousedown/focusout bên dưới
+    // cần tới. Khoá `detail>1` vẫn nằm Ở ĐẦU taoBangMoi (chạy TRƯỚC nhánh mở bảng chọn), nên vẫn
+    // chặn được đúng cú click#2 — bất kể "+" lúc đó dẫn tới ghi ngay hay tới một bảng chọn.
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -260,6 +306,9 @@ describe('LuoiMuc', () => {
     const nut = container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement
     await act(async () => {
       nut.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+    })
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
 
@@ -292,7 +341,50 @@ describe('LuoiMuc', () => {
 
     expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+      expect(ds).toHaveLength(1)
+    })
+  })
+
+  // critique 2026-09-05: hai ca bấm-đúp trên chỉ khoá NÚT "+". Từ Task 4, "+" không còn ghi gì —
+  // nó mở ChonDanhMuc, và chính NÚT DANH MỤC bên trong đó mới đi tới `taoMucVoiDanhMuc` (ghi bản
+  // ghi thật). `onChon` của ChonDanhMuc gọi `setDangChonDanhMuc(null)` (state, chỉ có tác dụng ở
+  // lượt render SAU) rồi gọi ĐỒNG BỘ `taoMucVoiDanhMuc` — đúng hệt lớp lỗi mà khoá ref của "+" từng
+  // được dựng lên để chặn (xem chú thích dài ở taoBangMoi), nhưng `taoMucVoiDanhMuc` không tự kiểm
+  // `dangSuaTenRef.current` ở đầu hàm. Bấm đúp một nút danh mục (hai `click` trước khi React kịp
+  // đóng bảng chọn) do đó lọt qua, y hệt cửa sổ "+" đã lọt trước khi có khoá ref.
+  it('bấm ĐÚP một nút danh mục trong bảng chọn (hai cú click trước khi React kịp đóng bảng) → chỉ MỘT bản ghi', async () => {
+    await act(async () => {
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+    })
+    await choDenKhi(() => {
+      expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
+    })
+
+    await act(async () => {
+      ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+
+    // Không dùng chonDanhMucDauTien ở đây — ca này cần GIỮ THAM CHIẾU tới đúng một nút để bắn hai
+    // sự kiện click LIÊN TIẾP lên CÙNG một node, mô phỏng double-fire trên trình duyệt cảm ứng mà
+    // chú thích của taoBangMoi đã ghi nhận là CÓ THẬT (đo trên trình duyệt).
+    const nutDanhMuc = Array.from(container.querySelectorAll('[role="dialog"] button')).find(
+      (b) => b.textContent === 'Tiếp cận vấn đề',
+    ) as HTMLButtonElement | undefined
+    expect(nutDanhMuc, 'bấm "+" phải mở bảng chọn danh mục (role="dialog")').not.toBeUndefined()
+
+    // Hai `dispatchEvent` trong CÙNG một `act()`, cú thứ hai mang `detail: 2` — cùng kỹ thuật với
+    // ca "hai cú click trước khi React kịp render lại" ở trên: React chưa flush render giữa hai
+    // lượt gọi nên `setDangChonDanhMuc(null)` (state) chưa có tác dụng, nút danh mục còn nguyên
+    // trong DOM cho cú thứ hai.
+    await act(async () => {
+      nutDanhMuc!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
+      nutDanhMuc!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }))
+    })
+
+    expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
+    await choDom(async () => {
+      const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
       expect(ds).toHaveLength(1)
     })
   })
@@ -305,7 +397,7 @@ describe('LuoiMuc', () => {
   // — preventDefault trên mousedown khi `detail>1`) mà không cần happy-dom mô phỏng focus-shift thật.
   it('mousedown detail>1 trên "+" gọi preventDefault (giữ focus ô đổi tên khi double-tap thật); detail=1 thì không', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -328,12 +420,15 @@ describe('LuoiMuc', () => {
   // phút thật giữa hai lượt tạo.
   it('2 bảng tạo liên tiếp (chưa gắn khoa, còn tên mặc định) → aria-label KHÁC nhau', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì — chọn danh mục đầu tiên để thật sự có
+    // một bảng (xem chonDanhMucDauTien ở đầu file).
+    await choDenKhi(() => chonDanhMucDauTien(container))
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
     })
@@ -347,6 +442,7 @@ describe('LuoiMuc', () => {
       expect(container.querySelector('[data-testid^="input-ten-"]')).toBeNull()
     })
     ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    await choDenKhi(() => chonDanhMucDauTien(container))
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
     })
@@ -359,13 +455,17 @@ describe('LuoiMuc', () => {
   it('bấm thẻ "+", gõ tên rồi Enter → thoát ô đổi tên, bấm vào thẻ → GỌI onMoBang (mở canvas)', async () => {
     const onMoBang = vi.fn()
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang }))
+      root.render(createElement(LuoiMuc, { onMoBang, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
@@ -397,13 +497,17 @@ describe('LuoiMuc', () => {
     // Nên cách vá đúng là bỏ hẳn chỗ dựa vào vùng chọn: ô để RỖNG, tên mặc định chỉ là placeholder.
     // Gõ ở bất kỳ vị trí caret nào cũng ra đúng thứ người dùng gõ.
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
@@ -428,13 +532,17 @@ describe('LuoiMuc', () => {
     // Mặt trái của ca trên: ô rỗng nghĩa là `onBlur` có thể lưu chuỗi rỗng đè lên tên bảng, để lại
     // một thẻ không nhãn không cách nào phân biệt trong lưới. Bấm "+" rồi đổi ý là luồng có thật.
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
 
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
@@ -451,9 +559,9 @@ describe('LuoiMuc', () => {
 
   it('bấm "⋯" rồi "Đổi tên", sửa ô nhập, Enter → tên cập nhật trên thẻ NGAY, rồi trong metadata', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Tên cũ', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Tên cũ', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -485,16 +593,16 @@ describe('LuoiMuc', () => {
     expect(container.textContent).toContain('Tên mới')
 
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string; ten: string }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string; ten: string }>(IDB_STORES.mucs)
       expect(ds.find((b) => b.id === 'bang-1')?.ten).toBe('Tên mới')
     })
   })
 
   it('mở sửa tên, gõ nháp, Escape (huỷ), rồi mở sửa tên LẦN NỮA → ô nhập hiện đúng tên thật hiện tại, không phải bản nháp đã huỷ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Tên thật', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Tên thật', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -538,7 +646,7 @@ describe('LuoiMuc', () => {
     // canh `tags` + `noiDungTimKiem` — hai trường phái sinh hiện tại, cùng phơi ra đúng lớp lỗi đó,
     // và mất chúng thì bảng lặng lẽ rơi khỏi cả chip lọc lẫn ô tìm kiếm.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-1',
       ten: 'Tên cũ',
       taoLuc: bayGio,
@@ -548,7 +656,7 @@ describe('LuoiMuc', () => {
       noiDungTimKiem: 'suy tim ef giảm',
     })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -574,7 +682,7 @@ describe('LuoiMuc', () => {
 
     await choDom(async () => {
       const ds = await idbGetAll<{ id: string; ten: string; tags: string[]; noiDungTimKiem: string }>(
-        IDB_STORES.boards,
+        IDB_STORES.mucs,
       )
       const sau = ds.find((b) => b.id === 'bang-1')
       expect(sau?.ten).toBe('Tên mới')
@@ -585,9 +693,9 @@ describe('LuoiMuc', () => {
 
   it('bấm "⋯" rồi "Xoá" HAI lần liên tiếp → thẻ trượt ra (card-slide-out) rồi mới biến mất khỏi lưới, rồi được đánh dấu xoá MỀM trong metadata (không bị xoá hẳn)', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Sẽ bị xoá', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -629,7 +737,7 @@ describe('LuoiMuc', () => {
     // Xoá MỀM: bản ghi vẫn còn thật trong IndexedDB (id vẫn có mặt), chỉ được đánh dấu daXoaLuc —
     // khác hành vi cũ (idbDelete thẳng, xoá vĩnh viễn không hoàn tác được).
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.mucs)
       const bang1 = ds.find((b) => b.id === 'bang-1')
       expect(bang1).not.toBeUndefined()
       expect(bang1?.daXoaLuc).toBeTypeOf('number')
@@ -638,9 +746,9 @@ describe('LuoiMuc', () => {
 
   it('xoá thẻ rồi bấm "Hoàn tác" trong dải xác nhận → thẻ tái xuất hiện trong lưới, daXoaLuc gỡ bỏ khỏi metadata', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Xoá rồi hoàn tác', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Xoá rồi hoàn tác', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -678,7 +786,7 @@ describe('LuoiMuc', () => {
     expect(container.textContent).toContain('Xoá rồi hoàn tác')
 
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.mucs)
       expect(ds.find((b) => b.id === 'bang-1')?.daXoaLuc).toBeUndefined()
     })
   })
@@ -689,17 +797,17 @@ describe('LuoiMuc', () => {
   // mục 2 — call site dải toast).
   it('bấm chip lọc khoa KHÁC rồi bấm "Hoàn tác" ở dải toast → bảng khôi phục hiện lại, chip lọc tự về "Tất cả"', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Bảng hô hấp', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -738,9 +846,9 @@ describe('LuoiMuc', () => {
 
   it('KHÔNG có bảng nào bị xoá mềm → không hiện nút "Đã xoá gần đây"', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Bảng còn sống', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Bảng còn sống', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -754,7 +862,7 @@ describe('LuoiMuc', () => {
   // đây" là lưới an toàn duy nhất còn lại để lấy nó về.
   it('bảng đã xoá mềm TỪ TRƯỚC (dải "Hoàn tác" đã tắt) → panel "Đã xoá gần đây" cho phục hồi được', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-mo-coi',
       ten: 'Bảng lỡ mất dải hoàn tác',
       taoLuc: bayGio - 60_000,
@@ -762,7 +870,7 @@ describe('LuoiMuc', () => {
       daXoaLuc: bayGio - 30_000,
     })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).not.toBeNull()
@@ -787,7 +895,7 @@ describe('LuoiMuc', () => {
     expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).toBeNull()
 
     await choDom(async () => {
-      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+      const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.mucs)
       expect(ds.find((b) => b.id === 'bang-mo-coi')?.daXoaLuc).toBeUndefined()
     })
   })
@@ -798,7 +906,7 @@ describe('LuoiMuc', () => {
     async function seedXoaMem(n: number) {
       const bayGio = Date.now()
       for (let i = 0; i < n; i++) {
-        await idbPut(IDB_STORES.boards, {
+        await idbPut(IDB_STORES.mucs, {
           id: `xm-${i}`,
           ten: `Bảng xoá ${i}`,
           taoLuc: bayGio - 100_000 - i * 1000,
@@ -807,7 +915,7 @@ describe('LuoiMuc', () => {
         })
       }
       await act(async () => {
-        root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+        root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
       })
       await choDenKhi(() => {
         expect(container.querySelector('[data-testid="mo-da-xoa-gan-day"]')).not.toBeNull()
@@ -844,13 +952,13 @@ describe('LuoiMuc', () => {
         ;(container.querySelector('[data-testid="hoi-xoa-vinh-vien"]') as HTMLButtonElement).click()
       })
       expect(container.textContent).toContain('Không khôi phục lại được')
-      expect((await idbGetAll(IDB_STORES.boards)).length).toBe(3)
+      expect((await idbGetAll(IDB_STORES.mucs)).length).toBe(3)
       // Bước 2: xoá thật.
       await act(async () => {
         ;(container.querySelector('[data-testid="xoa-vinh-vien-chon"]') as HTMLButtonElement).click()
       })
       await choDom(async () => {
-        const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+        const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
         expect(ds.map((b) => b.id).sort()).toEqual(['xm-2'])
       })
     })
@@ -868,7 +976,7 @@ describe('LuoiMuc', () => {
         expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
       })
       await choDom(async () => {
-        const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.boards)
+        const ds = await idbGetAll<{ id: string; daXoaLuc?: number }>(IDB_STORES.mucs)
         expect(ds.find((b) => b.id === 'xm-0')?.daXoaLuc).toBeUndefined()
         expect(ds.find((b) => b.id === 'xm-2')?.daXoaLuc).toBeUndefined()
         expect(ds.find((b) => b.id === 'xm-1')?.daXoaLuc).toBeDefined()
@@ -895,7 +1003,7 @@ describe('LuoiMuc', () => {
         ;(container.querySelector('[data-testid="xoa-vinh-vien-chon"]') as HTMLButtonElement).click()
       })
       await choDom(async () => {
-        expect((await idbGetAll(IDB_STORES.boards)).length).toBe(0)
+        expect((await idbGetAll(IDB_STORES.mucs)).length).toBe(0)
       })
     })
 
@@ -912,10 +1020,10 @@ describe('LuoiMuc', () => {
 
   it('xoá thẻ A (đang chạy card-slide-out) không đóng menu "⋯" đang mở của thẻ B', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-a', ten: 'Bảng A', taoLuc: bayGio - 20_000, capNhatLuc: bayGio - 20_000 })
-    await idbPut(IDB_STORES.boards, { id: 'bang-b', ten: 'Bảng B', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-a', ten: 'Bảng A', taoLuc: bayGio - 20_000, capNhatLuc: bayGio - 20_000 })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-b', ten: 'Bảng B', taoLuc: bayGio - 10_000, capNhatLuc: bayGio - 10_000 })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -950,17 +1058,17 @@ describe('LuoiMuc', () => {
 
   it('bấm chip một chuyên khoa → chỉ còn bảng đúng chuyên khoa đó trong lưới', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'tim-mach-1', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'ho-hap-1', ten: 'Bảng hô hấp', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -980,12 +1088,12 @@ describe('LuoiMuc', () => {
 
   it('bảng THIẾU chuyenKhoa (bản ghi cũ chưa backfill) → coi như chuyên khoa đầu tiên trong SPECIALTIES', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'cu-1', ten: 'Bảng cũ chưa gắn khoa', taoLuc: bayGio, capNhatLuc: bayGio,
     } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1008,13 +1116,13 @@ describe('LuoiMuc', () => {
     // Seed một bảng thuộc chuyên khoa THỨ HAI (không phải SPECIALTIES[0]) — bảng mới tạo luôn được
     // gán chuyenKhoa: SPECIALTIES[0].id, nên nếu chip lọc không tự reset về "Tất cả" khi tạo, thẻ
     // mới sẽ bị chính bộ lọc đang chọn (chuyên khoa thứ hai) loại khỏi lưới ngay khi vừa ghi xong.
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'khoa-2-1', ten: 'Bảng khoa thứ hai', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[1].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1033,6 +1141,8 @@ describe('LuoiMuc', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await choDenKhi(() => chonDanhMucDauTien(container))
 
     // Thẻ mới phải HIỆN RA ngay (2 thẻ trong lưới) với ô đổi tên đã mở sẵn — không bị chip lọc cũ
     // (chuyên khoa thứ hai) âm thầm nuốt mất thẻ vừa tạo (chuyenKhoa mặc định là SPECIALTIES[0].id).
@@ -1044,13 +1154,13 @@ describe('LuoiMuc', () => {
 
   it('thẻ hiện huy hiệu chuyên khoa khớp bang.chuyenKhoa', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-khoa-1', ten: 'Bảng tim mạch', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -1067,13 +1177,13 @@ describe('LuoiMuc', () => {
     // Ca kiểm ĐỌC TỪ IndexedDB một bản ghi CÒN NGUYÊN `anhXemTruoc` (đúng thứ có thật trên máy
     // người dùng đã cài bản cũ): dữ liệu tồn đọng đó không được phép làm thẻ đổi hình dạng.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-co-anh', ten: 'Bảng có ảnh', taoLuc: bayGio, capNhatLuc: bayGio,
       anhXemTruoc: 'data:image/png;base64,iVBORw0KGgo=', chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     } as unknown as Parameters<typeof idbPut>[1])
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -1090,13 +1200,13 @@ describe('LuoiMuc', () => {
     // thảo ngầm không bao giờ render khối note nên thẻ ghi chú không vào được ảnh (HANDOFF §1.1).
     // Nút xuất giờ sống ở màn vẽ (BoardGallery), đối xứng nút quay lại, dựng ảnh từ cây đang render.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-chua-anh', ten: 'Bảng chưa mở', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-bang-chua-anh"]')).not.toBeNull()
@@ -1114,7 +1224,7 @@ describe('LuoiMuc', () => {
 
   it('lưới rỗng toàn bộ → hiện BIỂU TƯỢNG mindmap, KHÔNG còn huy hiệu doc phẳng', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -1138,7 +1248,7 @@ describe('LuoiMuc', () => {
     await seedBonKhoa()
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).not.toBeNull()
@@ -1184,19 +1294,19 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   it('mở menu "⋯" → bấm "Chuyên khoa/tag" → đổi select → ghi ngay vào IndexedDB', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b1', ten: 'Bảng A', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b1"]')).not.toBeNull()
@@ -1217,7 +1327,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
       chon.dispatchEvent(new Event('change', { bubbles: true }))
     })
 
-    const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'b1')?.chuyenKhoa).toBe('pulmonology')
   })
 
@@ -1227,13 +1337,13 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   // tới được nữa: panel mở ra là kẹt vĩnh viễn cho tới khi thẻ unmount (review cuối nhánh, mục 1).
   it('panel "Chuyên khoa/tag" đang mở → bấm "⋯" đóng panel, menu hiện lại bấm được', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b5', ten: 'Bảng E', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b5"]')).not.toBeNull()
@@ -1261,13 +1371,13 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   // bảng") — review cuối nhánh, mục 4.
   it('select chuyên khoa và ô nhập tag trong panel có nhãn truy cập', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b6', ten: 'Bảng F', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b6"]')).not.toBeNull()
@@ -1289,13 +1399,13 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
 
   it('nhập tag rồi Enter → thêm vào danh sách tag, ghi IndexedDB; bấm × → xoá tag', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b2', ten: 'Bảng B', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b2"]')).not.toBeNull()
@@ -1322,7 +1432,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
     await choDenKhi(() => {
       expect(container.querySelector('[aria-label="Xoá tag suy tim"]')).not.toBeNull()
     })
-    let ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    let ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'b2')?.tags).toEqual(['suy tim'])
 
     const nutXoa = container.querySelector('[aria-label="Xoá tag suy tim"]') as HTMLButtonElement
@@ -1332,7 +1442,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
     await choDenKhi(() => {
       expect(container.querySelector('[aria-label="Xoá tag suy tim"]')).toBeNull()
     })
-    ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'b2')?.tags).toEqual([])
   })
 
@@ -1342,12 +1452,12 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   // vẫn LƯU nguyên văn bản gõ đầu tiên.
   it('[P3 lượt 6] thêm tag "Tim mach" rồi thêm biến thể khác hoa/thường+dấu "tim mach" → KHÔNG nhân đôi', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b-dedup', ten: 'Bảng dedup', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b-dedup"]')).not.toBeNull()
@@ -1376,7 +1486,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
     })
     await goTag('tim mach')
 
-    const ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'b-dedup')?.tags).toEqual(['Tim mach'])
   })
 
@@ -1385,12 +1495,12 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   // thị giác). `onBatSuaTag` vốn là một toggle nên nút "Xong" tái dùng thẳng nó, không cần state mới.
   it('[P2 lượt 6] panel "Chuyên khoa/tag" có nút "Xong" đóng panel', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b-xong', ten: 'Bảng xong', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b-xong"]')).not.toBeNull()
@@ -1422,13 +1532,13 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   // unmount NGAY khi update() chạy, không một lời giải thích.
   it('đang lọc theo chuyên khoa A, đổi chuyên khoa của bảng đang xem sang khoa B → panel không biến mất, chip lọc tự về "Tất cả"', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b3', ten: 'Bảng lọc', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector(`[data-testid="chip-chuyen-khoa-${SPECIALTIES[0].id}"]`)).not.toBeNull()
@@ -1465,7 +1575,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
       ),
     ).toBe('true')
 
-    const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; chuyenKhoa: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'b3')?.chuyenKhoa).toBe(SPECIALTIES[1].id)
   })
 
@@ -1475,13 +1585,13 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
   // thiếu dòng bump, khác hẳn onLuuTen ngay cạnh chúng trong cùng file.
   it('đổi chuyên khoa, thêm tag, xoá tag → capNhatLuc bump lên mới hơn sau MỖI thao tác', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b4', ten: 'Bảng D', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-b4"]')).not.toBeNull()
@@ -1500,7 +1610,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
       chon.value = SPECIALTIES[1].id
       chon.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    let ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    let ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     const sauDoiKhoa = ds.find((b) => b.id === 'b4')!.capNhatLuc
     expect(sauDoiKhoa).toBeGreaterThan(bayGio)
 
@@ -1517,7 +1627,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
     await choDenKhi(() => {
       expect(container.querySelector('[aria-label="Xoá tag khó thở"]')).not.toBeNull()
     })
-    ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     const sauThemTag = ds.find((b) => b.id === 'b4')!.capNhatLuc
     expect(sauThemTag).toBeGreaterThan(sauDoiKhoa)
 
@@ -1530,7 +1640,7 @@ describe('LuoiMuc — sửa chuyên khoa/tag', () => {
     await choDenKhi(() => {
       expect(container.querySelector('[aria-label="Xoá tag khó thở"]')).toBeNull()
     })
-    ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     const sauXoaTag = ds.find((b) => b.id === 'b4')!.capNhatLuc
     expect(sauXoaTag).toBeGreaterThan(sauThemTag)
   })
@@ -1556,8 +1666,8 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   // happy-dom: gán thẳng `.value` KHÔNG đi qua setter React đã vá (_valueTracker) nên onChange im
@@ -1574,17 +1684,17 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
 
   it('gõ tên bảng → chỉ còn bảng khớp trong lưới', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1603,17 +1713,17 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
 
   it('gõ không dấu / khác hoa-thường vẫn khớp; xoá trắng truy vấn → mọi bảng trở lại', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1635,17 +1745,17 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
 
   it('gõ tag → khớp bảng mang tag đó, dù tên bảng không chứa chữ nào của truy vấn', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Bảng một', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: ['khó thở kịch phát'], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Bảng hai', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1664,13 +1774,13 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // duy nhất khiến tính năng này hỏng hẳn trên máy thật mà vẫn "xanh" ở các ca kiểm đếm thẻ trên.
   it('gõ truy vấn KHÔNG khớp bảng nào → lưới rỗng nhưng ô tìm vẫn còn, vẫn giữ nguyên chữ đã gõ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1693,13 +1803,13 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // trong khi một bản ghi mồ côi đã lặng lẽ vào IndexedDB.
   it('đang gõ tìm kiếm → bấm "+" vẫn phải thấy thẻ mới + ô đổi tên (ô tìm tự xoá trắng)', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1714,6 +1824,8 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await choDenKhi(() => chonDanhMucDauTien(container))
 
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1724,7 +1836,7 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
 
   it('ô tìm chỉ hiện khi đã có ít nhất một bảng — lưới rỗng hoàn toàn thì không hiện', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -1734,12 +1846,12 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
 
   it('ô tìm có nhãn truy cập và vùng chạm tối thiểu 44px', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Bảng bất kỳ', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tim-kiem-bang"]')).not.toBeNull()
@@ -1764,17 +1876,17 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // onXoaTag thì chưa.
   it('truy vấn chỉ khớp nhờ MỘT tag → bấm × xoá đúng tag đó khi panel sửa đang mở: thẻ + panel không biến mất, ô tìm tự xoá trắng', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Bảng một', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: ['kịch phát'], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Bảng hai', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1803,7 +1915,7 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
     expect(container.querySelector('[data-testid="sua-chuyen-khoa-tag-a"]')).not.toBeNull()
     expect((container.querySelector('[data-testid="tim-kiem-bang"]') as HTMLInputElement).value).toBe('')
 
-    const ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; tags: string[] }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'a')?.tags).toEqual([])
   })
 
@@ -1812,17 +1924,17 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // khớp được bảng khoa Tim mạch — đổi sang khoa khác là thẻ lẫn panel biến mất y hệt ca chip lọc.
   it('truy vấn chỉ khớp nhờ TÊN CHUYÊN KHOA → đổi chuyên khoa khi panel sửa đang mở: thẻ + panel không biến mất, ô tìm tự xoá trắng', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Bảng X', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Bảng Y', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1857,17 +1969,17 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // mất) nhưng vẫn là "vừa lưu xong thì thẻ biến mất": đổi tên ra ngoài truy vấn đang gõ.
   it('đổi tên bảng ra NGOÀI truy vấn đang lọc → thẻ vừa đổi tên không biến mất, ô tìm tự xoá trắng', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Hen phế quản', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -1904,18 +2016,18 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // cuối nhánh, mục 2).
   it('đang gõ tìm kiếm → bấm "Hoàn tác" trong panel "Đã xoá gần đây": bảng khôi phục hiện lại, ô tìm tự xoá trắng', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b', ten: 'Hen phế quản', taoLuc: bayGio - 60_000, capNhatLuc: bayGio - 60_000,
       daXoaLuc: bayGio - 30_000,
       chuyenKhoa: 'pulmonology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1946,13 +2058,13 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
   // thay vì sửa truy vấn (review cuối nhánh, mục 7).
   it('lưới rỗng vì truy vấn không khớp → hiện thông báo không tìm thấy, KHÔNG phải lời mời tạo bảng đầu tiên', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'a', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'cardiology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -1974,7 +2086,7 @@ describe('LuoiMuc — ô tìm kiếm nội bộ', () => {
     await seedBonKhoa()
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(4)
@@ -2025,8 +2137,8 @@ describe('LuoiMuc — nợ critique 2026-08-29', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   it('[P1] đổi tên một bảng ĐÃ có tên thật → vẫn CHỌN SẴN toàn bộ, gõ là thay chứ không nối đuôi', async () => {
@@ -2035,9 +2147,9 @@ describe('LuoiMuc — nợ critique 2026-08-29', () => {
     // Phép chọn-sẵn vẫn đúng và vẫn cần cho luồng CÒN LẠI: đổi tên một bảng đã có tên thật, nơi tên
     // cũ là giá trị thật trong ô và gõ đè lên nó mới là điều người dùng muốn.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'bang-1', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'bang-1', ten: 'Suy tim EF giảm', taoLuc: bayGio, capNhatLuc: bayGio })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="menu-bang-bang-1"]')).not.toBeNull()
@@ -2073,14 +2185,14 @@ describe('LuoiMuc — nợ critique 2026-08-29', () => {
       ['a', 'Bảng một'],
       ['b', 'Bảng hai'],
     ]) {
-      await idbPut(IDB_STORES.boards, {
+      await idbPut(IDB_STORES.mucs, {
         id, ten, taoLuc: bayGio, capNhatLuc: bayGio,
         chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
       })
     }
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(2)
@@ -2097,7 +2209,7 @@ describe('LuoiMuc — nợ critique 2026-08-29', () => {
     await seedBonKhoa()
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).not.toBeNull()
@@ -2150,18 +2262,18 @@ describe('LuoiMuc — chip chuyên khoa theo dữ liệu thật', () => {
   afterEach(async () => {
     await act(async () => root.unmount())
     container.remove()
-    for (const b of await idbGetAll<{ id: string }>(IDB_STORES.boards)) await idbDelete(IDB_STORES.boards, b.id)
+    for (const b of await idbGetAll<{ id: string }>(IDB_STORES.mucs)) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   it('khoa KHÔNG có bảng nào thì không chiếm chip; khoa có bảng thì có', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'chi-mot', ten: 'Cơn tăng huyết áp', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: 'neurology', tags: [], noiDungTimKiem: '',
     })
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(1)
@@ -2189,13 +2301,13 @@ describe('LuoiMuc — chip chuyên khoa theo dữ liệu thật', () => {
       ['c1', 'cardiology'],
     ]
     for (const [id, chuyenKhoa] of seed) {
-      await idbPut(IDB_STORES.boards, {
+      await idbPut(IDB_STORES.mucs, {
         id, ten: `Bảng ${id}`, taoLuc: bayGio, capNhatLuc: bayGio, chuyenKhoa, tags: [], noiDungTimKiem: '',
       })
     }
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelectorAll('[data-testid="the-bang"]')).toHaveLength(seed.length)
@@ -2219,7 +2331,7 @@ describe('LuoiMuc — chip chuyên khoa theo dữ liệu thật', () => {
     await seedBonKhoa()
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chip-chuyen-khoa-them"]')).not.toBeNull()
@@ -2262,8 +2374,8 @@ describe('LuoiMuc — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   // [P2] Trước bản vá, `<span>{soChonSong} đã chọn</span>` không có aria-live/aria-atomic, khác
@@ -2271,12 +2383,12 @@ describe('LuoiMuc — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
   // hình tick/bỏ tick từng checkbox nhưng không nghe được số đếm tổng cập nhật real-time.
   it('[P2] thanh chọn-nhiều: nhãn "{N} đã chọn" có aria-live="polite" + aria-atomic', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'b-live', ten: 'Bảng live', taoLuc: bayGio, capNhatLuc: bayGio,
       chuyenKhoa: SPECIALTIES[0].id, tags: [], noiDungTimKiem: '',
     })
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="chon-nhieu-song-toggle"]')).not.toBeNull()
@@ -2305,13 +2417,17 @@ describe('LuoiMuc — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
   // chọn-nhiều, chạy lại chính luồng lưu có sẵn (onBlur → onLuuTen) thay vì âm thầm mất chữ gõ dở.
   it('[P3] vào chế độ chọn-nhiều trong khi ô đổi tên đang mở → ô đóng lại, tên gõ dở được LƯU, không chồng checkbox+input', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
     })
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
+    })
+    // Task 4: "+" mở bảng chọn danh mục trước khi ghi gì.
+    await act(async () => {
+      chonDanhMucDauTien(container)
     })
     const oNhap = container.querySelector('[data-testid^="input-ten-"]') as HTMLInputElement
     expect(oNhap, 'cú bấm "+" phải mở ô đổi tên').not.toBeNull()
@@ -2331,7 +2447,7 @@ describe('LuoiMuc — chọn-nhiều (critique 2026-09-03 lượt 6)', () => {
       expect(container.querySelector('[data-testid^="input-ten-"]'), 'ô đổi tên phải đóng lại').toBeNull()
       expect(container.querySelector('[data-testid^="chon-nhieu-song-"]'), 'checkbox chọn-nhiều phải hiện').not.toBeNull()
     })
-    const ds = await idbGetAll<{ ten: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ ten: string }>(IDB_STORES.mucs)
     expect(ds).toHaveLength(1)
     expect(ds[0].ten, 'tên gõ dở phải được lưu qua blur, không bị mất').toBe('Tên gõ dở')
   })

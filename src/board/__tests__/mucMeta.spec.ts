@@ -17,6 +17,10 @@ import {
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
   for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  // capNhatSauKhiRoiMuc() ghi vào store `mucs` từ Task 2 (task-2-brief.md Bước 4) — dọn luôn store
+  // này, không thì bản ghi test rò rỉ sang ca sau (fake-indexeddb không tự reset giữa các `it`).
+  const dsMuc = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+  for (const m of dsMuc) await idbDelete(IDB_STORES.mucs, m.id)
 })
 
 describe('taoIdMuc', () => {
@@ -29,25 +33,28 @@ describe('taoIdMuc', () => {
 })
 
 describe('capNhatSauKhiRoiMuc', () => {
+  // Store đọc/ghi của capNhatSauKhiRoiMuc đổi từ `boards` sang `mucs` ở Task 2 (task-2-brief.md
+  // Bước 4) — mọi ca trong describe này seed/đọc lại qua IDB_STORES.mucs để khớp store THẬT hàm
+  // đang thao tác, không phải store cũ nó không còn chạm tới nữa.
   it('coThayDoiNoiDung=true → cập nhật capNhatLuc', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'x', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
     await capNhatSauKhiRoiMuc('x', true)
 
-    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'x')!.capNhatLuc).toBeGreaterThan(bayGio)
   })
 
   it('coThayDoiNoiDung=false → capNhatLuc giữ nguyên (mở xem, không sửa)', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, { id: 'y', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
+    await idbPut(IDB_STORES.mucs, { id: 'y', ten: 'Test', taoLuc: bayGio, capNhatLuc: bayGio })
     await new Promise((r) => setTimeout(r, 2))
 
     await capNhatSauKhiRoiMuc('y', false)
 
-    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; capNhatLuc: number }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'y')!.capNhatLuc).toBe(bayGio)
   })
 
@@ -57,7 +64,7 @@ describe('capNhatSauKhiRoiMuc', () => {
     // chiếm quota. Đây là đường di trú: hook này vốn đã chạy ở MỌI lượt rời bảng, không cần script
     // riêng. Nếu ai đó sau này khôi phục `...hienCo` nguyên khối, ca kiểm này đỏ.
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'con-anh',
       ten: 'Bảng cũ',
       taoLuc: bayGio,
@@ -70,7 +77,7 @@ describe('capNhatSauKhiRoiMuc', () => {
 
     await capNhatSauKhiRoiMuc('con-anh', false)
 
-    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; anhXemTruoc?: string }>(IDB_STORES.mucs)
     const sau = ds.find((b) => b.id === 'con-anh')
     expect(sau).toBeDefined()
     expect(sau).not.toHaveProperty('anhXemTruoc')
@@ -78,39 +85,45 @@ describe('capNhatSauKhiRoiMuc', () => {
 
   it('bảng KHÔNG tồn tại → không ném lỗi, không tạo mục mới', async () => {
     await expect(capNhatSauKhiRoiMuc('khong-ton-tai', false)).resolves.toBeUndefined()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'khong-ton-tai')).toBeUndefined()
   })
 })
 
-describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi', () => {
-  it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định', async () => {
+describe('capNhatSauKhiRoiMuc — KHÔNG backfill trường cũ + noiDungTimKiemMoi', () => {
+  // Ca "bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → backfill giá trị mặc định" đã bị XOÁ ở
+  // giai đoạn 5-6 (task-1-brief.md Bước 5): nó canh đúng ba nhánh `??` phòng vệ vừa bị gỡ khỏi
+  // capNhatSauKhiRoiMuc, vì hàm này giờ chỉ còn ghi vào store MỚI (mucs, xem Task 2), không có bản
+  // ghi thiếu trường nào để backfill — giữ lại ca cũ là giữ một lời nói dối về hình dạng dữ liệu
+  // (spec §3.1). Thay vào đó là ca ĐẢO NGƯỢC ngay dưới đây, khẳng định điều NGƯỢC LẠI: bản ghi cũ
+  // thiếu trường KHÔNG được backfill. Nếu ai phục hồi một nhánh `?? SPECIALTIES[0].id`/`?? []`/
+  // `?? ''` vào idbPut trong capNhatSauKhiRoiMuc, ca dưới đây đỏ (đã tự tay gỡ vá tạm để xác nhận —
+  // xem task-9-report.md).
+  it('bản ghi cũ THIẾU chuyenKhoa/tags/noiDungTimKiem → KHÔNG backfill (bỏ 2026-09-05, spec §3.1)', async () => {
     const bayGio = Date.now()
-    // Mô phỏng bản ghi tạo TRƯỚC khi có ba trường mới — ép kiểu vì TS sẽ chặn thiếu trường bắt buộc.
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'cu',
       ten: 'Bảng cũ',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
     } as unknown as { id: string; ten: string; taoLuc: number; capNhatLuc: number })
-
     await capNhatSauKhiRoiMuc('cu', false)
-
     const ds = await idbGetAll<{
       id: string
-      chuyenKhoa: string
-      tags: string[]
-      noiDungTimKiem: string
-    }>(IDB_STORES.boards)
+      chuyenKhoa?: string
+      tags?: string[]
+      noiDungTimKiem?: string
+    }>(IDB_STORES.mucs)
     const sau = ds.find((b) => b.id === 'cu')
-    expect(sau?.chuyenKhoa).toBe(SPECIALTIES[0].id)
-    expect(sau?.tags).toEqual([])
-    expect(sau?.noiDungTimKiem).toBe('')
+    expect(sau).toBeDefined()
+    expect(sau?.chuyenKhoa).toBeUndefined()
+    expect(sau?.tags).toBeUndefined()
+    expect(sau?.noiDungTimKiem).toBeUndefined()
   })
 
   it('truyền noiDungTimKiemMoi → ghi đè noiDungTimKiem cũ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'z',
       ten: 'Test',
       taoLuc: bayGio,
@@ -122,13 +135,13 @@ describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi',
 
     await capNhatSauKhiRoiMuc('z', false, 'nội dung mới')
 
-    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'z')?.noiDungTimKiem).toBe('nội dung mới')
   })
 
   it('KHÔNG truyền noiDungTimKiemMoi → giữ nguyên noiDungTimKiem cũ', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'w',
       ten: 'Test',
       taoLuc: bayGio,
@@ -140,8 +153,87 @@ describe('capNhatSauKhiRoiMuc — backfill trường mới + noiDungTimKiemMoi',
 
     await capNhatSauKhiRoiMuc('w', false)
 
-    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.boards)
+    const ds = await idbGetAll<{ id: string; noiDungTimKiem: string }>(IDB_STORES.mucs)
     expect(ds.find((b) => b.id === 'w')?.noiDungTimKiem).toBe('giữ nguyên')
+  })
+})
+
+// Tham số thứ 4 `tenMoi` (giai đoạn 5-6, kho bài viết) — CHỈ TrangBaiViet.tsx truyền, để tiêu đề
+// gõ trong bài viết chảy ngược ra `MucMeta.ten` cho thẻ ở lưới. Bốn ca dưới đây canh đúng phần
+// hợp đồng nằm ở mucMeta.ts (nơi bảo vệ chuỗi rỗng THẬT SỰ nằm) — phần TrangBaiViet.tsx trích tiêu
+// đề từ `<doc-title>` được canh riêng, tích hợp thật, ở trang-bai-viet-mount.spec.ts.
+describe('capNhatSauKhiRoiMuc — tham số tenMoi (đồng bộ tiêu đề bài viết)', () => {
+  it('truyền tenMoi có dấu tiếng Việt → ghi đè ten cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-1',
+      ten: 'Bài chưa đặt tên',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await capNhatSauKhiRoiMuc('ten-1', false, undefined, 'Tiếp cận đau ngực cấp')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-1')?.ten).toBe('Tiếp cận đau ngực cấp')
+  })
+
+  it('tenMoi chuỗi rỗng → giữ nguyên ten cũ, KHÔNG ghi đè thành nhãn trắng', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-2',
+      ten: 'Tên đang có',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await capNhatSauKhiRoiMuc('ten-2', false, undefined, '')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-2')?.ten).toBe('Tên đang có')
+  })
+
+  it('tenMoi chỉ toàn khoảng trắng → xử như rỗng, giữ nguyên ten cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-3',
+      ten: 'Tên đang có',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await capNhatSauKhiRoiMuc('ten-3', false, undefined, '   ')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-3')?.ten).toBe('Tên đang có')
+  })
+
+  it('KHÔNG truyền tenMoi (đường EdgelessBoard.tsx gọi) → giữ nguyên ten cũ', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'ten-4',
+      ten: 'Tên sơ đồ tự đặt',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: SPECIALTIES[0].id,
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    // Đúng chữ ký EdgelessBoard.tsx:450 gọi — ba tham số, không có tenMoi.
+    await capNhatSauKhiRoiMuc('ten-4', true, 'nội dung canvas')
+
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(ds.find((b) => b.id === 'ten-4')?.ten).toBe('Tên sơ đồ tự đặt')
   })
 })
 
@@ -189,6 +281,9 @@ describe('ghepNoiDungTimKiem', () => {
 describe('mucKhopTimKiem', () => {
   const bangMau: MucMeta = {
     id: 'x', ten: 'Suy tim EF giảm', taoLuc: 0, capNhatLuc: 0,
+    // Ca này canh so khớp tìm kiếm, không canh phân loại — giá trị của bảng sơ đồ đời cũ
+    // (xem task-1-brief.md) là đủ.
+    loai: 'so-do', danhMuc: 'tiep-can',
     chuyenKhoa: 'cardiology', tags: ['nội trú', 'cấp cứu'], noiDungTimKiem: 'furosemide 40mg TM',
   }
 

@@ -9,6 +9,7 @@ import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import type { MucMeta } from '../mucMeta'
 import { LuoiMuc } from '../LuoiMuc'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
+import { chonDanhMucDauTien } from './helpers/chon-danh-muc-trong-test'
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -38,6 +39,10 @@ function chuaLanhIdb() {
 function bangMau(id: string, ten: string): MucMeta {
   return {
     id,
+    // File này canh hành vi khi IndexedDB hỏng, không canh phân loại — giá trị của bảng sơ đồ
+    // đời cũ (xem task-1-brief.md) là đủ.
+    loai: 'so-do',
+    danhMuc: 'tiep-can',
     ten,
     taoLuc: 1_700_000_000_000,
     capNhatLuc: 1_700_000_000_000,
@@ -63,16 +68,16 @@ describe('LuoiMuc — hỏng kho lưu trữ', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const b of ds) await idbDelete(IDB_STORES.mucs, b.id)
   })
 
   it('đọc hỏng → báo lỗi kèm nút thử lại, KHÔNG nói dối rằng người dùng chưa có bảng nào', async () => {
-    await idbPut(IDB_STORES.boards, bangMau('bang-kiem-1', 'Phác đồ sốc nhiễm khuẩn'))
+    await idbPut(IDB_STORES.mucs, bangMau('bang-kiem-1', 'Phác đồ sốc nhiễm khuẩn'))
     lamHongIdb('doc')
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="loi-doc-bang"]')).not.toBeNull()
@@ -89,11 +94,11 @@ describe('LuoiMuc — hỏng kho lưu trữ', () => {
   })
 
   it('đọc hỏng rồi hết hỏng → bấm "Thử lại" là bảng hiện lại, không cần tải lại app', async () => {
-    await idbPut(IDB_STORES.boards, bangMau('bang-kiem-2', 'Chẩn đoán phân biệt đau ngực'))
+    await idbPut(IDB_STORES.mucs, bangMau('bang-kiem-2', 'Chẩn đoán phân biệt đau ngực'))
     lamHongIdb('doc')
 
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="thu-lai-doc-bang"]')).not.toBeNull()
@@ -112,7 +117,7 @@ describe('LuoiMuc — hỏng kho lưu trữ', () => {
 
   it('ghi hỏng → báo ngay, và "Thử lại" ghi lại THẬT xuống IndexedDB', async () => {
     await act(async () => {
-      root.render(createElement(LuoiMuc, { onMoBang: () => {} }))
+      root.render(createElement(LuoiMuc, { onMoBang: () => {}, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -122,12 +127,18 @@ describe('LuoiMuc — hỏng kho lưu trữ', () => {
     await act(async () => {
       ;(container.querySelector('[data-testid="tao-bang"]') as HTMLButtonElement).click()
     })
+    // Task 4: "+" mở bảng chọn danh mục trước — bảng chọn tự nó không đụng IndexedDB (chỉ đổi state
+    // `dangChonDanhMuc`), lượt ghi hỏng chỉ xảy ra SAU khi chọn xong một danh mục (taoMucVoiDanhMuc
+    // gọi add()).
+    await act(async () => {
+      chonDanhMucDauTien(container)
+    })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="thu-lai-ghi-bang"]')).not.toBeNull()
     })
     // Giao diện cập nhật lạc quan nên thẻ vẫn hiện — đúng chỗ nguy hiểm: không có dải báo này thì
     // người dùng tin đã lưu xong trong khi IndexedDB không nhận gì cả.
-    expect(await idbGetAll<{ id: string }>(IDB_STORES.boards)).toHaveLength(0)
+    expect(await idbGetAll<{ id: string }>(IDB_STORES.mucs)).toHaveLength(0)
 
     chuaLanhIdb()
     await act(async () => {
@@ -135,7 +146,7 @@ describe('LuoiMuc — hỏng kho lưu trữ', () => {
     })
     // Thử lại phải ghi THẬT, không chỉ tắt dải báo cho đẹp.
     await choDenKhi(async () => {
-      expect(await idbGetAll<{ id: string }>(IDB_STORES.boards)).toHaveLength(1)
+      expect(await idbGetAll<{ id: string }>(IDB_STORES.mucs)).toHaveLength(1)
     })
   })
 })

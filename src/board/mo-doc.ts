@@ -13,12 +13,16 @@ import { TestWorkspace } from '@blocksuite/affine/store/test'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 import { IndexedDBBlobSource, IndexedDBDocSource } from '@blocksuite/sync'
 
-// `LoaiMuc` khai TẠM THỜI ở đây, không phải mucMeta.ts — vì chiều phụ thuộc bắt buộc là
-// mo-doc → mucMeta, không được ngược lại: mucMeta.ts nằm NGOÀI ranh giới nạp chậm D13 (App.tsx
-// import kiểu từ nó), còn mo-doc.ts thì import `@blocksuite/*` nên PHẢI ở trong ranh giới. Khai
-// LoaiMuc ở mucMeta.ts rồi import ngược lại đây sẽ kéo cả chuỗi import của mo-doc.ts ra ngoài ranh
-// giới đó qua mucMeta. Plan 2 sẽ dời khai báo này sang mucMeta.ts và mo-doc.ts import lại.
-export type LoaiMuc = 'bai-viet' | 'so-do'
+// Nguồn thật của khái niệm nay ở ./mucMeta.ts (metadata mới là nơi loại mục được CHỐT). Re-export
+// để mọi bên gọi cũ không phải sửa, và để `index.tsx` giữ nguyên `import type { LoaiMuc } from
+// './mo-doc'` — D13 không bị đụng vì `import type` bị xoá lúc biên dịch.
+//
+// HAI dòng (import RỒI export) chứ không gộp `export type { LoaiMuc } from './mucMeta'` một dòng:
+// cú pháp `export ... from` chỉ RE-EXPORT, không đưa `LoaiMuc` vào scope cục bộ của file này — mà
+// `taoHoacMoDoc`/`moDocThat` bên dưới vẫn cần dùng nó làm kiểu tham số (`tsc` báo lỗi thật
+// TS2304 "Cannot find name 'LoaiMuc'" nếu chỉ viết một dòng).
+import type { LoaiMuc } from './mucMeta'
+export type { LoaiMuc }
 
 export const storeManager = new StoreExtensionManager(getInternalStoreExtensions())
 

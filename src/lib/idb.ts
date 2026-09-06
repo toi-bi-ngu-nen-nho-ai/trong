@@ -9,13 +9,18 @@
 // không bị mất; version 2 thêm object store "articles" cho bài viết.
 
 const DB_NAME = "drtrong-ecg"
-const DB_VERSION = 5
+// v5 → v6 (2026-09-05): thêm store `mucs` cho kho bài viết + sơ đồ dùng chung (spec §3.2.1a).
+// `onupgradeneeded` dưới đây tạo MỌI store còn thiếu, nên chỉ cần thêm tên vào IDB_STORES là đủ —
+// không viết nhánh nâng cấp riêng. KHÔNG xoá store nào ở lượt này: ba store cũ ở lại nguyên vẹn để
+// một chặng hỏng giữa chừng không mang dữ liệu đi theo. Việc xoá là giai đoạn 9, DB_VERSION 6 → 7.
+const DB_VERSION = 6
 
 // Tên các object store — dùng làm tham số `store` cho các hàm bên dưới.
 export const IDB_STORES = {
   ecgLessons: "lessons",
   articles: "articles",
   boards: "boards",
+  mucs: "mucs",
 } as const
 
 const ALL_STORES: string[] = Object.values(IDB_STORES)

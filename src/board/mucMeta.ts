@@ -1,14 +1,53 @@
-// Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "boards" của
+// Kiểu dữ liệu + tiện ích RIÊNG của subsystem mục (bài viết + sơ đồ) cho object store "mucs" của
 // src/lib/idb.ts. KHÔNG viết CRUD danh sách ở đây — LuoiMuc.tsx dùng thẳng
-// useIdbCollection<MucMeta>(IDB_STORES.boards) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
-// ECG lessons/bài viết đang dùng). Hàm dưới đây tồn tại vì nó được gọi từ NGOÀI cây component của
-// LuoiMuc (EdgelessBoard.tsx lúc unmount, xem Task 3) — không có instance hook nào để gọi.
+// useIdbCollection<MucMeta>(IDB_STORES.mucs) (src/lib/useIdbCollection.ts, đã có sẵn, cùng mẫu
+// ECG lessons/bài viết đang dùng — chuyển từ IDB_STORES.boards sang mucs ở Task 3). Hàm dưới đây
+// tồn tại vì nó được gọi từ NGOÀI cây component của LuoiMuc (EdgelessBoard.tsx lúc unmount) —
+// không có instance hook nào để gọi.
 import { SPECIALTIES } from '../data'
 import { IDB_STORES, idbGetAll, idbPut } from '../lib/idb'
 import { normalizeSearch } from '../lib/ui'
 
+/**
+ * Loại mục — chốt lúc tạo, KHÔNG đổi được sau (spec §7 "Ngoài phạm vi"). Trước lượt này kiểu sống ở
+ * `mo-doc.ts` vì nơi tiêu thụ đầu tiên là `taoHoacMoDoc`; nay metadata mới là nguồn thật của khái
+ * niệm, còn `mo-doc.ts` chỉ là một nơi dùng. `mo-doc.ts` re-export để D13 không bị đụng: `index.tsx`
+ * đang `import type { LoaiMuc } from './mo-doc'`, và một `import type` không kéo gì vào chunk vỏ app.
+ */
+export type LoaiMuc = 'bai-viet' | 'so-do'
+
+export type IdDanhMuc = 'tiep-can' | 'ecg' | 'phac-do' | 'huong-dan'
+
+/**
+ * Bốn danh mục của kho. `loaiChoPhep` là ràng buộc HIỂN THỊ (bảng chọn danh mục lọc theo nó), không
+ * phải ràng buộc lưu trữ — không có lớp kiểm nào chặn một bản ghi lệch, vì bản ghi lệch chỉ sinh ra
+ * được bằng cách sửa tay IndexedDB.
+ *
+ * `as const satisfies` chứ không phải `as const` trần: `satisfies` bắt lỗi ngay tại đây nếu ai thêm
+ * một `id` không có trong `IdDanhMuc`, trong khi vẫn giữ kiểu literal hẹp cho `DANH_MUC[n].id`.
+ */
+export const DANH_MUC = [
+  { id: 'tiep-can', ten: 'Tiếp cận vấn đề', loaiChoPhep: ['bai-viet', 'so-do'] },
+  { id: 'ecg', ten: 'ECG', loaiChoPhep: ['bai-viet', 'so-do'] },
+  { id: 'phac-do', ten: 'Phác đồ', loaiChoPhep: ['bai-viet', 'so-do'] },
+  { id: 'huong-dan', ten: 'Hướng dẫn', loaiChoPhep: ['bai-viet'] },
+] as const satisfies readonly { id: IdDanhMuc; ten: string; loaiChoPhep: readonly LoaiMuc[] }[]
+
+/** Danh mục này có nhận loại mục kia không. Bảng chọn danh mục dùng để ẩn lựa chọn không hợp lệ. */
+export function danhMucNhanLoai(danhMuc: IdDanhMuc, loai: LoaiMuc): boolean {
+  const muc = DANH_MUC.find((d) => d.id === danhMuc)
+  return muc ? (muc.loaiChoPhep as readonly LoaiMuc[]).includes(loai) : false
+}
+
 export type MucMeta = {
   id: string
+  /**
+   * Chốt lúc tạo, KHÔNG đổi được — spec §7. Quyết định mở `TrangBaiViet` hay `EdgelessBoard`
+   * (`index.tsx` chọn vỏ theo trường này), và là trục lọc của tab Thư viện / Mindmap.
+   */
+  loai: LoaiMuc
+  /** Đổi được sau, qua menu "⋯" trên thẻ (spec §3.5 để dành, không làm ở chặng này). */
+  danhMuc: IdDanhMuc
   ten: string
   taoLuc: number
   capNhatLuc: number
@@ -18,10 +57,12 @@ export type MucMeta = {
   // viễn tự động — bang xoá mềm ở lại trong IndexedDB, đợi một màn "thùng rác" sau này.
   daXoaLuc?: number
   // Ba trường MỚI — bắt buộc cho bảng tạo từ nay trở đi (taoBangMoi(), LuoiMuc.tsx). Bảng cũ
-  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc — capNhatSauKhiRoiMuc() bên dưới
-  // tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế tiếp (không cần script di trú
-  // riêng: đây vốn là hook DUY NHẤT đã chạy ở mọi lượt rời bảng, xem EdgelessBoard.tsx). Mọi nơi
-  // ĐỌC ba trường này trước khi bảng đó từng được mở lại (chip lọc, tìm kiếm) phải tự
+  // tạo TRƯỚC lượt này thiếu cả ba ở runtime dù kiểu khai bắt buộc. TRƯỚC giai đoạn 5-6,
+  // capNhatSauKhiRoiMuc() bên dưới tự backfill giá trị mặc định vào lần bảng đó được MỞ RỒI RỜI kế
+  // tiếp; giai đoạn 5-6 bỏ backfill đó (spec §3.1: "giữ lại là giữ một lời nói dối về hình dạng dữ
+  // liệu") vì hàm này giờ ghi vào store `mucs` MỚI, không có bản ghi thiếu trường nào để backfill.
+  // Bảng CŨ còn ở store `boards` (chưa migrate sang `mucs`) vẫn thiếu ba trường này — mọi nơi ĐỌC
+  // chúng trước khi bảng đó từng được mở lại qua đường mới (chip lọc, tìm kiếm) phải tự
   // `?? SPECIALTIES[0].id`/`?? []`/`?? ''` — xem Task 2/3/7.
   chuyenKhoa: string
   tags: string[]
@@ -49,8 +90,20 @@ let ghiAnhDangCho: Promise<void> | null = null
 
 /**
  * Gọi lúc RỜI một bảng (xem EdgelessBoard.tsx). Cập nhật metadata của bảng vừa đóng:
- * `capNhatLuc` (CHỈ khi có sửa nội dung thật), `noiDungTimKiem`, và backfill chuyenKhoa/tags cho
- * bản ghi cũ.
+ * `capNhatLuc` (CHỈ khi có sửa nội dung thật) và `noiDungTimKiem`. KHÔNG backfill chuyenKhoa/tags
+ * cho bản ghi cũ nữa (bỏ 2026-09-05, xem chú thích trên `chuyenKhoa` ở khai báo `MucMeta`).
+ *
+ * Tham số `tenMoi` (giai đoạn 5-6, kho bài viết): CHỈ `TrangBaiViet.tsx` truyền — trích từ
+ * `<doc-title>` lúc rời bài viết, để thẻ ở lưới ngừng hiện cứng "Bài chưa đặt tên" (tiêu đề gõ
+ * trong bài không có đường chảy ngược ra MucMeta.ten nếu không có bước này). `EdgelessBoard.tsx`
+ * KHÔNG truyền tham số này — sơ đồ có tên do người dùng tự đặt qua ô đổi tên tại chỗ ở lưới
+ * (LuoiMuc.tsx), đồng bộ tiêu đề vào MỌI lượt rời mục sẽ làm nội dung canvas ghi đè tên đó, một
+ * hồi quy tệ hơn lỗi "Bài chưa đặt tên" đang vá. Hai lớp phòng vệ chuỗi rỗng — cả ở đây (dưới) LẪN
+ * ở nơi gọi (TrangBaiViet.tsx chỉ đưa `tieuDeMoi` khi trim() khác rỗng) — cố ý trùng: mất một lớp
+ * (một caller mới quên trim, hoặc ai đó truyền chuỗi trắng thẳng) vẫn không xoá tên bảng thành nhãn
+ * trắng. `tenMoi` rỗng/toàn khoảng trắng/undefined ⇒ giữ nguyên `hienCo.ten`, không có giới hạn độ
+ * dài (thẻ ở lưới đã tự line-clamp 2 dòng bằng CSS, và ô đổi tên tại chỗ của sơ đồ cũng không cắt
+ * — xem `onLuuTen` ở LuoiMuc.tsx — nên tiêu đề bài viết dài đi theo đúng quy ước sẵn có).
  *
  * `capNhatLuc` chỉ bump khi `coThayDoiNoiDung` — trước đây (tới mục 30 của HANDOFF.md) hai việc
  * này gộp làm một vì "chặng đó chưa dựng cơ chế phát hiện thay đổi thật", hệ quả là MỞ bảng ra xem
@@ -74,9 +127,10 @@ export function capNhatSauKhiRoiMuc(
   id: string,
   coThayDoiNoiDung: boolean,
   noiDungTimKiemMoi?: string,
+  tenMoi?: string,
 ): Promise<void> {
   const p = (async () => {
-    const ds = await idbGetAll<MucMeta>(IDB_STORES.boards)
+    const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
     const hienCo = ds.find((b) => b.id === id)
     if (!hienCo) return
     // Bóc `anhXemTruoc` RA KHỎI bản ghi trước khi ghi lại. Không có bước này thì spread `...hienCo`
@@ -87,12 +141,17 @@ export function capNhatSauKhiRoiMuc(
     // bảng. Kiểu `MucMeta` không còn khai trường này, nên phải đọc qua một kiểu nới rộng.
     const { anhXemTruoc: _anhCu, ...conLai } = hienCo as MucMeta & { anhXemTruoc?: string }
     void _anhCu
-    await idbPut(IDB_STORES.boards, {
+    // `tenMoi?.trim()` rỗng ('', toàn khoảng trắng, hoặc tham số không được truyền) ⇒ chuỗi rỗng
+    // là falsy ⇒ rơi về `hienCo.ten`. KHÔNG dùng `??` như noiDungTimKiem ngay dưới: `??` chỉ chặn
+    // null/undefined, để lọt chuỗi rỗng '' đè lên tên đang có — đúng lỗi mà noiDungTimKiem CỐ Ý cho
+    // qua (xoá sạch nội dung tìm kiếm khi bài viết rỗng là đúng) nhưng lại là hồi quy nếu áp cho
+    // `ten` (thẻ ở lưới thành nhãn trắng).
+    const tenDaTrim = tenMoi?.trim()
+    await idbPut(IDB_STORES.mucs, {
       ...conLai,
       capNhatLuc: coThayDoiNoiDung ? Date.now() : hienCo.capNhatLuc,
-      chuyenKhoa: hienCo.chuyenKhoa ?? SPECIALTIES[0].id,
-      tags: hienCo.tags ?? [],
-      noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem ?? '',
+      noiDungTimKiem: noiDungTimKiemMoi ?? hienCo.noiDungTimKiem,
+      ten: tenDaTrim ? tenDaTrim : hienCo.ten,
     })
   })()
   ghiAnhDangCho = p

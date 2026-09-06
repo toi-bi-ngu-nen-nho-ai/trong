@@ -5,7 +5,7 @@ import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
 import { useIdbCollection } from "./lib/useIdbCollection"
-import { IDB_STORES } from "./lib/idb"
+import { IDB_STORES, idbPut } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
 import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // BoardGallery (không phải EdgelessBoard) là điểm vào duy nhất cho tab Mindmap — nó tự import
@@ -14,9 +14,13 @@ import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // tách chunk mà vỏ nạp chậm tồn tại để giữ, và bỏ luôn error boundary riêng của bảng vẽ (xem
 // comment trong board/index.tsx và board/BoardGallery.tsx).
 import { BoardGallery } from "./board/BoardGallery"
-// CHỈ import KIỂU từ mucMeta.ts — và bản thân mucMeta.ts KHÔNG import gì từ @blocksuite/* (D13),
-// nên dòng này không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ.
-import type { MucMeta } from "./board/mucMeta"
+// mucMeta.ts KHÔNG import gì từ @blocksuite/* (D13), nên nhập cả GIÁ TRỊ (taoIdMuc) lẫn kiểu ở đây
+// không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ. ChonDanhMuc.tsx cũng chỉ phụ
+// thuộc React + mucMeta.ts, an toàn cùng lý do — canh bằng hai describe riêng "ChonDanhMuc.tsx —
+// ranh giới D13" và "mucMeta.ts — ranh giới D13" trong ranh-gioi-nap-bang.spec.ts (mỗi describe soi
+// thẳng file cùng tên), không suy luận. Hai ca D13 gốc trong cùng file đó chỉ soi index.tsx.
+import { ChonDanhMuc } from "./board/ChonDanhMuc"
+import { DANH_MUC, taoIdMuc, type IdDanhMuc, type MucMeta } from "./board/mucMeta"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -116,6 +120,11 @@ type Screen =
   | "flashcard"
   | "article"
   | "specialty"
+  // Màn lưới lọc theo MỘT danh mục — thay ba màn cũ (EcgScreen, ComingSoonScreen của Phác đồ, và
+  // thẻ Tiếp cận vấn đề). Danh mục nào nằm ở `danhMucDangXem` (state của App(), xem bên dưới),
+  // không mã hoá vào tên màn: bốn nhánh Screen gần giống nhau đúng là thứ đã bị gộp một lần rồi
+  // (xem addInfusion) — Task 7, kho-bai-viet-giai-doan-5-6.
+  | "danhMuc"
   | "addEntry"
   | "mixing"
   | "customEntry"
@@ -666,7 +675,26 @@ const ARC_MAX_X = ARC_RADIUS * (1 - Math.cos((MAX_ROW_ANGLE * Math.PI) / 180))
 const PICKER_H = Math.ceil(2 * ARC_RADIUS * Math.sin((MAX_ROW_ANGLE * Math.PI) / 180)) + 16
 const PICKER_W = 288
 
-function SpecialtyPicker({ onSelect, currentId }: { onSelect: (id: string, isFinal: boolean) => void; currentId: string }) {
+function SpecialtyPicker({
+  onSelect,
+  currentId,
+  thuGon,
+}: {
+  onSelect: (id: string, isFinal: boolean) => void
+  currentId: string
+  /**
+   * Task 7 review (I4) — CHỈ truyền `true` cho màn "specialty". Ẩn tên chuyên khoa trong nút mở
+   * (chỉ còn icon + chevron), giữ nguyên `aria-label` đầy đủ cho trình đọc màn hình. Lý do: đo
+   * thật bằng getBoundingClientRect() ở 375px (xem chú thích tại cụm nút nổi, App shell) cho thấy
+   * bản đầy nhãn (rộng tới 138px khi tên dài như "Sinh lý (bệnh)") không có cách nào vừa tránh đè
+   * lên nút "Chọn" của ScreenHeader (bên phải) VỪA tránh đè lên tiêu đề màn (bên trái) cùng lúc —
+   * hai điều kiện đó triệt tiêu lẫn nhau ở MỌI giá trị `right` khi nhãn còn giữ nguyên bề rộng tối
+   * đa. Bỏ nhãn thu nút xuống còn ~55px, mở đủ khoảng trống để dịch cụm nút sang trái mà không chạm
+   * cả hai phía. Tên chuyên khoa không mất thông tin: `h1` của ScreenHeader đã hiển thị nó to và rõ
+   * ngay cạnh, nhãn nhỏ trong nút vốn chỉ lặp lại đúng chữ đó.
+   */
+  thuGon?: boolean
+}) {
   const N = PICKER_ITEMS.length
   const initialIndex = Math.max(0, PICKER_ITEMS.findIndex((s) => s.id === currentId))
 
@@ -935,7 +963,10 @@ function SpecialtyPicker({ onSelect, currentId }: { onSelect: (id: string, isFin
         }}
       >
         <span className="flex-none" style={{ color: current.color }}>{specialtyIcon(current.id, "w-[17px] h-[17px]")}</span>
-        <span className="text-xs font-bold max-w-[76px] truncate" style={{ color: "var(--c-text)" }}>{current.name}</span>
+        {/* Task 7 review (I4): ẩn ở màn "specialty" — xem chú thích dài tại prop `thuGon` phía trên. */}
+        {!thuGon && (
+          <span className="text-xs font-bold max-w-[76px] truncate" style={{ color: "var(--c-text)" }}>{current.name}</span>
+        )}
         <svg
           viewBox="0 0 24 24" fill="none" stroke="var(--c-text-muted)" strokeWidth={2.5}
           className="w-3.5 h-3.5 flex-shrink-0"
@@ -1050,26 +1081,42 @@ interface RecentReadItem {
 
 function HomeScreen({
   onNavigate,
-  ecgCount,
+  onTaoBaiMoi,
+  onMoDanhMuc,
   recentReads,
 }: {
   onNavigate: (s: Screen, id?: string) => void
-  ecgCount: number
+  onTaoBaiMoi: () => void
+  /** Task 7: ba thẻ "Tiếp cận vấn đề"/"ECG"/"Phác đồ" mở màn lưới lọc theo danh mục (App() sở hữu
+   * state `danhMucDangXem` + nhánh Screen "danhMuc"), không còn là các Screen rời (comingSoon/ecg). */
+  onMoDanhMuc: (d: IdDanhMuc) => void
   recentReads: RecentReadItem[]
 }) {
-  // Thẻ nào có màn thật (Sử dụng thuốc → "mixing", đã có kháng sinh/vận mạch/tương tác/bảng pha;
-  // ECG) mới trỏ vào đó; thẻ chưa có màn thì trỏ sang "comingSoon" và không in số đếm giả.
-  const resourceCards: { label: string; count?: number; icon: ReactElement; target: { screen: Screen; id?: string } }[] = [
-    { label: "Tiếp cận vấn đề", icon: icons.summary(), target: { screen: "comingSoon", id: "Tiếp cận vấn đề" } },
-    { label: "Phác đồ", icon: icons.flow(), target: { screen: "comingSoon", id: "Phác đồ" } },
+  // "Sử dụng thuốc"/"Công cụ" vẫn trỏ một Screen thật (mixing/comingSoon) — không thuộc kho bài
+  // viết nên không có danh mục để lọc theo. Ba thẻ còn lại trỏ THẲNG một `IdDanhMuc`: từ Task 7,
+  // "Tiếp cận vấn đề"/"Phác đồ" không còn là lời hứa "Sắp ra mắt" nữa, và "ECG" không còn mở
+  // EcgScreen (danh sách bài học ECG cũ) mà mở lưới `mucs` lọc theo danhMuc 'ecg'.
+  const resourceCards: {
+    label: string
+    icon: ReactElement
+    target: { screen: Screen; id?: string } | { danhMuc: IdDanhMuc }
+  }[] = [
+    { label: "Tiếp cận vấn đề", icon: icons.summary(), target: { danhMuc: "tiep-can" } },
+    { label: "Phác đồ", icon: icons.flow(), target: { danhMuc: "phac-do" } },
     { label: "Sử dụng thuốc", icon: icons.dungThuoc(true), target: { screen: "mixing" } },
     { label: "Công cụ", icon: icons.calculator(), target: { screen: "comingSoon", id: "Công cụ" } },
-    { label: "ECG", count: ecgCount, icon: icons.ecg(), target: { screen: "ecg" } },
+    { label: "ECG", icon: icons.ecg(), target: { danhMuc: "ecg" } },
   ]
-  // Thẻ nào trỏ vào "comingSoon" thì dòng dưới nói "Sắp ra mắt"; thẻ trỏ vào tính năng thật thì im
-  // lặng (không có số đếm thật để đưa ra) hoặc in số đếm thật (ECG) — không còn "(0)" giả cho tính
-  // năng đã xong lẫn chưa xong đọc giống hệt nhau.
-  const cardCaption = (c: (typeof resourceCards)[number]) => (c.target.screen === "comingSoon" ? "Sắp ra mắt" : c.count != null ? `(${c.count})` : "")
+  // Task 7 review (I3): thẻ "ECG" TỪNG in caption `(${ecgCount})` — ecgCount tính từ hệ ECG CŨ
+  // (ecgCol IndexedDB + ECG_LESSONS tĩnh, nay ECG_LESSONS rỗng — xem src/data/ecg.ts), không còn
+  // liên quan gì tới nội dung lưới `mucs` lọc theo danhMuc 'ecg' mà thẻ này mở ra từ Task 7. Người
+  // dùng mới thấy hẳn "(0)" dù lưới thật có thể có nội dung — đúng anti-pattern mà chú thích dưới
+  // đây từng chốt bỏ. Tính số ĐÚNG từ store `mucs` cần một lượt đọc async trong HomeScreen (ngoài
+  // phạm vi Task 7) — bỏ hẳn caption số cho ba thẻ mở lưới `mucs` thay vì hiển thị số sai.
+  // Thẻ nào trỏ vào "comingSoon" thì dòng dưới nói "Sắp ra mắt"; mọi thẻ khác (kể cả ba thẻ trỏ
+  // `danhMuc`) im lặng — không còn "(0)" giả cho tính năng đã xong lẫn chưa xong đọc giống hệt nhau.
+  const cardCaption = (c: (typeof resourceCards)[number]) =>
+    "screen" in c.target && c.target.screen === "comingSoon" ? "Sắp ra mắt" : ""
 
   return (
     <div className="scroll-ios h-full pt-2 pb-4">
@@ -1102,7 +1149,7 @@ function HomeScreen({
           {resourceCards.map((c, i) => (
             <button
               key={c.label}
-              onClick={() => onNavigate(c.target.screen, c.target.id)}
+              onClick={() => ("danhMuc" in c.target ? onMoDanhMuc(c.target.danhMuc) : onNavigate(c.target.screen, c.target.id))}
               className="flex-none w-[136px] h-[152px] p-4 rounded-2xl border card-press text-left flex flex-col rise-in"
               style={{ borderColor: "var(--c-line)", background: "var(--c-surface)", "--i": i } as React.CSSProperties}
             >
@@ -1125,7 +1172,7 @@ function HomeScreen({
       <div className="px-5 mb-6">
         <h2 className="text-lg font-bold text-slate-900 mb-3">Học tập</h2>
         <button
-          onClick={() => onNavigate("addEntry")}
+          onClick={onTaoBaiMoi}
           className="w-full flex items-center gap-3 p-4 rounded-2xl card-press text-left"
           style={{ background: "var(--c-surface)" }}
         >
@@ -1137,7 +1184,7 @@ function HomeScreen({
           </div>
           <div>
             <p className="font-bold text-slate-900 text-[15px] leading-snug">Tạo bài mới</p>
-            <p className="text-xs text-slate-400 mt-0.5">Nhập thêm dữ liệu mới vào kho kiến thức</p>
+            <p className="text-xs text-slate-400 mt-0.5">Chọn danh mục rồi viết ngay</p>
           </div>
         </button>
         <div className="h-px mx-1" style={{ background: "var(--c-line-soft)" }} />
@@ -12319,14 +12366,38 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
   const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
-  // Bảng Mindmap cần mở thẳng khi bấm một kết quả tìm kiếm loại "board" — BoardGallery tiêu thụ rồi
-  // gọi onMoBangYeuCauXong() để đưa state này về undefined (xem BoardGallery.tsx).
+  // Mở thẳng một mục theo id — dùng bởi kết quả tìm kiếm loại "board" (luôn nhắm instance Mindmap,
+  // đi kèm navigate("mindmap", id)) VÀ luồng "Tạo bài mới" (nhắm instance màn "danhMuc", xem
+  // taoBaiVietMoi). Đợt vá cuối trước hợp nhất — C2: TỔNG QUÁT HOÁ từ chỗ chỉ instance Mindmap tiêu
+  // thụ được state này — nay CẢ HAI instance nhận cùng moBangYeuCau/onMoBangYeuCauXong, mỗi instance
+  // tự bỏ qua nếu không phải instance đang hiển thị (guard `dangHienTab`, xem BoardGallery.tsx).
+  // Instance tiêu thụ rồi gọi onMoBangYeuCauXong() để đưa state này về undefined.
   const [moBangYeuCau, setMoBangYeuCau] = useState<string | undefined>(undefined)
+  // Luồng "Tạo bài mới" ở Trang chủ (spec §3.5). Bảng chọn danh mục đứng ở App chứ không trong
+  // HomeScreen vì sau khi tạo xong phải chuyển sang màn "danhMuc" đúng danh mục vừa chọn và mở mục
+  // vừa tạo — hai việc chỉ App làm được (setMoBangYeuCau + navigate ở trên/dưới đây).
+  const [taoBaiMoiDangMo, setTaoBaiMoiDangMo] = useState(false)
+  // Khoá chống bấm đúp — CÙNG lớp lỗi đã vá cho taoMucVoiDanhMuc (LuoiMuc.tsx, Task 4, xem chú
+  // thích dài ở đó): nút danh mục trong ChonDanhMuc không tự mang khoá `e.detail>1` (component đó
+  // chỉ được phép import React + ./mucMeta, không thêm logic khoá), và onChon gọi
+  // setTaoBaiMoiDangMo(false) — một state React, chỉ có tác dụng ở lượt render SAU — TRƯỚC khi gọi
+  // ĐỒNG BỘ taoBaiVietMoi. Hai cú click trúng nút danh mục trước khi React kịp gỡ lớp phủ
+  // (double-fire trên một số trình duyệt cảm ứng) sẽ chạy trọn taoBaiVietMoi hai lần nếu không có
+  // khoá riêng cho đường này. Đây là ref — cập nhật NGAY (không đợi render) — nên cú gọi thứ hai
+  // đọc được giá trị `true` mà cú gọi đầu vừa gán và thoát sớm, trước khi tới idbPut(). Đặt lại
+  // `false` mỗi lần MỞ bảng chọn (xem onTaoBaiMoi của HomeScreen bên dưới) để lượt tạo TIẾP THEO
+  // không bị khoá oan bởi lượt tạo TRƯỚC đã thành công.
+  const dangTaoBaiVietRef = useRef(false)
   const [viewCustomId, setViewCustomId] = useState<string | null>(null)
   const [viewEcgId, setViewEcgId] = useState<string | null>(null)
   // Tên tính năng đang xem ở màn "Sắp ra mắt" — id truyền qua navigate() khi bấm một thẻ Truy cập
   // nhanh chưa có màn thật.
   const [comingSoonFeature, setComingSoonFeature] = useState<string>("")
+  // Danh mục đang xem ở màn "danhMuc" (Task 7) — id truyền qua onMoDanhMuc() khi bấm một thẻ Truy
+  // cập nhanh trỏ vào một danh mục cụ thể (Tiếp cận vấn đề/ECG/Phác đồ). Cùng lý do comingSoonFeature
+  // ở trên không mã hoá vào tên Screen: bốn nhánh Screen gần giống nhau chỉ khác danh mục đang lọc
+  // đúng là thứ Task 7 gộp lại thành một.
+  const [danhMucDangXem, setDanhMucDangXem] = useState<IdDanhMuc | null>(null)
   // Bản nháp đang sửa của bài viết tự nhập / bài học ECG — null nghĩa là đang TẠO MỚI. Mang theo cả
   // object (không chỉ id) để màn soạn thảo mở ra với nội dung sẵn có, giống cách sửa thuốc bên dưới.
   const [editArticleDraft, setEditArticleDraft] = useState<Article | null>(null)
@@ -12429,6 +12500,13 @@ export default function App() {
     "addEcg",
     "addFlashcard",
     "comingSoon",
+    // Task 7 review (I1): "danhMuc" (màn lưới lọc theo MỘT danh mục — mở từ ba thẻ Truy cập nhanh
+    // "Tiếp cận vấn đề"/"ECG"/"Phác đồ") thiếu ở đây làm HAI thứ sai cùng lúc: (a) isDetailScreen
+    // (dưới) tính sai → thanh nav dưới HIỆN RA khi xem màn này, dù ba đích CŨ nó thay thế
+    // (comingSoon/ecg) đều nằm trong mảng này nên nav luôn ẩn đúng; (b) navigate() gọi
+    // setActiveTab("danhMuc") — "danhMuc" không khớp id nào trong NAV_ITEMS (chỉ có 5 tab cố định)
+    // nên KHÔNG tab nào trong thanh nav vừa hiện ra được đánh dấu active. Thêm vào đây sửa cả hai.
+    "danhMuc",
   ]
 
   function navigate(s: Screen, id?: string) {
@@ -12457,6 +12535,46 @@ export default function App() {
     if (!NON_TAB_SCREENS.includes(s)) setActiveTab(s)
     setHistory((h) => [...h, screen])
     setScreen(s)
+  }
+
+  // Sinh một MucMeta loại "bai-viet" từ danh mục người dùng vừa chọn trong ChonDanhMuc, rồi mở
+  // THẲNG vào trang soạn thảo — spec §3.5 "mở thẳng TrangBaiViet", KHÁC luồng tạo sơ đồ (sơ đồ dừng
+  // lại ở lưới để đặt tên vì ba bảng trống trông giống hệt nhau; bài viết thì tiêu đề gõ ngay trong
+  // trang, không cần dừng lại).
+  //
+  // Đợt vá cuối trước hợp nhất — C2: TỪNG kết thúc bằng navigate("mindmap") — lý do lịch sử là
+  // đường mở-thẳng-một-mục-theo-id (moBangYeuCau/onMoBangYeuCauXong) chỉ được nối dây vào ĐÚNG MỘT
+  // BoardGallery (instance tab Mindmap). Hệ quả thật: vỏ soạn thảo mở đúng loại, nhưng bấm "quay
+  // lại" thì rơi vào LƯỚI MINDMAP — lưới đó lọc CỨNG loai:'so-do', nên bài viết vừa tạo không bao
+  // giờ hiện ra ở đó (đọc như "bài viết biến mất"), và thanh nav dưới sáng đèn "Mindmap" dù người
+  // dùng chưa từng chạm tab đó. Bản vá: TỔNG QUÁT HOÁ đường mở-theo-id thay vì vá chỗ hạ cánh bằng
+  // một navigate khác — đặt danhMucDangXem = danhMuc (danh mục vừa chọn) rồi navigate("danhMuc").
+  // Instance BoardGallery của nhánh "danhMuc" (bên dưới, JSX chính) nay cũng nhận
+  // moBangYeuCau/onMoBangYeuCauXong như instance Mindmap — người dùng rơi vào lưới lọc theo DANH
+  // MỤC (không lọc loai), nơi bài viết vừa tạo CÓ hiện. Xem BoardGallery.tsx (guard `dangHienTab`
+  // trên effect tiêu thụ moBangYeuCau) để biết vì sao hai instance dùng CHUNG state này không mở
+  // nhầm cả hai cùng lúc — instance Mindmap luôn mount nhưng `dangHienTab` của nó chỉ true khi
+  // screen thật sự là "mindmap".
+  const taoBaiVietMoi = async (danhMuc: IdDanhMuc) => {
+    if (dangTaoBaiVietRef.current) return
+    dangTaoBaiVietRef.current = true
+    const luc = Date.now()
+    const meta: MucMeta = {
+      id: taoIdMuc(),
+      loai: "bai-viet",
+      danhMuc,
+      ten: "Bài chưa đặt tên",
+      taoLuc: luc,
+      capNhatLuc: luc,
+      chuyenKhoa: "",
+      tags: [],
+      noiDungTimKiem: "",
+    }
+    await idbPut(IDB_STORES.mucs, meta)
+    setTaoBaiMoiDangMo(false)
+    setDanhMucDangXem(danhMuc)
+    setMoBangYeuCau(meta.id)
+    navigate("danhMuc")
   }
 
   // Sửa thuốc trong "Dùng thuốc": khác các mục khác (tra theo id từ một danh sách có sẵn ở đây),
@@ -12697,6 +12815,17 @@ export default function App() {
   // sót một chỗ là dải nổi lơ lửng giữa không trung ở đúng chiều cao của một thanh nav không còn.
   const anThanhNav = isDetailScreen || bangDangMo
 
+  // Ba tên dưới đây không còn được ĐỌC ở đâu sau Task 7 (kho-bai-viet-giai-doan-5-6): LibraryScreen/
+  // SpecialtyScreen thôi được render (thay bằng BoardGallery, xem các nhánh `screen === "library"`/
+  // `screen === "specialty"` bên dưới); `pulseKey` chỉ từng được đọc khi truyền vào SpecialtyScreen,
+  // nay không còn nơi tiêu thụ (vẫn tăng qua setPulseKey trong jumpTo(), chỉ là không ai đọc nữa).
+  // KHÔNG xoá các định nghĩa/component đó — spec §4: việc xoá mã hệ cũ là giai đoạn 8, có checklist
+  // chuỗi riêng ở §6.4. `void` chỉ để `noUnusedLocals` (tsconfig.json) không báo lỗi biên dịch,
+  // không có ý nghĩa runtime nào khác.
+  void LibraryScreen
+  void SpecialtyScreen
+  void pulseKey
+
   return (
     <div
       // `body` (index.css) đã tự ghim đúng khít khung nhìn thật bằng `position: fixed; inset: 0`.
@@ -12768,14 +12897,35 @@ export default function App() {
             // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
             // trim, header bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG MỘT LƯỢNG
             // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
+            //
+            // Task 7 review (I4) — chú thích "31px" ở trên giờ mô tả một header ĐÃ NGỪNG RENDER
+            // (SpecialtyScreen hệ cũ, thay bằng ScreenHeader dùng chung từ Task 7). Con số 31 tình
+            // cờ vẫn khớp gần đúng hàng tiêu đề MỚI (đo thật: hàng ScreenHeader cao 12→48px, tâm
+            // 30px) nên KHÔNG cần đổi trục dọc. Trục NGANG thì có: đo thật bằng
+            // getBoundingClientRect() ở 375px, màn chuyên khoa có ≥1 mục (nút "Chọn" thật sự hiện)
+            // — với `right: 18` cũ, cụm nút (chỉ SpecialtyPicker, không có ThemeToggle ở màn này)
+            // choán x:[239.78,357.33], còn nút "Chọn" choán x:[292.04,355.33] — ĐÈ HẲN lên nhau
+            // (63/63px bề ngang nút "Chọn" nằm dưới cụm nút, y cũng trùng gần hết: 13→49 so với
+            // 12→48) — chụp màn hình xác nhận nút "Chọn" biến mất hoàn toàn phía sau cụm nút.
+            // `right: 92` (đo lại SAU khi ẩn nhãn tên qua prop `thuGon` của SpecialtyPicker — xem
+            // chú thích tại đó) đẩy cụm nút sang trái đủ để hết đè "Chọn" (buffer ~9px ở mọi bề
+            // ngang màn hình, vì cả hai mép đều lấy theo `right`/padding cố định, không phải theo
+            // % — xem chứng minh trong chú thích prop `thuGon`), mà vẫn không chạm tới tiêu đề dài
+            // nhất ("Sinh lý (bệnh)", đo thật: text thật chỉ tới x=150, cụm nút thu gọn bắt đầu ở
+            // x≈223 — dư khoảng 70px). CHỈ áp dụng cho "specialty": màn "home" không có nút "Chọn"
+            // nào để đè lên, giữ nguyên 18 để cụm nút vẫn sát cạnh logo như cũ.
             style={{
               top: `calc(var(--safe-top-trim) + ${screen === "home" ? 35 : 31}px)`,
-              right: 18,
+              right: screen === "specialty" ? 92 : 18,
               transform: "translateY(-50%)",
             }}
           >
             {screen === "home" && <ThemeToggle />}
-            <SpecialtyPicker onSelect={jumpTo} currentId={screen === "home" ? "home" : specialtyId} />
+            <SpecialtyPicker
+              onSelect={jumpTo}
+              currentId={screen === "home" ? "home" : specialtyId}
+              thuGon={screen === "specialty"}
+            />
           </div>
         )}
 
@@ -12789,8 +12939,36 @@ export default function App() {
             kể cả khi màn hình khác đang hiển thị. Không có nó, thẻ bọc `absolute inset-0` kia sẽ
             neo lên #app-shell và đổi kích thước mỗi lần ẩn/hiện — đúng thứ làm mất zoom. */}
         <main className={`relative flex-1 overflow-hidden${anThanhNav ? "" : " has-nav"}`}>
-          {screen === "home" && <HomeScreen onNavigate={navigate} ecgCount={allEcgLessons.length} recentReads={recentReadItems} />}
-          {screen === "library" && <LibraryScreen onNavigate={navigate} customArticles={customArticlesCol.items} />}
+          {screen === "home" && (
+            <HomeScreen
+              onNavigate={navigate}
+              onTaoBaiMoi={() => {
+                // Đặt lại khoá chống bấm đúp mỗi lần MỞ bảng chọn — xem chú thích dài ở
+                // dangTaoBaiVietRef: không đặt lại thì lượt tạo bài THỨ HAI (sau khi lượt đầu đã
+                // thành công) sẽ bị khoá oan mãi mãi.
+                dangTaoBaiVietRef.current = false
+                setTaoBaiMoiDangMo(true)
+              }}
+              onMoDanhMuc={(d) => {
+                setDanhMucDangXem(d)
+                navigate("danhMuc")
+              }}
+              recentReads={recentReadItems}
+            />
+          )}
+          {/* Task 7: Thư viện dùng chung LuoiMuc qua BoardGallery — chỉ bài viết, loại trừ danh mục
+              "Hướng dẫn" (đứng riêng, tab của chính nó ngay dưới). LibraryScreen (hệ cũ) không còn
+              được render ở đây nhưng vẫn giữ nguyên định nghĩa — xoá là việc của giai đoạn 8. */}
+          {screen === "library" && (
+            <BoardGallery
+              dangHienTab
+              tieuDe="Thư viện"
+              loai="bai-viet"
+              danhMucLoaiTru={['huong-dan']}
+              loaiTaoDuoc={[]}
+              onDangMoBang={setBangDangMo}
+            />
+          )}
           {screen === "search" && (
             <SearchScreen
               onNavigate={navigate}
@@ -12813,21 +12991,73 @@ export default function App() {
               BoardGallery.tsx) — nên không cần cờ "đã từng vào tab" riêng như trước. */}
           <BoardGallery
             dangHienTab={screen === "mindmap"}
+            tieuDe="Sơ đồ tư duy"
+            loai="so-do"
+            loaiTaoDuoc={['so-do']}
             moBangYeuCau={moBangYeuCau}
             onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
             onDangMoBang={setBangDangMo}
           />
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
-          {screen === "guideline" && <ComingSoonScreen feature="Hướng dẫn" />}
+          {/* Task 7: Hướng dẫn dùng chung LuoiMuc — CHỈ danh mục "huong-dan" (chỉ nhận loại bài
+              viết, xem DANH_MUC.loaiChoPhep ở mucMeta.ts, nên loaiTaoDuoc chỉ có 'bai-viet').
+              ComingSoonScreen (hệ cũ) không còn render ở đây, giữ nguyên định nghĩa. */}
+          {screen === "guideline" && (
+            <BoardGallery
+              dangHienTab
+              tieuDe="Hướng dẫn"
+              danhMuc="huong-dan"
+              loaiTaoDuoc={['bai-viet']}
+              onDangMoBang={setBangDangMo}
+            />
+          )}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
+          {/* Task 7: ba thẻ Truy cập nhanh "Tiếp cận vấn đề"/"ECG"/"Phác đồ" ở Trang chủ đều mở màn
+              này — cùng component, chỉ khác `danhMucDangXem` (state App(), đặt bởi onMoDanhMuc).
+              Trộn cả hai `loai` (bài viết + sơ đồ) khi HIỂN THỊ, phân biệt bằng icon trên thẻ
+              (LuoiMuc.tsx). Thay EcgScreen (mở qua thẻ "ECG" trước Task 7) và ComingSoonScreen của
+              "Tiếp cận vấn đề"/"Phác đồ" — cả ba định nghĩa cũ vẫn còn, chỉ không còn đường nào trỏ
+              tới EcgScreen nữa (giai đoạn 8 mới xoá).
+              Đợt vá cuối trước hợp nhất — I1: loaiTaoDuoc CHỈ còn 'bai-viet' (trước là cả hai loại) —
+              LuoiMuc.tsx chỉ từng đọc loaiTaoDuoc[0] khi dựng nút "+" (loaiTaoDuoc[1] không được đọc
+              ở đâu cả, xác nhận bằng grep), nên khai cả hai loại ở đây là NÓI DỐI về khả năng thật:
+              nút "+" luôn tạo bài viết dù cấu hình ngụ ý tạo được cả sơ đồ. Không thêm UI chọn loại
+              (ngoài phạm vi cổng hợp nhất) — sơ đồ trong danh mục này vẫn tạo được, chỉ là qua tab
+              Mindmap (loaiTaoDuoc ['so-do'] ở đó), rồi tự HIỆN LẠI ở đây nhờ lọc theo `danhMuc`
+              (không lọc `loai`) — không mất khả năng, chỉ đổi lối vào cho khớp với mã thật. */}
+          {screen === "danhMuc" && danhMucDangXem && (
+            <BoardGallery
+              dangHienTab
+              tieuDe={DANH_MUC.find((d) => d.id === danhMucDangXem)?.ten ?? ''}
+              danhMuc={danhMucDangXem}
+              loaiTaoDuoc={['bai-viet']}
+              // Đợt vá cuối trước hợp nhất — C2: cùng state với instance Mindmap ở trên (taoBaiVietMoi
+              // đặt moBangYeuCau rồi navigate("danhMuc") thay vì "mindmap") — xem chú thích dài tại
+              // taoBaiVietMoi. Guard `dangHienTab` trong BoardGallery.tsx (effect tiêu thụ
+              // moBangYeuCau) đảm bảo CHỈ instance đang thật sự hiển thị mới tiêu thụ giá trị này —
+              // instance Mindmap luôn mount nhưng dangHienTab của nó false khi screen là "danhMuc",
+              // nên nó bỏ qua, không mở nhầm bài viết vào lưới sơ đồ.
+              moBangYeuCau={moBangYeuCau}
+              onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
+              onDangMoBang={setBangDangMo}
+              // Task 7 review (I2): màn này không có tab riêng trong thanh nav dưới (nay bị ẩn hẳn,
+              // xem NON_TAB_SCREENS) và không nằm trong cụm nút nổi (chỉ "home"/"specialty") — không
+              // có prop này thì ba thẻ Truy cập nhanh mở vào một màn không lối thoát nào khác ngoài
+              // vuốt-lùi hệ điều hành. navigate("home") lặp lại đúng chuỗi push-history/setActiveTab/
+              // setScreen mà mọi lượt điều hướng khác trong App() đều đi qua.
+              onQuayLai={() => navigate("home")}
+            />
+          )}
+          {/* Task 7: màn chuyên khoa (mở từ dải chọn khoa cong, SpecialtyPicker) dùng chung
+              LuoiMuc — lọc theo `chuyenKhoa`, không có nút tạo (loaiTaoDuoc: []) như Thư viện.
+              SpecialtyScreen (hệ cũ) không còn render ở đây, giữ nguyên định nghĩa. */}
           {screen === "specialty" && (
-            <SpecialtyScreen
-              specialtyId={specialtyId}
-              pulseKey={pulseKey}
-              customArticles={customArticlesCol.items}
-              customFlashcards={customFlashcardsCol.items}
-              onBack={goBack}
-              onNavigate={navigate}
+            <BoardGallery
+              dangHienTab
+              tieuDe={SPECIALTIES.find((s) => s.id === specialtyId)?.name ?? 'Chuyên khoa'}
+              chuyenKhoa={specialtyId}
+              loaiTaoDuoc={[]}
+              onDangMoBang={setBangDangMo}
             />
           )}
           {screen === "addEntry" && (
@@ -13133,6 +13363,17 @@ export default function App() {
               Sao lưu
             </button>
           </div>
+        )}
+
+        {/* Bảng chọn danh mục cho luồng "Tạo bài mới" ở Trang chủ (spec §3.5) — đứng ở App vì sau
+            khi chọn xong phải chuyển sang màn "danhMuc" đúng danh mục vừa chọn và mở mục vừa tạo,
+            xem taoBaiVietMoi (đợt vá cuối trước hợp nhất — C2, KHÔNG còn chuyển sang tab Mindmap). */}
+        {taoBaiMoiDangMo && (
+          <ChonDanhMuc
+            loai="bai-viet"
+            onChon={(d) => void taoBaiVietMoi(d)}
+            onHuy={() => setTaoBaiMoiDangMo(false)}
+          />
         )}
     </div>
   )

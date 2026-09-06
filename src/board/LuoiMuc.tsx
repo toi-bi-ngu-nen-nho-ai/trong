@@ -6,12 +6,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { SPECIALTIES } from '../data'
 import { ScreenHeader } from '../components/ScreenHeader'
-import { iconBangSoDo } from '../components/SpecialtyIcons'
+import { IconChevronBack } from '../components/IconChevronBack'
+import { iconBangSoDo, iconLoaiMuc } from '../components/SpecialtyIcons'
 import { VeChuyenKhoaDangTai } from './VeChuyenKhoaDangTai'
+import { ChonDanhMuc } from './ChonDanhMuc'
 import { IDB_STORES } from '../lib/idb'
 import { formatReadTime } from '../lib/recentReads'
 import { useIdbCollection } from '../lib/useIdbCollection'
-import { mucKhopTimKiem, type MucMeta, taoIdMuc } from './mucMeta'
+import { mucKhopTimKiem, type IdDanhMuc, type LoaiMuc, type MucMeta, taoIdMuc } from './mucMeta'
 import { donRacBlobBang, xoaNoiDungBang } from './xoaNoiDungBang'
 import { normalizeSearch } from '../lib/ui'
 
@@ -228,11 +230,15 @@ export function TheTrong({
   id,
   mauHue,
   dangVe = false,
+  loai,
 }: {
   khoa?: string
   id?: string
   mauHue?: number
   dangVe?: boolean
+  // Optional: lớp phủ FLIP (BoardGallery.tsx) dựng lại đúng cú chuyển cảnh của huy hiệu chuyên
+  // khoa, không cần badge loại — chỉ truyền từ chỗ dựng thẻ TĨNH trong lưới (xem dưới).
+  loai?: LoaiMuc
 }) {
   const spec = SPECIALTIES.find((s) => s.id === khoa)
   return (
@@ -273,6 +279,42 @@ export function TheTrong({
             lớp phủ "gập lại" lúc đóng) vẫn tĩnh: cú gập chỉ dài 260ms, không đủ để vẽ gì. */}
         {dangVe ? <VeChuyenKhoaDangTai khoa={khoa} id={id} mauHue={mauHue} /> : iconBangSoDo(khoa, 'w-full h-full')}
       </div>
+      {/* Badge LOẠI (bài viết ↔ sơ đồ) — góc trên-TRÁI của CẢ ô thẻ (div ngoài cùng, không phải ô
+          34% ở trên): huy hiệu chuyên khoa chiếm chính giữa nên không đụng. Không đặt top-right
+          (bản đầu tiên) vì đo trên Chrome thật (375px) lộ ra nút "Tuỳ chọn bảng" (LuoiMuc.tsx,
+          data-testid="menu-bang-…") đã đứng SẴN đúng góc đó — absolute top:4px right:4px, 44×44px
+          (xem JSX nút bên dưới) — badge 23×23px lọt gọn bên trong hộp 44×44 đó, đè trực tiếp lên
+          nút bấm. Góc trên-trái không có phần tử absolute nào khác (kiểm toàn bộ cây con lúc vá).
+          Chỉ render khi có `loai` — lớp phủ FLIP không truyền nó.
+
+          CỐ Ý vẫn nằm trong cây `aria-hidden="true"` của div ngoài cùng (VÒNG SỬA 1, P1) — đây là
+          hình TRANG TRÍ nhân đôi bằng hình một thông tin đã có TÊN ở nơi khác, đúng mẫu huy hiệu
+          chuyên khoa ngay phía trên (xem `tenChuyenKhoa` trong TheBang): `<title>` bên trong
+          `iconLoaiMuc()` không bao giờ tới trình đọc màn hình ở ĐÂY vì `aria-hidden` ở tổ tiên nuốt
+          toàn bộ hậu duệ — loại mục được đưa vào `aria-label` của nút "Mở bảng…" thay (biến
+          `tenLoai`, TheBang). Không chọn phương án kéo badge ra NGOÀI cây aria-hidden: cây đó ở
+          đây là CHỦ Ý (còn giấu ghim/doodle trang trí khác của thẻ), và một `<span>` không tương
+          tác đứng ngoài cây vẫn phải tự quản lý để không lẫn vào thứ tự tab — phức tạp hơn hẳn một
+          đoạn nối chuỗi vào aria-label đã có sẵn.
+
+          Màu: `--c-on-note-muted` chữ / `--c-note-edge` nền tròn — CẶP TOKEN CỦA GIẤY (xem
+          --c-on-note/--c-on-note-muted tại :root, index.css: "Thêm bất cứ thứ gì vẽ trên
+          .mind-note-card thì tô bằng hai token này, đừng dùng --c-text*"). Badge vẽ TRÊN
+          .mind-note-card, mà giấy đó CỐ Ý không đổi màu theo theme — bản đầu (VÒNG SỬA 1, P2)
+          dùng `--c-text-soft`/`--c-surface`: --c-text-soft LẬT gần-trắng ở bản tối (đúng khiếm
+          khuyết P0 mà --c-on-note/-muted sinh ra để chặn — nút "⋯" từng đo 1,03:1, huy hiệu chuyên
+          khoa 2,69:1, xem comment tại --c-on-note) và --c-surface lật tối, đục một đĩa tối lên tờ
+          giấy sáng. `--c-note-edge` là VẬT LIỆU của giấy (mép đáy, tối hơn mặt giấy một bậc, dịch
+          cùng bậc với --c-note ở cả hai bản — xem comment tại đó) nên nền tròn vẫn đọc là một phần
+          của tờ giấy, không phải vỏ app. */}
+      {loai && (
+        <span
+          className="absolute top-1 left-1 rounded-full p-1"
+          style={{ background: 'var(--c-note-edge, #e6e4dc)', color: 'var(--c-on-note-muted, #5c5f7a)' }}
+        >
+          {iconLoaiMuc(loai, 'w-3.5 h-3.5')}
+        </span>
+      )}
     </div>
   )
 }
@@ -406,6 +448,12 @@ function TheBang({
   // vào artwork trang trí), nên người dùng trình đọc màn hình không có cách nào khác biết bảng này
   // thuộc chuyên khoa nào trong khi người dùng sáng mắt thấy ngay qua icon+màu (critique 2026-08-26 P3).
   const tenChuyenKhoa = SPECIALTIES.find((s) => s.id === (bang.chuyenKhoa ?? SPECIALTIES[0].id))?.name
+  // Tên LOẠI mục cho aria-label — CÙNG LÝ DO đúng phía trên nhưng cho badge loại (bài viết ↔ sơ
+  // đồ) ở TheTrong: badge đó CỐ Ý vẫn nằm trong cây `aria-hidden="true"` (hình trang trí, xem
+  // comment tại chỗ render badge trong TheTrong), nên `<title>` bên trong `iconLoaiMuc()` không
+  // bao giờ tới trình đọc màn hình — trước bản vá này, người dùng trình đọc màn hình có 0 tín hiệu
+  // phân biệt bài viết với sơ đồ trong lưới dù người sáng mắt thấy ngay qua icon (VÒNG SỬA 1, P1).
+  const tenLoai = bang.loai === 'bai-viet' ? 'bài viết' : 'sơ đồ'
 
   // Tính "vừa tạo" bằng ĐỒNG HỒ RIÊNG của thẻ, không phải mốc đông cứng lúc LuoiMuc mount —
   // trước đây parent chụp `Date.now()` một lần lúc MOUNT rồi so cho MỌI thẻ; bảng tạo SAU khi
@@ -610,10 +658,10 @@ function TheBang({
         // mang tên mặc định — đúng nhánh gây nhầm lẫn, không đụng tới bảng đã có tên/khoa riêng.
         aria-label={
           tenChuyenKhoa
-            ? `Mở bảng ${bang.ten}, chuyên khoa ${tenChuyenKhoa}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+            ? `Mở bảng ${bang.ten}, loại ${tenLoai}, chuyên khoa ${tenChuyenKhoa}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
             : bang.ten === TEN_MAC_DINH
-              ? `Mở bảng chưa đặt tên thứ ${index + 1}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
-              : `Mở bảng ${bang.ten}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+              ? `Mở bảng chưa đặt tên thứ ${index + 1}, loại ${tenLoai}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
+              : `Mở bảng ${bang.ten}, loại ${tenLoai}, cập nhật ${formatReadTime(bang.capNhatLuc)}`
         }
       >
         <div
@@ -645,7 +693,7 @@ function TheBang({
               color: 'var(--c-text-muted, #6b6e96)',
             }}
           >
-            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} mauHue={bang.mauHue} />
+            <TheTrong khoa={bang.chuyenKhoa ?? SPECIALTIES[0].id} id={bang.id} mauHue={bang.mauHue} loai={bang.loai} />
           </div>
           {/* Không còn cây ghim vẽ trên thẻ — chủ dự án yêu cầu bỏ hẳn (2026-08-29: "xóa ghim").
               Phân biệt bảng cùng tên mặc định vẫn còn: icon + màu chuyên khoa trong TheTrong, tên,
@@ -1051,15 +1099,68 @@ function LuoiChoTai() {
   )
 }
 
+/**
+ * Bốn trục lọc của lưới. Mọi trường optional và mặc định "không lọc" — đó là điều kiện để tab
+ * Mindmap không đổi hành vi khi màn khác bắt đầu dùng chung component này (spec §3.5).
+ */
+export type BoLocMuc = {
+  loai?: LoaiMuc
+  danhMuc?: IdDanhMuc
+  /** Riêng tab Thư viện. Prop RIÊNG thay vì nhồi ngữ nghĩa "trừ" vào `danhMuc` — spec §3.5. */
+  danhMucLoaiTru?: IdDanhMuc[]
+  chuyenKhoa?: string
+}
+
+/**
+ * Lọc thuần, tách khỏi component để ca kiểm gọi được mà không phải dựng cả cây React (lưới có FLIP,
+ * ResizeObserver và bảy state — dựng nó chỉ để hỏi "danh sách nào hiện ra" là đắt và giòn).
+ *
+ * Xoá mềm luôn bị loại ở đây, không phải một trục lọc: panel "Đã xoá gần đây" đọc `danhSach` gốc
+ * chứ không đi qua hàm này.
+ */
+export function locTheoProps(ds: MucMeta[], p: BoLocMuc): MucMeta[] {
+  return ds.filter((m) => {
+    if (m.daXoaLuc) return false
+    if (p.loai && m.loai !== p.loai) return false
+    if (p.danhMuc && m.danhMuc !== p.danhMuc) return false
+    if (p.danhMucLoaiTru?.includes(m.danhMuc)) return false
+    // `chuyenKhoa: ''` nghĩa là CHƯA GẮN khoa (xem taoBangMoi) — nó không khớp bất kỳ khoa cụ thể
+    // nào, và cũng không phải "khớp tất cả". So sánh thẳng là đúng ngữ nghĩa đó.
+    if (p.chuyenKhoa && m.chuyenKhoa !== p.chuyenKhoa) return false
+    return true
+  })
+}
+
 export function LuoiMuc({
   onMoBang,
   dungTuBang,
   onHieuUngXong,
+  tieuDe,
+  loai,
+  danhMuc,
+  danhMucLoaiTru,
+  chuyenKhoa,
+  loaiTaoDuoc,
+  onQuayLai,
 }: {
-  onMoBang: (boardId: string, origin?: BoardOpenOrigin, ten?: string) => void
+  // Tham số thứ tư `loai` — thêm ở Task 5: đường mở-qua-thẻ (đây, KHÁC đường `moBangYeuCau` của
+  // App.tsx đi thẳng qua IndexedDB) là con đường CHÍNH người dùng dùng để mở một mục, nên nó phải tự
+  // báo loại của bản ghi vừa bấm lên BoardGallery — thiếu tham số này thì BoardGallery không có cách
+  // nào biết chọn vỏ EdgelessBoard hay TrangBaiViet cho MỌI lượt mở qua lưới.
+  onMoBang: (boardId: string, origin?: BoardOpenOrigin, ten?: string, loai?: LoaiMuc) => void
   dungTuBang?: boolean
   onHieuUngXong?: () => void
-}) {
+  /** Tiêu đề màn — trước lượt này viết cứng "Sơ đồ tư duy" ở ba chỗ. */
+  tieuDe: string
+  /** `[]` = màn này KHÔNG có nút tạo (Thư viện, màn chuyên khoa). */
+  loaiTaoDuoc: LoaiMuc[]
+  /**
+   * Task 7 review (I2) — chỉ màn "danhMuc" của App.tsx truyền prop này (xem BoardGallery.tsx).
+   * Render một nút quay lại vào slot `actions` của ScreenHeader, CẠNH nút "Chọn" nếu nút đó cũng
+   * đang hiện — hai màn này không loại trừ nhau (lưới có mục thì cả hai cùng hiện).
+   */
+  onQuayLai?: () => void
+} & BoLocMuc) {
   // useIdbCollection tự nạp danh sách lúc mount (fetch một lần, xem src/lib/useIdbCollection.ts)
   // và cập nhật `items` CỤC BỘ NGAY khi add/update/remove được gọi — ghi IndexedDB chạy nền
   // (fire-and-forget), không chặn re-render. Đây là mẫu ĐÃ CÓ SẴN, dùng chung với ECG lessons/bài
@@ -1079,8 +1180,11 @@ export function LuoiMuc({
     // effect dangChoXoa). Chỉ panel "Đã xoá gần đây" bên dưới dùng: tích chọn kiểu Recycle Bin rồi
     // xoá hẳn hoặc khôi phục hàng loạt. Không hoàn tác được nên có bước xác nhận riêng.
     remove,
-  } = useIdbCollection<MucMeta>(IDB_STORES.boards)
+  } = useIdbCollection<MucMeta>(IDB_STORES.mucs)
   const [dangSuaTenId, setDangSuaTenId] = useState<string | null>(null)
+  // Danh mục chưa chọn xong thì chưa có bản ghi nào — quyết định 7 cấm trạng thái chưa-phân-loại,
+  // nên bảng chọn phải đứng TRƯỚC lượt `add()`, không phải sau.
+  const [dangChonDanhMuc, setDangChonDanhMuc] = useState<LoaiMuc | null>(null)
   // Bản sao ĐỒNG BỘ của "đang có bảng chờ đặt tên", chỉ dùng làm khoá cho taoBangMoi — xem chú
   // thích dài tại đó. Ref chứ không phải state vì state React chỉ thấy được ở lượt render SAU.
   const dangSuaTenRef = useRef<string | null>(null)
@@ -1325,7 +1429,7 @@ export function LuoiMuc({
         {/* Cùng lớp bọc cột nội dung với trạng thái lưới đầy đủ bên dưới — xem chú thích ở đó,
             gồm cả lý do cần `w-full` khi lớp bọc là con của flex column. */}
         <div className="mind-board-wrap w-full">
-          <ScreenHeader title="Sơ đồ tư duy" />
+          <ScreenHeader title={tieuDe} />
         </div>
         <div className="scroll-ios flex-1">
           <div className="mind-board-wrap">
@@ -1347,7 +1451,7 @@ export function LuoiMuc({
         {/* Cùng lớp bọc cột nội dung với trạng thái lưới đầy đủ bên dưới — xem chú thích ở đó,
             gồm cả lý do cần `w-full` khi lớp bọc là con của flex column. */}
         <div className="mind-board-wrap w-full">
-          <ScreenHeader title="Sơ đồ tư duy" />
+          <ScreenHeader title={tieuDe} />
         </div>
         <div className="scroll-ios flex-1">
           <div className="mind-board-wrap">
@@ -1405,17 +1509,24 @@ export function LuoiMuc({
       </div>
     )
 
-  // Lọc bỏ bang đã xoá mềm (daXoaLuc) khỏi lưới hiển thị — chúng vẫn còn thật trong IndexedDB.
+  // Bộ lọc bốn trục theo props màn (loai/danhMuc/danhMucLoaiTru/chuyenKhoa, xem locTheoProps —
+  // hàm đó đã tự trừ xoá mềm). MỌI chỗ dựng lưới hiển thị dưới đây lấy từ biến này thay vì lọc lại
+  // `danhSach` gốc, ĐỂ NGUYÊN hai ngoại lệ cố ý: panel "Đã xoá gần đây" (daXoaGanDay ngay dưới) và
+  // `hueHienCo` trong taoBangMoi — cả hai cần đọc danhSach GỐC, xem chú thích tại từng chỗ.
+  const danhSachTheoProp = locTheoProps(danhSach, { loai, danhMuc, danhMucLoaiTru, chuyenKhoa })
   // Chip chuyên khoa lọc THÊM sau đó — bang thiếu chuyenKhoa (bản ghi cũ chưa backfill, xem
-  // mucMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES.
+  // mucMeta.ts) coi như thuộc chuyên khoa đầu tiên trong SPECIALTIES. Đây là bộ lọc PHIÊN của
+  // riêng tab Mindmap (chip/ô tìm), khác `chuyenKhoa` ở trên (prop cấu hình theo MÀN).
   // Ô tìm lọc THÊM lần nữa (giao của cả hai, không phải hoặc): mucKhopTimKiem gộp tên/chuyên
   // khoa/tag/nội dung trích được và bỏ dấu hai phía (xem mucMeta.ts), truy vấn rỗng luôn khớp.
-  const danhSachSapXep = [...danhSach]
-    .filter((b) => !b.daXoaLuc)
+  const danhSachSapXep = danhSachTheoProp
     .filter((b) => !chuyenKhoaLoc || (b.chuyenKhoa ?? SPECIALTIES[0].id) === chuyenKhoaLoc)
     .filter((b) => mucKhopTimKiem(b, truyVan))
     .sort((a, b) => b.capNhatLuc - a.capNhatLuc)
   // Xoá gần đây nhất lên đầu — người mở panel này thường đang tìm đúng bảng vừa lỡ tay bấm Hoàn tác.
+  // NGOẠI LỆ CỐ Ý (KHÔNG đổi): đọc thẳng `danhSach` gốc, không qua locTheoProps/danhSachTheoProp —
+  // panel này phải liệt kê đúng những mục `daXoaLuc` có giá trị, bất kể mục đó thuộc loại/danh mục
+  // nào của màn hiện tại.
   const daXoaGanDay = danhSach.filter((b) => b.daXoaLuc).sort((a, b) => (b.daXoaLuc ?? 0) - (a.daXoaLuc ?? 0))
   // Lưới rỗng vì BỘ LỌC hoàn toàn khác lưới rỗng vì chưa có bảng nào: mời "Bắt đầu một sơ đồ tư duy
   // mới" trong tình huống này vừa sai sự thật (bảng vẫn còn nguyên, chỉ đang bị lọc khuất) vừa đẩy
@@ -1423,7 +1534,7 @@ export function LuoiMuc({
   const rongDoBoLoc =
     danhSachSapXep.length === 0 &&
     (truyVan.trim().length > 0 || chuyenKhoaLoc !== null) &&
-    danhSach.filter((b) => !b.daXoaLuc).length > 0
+    danhSachTheoProp.length > 0
 
   // Lưới GẦN-trống (1-3 bảng thật, xem lời mời phía dưới .mind-board-grid): với chỉ vài thẻ, lưới
   // 2-4 cột chỉ lấp một hàng trên cùng, để lại phần lớn màn hình dưới nếp gấp là khoảng trắng chết —
@@ -1435,7 +1546,7 @@ export function LuoiMuc({
   // khi lưới đang cho xem ĐÚNG toàn bộ thư viện thật (không lọc/tìm, không phải một tập con ngẫu
   // nhiên trông mỏng), nên "mới bắt đầu" luôn đúng sự thật khi nó hiện ra.
   const dangXemDayDuKhongLoc = !chuyenKhoaLoc && truyVan.trim().length === 0
-  const tongSoBangConLai = danhSach.filter((b) => !b.daXoaLuc).length
+  const tongSoBangConLai = danhSachTheoProp.length
   const ganTrong = dangXemDayDuKhongLoc && tongSoBangConLai > 0 && tongSoBangConLai <= 3
 
   // Bỏ xoá mềm cho một bảng (cả hai nút "Hoàn tác": dải toast và panel "Đã xoá gần đây").
@@ -1558,6 +1669,31 @@ export function LuoiMuc({
     // đường đó vẫn do khoá ref bên dưới trông.
     if ((e?.detail ?? 0) > 1) return
     if (dangSuaTenRef.current) return
+    // Màn đã lọc sẵn theo một danh mục (thẻ Trang chủ) thì không hỏi lại — người dùng vừa đứng
+    // trong đúng danh mục đó.
+    if (danhMuc) {
+      taoMucVoiDanhMuc(loaiTaoDuoc[0], danhMuc)
+      return
+    }
+    setDangChonDanhMuc(loaiTaoDuoc[0])
+  }
+
+  // Phần TẠO BẢN GHI thật của taoBangMoi (xem chú thích khoá chống bấm đúp ở đó) — tách ra vì giờ có
+  // HAI đường tới đây: bấm "+" khi màn đã lọc sẵn một danh mục (gọi thẳng), hoặc bấm "+" khi màn
+  // KHÔNG lọc (đợi người dùng chọn qua ChonDanhMuc rồi mới gọi, xem `dangChonDanhMuc` bên dưới).
+  // `loaiMuc`/`danhMucChon` truyền tay thay vì đọc `loaiTaoDuoc[0]`/`danhMuc` từ closure vì đường
+  // thứ hai không có cả hai giá trị đó sẵn trong prop — chúng đến từ lựa chọn thật của người dùng.
+  const taoMucVoiDanhMuc = (loaiMuc: LoaiMuc, danhMucChon: IdDanhMuc) => {
+    // Khoá chống bấm đúp — CÙNG lớp lỗi đã vá cho nút "+" ở taoBangMoi (đọc chú thích dài ở đó),
+    // nay lặp lại ở đường thứ hai: nút danh mục trong ChonDanhMuc không mang khoá `e.detail>1`
+    // (component đó chỉ được phép import React + ./mucMeta — không thêm logic khoá), và `onChon`
+    // gọi `setDangChonDanhMuc(null)` là một state React (chỉ có tác dụng ở lượt render SAU) trước
+    // khi gọi ĐỒNG BỘ hàm này. Hai cú click trúng nút danh mục trước khi React kịp gỡ lớp phủ
+    // (double-fire trên một số trình duyệt cảm ứng — xem taoBangMoi) sẽ chạy trọn hàm này hai lần
+    // nếu không có khoá: `taoIdMuc()` sinh hai id khác nhau, `add()` ghi hai bản ghi cho một cú
+    // bấm. `dangSuaTenRef` là ref — cập nhật NGAY (không đợi render) — nên cú gọi thứ hai đọc được
+    // giá trị 'dang-tao' mà cú gọi đầu vừa gán và thoát sớm ở đây, trước khi tới `add()`.
+    if (dangSuaTenRef.current) return
     dangSuaTenRef.current = 'dang-tao'
     const luc = Date.now()
     // Tính TRƯỚC lúc tạo bản ghi — mauHueChongTrung cần biết hue các bảng ĐANG SỐNG (bỏ qua xoá
@@ -1566,6 +1702,8 @@ export function LuoiMuc({
     const hueHienCo = danhSach.filter((b) => !b.daXoaLuc).map((b) => b.mauHue ?? mauOnDinh(b.id))
     const meta: MucMeta = {
       id: taoIdMuc(),
+      loai: loaiMuc,
+      danhMuc: danhMucChon,
       ten: TEN_MAC_DINH,
       taoLuc: luc,
       capNhatLuc: luc,
@@ -1603,6 +1741,10 @@ export function LuoiMuc({
     setTruyVan('')
   }
 
+  // Tách khỏi JSX actions bên dưới (Task 7 review, I2) — giờ actions còn phải xét thêm `onQuayLai`,
+  // để điều kiện gốc lẫn vào một biểu thức dài hơn dễ đọc sai.
+  const hienNutChon = danhSachSapXep.length > 0 || dangChonNhieu
+
   return (
     <>
     {/* `screen-transition` (index.css: fadeSlideIn) — CÙNG hiệu ứng vào màn với "Hướng dẫn"/"Thẻ ghi
@@ -1623,48 +1765,79 @@ export function LuoiMuc({
           lại đúng hành vi "trải hết rồi kẹp ở 1040px". */}
       <div className="mind-board-wrap w-full">
         <ScreenHeader
-          title="Sơ đồ tư duy"
+          title={tieuDe}
           // Lối vào tường minh cho chọn-nhiều trên lưới sống (khác nhấn-giữ/"⋯" của từng thẻ) —
           // /impeccable shape 2026-09-01 đã xác nhận hướng này thay vì mượn nhấn-giữ (nhấn-giữ vẫn
           // vô hình qua 3 lượt critique, không nên chồng thêm một chức năng ẩn nữa lên nó). Ẩn khi
           // lưới trống thật (không có gì để chọn) — vẫn hiện nếu đang bật dở (dangChonNhieu) để
           // luôn có đường "Huỷ", kể cả khi bộ lọc vừa đổi làm lưới hiện tại trống.
+          //
+          // Task 7 review (I2): nút quay lại (onQuayLai, chỉ màn "danhMuc" truyền) đứng TRƯỚC nút
+          // "Chọn" trong CÙNG slot `actions` — hai điều kiện độc lập, có thể cùng hiện (lưới có mục
+          // VÀ đang ở màn danhMuc). `hienNutChon`/`onQuayLai` không loại trừ nhau nên bọc chung
+          // trong Fragment thay vì if/else.
           actions={
-            danhSachSapXep.length > 0 || dangChonNhieu ? (
-              <button
-                type="button"
-                data-testid="chon-nhieu-song-toggle"
-                onClick={() => {
-                  if (!dangChonNhieu) {
-                    // Trước bản vá này, bật chọn-nhiều trong khi một ô đổi tên đang mở (autoFocus
-                    // sau khi bấm "+") để lại CẢ HAI affordance chỉnh sửa cùng hiện trên một thẻ:
-                    // checkbox (nhánh `chonNhieu &&`) và ô nhập tên (nhánh `dangSuaTen &&`) là hai
-                    // điều kiện render ĐỘC LẬP, không cái nào biết tới cái kia (critique 2026-09-03
-                    // lượt 6, P3). Blur() phần tử đang focus (nếu đúng là ô đổi tên) chạy lại CHÍNH
-                    // luồng lưu đã có sẵn (`onBlur` → `onLuuTen(tenCanLuu())`) thay vì âm thầm bỏ
-                    // qua/mất chữ đang gõ dở — không cần lift state `tenNhap` lên đây.
-                    ;(document.activeElement as HTMLElement | null)?.blur?.()
-                  }
-                  dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true)
-                }}
-                aria-pressed={dangChonNhieu}
-                className="mind-focus-ring"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  minHeight: 36,
-                  padding: '0 14px',
-                  borderRadius: 9999,
-                  border: '1px solid var(--c-line, #d9ddf4)',
-                  background: dangChonNhieu ? 'var(--c-primary, #2d3a94)' : 'none',
-                  color: dangChonNhieu ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {dangChonNhieu ? 'Huỷ' : 'Chọn'}
-              </button>
+            onQuayLai || hienNutChon ? (
+              <>
+                {onQuayLai && (
+                  <button
+                    type="button"
+                    data-testid="quay-lai-danh-muc"
+                    onClick={onQuayLai}
+                    aria-label="Quay lại Trang chủ"
+                    className="mind-focus-ring"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 9999,
+                      border: '1px solid var(--c-line, #d9ddf4)',
+                      background: 'none',
+                      color: 'var(--c-text, #1c1f36)',
+                    }}
+                  >
+                    <IconChevronBack style={{ width: 18, height: 18 }} />
+                  </button>
+                )}
+                {hienNutChon && (
+                  <button
+                    type="button"
+                    data-testid="chon-nhieu-song-toggle"
+                    onClick={() => {
+                      if (!dangChonNhieu) {
+                        // Trước bản vá này, bật chọn-nhiều trong khi một ô đổi tên đang mở (autoFocus
+                        // sau khi bấm "+") để lại CẢ HAI affordance chỉnh sửa cùng hiện trên một thẻ:
+                        // checkbox (nhánh `chonNhieu &&`) và ô nhập tên (nhánh `dangSuaTen &&`) là hai
+                        // điều kiện render ĐỘC LẬP, không cái nào biết tới cái kia (critique 2026-09-03
+                        // lượt 6, P3). Blur() phần tử đang focus (nếu đúng là ô đổi tên) chạy lại CHÍNH
+                        // luồng lưu đã có sẵn (`onBlur` → `onLuuTen(tenCanLuu())`) thay vì âm thầm bỏ
+                        // qua/mất chữ đang gõ dở — không cần lift state `tenNhap` lên đây.
+                        ;(document.activeElement as HTMLElement | null)?.blur?.()
+                      }
+                      dangChonNhieu ? thoatChonNhieu() : setDangChonNhieu(true)
+                    }}
+                    aria-pressed={dangChonNhieu}
+                    className="mind-focus-ring"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 36,
+                      padding: '0 14px',
+                      borderRadius: 9999,
+                      border: '1px solid var(--c-line, #d9ddf4)',
+                      background: dangChonNhieu ? 'var(--c-primary, #2d3a94)' : 'none',
+                      color: dangChonNhieu ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {dangChonNhieu ? 'Huỷ' : 'Chọn'}
+                  </button>
+                )}
+              </>
             ) : undefined
           }
         />
@@ -1699,7 +1872,7 @@ export function LuoiMuc({
           xuống dải chip ngay dưới, kéo cụm "tiêu đề → ô tìm" rời khỏi nhóm "thu hẹp danh sách" mà nó
           thuộc về. 4px đủ để hai viền không dính nhau mà không lặp lại đúng khoảng đệm ScreenHeader
           vừa cấp — gap còn lại đo được ~21px, dưới hẳn 29px cũ, vẫn trên hẳn 10px xuống dải chip. */}
-      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (
+      {danhSachTheoProp.length > 0 && (
         <div style={{ padding: '4px 20px 10px' }}>
           {/* CÙNG khuôn "pill" với ô tìm toàn app (HomeScreen / SearchScreen): nền --c-line-soft, bo
               2xl, icon kính lúp bên trái, nút × xoá nhanh khi có chữ. Trước đây là ô viền mảnh nền
@@ -1759,18 +1932,19 @@ export function LuoiMuc({
           </div>
         </div>
       )}
-      {/* Dải chip chuyên khoa — cùng cổng `danhSach GỐC (trừ xoá mềm) > 0` với ô tìm ở trên (gắn
-          vào danh sách đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
-      {danhSach.filter((b) => !b.daXoaLuc).length > 0 && (() => {
+      {/* Dải chip chuyên khoa — cùng cổng `danhSachTheoProp > 0` với ô tìm ở trên (gắn vào danh sách
+          đã lọc thì gõ ký tự không khớp sẽ unmount chính control đang thao tác). */}
+      {danhSachTheoProp.length > 0 && (() => {
         // Số bảng mỗi khoa — TÍNH ĐÚNG như bộ lọc thật ở `danhSachSapXep` (`.filter` gộp bảng chưa
         // gắn khoa vào SPECIALTIES[0]), nên badge số khớp đúng thứ người dùng thấy sau khi bấm.
+        // Đếm trên `danhSachTheoProp` (đã qua bốn trục props của màn), KHÔNG phải `danhSach` gốc —
+        // nếu không, một màn lọc `loai: 'so-do'` sẽ đếm nhầm cả bài viết vào badge chuyên khoa.
         const demTheoKhoa = new Map<string, number>()
-        for (const b of danhSach) {
-          if (b.daXoaLuc) continue
+        for (const b of danhSachTheoProp) {
           const k = b.chuyenKhoa ?? SPECIALTIES[0].id
           demTheoKhoa.set(k, (demTheoKhoa.get(k) ?? 0) + 1)
         }
-        const tongBang = danhSach.filter((b) => !b.daXoaLuc).length
+        const tongBang = danhSachTheoProp.length
 
         // Chip nào được lên dải: 3 khoa CÓ NHIỀU BẢNG NHẤT của chính người dùng này. Trước đây là
         // `SPECIALTIES.slice(0, 2)` — tức Tim mạch + Hô hấp, được chọn vì chúng đứng đầu MẢNG DỮ
@@ -2536,20 +2710,24 @@ export function LuoiMuc({
               Xoá bộ lọc
             </button>
           ) : (
-            <button
-              type="button"
-              data-testid="tao-bang"
-              onClick={taoBangMoi}
-              onMouseDown={giuFocusKhiBamDup}
-              // .mind-o-tao-bang + .mind-o-moi (index.css): viền ĐỨT nét ngắn + nền phớt --c-accent-2
-              // nhạt, dấu "+" magenta (DESIGN.md "The One Other Place Rule") — tự đổi sáng/tối.
-              // .mind-o-moi CHỈ trên ô "+", không trên nút "Xoá bộ lọc" cũng mượn .mind-o-tao-bang.
-              className="mind-focus-ring mind-o-tao-bang mind-o-moi"
-              style={{ width: 104, height: 78, fontSize: 28 }}
-              aria-label="Tạo bảng mới"
-            >
-              +
-            </button>
+            // `loaiTaoDuoc.length > 0`: màn không có quyền tạo (Thư viện, màn chuyên khoa) không
+            // được mời tạo gì — ô "+" biến mất hẳn thay vì hiện ra rồi vô hiệu.
+            loaiTaoDuoc.length > 0 && (
+              <button
+                type="button"
+                data-testid="tao-bang"
+                onClick={taoBangMoi}
+                onMouseDown={giuFocusKhiBamDup}
+                // .mind-o-tao-bang + .mind-o-moi (index.css): viền ĐỨT nét ngắn + nền phớt --c-accent-2
+                // nhạt, dấu "+" magenta (DESIGN.md "The One Other Place Rule") — tự đổi sáng/tối.
+                // .mind-o-moi CHỈ trên ô "+", không trên nút "Xoá bộ lọc" cũng mượn .mind-o-tao-bang.
+                className="mind-focus-ring mind-o-tao-bang mind-o-moi"
+                style={{ width: 104, height: 78, fontSize: 28 }}
+                aria-label="Tạo bảng mới"
+              >
+                +
+              </button>
+            )
           )}
         </div>
       ) : (
@@ -2571,30 +2749,32 @@ export function LuoiMuc({
               trên iPhone thì 20 bảng = 10 hàng: hành động chính của màn trôi xuống sau ~10 hàng
               cuộn, ngày càng xa theo mức độ dùng app. Đưa lên đầu vừa ghim vị trí cố định vừa đưa
               nó về vùng ngón cái với tới ngay khi mở màn. Ngôn ngữ thị giác giữ nguyên. */}
-          <button
-            type="button"
-            data-testid="tao-bang"
-            onClick={taoBangMoi}
-            onMouseDown={giuFocusKhiBamDup}
-            // disabled khi đang chọn-nhiều: tạo bảng mới tự mở ô đổi tên (taoBangMoi) — trộn với chế
-            // độ chọn (checkbox thay "⋯") ra một thẻ vừa mời gõ tên vừa mời tích chọn cùng lúc, rối
-            // hơn là hữu ích. "Chọn" ở header vẫn còn đó để thoát trước khi tạo bảng mới.
-            disabled={dangChonNhieu}
-            // Cùng .mind-o-tao-bang + .mind-o-moi với ô "+" ở trạng thái rỗng phía trên — một nguồn
-            // sự thật cho viền đứt/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
-            className="mind-focus-ring mind-o-tao-bang mind-o-moi"
-            // height:100% (thay aspectRatio:'4/3' cũ) — thẻ .the-bang cao = mặt 4:3 CỘNG hai dòng
-            // tên + mốc thời gian bên dưới, nên ô "+" 4:3-trơn thấp hơn thẻ cùng hàng ~37px, để lại
-            // một khe trống dưới hành động chính ngay ở màn hình đầu, đọc thành lỗi render (critique
-            // 2026-09-03, P3). Grid item mặc định `align-self: stretch` nên bỏ chiều cao cố định là
-            // ô tự cao bằng hàng; display:grid + placeItems:center giữ dấu "+" ở giữa toàn bộ chiều
-            // cao mới đó. minHeight 96 chỉ là sàn cho ca suy biến (một hàng chỉ có ô "+" + một thẻ
-            // tên rất ngắn) — hàng có thẻ thật luôn cao hơn nhiều.
-            style={{ height: '100%', minHeight: 96, display: 'grid', placeItems: 'center', fontSize: 24, opacity: dangChonNhieu ? 0.4 : 1 }}
-            aria-label="Tạo bảng mới"
-          >
-            +
-          </button>
+          {loaiTaoDuoc.length > 0 && (
+            <button
+              type="button"
+              data-testid="tao-bang"
+              onClick={taoBangMoi}
+              onMouseDown={giuFocusKhiBamDup}
+              // disabled khi đang chọn-nhiều: tạo bảng mới tự mở ô đổi tên (taoBangMoi) — trộn với chế
+              // độ chọn (checkbox thay "⋯") ra một thẻ vừa mời gõ tên vừa mời tích chọn cùng lúc, rối
+              // hơn là hữu ích. "Chọn" ở header vẫn còn đó để thoát trước khi tạo bảng mới.
+              disabled={dangChonNhieu}
+              // Cùng .mind-o-tao-bang + .mind-o-moi với ô "+" ở trạng thái rỗng phía trên — một nguồn
+              // sự thật cho viền đứt/nền/màu, đây chỉ khác cỡ (dãn theo ô lưới thay vì cố định).
+              className="mind-focus-ring mind-o-tao-bang mind-o-moi"
+              // height:100% (thay aspectRatio:'4/3' cũ) — thẻ .the-bang cao = mặt 4:3 CỘNG hai dòng
+              // tên + mốc thời gian bên dưới, nên ô "+" 4:3-trơn thấp hơn thẻ cùng hàng ~37px, để lại
+              // một khe trống dưới hành động chính ngay ở màn hình đầu, đọc thành lỗi render (critique
+              // 2026-09-03, P3). Grid item mặc định `align-self: stretch` nên bỏ chiều cao cố định là
+              // ô tự cao bằng hàng; display:grid + placeItems:center giữ dấu "+" ở giữa toàn bộ chiều
+              // cao mới đó. minHeight 96 chỉ là sàn cho ca suy biến (một hàng chỉ có ô "+" + một thẻ
+              // tên rất ngắn) — hàng có thẻ thật luôn cao hơn nhiều.
+              style={{ height: '100%', minHeight: 96, display: 'grid', placeItems: 'center', fontSize: 24, opacity: dangChonNhieu ? 0.4 : 1 }}
+              aria-label="Tạo bảng mới"
+            >
+              +
+            </button>
+          )}
           {danhSachSapXep.map((bang, index) => (
             <TheBang
               key={bang.id}
@@ -2611,7 +2791,7 @@ export function LuoiMuc({
               // Đang chọn-nhiều thì tap vào thẻ = chọn/bỏ chọn, KHÔNG mở bảng — đổi ngay tại đây,
               // không phải trong TheBang, nên nút vật lý/pointer-handling của TheBang không cần biết
               // gì về chế độ chọn (xem chú thích tại prop chonNhieu của TheBang).
-              onMo={dangChonNhieu ? () => chuyenChonNhieuSong(bang.id) : (origin) => onMoBang(bang.id, origin, bang.ten)}
+              onMo={dangChonNhieu ? () => chuyenChonNhieuSong(bang.id) : (origin) => onMoBang(bang.id, origin, bang.ten, bang.loai)}
               onBatMenu={
                 dangChonNhieu
                   ? () => {}
@@ -3008,6 +3188,16 @@ export function LuoiMuc({
         </div>
       )
     })()}
+    {dangChonDanhMuc && (
+      <ChonDanhMuc
+        loai={dangChonDanhMuc}
+        onChon={(d) => {
+          setDangChonDanhMuc(null)
+          taoMucVoiDanhMuc(dangChonDanhMuc, d)
+        }}
+        onHuy={() => setDangChonDanhMuc(null)}
+      />
+    )}
     </>
   )
 }
