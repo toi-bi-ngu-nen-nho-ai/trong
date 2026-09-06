@@ -25,7 +25,7 @@ async function goVaoOTim(o: HTMLInputElement, chu: string) {
   })
 }
 
-describe('SearchScreen — kết quả loại "board"', () => {
+describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
   let container: HTMLDivElement
   let root: Root
 
@@ -40,15 +40,17 @@ describe('SearchScreen — kết quả loại "board"', () => {
       root.unmount()
     })
     container.remove()
-    // fake-indexeddb giữ state giữa các ca trong cùng file — dọn sạch để ca sau không thấy bảng cũ.
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    // fake-indexeddb giữ state giữa các ca trong cùng file — dọn sạch để ca sau không thấy mục cũ.
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
   })
 
-  it('gõ tên một bảng đã lưu → xuất hiện trong kết quả, bấm vào gọi onNavigate("mindmap", id)', async () => {
+  it('gõ tên một sơ đồ đã lưu → xuất hiện trong kết quả, bấm vào gọi onMoMuc(id, "so-do", danhMuc)', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-1',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Suy tim EF giảm',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -58,10 +60,12 @@ describe('SearchScreen — kết quả loại "board"', () => {
     })
 
     const onNavigate = vi.fn()
+    const onMoMuc = vi.fn()
     await act(async () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate,
+          onMoMuc,
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -84,16 +88,21 @@ describe('SearchScreen — kết quả loại "board"', () => {
       ketQua.click()
     })
 
-    expect(onNavigate).toHaveBeenCalledWith('mindmap', 'bang-1')
+    // Kết quả "muc" đi qua onMoMuc (App() tự quyết định mở instance Mindmap hay danhMuc), KHÔNG
+    // còn đi qua onNavigate("mindmap", id) như thời kind "board" cũ.
+    expect(onMoMuc).toHaveBeenCalledWith('bang-1', 'so-do', 'tiep-can')
+    expect(onNavigate).not.toHaveBeenCalledWith('mindmap', expect.anything())
   })
 
-  it('bảng đã xoá mềm (daXoaLuc) KHÔNG lọt vào kết quả tìm kiếm', async () => {
+  it('mục đã xoá mềm (daXoaLuc) KHÔNG lọt vào kết quả tìm kiếm', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-da-xoa',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       // Tên cố ý KHÔNG trùng bất kỳ bài viết dựng sẵn nào trong ARTICLES — nếu đặt trùng (vd "Viêm
       // phổi cộng đồng", vốn đã là một bài có sẵn) thì kết quả tìm được là BÀI VIẾT đó chứ không
-      // phải bảng, và ca kiểm sẽ đỏ vì lý do chẳng liên quan gì tới xoá mềm.
+      // phải mục vừa tạo, và ca kiểm sẽ đỏ vì lý do chẳng liên quan gì tới xoá mềm.
       ten: 'Bảng nháp vứt đi',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -107,6 +116,7 @@ describe('SearchScreen — kết quả loại "board"', () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate: vi.fn(),
+          onMoMuc: vi.fn(),
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -118,21 +128,23 @@ describe('SearchScreen — kết quả loại "board"', () => {
     const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
     await goVaoOTim(oTim, 'bảng nháp vứt đi')
 
-    // Đợi hook nạp xong danh sách bảng rồi mới khẳng định "không có" — nếu khẳng định ngay lập tức
-    // thì ca kiểm này xanh giả (lúc đó `boards` còn rỗng vì IndexedDB đọc bất đồng bộ).
+    // Đợi hook nạp xong danh sách mục rồi mới khẳng định "không có" — nếu khẳng định ngay lập tức
+    // thì ca kiểm này xanh giả (lúc đó `mucs` còn rỗng vì IndexedDB đọc bất đồng bộ).
     await choDenKhi(() => {
       expect(container.textContent).toContain('Không có kết quả')
     })
     expect(container.textContent).not.toContain('Bảng nháp vứt đi')
   })
 
-  // Mệnh đề `r.noiDung?.toLowerCase().includes(q)` của `filtered` là ĐƯỜNG DUY NHẤT để một bảng khớp
+  // Mệnh đề `r.noiDung?.toLowerCase().includes(q)` của `filtered` là ĐƯỜNG DUY NHẤT để một mục khớp
   // theo CHỮ BÊN TRONG nó (Task 9) — xoá hẳn dòng đó đi thì mọi ca kiểm cũ của file này vẫn xanh, vì
   // chúng đều tìm theo tên/tag. Canh riêng ở đây (review cuối nhánh, mục 5).
-  it('gõ một từ CHỈ có trong nội dung bảng (noiDungTimKiem) → bảng vẫn hiện trong kết quả', async () => {
+  it('gõ một từ CHỈ có trong nội dung sơ đồ (noiDungTimKiem) → mục vẫn hiện trong kết quả', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-noi-dung',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       // Tên/tag/tên khoa CỐ Ý không chứa chữ nào của truy vấn bên dưới — nếu chứa thì ca kiểm này
       // vẫn xanh qua mệnh đề `r.title`, không chứng minh được gì về mệnh đề nội dung.
       ten: 'Ghi chú buồng bệnh',
@@ -143,11 +155,12 @@ describe('SearchScreen — kết quả loại "board"', () => {
       noiDungTimKiem: 'kháng sinh phổ rộng liều cao',
     })
 
-    const onNavigate = vi.fn()
+    const onMoMuc = vi.fn()
     await act(async () => {
       root.render(
         createElement(SearchScreen, {
-          onNavigate,
+          onNavigate: vi.fn(),
+          onMoMuc,
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -169,16 +182,18 @@ describe('SearchScreen — kết quả loại "board"', () => {
     await act(async () => {
       ketQua.click()
     })
-    expect(onNavigate).toHaveBeenCalledWith('mindmap', 'bang-noi-dung')
+    expect(onMoMuc).toHaveBeenCalledWith('bang-noi-dung', 'so-do', 'tiep-can')
   })
 
-  // RESULT_LABEL.board đã in sẵn huy hiệu "Mindmap" phía trên tiêu đề, nên đặt thêm subtitle:
-  // "Mindmap" khiến đúng một chữ đó xuất hiện HAI LẦN trên cùng một thẻ — nhiễu, và chiếm mất dòng
-  // phụ đề vốn có thể trống (review cuối nhánh, mục 8).
-  it('thẻ kết quả của bảng chỉ hiện chữ "Mindmap" MỘT lần (huy hiệu), không lặp ở dòng phụ đề', async () => {
+  // nhanKetQua() (App.tsx) đã in sẵn huy hiệu "Sơ đồ" phía trên tiêu đề, nên đặt thêm subtitle:
+  // "Sơ đồ" khiến đúng một chữ đó xuất hiện HAI LẦN trên cùng một thẻ — nhiễu, và chiếm mất dòng
+  // phụ đề vốn có thể trống (review cuối nhánh, mục 8, ban đầu ghi cho huy hiệu "Mindmap").
+  it('thẻ kết quả của sơ đồ chỉ hiện chữ "Sơ đồ" MỘT lần (huy hiệu), không lặp ở dòng phụ đề', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-nhan',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Suy tim EF giảm',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -191,6 +206,7 @@ describe('SearchScreen — kết quả loại "board"', () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate: vi.fn(),
+          onMoMuc: vi.fn(),
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -209,25 +225,31 @@ describe('SearchScreen — kết quả loại "board"', () => {
     const ketQua = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Suy tim EF giảm'),
     ) as HTMLButtonElement
-    expect(ketQua.textContent?.match(/Mindmap/g)?.length ?? 0).toBe(1)
+    expect(ketQua.textContent?.match(/Sơ đồ/g)?.length ?? 0).toBe(1)
   })
 
-  it('bảng cũ THIẾU chuyenKhoa/tags (bản ghi trước lượt di trú) không làm sập ô tìm kiếm', async () => {
+  it('sơ đồ cũ THIẾU chuyenKhoa/tags (bản ghi trước lượt di trú) không làm sập ô tìm kiếm', async () => {
     const bayGio = Date.now()
-    // Cố ý ghi bản ghi KHÔNG có chuyenKhoa/tags/noiDungTimKiem — đúng hình dạng bảng tạo trước
-    // Task 1 ở runtime (kiểu MucMeta khai bắt buộc, nhưng dữ liệu cũ trong IndexedDB thì không có).
-    await idbPut(IDB_STORES.boards, {
+    // Cố ý ghi bản ghi KHÔNG có chuyenKhoa/tags/noiDungTimKiem — đúng hình dạng bản ghi mucs cũ ở
+    // runtime (kiểu MucMeta khai bắt buộc, nhưng dữ liệu chưa từng mở lại qua đường mới thì không
+    // có). `loai`/`danhMuc` VẪN phải có đủ — MucMeta không còn nhánh `??` phòng vệ cho hai trường
+    // này (Task 1 Plan 2); thiếu chúng thì openResult() rơi vào nhánh "specialty" một cách ÂM THẦM
+    // (r.loai/r.danhMuc falsy), làm ca kiểm xanh giả không canh được onMoMuc.
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-cu',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Sốc nhiễm khuẩn',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
     })
 
-    const onNavigate = vi.fn()
+    const onMoMuc = vi.fn()
     await act(async () => {
       root.render(
         createElement(SearchScreen, {
-          onNavigate,
+          onNavigate: vi.fn(),
+          onMoMuc,
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -250,7 +272,111 @@ describe('SearchScreen — kết quả loại "board"', () => {
       ketQua.click()
     })
 
-    expect(onNavigate).toHaveBeenCalledWith('mindmap', 'bang-cu')
+    expect(onMoMuc).toHaveBeenCalledWith('bang-cu', 'so-do', 'tiep-can')
+  })
+})
+
+// ─── Kho bài viết (giai đoạn 5-6) hợp nhất vào ô tìm kiếm chính (Plan 3 Task 1) ──────
+//
+// Trước lượt này, SearchScreen đọc thẳng IDB_STORES.boards — mọi mục tạo từ giai đoạn 5 (kho bài
+// viết mới, store `mucs`) trở đi hoàn toàn vô hình với ô tìm kiếm chính dù đã hiện đúng ở LuoiMuc.
+describe('SearchScreen — kết quả loại "muc" (bài viết)', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
+  })
+
+  it('tìm kiếm thấy một bài viết mucs vừa tạo (không chỉ sơ đồ)', async () => {
+    await idbPut(IDB_STORES.mucs, {
+      id: 'muc-bv-1',
+      loai: 'bai-viet',
+      danhMuc: 'ecg',
+      ten: 'Đọc ECG rung nhĩ',
+      taoLuc: 1,
+      capNhatLuc: 1,
+      chuyenKhoa: 'tim-mach',
+      tags: [],
+      noiDungTimKiem: 'rung nhĩ QRS không đều',
+    })
+
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate: vi.fn(),
+          onMoMuc: vi.fn(),
+          onBack: () => {},
+          customArticles: [],
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'rung nhĩ')
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Đọc ECG rung nhĩ')
+    })
+  })
+
+  it('bấm kết quả loại bài viết gọi onMoMuc("bai-viet", …) — KHÔNG mở tab Mindmap', async () => {
+    const onNavigate = vi.fn()
+    const onMoMuc = vi.fn()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'muc-bv-2',
+      loai: 'bai-viet',
+      danhMuc: 'phac-do',
+      ten: 'Sốc nhiễm khuẩn',
+      taoLuc: 1,
+      capNhatLuc: 1,
+      chuyenKhoa: '',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate,
+          onMoMuc,
+          onBack: () => {},
+          customArticles: [],
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'sốc')
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Sốc nhiễm khuẩn')
+    })
+
+    const ketQua = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Sốc nhiễm khuẩn'),
+    ) as HTMLButtonElement
+    await act(async () => {
+      ketQua.click()
+    })
+
+    expect(onMoMuc).toHaveBeenCalledWith('muc-bv-2', 'bai-viet', 'phac-do')
+    expect(onNavigate).not.toHaveBeenCalledWith('mindmap', expect.anything())
   })
 })
 
@@ -274,8 +400,8 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
   })
 
   async function dungMan() {
@@ -283,6 +409,7 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate: vi.fn(),
+          onMoMuc: vi.fn(),
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -293,8 +420,8 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
     return container.querySelector('input[type="search"]') as HTMLInputElement
   }
 
-  // Bài viết DỰNG SẴN, không phải bảng: đường bài viết là đường mà `toLowerCase()` cũ phục vụ, nên
-  // nếu chỉ canh bằng bảng thì một lượt sửa hồi quy chỉ nửa vời vẫn xanh.
+  // Bài viết DỰNG SẴN, không phải mục lưu trong IndexedDB: đường bài viết là đường mà `toLowerCase()`
+  // cũ phục vụ, nên nếu chỉ canh bằng mục thì một lượt sửa hồi quy chỉ nửa vời vẫn xanh.
   it('bài viết dựng sẵn: gõ "nhiem khuan huyet" (không dấu) → ra "Nhiễm khuẩn huyết"', async () => {
     const oTim = await dungMan()
     await goVaoOTim(oTim, 'nhiem khuan huyet')
@@ -303,10 +430,12 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
     })
   })
 
-  it('bảng đã lưu: gõ "dot cap copd" (không dấu) → ra bảng "Đợt cấp COPD nặng"', async () => {
+  it('sơ đồ đã lưu: gõ "dot cap copd" (không dấu) → ra sơ đồ "Đợt cấp COPD nặng"', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-khong-dau',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Đợt cấp COPD nặng',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -330,12 +459,14 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
     })
   })
 
-  // Nội dung bên trong bảng (`noiDungTimKiem`) đi qua một mệnh đề RIÊNG trong `filtered` — vá ba
+  // Nội dung bên trong sơ đồ (`noiDungTimKiem`) đi qua một mệnh đề RIÊNG trong `filtered` — vá ba
   // mệnh đề kia mà quên mệnh đề này thì hai ca trên vẫn xanh.
-  it('nội dung bên trong bảng cũng khớp không dấu', async () => {
+  it('nội dung bên trong sơ đồ cũng khớp không dấu', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-noi-dung-khong-dau',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Bảng nháp X',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -353,9 +484,9 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
 
 // ─── Nợ vặt HANDOFF mục 6: dải chip chuyên khoa không khớp giữa hai màn ──────────
 //
-// Dải chip cũ suy từ `ARTICLES` tĩnh, mà ARTICLES chỉ dùng 6 tên khoa. Bảng Mindmap gắn được cả
+// Dải chip cũ suy từ `ARTICLES` tĩnh, mà ARTICLES chỉ dùng 6 tên khoa. Sơ đồ Mindmap gắn được cả
 // 11 khoa của SPECIALTIES — 5 khoa còn lại (Tiêu hoá, Huyết học, Nhiễm, Sinh lý (bệnh), Dược lâm
-// sàng) không có chip nào, tức người dùng gắn khoa cho bảng rồi lại không lọc được theo nó.
+// sàng) không có chip nào, tức người dùng gắn khoa cho sơ đồ rồi lại không lọc được theo nó.
 describe('SearchScreen — dải chip chuyên khoa', () => {
   let container: HTMLDivElement
   let root: Root
@@ -371,8 +502,8 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
       root.unmount()
     })
     container.remove()
-    const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-    for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
   })
 
   async function dungMan() {
@@ -380,6 +511,7 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate: vi.fn(),
+          onMoMuc: vi.fn(),
           onBack: () => {},
           customArticles: [],
           customFlashcards: [],
@@ -394,10 +526,12 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
       (b.textContent ?? '').trim(),
     )
 
-  it('bảng gắn khoa mà không bài viết nào dùng (Tiêu hoá) vẫn có chip riêng', async () => {
+  it('mục gắn khoa mà không bài viết nào dùng (Tiêu hoá) vẫn có chip riêng', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-tieu-hoa',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Xuất huyết tiêu hoá trên',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -411,10 +545,12 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
     })
   })
 
-  it('bảng đã xoá mềm KHÔNG sinh ra chip — chip phải theo đúng tập kết quả thật', async () => {
+  it('mục đã xoá mềm KHÔNG sinh ra chip — chip phải theo đúng tập kết quả thật', async () => {
     const bayGio = Date.now()
-    await idbPut(IDB_STORES.boards, {
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-huyet-hoc-da-xoa',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Bảng huyết học nháp',
       taoLuc: bayGio,
       capNhatLuc: bayGio,
@@ -459,10 +595,12 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
 
   it('thứ tự chip khớp thứ tự SPECIALTIES của màn Sơ đồ tư duy, "Tất cả" đứng đầu', async () => {
     const bayGio = Date.now()
-    // Thêm một bảng thuộc khoa nằm GIỮA dãy SPECIALTIES: nếu dải chip xếp theo thứ tự gặp được
-    // (bảng nạp sau bài viết) thì "Tiêu hoá" rơi xuống cuối và ca này đỏ.
-    await idbPut(IDB_STORES.boards, {
+    // Thêm một mục thuộc khoa nằm GIỮA dãy SPECIALTIES: nếu dải chip xếp theo thứ tự gặp được
+    // (mục nạp sau bài viết) thì "Tiêu hoá" rơi xuống cuối và ca này đỏ.
+    await idbPut(IDB_STORES.mucs, {
       id: 'bang-tieu-hoa-2',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
       ten: 'Bảng tiêu hoá',
       taoLuc: bayGio,
       capNhatLuc: bayGio,

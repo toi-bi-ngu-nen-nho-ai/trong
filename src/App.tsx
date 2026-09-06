@@ -20,7 +20,7 @@ import { BoardGallery } from "./board/BoardGallery"
 // ranh giới D13" và "mucMeta.ts — ranh giới D13" trong ranh-gioi-nap-bang.spec.ts (mỗi describe soi
 // thẳng file cùng tên), không suy luận. Hai ca D13 gốc trong cùng file đó chỉ soi index.tsx.
 import { ChonDanhMuc } from "./board/ChonDanhMuc"
-import { DANH_MUC, taoIdMuc, type IdDanhMuc, type MucMeta } from "./board/mucMeta"
+import { DANH_MUC, taoIdMuc, type IdDanhMuc, type LoaiMuc, type MucMeta } from "./board/mucMeta"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -1388,28 +1388,41 @@ const khoaChuan = (ten?: string) => (ten ? BI_DANH_KHOA[ten] ?? ten : undefined)
 // (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô tìm kiếm chính. Gộp vào
 // đây thì tìm một lần là ra hết, không phải đoán.
 interface SearchResult {
-  kind: "article" | "customArticle" | "ecg" | "flashcard" | "board"
+  // "board" (đọc store IDB_STORES.boards) đã gộp vào "muc" (đọc store IDB_STORES.mucs, kho bài
+  // viết + sơ đồ hợp nhất từ giai đoạn 5-6) — bốn kind kia (article/customArticle/ecg/flashcard)
+  // KHÔNG đổi, còn sống tới giai đoạn 8.
+  kind: "article" | "customArticle" | "ecg" | "flashcard" | "muc"
   id: string
   title: string
   subtitle: string
   specialty?: string
   tags: string[]
-  // CHỈ "board" set trường này — nội dung trích từ bảng (chữ trong khối/canvas, xem
-  // ghepNoiDungTimKiem ở board/mucMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG hiển thị trực tiếp
-  // (huy hiệu "Mindmap" + tên bảng đã đủ cho hiển thị).
+  // CHỈ kind "muc" set trường này — nội dung trích từ bài viết/sơ đồ (chữ trong khối/canvas hoặc
+  // trang bài viết, xem ghepNoiDungTimKiem ở board/mucMeta.ts), dùng để KHỚP tìm kiếm nhưng KHÔNG
+  // hiển thị trực tiếp (huy hiệu loại + tên mục đã đủ cho hiển thị).
   noiDung?: string
+  /** CHỈ kind "muc" set trường này — quyết định điều hướng ở openResult() (mở sơ đồ hay bài viết). */
+  loai?: LoaiMuc
+  /** CHỈ kind "muc" set — cần để mở đúng instance BoardGallery/danh mục khi loai === 'bai-viet'. */
+  danhMuc?: IdDanhMuc
 }
 
 // Export để test dựng riêng màn này (src/__tests__/SearchScreen.spec.ts) mà không phải dựng cả App —
 // App() vẫn dùng y hệt như trước, không đổi hành vi.
 export function SearchScreen({
   onNavigate,
+  onMoMuc,
   onBack,
   customArticles,
   customFlashcards,
   ecgLessons,
 }: {
   onNavigate: (s: Screen, id?: string) => void
+  // Kết quả kind "muc" KHÔNG đi qua onNavigate — SearchScreen không tự biết instance BoardGallery
+  // nào (Mindmap hay danhMuc) cần mở, đó là việc của App() (state moBangYeuCau/danhMucDangXem, xem
+  // chú thích dài quanh khai báo moBangYeuCau và taoBaiVietMoi). Chữ ký giữ id/loai/danhMuc rời
+  // (không gộp lại thành object) cho khớp cách onNavigate cũng chỉ nhận id rời.
+  onMoMuc: (id: string, loai: LoaiMuc, danhMuc: IdDanhMuc) => void
   onBack: () => void
   customArticles: Article[]
   customFlashcards: FlashCard[]
@@ -1419,11 +1432,11 @@ export function SearchScreen({
   const [activeFilter, setActiveFilter] = useState("Tất cả")
   // mucMeta.ts KHÔNG import BlockSuite (D13) — đọc ở đây chỉ chạm object store nhẹ của IndexedDB,
   // không kéo theo chunk 994 kB của bảng vẽ.
-  // `loading` KHÔNG bỏ đi được: IndexedDB đọc bất đồng bộ nên `boards` rỗng cho tới khi lượt đọc
-  // lúc mount xong — trong cửa sổ đó, gõ đúng tên một bảng đã lưu vẫn rơi vào màn "Không có kết
+  // `loading` KHÔNG bỏ đi được: IndexedDB đọc bất đồng bộ nên `mucs` rỗng cho tới khi lượt đọc
+  // lúc mount xong — trong cửa sổ đó, gõ đúng tên một mục đã lưu vẫn rơi vào màn "Không có kết
   // quả", một lời khẳng định về dữ liệu chưa đọc xong (review cuối nhánh, mục 9). LuoiMuc đã
   // xử đúng cùng cờ này (`if (loading) return null`).
-  const { items: boards, loading: dangNapBang, loiDoc: loiDocBang } = useIdbCollection<MucMeta>(IDB_STORES.boards)
+  const { items: mucs, loading: dangNapMuc, loiDoc: loiDocMuc } = useIdbCollection<MucMeta>(IDB_STORES.mucs)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -1438,31 +1451,33 @@ export function SearchScreen({
       // khoa, chỉ hiện khi đang ở "Tất cả" (xem điều kiện activeFilter bên dưới).
       ...ecgLessons.map((l): SearchResult => ({ kind: "ecg", id: l.id, title: l.title, subtitle: l.summary ?? "", tags: l.tags })),
       ...customFlashcards.map((c): SearchResult => ({ kind: "flashcard", id: c.id, title: c.front, subtitle: c.back, specialty: c.specialty, tags: [] })),
-      // Bảng xoá MỀM (daXoaLuc) đã biến khỏi lưới Mindmap — phải biến khỏi cả ô tìm kiếm chính,
-      // nếu không bấm vào kết quả sẽ mở một bảng người dùng tưởng đã xoá.
-      ...boards
-        .filter((b) => !b.daXoaLuc)
-        .map((b): SearchResult => ({
-          kind: "board",
-          id: b.id,
-          title: b.ten,
-          // RỖNG, không phải "Mindmap": RESULT_LABEL.board đã in đúng chữ đó thành huy hiệu ngay
-          // phía trên tiêu đề, nên đặt lại ở đây làm nó xuất hiện HAI LẦN trên cùng một thẻ (review
-          // cuối nhánh, mục 8). Dòng phụ đề tự ẩn khi rỗng (`{r.subtitle && …}` bên dưới) — thẻ bảng
-          // gọn lại đúng bằng phần thật sự có thông tin.
+      // Mục xoá MỀM (daXoaLuc) đã biến khỏi lưới LuoiMuc/Mindmap — phải biến khỏi cả ô tìm kiếm
+      // chính, nếu không bấm vào kết quả sẽ mở một mục người dùng tưởng đã xoá.
+      ...mucs
+        .filter((m) => !m.daXoaLuc)
+        .map((m): SearchResult => ({
+          kind: "muc",
+          id: m.id,
+          title: m.ten,
+          // RỖNG, không phải "Sơ đồ"/"Bài viết": nhanKetQua() (bên dưới) đã in đúng chữ đó thành
+          // huy hiệu ngay phía trên tiêu đề, nên đặt lại ở đây làm nó xuất hiện HAI LẦN trên cùng
+          // một thẻ (review cuối nhánh, mục 8, ban đầu ghi cho kind "board"). Dòng phụ đề tự ẩn khi
+          // rỗng (`{r.subtitle && …}` bên dưới) — thẻ mục gọn lại đúng bằng phần thật sự có thông tin.
           subtitle: "",
           // KHÔNG dự phòng `?? SPECIALTIES[0].id` như mucKhopTimKiem (mucMeta.ts): ở đó chuỗi
           // khớp bắt buộc phải là string nên phải có giá trị thay thế, còn ở đây `specialty` là
-          // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Bảng
+          // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Mục
           // cũ thiếu `chuyenKhoa` ở runtime → .find() trả undefined → `?.name` cho undefined, an
-          // toàn và trung thực (không gán bừa "Tim mạch" cho bảng chưa từng chọn khoa); nó rơi vào
+          // toàn và trung thực (không gán bừa "Tim mạch" cho mục chưa từng chọn khoa); nó rơi vào
           // đúng nhánh sẵn có của bài ECG không có khoa — chỉ hiện khi bộ lọc đang ở "Tất cả".
-          specialty: SPECIALTIES.find((s) => s.id === b.chuyenKhoa)?.name,
-          tags: b.tags ?? [],
-          noiDung: b.noiDungTimKiem,
+          specialty: SPECIALTIES.find((s) => s.id === m.chuyenKhoa)?.name,
+          tags: m.tags ?? [],
+          noiDung: m.noiDungTimKiem,
+          loai: m.loai,
+          danhMuc: m.danhMuc,
         })),
     ]
-  }, [customArticles, customFlashcards, ecgLessons, boards])
+  }, [customArticles, customFlashcards, ecgLessons, mucs])
 
   // Dải chip suy từ CHÍNH kết quả đang có, không phải từ mỗi ARTICLES như trước. Bảng Mindmap gắn
   // một trong 5 khoa mà không bài viết dựng sẵn nào dùng (Tiêu hoá, Huyết học, Nhiễm, Sinh lý bệnh,
@@ -1503,19 +1518,29 @@ export function SearchScreen({
     })
   }, [allResults, query, locHieuLuc])
 
-  const RESULT_LABEL: Record<SearchResult["kind"], string> = {
+  const RESULT_LABEL: Record<Exclude<SearchResult["kind"], "muc">, string> = {
     article: "",
     customArticle: "Tự nhập",
     ecg: "ECG",
     flashcard: "Thẻ ghi nhớ",
-    board: "Mindmap",
+  }
+
+  // Kind "muc" KHÔNG tra RESULT_LABEL: một giá trị "muc" mang theo cả hai khả năng (bài viết hoặc
+  // sơ đồ) — khác bốn kind kia, mỗi kind chỉ ứng với một nhãn cố định — nên nhãn phải suy TẠI CHỖ
+  // từ `loai`, không tra bảng tĩnh.
+  function nhanKetQua(r: SearchResult): string {
+    if (r.kind === "muc") return r.loai === "so-do" ? "Sơ đồ" : "Bài viết"
+    return RESULT_LABEL[r.kind]
   }
 
   function openResult(r: SearchResult) {
     if (r.kind === "article") onNavigate("article", r.id)
     else if (r.kind === "customArticle") onNavigate("customEntry", r.id)
     else if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
-    else if (r.kind === "board") onNavigate("mindmap", r.id)
+    // r.loai/r.danhMuc chỉ vắng nếu bản ghi mucs thiếu chúng ở runtime (không nên xảy ra — cả hai
+    // đều bắt buộc theo MucMeta — nhưng vẫn kiểm để không gọi onMoMuc với giá trị rỗng); rơi về
+    // nhánh chuyên khoa bên dưới thay vì mở nhầm.
+    else if (r.kind === "muc" && r.loai && r.danhMuc) onMoMuc(r.id, r.loai, r.danhMuc)
     else onNavigate("specialty", SPECIALTIES.find((s) => s.name === r.specialty)?.id)
   }
 
@@ -1626,9 +1651,9 @@ export function SearchScreen({
                   {r.specialty && (
                     <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--c-primary)" }}>{r.specialty}</span>
                   )}
-                  {RESULT_LABEL[r.kind] && (
+                  {nhanKetQua(r) && (
                     <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--c-accent-soft)", color: "var(--c-accent)" }}>
-                      {RESULT_LABEL[r.kind]}
+                      {nhanKetQua(r)}
                     </span>
                   )}
                 </div>
@@ -1642,8 +1667,8 @@ export function SearchScreen({
               </button>
             ))}
           </div>
-        ) : dangNapBang ? null : (
-          // Chưa nạp xong danh sách bảng thì KHÔNG kết luận "không có kết quả" — để trống một nhịp
+        ) : dangNapMuc ? null : (
+          // Chưa nạp xong danh sách mục thì KHÔNG kết luận "không có kết quả" — để trống một nhịp
           // rất ngắn (cùng cách LuoiMuc tránh nháy lưới "rỗng" giả), thay vì khẳng định sai rồi
           // tự lật lại ngay lượt render sau.
           <div className="text-center pt-16">
@@ -1652,15 +1677,16 @@ export function SearchScreen({
             </div>
             <p className="font-semibold text-slate-700">Không có kết quả cho "{query}"</p>
             <p className="text-sm text-slate-400 mt-1">Thử từ khoá khác hoặc thêm kiến thức mới</p>
-            {/* Đọc danh sách bảng hỏng thì "không có kết quả" chỉ đúng một nửa: bài viết/ECG/thẻ vẫn
-                được tìm bình thường, riêng sơ đồ tư duy thì KHÔNG nằm trong lượt tìm này. Nói ra,
-                thay vì để người dùng kết luận bảng của họ đã mất. Dòng phụ, không phải role="alert":
-                đây là chú thích phạm vi tìm kiếm, không phải sự cố cần cắt ngang — màn Sơ đồ tư duy
-                mới là nơi báo động và có nút thử lại. */}
-            {loiDocBang && (
+            {/* Đọc kho mucs hỏng thì "không có kết quả" chỉ đúng một phần: bài viết dựng sẵn/ECG/thẻ
+                vẫn được tìm bình thường, riêng bài viết đã lưu VÀ sơ đồ tư duy (cùng đọc từ store
+                mucs) thì KHÔNG nằm trong lượt tìm này. Nói ra, thay vì để người dùng kết luận nội
+                dung của họ đã mất. Dòng phụ, không phải role="alert": đây là chú thích phạm vi tìm
+                kiếm, không phải sự cố cần cắt ngang — tab Thư viện/Mindmap mới là nơi báo động và
+                có nút thử lại. */}
+            {loiDocMuc && (
               <p className="text-sm mt-3 mx-auto" style={{ color: "var(--c-warn, #92400e)", maxWidth: 320 }}>
-                Lượt tìm này chưa bao gồm sơ đồ tư duy — chưa mở được kho lưu trữ trên máy. Mở tab
-                "Mindmap" để xem chi tiết và thử lại.
+                Lượt tìm này chưa bao gồm bài viết đã lưu và sơ đồ tư duy — chưa mở được kho lưu trữ
+                trên máy. Mở tab "Thư viện" hoặc "Mindmap" để xem chi tiết và thử lại.
               </p>
             )}
           </div>
@@ -12972,6 +12998,20 @@ export default function App() {
           {screen === "search" && (
             <SearchScreen
               onNavigate={navigate}
+              // Cùng khuôn taoBaiVietMoi (xem chú thích dài ở đó, quanh moBangYeuCau) thay vì tự chế
+              // lại đường điều hướng riêng: sơ đồ nhắm thẳng instance Mindmap, bài viết đặt
+              // danhMucDangXem rồi nhắm instance "danhMuc" — CHỈ instance đang hiển thị mới tiêu
+              // thụ moBangYeuCau (guard dangHienTab trong BoardGallery.tsx).
+              onMoMuc={(id, loai, danhMuc) => {
+                if (loai === "so-do") {
+                  setMoBangYeuCau(id)
+                  navigate("mindmap")
+                } else {
+                  setDanhMucDangXem(danhMuc)
+                  setMoBangYeuCau(id)
+                  navigate("danhMuc")
+                }
+              }}
               onBack={goBack}
               customArticles={customArticlesCol.items}
               customFlashcards={customFlashcardsCol.items}
