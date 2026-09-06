@@ -43,6 +43,7 @@ describe('BoardGallery chọn vỏ theo bản ghi', () => {
         loaiTaoDuoc={[]}
         moBangYeuCau="muc-bv"
         onMoBangYeuCauXong={() => {}}
+        onDaDoc={() => {}}
       />,
     )
 
@@ -75,7 +76,7 @@ describe('BoardGallery chọn vỏ theo bản ghi', () => {
     await idbPut(IDB_STORES.mucs, muc)
 
     const { BoardGallery } = await import('../BoardGallery')
-    render(<BoardGallery dangHienTab tieuDe="Thử" loaiTaoDuoc={['bai-viet']} />)
+    render(<BoardGallery dangHienTab tieuDe="Thử" loaiTaoDuoc={['bai-viet']} onDaDoc={() => {}} />)
 
     const the = await screen.findByTestId('the-bang')
     fireEvent.click(the.querySelector('button') as HTMLButtonElement)

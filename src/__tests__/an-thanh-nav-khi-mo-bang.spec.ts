@@ -126,6 +126,7 @@ describe('thanh điều hướng dưới — ẩn khi đang dùng sơ đồ', ()
         createElement(BoardGallery, {
           dangHienTab: true,
           onDangMoBang: bao,
+          onDaDoc: () => {},
           tieuDe: 'Sơ đồ tư duy',
           loaiTaoDuoc: ['so-do'],
         }),
@@ -148,6 +149,7 @@ describe('thanh điều hướng dưới — ẩn khi đang dùng sơ đồ', ()
         createElement(BoardGallery, {
           dangHienTab: false,
           onDangMoBang: bao,
+          onDaDoc: () => {},
           tieuDe: 'Sơ đồ tư duy',
           loaiTaoDuoc: ['so-do'],
         }),

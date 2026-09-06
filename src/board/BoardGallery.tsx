@@ -63,12 +63,16 @@ export function BoardGallery({
    * localStorage vừa đổi để tự render lại, nên panel "Đã đọc gần đây" ở Trang chủ đứng yên tới khi
    * NGƯỜI DÙNG TẢI LẠI TRANG. Nay BoardGallery không đụng `recentReads`/`localStorage` nữa — chỉ báo
    * lên App() "mục này vừa được mở thành công", App() tự làm đúng khuôn ba kind cũ trong navigate()
-   * (`setRecentReads(recordRead('muc', id))`) — ghi và cập nhật state nằm CHUNG một chỗ. Optional
-   * (không phải mọi test dựng BoardGallery trần đều cần ghi "Đã đọc gần đây") nhưng CẢ NĂM lượt gọi
-   * `<BoardGallery>` thật trong App.tsx đều truyền, vì bất kỳ instance nào (Thư viện/Hướng dẫn/
-   * Mindmap/danhMuc/chuyên khoa) cũng có thể là nơi một mục `MucMeta` được mở lần đầu.
+   * (`setRecentReads(recordRead('muc', id))`) — ghi và cập nhật state nằm CHUNG một chỗ.
+   *
+   * VÒNG SỬA 2 (task-3, giai đoạn 7-9): đổi từ optional sang BẮT BUỘC — optional nghĩa là một lượt
+   * gọi `<BoardGallery>` thứ sáu (hoặc thứ N) trong App.tsx quên truyền sẽ KHÔNG bị `tsc` bắt, tái
+   * diễn âm thầm đúng lỗi Critical ở VÒNG SỬA 1. CẢ NĂM lượt gọi `<BoardGallery>` thật trong App.tsx
+   * đều đã truyền — mọi instance (Thư viện/Hướng dẫn/Mindmap/danhMuc/chuyên khoa) đều có thể là nơi
+   * một mục `MucMeta` được mở lần đầu. Test dựng BoardGallery trần không cần ghi "Đã đọc gần đây"
+   * thì truyền `onDaDoc: () => {}`.
    */
-  onDaDoc?: (id: string) => void
+  onDaDoc: (id: string) => void
   /**
    * Báo lên App "đang có bảng mở và đang nhìn thấy nó", để App ẩn thanh điều hướng dưới (chủ dự án
    * yêu cầu 2026-09-03: dùng sơ đồ thì bỏ nav, bảng vẽ chiếm trọn màn).
@@ -160,7 +164,7 @@ export function BoardGallery({
       // Chỉ báo "Đã đọc gần đây" khi bản ghi THẬT SỰ tồn tại trong kho — id không tìm thấy (đã bị
       // xoá giữa lúc điều hướng) thì không đáng ghi, chỉ làm rác danh sách với một mục không bao
       // giờ tra được tiêu đề (xem recentReadItems, App.tsx).
-      if (tim) onDaDoc?.(moBangYeuCau)
+      if (tim) onDaDoc(moBangYeuCau)
     })
     onMoBangYeuCauXong?.()
   }, [moBangYeuCau, onMoBangYeuCauXong, dangHienTab, onDaDoc])
@@ -396,7 +400,7 @@ export function BoardGallery({
             // lưới, luôn ứng với một bản ghi có thật (LuoiMuc chỉ gọi callback này từ .map() trên
             // `danhSach` đã nạp từ IndexedDB), khác effect moBangYeuCau ở trên phải tự tra lại vì
             // không đi qua một thẻ nào.
-            onDaDoc?.(id)
+            onDaDoc(id)
           }}
           dungTuBang={vuaDongBang}
           onHieuUngXong={() => setVuaDongBang(false)}

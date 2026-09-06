@@ -96,7 +96,9 @@ describe('BoardGallery', () => {
 
   it('mặc định hiện lưới danh sách, chưa có bảng nào mount', async () => {
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="tao-bang"]')).not.toBeNull()
@@ -108,7 +110,9 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -129,7 +133,9 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -158,7 +164,9 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -183,7 +191,9 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -195,7 +205,9 @@ describe('BoardGallery', () => {
 
     // Mô phỏng người dùng chuyển sang tab khác (Home) — App.tsx sẽ đổi prop này, KHÔNG unmount.
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: false, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: false, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
 
     // Vẫn còn trong DOM (đúng kỹ thuật ẩn-không-tháo đã đo cho ResizeObserver) — VÀ vẫn ĐÚNG node
@@ -211,7 +223,9 @@ describe('BoardGallery', () => {
   it('bấm nút quay lại → EdgelessBoard unmount thật, lưới hiện lại', async () => {
     await idbPut(IDB_STORES.mucs, taoBangGia('Bảng test'))
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -238,7 +252,9 @@ describe('BoardGallery', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -270,7 +286,9 @@ describe('BoardGallery', () => {
   it('bấm quay lại → LuoiMuc tái xuất hiện có class "board-out", rồi tự mất sau đó', async () => {
     await idbPut(IDB_STORES.mucs, taoBangGia('Bảng test'))
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull())
     await act(async () => {
@@ -309,6 +327,7 @@ describe('BoardGallery', () => {
           moBangYeuCau: 'muc-tieu',
           tieuDe: 'Sơ đồ tư duy',
           loaiTaoDuoc: ['so-do'],
+          onDaDoc: () => {},
         }),
       )
     })
@@ -341,6 +360,7 @@ describe('BoardGallery', () => {
         onMoBangYeuCauXong,
         tieuDe: 'Sơ đồ tư duy',
         loaiTaoDuoc: ['so-do'],
+        onDaDoc: () => {},
       }))
     })
 
@@ -354,7 +374,9 @@ describe('BoardGallery', () => {
   async function moBang(ten = 'Bảng xuất'): Promise<void> {
     await idbPut(IDB_STORES.mucs, taoBangGia(ten))
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'], onDaDoc: () => {} }),
+      )
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -491,6 +513,7 @@ describe('BoardGallery', () => {
           // Mindmap. Xoá `loai="so-do"` khỏi App.tsx không đổi gì ở đây (xem đính chính C1 phía
           // trên). Dòng này chỉ dựng đúng ĐẦU VÀO để ca kiểm phủ hợp đồng lọc của BoardGallery/LuoiMuc.
           loai: 'so-do',
+          onDaDoc: () => {},
         }),
       )
     })

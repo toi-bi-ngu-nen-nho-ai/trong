@@ -136,6 +136,7 @@ describe('BoardGallery — ghi nhận "Đã đọc gần đây"', () => {
           moBangYeuCau: 'id-khong-ton-tai',
           tieuDe: 'Sơ đồ tư duy',
           loaiTaoDuoc: ['so-do'],
+          onDaDoc: () => {},
         }),
       )
     })
