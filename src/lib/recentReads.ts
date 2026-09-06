@@ -10,7 +10,7 @@
 
 import { loadCollection, saveCollection } from "./storage"
 
-export type ReadKind = "article" | "custom" | "ecg"
+export type ReadKind = "article" | "custom" | "ecg" | "muc"
 
 export interface ReadEntry {
   kind: ReadKind
@@ -29,7 +29,7 @@ function isEntry(v: unknown): v is ReadEntry {
   if (!v || typeof v !== "object") return false
   const e = v as Partial<ReadEntry>
   return (
-    (e.kind === "article" || e.kind === "custom" || e.kind === "ecg") &&
+    (e.kind === "article" || e.kind === "custom" || e.kind === "ecg" || e.kind === "muc") &&
     typeof e.id === "string" &&
     typeof e.at === "number"
   )

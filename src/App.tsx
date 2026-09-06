@@ -1077,12 +1077,18 @@ interface RecentReadItem {
   at: number
   screen: Screen
   tag: string
+  // CHỈ set cho mục đến từ kho `mucs` mới (kind "muc" — xem recentReadItems) — bấm vào phải mở qua
+  // onMoMuc(id, loai, danhMuc) giống hệt SearchScreen (Task 1), KHÔNG qua onNavigate(screen, id)
+  // như ba kind hệ cũ (article/custom/ecg). `screen` ở trên vẫn được gán một giá trị hợp lệ cho
+  // mục "muc" (không dùng tới) chỉ để khớp kiểu, không có nghĩa gì khi trường này có mặt.
+  muc?: { loai: LoaiMuc; danhMuc: IdDanhMuc }
 }
 
 function HomeScreen({
   onNavigate,
   onTaoBaiMoi,
   onMoDanhMuc,
+  onMoMuc,
   recentReads,
 }: {
   onNavigate: (s: Screen, id?: string) => void
@@ -1090,6 +1096,9 @@ function HomeScreen({
   /** Task 7: ba thẻ "Tiếp cận vấn đề"/"ECG"/"Phác đồ" mở màn lưới lọc theo danh mục (App() sở hữu
    * state `danhMucDangXem` + nhánh Screen "danhMuc"), không còn là các Screen rời (comingSoon/ecg). */
   onMoDanhMuc: (d: IdDanhMuc) => void
+  /** Task 2 (giai đoạn 7-9): mở một mục "Đã đọc gần đây" thuộc kho `mucs` mới — cùng cơ chế
+   * onMoMuc của SearchScreen (Task 1), KHÔNG tự chế đường điều hướng thứ ba. */
+  onMoMuc: (id: string, loai: LoaiMuc, danhMuc: IdDanhMuc) => void
   recentReads: RecentReadItem[]
 }) {
   // "Sử dụng thuốc"/"Công cụ" vẫn trỏ một Screen thật (mixing/comingSoon) — không thuộc kho bài
@@ -1237,7 +1246,7 @@ function HomeScreen({
               {recentReads.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => onNavigate(r.screen, r.id)}
+                  onClick={() => (r.muc ? onMoMuc(r.id, r.muc.loai, r.muc.danhMuc) : onNavigate(r.screen, r.id))}
                   className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
                   style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
                 >
@@ -12493,6 +12502,11 @@ export default function App() {
   // Bài học ECG — lưu bằng IndexedDB (không phải localStorage) vì kèm ảnh, xem useIdbCollection.
   const ecgCol = useIdbCollection<EcgLesson>(IDB_STORES.ecgLessons)
   const allEcgLessons = [...ecgCol.items, ...ECG_LESSONS]
+  // Kho bài viết/sơ đồ hợp nhất (giai đoạn 5-6) — cần ở App() để "Đã đọc gần đây" (recentReadItems,
+  // dưới) tra được tiêu đề/danh mục của mục kind "muc". SearchScreen tự đọc collection RIÊNG của nó
+  // (cùng store, một effect nạp khác) — hai chỗ đọc không đụng nhau, useIdbCollection không chia sẻ
+  // state giữa hai lời gọi.
+  const mucsCol = useIdbCollection<MucMeta>(IDB_STORES.mucs)
 
   // Nhắc sao lưu — tính theo TẤT CẢ mục tự nhập, hiện được ở bất cứ tab nào.
   const hasCustomContent =
@@ -12603,6 +12617,22 @@ export default function App() {
     navigate("danhMuc")
   }
 
+  // Mở một mục kho `mucs` từ NGOÀI lưới (kết quả tìm kiếm toàn app — SearchScreen, Task 1; hoặc một
+  // dòng "Đã đọc gần đây" ở Trang chủ — Task 2) — MỘT hàm dùng chung thay vì hai bản chép tay giống
+  // hệt nhau, để hai lối vào luôn hạ cánh đúng cùng instance BoardGallery theo `loai`: sơ đồ nhắm
+  // thẳng instance Mindmap, bài viết đặt danhMucDangXem rồi nhắm instance "danhMuc" (CHỈ instance
+  // đang hiển thị mới tiêu thụ moBangYeuCau — guard dangHienTab trong BoardGallery.tsx).
+  function moMucTuNgoai(id: string, loai: LoaiMuc, danhMuc: IdDanhMuc) {
+    if (loai === "so-do") {
+      setMoBangYeuCau(id)
+      navigate("mindmap")
+    } else {
+      setDanhMucDangXem(danhMuc)
+      setMoBangYeuCau(id)
+      navigate("danhMuc")
+    }
+  }
+
   // Sửa thuốc trong "Dùng thuốc": khác các mục khác (tra theo id từ một danh sách có sẵn ở đây),
   // thuốc cần sửa có thể đến từ dữ liệu dựng sẵn (không nằm trong bất kỳ collection tự nhập nào) —
   // nên phải mang theo cả object thuốc, không chỉ id, vì vậy dùng hàm điều hướng riêng thay vì
@@ -12638,6 +12668,22 @@ export default function App() {
       } else if (e.kind === "custom") {
         const a = customArticlesCol.items.find((x) => x.id === e.id)
         if (a) out.push({ key: `custom:${a.id}`, id: a.id, title: a.title, at: e.at, screen: "customEntry", tag: "Tự nhập" })
+      } else if (e.kind === "muc") {
+        // Mục xoá mềm (daXoaLuc) đã biến khỏi lưới LuoiMuc/Mindmap và khỏi ô tìm kiếm chính (xem
+        // SearchScreen) — phải biến khỏi "Đã đọc gần đây" cùng lý do: bấm vào không được mở một
+        // mục người dùng tưởng đã xoá.
+        const m = mucsCol.items.find((x) => x.id === e.id && !x.daXoaLuc)
+        if (m)
+          out.push({
+            key: `muc:${m.id}`,
+            id: m.id,
+            title: m.ten,
+            at: e.at,
+            // Không dùng tới — bấm vào đi qua `muc` bên dưới (onMoMuc), không qua onNavigate.
+            screen: "danhMuc",
+            tag: DANH_MUC.find((d) => d.id === m.danhMuc)?.ten ?? "",
+            muc: { loai: m.loai, danhMuc: m.danhMuc },
+          })
       } else {
         const l = allEcgLessons.find((x) => x.id === e.id)
         if (l) out.push({ key: `ecg:${l.id}`, id: l.id, title: l.title, at: e.at, screen: "ecgDetail", tag: "ECG" })
@@ -12645,7 +12691,7 @@ export default function App() {
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentReads, customArticlesCol.items, ecgCol.items])
+  }, [recentReads, customArticlesCol.items, ecgCol.items, mucsCol.items])
 
   // Danh sách mọi bài có thể chèn liên kết tới, dùng cho trình soạn thảo. `target` mã hoá luôn loại
   // màn hình cần mở ("article" = bài dựng sẵn, "custom" = bài tự nhập, "ecg" = bài học ECG) nên khi
@@ -12979,6 +13025,7 @@ export default function App() {
                 setDanhMucDangXem(d)
                 navigate("danhMuc")
               }}
+              onMoMuc={moMucTuNgoai}
               recentReads={recentReadItems}
             />
           )}
@@ -12998,20 +13045,9 @@ export default function App() {
           {screen === "search" && (
             <SearchScreen
               onNavigate={navigate}
-              // Cùng khuôn taoBaiVietMoi (xem chú thích dài ở đó, quanh moBangYeuCau) thay vì tự chế
-              // lại đường điều hướng riêng: sơ đồ nhắm thẳng instance Mindmap, bài viết đặt
-              // danhMucDangXem rồi nhắm instance "danhMuc" — CHỈ instance đang hiển thị mới tiêu
-              // thụ moBangYeuCau (guard dangHienTab trong BoardGallery.tsx).
-              onMoMuc={(id, loai, danhMuc) => {
-                if (loai === "so-do") {
-                  setMoBangYeuCau(id)
-                  navigate("mindmap")
-                } else {
-                  setDanhMucDangXem(danhMuc)
-                  setMoBangYeuCau(id)
-                  navigate("danhMuc")
-                }
-              }}
+              // moMucTuNgoai — cùng hàm mà HomeScreen dùng cho "Đã đọc gần đây" (Task 2), không tự
+              // chế lại đường điều hướng riêng (xem chú thích dài tại chỗ khai báo hàm đó).
+              onMoMuc={moMucTuNgoai}
               onBack={goBack}
               customArticles={customArticlesCol.items}
               customFlashcards={customFlashcardsCol.items}

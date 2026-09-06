@@ -10,6 +10,9 @@ import { LuoiMuc, TheTrong, type BoardOpenOrigin, type BoLocMuc } from './LuoiMu
 import { VoMuc, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
 import { IDB_STORES, idbGetAll } from '../lib/idb'
+// Chỉ đụng localStorage (xem recentReads.ts) — an toàn với D13 dù BoardGallery là app-shell (import
+// trực tiếp, KHÔNG lazy): không kéo theo BlockSuite như mo-doc.ts/EdgelessBoard/TrangBaiViet.
+import { recordRead } from '../lib/recentReads'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
 // không. Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board'
@@ -140,8 +143,13 @@ export function BoardGallery({
     // ghi từ Task 5) — phải tự tra `loai` trong store trước khi mở, vì đọc loại TRƯỚC khi mở: mở
     // nhầm vỏ rồi sửa sau nghĩa là tháo/lắp lại cả cây Lit (EdgelessBoard hay TrangBaiViet).
     void idbGetAll<MucMeta>(IDB_STORES.mucs).then((ds) => {
-      setOpenLoai(ds.find((m) => m.id === moBangYeuCau)?.loai ?? 'so-do')
+      const tim = ds.find((m) => m.id === moBangYeuCau)
+      setOpenLoai(tim?.loai ?? 'so-do')
       setOpenBoardId(moBangYeuCau)
+      // Chỉ ghi "Đã đọc gần đây" khi bản ghi THẬT SỰ tồn tại trong kho — id không tìm thấy (đã bị
+      // xoá giữa lúc điều hướng) thì không đáng ghi, chỉ làm rác danh sách với một mục không bao
+      // giờ tra được tiêu đề (xem recentReadItems, App.tsx).
+      if (tim) recordRead('muc', moBangYeuCau)
     })
     onMoBangYeuCauXong?.()
   }, [moBangYeuCau, onMoBangYeuCauXong, dangHienTab])
@@ -373,6 +381,11 @@ export function BoardGallery({
             setDangChoCanvas(true)
             setDangPhongTo(true)
             setOpenBoardId(id)
+            // Ghi "Đã đọc gần đây" — đường DUY NHẤT người dùng dùng để mở một mục qua bấm thẻ trong
+            // lưới, luôn ứng với một bản ghi có thật (LuoiMuc chỉ gọi callback này từ .map() trên
+            // `danhSach` đã nạp từ IndexedDB), khác effect moBangYeuCau ở trên phải tự tra lại vì
+            // không đi qua một thẻ nào.
+            recordRead('muc', id)
           }}
           dungTuBang={vuaDongBang}
           onHieuUngXong={() => setVuaDongBang(false)}
