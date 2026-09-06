@@ -105,3 +105,48 @@ describe('index.tsx — ranh giới D13 (không kéo BlockSuite vào chunk vỏ 
     for (const dong of dongMoDoc) expect(dong).toMatch(/^import\s+type\s/)
   })
 })
+
+describe('ChonDanhMuc.tsx — ranh giới D13 (không kéo BlockSuite vào chunk vỏ app)', () => {
+  // Cùng lối đọc mã nguồn thật như khối trên, nhưng nhắm ChonDanhMuc.tsx. App.tsx nhập thẳng file
+  // này vào chunk vỏ app (không qua vỏ nạp chậm ./index.tsx) dựa trên lời hứa đầu file "chỉ React +
+  // ./mucMeta" — trước bản vá này không ca kiểm nào canh lời hứa đó, chỉ hai ca D13 phía trên (soi
+  // riêng index.tsx) đứng cạnh, nên ai thêm một import BlockSuite vào đây sẽ lọt qua hết.
+  const nguon = readFileSync(new NodeURL('../ChonDanhMuc.tsx', import.meta.url), 'utf8')
+
+  it('không import gì từ @blocksuite/* (ranh giới D13)', () => {
+    // So khớp chuỗi con thẳng: bắt cả import giá trị, import type, lẫn import side-effect
+    // (`import '@blocksuite/std'`) — mọi hình thức đều kéo gói BlockSuite vào chunk vỏ app.
+    expect(nguon).not.toContain('@blocksuite/')
+  })
+
+  it('không import từ ./mo-doc, ./EdgelessBoard hay ./TrangBaiViet — kể cả gián tiếp qua ./index (ranh giới D13)', () => {
+    // Bốn specifier này là lối duy nhất một module trong src/board/ chạm được tới BlockSuite: ba
+    // cái đầu trực tiếp (mo-doc.ts import @blocksuite/*; EdgelessBoard.tsx/TrangBaiViet.tsx là hai
+    // màn dùng bảng vẽ thật), còn ./index thì gián tiếp — index.tsx là nơi DUY NHẤT được phép
+    // lazy() hai màn đó. Không neo `from` bắt buộc để bắt luôn dạng import side-effect trần
+    // (`import './mo-doc'`), không phân biệt import type hay import giá trị — khác quy tắc của
+    // chính index.tsx, ChonDanhMuc.tsx không có ngoại lệ nào. Neo `^import` đầu dòng để không vướng
+    // các dòng comment phía trên nhắc cùng tên module (mucMeta.ts có comment kiểu này).
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/mo-doc['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/EdgelessBoard['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/TrangBaiViet['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/index['"]/m)
+  })
+})
+
+describe('mucMeta.ts — ranh giới D13 (không kéo BlockSuite vào chunk vỏ app)', () => {
+  // App.tsx nhập GIÁ TRỊ (taoIdMuc, DANH_MUC) từ mucMeta.ts thẳng vào chunk vỏ app, nên module này
+  // phải sạch BlockSuite giống ChonDanhMuc.tsx ở trên — cùng lỗ hổng trước bản vá, cùng cách vá.
+  const nguon = readFileSync(new NodeURL('../mucMeta.ts', import.meta.url), 'utf8')
+
+  it('không import gì từ @blocksuite/* (ranh giới D13)', () => {
+    expect(nguon).not.toContain('@blocksuite/')
+  })
+
+  it('không import từ ./mo-doc, ./EdgelessBoard hay ./TrangBaiViet — kể cả gián tiếp qua ./index (ranh giới D13)', () => {
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/mo-doc['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/EdgelessBoard['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/TrangBaiViet['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/index['"]/m)
+  })
+})

@@ -2,8 +2,9 @@
 // chưa-phân-loại). Dùng chung cho cả nút "Tạo bài mới" ở Trang chủ lẫn nút "+" trong lưới, nên nó
 // nhận `loai` và tự lọc lựa chọn thay vì để mỗi bên gọi tự nhớ Hướng dẫn không nhận sơ đồ.
 //
-// KHÔNG import gì từ BlockSuite (chỉ React + ./mucMeta) — App.tsx import nó vào chunk vỏ app, D13
-// canh bằng ranh-gioi-nap-bang.spec.ts.
+// KHÔNG import gì từ BlockSuite (chỉ React + ./mucMeta) — App.tsx import nó vào chunk vỏ app. Canh
+// bằng ranh-gioi-nap-bang.spec.ts, describe "ChonDanhMuc.tsx — ranh giới D13" (soi thẳng file này,
+// không phải hai ca D13 đứng cạnh — hai ca đó chỉ đọc index.tsx).
 import { useEffect } from 'react'
 
 import { DANH_MUC, danhMucNhanLoai, type IdDanhMuc, type LoaiMuc } from './mucMeta'

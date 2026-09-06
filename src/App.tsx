@@ -16,8 +16,9 @@ import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 import { BoardGallery } from "./board/BoardGallery"
 // mucMeta.ts KHÔNG import gì từ @blocksuite/* (D13), nên nhập cả GIÁ TRỊ (taoIdMuc) lẫn kiểu ở đây
 // không phá phần tách chunk mà vỏ nạp chậm ở trên tồn tại để giữ. ChonDanhMuc.tsx cũng chỉ phụ
-// thuộc React + mucMeta.ts, an toàn cùng lý do — xác nhận bằng ranh-gioi-nap-bang.spec.ts, không
-// suy luận.
+// thuộc React + mucMeta.ts, an toàn cùng lý do — canh bằng hai describe riêng "ChonDanhMuc.tsx —
+// ranh giới D13" và "mucMeta.ts — ranh giới D13" trong ranh-gioi-nap-bang.spec.ts (mỗi describe soi
+// thẳng file cùng tên), không suy luận. Hai ca D13 gốc trong cùng file đó chỉ soi index.tsx.
 import { ChonDanhMuc } from "./board/ChonDanhMuc"
 import { DANH_MUC, taoIdMuc, type IdDanhMuc, type MucMeta } from "./board/mucMeta"
 import {
