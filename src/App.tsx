@@ -4186,6 +4186,11 @@ type ImportPayload = {
   ecgLessons: EcgLesson[]
   flashcards: FlashCard[]
   wardRecipes: WardRecipe[]
+  // Task 3 (giai đoạn 7-9): metadata của kho bài viết/sơ đồ hợp nhất (store `mucs`, xem
+  // board/mucMeta.ts) — tên, danh mục, tag, chuyên khoa. CHỈ metadata, KHÔNG phải nội dung doc CRDT
+  // thật (chữ/nét vẽ) — nội dung đó đi qua đường khác, tách riêng ở Task 4 vì rủi ro D13 khác hẳn
+  // (D13: không import giá trị từ mo-doc.ts/EdgelessBoard/TrangBaiViet ngoài src/board/index.tsx).
+  mucs: MucMeta[]
 }
 
 // Snapshot đủ để hoàn tác một lần nhập file — CHỈ gồm các bảng gộp theo id (nơi nhập nhầm file cũ
@@ -4198,6 +4203,7 @@ type SyncSnapshot = {
   ecgLessons: EcgLesson[]
   flashcards: FlashCard[]
   wardRecipes: WardRecipe[]
+  mucs: MucMeta[]
 }
 
 function DataSyncScreen({
@@ -4207,6 +4213,7 @@ function DataSyncScreen({
   customInfusions,
   customEcgLessons,
   customFlashcards,
+  customMucs,
   duLieuChuaDocDuoc,
   onImport,
   onRestoreSnapshot,
@@ -4219,8 +4226,11 @@ function DataSyncScreen({
   customInfusions: Record<InfusionCategory, InfusionDrug[]>
   customEcgLessons: EcgLesson[]
   customFlashcards: FlashCard[]
-  // true khi một trong các danh mục lưu ở IndexedDB (bài viết, bài học ECG) KHÔNG đọc được lượt
-  // này. Bắt buộc phải biết ở đây vì màn này là nơi duy nhất có thể biến một sự cố đọc tạm thời
+  // Task 3 (giai đoạn 7-9): metadata store `mucs` (kho bài viết/sơ đồ hợp nhất) — xem chú thích ở
+  // `ImportPayload` phía trên về ranh giới với nội dung doc CRDT thật (Task 4).
+  customMucs: MucMeta[]
+  // true khi một trong các danh mục lưu ở IndexedDB (bài viết, bài học ECG, mucs) KHÔNG đọc được
+  // lượt này. Bắt buộc phải biết ở đây vì màn này là nơi duy nhất có thể biến một sự cố đọc tạm thời
   // thành MẤT DỮ LIỆU THẬT: payload xuất ra dựng từ chính các mảng trong bộ nhớ, mà đọc hỏng thì
   // chúng rỗng — người dùng nhận về một file "sao lưu" chứa `articles: []` rồi ghi đè lên bản
   // backup tốt trước đó. Ảo giác mất dữ liệu ở các màn khác còn cứu được; ca này thì không.
@@ -4262,6 +4272,9 @@ function DataSyncScreen({
     { key: "wardRecipes", label: "Công thức pha đã lưu", current: wardRecipeList, incomingOf: (d) => d.wardRecipes },
     { key: "ecgLessons", label: "Bài học ECG", current: customEcgLessons, incomingOf: (d) => d.ecgLessons },
     { key: "flashcards", label: "Thẻ ghi nhớ tự nhập", current: customFlashcards, incomingOf: (d) => d.flashcards },
+    // Task 3: metadata mucs (kho bài viết/sơ đồ hợp nhất) — chỉ tên/danh mục/tag/chuyên khoa, không
+    // phải nội dung doc CRDT thật (xem chú thích ImportPayload).
+    { key: "mucs", label: "Bài viết & Sơ đồ", current: customMucs, incomingOf: (d) => d.mucs },
   ]
 
   const [exportSelection, setExportSelection] = useState<Record<string, boolean>>(() =>
@@ -4311,6 +4324,7 @@ function DataSyncScreen({
           ecgLessons: pick("ecgLessons", customEcgLessons),
           flashcards: pick("flashcards", customFlashcards),
           wardRecipes: pick("wardRecipes", wardRecipeList),
+          mucs: pick("mucs", customMucs),
         },
       }
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
@@ -4363,8 +4377,11 @@ function DataSyncScreen({
         const ecgLessons: EcgLesson[] = Array.isArray(d.ecgLessons) ? (d.ecgLessons as EcgLesson[]) : []
         const flashcards: FlashCard[] = Array.isArray(d.flashcards) ? (d.flashcards as FlashCard[]) : []
         const wardRecipes: WardRecipe[] = Array.isArray(d.wardRecipes) ? (d.wardRecipes as WardRecipe[]) : []
+        // Task 3 (giai đoạn 7-9): metadata mucs. File cũ (xuất từ trước Task 3) đơn giản là thiếu
+        // khoá này — mảng rỗng, không phải lỗi, cùng cách xử lý mọi khoá mới khác ở trên.
+        const mucs: MucMeta[] = Array.isArray(d.mucs) ? (d.mucs as MucMeta[]) : []
 
-        const parsedData: ImportPayload = { articles, antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes }
+        const parsedData: ImportPayload = { articles, antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes, mucs }
         const count =
           articles.length +
           antibiotics.length +
@@ -4372,7 +4389,8 @@ function DataSyncScreen({
           INFUSION_CATEGORIES.reduce((n, c) => n + infusions[c.id].length, 0) +
           ecgLessons.length +
           flashcards.length +
-          wardRecipes.length
+          wardRecipes.length +
+          mucs.length
         if (count === 0) {
           setStatus("Không tìm thấy dữ liệu hợp lệ trong file này.")
           setImporting(false)
@@ -4415,6 +4433,7 @@ function DataSyncScreen({
       ecgLessons: customEcgLessons,
       flashcards: customFlashcards,
       wardRecipes: wardRecipeList,
+      mucs: customMucs,
     }
     onImport(pendingImport.data)
     setUndoSnapshot(snapshot)
@@ -12828,6 +12847,9 @@ export default function App() {
     ecgLessons: EcgLesson[]
     flashcards: FlashCard[]
     wardRecipes: WardRecipe[]
+    // Task 3 (giai đoạn 7-9): metadata mucs — chỉ tên/danh mục/tag/chuyên khoa, không phải nội
+    // dung doc CRDT thật (xem chú thích ImportPayload, DataSyncScreen).
+    mucs: MucMeta[]
   }) {
     if (data.articles.length) customArticlesCol.upsertMany(data.articles)
     if (data.antibiotics.length) customAntibioticsCol.upsertMany(data.antibiotics)
@@ -12839,6 +12861,7 @@ export default function App() {
     if (data.ecgLessons.length) ecgCol.upsertMany(data.ecgLessons)
     if (data.flashcards.length) customFlashcardsCol.upsertMany(data.flashcards)
     if (data.wardRecipes.length) importWardRecipes(data.wardRecipes)
+    if (data.mucs.length) mucsCol.upsertMany(data.mucs)
   }
 
   // Hoàn tác một lần nhập file: thay HẲN từng bảng bằng đúng snapshot chụp trước lúc nhập (khác
@@ -12851,6 +12874,7 @@ export default function App() {
     ecgLessons: EcgLesson[]
     flashcards: FlashCard[]
     wardRecipes: WardRecipe[]
+    mucs: MucMeta[]
   }) {
     customArticlesCol.replaceAll(snapshot.articles)
     customAntibioticsCol.replaceAll(snapshot.antibiotics)
@@ -12858,6 +12882,7 @@ export default function App() {
     INFUSION_CATEGORIES.forEach((c) => infusionCols[c.id].replaceAll(snapshot.infusions[c.id] ?? []))
     ecgCol.replaceAll(snapshot.ecgLessons)
     customFlashcardsCol.replaceAll(snapshot.flashcards)
+    mucsCol.replaceAll(snapshot.mucs)
     // Chỉ có state cục bộ của DungThuocScreen đọc danh sách này — màn đó đã unmount lúc "Đồng bộ dữ
     // liệu" đang mở nên không cần đồng bộ state ở đây, chỉ cần ghi đúng xuống localStorage; lần sau
     // mở lại "Dùng thuốc" nó tự đọc lại từ đầu bằng loadWardRecipes().
@@ -13226,9 +13251,10 @@ export default function App() {
               customInfusions={customInfusions}
               customEcgLessons={ecgCol.items}
               customFlashcards={customFlashcardsCol.items}
-              // Chỉ hai danh mục này nằm ở IndexedDB; kháng sinh/bệnh lý/thuốc truyền/thẻ ghi nhớ
+              customMucs={mucsCol.items}
+              // Chỉ ba danh mục này nằm ở IndexedDB; kháng sinh/bệnh lý/thuốc truyền/thẻ ghi nhớ
               // dùng localStorage (đọc đồng bộ, không có trạng thái "đọc hỏng" tương đương).
-              duLieuChuaDocDuoc={customArticlesCol.loiDoc !== null || ecgCol.loiDoc !== null}
+              duLieuChuaDocDuoc={customArticlesCol.loiDoc !== null || ecgCol.loiDoc !== null || mucsCol.loiDoc !== null}
               onImport={handleImportData}
               onRestoreSnapshot={handleRestoreSnapshot}
               onBackupDone={() => setShowBackupReminder(false)}
