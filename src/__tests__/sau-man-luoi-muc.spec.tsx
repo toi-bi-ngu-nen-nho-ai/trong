@@ -15,6 +15,20 @@ import type { MucMeta } from '../board/mucMeta'
 
 vi.mock('../board/index', () => ({ VoMuc: () => <div data-testid="vo-muc" /> }))
 
+// Mọi ca trong file này `await import('../App')` rồi `render(<App />)` dưới happy-dom +
+// fake-indexeddb — hồi quy HIỆU NĂNG (không phải tính đúng đắn) của Plan 3 giai đoạn 7-9: Task 1
+// thêm đọc `mucs` vào SearchScreen, Task 2 thêm `mucsCol` vào App(), Task 3 thêm phần đồng bộ dữ
+// liệu — cả ba đều mount thêm việc vào CÙNG một lượt mount App() mà file này lặp lại ở mỗi `it`.
+// Đối chứng: lúc hợp nhất Plan 2 (trước ba task trên), trọn bộ 840/840 ca xanh với đúng ngưỡng
+// 20000ms mặc định (vite.config.ts) — ba ca ĐỎ ở đây (và cascade sang ca kế tiếp trong cùng file vì
+// async work của ca hết giờ vẫn chạy tiếp, làm bẩn DOM của ca sau) chỉ vì hết giờ, không phải khẳng
+// định sai: đã tự kiểm bằng `npx vitest run ... --testTimeout=90000` → 15/15 xanh (10 ca file này +
+// 5 ca tao-bai-moi-tu-trang-chu.spec.tsx, cùng cảnh). Nới CỤC BỘ ở đây bằng tham số thứ ba của từng
+// `it`, KHÔNG đụng `testTimeout` toàn cục — nới toàn cục sẽ che mất lượt chậm đi thật ở nơi khác.
+// CẦN ĐO LẠI sau Task 8 (kho-bai-viet-giai-doan-7-9): Task 6-8 gỡ 7 màn + 8 tệp khỏi App, nhiều khả
+// năng hiệu năng mount tự hồi và ngưỡng này có thể hạ lại gần 20000ms mặc định.
+const HAN_GIO_MOUNT_APP_MS = 90000
+
 const muc = (id: string, loai: MucMeta['loai'], danhMuc: MucMeta['danhMuc']): MucMeta => ({
   id,
   loai,
@@ -40,7 +54,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     await waitFor(() => expect(screen.getByText('bv-ecg')).toBeTruthy())
     expect(screen.queryByText('bv-hd')).toBeNull()
     expect(screen.queryByText('sd-ecg')).toBeNull()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   it('Hướng dẫn: đúng những mục danh mục huong-dan', async () => {
     await idbPut(IDB_STORES.mucs, muc('bv-hd2', 'bai-viet', 'huong-dan'))
@@ -50,7 +64,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Hướng dẫn' }))
 
     await waitFor(() => expect(screen.getByText('bv-hd2')).toBeTruthy())
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   it('thẻ ECG ở Trang chủ mở lưới lọc theo danh mục ecg, trộn cả hai loại', async () => {
     await idbPut(IDB_STORES.mucs, muc('bv-ecg3', 'bai-viet', 'ecg'))
@@ -64,7 +78,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     await waitFor(() => expect(screen.getByText('bv-ecg3')).toBeTruthy())
     expect(screen.getByText('sd-ecg3')).toBeTruthy()
     expect(screen.queryByText('bv-pd3')).toBeNull()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── Review Task 7 — I1: thanh nav dưới không được hiện ở màn "danhMuc" ─────────────────────────
   // Trước bản vá: "danhMuc" vắng mặt trong NON_TAB_SCREENS (App.tsx) → isDetailScreen tính sai →
@@ -77,7 +91,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'ECG' })).toBeTruthy())
     expect(screen.queryByRole('navigation', { name: 'Điều hướng chính' })).toBeNull()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── Review Task 7 — I2: màn "danhMuc" phải có đường quay lại Trang chủ của riêng nó ────────────
   // I1 tắt thanh nav ở màn này (đúng) nhưng nếu KHÔNG bù affordance nào khác, ba thẻ Truy cập nhanh
@@ -101,7 +115,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     // Về đúng Trang chủ — kiểm bằng một affordance CHỈ có ở Trang chủ (nút "Tạo bài mới" nổi, xem
     // tao-bai-moi-tu-trang-chu.spec.tsx), không phải chỉ "màn danhMuc đã unmount".
     await waitFor(() => expect(screen.getByRole('button', { name: /Tạo bài mới/ })).toBeTruthy())
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── Review Task 7 — I3: thẻ ECG không được hiện số đếm SAI ─────────────────────────────────────
   // Trước bản vá: caption thẻ ECG đọc `ecgCount` = allEcgLessons.length (ecgCol IndexedDB CŨ +
@@ -115,7 +129,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
 
     const the = screen.getByRole('button', { name: /ECG/ })
     expect(the.textContent).not.toContain('(0)')
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── Tự soát: "vào rồi RA" ────────────────────────────────────────────────────────────────────
   // Bài học đã ghi của dự án: "mở lên chạy đúng" không đủ — phải bấm VÀO, THOÁT RA, sang màn khác
@@ -151,7 +165,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thư viện' }))
     await waitFor(() => expect(screen.getByText('tv-mo4')).toBeTruthy())
     expect(screen.queryByText('hd-rieng4')).toBeNull()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── Tự soát: chuỗi thao tác nối tiếp giữa các thẻ danh mục ──────────────────────────────────
   // Ba thẻ "Tiếp cận vấn đề"/"ECG"/"Phác đồ" dùng CHUNG một nhánh Screen "danhMuc" + state
@@ -180,7 +194,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Phác đồ' }))
     await waitFor(() => expect(screen.getByText('pd-rieng5')).toBeTruthy())
     expect(screen.queryByText('ecg-rieng5')).toBeNull()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── C1 (Critical, đợt vá cuối trước hợp nhất) — Mindmap: lưới CHỈ hiện sơ đồ ───────────────────
   // Ca "CA GHIM Ở MỨC COMPONENT" ở BoardGallery.spec.ts mount <BoardGallery> TRỰC TIẾP và tự truyền
@@ -205,7 +219,7 @@ describe('sáu màn dùng chung LuoiMuc', () => {
 
     await waitFor(() => expect(screen.getByText('sd-mindmap6')).toBeTruthy())
     expect(screen.queryByText('bv-mindmap6')).toBeNull()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── I1 (Important, đợt vá cuối trước hợp nhất) — nút "+" ở màn danh mục tạo bài-viết ───────────
   // LuoiMuc.tsx (nút "+", ~dòng 1675/1678) chỉ từng đọc `loaiTaoDuoc[0]` — `loaiTaoDuoc[1]` không
@@ -243,5 +257,5 @@ describe('sáu màn dùng chung LuoiMuc', () => {
     })
     expect(mucMoi?.danhMuc).toBe('ecg')
     expect(mucMoi?.loai).toBe('bai-viet')
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 })

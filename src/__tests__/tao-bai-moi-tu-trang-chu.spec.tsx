@@ -20,6 +20,16 @@ vi.mock('../board/index', () => ({
   VoMuc: ({ loai }: { loai: string }) => <div data-testid="vo-muc" data-loai={loai} />,
 }))
 
+// Hồi quy HIỆU NĂNG (không phải tính đúng đắn) của Plan 3 giai đoạn 7-9 — cùng nguyên nhân đã ghi ở
+// src/__tests__/sau-man-luoi-muc.spec.tsx: mỗi `it` ở đây `await import('../App')` rồi
+// `render(<App />)`, và Task 1-3 (đọc `mucs` ở SearchScreen, thêm `mucsCol`, thêm phần đồng bộ dữ
+// liệu) đều mount thêm việc vào CÙNG một lượt mount đó. Đã tự kiểm bằng
+// `npx vitest run ... --testTimeout=90000` → 15/15 xanh (5 ca file này + 10 ca
+// sau-man-luoi-muc.spec.tsx). Nới CỤC BỘ bằng tham số thứ ba của từng `it`, không đụng
+// `testTimeout` toàn cục. CẦN ĐO LẠI sau Task 8 (kho-bai-viet-giai-doan-7-9) — Task 6-8 gỡ 7 màn +
+// 8 tệp khỏi App, nhiều khả năng ngưỡng này có thể hạ lại gần 20000ms mặc định.
+const HAN_GIO_MOUNT_APP_MS = 90000
+
 // fake-indexeddb sống suốt cả file (không tự reset giữa các `it()`) — dọn store `mucs` sau mỗi ca
 // để ca sau không thấy lẫn bản ghi của ca trước, đặc biệt quan trọng cho ca đếm-số-bản-ghi.
 afterEach(async () => {
@@ -49,7 +59,7 @@ describe('Tạo bài mới từ Trang chủ', () => {
     await waitFor(() => {
       expect(screen.getByTestId('vo-muc').getAttribute('data-loai')).toBe('bai-viet')
     })
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   it('KHÔNG còn dẫn vào AddEntryScreen của hệ cũ', async () => {
     const { default: App } = await import('../App')
@@ -57,7 +67,7 @@ describe('Tạo bài mới từ Trang chủ', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Tạo bài mới/ }))
     expect(screen.getByRole('dialog', { name: /Chọn danh mục/ })).toBeTruthy()
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // Cùng lớp lỗi đã vá ở taoMucVoiDanhMuc (LuoiMuc.tsx, Task 4) — nút danh mục trong ChonDanhMuc
   // KHÔNG tự mang khoá chống bấm đúp (component đó chỉ được phép import React + ./mucMeta, không
@@ -88,7 +98,7 @@ describe('Tạo bài mới từ Trang chủ', () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
       expect(ds.filter((m) => m.loai === 'bai-viet')).toHaveLength(1)
     })
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // "Vào rồi RA" — tạo xong một bài, rời khỏi vỏ trang, quay lại Trang chủ, rồi tạo bài THỨ HAI.
   // Khoá chống bấm đúp (dangTaoBaiVietRef, App.tsx) chỉ được đặt lại `false` khi bảng chọn MỞ RA
@@ -137,7 +147,7 @@ describe('Tạo bài mới từ Trang chủ', () => {
       const ds = await idbGetAll<MucMeta>(IDB_STORES.mucs)
       expect(ds.filter((m) => m.loai === 'bai-viet')).toHaveLength(2)
     })
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 
   // ─── Đợt vá cuối trước hợp nhất — C2 ─────────────────────────────────────────────────────────
   // taoBaiVietMoi (App.tsx) từng kết thúc bằng navigate("mindmap"): bài viết mở đúng vỏ (VoMuc
@@ -178,5 +188,5 @@ describe('Tạo bài mới từ Trang chủ', () => {
     // Bài vừa tạo PHẢI hiện trong lưới đang đứng — hành vi TRƯỚC bản vá không có: bài hiện trong
     // lưới Mindmap (lọc loai:'so-do', bài viết không lọt qua), không phải lưới danh mục này.
     await waitFor(() => expect(screen.getByText('Bài chưa đặt tên')).toBeTruthy())
-  })
+  }, HAN_GIO_MOUNT_APP_MS)
 })
