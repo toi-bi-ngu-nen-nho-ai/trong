@@ -12577,6 +12577,20 @@ export default function App() {
     setScreen(s)
   }
 
+  // VÒNG SỬA 1 (task-2, giai đoạn 7-9) — lỗi Critical đã sửa: panel "Đã đọc gần đây" không cập nhật
+  // TRONG PHIÊN khi một mục `MucMeta` được mở qua BoardGallery (bấm thẻ trong lưới, hoặc mở thẳng
+  // theo id qua moBangYeuCau) — trước bản vá này BoardGallery.tsx tự gọi thẳng `recordRead('muc',
+  // id)` vào localStorage, nhưng `recentReads` là STATE của App() (dòng khai báo ở trên,
+  // `useState(loadRecentReads)`, chỉ đọc MỘT LẦN lúc mount) nên không có gì kích App() render lại —
+  // người dùng phải TẢI LẠI TRANG mới thấy panel đổi. BoardGallery là component KHÁC App(), không tự
+  // gọi `setRecentReads` được, nên nó chỉ báo ngược lên qua prop `onDaDoc`; App() làm đúng khuôn ba
+  // kind cũ trong navigate() ở trên — `setRecentReads(recordRead(...))` — ghi localStorage và cập
+  // nhật state React nằm CHUNG một lệnh, một chỗ. useCallback vì hàm này nằm trong deps của effect
+  // tiêu thụ `moBangYeuCau` ở CẢ NĂM instance BoardGallery (Thư viện/Hướng dẫn/Mindmap/danhMuc/chuyên
+  // khoa) — không bọc thì mỗi lượt render App() lại là một hàm mới, làm cả năm effect đó chạy lại vô
+  // ích mỗi lần.
+  const ghiDaDocMuc = useCallback((id: string) => setRecentReads(recordRead('muc', id)), [])
+
   // Sinh một MucMeta loại "bai-viet" từ danh mục người dùng vừa chọn trong ChonDanhMuc, rồi mở
   // THẲNG vào trang soạn thảo — spec §3.5 "mở thẳng TrangBaiViet", KHÁC luồng tạo sơ đồ (sơ đồ dừng
   // lại ở lưới để đặt tên vì ba bảng trống trông giống hệt nhau; bài viết thì tiêu đề gõ ngay trong
@@ -13040,6 +13054,7 @@ export default function App() {
               danhMucLoaiTru={['huong-dan']}
               loaiTaoDuoc={[]}
               onDangMoBang={setBangDangMo}
+              onDaDoc={ghiDaDocMuc}
             />
           )}
           {screen === "search" && (
@@ -13073,6 +13088,7 @@ export default function App() {
             moBangYeuCau={moBangYeuCau}
             onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
             onDangMoBang={setBangDangMo}
+            onDaDoc={ghiDaDocMuc}
           />
           {screen === "flashcard" && <ComingSoonScreen feature="Thẻ ghi nhớ" />}
           {/* Task 7: Hướng dẫn dùng chung LuoiMuc — CHỈ danh mục "huong-dan" (chỉ nhận loại bài
@@ -13085,6 +13101,7 @@ export default function App() {
               danhMuc="huong-dan"
               loaiTaoDuoc={['bai-viet']}
               onDangMoBang={setBangDangMo}
+              onDaDoc={ghiDaDocMuc}
             />
           )}
           {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
@@ -13116,6 +13133,7 @@ export default function App() {
               moBangYeuCau={moBangYeuCau}
               onMoBangYeuCauXong={() => setMoBangYeuCau(undefined)}
               onDangMoBang={setBangDangMo}
+              onDaDoc={ghiDaDocMuc}
               // Task 7 review (I2): màn này không có tab riêng trong thanh nav dưới (nay bị ẩn hẳn,
               // xem NON_TAB_SCREENS) và không nằm trong cụm nút nổi (chỉ "home"/"specialty") — không
               // có prop này thì ba thẻ Truy cập nhanh mở vào một màn không lối thoát nào khác ngoài
@@ -13134,6 +13152,7 @@ export default function App() {
               chuyenKhoa={specialtyId}
               loaiTaoDuoc={[]}
               onDangMoBang={setBangDangMo}
+              onDaDoc={ghiDaDocMuc}
             />
           )}
           {screen === "addEntry" && (

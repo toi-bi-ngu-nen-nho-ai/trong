@@ -10,9 +10,6 @@ import { LuoiMuc, TheTrong, type BoardOpenOrigin, type BoLocMuc } from './LuoiMu
 import { VoMuc, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
 import { IDB_STORES, idbGetAll } from '../lib/idb'
-// Chỉ đụng localStorage (xem recentReads.ts) — an toàn với D13 dù BoardGallery là app-shell (import
-// trực tiếp, KHÔNG lazy): không kéo theo BlockSuite như mo-doc.ts/EdgelessBoard/TrangBaiViet.
-import { recordRead } from '../lib/recentReads'
 
 // Đánh dấu "đã từng THÀNH CÔNG di trú" — ĐỘC LẬP với việc metadata bảng 'board' còn tồn tại hay
 // không. Không có cờ riêng này thì diTruBangCuNeuCo() tự coi "chưa di trú" mỗi khi metadata 'board'
@@ -47,6 +44,7 @@ export function BoardGallery({
   moBangYeuCau,
   onMoBangYeuCauXong,
   onDangMoBang,
+  onDaDoc,
   tieuDe,
   loaiTaoDuoc,
   loai,
@@ -58,6 +56,19 @@ export function BoardGallery({
   dangHienTab: boolean
   moBangYeuCau?: string
   onMoBangYeuCauXong?: () => void
+  /**
+   * VÒNG SỬA 1 (task-2, giai đoạn 7-9) — lỗi Critical đã sửa: BoardGallery TỪNG tự gọi
+   * `recordRead('muc', id)` thẳng vào localStorage ở đây, nhưng `recentReads` là STATE của App()
+   * (`useState(loadRecentReads)`, chỉ đọc MỘT LẦN lúc mount) — App() không có cách nào biết
+   * localStorage vừa đổi để tự render lại, nên panel "Đã đọc gần đây" ở Trang chủ đứng yên tới khi
+   * NGƯỜI DÙNG TẢI LẠI TRANG. Nay BoardGallery không đụng `recentReads`/`localStorage` nữa — chỉ báo
+   * lên App() "mục này vừa được mở thành công", App() tự làm đúng khuôn ba kind cũ trong navigate()
+   * (`setRecentReads(recordRead('muc', id))`) — ghi và cập nhật state nằm CHUNG một chỗ. Optional
+   * (không phải mọi test dựng BoardGallery trần đều cần ghi "Đã đọc gần đây") nhưng CẢ NĂM lượt gọi
+   * `<BoardGallery>` thật trong App.tsx đều truyền, vì bất kỳ instance nào (Thư viện/Hướng dẫn/
+   * Mindmap/danhMuc/chuyên khoa) cũng có thể là nơi một mục `MucMeta` được mở lần đầu.
+   */
+  onDaDoc?: (id: string) => void
   /**
    * Báo lên App "đang có bảng mở và đang nhìn thấy nó", để App ẩn thanh điều hướng dưới (chủ dự án
    * yêu cầu 2026-09-03: dùng sơ đồ thì bỏ nav, bảng vẽ chiếm trọn màn).
@@ -146,13 +157,13 @@ export function BoardGallery({
       const tim = ds.find((m) => m.id === moBangYeuCau)
       setOpenLoai(tim?.loai ?? 'so-do')
       setOpenBoardId(moBangYeuCau)
-      // Chỉ ghi "Đã đọc gần đây" khi bản ghi THẬT SỰ tồn tại trong kho — id không tìm thấy (đã bị
+      // Chỉ báo "Đã đọc gần đây" khi bản ghi THẬT SỰ tồn tại trong kho — id không tìm thấy (đã bị
       // xoá giữa lúc điều hướng) thì không đáng ghi, chỉ làm rác danh sách với một mục không bao
       // giờ tra được tiêu đề (xem recentReadItems, App.tsx).
-      if (tim) recordRead('muc', moBangYeuCau)
+      if (tim) onDaDoc?.(moBangYeuCau)
     })
     onMoBangYeuCauXong?.()
-  }, [moBangYeuCau, onMoBangYeuCauXong, dangHienTab])
+  }, [moBangYeuCau, onMoBangYeuCauXong, dangHienTab, onDaDoc])
   // true trong khoảng ngắn giữa lúc bấm "quay lại" và lúc lưới danh sách THẬT SỰ được phép mount —
   // xem chú thích dài ở nút "quay lại" bên dưới để hiểu vì sao cần một cờ riêng thay vì mount
   // LuoiMuc NGAY khi openBoardId về null.
@@ -381,11 +392,11 @@ export function BoardGallery({
             setDangChoCanvas(true)
             setDangPhongTo(true)
             setOpenBoardId(id)
-            // Ghi "Đã đọc gần đây" — đường DUY NHẤT người dùng dùng để mở một mục qua bấm thẻ trong
+            // Báo "Đã đọc gần đây" — đường DUY NHẤT người dùng dùng để mở một mục qua bấm thẻ trong
             // lưới, luôn ứng với một bản ghi có thật (LuoiMuc chỉ gọi callback này từ .map() trên
             // `danhSach` đã nạp từ IndexedDB), khác effect moBangYeuCau ở trên phải tự tra lại vì
             // không đi qua một thẻ nào.
-            recordRead('muc', id)
+            onDaDoc?.(id)
           }}
           dungTuBang={vuaDongBang}
           onHieuUngXong={() => setVuaDongBang(false)}

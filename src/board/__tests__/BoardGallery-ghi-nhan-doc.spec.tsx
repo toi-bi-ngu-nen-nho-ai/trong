@@ -7,15 +7,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { loadRecentReads } from '../../lib/recentReads'
+import { loadRecentReads, recordRead } from '../../lib/recentReads'
 import { choDenKhi } from '../../__tests__/helpers/cho-den-khi'
 import { type MucMeta } from '../mucMeta'
 import { BoardGallery } from '../BoardGallery'
 
 // Task 2 (giai đoạn 7-9): "Đã đọc gần đây" phải ghi nhận cả mục MucMeta của kho mới. File này canh
-// ĐÚNG hai điểm gọi recordRead('muc', id) trong BoardGallery.tsx — mở qua bấm thẻ trong lưới
-// (onMoBang) và mở thẳng theo id từ ngoài (effect moBangYeuCau, dùng bởi tìm kiếm/"Tạo bài mới") —
-// và rằng một id KHÔNG tồn tại trong kho thì KHÔNG được ghi (đó không phải một lượt mở thành công).
+// ĐÚNG hai điểm BoardGallery.tsx gọi `onDaDoc(id)` — mở qua bấm thẻ trong lưới (onMoBang) và mở
+// thẳng theo id từ ngoài (effect moBangYeuCau, dùng bởi tìm kiếm/"Tạo bài mới") — và rằng một id
+// KHÔNG tồn tại trong kho thì KHÔNG được gọi (đó không phải một lượt mở thành công).
+//
+// VÒNG SỬA 1: từ bản vá lỗi Critical (panel "Đã đọc gần đây" không cập nhật trong phiên — xem
+// chú thích dài tại `ghiDaDocMuc`, App.tsx), BoardGallery.tsx KHÔNG còn tự gọi `recordRead` vào
+// localStorage nữa — nó chỉ gọi ngược `onDaDoc?.(id)`, một prop do App() truyền xuống. File này CHỈ
+// canh "BoardGallery gọi ĐÚNG onDaDoc, ĐÚNG lúc, ĐÚNG id" ở TẦNG COMPONENT (không đi qua App()) —
+// truyền tay một `onDaDoc` gọi thẳng `recordRead` để vẫn kiểm được lớp lưu trữ THẬT, giữ nguyên giá
+// trị hai ca kiểm dương tính vốn có. Ca này KHÔNG chứng minh panel "Đã đọc gần đây" ở Trang chủ cập
+// nhật được trong phiên — đó là việc của ca TÍCH HỢP mount `<App />` thật, xem
+// `src/__tests__/da-doc-gan-day-tich-hop.spec.tsx`.
 //
 // `../index` (VoMuc) được giả bằng một component tối giản — cùng lý do BoardGallery.spec.ts đã giả:
 // không cần dựng canvas/BlockSuite thật để canh hành vi điều hướng/ghi nhận.
@@ -66,7 +75,14 @@ describe('BoardGallery — ghi nhận "Đã đọc gần đây"', () => {
     const meta = taoBangGia('Bảng test')
     await idbPut(IDB_STORES.mucs, meta)
     await act(async () => {
-      root.render(createElement(BoardGallery, { dangHienTab: true, tieuDe: 'Sơ đồ tư duy', loaiTaoDuoc: ['so-do'] }))
+      root.render(
+        createElement(BoardGallery, {
+          dangHienTab: true,
+          tieuDe: 'Sơ đồ tư duy',
+          loaiTaoDuoc: ['so-do'],
+          onDaDoc: (id: string) => recordRead('muc', id),
+        }),
+      )
     })
     await choDenKhi(() => {
       expect(container.querySelector('[data-testid="the-bang"]')).not.toBeNull()
@@ -98,6 +114,7 @@ describe('BoardGallery — ghi nhận "Đã đọc gần đây"', () => {
           moBangYeuCau: meta.id,
           tieuDe: 'Sơ đồ tư duy',
           loaiTaoDuoc: ['so-do'],
+          onDaDoc: (id: string) => recordRead('muc', id),
         }),
       )
     })
