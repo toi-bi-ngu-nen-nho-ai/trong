@@ -1432,3 +1432,33 @@ git commit -m "feat(the): badge icon phân biệt bài viết với sơ đồ"
   giữ.
 - **Trước Plan 3 (giai đoạn 9):** xuất một file sao lưu bằng màn Đồng bộ dữ liệu **hiện có**. Đó là
   bảo hiểm rẻ nhất cho quyết định "bỏ toàn bộ dữ liệu cũ".
+
+---
+
+## KẾT QUẢ NGHIỆM THU (2026-09-06) — đã hợp nhất ở `b27d992`
+
+Ghi lại đây vì bằng chứng kiểm tay (số đo trên Chrome thật) không nằm trong lịch sử git.
+
+**Cổng tự động, đo trên cây ĐÃ MERGE:** `tsc --noEmit` sạch · 95 tệp / 840 ca xanh ·
+`npm run build` xanh · `kiem:dist` xanh · `kiem:vendor` xanh (2782 tệp, 0 sai lệch).
+
+**Chín tiêu chí:** đạt cả chín. Ba tiêu chí kiểm tay (4, 5, 6) làm trên Chrome thật.
+
+| # | Bằng chứng |
+|---|---|
+| 3 | Gỡ `loai="so-do"` khỏi instance Mindmap trong `App.tsx` ⇒ `sau-man-luoi-muc.spec.tsx` ĐỎ (`bv-mindmap6` lọt vào lưới). Trước lượt vá, cùng thí nghiệm cho 30/30 XANH — ca ghim cũ là ghim GIẢ. |
+| 4 | Tạo bài mới → Phác đồ → gõ tiếng Việt có dấu → thoát: hiện ở màn Phác đồ ✓, ở Thư viện ✓, KHÔNG ở Mindmap ✓; tiêu đề trên thẻ đúng, đủ dấu. |
+| 5 | Tạo sơ đồ từ Mindmap → hiện ở Mindmap ✓ và ở màn danh mục ✓, KHÔNG ở Thư viện ✓. |
+| 6 | UA Pixel 7/Android 13, `maxTouchPoints=1`, `innerWidth=375`. `drt-keyboard-toolbar` đo được `position:fixed x:0 y:766 w:375,3 h:46`, hiện rõ, dán đáy viewport 812. |
+| 9 | Badge loại không đè huy hiệu chuyên khoa (overlap 0×0). Tương phản trên nền đĩa `--c-note-edge`: **4,890:1** bản sáng · **4,369:1** bản tối — vượt ngưỡng 3:1 của WCAG 1.4.11 cho đồ hoạ mang nghĩa. Ba phép tính độc lập đồng thuận. |
+
+**Hai lỗi mà NĂM vòng review mã bỏ sót, chỉ kiểm tay mới lộ:**
+1. "Tạo bài mới" xong, thoát vỏ soạn thảo thì rơi vào lưới Mindmap lọc `loai:'so-do'` — bài vừa
+   viết vô hình, nav sáng đèn sai tab. Gốc: `moBangYeuCau` chỉ nối dây vào MỘT instance.
+   Vá ở `767bf3b` (tổng quát hoá đường mở-theo-id).
+2. Tiêu đề gõ trong trang soạn thảo không bao giờ lên thẻ ở lưới — mọi bài viết cùng mang nhãn
+   "Bài chưa đặt tên". Gốc: `capNhatSauKhiRoiMuc` không đụng `ten`. Vá ở `6004333`
+   (tham số `tenMoi` CHỈ `TrangBaiViet` truyền, nên tên sơ đồ không bị ghi đè).
+
+**Bài học quy trình:** cả hai lỗi trên đều nằm ngoài tầm với của review đọc-diff. Tiêu chí kiểm tay
+không phải thủ tục cho có — nó là lớp duy nhất bắt được chúng.
