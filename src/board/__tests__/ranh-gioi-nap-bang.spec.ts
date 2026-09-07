@@ -150,3 +150,25 @@ describe('mucMeta.ts — ranh giới D13 (không kéo BlockSuite vào chunk vỏ
     expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/index['"]/m)
   })
 })
+
+describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
+  // `xuatNhapNoiDung.ts` (Task 4, giai đoạn 7-9) import `./mo-doc`, tức cả khối BlockSuite. App.tsx
+  // là CHUNK VỎ APP — mọi người dùng tải nó, kể cả người chưa từng mở một sơ đồ nào. Một dòng
+  // `import … from './board/xuatNhapNoiDung'` ở đầu file kéo ~4 MB bảng vẽ vào chunk đó, và không
+  // ca kiểm nào khác canh App.tsx (ba describe phía trên soi index.tsx, ChonDanhMuc.tsx, mucMeta.ts).
+  const nguon = readFileSync(new NodeURL('../../App.tsx', import.meta.url), 'utf8')
+
+  it('App.tsx không import tĩnh xuatNhapNoiDung', () => {
+    // Neo `^import` đầu dòng: các dòng chú thích và lời gọi `await import(...)` đều thụt lề nên
+    // không vướng. KHÔNG có ngoại lệ cho `import type` — khác luật của index.tsx với `./mo-doc`:
+    // ở đây không có kiểu nào của module này mà App.tsx cần biết (xem `NoiDungMucJson` trong
+    // App.tsx), nên cho phép `import type` chỉ mở sẵn một cửa không ai dùng tới.
+    expect(/^import\s+.*xuatNhapNoiDung/m.test(nguon)).toBe(false)
+  })
+
+  it('App.tsx VẪN gọi xuatNhapNoiDung qua import() động', () => {
+    // Nửa dương của cổng. Thiếu nó thì ca trên vẫn xanh sau khi ai đó xoá sạch phần nội dung doc
+    // khỏi Xuất/Nhập — một cổng canh "không có gì" là một cổng không canh gì.
+    expect(nguon).toMatch(/await import\(['"]\.\/board\/xuatNhapNoiDung['"]\)/)
+  })
+})

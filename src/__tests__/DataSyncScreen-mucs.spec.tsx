@@ -29,6 +29,12 @@ import type { MucMeta } from '../board/mucMeta'
 // kết quả khi nới hạn giờ. Nới CỤC BỘ cho bốn ca của riêng file này, không đụng hạn giờ toàn cục.
 const HAN_GIO_MAN_DONG_BO_MS = 60000
 
+// Từ Task 4, "Xuất file" không còn chỉ gom mảng trong bộ nhớ: nó `import()` động
+// `../board/xuatNhapNoiDung` (nạp cả khối BlockSuite) rồi mở/đóng một workspace cho TỪNG mục để đọc
+// nội dung doc CRDT. Lượt đó tốn vài giây, vượt hẳn hạn 1000ms MẶC ĐỊNH của `waitFor` — hạn của
+// `it` thì vẫn đủ, nên chỉ hai lượt chờ Blob bên dưới cần nới, không phải cả file.
+const HAN_GIO_XUAT_FILE_MS = 30000
+
 // Vỏ nạp chậm thật (BlockSuite) không mount được dưới happy-dom — cùng mẫu
 // da-doc-gan-day-tich-hop.spec.tsx đã dùng. Màn "Đồng bộ dữ liệu" không đụng bảng vẽ nên vỏ giả chỉ
 // cần tồn tại để App() mount được.
@@ -98,7 +104,7 @@ describe('Đồng bộ dữ liệu mang theo metadata mucs (Task 3, giai đoạn
 
     try {
       fireEvent.click(screen.getByRole('button', { name: /Xuất file sao lưu/ }))
-      await waitFor(() => expect(blobDaXuat).not.toBeNull())
+      await waitFor(() => expect(blobDaXuat).not.toBeNull(), { timeout: HAN_GIO_XUAT_FILE_MS })
       const text = await (blobDaXuat as unknown as Blob).text()
       const parsed = JSON.parse(text) as { data: { mucs?: MucMeta[] } }
       expect(parsed.data.mucs).toHaveLength(1)
@@ -234,7 +240,7 @@ describe('Đồng bộ dữ liệu mang theo metadata mucs (Task 3, giai đoạn
     let noiDungDaXuat = ''
     try {
       fireEvent.click(screen.getByRole('button', { name: /Xuất file sao lưu/ }))
-      await waitFor(() => expect(blobDaXuat).not.toBeNull())
+      await waitFor(() => expect(blobDaXuat).not.toBeNull(), { timeout: HAN_GIO_XUAT_FILE_MS })
       noiDungDaXuat = await (blobDaXuat as unknown as Blob).text()
     } finally {
       Object.defineProperty(URL, 'createObjectURL', { value: gocCreate, configurable: true, writable: true })

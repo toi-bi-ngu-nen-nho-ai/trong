@@ -4191,7 +4191,20 @@ type ImportPayload = {
   // thật (chữ/nét vẽ) — nội dung đó đi qua đường khác, tách riêng ở Task 4 vì rủi ro D13 khác hẳn
   // (D13: không import giá trị từ mo-doc.ts/EdgelessBoard/TrangBaiViet ngoài src/board/index.tsx).
   mucs: MucMeta[]
+  // Task 4: NỘI DUNG doc CRDT của từng mục, tra theo `MucMeta.id`. Đi kèm `mucs` chứ không thay
+  // nó — khoá `mucs` giữ nguyên hình dạng `MucMeta[]` mà Task 3 đã phát hành, nên file xuất từ bản
+  // đang chạy vẫn nhập lại được nguyên vẹn.
+  mucDocs: Record<string, NoiDungMucJson>
 }
+
+/**
+ * Nội dung doc CRDT của một mục, ở dạng JSON đã tuần tự hoá — App.tsx CỐ Ý không biết hình dạng bên
+ * trong. Mô tả nó cho đúng cần `DocSnapshot` của BlockSuite, mà mọi lối tới kiểu đó (kể cả một
+ * `import type` từ `./board/xuatNhapNoiDung`) đều vi phạm cổng D13 canh file này. Giá trị chỉ đi
+ * THẲNG từ file JSON vào `nhapSnapshotMuc`; không dòng nào trong App.tsx đọc vào bên trong nó, và
+ * chính `nhapSnapshotMuc` là nơi kiểm hình dạng rồi ném nếu file hỏng.
+ */
+type NoiDungMucJson = Record<string, unknown>
 
 // Snapshot đủ để hoàn tác một lần nhập file — CHỈ gồm các bảng gộp theo id (nơi nhập nhầm file cũ
 // thật sự làm mất nội dung vừa sửa, vì mục trùng id bị THAY THẾ toàn bộ).
@@ -4249,6 +4262,9 @@ function DataSyncScreen({
   // rời màn hình (đổi tab/đóng app) vì dữ liệu đã lưu xuống máy ngay khi nhập, không có ý nghĩa "chưa
   // lưu" để giữ lại lâu hơn; đây là lưới an toàn cho đúng cái vừa bấm nhập, không phải một lịch sử.
   const [undoSnapshot, setUndoSnapshot] = useState<SyncSnapshot | null>(null)
+  // Lần nhập vừa rồi có ghi đè NỘI DUNG doc CRDT hay không — quyết định câu chữ của "Hoàn tác",
+  // vốn chỉ lùi được phần metadata (xem `handleUndo`).
+  const [daNhapNoiDung, setDaNhapNoiDung] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Công thức pha (bảng "Cách dùng"/"Đường dùng" người dùng tự chỉnh mỗi thuốc) đọc thẳng từ
@@ -4309,6 +4325,46 @@ function DataSyncScreen({
     setExporting(true)
     try {
       const pick = <T,>(key: string, items: T[]): T[] => (exportSelection[key] !== false ? items : [])
+      // ─── Nội dung doc CRDT của từng mục (Task 4) ────────────────────────────────────────────
+      // Nạp CHẬM và CÓ ĐIỀU KIỆN: `./board/xuatNhapNoiDung` kéo theo cả khối BlockSuite (~4 MB),
+      // nên chỉ được chạm tới đúng lúc người dùng bấm "Xuất file" VÀ còn chọn ô "Bài viết & Sơ đồ".
+      // `import()` động là điều kiện D13 — cổng canh ở board/__tests__/ranh-gioi-nap-bang.spec.ts.
+      const mucDocs: Record<string, NoiDungMucJson> = {}
+      const mucLoi: string[] = []
+      if (exportSelection["mucs"] !== false && customMucs.length > 0) {
+        setStatus(`Đang đọc nội dung ${customMucs.length} bài viết/sơ đồ…`)
+        // `.catch(() => null)` chứ không để lời gọi tự ném: chunk động có thể KHÔNG tải được (mất
+        // mạng ở lần mở đầu tiên — tình huống thật mà board/index.tsx đã phải dựng cả một pane hồi
+        // phục cho, xem ranh-gioi-nap-bang.spec.ts). Một promise bị từ chối ở đây thoát ra khỏi
+        // handler onClick mà không ai bắt: người dùng chỉ thấy nút ngừng quay, không lời giải thích.
+        const modNoiDung = await import("./board/xuatNhapNoiDung").catch((loi) => {
+          console.warn("handleExport: không nạp được module nội dung doc", loi)
+          return null
+        })
+        // CHẶN CỨNG chứ không xuất tiếp thiếu nội dung — cùng lập luận với `duLieuChuaDocDuoc` ở
+        // đầu hàm: một file trông hợp lệ nhưng rỗng ruột thường được ghi đè lên bản sao lưu tốt
+        // trước đó, biến sự cố tạm thời thành mất dữ liệu vĩnh viễn.
+        if (!modNoiDung) {
+          setStatus(
+            "Chưa xuất được: không tải được phần đọc nội dung bài viết/sơ đồ (lần đầu cần mạng). Kết nối mạng rồi xuất lại — hoặc bỏ chọn ô \"Bài viết & Sơ đồ\" nếu chỉ cần sao lưu các mục còn lại.",
+          )
+          return
+        }
+        // Tuần tự chứ không Promise.all: mỗi lượt mở một workspace BlockSuite riêng trên cùng một
+        // CSDL IndexedDB, chạy song song là mời một cuộc đua không cần thiết vào đúng đường sao lưu.
+        // Mục đã xoá mềm (`daXoaLuc`) VẪN được xuất — metadata của chúng cũng đang được xuất, để
+        // lại nội dung thì "Hoàn tác xoá" sau khi khôi phục sẽ trả về một mục rỗng.
+        for (const m of customMucs) {
+          try {
+            const noiDung = await modNoiDung.xuatSnapshotMuc(m.id, m.loai)
+            if (noiDung) mucDocs[m.id] = noiDung as unknown as NoiDungMucJson
+            else mucLoi.push(m.ten)
+          } catch (loi) {
+            console.warn(`handleExport: không đọc được nội dung mục ${m.id}`, loi)
+            mucLoi.push(m.ten)
+          }
+        }
+      }
       const payload = {
         app: "drtrong",
         version: 2,
@@ -4325,6 +4381,7 @@ function DataSyncScreen({
           flashcards: pick("flashcards", customFlashcards),
           wardRecipes: pick("wardRecipes", wardRecipeList),
           mucs: pick("mucs", customMucs),
+          mucDocs,
         },
       }
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
@@ -4342,7 +4399,11 @@ function DataSyncScreen({
       markBackupDone()
       onBackupDone()
       const exportedCount = categoryRows.reduce((n, r) => n + (exportSelection[r.key] !== false ? r.current.length : 0), 0)
-      setStatus(`Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.`)
+      // Mục nào không đọc được nội dung phải được GỌI TÊN, không nuốt vào một lượt xuất "thành
+      // công": metadata của nó vẫn nằm trong file, nên nhập lại sẽ ra một mục trống mà người dùng
+      // tưởng là đầy đủ.
+      const canhBaoNoiDung = mucLoi.length > 0 ? ` Chưa đọc được nội dung của: ${mucLoi.join(", ")} — mục đó trong file sẽ chỉ có tên, không có nội dung.` : ""
+      setStatus(`Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}`)
     } finally {
       setExporting(false)
     }
@@ -4380,8 +4441,16 @@ function DataSyncScreen({
         // Task 3 (giai đoạn 7-9): metadata mucs. File cũ (xuất từ trước Task 3) đơn giản là thiếu
         // khoá này — mảng rỗng, không phải lỗi, cùng cách xử lý mọi khoá mới khác ở trên.
         const mucs: MucMeta[] = Array.isArray(d.mucs) ? (d.mucs as MucMeta[]) : []
+        // Task 4: nội dung doc CRDT, tra theo id. File cũ (trước Task 4, hoặc xuất khi đã bỏ chọn ô
+        // "Bài viết & Sơ đồ") thiếu hẳn khoá này — object rỗng, không phải lỗi. `Array.isArray` bị
+        // loại tường minh: một mảng CŨNG là `typeof "object"` và sẽ lọt qua, cho ra một "từ điển"
+        // đánh khoá bằng "0"/"1" mà không id mục nào khớp.
+        const mucDocs: Record<string, NoiDungMucJson> =
+          d.mucDocs && typeof d.mucDocs === "object" && !Array.isArray(d.mucDocs)
+            ? (d.mucDocs as Record<string, NoiDungMucJson>)
+            : {}
 
-        const parsedData: ImportPayload = { articles, antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes, mucs }
+        const parsedData: ImportPayload = { articles, antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes, mucs, mucDocs }
         const count =
           articles.length +
           antibiotics.length +
@@ -4423,7 +4492,7 @@ function DataSyncScreen({
 
   // Chụp lại nguyên trạng TRƯỚC khi gộp — đây là thứ "Hoàn tác" sẽ trả về, nên phải lấy đúng lúc
   // này (dữ liệu hiện có trên máy, chưa bị file mới đè lên).
-  function handleConfirmImport() {
+  async function handleConfirmImport() {
     if (!pendingImport) return
     const snapshot: SyncSnapshot = {
       articles: customArticles,
@@ -4435,19 +4504,72 @@ function DataSyncScreen({
       wardRecipes: wardRecipeList,
       mucs: customMucs,
     }
-    onImport(pendingImport.data)
+    const duLieu = pendingImport.data
+    onImport(duLieu)
     setUndoSnapshot(snapshot)
     const totalAdded = pendingImport.rows.reduce((n, r) => n + r.added, 0)
     const totalUpdated = pendingImport.rows.reduce((n, r) => n + r.updated, 0)
     setStatus(`Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật.`)
     setPendingImport(null)
+
+    // ─── Nội dung doc CRDT (Task 4) ───────────────────────────────────────────────────────────
+    // Chạy SAU khi metadata đã ghi: nếu lượt này hỏng giữa chừng, mục vẫn hiện ra ở lưới (có tên,
+    // có danh mục) chứ không biến mất khỏi app. `import()` động — cùng ranh giới D13 như handleExport.
+    const idNoiDung = Object.keys(duLieu.mucDocs)
+    setDaNhapNoiDung(idNoiDung.length > 0)
+    if (idNoiDung.length === 0) return
+    setImporting(true)
+    try {
+      setStatus(`Đã nhập metadata. Đang ghi nội dung ${idNoiDung.length} bài viết/sơ đồ…`)
+      // Cùng lý do `.catch(() => null)` như handleExport: chunk động tải hỏng thì phải thành một
+      // câu tiếng Việt, không phải một promise bị từ chối im lặng ngoài onClick.
+      const modNoiDung = await import("./board/xuatNhapNoiDung").catch((loi) => {
+        console.warn("handleConfirmImport: không nạp được module nội dung doc", loi)
+        return null
+      })
+      if (!modNoiDung) {
+        setStatus(
+          `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật — nhưng CHƯA ghi được nội dung bài viết/sơ đồ (lần đầu cần mạng để tải phần soạn thảo). Kết nối mạng rồi nhập lại chính file này.`,
+        )
+        return
+      }
+      // `loai` chỉ quyết định phần SEED của `taoHoacMoDoc`, mà lượt nhập xoá sạch phần seed đó rồi
+      // dựng lại từ snapshot — nên giá trị dự phòng ở cuối là an toàn, không phải phỏng đoán liều.
+      const loaiCua = (id: string): LoaiMuc =>
+        duLieu.mucs.find((m) => m.id === id)?.loai ?? customMucs.find((m) => m.id === id)?.loai ?? "bai-viet"
+      let xong = 0
+      const hong: string[] = []
+      for (const id of idNoiDung) {
+        try {
+          await modNoiDung.nhapSnapshotMuc(id, loaiCua(id), duLieu.mucDocs[id] as Parameters<typeof modNoiDung.nhapSnapshotMuc>[2])
+          xong += 1
+        } catch (loi) {
+          console.warn(`handleConfirmImport: không ghi được nội dung mục ${id}`, loi)
+          hong.push(duLieu.mucs.find((m) => m.id === id)?.ten ?? id)
+        }
+      }
+      setStatus(
+        `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật; ghi xong nội dung ${xong}/${idNoiDung.length} bài viết/sơ đồ.` +
+          (hong.length > 0 ? ` Chưa ghi được: ${hong.join(", ")} — mở lại file và nhập lần nữa.` : ""),
+      )
+    } finally {
+      setImporting(false)
+    }
   }
 
   function handleUndo() {
     if (!undoSnapshot) return
     onRestoreSnapshot(undoSnapshot)
     setUndoSnapshot(null)
-    setStatus("Đã hoàn tác — dữ liệu trở lại như trước khi nhập file.")
+    // `undoSnapshot` chỉ chụp các BẢNG (metadata), không chụp nội dung doc CRDT — nội dung đã nhập
+    // ở lượt vừa rồi ĐÃ ghi đè lên doc trên máy và không có bản cũ nào để trả về. Câu chữ phải nói
+    // đúng điều đó thay vì hứa "trở lại như trước khi nhập file", nếu không người dùng sẽ tin là
+    // bài viết cũng đã được cứu.
+    setStatus(
+      daNhapNoiDung
+        ? "Đã hoàn tác danh sách — nhưng nội dung bài viết/sơ đồ đã nhập từ file thì giữ nguyên, không lùi lại được."
+        : "Đã hoàn tác — dữ liệu trở lại như trước khi nhập file.",
+    )
   }
 
   return (
