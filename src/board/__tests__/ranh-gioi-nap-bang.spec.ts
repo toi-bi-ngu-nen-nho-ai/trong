@@ -158,17 +158,44 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
   // ca kiểm nào khác canh App.tsx (ba describe phía trên soi index.tsx, ChonDanhMuc.tsx, mucMeta.ts).
   const nguon = readFileSync(new NodeURL('../../App.tsx', import.meta.url), 'utf8')
 
+  const GOI_DONG = /await import\(['"]\.\/board\/xuatNhapNoiDung['"]\)/
+
   it('App.tsx không import tĩnh xuatNhapNoiDung', () => {
     // Neo `^import` đầu dòng: các dòng chú thích và lời gọi `await import(...)` đều thụt lề nên
     // không vướng. KHÔNG có ngoại lệ cho `import type` — khác luật của index.tsx với `./mo-doc`:
     // ở đây không có kiểu nào của module này mà App.tsx cần biết (xem `NoiDungMucJson` trong
     // App.tsx), nên cho phép `import type` chỉ mở sẵn một cửa không ai dùng tới.
-    expect(/^import\s+.*xuatNhapNoiDung/m.test(nguon)).toBe(false)
+    //
+    // `.` KHÔNG khớp xuống dòng, nên một regex một-dòng bỏ lọt đúng dạng mà prettier hay sinh ra:
+    //     import {
+    //       xuatSnapshotMuc,
+    //     } from './board/xuatNhapNoiDung'
+    // Lớp `[^'"\n]|\n` cho phép vắt qua nhiều dòng nhưng CẤM dấu nháy, nên phần khớp không thể
+    // trườn qua chuỗi module của một câu import khác phía trên (nguồn false positive kinh điển).
+    expect(
+      /^import(?:[^'"\n]|\n)*?from\s*['"][^'"]*xuatNhapNoiDung['"]/m.test(nguon),
+      'App.tsx import tĩnh xuatNhapNoiDung (kéo cả khối BlockSuite vào chunk vỏ app)',
+    ).toBe(false)
+    // Dạng chỉ-lấy-tác-dụng-phụ: `import './board/xuatNhapNoiDung'` (không có mệnh đề from).
+    expect(/^import\s+['"][^'"]*xuatNhapNoiDung['"]/m.test(nguon)).toBe(false)
   })
 
-  it('App.tsx VẪN gọi xuatNhapNoiDung qua import() động', () => {
-    // Nửa dương của cổng. Thiếu nó thì ca trên vẫn xanh sau khi ai đó xoá sạch phần nội dung doc
-    // khỏi Xuất/Nhập — một cổng canh "không có gì" là một cổng không canh gì.
-    expect(nguon).toMatch(/await import\(['"]\.\/board\/xuatNhapNoiDung['"]\)/)
+  // Nửa dương của cổng, soi TỪNG chiều. Một khẳng định "có ít nhất một lần khớp" trên cả file vẫn
+  // xanh sau khi ai đó gỡ nội dung doc khỏi RIÊNG chiều Xuất (hoặc riêng chiều Nhập) — nửa còn lại
+  // che mất. Cắt đúng thân từng hàm rồi mới soi.
+  const thanHam = (moc: string, mocSau: string): string => {
+    const bd = nguon.indexOf(moc)
+    expect(bd, `không thấy mốc "${moc}" trong App.tsx — đổi tên hàm thì phải sửa cổng này`).toBeGreaterThan(-1)
+    const kt = nguon.indexOf(mocSau, bd)
+    expect(kt, `không thấy mốc "${mocSau}" sau "${moc}" trong App.tsx`).toBeGreaterThan(-1)
+    return nguon.slice(bd, kt)
+  }
+
+  it('chiều XUẤT vẫn gọi xuatNhapNoiDung qua import() động', () => {
+    expect(thanHam('async function handleExport()', 'function handleImportClick()')).toMatch(GOI_DONG)
+  })
+
+  it('chiều NHẬP vẫn gọi xuatNhapNoiDung qua import() động', () => {
+    expect(thanHam('async function handleConfirmImport()', 'function handleUndo()')).toMatch(GOI_DONG)
   })
 })

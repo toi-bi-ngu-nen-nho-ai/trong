@@ -198,6 +198,140 @@ describe('xuatSnapshotMuc / nhapSnapshotMuc — vòng tròn nội dung doc', () 
     expect(await may.docSources.main.pull('m-hong', new Uint8Array())).toBeNull()
   })
 
+  // NGÀY DỮ LIỆU KHÔNG HOÀN HẢO — đúng lý do một bản sao lưu tồn tại. Một ảnh mất khỏi kho blob
+  // lúc XUẤT thì gói ra file còn khối `affine:image` (nó nằm trong snapshot) nhưng thiếu byte trong
+  // `anh[]`. Lúc NHẬP, `ImageBlockTransformer.fromSnapshot` gọi `assets.writeToBlob(sourceId)` và
+  // hàm đó NÉM khi map assets còn ảnh khác mà thiếu đúng ảnh này (`!assets.isEmpty() && sourceId`
+  // — nên ca này phải có HAI ảnh, một ảnh thì map rỗng và guard tự bỏ qua). Lỗi đó bị
+  // `snapshotToBlock` nuốt (`catch → return undefined`), và mọi khối SAU khối ảnh trong cùng cây
+  // con không bao giờ được chèn: bài viết mất chữ, im lặng, trên chính đường KHÔI PHỤC.
+  it('ảnh thiếu byte trong gói không được kéo theo phần CHỮ của bài', async () => {
+    const may1 = mayGia()
+    const a = await taoHoacMoDoc('m4', 'bai-viet', may1)
+    const note = a.store.root!.children.find((k) => k.flavour === 'affine:note')!
+    const idAnh1 = await a.workspace.blobSync.set(
+      new Blob([new Uint8Array([137, 80, 78, 71, 1, 1, 1])], { type: 'image/png' }),
+    )
+    const idAnh2 = await a.workspace.blobSync.set(
+      new Blob([new Uint8Array([137, 80, 78, 71, 2, 2, 2, 2])], { type: 'image/png' }),
+    )
+    a.store.addBlock('affine:paragraph', { text: new Text('Đoạn TRƯỚC ảnh hỏng') }, note.id)
+    a.store.addBlock('affine:image', { sourceId: idAnh1, width: 320, height: 200 }, note.id)
+    a.store.addBlock('affine:paragraph', { text: new Text('Đoạn SAU ảnh hỏng') }, note.id)
+    a.store.addBlock('affine:image', { sourceId: idAnh2, width: 320, height: 200 }, note.id)
+    await a.workspace.waitForSynced()
+    a.workspace.forceStop()
+
+    const goi = quaFileJson((await xuatSnapshotMuc('m4', 'bai-viet', may1))!)
+    expect(goi.anh.map((x) => x.id).sort()).toEqual([idAnh1, idAnh2].sort())
+    // Mô phỏng đúng thứ Critical 2 sinh ra: byte của MỘT ảnh không đọc được nên bị bỏ khỏi gói,
+    // khối `affine:image` thì vẫn nằm nguyên trong snapshot.
+    goi.anh = goi.anh.filter((x) => x.id !== idAnh1)
+
+    const may2 = mayGia()
+    const ketQua = await nhapSnapshotMuc('m4', 'bai-viet', goi, may2)
+    // Mất ảnh phải ĐI RA NGOÀI thành dữ liệu, không chỉ là một dòng console: App.tsx gọi tên mục.
+    expect(ketQua.anhThieu, 'lượt nhập phải khai đúng ảnh đã bỏ').toEqual([idAnh1])
+
+    const sau = await taoHoacMoDoc('m4', 'bai-viet', may2)
+    const vanBan = trichVanBanTuKhoi(sau.store.root!)
+    expect(vanBan, 'chữ trước ảnh hỏng').toContain('Đoạn TRƯỚC ảnh hỏng')
+    expect(vanBan, 'chữ SAU ảnh hỏng KHÔNG được biến mất theo').toContain('Đoạn SAU ảnh hỏng')
+    // Ảnh còn byte thì phải về đủ — mất một ảnh không được kéo theo ảnh lành.
+    const noteSau = sau.store.root!.children.find((k) => k.flavour === 'affine:note')!
+    expect(
+      noteSau.children.filter((k) => k.flavour === 'affine:image').map((k) => (k.props as { sourceId?: string }).sourceId),
+      'chỉ còn ảnh có byte',
+    ).toEqual([idAnh2])
+    expect(await sau.workspace.blobSync.get(idAnh2), 'byte ảnh lành').not.toBeNull()
+    sau.workspace.forceStop()
+  })
+
+  // Máy này VẪN còn byte ảnh (lượt xuất lỡ nó vì sự cố tạm thời) — khôi phục bản sao lưu không
+  // được phép nhân đó mà xoá luôn ảnh đang lành trên máy.
+  it('ảnh thiếu trong gói nhưng CÒN trong kho blob trên máy → giữ nguyên khối ảnh', async () => {
+    const byteAnh = new Uint8Array([137, 80, 78, 71, 9, 9, 9])
+    const may = mayGia()
+    const a = await taoHoacMoDoc('m7', 'bai-viet', may)
+    const idBlob = await a.workspace.blobSync.set(new Blob([byteAnh], { type: 'image/png' }))
+    const note = a.store.root!.children.find((k) => k.flavour === 'affine:note')!
+    a.store.addBlock('affine:paragraph', { text: new Text('Chữ đi kèm ảnh') }, note.id)
+    a.store.addBlock('affine:image', { sourceId: idBlob, width: 320, height: 200 }, note.id)
+    await a.workspace.waitForSynced()
+    a.workspace.forceStop()
+
+    const goi = quaFileJson((await xuatSnapshotMuc('m7', 'bai-viet', may))!)
+    goi.anh = []
+
+    const ketQua = await nhapSnapshotMuc('m7', 'bai-viet', goi, may)
+    expect(ketQua.anhThieu, 'byte còn trên máy thì không tính là thiếu').toEqual([])
+
+    const sau = await taoHoacMoDoc('m7', 'bai-viet', may)
+    const noteSau = sau.store.root!.children.find((k) => k.flavour === 'affine:note')!
+    expect(noteSau.children.filter((k) => k.flavour === 'affine:image')).toHaveLength(1)
+    expect(trichVanBanTuKhoi(sau.store.root!)).toContain('Chữ đi kèm ảnh')
+    sau.workspace.forceStop()
+  })
+
+  it('ảnh mất khỏi kho blob lúc XUẤT → gói khai `anhThieu`, không im lặng', async () => {
+    const may = mayGia()
+    const a = await taoHoacMoDoc('m6', 'bai-viet', may)
+    const idBlob = await a.workspace.blobSync.set(
+      new Blob([new Uint8Array([137, 80, 78, 71, 5, 5])], { type: 'image/png' }),
+    )
+    const note = a.store.root!.children.find((k) => k.flavour === 'affine:note')!
+    a.store.addBlock('affine:image', { sourceId: idBlob, width: 320, height: 200 }, note.id)
+    await a.workspace.waitForSynced()
+    a.workspace.forceStop()
+
+    // Byte biến mất khỏi kho (dọn rác quá tay, đồng bộ dở dang) — khối `affine:image` thì vẫn còn
+    // trong doc. Đây là nhánh `!blob` mà `AssetsManager.readFromBlob` chỉ `console.error` rồi bỏ.
+    await may.blobSources.main.delete(idBlob)
+
+    const goi = (await xuatSnapshotMuc('m6', 'bai-viet', may))!
+    expect(goi.anh, 'không đọc được thì không có byte để mang đi').toHaveLength(0)
+    expect(goi.anhThieu, 'phải khai ảnh đã mất, để lượt xuất không tự nhận là trọn vẹn').toEqual([
+      idBlob,
+    ])
+  })
+
+  // Đúng thứ một file xuất từ bản app KHÁC mang lại: một flavour mà schema ở máy này không có.
+  // `snapshotToBlock` không ném — nó `console.error` rồi trả `undefined` — nên nếu không kiểm giá
+  // trị trả về thì cả cây con biến mất mà lượt nhập vẫn tính là thành công.
+  it('khối có flavour lạ trong file → NÉM, không lặng lẽ bỏ cây con', async () => {
+    const may1 = mayGia()
+    const a = await taoHoacMoDoc('m5', 'bai-viet', may1)
+    await a.workspace.waitForSynced()
+    a.workspace.forceStop()
+    const goi = quaFileJson((await xuatSnapshotMuc('m5', 'bai-viet', may1))!)
+    goi.snapshot.blocks.children.push({
+      type: 'block',
+      id: 'khoi-la-1',
+      flavour: 'affine:khong-co-that',
+      props: {},
+      children: [],
+    })
+
+    const may2 = mayGia()
+    await expect(nhapSnapshotMuc('m5', 'bai-viet', goi, may2)).rejects.toThrow(
+      /affine:khong-co-that/,
+    )
+  })
+
+  // `snapshotToModelData` cũng nuốt lỗi và trả `undefined`. Im lặng ở đây = bài về máy mất TÊN.
+  it('props khối gốc không dựng lại được → NÉM chứ không mất tên bài trong im lặng', async () => {
+    const may1 = mayGia()
+    const a = await taoHoacMoDoc('m8', 'bai-viet', may1)
+    a.store.updateBlock(a.store.root!, { title: new Text('Bài có tên') })
+    await a.workspace.waitForSynced()
+    a.workspace.forceStop()
+    const goi = quaFileJson((await xuatSnapshotMuc('m8', 'bai-viet', may1))!)
+    goi.snapshot.blocks.flavour = 'affine:khong-co-that'
+
+    const may2 = mayGia()
+    await expect(nhapSnapshotMuc('m8', 'bai-viet', goi, may2)).rejects.toThrow(/khối gốc/)
+  })
+
   it('nhập ĐÈ lên một doc đang có nội dung — thay hẳn, không trộn lẫn', async () => {
     const may1 = mayGia()
     const a = await taoHoacMoDoc('m3', 'bai-viet', may1)

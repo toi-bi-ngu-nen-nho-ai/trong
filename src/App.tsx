@@ -4331,6 +4331,10 @@ function DataSyncScreen({
       // `import()` động là điều kiện D13 — cổng canh ở board/__tests__/ranh-gioi-nap-bang.spec.ts.
       const mucDocs: Record<string, NoiDungMucJson> = {}
       const mucLoi: string[] = []
+      // Mục đọc được CHỮ nhưng mất ẢNH. Khác `mucLoi` (không đọc được gì): nội dung vẫn đáng sao
+      // lưu, nhưng bản sao lưu KHÔNG trọn vẹn và người dùng phải biết ngay lúc này — nếu không,
+      // file thiếu ảnh sẽ được ghi đè lên bản tốt trước đó mà không ai hay.
+      const mucThieuAnh: string[] = []
       if (exportSelection["mucs"] !== false && customMucs.length > 0) {
         setStatus(`Đang đọc nội dung ${customMucs.length} bài viết/sơ đồ…`)
         // `.catch(() => null)` chứ không để lời gọi tự ném: chunk động có thể KHÔNG tải được (mất
@@ -4357,8 +4361,11 @@ function DataSyncScreen({
         for (const m of customMucs) {
           try {
             const noiDung = await modNoiDung.xuatSnapshotMuc(m.id, m.loai)
-            if (noiDung) mucDocs[m.id] = noiDung as unknown as NoiDungMucJson
-            else mucLoi.push(m.ten)
+            if (noiDung) {
+              mucDocs[m.id] = noiDung as unknown as NoiDungMucJson
+              const soAnhThieu = noiDung.anhThieu?.length ?? 0
+              if (soAnhThieu > 0) mucThieuAnh.push(`${m.ten} (${soAnhThieu} ảnh)`)
+            } else mucLoi.push(m.ten)
           } catch (loi) {
             console.warn(`handleExport: không đọc được nội dung mục ${m.id}`, loi)
             mucLoi.push(m.ten)
@@ -4403,7 +4410,8 @@ function DataSyncScreen({
       // công": metadata của nó vẫn nằm trong file, nên nhập lại sẽ ra một mục trống mà người dùng
       // tưởng là đầy đủ.
       const canhBaoNoiDung = mucLoi.length > 0 ? ` Chưa đọc được nội dung của: ${mucLoi.join(", ")} — mục đó trong file sẽ chỉ có tên, không có nội dung.` : ""
-      setStatus(`Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}`)
+      const canhBaoAnh = mucThieuAnh.length > 0 ? ` Thiếu ảnh trong: ${mucThieuAnh.join(", ")} — ảnh đó không còn trên máy nên file sao lưu này KHÔNG có chúng; giữ lại bản sao lưu cũ nếu bản cũ còn đủ ảnh.` : ""
+      setStatus(`Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}${canhBaoAnh}`)
     } finally {
       setExporting(false)
     }
@@ -4516,7 +4524,10 @@ function DataSyncScreen({
     // Chạy SAU khi metadata đã ghi: nếu lượt này hỏng giữa chừng, mục vẫn hiện ra ở lưới (có tên,
     // có danh mục) chứ không biến mất khỏi app. `import()` động — cùng ranh giới D13 như handleExport.
     const idNoiDung = Object.keys(duLieu.mucDocs)
-    setDaNhapNoiDung(idNoiDung.length > 0)
+    // Đặt lại NGAY: cờ này quyết định câu chữ của nút "Hoàn tác", và nó phải nói về LƯỢT NÀY chứ
+    // không phải lượt trước. Bật lên chỉ khi thật sự đã ghi được ít nhất một mục (cuối hàm) — chunk
+    // hỏng hoặc mọi mục đều hỏng thì chưa có gì bị đè, "Hoàn tác" vẫn lùi được trọn vẹn.
+    setDaNhapNoiDung(false)
     if (idNoiDung.length === 0) return
     setImporting(true)
     try {
@@ -4537,20 +4548,35 @@ function DataSyncScreen({
       // dựng lại từ snapshot — nên giá trị dự phòng ở cuối là an toàn, không phải phỏng đoán liều.
       const loaiCua = (id: string): LoaiMuc =>
         duLieu.mucs.find((m) => m.id === id)?.loai ?? customMucs.find((m) => m.id === id)?.loai ?? "bai-viet"
+      const tenCua = (id: string) => duLieu.mucs.find((m) => m.id === id)?.ten ?? id
       let xong = 0
       const hong: string[] = []
+      // Mục ghi xong nhưng file không mang đủ ảnh (ảnh đã mất từ lượt XUẤT). Nội dung chữ về đủ,
+      // ảnh thì không có gì để dựng lại — phải nói ra, không để người dùng phát hiện lúc mở bài.
+      const thieuAnh: string[] = []
       for (const id of idNoiDung) {
         try {
-          await modNoiDung.nhapSnapshotMuc(id, loaiCua(id), duLieu.mucDocs[id] as Parameters<typeof modNoiDung.nhapSnapshotMuc>[2])
+          const ketQua = await modNoiDung.nhapSnapshotMuc(id, loaiCua(id), duLieu.mucDocs[id] as Parameters<typeof modNoiDung.nhapSnapshotMuc>[2])
           xong += 1
+          if (ketQua.anhThieu.length > 0) thieuAnh.push(`${tenCua(id)} (${ketQua.anhThieu.length} ảnh)`)
         } catch (loi) {
           console.warn(`handleConfirmImport: không ghi được nội dung mục ${id}`, loi)
-          hong.push(duLieu.mucs.find((m) => m.id === id)?.ten ?? id)
+          hong.push(tenCua(id))
         }
       }
+      // Chỉ khi ĐÃ ghi được ít nhất một mục thì nội dung trên máy mới thật sự bị đè — đó mới là lúc
+      // "Hoàn tác" phải hạ giọng xuống "chỉ lùi được danh sách".
+      setDaNhapNoiDung(xong > 0)
       setStatus(
         `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật; ghi xong nội dung ${xong}/${idNoiDung.length} bài viết/sơ đồ.` +
-          (hong.length > 0 ? ` Chưa ghi được: ${hong.join(", ")} — mở lại file và nhập lần nữa.` : ""),
+          // "Chưa ghi được" là NÓI SAI: lượt nhập xoá nội dung cũ TRƯỚC khi dựng lại (không nguyên
+          // tử — xem chú thích trong nhapSnapshotMuc), nên một mục hỏng giữa chừng đã mất bản cũ.
+          (hong.length > 0
+            ? ` Ghi dở dang: ${hong.join(", ")} — nội dung cũ của các mục này trên máy ĐÃ bị thay dở và không còn bản cũ. Mở lại chính file này và nhập lần nữa để hoàn tất.`
+            : "") +
+          (thieuAnh.length > 0
+            ? ` Thiếu ảnh: ${thieuAnh.join(", ")} — file sao lưu không mang byte của những ảnh đó, phần chữ vẫn về đủ.`
+            : ""),
       )
     } finally {
       setImporting(false)
@@ -4600,6 +4626,14 @@ function DataSyncScreen({
                   ? "File này chỉ có sơ đồ tư duy (gộp theo node/cạnh) hoặc không có gì mới."
                   : "Mục \"cập nhật\" nghĩa là trên máy ĐÃ CÓ id này — nội dung hiện tại sẽ bị THAY bằng nội dung trong file."}
               </p>
+              {/* Nội dung doc CRDT không có thùng rác và không nằm trong `undoSnapshot` (chỉ các
+                  bảng metadata nằm trong đó). Câu này phải đứng ở đây — TRƯỚC khi bấm — chứ không
+                  chỉ ở câu báo sau khi nhập xong. */}
+              {Object.keys(pendingImport.data.mucDocs).length > 0 && (
+                <p className="text-xs mt-1.5 leading-relaxed font-semibold" style={{ color: "var(--c-danger-icon)" }}>
+                  File có nội dung của {Object.keys(pendingImport.data.mucDocs).length} bài viết/sơ đồ. Nội dung đang có trên máy của đúng những mục đó sẽ bị THAY HẲN và KHÔNG hoàn tác được — "Hoàn tác" chỉ lùi được danh sách mục.
+                </p>
+              )}
             </div>
             {pendingImport.rows.length > 0 && (
               <div className="rounded-2xl border divide-y" style={{ borderColor: "var(--c-line)" }}>
@@ -4708,7 +4742,7 @@ function DataSyncScreen({
 
         {!pendingImport && (
           <p className="text-xs text-slate-400 leading-relaxed">
-            Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — dữ liệu hiện có trên máy không bị xoá. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. Có thể hoàn tác ngay sau khi nhập, miễn còn đứng ở màn này.
+            Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — các mục id khác trên máy không bị đụng tới. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. "Hoàn tác" (còn đứng ở màn này) lùi được DANH SÁCH mục — riêng nội dung bài viết/sơ đồ mà file mang theo thì THAY HẲN nội dung đang có trên máy của đúng những id đó và KHÔNG lùi lại được.
           </p>
         )}
       </div>

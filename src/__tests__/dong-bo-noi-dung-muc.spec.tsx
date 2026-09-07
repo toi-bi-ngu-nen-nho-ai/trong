@@ -80,6 +80,12 @@ async function moManDongBo() {
   fireEvent.click(screen.getByRole('button', { name: /Đồng bộ dữ liệu/ }))
   await screen.findByText('Đồng bộ dữ liệu', { selector: 'span' })
   await waitFor(() => expect(screen.getByText('Bài viết & Sơ đồ')).toBeTruthy())
+  // Câu hướng dẫn thường trực của màn không được hứa hai điều nay đã SAI kể từ Task 4: nội dung
+  // doc CRDT bị THAY HẲN theo id (không phải "dữ liệu hiện có không bị xoá"), và "Hoàn tác" chỉ
+  // lùi được các bảng metadata (không phải "có thể hoàn tác ngay sau khi nhập").
+  const huongDan = screen.getByText(/Nhập file sẽ gộp theo id/)
+  expect(huongDan.textContent).not.toContain('dữ liệu hiện có trên máy không bị xoá')
+  expect(huongDan.textContent).toContain('KHÔNG lùi lại được')
 }
 
 /** Bấm "Xuất file sao lưu" và trả về nội dung file, chặn ở `URL.createObjectURL`. */
@@ -180,7 +186,14 @@ describe('[CỔNG] Xuất → xoá sạch → Nhập lại: nội dung bài vi�
     const file = new File([noiDungFile], 'sao-luu-noi-dung.json', { type: 'application/json' })
     const inputFile = document.querySelector('input[type="file"]') as HTMLInputElement
     fireEvent.change(inputFile, { target: { files: [file] } })
-    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận nhập' }))
+    const nutXacNhan = await screen.findByRole('button', { name: 'Xác nhận nhập' })
+    // Câu cảnh báo phải đứng TRƯỚC khi bấm. "Hoàn tác" chỉ chụp các bảng metadata, nên nội dung
+    // doc bị đè là mất vĩnh viễn; nói điều đó ở câu báo SAU khi nhập xong thì đã muộn.
+    expect(
+      screen.getByText(/KHÔNG hoàn tác được/),
+      'panel xem trước phải cảnh báo nội dung doc sẽ bị thay hẳn',
+    ).toBeTruthy()
+    fireEvent.click(nutXacNhan)
     await waitFor(() => expect(screen.getByText(/ghi xong nội dung 2\/2/)).toBeTruthy(), {
       timeout: 40000,
     })

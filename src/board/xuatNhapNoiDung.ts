@@ -28,7 +28,7 @@
 // quan trọng vì phần tử canvas trong `affine:surface` tham chiếu khối theo id.
 // Hệ quả đã biết và chấp nhận: id của riêng khối `affine:page` đổi sau mỗi lượt nhập. Không có gì
 // tham chiếu tới nó (mọi tham chiếu đều trỏ vào note/ảnh/phần tử canvas).
-import type { DocSnapshot } from '@blocksuite/store'
+import type { BlockSnapshot, DocSnapshot } from '@blocksuite/store'
 import type { BlobSource, DocSource } from '@blocksuite/sync'
 
 import { taoHoacMoDoc } from './mo-doc'
@@ -53,6 +53,22 @@ export type AnhMuc = {
 export type NoiDungMuc = {
   snapshot: DocSnapshot
   anh: AnhMuc[]
+  /**
+   * Blob id của những ảnh CÓ khối `affine:image` trong `snapshot` nhưng KHÔNG đọc được byte lúc
+   * xuất (blob mất khỏi kho, `readFromBlob` ném giữa chừng). Không có khoá này thì một lượt sao
+   * lưu thiếu ảnh trông y hệt một lượt trọn vẹn — bên gọi phải GỌI TÊN mục đó cho người dùng.
+   * Không bắt buộc: file xuất từ bản trước vòng sửa này đơn giản là thiếu khoá.
+   */
+  anhThieu?: string[]
+}
+
+/** Kết quả một lượt NHẬP nội dung — bên gọi cần biết mục nào về máy mà không đủ ảnh. */
+export type KetQuaNhap = {
+  /**
+   * `sourceId` của những khối ảnh đã bị BỎ khỏi cây trước khi ghi, vì gói không mang byte và kho
+   * blob trên máy cũng không còn. Xem chú thích trong `nhapSnapshotMuc`.
+   */
+  anhThieu: string[]
 }
 
 /**
@@ -107,6 +123,41 @@ function b64ThanhByte(b64: string): ArrayBuffer {
   return dem
 }
 
+const FLAVOUR_ANH = 'affine:image'
+
+/** `sourceId` của một khối, nếu đó là khối ảnh trỏ vào kho blob (bỏ qua đường dẫn `/…` của zip). */
+function idBlobCuaKhoiAnh(nut: BlockSnapshot): string | undefined {
+  if (nut.flavour !== FLAVOUR_ANH) return undefined
+  const sid = (nut.props as { sourceId?: unknown } | undefined)?.sourceId
+  // `ImageBlockTransformer.fromSnapshot` cũng bỏ qua `sourceId` bắt đầu bằng '/' (đường dẫn trong
+  // file zip, không phải khoá blob) — soi cùng một điều kiện để không bỏ nhầm khối nào.
+  return typeof sid === 'string' && sid !== '' && !sid.startsWith('/') ? sid : undefined
+}
+
+/** Duyệt cây snapshot, gom `sourceId` của mọi khối ảnh. */
+function idAnhTrongCay(nut: BlockSnapshot, ra: Set<string> = new Set()): Set<string> {
+  const sid = idBlobCuaKhoiAnh(nut)
+  if (sid) ra.add(sid)
+  for (const con of nut.children ?? []) idAnhTrongCay(con, ra)
+  return ra
+}
+
+/**
+ * BẢN SAO cây snapshot đã bỏ hẳn những khối ảnh có id nằm trong `idBo` — không đụng cây gốc
+ * (`noiDung` là dữ liệu của bên gọi, sửa tại chỗ là làm hỏng gói cho mọi lượt dùng sau).
+ */
+function boKhoiAnhThieu(nut: BlockSnapshot, idBo: Set<string>): BlockSnapshot {
+  return {
+    ...nut,
+    children: (nut.children ?? [])
+      .filter((con) => {
+        const sid = idBlobCuaKhoiAnh(con)
+        return !(sid && idBo.has(sid))
+      })
+      .map((con) => boKhoiAnhThieu(con, idBo)),
+  }
+}
+
 /**
  * Đọc NỘI DUNG của một mục ra JSON: cây khối + mọi ảnh chèn.
  *
@@ -131,6 +182,10 @@ export async function xuatSnapshotMuc(
     // `ImageBlockTransformer.toSnapshot` chỉ GHI SỔ `blockId → sourceId` vào `pathBlobIdMap`; nó
     // không đọc byte ảnh. Phải tự đi lấy, đúng như `ZipTransformer.exportDocs` của thượng nguồn.
     const anh: AnhMuc[] = []
+    // Ảnh đọc hỏng KHÔNG được biến mất không dấu vết: đây là đường SAO LƯU, một bản thiếu ảnh mà
+    // người dùng tin là đầy đủ sẽ được ghi đè lên bản tốt trước đó. Ghi id lại và trả về cho bên
+    // gọi gọi tên mục.
+    const anhThieu: string[] = []
     for (const idBlob of new Set(bien.assetsManager.getPathBlobIdMap().values())) {
       // Hỏng ở MỘT ảnh chỉ được mất ĐÚNG ảnh đó, không kéo cả bài viết ra khỏi bản sao lưu: một
       // bài thiếu một ảnh vẫn đáng sao lưu hơn nhiều so với không có bản nào. Bọc cả lượt đọc chứ
@@ -144,6 +199,7 @@ export async function xuatSnapshotMuc(
           console.warn(
             `xuatSnapshotMuc: mục ${id} tham chiếu ảnh ${idBlob} không còn trong kho blob.`,
           )
+          anhThieu.push(idBlob)
           continue
         }
         anh.push({
@@ -153,9 +209,10 @@ export async function xuatSnapshotMuc(
         })
       } catch (loi) {
         console.warn(`xuatSnapshotMuc: không đọc được ảnh ${idBlob} của mục ${id}`, loi)
+        anhThieu.push(idBlob)
       }
     }
-    return { snapshot, anh }
+    return { snapshot, anh, anhThieu }
   } finally {
     workspace.forceStop()
   }
@@ -166,13 +223,23 @@ export async function xuatSnapshotMuc(
  * `handleImportData` dùng cho metadata), không trộn lẫn.
  *
  * Xem khối chú thích đầu file về việc vì sao phải giữ lại khối gốc thay vì nhập nguyên cây snapshot.
+ *
+ * ─── KHÔNG NGUYÊN TỬ, và vì sao không đảo được thứ tự ────────────────────────────────────────
+ * Lượt ghi này xoá con của root TRƯỚC rồi mới dựng lại. Bất kỳ lượt ném nào sau bước xoá (khối lạ,
+ * hết hạn `waitForSynced`) để doc ở trạng thái DỞ DANG, và nội dung cũ thì đã mất — bên gọi phải
+ * nói đúng điều đó với người dùng ("ghi dở dang", không phải "chưa ghi được"; xem `handleConfirmImport`).
+ * Hướng "dựng cây mới xong mới xoá cây cũ" KHÔNG dùng được: snapshot giữ NGUYÊN id của các khối con
+ * (bắt buộc — phần tử canvas trong `affine:surface` tham chiếu khối theo id, xem chú thích đầu file),
+ * nên khi nhập lại chính bản sao lưu của máy này, mọi id sắp chèn đều đang tồn tại trong doc; chèn
+ * trước khi xoá là đâm thẳng vào id trùng. Muốn thật sự nguyên tử thì phải dựng ở một doc tạm rồi
+ * hoán đổi — việc đó thuộc phần vá "Hoàn tác nội dung" (Task 4b), không làm ở đây.
  */
 export async function nhapSnapshotMuc(
   id: string,
   loai: LoaiMuc,
   noiDung: NoiDungMuc,
   tuyChon?: NguonBang,
-): Promise<void> {
+): Promise<KetQuaNhap> {
   // Kiểm hình dạng TRƯỚC khi mở doc, không phải sau. `noiDung` tới thẳng từ một file JSON người
   // dùng chọn — kiểu TypeScript ở trên không hứa gì về nó lúc chạy. Và `taoHoacMoDoc` SEED một doc
   // rỗng cho id chưa tồn tại, nên mở trước rồi mới phát hiện dữ liệu hỏng sẽ để lại đúng thứ rác
@@ -194,6 +261,28 @@ export async function nhapSnapshotMuc(
       bien.assets.set(a.id, new Blob([b64ThanhByte(a.b64)], { type: a.mime }))
     }
 
+    // ─── Ảnh có KHỐI nhưng không có BYTE ─────────────────────────────────────────────────────
+    // `ImageBlockTransformer.fromSnapshot` gọi `assets.writeToBlob(sourceId)`, và hàm đó NÉM khi
+    // map assets còn ảnh khác nhưng thiếu đúng ảnh này (assets.ts:97). Lỗi ấy bị
+    // `_convertSnapshotToDraftModel` nuốt → khối ảnh bị lọc ra → `_rebuildBlockTree` để lại một LỖ
+    // THƯA trong `children` → `_insertBlockTree` ném khi gặp lỗ → `snapshotToBlock` nuốt tiếp và
+    // trả `undefined`. Hậu quả đã ĐO THẬT: mọi khối SAU khối ảnh hỏng trong cùng cây con không bao
+    // giờ được chèn — bài viết mất chữ, im lặng, trên chính đường khôi phục bản sao lưu.
+    // Nên phải bỏ hẳn khối ảnh không có byte TRƯỚC khi giao cây cho Transformer, và gọi tên nó cho
+    // người dùng. Trước khi bỏ thì thử kho blob TRÊN MÁY: lượt xuất có thể đã lỡ một ảnh mà máy
+    // này vẫn còn giữ (Critical 2) — khôi phục bản sao lưu không được phép xoá ảnh đang lành.
+    const anhThieu: string[] = []
+    for (const sid of idAnhTrongCay(khoiGoc)) {
+      if (bien.assets.has(sid)) continue
+      const blobCon = await workspace.blobSync.get(sid).catch(() => null)
+      if (blobCon) {
+        bien.assets.set(sid, blobCon)
+        continue
+      }
+      anhThieu.push(sid)
+    }
+    const cayNhap = anhThieu.length === 0 ? khoiGoc : boKhoiAnhThieu(khoiGoc, new Set(anhThieu))
+
     const goc = store.root
     if (!goc) {
       // `taoHoacMoDoc` luôn để lại một khối gốc (seed hoặc nội dung đã có). Không có nghĩa là dữ
@@ -204,11 +293,28 @@ export async function nhapSnapshotMuc(
 
     // Props của khối gốc — TIÊU ĐỀ bài viết sống ở đây (`store.root.props.title`, xem
     // TrangBaiViet.tsx). Bỏ bước này là nhập xong bài nào cũng mất tên.
-    const duLieuGoc = await bien.snapshotToModelData(khoiGoc)
-    if (duLieuGoc) store.updateBlock(goc, duLieuGoc.props)
+    // `snapshotToModelData` cũng NUỐT lỗi và trả `undefined` (transformer.ts:217-240): im lặng ở
+    // đây nghĩa là bài về máy không còn tên mà lượt nhập vẫn tính là thành công. Ném để App gọi tên.
+    const duLieuGoc = await bien.snapshotToModelData(cayNhap)
+    if (!duLieuGoc) {
+      throw new Error(
+        `nhapSnapshotMuc: mục ${id} — không dựng lại được props của khối gốc (tiêu đề bài nằm ở đây).`,
+      )
+    }
+    store.updateBlock(goc, duLieuGoc.props)
 
-    for (const [thuTu, con] of khoiGoc.children.entries()) {
-      await bien.snapshotToBlock(con, store, goc.id, thuTu)
+    for (const [thuTu, con] of cayNhap.children.entries()) {
+      // `snapshotToBlock` KHÔNG BAO GIỜ NÉM — nó bọc try/catch, `console.error` rồi trả `undefined`
+      // (transformer.ts:174-190). Bỏ qua giá trị trả về là nuốt trọn một cây con hỏng: nội dung cũ
+      // đã bị xoá ở trên, người dùng thì đọc "ghi xong N/N". Cách xử đúng ở phía app là KIỂM GIÁ
+      // TRỊ TRẢ VỀ (D11: không sửa vendor).
+      const khoi = await bien.snapshotToBlock(con, store, goc.id, thuTu)
+      if (!khoi) {
+        throw new Error(
+          `nhapSnapshotMuc: mục ${id} — không dựng lại được khối "${con.flavour}" từ file ` +
+            `(xem console để biết lỗi gốc).`,
+        )
+      }
     }
 
     const ketQua = await doiCoHanGio(workspace.waitForSynced(), HAN_GIO_GHI_MS)
@@ -220,6 +326,7 @@ export async function nhapSnapshotMuc(
         `nhapSnapshotMuc: mục ${id} chưa ghi xong xuống lưu trữ trong ${HAN_GIO_GHI_MS}ms.`,
       )
     }
+    return { anhThieu }
   } finally {
     workspace.forceStop()
   }
