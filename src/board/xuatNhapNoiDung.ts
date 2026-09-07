@@ -132,19 +132,28 @@ export async function xuatSnapshotMuc(
     // không đọc byte ảnh. Phải tự đi lấy, đúng như `ZipTransformer.exportDocs` của thượng nguồn.
     const anh: AnhMuc[] = []
     for (const idBlob of new Set(bien.assetsManager.getPathBlobIdMap().values())) {
-      await bien.assetsManager.readFromBlob(idBlob)
-      const blob = bien.assets.get(idBlob)
-      // Ảnh mất khỏi kho blob (dọn rác quá tay, đồng bộ dở dang) — bỏ qua ĐÚNG ảnh đó chứ không
-      // huỷ cả lượt xuất: một bài viết thiếu một ảnh vẫn đáng sao lưu hơn là không có bản sao nào.
-      if (!blob) {
-        console.warn(`xuatSnapshotMuc: mục ${id} tham chiếu ảnh ${idBlob} không còn trong kho blob.`)
-        continue
+      // Hỏng ở MỘT ảnh chỉ được mất ĐÚNG ảnh đó, không kéo cả bài viết ra khỏi bản sao lưu: một
+      // bài thiếu một ảnh vẫn đáng sao lưu hơn nhiều so với không có bản nào. Bọc cả lượt đọc chứ
+      // không chỉ kiểm `!blob` — `readFromBlob` còn đoán kiểu file bằng `await import('file-type')`
+      // và `arrayBuffer()` cũng ném được, hai đường đó không đi qua nhánh kiểm null bên dưới.
+      try {
+        await bien.assetsManager.readFromBlob(idBlob)
+        const blob = bien.assets.get(idBlob)
+        // Ảnh mất khỏi kho blob (dọn rác quá tay, đồng bộ dở dang).
+        if (!blob) {
+          console.warn(
+            `xuatSnapshotMuc: mục ${id} tham chiếu ảnh ${idBlob} không còn trong kho blob.`,
+          )
+          continue
+        }
+        anh.push({
+          id: idBlob,
+          mime: blob.type,
+          b64: byteThanhB64(new Uint8Array(await blob.arrayBuffer())),
+        })
+      } catch (loi) {
+        console.warn(`xuatSnapshotMuc: không đọc được ảnh ${idBlob} của mục ${id}`, loi)
       }
-      anh.push({
-        id: idBlob,
-        mime: blob.type,
-        b64: byteThanhB64(new Uint8Array(await blob.arrayBuffer())),
-      })
     }
     return { snapshot, anh }
   } finally {
