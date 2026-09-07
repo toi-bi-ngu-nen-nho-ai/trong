@@ -198,4 +198,34 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
   it('chiều NHẬP vẫn gọi xuatNhapNoiDung qua import() động', () => {
     expect(thanHam('async function handleConfirmImport()', 'function handleUndo()')).toMatch(GOI_DONG)
   })
+
+  // Điểm gọi động THỨ BA, thêm ở Task 4b: "Hoàn tác" ghi lại nội dung cũ (`nhapSnapshotMuc`) và gỡ
+  // nội dung của mục file vừa thêm mới (`xoaNoiDungBang` + `donRacBlobBang`). Không có mốc riêng
+  // cho handleUndo thì hai chiều XUẤT/NHẬP ở trên che mất một lượt import tĩnh lọt vào hàm này.
+  // Mốc kết thúc là dòng JSX mở đầu phần `return (` của DataSyncScreen — chuỗi một dòng, không
+  // vướng CRLF, và `indexOf` chỉ tìm từ vị trí handleUndo trở đi.
+  const THAN_HOAN_TAC = '<div className="h-full flex flex-col screen-transition">'
+
+  it('chiều HOÀN TÁC ghi lại nội dung cũ qua import() động', () => {
+    expect(thanHam('async function handleUndo()', THAN_HOAN_TAC)).toMatch(GOI_DONG)
+  })
+
+  it('chiều HOÀN TÁC gỡ nội dung mục mới qua import() động', () => {
+    expect(thanHam('async function handleUndo()', THAN_HOAN_TAC)).toMatch(
+      /await import\(['"]\.\/board\/xoaNoiDungBang['"]\)/,
+    )
+  })
+
+  it('App.tsx không import tĩnh xoaNoiDungBang', () => {
+    // `xoaNoiDungBang.ts` hiện KHÔNG import BlockSuite (IndexedDB thuần), nên một dòng import tĩnh
+    // ở đây hôm nay chưa tốn byte nào. Cổng vẫn chặn: luật D13 của App.tsx là "mọi module trong
+    // src/board/ đụng lưu trữ bảng vẽ đều đi qua import() động", và giữ đúng một lối vào là thứ
+    // giữ cho một lượt thêm `import './mo-doc'` vào xoaNoiDungBang.ts sau này không âm thầm kéo
+    // 4 MB vào chunk vỏ app. Cùng khuôn regex đa dòng với ca xuatNhapNoiDung phía trên.
+    expect(
+      /^import(?:[^'"\n]|\n)*?from\s*['"][^'"]*xoaNoiDungBang['"]/m.test(nguon),
+      'App.tsx import tĩnh xoaNoiDungBang (phá lối vào động duy nhất mà D13 đòi)',
+    ).toBe(false)
+    expect(/^import\s+['"][^'"]*xoaNoiDungBang['"]/m.test(nguon)).toBe(false)
+  })
 })

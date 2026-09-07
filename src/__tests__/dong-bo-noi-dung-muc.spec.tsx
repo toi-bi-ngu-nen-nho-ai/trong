@@ -80,12 +80,13 @@ async function moManDongBo() {
   fireEvent.click(screen.getByRole('button', { name: /Đồng bộ dữ liệu/ }))
   await screen.findByText('Đồng bộ dữ liệu', { selector: 'span' })
   await waitFor(() => expect(screen.getByText('Bài viết & Sơ đồ')).toBeTruthy())
-  // Câu hướng dẫn thường trực của màn không được hứa hai điều nay đã SAI kể từ Task 4: nội dung
-  // doc CRDT bị THAY HẲN theo id (không phải "dữ liệu hiện có không bị xoá"), và "Hoàn tác" chỉ
-  // lùi được các bảng metadata (không phải "có thể hoàn tác ngay sau khi nhập").
+  // Câu hướng dẫn thường trực của màn không được hứa điều nay đã SAI kể từ Task 4: nội dung doc
+  // CRDT bị THAY HẲN theo id (không phải "dữ liệu hiện có không bị xoá"). Từ Task 4b, "Hoàn tác"
+  // lùi được cả nội dung — nhưng CHỈ khi còn đứng ở màn này, và câu chữ phải nói rõ điều kiện đó
+  // thay vì hứa một lưới an toàn vĩnh viễn không tồn tại.
   const huongDan = screen.getByText(/Nhập file sẽ gộp theo id/)
   expect(huongDan.textContent).not.toContain('dữ liệu hiện có trên máy không bị xoá')
-  expect(huongDan.textContent).toContain('KHÔNG lùi lại được')
+  expect(huongDan.textContent).toContain('rời màn hình là nội dung cũ mất hẳn')
 }
 
 /** Bấm "Xuất file sao lưu" và trả về nội dung file, chặn ở `URL.createObjectURL`. */
@@ -187,11 +188,16 @@ describe('[CỔNG] Xuất → xoá sạch → Nhập lại: nội dung bài vi�
     const inputFile = document.querySelector('input[type="file"]') as HTMLInputElement
     fireEvent.change(inputFile, { target: { files: [file] } })
     const nutXacNhan = await screen.findByRole('button', { name: 'Xác nhận nhập' })
-    // Câu cảnh báo phải đứng TRƯỚC khi bấm. "Hoàn tác" chỉ chụp các bảng metadata, nên nội dung
-    // doc bị đè là mất vĩnh viễn; nói điều đó ở câu báo SAU khi nhập xong thì đã muộn.
+    // Câu cảnh báo phải đứng TRƯỚC khi bấm: nội dung doc bị THAY HẲN, và lưới an toàn duy nhất là
+    // nút "Hoàn tác" của chính màn này (Task 4b) — rời màn hình là mất. Nói điều đó ở câu báo SAU
+    // khi nhập xong thì đã muộn.
     expect(
-      screen.getByText(/KHÔNG hoàn tác được/),
+      screen.getByText(/sẽ bị THAY HẲN/),
       'panel xem trước phải cảnh báo nội dung doc sẽ bị thay hẳn',
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/rời màn hình là nội dung cũ mất hẳn/),
+      'panel xem trước phải nói rõ lưới an toàn chỉ sống trong màn này',
     ).toBeTruthy()
     fireEvent.click(nutXacNhan)
     await waitFor(() => expect(screen.getByText(/ghi xong nội dung 2\/2/)).toBeTruthy(), {

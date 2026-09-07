@@ -4262,9 +4262,21 @@ function DataSyncScreen({
   // rời màn hình (đổi tab/đóng app) vì dữ liệu đã lưu xuống máy ngay khi nhập, không có ý nghĩa "chưa
   // lưu" để giữ lại lâu hơn; đây là lưới an toàn cho đúng cái vừa bấm nhập, không phải một lịch sử.
   const [undoSnapshot, setUndoSnapshot] = useState<SyncSnapshot | null>(null)
-  // Lần nhập vừa rồi có ghi đè NỘI DUNG doc CRDT hay không — quyết định câu chữ của "Hoàn tác",
-  // vốn chỉ lùi được phần metadata (xem `handleUndo`).
-  const [daNhapNoiDung, setDaNhapNoiDung] = useState(false)
+  // ─── Nửa NỘI DUNG của cùng một lượt hoàn tác (Task 4b) ────────────────────────────────────
+  // `undoSnapshot` ở trên chỉ chụp các BẢNG metadata. Từ Task 4, lượt nhập còn THAY HẲN nội dung
+  // doc CRDT theo id — thứ KHÔNG có thùng rác nào khác trong app — nên "Hoàn tác" phải mang theo
+  // cả ba danh sách dưới đây. Cả ba được đặt và xoá CÙNG LÚC với `undoSnapshot`, để hai nửa của
+  // một lượt hoàn tác không bao giờ lệch pha nhau.
+  //
+  // 1) Nội dung CŨ của những mục ĐÃ CÓ trên máy, chụp TRƯỚC vòng ghi — "Hoàn tác" ghi lại đúng
+  //    thứ này. Khoá là `MucMeta.id`.
+  const [undoMucDocs, setUndoMucDocs] = useState<Record<string, NoiDungMucJson>>({})
+  // 2) Mục mà file vừa THÊM MỚI: không có nội dung cũ nào để trả về, nên "Hoàn tác" phải XOÁ nội
+  //    dung vừa ghi thay vì khôi phục (xem `handleUndo`). Giữ kèm tên để gọi đúng tên nếu xoá hỏng.
+  const [undoMucMoi, setUndoMucMoi] = useState<{ id: string; ten: string }[]>([])
+  // 3) Tên những mục KHÔNG chụp được nội dung cũ. "Hoàn tác" không lùi được nội dung của chúng và
+  //    phải nói thẳng ra, thay vì báo một lượt hoàn tác "trọn vẹn" sai sự thật.
+  const [undoMucKhongChup, setUndoMucKhongChup] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Công thức pha (bảng "Cách dùng"/"Đường dùng" người dùng tự chỉnh mỗi thuốc) đọc thẳng từ
@@ -4515,6 +4527,11 @@ function DataSyncScreen({
     const duLieu = pendingImport.data
     onImport(duLieu)
     setUndoSnapshot(snapshot)
+    // Ba danh sách nội dung của LƯỢT NÀY bắt đầu lại từ con số không. Lượt nhập trước có thể đã để
+    // lại giá trị, và trả nội dung của lượt TRƯỚC về khi hoàn tác lượt NÀY là làm hỏng dữ liệu.
+    setUndoMucDocs({})
+    setUndoMucMoi([])
+    setUndoMucKhongChup([])
     const totalAdded = pendingImport.rows.reduce((n, r) => n + r.added, 0)
     const totalUpdated = pendingImport.rows.reduce((n, r) => n + r.updated, 0)
     setStatus(`Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật.`)
@@ -4524,10 +4541,6 @@ function DataSyncScreen({
     // Chạy SAU khi metadata đã ghi: nếu lượt này hỏng giữa chừng, mục vẫn hiện ra ở lưới (có tên,
     // có danh mục) chứ không biến mất khỏi app. `import()` động — cùng ranh giới D13 như handleExport.
     const idNoiDung = Object.keys(duLieu.mucDocs)
-    // Đặt lại NGAY: cờ này quyết định câu chữ của nút "Hoàn tác", và nó phải nói về LƯỢT NÀY chứ
-    // không phải lượt trước. Bật lên chỉ khi thật sự đã ghi được ít nhất một mục (cuối hàm) — chunk
-    // hỏng hoặc mọi mục đều hỏng thì chưa có gì bị đè, "Hoàn tác" vẫn lùi được trọn vẹn.
-    setDaNhapNoiDung(false)
     if (idNoiDung.length === 0) return
     setImporting(true)
     try {
@@ -4549,6 +4562,47 @@ function DataSyncScreen({
       const loaiCua = (id: string): LoaiMuc =>
         duLieu.mucs.find((m) => m.id === id)?.loai ?? customMucs.find((m) => m.id === id)?.loai ?? "bai-viet"
       const tenCua = (id: string) => duLieu.mucs.find((m) => m.id === id)?.ten ?? id
+
+      // ─── Chụp nội dung CŨ trước khi đè (Task 4b) ──────────────────────────────────────────
+      // PHẢI đứng TRƯỚC vòng ghi bên dưới, không phải sau: `nhapSnapshotMuc` xoá con của khối gốc
+      // RỒI mới dựng lại (không nguyên tử — xem chú thích trong chính hàm đó), nên sau vòng ghi
+      // thì nội dung cũ đã biến mất khỏi máy và không còn gì để chụp. Đây là thứ duy nhất cho phép
+      // "Hoàn tác" lùi được cả NỘI DUNG chứ không chỉ danh sách.
+      const mucTrenMay = new Map(customMucs.map((m) => [m.id, m]))
+      const docCu: Record<string, NoiDungMucJson> = {}
+      const mucMoi: { id: string; ten: string }[] = []
+      const khongChup: string[] = []
+      for (const id of idNoiDung) {
+        const cu = mucTrenMay.get(id)
+        // Mục file THÊM MỚI: KHÔNG gọi `xuatSnapshotMuc` cho nó. Hàm đó đi qua `taoHoacMoDoc`, nên
+        // chụp một id CHƯA TỪNG CÓ trên máy sẽ TẠO RA doc rỗng của nó rồi chụp cái rỗng đó — vừa
+        // tốn một lượt mở/đóng workspace vô nghĩa, vừa để lại đúng thứ rác mà "Hoàn tác" sau đó
+        // phải đi dọn (một bản ghi doc mồ côi vẫn tham chiếu ảnh của nó, nên nó BẢO KÊ cho ảnh mồ
+        // côi trước `donRacBlobBang`). Với mục mới, hoàn tác đúng nghĩa là XOÁ nội dung vừa ghi —
+        // xem `handleUndo`.
+        if (!cu) {
+          mucMoi.push({ id, ten: tenCua(id) })
+          continue
+        }
+        try {
+          // `loai` lấy từ metadata CŨ trên máy: đây là lượt đọc doc ĐANG CÓ, không phải doc trong file.
+          const noiDungCu = await modNoiDung.xuatSnapshotMuc(id, cu.loai)
+          // Transformer của vendor NUỐT LỖI và trả `undefined` thay vì ném (D11) — `xuatSnapshotMuc`
+          // chuyển tiếp nguyên trạng, nên phải kiểm giá trị trả về ở phía app.
+          if (noiDungCu) docCu[id] = noiDungCu as unknown as NoiDungMucJson
+          else khongChup.push(cu.ten)
+        } catch (loi) {
+          // Best-effort TỪNG MỤC: một mục đọc hỏng chỉ mất khả năng hoàn tác CỦA RIÊNG NÓ. Lượt
+          // nhập chính vẫn phải chạy tiếp và vẫn ghi nội dung mới cho mọi mục còn lại — chặn cả
+          // lượt nhập ở đây là biến một sự cố đọc thành một lượt khôi phục dở dang.
+          console.warn(`handleConfirmImport: không chụp được nội dung cũ của mục ${id}`, loi)
+          khongChup.push(cu.ten)
+        }
+      }
+      setUndoMucDocs(docCu)
+      setUndoMucMoi(mucMoi)
+      setUndoMucKhongChup(khongChup)
+
       let xong = 0
       const hong: string[] = []
       // Mục ghi xong nhưng file không mang đủ ảnh (ảnh đã mất từ lượt XUẤT). Nội dung chữ về đủ,
@@ -4564,9 +4618,6 @@ function DataSyncScreen({
           hong.push(tenCua(id))
         }
       }
-      // Chỉ khi ĐÃ ghi được ít nhất một mục thì nội dung trên máy mới thật sự bị đè — đó mới là lúc
-      // "Hoàn tác" phải hạ giọng xuống "chỉ lùi được danh sách".
-      setDaNhapNoiDung(xong > 0)
       setStatus(
         `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật; ghi xong nội dung ${xong}/${idNoiDung.length} bài viết/sơ đồ.` +
           // "Chưa ghi được" là NÓI SAI: lượt nhập xoá nội dung cũ TRƯỚC khi dựng lại (không nguyên
@@ -4583,19 +4634,116 @@ function DataSyncScreen({
     }
   }
 
-  function handleUndo() {
-    if (!undoSnapshot) return
-    onRestoreSnapshot(undoSnapshot)
+  // "Hoàn tác" một lượt nhập gồm HAI nửa: các BẢNG metadata (`undoSnapshot`, đồng bộ) và NỘI DUNG
+  // doc CRDT (`undoMucDocs`/`undoMucMoi`, bất đồng bộ vì phải mở lại workspace BlockSuite cho từng
+  // mục). Hàm `async` là vì nửa sau — trước Task 4b nó đồng bộ và chỉ lùi được nửa đầu.
+  async function handleUndo() {
+    // Dùng lại cờ `importing` để chặn bấm chồng: lượt khôi phục dưới đây mở/đóng workspace cho
+    // từng mục, hai lượt chạy song song là hai lượt ghi đua nhau trên cùng một doc.
+    if (!undoSnapshot || importing) return
+    const banCu = undoSnapshot
+    const docCu = undoMucDocs
+    const mucMoi = undoMucMoi
+    const khongChup = undoMucKhongChup
+    onRestoreSnapshot(banCu)
+    // Xoá CẢ BỐN cùng lúc: một lượt hoàn tác chỉ dùng được đúng một lần, và để sót nửa nội dung
+    // lại sẽ trả nội dung của lượt nhập cũ về ở lần bấm sau. Nội dung cũ trong `docCu` mất theo —
+    // chấp nhận được vì chunk `xuatNhapNoiDung` chắc chắn đã nằm trong cache của trình duyệt (lượt
+    // nhập vừa rồi đã nạp nó để ghi), nên lượt khôi phục bên dưới không có đường "hỏng vì mất mạng".
     setUndoSnapshot(null)
-    // `undoSnapshot` chỉ chụp các BẢNG (metadata), không chụp nội dung doc CRDT — nội dung đã nhập
-    // ở lượt vừa rồi ĐÃ ghi đè lên doc trên máy và không có bản cũ nào để trả về. Câu chữ phải nói
-    // đúng điều đó thay vì hứa "trở lại như trước khi nhập file", nếu không người dùng sẽ tin là
-    // bài viết cũng đã được cứu.
-    setStatus(
-      daNhapNoiDung
-        ? "Đã hoàn tác danh sách — nhưng nội dung bài viết/sơ đồ đã nhập từ file thì giữ nguyên, không lùi lại được."
-        : "Đã hoàn tác — dữ liệu trở lại như trước khi nhập file.",
-    )
+    setUndoMucDocs({})
+    setUndoMucMoi([])
+    setUndoMucKhongChup([])
+
+    const idTra = Object.keys(docCu)
+    if (idTra.length === 0 && mucMoi.length === 0 && khongChup.length === 0) {
+      // Lượt nhập không đụng nội dung doc nào (file chỉ có metadata, hoặc chunk nội dung tải hỏng
+      // nên chưa ghi gì) — câu cũ vẫn đúng nguyên văn, không được hạ giọng vô cớ.
+      setStatus("Đã hoàn tác — dữ liệu trở lại như trước khi nhập file.")
+      return
+    }
+
+    setImporting(true)
+    try {
+      const soPhaiLam = idTra.length + mucMoi.length
+      if (soPhaiLam > 0) setStatus(`Đã hoàn tác danh sách. Đang trả lại nội dung ${soPhaiLam} bài viết/sơ đồ…`)
+      const mucTruocNhap = new Map(banCu.mucs.map((m) => [m.id, m]))
+      // Không trả lại được nội dung cũ: mục chụp hỏng từ lượt NHẬP, cộng mục ghi hỏng ở lượt NÀY.
+      const hongTra = [...khongChup]
+      const hongGo: string[] = []
+      let traDuoc = 0
+
+      // ─── Nửa 1: trả nội dung cũ về cho mục ĐÃ CÓ trước lượt nhập ────────────────────────────
+      if (idTra.length > 0) {
+        // `import()` ĐỘNG — cùng ranh giới D13 như handleExport/handleConfirmImport. Vẫn `.catch`
+        // chứ không để lời gọi tự ném: một promise bị từ chối ở đây thoát ra khỏi handler onClick
+        // mà không ai bắt, người dùng chỉ thấy nút ngừng quay và không lời giải thích nào.
+        const modNoiDung = await import("./board/xuatNhapNoiDung").catch((loi) => {
+          console.warn("handleUndo: không nạp được module nội dung doc", loi)
+          return null
+        })
+        if (modNoiDung) {
+          for (const id of idTra) {
+            try {
+              await modNoiDung.nhapSnapshotMuc(
+                id,
+                mucTruocNhap.get(id)?.loai ?? "bai-viet",
+                docCu[id] as Parameters<typeof modNoiDung.nhapSnapshotMuc>[2],
+              )
+              traDuoc += 1
+            } catch (loi) {
+              console.warn(`handleUndo: không trả lại được nội dung cũ của mục ${id}`, loi)
+              hongTra.push(mucTruocNhap.get(id)?.ten ?? id)
+            }
+          }
+        } else {
+          // KHÔNG dừng cả hàm ở đây: nửa 2 bên dưới đi qua module KHÁC (`xoaNoiDungBang`, IndexedDB
+          // thuần, không phụ thuộc chunk này) và vẫn phải chạy — bỏ nó là để lại đúng đống doc +
+          // ảnh mồ côi mà Task 4b tồn tại để dọn. Gọi tên mọi mục không trả về được rồi đi tiếp.
+          hongTra.push(...idTra.map((id) => mucTruocNhap.get(id)?.ten ?? id))
+        }
+      }
+
+      // ─── Nửa 2: gỡ nội dung của mục file vừa THÊM MỚI ───────────────────────────────────────
+      // `onRestoreSnapshot` đã xoá dòng metadata của chúng (`mucsCol.replaceAll`), nhưng bản ghi
+      // doc + ảnh vừa ghi thì ở lại vĩnh viễn nếu không dọn ở đây: `donRacBlobBang` giữ mọi blob
+      // còn được nhắc trong BẤT KỲ bản ghi doc nào, nên chính bản ghi doc mồ côi đó bảo kê cho ảnh
+      // mồ côi, và không đường nào khác trong app thu hồi được.
+      if (mucMoi.length > 0) {
+        const modXoa = await import("./board/xoaNoiDungBang").catch((loi) => {
+          console.warn("handleUndo: không nạp được module xoá nội dung bảng", loi)
+          return null
+        })
+        if (!modXoa) {
+          hongGo.push(...mucMoi.map((m) => m.ten))
+        } else {
+          // `xoaNoiDungBang` cố gắng hết sức và KHÔNG ném — trả `false` khi hỏng.
+          const daXoa = await modXoa.xoaNoiDungBang(mucMoi.map((m) => m.id))
+          if (!daXoa) hongGo.push(...mucMoi.map((m) => m.ten))
+          // Ảnh đánh khoá theo BĂM NỘI DUNG chứ không theo id mục, nên phải đi một lượt dọn riêng —
+          // và CHỈ SAU khi bản ghi doc đã biến mất, vì chừng nào nó còn thì chính nó vẫn tham chiếu
+          // ảnh của nó và lượt dọn sẽ không thấy blob nào mồ côi.
+          else await modXoa.donRacBlobBang()
+        }
+      }
+
+      const goDuoc = mucMoi.length - hongGo.length
+      // Câu chữ phải nói ĐÚNG SỰ THẬT của lượt này, không hứa quá: mục nào chưa trả về được thì
+      // GỌI TÊN, đúng khuôn `hong.join(", ")` mà `handleConfirmImport` đang dùng.
+      setStatus(
+        "Đã hoàn tác — danh sách mục trở lại như trước khi nhập file." +
+          (traDuoc > 0 ? ` Nội dung cũ của ${traDuoc} bài viết/sơ đồ đã trở lại.` : "") +
+          (goDuoc > 0 ? ` Đã gỡ nội dung của ${goDuoc} mục mà file vừa thêm mới.` : "") +
+          (hongTra.length > 0
+            ? ` Chưa trả lại được nội dung cũ của: ${hongTra.join(", ")} — nội dung các mục này vẫn là bản vừa nhập từ file.`
+            : "") +
+          (hongGo.length > 0
+            ? ` Chưa gỡ được nội dung vừa ghi của: ${hongGo.join(", ")} — mục đã biến khỏi danh sách nhưng nội dung còn nằm lại trên máy.`
+            : ""),
+      )
+    } finally {
+      setImporting(false)
+    }
   }
 
   return (
@@ -4626,12 +4774,13 @@ function DataSyncScreen({
                   ? "File này chỉ có sơ đồ tư duy (gộp theo node/cạnh) hoặc không có gì mới."
                   : "Mục \"cập nhật\" nghĩa là trên máy ĐÃ CÓ id này — nội dung hiện tại sẽ bị THAY bằng nội dung trong file."}
               </p>
-              {/* Nội dung doc CRDT không có thùng rác và không nằm trong `undoSnapshot` (chỉ các
-                  bảng metadata nằm trong đó). Câu này phải đứng ở đây — TRƯỚC khi bấm — chứ không
+              {/* Nội dung doc CRDT không có thùng rác nào khác: lưới an toàn duy nhất là bản chụp
+                  mà `handleConfirmImport` giữ TRONG BỘ NHỚ của màn này (Task 4b, xem `undoMucDocs`),
+                  và nó mất khi rời màn hình. Câu này phải đứng ở đây — TRƯỚC khi bấm — chứ không
                   chỉ ở câu báo sau khi nhập xong. */}
               {Object.keys(pendingImport.data.mucDocs).length > 0 && (
                 <p className="text-xs mt-1.5 leading-relaxed font-semibold" style={{ color: "var(--c-danger-icon)" }}>
-                  File có nội dung của {Object.keys(pendingImport.data.mucDocs).length} bài viết/sơ đồ. Nội dung đang có trên máy của đúng những mục đó sẽ bị THAY HẲN và KHÔNG hoàn tác được — "Hoàn tác" chỉ lùi được danh sách mục.
+                  File có nội dung của {Object.keys(pendingImport.data.mucDocs).length} bài viết/sơ đồ. Nội dung đang có trên máy của đúng những mục đó sẽ bị THAY HẲN. Chỉ nút "Hoàn tác" ngay trên màn này lùi lại được — rời màn hình là nội dung cũ mất hẳn.
                 </p>
               )}
             </div>
@@ -4731,8 +4880,10 @@ function DataSyncScreen({
         {status && (
           <div className="text-center space-y-2">
             <p className="text-xs leading-relaxed" style={{ color: "var(--c-accent)" }}>{status}</p>
+            {/* `disabled` khi đang bận: lượt hoàn tác nay ghi cả NỘI DUNG doc (mở/đóng workspace
+                cho từng mục), bấm chồng lên nhau là hai lượt ghi đua nhau trên cùng một doc. */}
             {undoSnapshot && (
-              <button onClick={handleUndo} className="inline-flex items-center gap-1.5 text-xs font-bold" style={{ color: "var(--c-danger-icon)" }}>
+              <button onClick={handleUndo} disabled={importing} className="inline-flex items-center gap-1.5 text-xs font-bold disabled:opacity-50" style={{ color: "var(--c-danger-icon)" }}>
                 {icons.undo()}
                 Hoàn tác lần nhập vừa rồi
               </button>
@@ -4742,7 +4893,7 @@ function DataSyncScreen({
 
         {!pendingImport && (
           <p className="text-xs text-slate-400 leading-relaxed">
-            Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — các mục id khác trên máy không bị đụng tới. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. "Hoàn tác" (còn đứng ở màn này) lùi được DANH SÁCH mục — riêng nội dung bài viết/sơ đồ mà file mang theo thì THAY HẲN nội dung đang có trên máy của đúng những id đó và KHÔNG lùi lại được.
+            Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — các mục id khác trên máy không bị đụng tới. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. "Hoàn tác" (còn đứng ở màn này) lùi được cả DANH SÁCH mục lẫn NỘI DUNG bài viết/sơ đồ mà file vừa đè lên — nhưng chỉ khi bạn còn ở màn này; rời màn hình là nội dung cũ mất hẳn.
           </p>
         )}
       </div>
