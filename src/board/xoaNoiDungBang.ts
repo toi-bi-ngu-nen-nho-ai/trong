@@ -13,8 +13,12 @@
 // dùng tưởng đã xoá sạch, dung lượng thì không giảm một byte.
 //
 // ─── Vì sao KHÔNG dùng lại `IndexedDBDocSource` ──────────────────────────────────────────────
-// D13: file này bị gọi từ LuoiMuc.tsx (chunk vỏ app). Import bất cứ thứ gì của BlockSuite vào
-// đây là kéo cả chồng ra khỏi chunk nạp chậm cho mọi người dùng. IndexedDB thuần không phụ thuộc gì.
+// D13: file này nhập TĨNH vào chunk vỏ app từ HAI nơi — LuoiMuc.tsx (từ trước) và App.tsx (thêm ở
+// Task 4b, dùng trong handleUndo — xem comment cạnh import ở đầu App.tsx). Import bất cứ thứ gì
+// của BlockSuite vào đây là kéo cả chồng ra khỏi chunk nạp chậm cho mọi người dùng, bất kể qua
+// lối vào nào trong hai lối trên. IndexedDB thuần không phụ thuộc gì — bất biến này được ghim ở
+// describe "xoaNoiDungBang.ts — ranh giới D13" trong ranh-gioi-nap-bang.spec.ts, soi thẳng file
+// này chứ không suy luận qua ai import nó.
 
 /** DB nội dung bảng — cùng tên với `TEN_CSDL_BANG` mà mo-doc/diTruBangCu truyền cho DocSource. */
 const TEN_CSDL_BANG = 'drtrong-board'

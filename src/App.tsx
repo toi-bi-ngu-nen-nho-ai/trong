@@ -21,6 +21,14 @@ import { BoardGallery } from "./board/BoardGallery"
 // thẳng file cùng tên), không suy luận. Hai ca D13 gốc trong cùng file đó chỉ soi index.tsx.
 import { ChonDanhMuc } from "./board/ChonDanhMuc"
 import { DANH_MUC, taoIdMuc, type IdDanhMuc, type LoaiMuc, type MucMeta } from "./board/mucMeta"
+// xoaNoiDungBang.ts KHÔNG import gì từ @blocksuite/* hay ./mo-doc (D13) — IndexedDB thuần. Nó đã
+// có mặt TĨNH trong chunk vỏ app từ trước, qua LuoiMuc.tsx (LuoiMuc → BoardGallery → App.tsx), nên
+// một dòng import tĩnh ở đây không kéo thêm byte nào; bọc nó qua `import()` động chỉ tách ra một
+// chunk riêng mà vỏ app vẫn tải tĩnh theo nhánh kia — thêm một request, không giảm được gì. Ca
+// ghim D13 cho module này đứng trong chính xoaNoiDungBang.ts (describe "xoaNoiDungBang.ts — ranh
+// giới D13" trong ranh-gioi-nap-bang.spec.ts), không phải ở đây — canh đúng bất biến "module này
+// sạch BlockSuite", đúng bất kể ai import nó.
+import { donRacBlobBang, xoaNoiDungBang } from "./board/xoaNoiDungBang"
 import {
   CRCL_RELIABILITY_TEXT,
   RRT_LABELS,
@@ -4710,21 +4718,15 @@ function DataSyncScreen({
       // còn được nhắc trong BẤT KỲ bản ghi doc nào, nên chính bản ghi doc mồ côi đó bảo kê cho ảnh
       // mồ côi, và không đường nào khác trong app thu hồi được.
       if (mucMoi.length > 0) {
-        const modXoa = await import("./board/xoaNoiDungBang").catch((loi) => {
-          console.warn("handleUndo: không nạp được module xoá nội dung bảng", loi)
-          return null
-        })
-        if (!modXoa) {
-          hongGo.push(...mucMoi.map((m) => m.ten))
-        } else {
-          // `xoaNoiDungBang` cố gắng hết sức và KHÔNG ném — trả `false` khi hỏng.
-          const daXoa = await modXoa.xoaNoiDungBang(mucMoi.map((m) => m.id))
-          if (!daXoa) hongGo.push(...mucMoi.map((m) => m.ten))
-          // Ảnh đánh khoá theo BĂM NỘI DUNG chứ không theo id mục, nên phải đi một lượt dọn riêng —
-          // và CHỈ SAU khi bản ghi doc đã biến mất, vì chừng nào nó còn thì chính nó vẫn tham chiếu
-          // ảnh của nó và lượt dọn sẽ không thấy blob nào mồ côi.
-          else await modXoa.donRacBlobBang()
-        }
+        // `xoaNoiDungBang` cố gắng hết sức và KHÔNG ném — trả `false` khi hỏng. Module này nhập
+        // TĨNH ở đầu file (xem comment cạnh import), nên không có nhánh "không nạp được module"
+        // để xử ở đây nữa — khác nửa 1 phía trên vẫn qua `import()` động của xuatNhapNoiDung.
+        const daXoa = await xoaNoiDungBang(mucMoi.map((m) => m.id))
+        if (!daXoa) hongGo.push(...mucMoi.map((m) => m.ten))
+        // Ảnh đánh khoá theo BĂM NỘI DUNG chứ không theo id mục, nên phải đi một lượt dọn riêng —
+        // và CHỈ SAU khi bản ghi doc đã biến mất, vì chừng nào nó còn thì chính nó vẫn tham chiếu
+        // ảnh của nó và lượt dọn sẽ không thấy blob nào mồ côi.
+        else await donRacBlobBang()
       }
 
       const goDuoc = mucMoi.length - hongGo.length

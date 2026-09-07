@@ -199,9 +199,13 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
     expect(thanHam('async function handleConfirmImport()', 'function handleUndo()')).toMatch(GOI_DONG)
   })
 
-  // Điểm gọi động THỨ BA, thêm ở Task 4b: "Hoàn tác" ghi lại nội dung cũ (`nhapSnapshotMuc`) và gỡ
-  // nội dung của mục file vừa thêm mới (`xoaNoiDungBang` + `donRacBlobBang`). Không có mốc riêng
-  // cho handleUndo thì hai chiều XUẤT/NHẬP ở trên che mất một lượt import tĩnh lọt vào hàm này.
+  // Mốc riêng cho handleUndo: hai chiều XUẤT/NHẬP ở trên che mất bất cứ điều gì xảy ra bên trong
+  // hàm này. Ở đây có HAI nửa khác nhau — nửa 1 ("Hoàn tác" trả nội dung cũ, `nhapSnapshotMuc`) vẫn
+  // qua `import('./board/xuatNhapNoiDung')` ĐỘNG, cùng GOI_DONG với XUẤT/NHẬP ở trên; nửa 2 (gỡ nội
+  // dung của mục file vừa thêm mới, `xoaNoiDungBang` + `donRacBlobBang`) giờ gọi THẲNG — module đó
+  // đã nhập TĨNH ở đầu App.tsx (xem describe "xoaNoiDungBang.ts — ranh giới D13" bên dưới lý do:
+  // module đã có mặt tĩnh trong chunk vỏ app từ trước qua LuoiMuc.tsx, bọc `import()` quanh nó chỉ
+  // tách một chunk riêng mà vỏ app vẫn tải tĩnh — thêm 1 request, không tiết kiệm byte nào).
   // Mốc kết thúc là dòng JSX mở đầu phần `return (` của DataSyncScreen — chuỗi một dòng, không
   // vướng CRLF, và `indexOf` chỉ tìm từ vị trí handleUndo trở đi.
   const THAN_HOAN_TAC = '<div className="h-full flex flex-col screen-transition">'
@@ -210,22 +214,43 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
     expect(thanHam('async function handleUndo()', THAN_HOAN_TAC)).toMatch(GOI_DONG)
   })
 
-  it('chiều HOÀN TÁC gỡ nội dung mục mới qua import() động', () => {
-    expect(thanHam('async function handleUndo()', THAN_HOAN_TAC)).toMatch(
-      /await import\(['"]\.\/board\/xoaNoiDungBang['"]\)/,
-    )
+  it('chiều HOÀN TÁC gỡ nội dung mục mới gọi THẲNG xoaNoiDungBang (không còn import() động)', () => {
+    // Trước bản vá này gọi qua `import('./board/xoaNoiDungBang')` động; module đó không kéo
+    // BlockSuite nên bọc động chỉ tách thêm một chunk mà vỏ app vẫn tải tĩnh qua LuoiMuc.tsx —
+    // không tiết kiệm byte nào, chỉ tốn thêm một request. Ca ghim đổi từ "có gọi import() động"
+    // sang "có gọi thẳng hàm đã import tĩnh".
+    expect(thanHam('async function handleUndo()', THAN_HOAN_TAC)).toMatch(/await xoaNoiDungBang\(/)
+  })
+})
+
+describe('xoaNoiDungBang.ts — ranh giới D13 (không kéo BlockSuite vào chunk vỏ app)', () => {
+  // App.tsx nhập GIÁ TRỊ (xoaNoiDungBang, donRacBlobBang) từ đây THẲNG vào chunk vỏ app (xem
+  // comment cạnh import ở đầu App.tsx) — và LuoiMuc.tsx đã làm vậy từ trước, độc lập với App.tsx.
+  //
+  // Cổng CŨ ở đây từng là "App.tsx không import tĩnh xoaNoiDungBang" — một ca ghim GIẢ: nó chỉ
+  // chặn MỘT lối vào (App.tsx), trong khi LuoiMuc.tsx → BoardGallery.tsx → App.tsx đã là chuỗi
+  // TĨNH có sẵn từ trước. Ai thêm BlockSuite vào xoaNoiDungBang.ts thì nó vẫn vào chunk vỏ app qua
+  // LuoiMuc, bất kể App.tsx tự nó import động hay tĩnh — cổng cũ bảo vệ đúng bằng KHÔNG. Cổng ĐÚNG
+  // phải soi CHÍNH xoaNoiDungBang.ts, giống hai describe ChonDanhMuc.tsx/mucMeta.ts ở trên — bất
+  // biến "module này sạch BlockSuite" đúng bất kể ai import nó, không phụ thuộc App.tsx làm gì.
+  const nguon = readFileSync(new NodeURL('../xoaNoiDungBang.ts', import.meta.url), 'utf8')
+
+  it('không import gì từ @blocksuite/* (ranh giới D13)', () => {
+    // So khớp chuỗi con thẳng: bắt cả import giá trị, import type, lẫn import side-effect — mọi
+    // hình thức đều kéo gói BlockSuite vào chunk vỏ app, dù qua App.tsx hay qua LuoiMuc.tsx.
+    expect(nguon).not.toContain('@blocksuite/')
   })
 
-  it('App.tsx không import tĩnh xoaNoiDungBang', () => {
-    // `xoaNoiDungBang.ts` hiện KHÔNG import BlockSuite (IndexedDB thuần), nên một dòng import tĩnh
-    // ở đây hôm nay chưa tốn byte nào. Cổng vẫn chặn: luật D13 của App.tsx là "mọi module trong
-    // src/board/ đụng lưu trữ bảng vẽ đều đi qua import() động", và giữ đúng một lối vào là thứ
-    // giữ cho một lượt thêm `import './mo-doc'` vào xoaNoiDungBang.ts sau này không âm thầm kéo
-    // 4 MB vào chunk vỏ app. Cùng khuôn regex đa dòng với ca xuatNhapNoiDung phía trên.
-    expect(
-      /^import(?:[^'"\n]|\n)*?from\s*['"][^'"]*xoaNoiDungBang['"]/m.test(nguon),
-      'App.tsx import tĩnh xoaNoiDungBang (phá lối vào động duy nhất mà D13 đòi)',
-    ).toBe(false)
-    expect(/^import\s+['"][^'"]*xoaNoiDungBang['"]/m.test(nguon)).toBe(false)
+  it('không import gì từ src/vendor/blocksuite/ qua đường dẫn tương đối (ranh giới D13)', () => {
+    // Phòng lối vòng qua alias `@blocksuite/*` (mà `blocksuiteVendor()` trỏ sang `.vendor-build/`):
+    // một import tương đối thẳng vào src/vendor/blocksuite/ cũng kéo y hệt khối đó vào chunk vỏ app.
+    expect(nguon).not.toContain('vendor/blocksuite')
+  })
+
+  it('không import từ ./mo-doc (ranh giới D13)', () => {
+    // mo-doc.ts là nơi import @blocksuite/* trực tiếp — bất cứ ai import GIÁ TRỊ từ đó cũng kéo
+    // theo cả khối. Không cho ngoại lệ `import type` (khác luật của index.tsx): không có kiểu nào
+    // của mo-doc.ts mà xoaNoiDungBang.ts cần biết.
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/mo-doc['"]/m)
   })
 })
