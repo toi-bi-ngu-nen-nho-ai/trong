@@ -55,7 +55,8 @@ const ID_CU = 'hoan-tac-noi-dung-muc-cu'
 const ID_CU_2 = 'hoan-tac-noi-dung-muc-cu-2'
 const ID_MOI = 'hoan-tac-noi-dung-muc-moi'
 const ID_TAM = 'hoan-tac-noi-dung-muc-tam'
-const MOI_ID = [ID_CU, ID_CU_2, ID_MOI, ID_TAM]
+const ID_ANH_MAT = 'hoan-tac-noi-dung-muc-anh-mat'
+const MOI_ID = [ID_CU, ID_CU_2, ID_MOI, ID_TAM, ID_ANH_MAT]
 
 // HAI ảnh, không phải một: `ImageBlockTransformer.fromSnapshot` BỎ QUA hoàn toàn khi map assets
 // RỖNG (`if (!payload.assets.isEmpty() && …)`), nên một ca chỉ có một ảnh vẫn xanh kể cả khi đường
@@ -99,6 +100,29 @@ async function ghiNoiDung(
   } finally {
     workspace.forceStop()
   }
+}
+
+/**
+ * Ghi một bài viết có HAI ảnh: một ảnh CÓ byte thật (giữ map assets không rỗng khi phục hồi — né
+ * bẫy xanh giả assets rỗng), một ảnh khối tồn tại nhưng `sourceId` trỏ vào khoá CHƯA TỪNG được ghi
+ * vào kho blob — giả lập đúng cảnh "ảnh đã mất khỏi máy TRƯỚC lượt nhập" mà `nhapSnapshotMuc` phải
+ * cắt bỏ khi ghi (Important 1, review vòng 1). Trả về `sourceId` của ảnh đã mất, để đối chiếu.
+ */
+async function ghiNoiDungVoiAnhMat(id: string, doan: string[], byteAnhCon: Uint8Array<ArrayBuffer>): Promise<string> {
+  const idAnhMat = `anh-da-mat-khoi-may-${id}`
+  const { workspace, store } = await taoHoacMoDoc(id, 'bai-viet')
+  try {
+    store.updateBlock(store.root!, { title: new Text(`Tiêu đề ${id}`) })
+    const note = store.root!.children.find((k) => k.flavour === 'affine:note')!
+    for (const d of doan) store.addBlock('affine:paragraph', { text: new Text(d) }, note.id)
+    const idAnhCon = await workspace.blobSync.set(new Blob([byteAnhCon], { type: 'image/png' }))
+    store.addBlock('affine:image', { sourceId: idAnhCon, width: 200, height: 120 }, note.id)
+    store.addBlock('affine:image', { sourceId: idAnhMat, width: 200, height: 120 }, note.id)
+    await workspace.waitForSynced()
+  } finally {
+    workspace.forceStop()
+  }
+  return idAnhMat
 }
 
 /** Đọc lại toàn bộ chữ trong doc của `id`. CẢNH BÁO: tạo doc rỗng nếu id chưa có (taoHoacMoDoc). */
@@ -324,5 +348,106 @@ describe('[CỔNG] Hoàn tác nhập file lùi được cả NỘI DUNG doc, kh�
     expect(await docNoiDung(ID_CU), 'mục chụp hỏng vẫn giữ nội dung vừa nhập — câu báo phải nói đúng thế').toContain(
       'MỚI cho cả hai mục',
     )
+  }, HAN_GIO_MOUNT_APP_MS)
+
+  it('Hoàn tác khôi phục THIẾU ảnh phải nói rõ, không báo "đã trở lại" trọn vẹn (Important 1)', async () => {
+    // ── Dựng "máy": mục có nội dung cũ với MỘT ảnh đã mất byte TỪ TRƯỚC lượt nhập ────────────
+    // `nhapSnapshotMuc` CẮT BỎ khối ảnh thiếu byte khi ghi (không ném) — đây là chỗ mà bản trước
+    // review vứt mất giá trị trả về, nên hoàn tác âm thầm gỡ ảnh mà vẫn báo "đã trở lại" trọn vẹn.
+    await ghiNoiDungVoiAnhMat(ID_ANH_MAT, ['CŨ có ảnh'], BYTE_ANH_1)
+    await idbPut(IDB_STORES.mucs, mucGia(ID_ANH_MAT, 'Bài cũ có ảnh thiếu'))
+
+    const noiDungMoi = await noiDungChoFile(['NỘI DUNG MỚI từ file'])
+
+    await moManDongBo()
+    await nhapFile(
+      JSON.stringify({
+        app: 'drtrong',
+        version: 2,
+        data: {
+          mucs: [mucGia(ID_ANH_MAT, 'Bài đè từ file')],
+          mucDocs: { [ID_ANH_MAT]: noiDungMoi },
+        },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText(/ghi xong nội dung 1\/1/)).toBeTruthy(), {
+      timeout: 40000,
+    })
+
+    // ── Hoàn tác: nội dung CHỮ phải về, nhưng câu trạng thái PHẢI gọi tên ảnh không lùi được ───
+    await bamHoanTac()
+    await waitFor(() => expect(screen.getByText(/Nội dung cũ của 1 bài viết\/sơ đồ đã trở lại/)).toBeTruthy(), {
+      timeout: 40000,
+    })
+    // Đây là khẳng định ĐỎ trước khi vá (Important 1): bản trước review không có mệnh đề "Thiếu
+    // ảnh" nào trong câu trạng thái của handleUndo, vì `kq.anhThieu` bị vứt ngay tại `await
+    // modNoiDung.nhapSnapshotMuc(...)` không hứng giá trị trả về.
+    expect(screen.getByText(/Thiếu ảnh trong: Bài cũ có ảnh thiếu \(1 ảnh\)/)).toBeTruthy()
+
+    // Chữ vẫn phải về đủ dù ảnh mất — "phần chữ vẫn về đủ" không phải lời hứa suông.
+    expect(await docNoiDung(ID_ANH_MAT)).toContain('CŨ có ảnh')
+  }, HAN_GIO_MOUNT_APP_MS)
+
+  it('Hoàn tác THUẦN-GHI-ĐÈ (không mục nào MỚI) vẫn phải kích hoạt lượt dọn ảnh mồ côi (Minor 3)', async () => {
+    // ── Dựng một ảnh MỒ CÔI TỪ TRƯỚC, chưa ai dọn ──────────────────────────────────────────────
+    // Giả lập đúng cảnh mục BỔ SUNG của brief mô tả: một mục đã bị xoá VĨNH VIỄN ở nơi khác trong
+    // app (dòng bản ghi doc đã biến mất — `xoaNoiDungBang`), nhưng lượt dọn blob chưa kịp chạy.
+    // KHÔNG dùng kịch bản "ảnh vừa ghi-rồi-xoá trong CÙNG MỘT doc" (như ID_CU bên dưới): Yjs không
+    // bật GC (cần giữ lịch sử cho undo/đồng bộ), nên khối đã xoá vẫn còn tombstone trong CHÍNH
+    // update của doc đó — `donRacBlobBang` (dò chuỗi con trên byte thô) sẽ mãi mãi thấy khoá ảnh
+    // "còn được tham chiếu" trong doc đó cho tới khi cả DÒNG bản ghi biến mất, bất kể gọi dọn bao
+    // nhiêu lần. Đã đo thật bằng cách gọi `donRacBlobBang()` thủ công ngay sau hoàn tác trong lúc
+    // điều tra ca này: `daXoa: 0`, và đọc thẳng update thô của doc xác nhận vẫn chứa khoá ảnh dù
+    // khối ảnh đã bị `store.deleteBlock` — đây là giới hạn kiến trúc CỦA CHÍNH `donRacBlobBang`
+    // (tự nhận là quét THỪA hơn là quét THIẾU, xem đầu xoaNoiDungBang.ts), không phải điều Task 4b
+    // sửa được. Ca kiểm vì vậy phải dựng cảnh mà GC CÓ THỂ dọn được: ảnh mồ côi từ một dòng bản ghi
+    // đã biến mất HẲN.
+    await ghiNoiDung(ID_MOI, ['Mục đã xoá vĩnh viễn từ trước'], [BYTE_ANH_1])
+    const noiDungDaXoa = (await xuatSnapshotMuc(ID_MOI, 'bai-viet')) as { anh: { id: string }[] }
+    const khoaAnhMoCoi = noiDungDaXoa.anh.map((a) => a.id)
+    expect(khoaAnhMoCoi, 'mục dựng sẵn phải mang đúng một ảnh').toHaveLength(1)
+    // Xoá HẲN dòng bản ghi doc (không gọi `donRacBlobBang` ở đây) — mô phỏng đúng khoảng hở giữa
+    // "đã xoá vĩnh viễn" và "lượt dọn blob kế tiếp" mà mục BỔ SUNG của brief mô tả.
+    await xoaNoiDungBang([ID_MOI])
+    expect(await khoaBlobConLai(), 'ảnh phải còn mồ côi ngay sau khi xoá dòng bản ghi').toContain(khoaAnhMoCoi[0])
+
+    // ── Một lượt hoàn tác THUẦN-GHI-ĐÈ, hoàn toàn không liên quan tới ID_MOI ───────────────────
+    // Không mục MỚI nào trong lượt này — chỉ ghi đè ID_CU đã có sẵn trên máy. Trước bản vá, lượt
+    // dọn `donRacBlobBang` chỉ nằm trong nhánh `mucMoi.length > 0` nên KHÔNG chạy ở kịch bản này,
+    // và ảnh mồ côi ở trên phải đợi tới lần xoá vĩnh viễn TIẾP THEO mới được dọn.
+    await ghiNoiDung(ID_CU, ['CŨ không ảnh'])
+    const vanBanCu = await docNoiDung(ID_CU)
+    await idbPut(IDB_STORES.mucs, mucGia(ID_CU, 'Bài cũ trên máy'))
+    const noiDungMoi = await noiDungChoFile(['MỚI không ảnh'])
+
+    await moManDongBo()
+    await nhapFile(
+      JSON.stringify({
+        app: 'drtrong',
+        version: 2,
+        data: {
+          mucs: [mucGia(ID_CU, 'Bài đè từ file')],
+          mucDocs: { [ID_CU]: noiDungMoi },
+        },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText(/ghi xong nội dung 1\/1/)).toBeTruthy(), {
+      timeout: 40000,
+    })
+
+    // ── Hoàn tác: KHÔNG có mục mới nào, chỉ trả nội dung cũ về ────────────────────────────────
+    await bamHoanTac()
+    await waitFor(() => expect(screen.getByText(/Nội dung cũ của 1 bài viết\/sơ đồ đã trở lại/)).toBeTruthy(), {
+      timeout: 40000,
+    })
+    expect(await docNoiDung(ID_CU), 'nội dung cũ phải trở lại nguyên vẹn').toBe(vanBanCu)
+
+    // Khẳng định của Minor 3: lượt hoàn tác THUẦN-GHI-ĐÈ này (không mục MỚI nào) vẫn phải kích
+    // hoạt lượt dọn blob — ảnh mồ côi TỪ TRƯỚC, không liên quan gì tới ID_CU, giờ phải biến mất
+    // thay vì phải đợi tới lần xoá vĩnh viễn tiếp theo.
+    expect(
+      await khoaBlobConLai(),
+      'ảnh mồ côi từ trước phải được dọn theo, kéo theo bởi lượt hoàn tác thuần-ghi-đè này',
+    ).not.toContain(khoaAnhMoCoi[0])
   }, HAN_GIO_MOUNT_APP_MS)
 })

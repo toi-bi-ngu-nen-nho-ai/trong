@@ -253,4 +253,14 @@ describe('xoaNoiDungBang.ts — ranh giới D13 (không kéo BlockSuite vào chu
     // của mo-doc.ts mà xoaNoiDungBang.ts cần biết.
     expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/mo-doc['"]/m)
   })
+
+  it('không có câu import NÀO (bất biến MẠNH hơn ba ca trên — Minor 6, review vòng 1)', () => {
+    // Ba ca trên chỉ cấm BA đích cụ thể — ai thêm một `import` từ MỘT module thứ tư bất kỳ (không
+    // phải @blocksuite/*, không phải vendor/blocksuite, không phải ./mo-doc, ví dụ:
+    // `import { … } from './xuatNhapNoiDung'`) sẽ qua sạch cả ba ca đó mà vẫn kéo BlockSuite vào
+    // chunk vỏ app một cách gián tiếp. Bất biến THẬT của đúng tệp này mạnh hơn nhiều: nó là một
+    // module IndexedDB thuần (xem chú thích đầu xoaNoiDungBang.ts) và hôm nay có ĐÚNG ZERO câu
+    // import — nên "không import gì cả" là bất biến canh đúng, không phải liệt kê từng đích cấm.
+    expect(nguon).not.toMatch(/^import\s/m)
+  })
 })

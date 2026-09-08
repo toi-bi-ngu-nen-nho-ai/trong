@@ -4598,7 +4598,13 @@ function DataSyncScreen({
           // Transformer của vendor NUỐT LỖI và trả `undefined` thay vì ném (D11) — `xuatSnapshotMuc`
           // chuyển tiếp nguyên trạng, nên phải kiểm giá trị trả về ở phía app.
           if (noiDungCu) docCu[id] = noiDungCu as unknown as NoiDungMucJson
-          else khongChup.push(cu.ten)
+          else {
+            // Cùng một sự cố với nhánh `catch` ngay dưới (vendor nuốt lỗi, D11) — chỉ khác đường
+            // vào. Phải để lại dấu vết chẩn đoán y hệt, không im lặng chỉ vì lần này không ném
+            // (Minor 4, review vòng 1).
+            console.warn(`handleConfirmImport: xuatSnapshotMuc trả về rỗng cho mục ${id} — không chụp được nội dung cũ.`)
+            khongChup.push(cu.ten)
+          }
         } catch (loi) {
           // Best-effort TỪNG MỤC: một mục đọc hỏng chỉ mất khả năng hoàn tác CỦA RIÊNG NÓ. Lượt
           // nhập chính vẫn phải chạy tiếp và vẫn ghi nội dung mới cho mọi mục còn lại — chặn cả
@@ -4679,7 +4685,16 @@ function DataSyncScreen({
       // Không trả lại được nội dung cũ: mục chụp hỏng từ lượt NHẬP, cộng mục ghi hỏng ở lượt NÀY.
       const hongTra = [...khongChup]
       const hongGo: string[] = []
+      // Mục trả về CHỮ nhưng THIẾU ẢNH — vendor cắt bỏ khối ảnh thiếu byte khi ghi thay vì ném
+      // (D11, xem chú thích trong `nhapSnapshotMuc`), nên đây là chỗ DUY NHẤT biết "đã trở lại" có
+      // thật sự trọn vẹn hay không. Bỏ qua chỗ này là báo "đã trở lại" trong khi ảnh đã âm thầm mất
+      // — đúng loại xanh-giả mà task này tồn tại để chống (Important 1, review vòng 1).
+      const thieuAnhTra: string[] = []
       let traDuoc = 0
+      // `donRacBlobBang` trả `null` khi BỎ lượt dọn (đã console.warn bên trong), không phải lỗi
+      // ném — không hứng giá trị này là để bước "dọn ảnh mồ côi" của mục BỔ SUNG có thể ĐÃ KHÔNG
+      // CHẠY mà không ai biết (Minor 2, review vòng 1).
+      let donRacBoQua = false
 
       // ─── Nửa 1: trả nội dung cũ về cho mục ĐÃ CÓ trước lượt nhập ────────────────────────────
       if (idTra.length > 0) {
@@ -4693,12 +4708,15 @@ function DataSyncScreen({
         if (modNoiDung) {
           for (const id of idTra) {
             try {
-              await modNoiDung.nhapSnapshotMuc(
+              const kq = await modNoiDung.nhapSnapshotMuc(
                 id,
                 mucTruocNhap.get(id)?.loai ?? "bai-viet",
                 docCu[id] as Parameters<typeof modNoiDung.nhapSnapshotMuc>[2],
               )
               traDuoc += 1
+              if (kq.anhThieu.length > 0) {
+                thieuAnhTra.push(`${mucTruocNhap.get(id)?.ten ?? id} (${kq.anhThieu.length} ảnh)`)
+              }
             } catch (loi) {
               console.warn(`handleUndo: không trả lại được nội dung cũ của mục ${id}`, loi)
               hongTra.push(mucTruocNhap.get(id)?.ten ?? id)
@@ -4717,16 +4735,29 @@ function DataSyncScreen({
       // doc + ảnh vừa ghi thì ở lại vĩnh viễn nếu không dọn ở đây: `donRacBlobBang` giữ mọi blob
       // còn được nhắc trong BẤT KỲ bản ghi doc nào, nên chính bản ghi doc mồ côi đó bảo kê cho ảnh
       // mồ côi, và không đường nào khác trong app thu hồi được.
+      let xoaMoiHong = false
       if (mucMoi.length > 0) {
         // `xoaNoiDungBang` cố gắng hết sức và KHÔNG ném — trả `false` khi hỏng. Module này nhập
         // TĨNH ở đầu file (xem comment cạnh import), nên không có nhánh "không nạp được module"
         // để xử ở đây nữa — khác nửa 1 phía trên vẫn qua `import()` động của xuatNhapNoiDung.
         const daXoa = await xoaNoiDungBang(mucMoi.map((m) => m.id))
-        if (!daXoa) hongGo.push(...mucMoi.map((m) => m.ten))
-        // Ảnh đánh khoá theo BĂM NỘI DUNG chứ không theo id mục, nên phải đi một lượt dọn riêng —
-        // và CHỈ SAU khi bản ghi doc đã biến mất, vì chừng nào nó còn thì chính nó vẫn tham chiếu
-        // ảnh của nó và lượt dọn sẽ không thấy blob nào mồ côi.
-        else await donRacBlobBang()
+        if (!daXoa) {
+          hongGo.push(...mucMoi.map((m) => m.ten))
+          xoaMoiHong = true
+        }
+      }
+
+      // ─── Dọn rác blob mồ côi ─────────────────────────────────────────────────────────────────
+      // Chạy khi lượt hoàn tác có ĐỘNG tới nội dung doc theo BẤT KỲ cách nào, không chỉ khi có mục
+      // MỚI (Minor 3, review vòng 1): nửa 1 (khôi phục) cũng để lại ảnh mồ côi — ảnh mà file vừa
+      // nhập ghi vào một mục ĐÃ CÓ trở thành mồ côi ngay khi nội dung cũ trả về ở trên, và không
+      // đường nào khác trong app thu hồi được cho tới lượt xoá bảng vĩnh viễn kế tiếp. Vẫn giữ
+      // đúng thứ tự an toàn đã được review khen: dọn CHỈ SAU khi cả hai nửa ở trên đã xong, và bỏ
+      // qua khi phần "mục mới" bị hỏng — bản ghi doc mồ côi lúc đó vẫn còn, tự nó bảo kê ảnh của
+      // nó nên lượt dọn không thấy gì mồ côi ở phần đó (chạy cũng vô ích, không sai).
+      if (idTra.length > 0 || (mucMoi.length > 0 && !xoaMoiHong)) {
+        const ketQuaDon = await donRacBlobBang()
+        if (ketQuaDon === null) donRacBoQua = true
       }
 
       const goDuoc = mucMoi.length - hongGo.length
@@ -4736,11 +4767,17 @@ function DataSyncScreen({
         "Đã hoàn tác — danh sách mục trở lại như trước khi nhập file." +
           (traDuoc > 0 ? ` Nội dung cũ của ${traDuoc} bài viết/sơ đồ đã trở lại.` : "") +
           (goDuoc > 0 ? ` Đã gỡ nội dung của ${goDuoc} mục mà file vừa thêm mới.` : "") +
+          (thieuAnhTra.length > 0
+            ? ` Thiếu ảnh trong: ${thieuAnhTra.join(", ")} — ảnh đó đã mất khỏi máy nên không khôi phục lại được, phần chữ vẫn về đủ.`
+            : "") +
           (hongTra.length > 0
             ? ` Chưa trả lại được nội dung cũ của: ${hongTra.join(", ")} — nội dung các mục này vẫn là bản vừa nhập từ file.`
             : "") +
           (hongGo.length > 0
             ? ` Chưa gỡ được nội dung vừa ghi của: ${hongGo.join(", ")} — mục đã biến khỏi danh sách nhưng nội dung còn nằm lại trên máy.`
+            : "") +
+          (donRacBoQua
+            ? ` Lượt dọn ảnh thừa không chạy được lần này — không mất nội dung, chỉ còn sót vài blob không dùng; lượt xoá/dọn khác sau sẽ tự thử lại.`
             : ""),
       )
     } finally {
