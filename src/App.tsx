@@ -3820,8 +3820,12 @@ function DataSyncScreen({
     // đọc TƯƠI bên dưới (dòng exportSelection["mucs"] !== false ở khối "Đọc TƯƠI kho mucs"), chỉ khác
     // đây là lượt đọc lúc MOUNT chứ không phải lúc bấm nút.
     if (duLieuChuaDocDuoc && exportSelection["mucs"] !== false) {
+      // Minor 6 (review vòng sửa 1/5): câu anh em ở nhánh đọc-tươi-hỏng bên dưới có nêu lối thoát
+      // "bỏ chọn ô Bài viết & Sơ đồ" — câu này thì không, dù cùng được rào bởi
+      // `exportSelection["mucs"] !== false` ở trên nên lối thoát đó nay ĐÃ THẬT (D12: làm đúng lời
+      // khuyên phải thoát được thật). Thêm vào cho hai câu nói cùng một sự thật.
       setStatus(
-        "Chưa xuất được: app chưa đọc được toàn bộ dữ liệu trên máy lượt này, nên file xuất ra sẽ thiếu. Đóng các tab khác đang mở app rồi tải lại trang, sau đó xuất lại.",
+        "Chưa xuất được: app chưa đọc được toàn bộ dữ liệu trên máy lượt này, nên file xuất ra sẽ thiếu. Đóng các tab khác đang mở app rồi tải lại trang, sau đó xuất lại — hoặc bỏ chọn ô \"Bài viết & Sơ đồ\" nếu chỉ cần sao lưu các mục còn lại.",
       )
       return
     }
@@ -4140,7 +4144,11 @@ function DataSyncScreen({
     if (idNoiDung.length === 0) return
     setImporting(true)
     try {
-      setStatus(`Đã nhập metadata. Đang ghi nội dung ${idNoiDung.length} bài viết/sơ đồ…`)
+      // Minor 4 (review vòng sửa 1/5): trước bản vá này, đúng MỘT trong bốn `setStatus` của hàm
+      // không nối `canhBaoKhongHoanTac` — dòng "Đang ghi nội dung…" này. Vòng ghi nội dung có thể
+      // mất hàng chục giây (mở/đóng workspace từng mục); trong lúc đó cảnh báo "không hoàn tác
+      // được" biến mất khỏi màn hình, và nếu vòng ghi ném ngoài dự kiến thì nó biến mất VĨNH VIỄN.
+      setStatus(`Đã nhập metadata. Đang ghi nội dung ${idNoiDung.length} bài viết/sơ đồ…${canhBaoKhongHoanTac}`)
       // Cùng lý do `.catch(() => null)` như handleExport: chunk động tải hỏng thì phải thành một
       // câu tiếng Việt, không phải một promise bị từ chối im lặng ngoài onClick.
       const modNoiDung = await import("./board/xuatNhapNoiDung").catch((loi) => {
@@ -4164,46 +4172,71 @@ function DataSyncScreen({
       // RỒI mới dựng lại (không nguyên tử — xem chú thích trong chính hàm đó), nên sau vòng ghi
       // thì nội dung cũ đã biến mất khỏi máy và không còn gì để chụp. Đây là thứ duy nhất cho phép
       // "Hoàn tác" lùi được cả NỘI DUNG chứ không chỉ danh sách.
-      const mucTrenMay = new Map(customMucs.map((m) => [m.id, m]))
-      const docCu: Record<string, NoiDungMucJson> = {}
-      const mucMoi: { id: string; ten: string }[] = []
-      const khongChup: string[] = []
-      for (const id of idNoiDung) {
-        const cu = mucTrenMay.get(id)
-        // Mục file THÊM MỚI: KHÔNG gọi `xuatSnapshotMuc` cho nó. Hàm đó đi qua `taoHoacMoDoc`, nên
-        // chụp một id CHƯA TỪNG CÓ trên máy sẽ TẠO RA doc rỗng của nó rồi chụp cái rỗng đó — vừa
-        // tốn một lượt mở/đóng workspace vô nghĩa, vừa để lại đúng thứ rác mà "Hoàn tác" sau đó
-        // phải đi dọn (một bản ghi doc mồ côi vẫn tham chiếu ảnh của nó, nên nó BẢO KÊ cho ảnh mồ
-        // côi trước `donRacBlobBang`). Với mục mới, hoàn tác đúng nghĩa là XOÁ nội dung vừa ghi —
-        // xem `handleUndo`.
-        if (!cu) {
-          mucMoi.push({ id, ten: tenCua(id) })
-          continue
-        }
-        try {
-          // `loai` lấy từ metadata CŨ trên máy: đây là lượt đọc doc ĐANG CÓ, không phải doc trong file.
-          const noiDungCu = await modNoiDung.xuatSnapshotMuc(id, cu.loai)
-          // Transformer của vendor NUỐT LỖI và trả `undefined` thay vì ném (D11) — `xuatSnapshotMuc`
-          // chuyển tiếp nguyên trạng, nên phải kiểm giá trị trả về ở phía app.
-          if (noiDungCu) docCu[id] = noiDungCu as unknown as NoiDungMucJson
-          else {
-            // Cùng một sự cố với nhánh `catch` ngay dưới (vendor nuốt lỗi, D11) — chỉ khác đường
-            // vào. Phải để lại dấu vết chẩn đoán y hệt, không im lặng chỉ vì lần này không ném
-            // (Minor 4, review vòng 1).
-            console.warn(`handleConfirmImport: xuatSnapshotMuc trả về rỗng cho mục ${id} — không chụp được nội dung cũ.`)
+      //
+      // `mucTrenMay` PHẢI dựng từ `ketQuaMucsTuoi.items` (danh sách TƯƠI, đọc ở đầu hàm), KHÔNG
+      // phải `customMucs` (vòng sửa review — findings Important 3): `snapshot.mucs` ở nhánh phía
+      // trên đã dùng danh sách tươi từ Task 9c chính — nếu nửa NỘI DUNG này còn dùng `customMucs`
+      // (bản sao có thể CŨ, cùng cơ chế lệch pha ba instance `useIdbCollection<MucMeta>` đã ghi ở
+      // đầu hàm) thì HAI NỬA của cùng một lượt Hoàn tác LỆCH NGUỒN nhau: một mục X vừa tạo qua
+      // instance khác (không có trong `customMucs`) rồi được xuất/nhập lại CHÍNH FILE ĐÓ sẽ bị xếp
+      // NHẦM là "mục file vừa thêm mới" dù đã có thật trên máy — "Hoàn tác" sẽ `xoaNoiDungBang` XOÁ
+      // nội dung của X, trong khi nửa metadata (đã đúng nguồn) lại khôi phục dòng của X — bài viết
+      // còn tên trong danh sách nhưng mở ra RỖNG. Trước Task 9c, hai nửa cùng dùng `customMucs` nên
+      // hỏng NHẤT QUÁN (X biến mất hẳn cả hai nửa); Task 9c làm chúng lệch — sửa cái lệch đó ở đây.
+      //
+      // Bọc trong `if (ketQuaMucsTuoi.ok)`: khi lượt đọc tươi HỎNG, không có danh sách nào đáng tin
+      // để phân loại "đã có"/"mới" — bỏ qua toàn bộ bước chụp nội dung cũ này (không xếp ai là
+      // "mới", không xoá nội dung của ai cả). An toàn vì "Hoàn tác" đằng nào cũng đã bị tắt ở nhánh
+      // đó (`undoSnapshot` null phía trên) — chụp/phân loại ở đây chỉ phục vụ NỬA NỘI DUNG của Hoàn
+      // tác, vô nghĩa nếu nửa metadata không có gì đáng tin để lùi về. Nhánh này còn giữ đúng bất
+      // biến "đặt và xoá CÙNG LÚC" của `undoMucDocs`/`undoMucMoi`/`undoMucKhongChup` với
+      // `undoSnapshot` (Minor 5, review vòng sửa 1/5) — trước bản vá, ba state đó vẫn được gán bằng
+      // kết quả chụp thật (dù không đường nào dùng tới) ngay cả khi `undoSnapshot` đã null, giữ lại
+      // nguyên bản CRDT của mọi bài vừa nhập trong bộ nhớ React tới lượt nhập kế tiếp một cách vô
+      // ích; nay nhánh hỏng bỏ qua cả bước chụp lẫn ba lệnh gán, ba state đó vẫn đứng yên ở {}/[]/[]
+      // đã reset lúc đầu hàm.
+      if (ketQuaMucsTuoi.ok) {
+        const mucTrenMay = new Map(ketQuaMucsTuoi.items.map((m) => [m.id, m]))
+        const docCu: Record<string, NoiDungMucJson> = {}
+        const mucMoi: { id: string; ten: string }[] = []
+        const khongChup: string[] = []
+        for (const id of idNoiDung) {
+          const cu = mucTrenMay.get(id)
+          // Mục file THÊM MỚI: KHÔNG gọi `xuatSnapshotMuc` cho nó. Hàm đó đi qua `taoHoacMoDoc`, nên
+          // chụp một id CHƯA TỪNG CÓ trên máy sẽ TẠO RA doc rỗng của nó rồi chụp cái rỗng đó — vừa
+          // tốn một lượt mở/đóng workspace vô nghĩa, vừa để lại đúng thứ rác mà "Hoàn tác" sau đó
+          // phải đi dọn (một bản ghi doc mồ côi vẫn tham chiếu ảnh của nó, nên nó BẢO KÊ cho ảnh mồ
+          // côi trước `donRacBlobBang`). Với mục mới, hoàn tác đúng nghĩa là XOÁ nội dung vừa ghi —
+          // xem `handleUndo`.
+          if (!cu) {
+            mucMoi.push({ id, ten: tenCua(id) })
+            continue
+          }
+          try {
+            // `loai` lấy từ metadata CŨ trên máy: đây là lượt đọc doc ĐANG CÓ, không phải doc trong file.
+            const noiDungCu = await modNoiDung.xuatSnapshotMuc(id, cu.loai)
+            // Transformer của vendor NUỐT LỖI và trả `undefined` thay vì ném (D11) — `xuatSnapshotMuc`
+            // chuyển tiếp nguyên trạng, nên phải kiểm giá trị trả về ở phía app.
+            if (noiDungCu) docCu[id] = noiDungCu as unknown as NoiDungMucJson
+            else {
+              // Cùng một sự cố với nhánh `catch` ngay dưới (vendor nuốt lỗi, D11) — chỉ khác đường
+              // vào. Phải để lại dấu vết chẩn đoán y hệt, không im lặng chỉ vì lần này không ném
+              // (Minor 4, review vòng 1).
+              console.warn(`handleConfirmImport: xuatSnapshotMuc trả về rỗng cho mục ${id} — không chụp được nội dung cũ.`)
+              khongChup.push(cu.ten)
+            }
+          } catch (loi) {
+            // Best-effort TỪNG MỤC: một mục đọc hỏng chỉ mất khả năng hoàn tác CỦA RIÊNG NÓ. Lượt
+            // nhập chính vẫn phải chạy tiếp và vẫn ghi nội dung mới cho mọi mục còn lại — chặn cả
+            // lượt nhập ở đây là biến một sự cố đọc thành một lượt khôi phục dở dang.
+            console.warn(`handleConfirmImport: không chụp được nội dung cũ của mục ${id}`, loi)
             khongChup.push(cu.ten)
           }
-        } catch (loi) {
-          // Best-effort TỪNG MỤC: một mục đọc hỏng chỉ mất khả năng hoàn tác CỦA RIÊNG NÓ. Lượt
-          // nhập chính vẫn phải chạy tiếp và vẫn ghi nội dung mới cho mọi mục còn lại — chặn cả
-          // lượt nhập ở đây là biến một sự cố đọc thành một lượt khôi phục dở dang.
-          console.warn(`handleConfirmImport: không chụp được nội dung cũ của mục ${id}`, loi)
-          khongChup.push(cu.ten)
         }
+        setUndoMucDocs(docCu)
+        setUndoMucMoi(mucMoi)
+        setUndoMucKhongChup(khongChup)
       }
-      setUndoMucDocs(docCu)
-      setUndoMucMoi(mucMoi)
-      setUndoMucKhongChup(khongChup)
 
       let xong = 0
       const hong: string[] = []
@@ -4320,10 +4353,18 @@ function DataSyncScreen({
       }
 
       // ─── Nửa 2: gỡ nội dung của mục file vừa THÊM MỚI ───────────────────────────────────────
-      // `onRestoreSnapshot` đã xoá dòng metadata của chúng (`mucsCol.replaceAll`), nhưng bản ghi
-      // doc + ảnh vừa ghi thì ở lại vĩnh viễn nếu không dọn ở đây: `donRacBlobBang` giữ mọi blob
-      // còn được nhắc trong BẤT KỲ bản ghi doc nào, nên chính bản ghi doc mồ côi đó bảo kê cho ảnh
-      // mồ côi, và không đường nào khác trong app thu hồi được.
+      // `onRestoreSnapshot` đã xoá dòng metadata của chúng (`mucsCol.replaceAll(snapshot.mucs)`),
+      // nhưng bản ghi doc + ảnh vừa ghi thì ở lại vĩnh viễn nếu không dọn ở đây: `donRacBlobBang`
+      // giữ mọi blob còn được nhắc trong BẤT KỲ bản ghi doc nào, nên chính bản ghi doc mồ côi đó
+      // bảo kê cho ảnh mồ côi, và không đường nào khác trong app thu hồi được.
+      //
+      // Khẳng định "đã xoá dòng metadata của CHÚNG" chỉ đúng khi `mucMoi` (dựng trong
+      // `handleConfirmImport`) và `snapshot.mucs` (cũng dựng ở đó) cùng đọc từ MỘT danh sách tươi —
+      // vòng sửa review đã sửa đúng chỗ lệch này (Important 3): trước đó `mucMoi` dựng từ
+      // `customMucs` (bản sao có thể CŨ) trong khi `snapshot.mucs` đã dùng danh sách tươi (Task 9c
+      // chính), nên một mục đã có THẬT trên máy nhưng lệch pha `customMucs` có thể bị xếp NHẦM vào
+      // đây — `xoaNoiDungBang` xoá nội dung của một mục mà `onRestoreSnapshot` KHÔNG hề gỡ dòng
+      // metadata (nó vẫn có mặt trong danh sách tươi), để lại một bài viết còn tên nhưng mở ra RỖNG.
       let xoaMoiHong = false
       if (mucMoi.length > 0) {
         // `xoaNoiDungBang` cố gắng hết sức và KHÔNG ném — trả `false` khi hỏng. Module này nhập
@@ -4351,7 +4392,11 @@ function DataSyncScreen({
 
       const goDuoc = mucMoi.length - hongGo.length
       // Câu chữ phải nói ĐÚNG SỰ THẬT của lượt này, không hứa quá: mục nào chưa trả về được thì
-      // GỌI TÊN, đúng khuôn `hong.join(", ")` mà `handleConfirmImport` đang dùng.
+      // GỌI TÊN, đúng khuôn `hong.join(", ")` mà `handleConfirmImport` đang dùng. Câu "mà file vừa
+      // thêm mới" dưới đây chỉ ĐÚNG SỰ THẬT nhờ `mucMoi` (handleConfirmImport, vòng sửa review —
+      // Important 3) nay dựng từ CÙNG danh sách tươi với `snapshot.mucs` — xem chú thích ở "Nửa 2"
+      // phía trên để biết vì sao lệch nguồn giữa hai nửa từng làm câu này gọi nhầm một mục đã có
+      // thật trên máy là "mới".
       setStatus(
         "Đã hoàn tác — danh sách mục trở lại như trước khi nhập file." +
           (traDuoc > 0 ? ` Nội dung cũ của ${traDuoc} bài viết/sơ đồ đã trở lại.` : "") +
