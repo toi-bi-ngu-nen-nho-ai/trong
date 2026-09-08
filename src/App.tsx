@@ -3812,7 +3812,14 @@ function DataSyncScreen({
     // nhưng thiếu dữ liệu, và người dùng thường ghi đè nó lên bản sao lưu trước đó — biến một sự cố
     // đọc tạm thời (tab app bản cũ đang giữ IndexedDB) thành mất dữ liệu vĩnh viễn. Đây là đúng
     // loại thao tác một chiều mà chặn thì phiền vài giây, còn cho qua thì không lấy lại được.
-    if (duLieuChuaDocDuoc) {
+    //
+    // RÀO theo `exportSelection["mucs"]` (BỔ SUNG Task 9c, re-review Task 9b): `duLieuChuaDocDuoc` chỉ
+    // phản ánh lượt đọc `mucsCol` lúc MOUNT (`mucsCol.loiDoc !== null`, xem prop này ở App.tsx). Trước
+    // dòng rào này, một lượt đọc `mucs` hỏng lúc mount chặn CỨNG toàn bộ nút Xuất — kể cả khi người
+    // dùng đã bỏ chọn ô "Bài viết & Sơ đồ" — đúng hình dạng lỗi Important 1 mà Task 9b đã vá cho lượt
+    // đọc TƯƠI bên dưới (dòng exportSelection["mucs"] !== false ở khối "Đọc TƯƠI kho mucs"), chỉ khác
+    // đây là lượt đọc lúc MOUNT chứ không phải lúc bấm nút.
+    if (duLieuChuaDocDuoc && exportSelection["mucs"] !== false) {
       setStatus(
         "Chưa xuất được: app chưa đọc được toàn bộ dữ liệu trên máy lượt này, nên file xuất ra sẽ thiếu. Đóng các tab khác đang mở app rồi tải lại trang, sau đó xuất lại.",
       )
