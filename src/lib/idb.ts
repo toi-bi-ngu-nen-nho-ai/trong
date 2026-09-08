@@ -1,29 +1,44 @@
-// Kho lưu trữ IndexedDB dùng chung cho các mục tự nhập CÓ THỂ KÈM ẢNH — bài học ECG và (từ khi có
-// trình soạn thảo tự do theo block) cả bài viết tự nhập. Lý do không dùng localStorage như các mục
-// khác (src/lib/storage.ts): ảnh đã thu nhỏ vẫn nặng hơn nhiều so với dữ liệu văn bản thuần, trong
-// khi localStorage của cả origin thường chỉ giới hạn khoảng 5–10MB và dùng chung với mọi mục tự
-// nhập khác — dễ tràn dung lượng và làm hỏng dữ liệu cũ. IndexedDB cho phép lưu nhiều hơn đáng kể
-// và vẫn hoạt động 100% offline, không gọi mạng.
+// Kho lưu trữ IndexedDB cho METADATA của kho bài viết + sơ đồ dùng chung (`MucMeta`: tên, loại,
+// chuyên khoa, tag, mốc thời gian, văn bản để tìm kiếm). Lý do không dùng localStorage như các mục
+// khác (src/lib/storage.ts): kho này lớn dần theo số mục người dùng tạo, trong khi localStorage của
+// cả origin thường chỉ giới hạn khoảng 5–10MB và dùng chung với mọi mục tự nhập khác — dễ tràn dung
+// lượng và làm hỏng dữ liệu cũ. IndexedDB cho phép lưu nhiều hơn đáng kể và vẫn hoạt động 100%
+// offline, không gọi mạng.
 //
-// Tên DB giữ nguyên "drtrong-ecg" (đặt từ khi chỉ có ECG) để dữ liệu ECG đã lưu trên máy người dùng
-// không bị mất; version 2 thêm object store "articles" cho bài viết.
+// Ở đây CHỈ có metadata. NỘI DUNG của mục (cây khối, nét vẽ, ảnh) nằm ở một CSDL khác hẳn,
+// `drtrong-board`, do BlockSuite ghi — xem src/board/mo-doc.ts và src/board/xoaNoiDungBang.ts.
+//
+// Tên DB giữ nguyên "drtrong-ecg" (đặt từ khi kho này chỉ chứa bài học ECG) để dữ liệu đã lưu trên
+// máy người dùng không bị mất qua các lần cập nhật.
 
 const DB_NAME = "drtrong-ecg"
-// v5 → v6 (2026-09-05): thêm store `mucs` cho kho bài viết + sơ đồ dùng chung (spec §3.2.1a).
-// `onupgradeneeded` dưới đây tạo MỌI store còn thiếu, nên chỉ cần thêm tên vào IDB_STORES là đủ —
-// không viết nhánh nâng cấp riêng. KHÔNG xoá store nào ở lượt này: ba store cũ ở lại nguyên vẹn để
-// một chặng hỏng giữa chừng không mang dữ liệu đi theo. Việc xoá là giai đoạn 9, DB_VERSION 6 → 7.
-const DB_VERSION = 6
+// v6 → v7 (giai đoạn 9, 2026-09-09): PHÁ HUỶ ba store hệ cũ — `lessons`, `articles`, `boards`.
+// KHÔNG HOÀN TÁC ĐƯỢC. Chủ dự án đã xác nhận không cần sao lưu trước lượt này (2026-09-06).
+//
+// v5 → v6 (2026-09-05) đã thêm store `mucs` cho kho bài viết + sơ đồ dùng chung (spec §3.2.1a) và
+// CỐ Ý giữ ba store cũ lại, để một chặng hỏng giữa chừng không mang dữ liệu đi theo. Từ Task 6/7
+// không còn mã nào đọc chúng nữa, nên lượt này dọn hẳn.
+//
+// Phạm vi: CHỈ CSDL `drtrong-ecg`, CHỈ ba object store trên. Không có `deleteDatabase` nào; CSDL nội
+// dung `drtrong-board` (cây khối + ảnh do BlockSuite ghi, xem src/board/mo-doc.ts) là kho SỐNG và
+// giữ nguyên tên cũ vĩnh viễn — việc đổi tên nó đã bị bỏ khỏi kế hoạch.
+const DB_VERSION = 7
 
 // Tên các object store — dùng làm tham số `store` cho các hàm bên dưới.
 export const IDB_STORES = {
-  ecgLessons: "lessons",
-  articles: "articles",
-  boards: "boards",
   mucs: "mucs",
 } as const
 
 const ALL_STORES: string[] = Object.values(IDB_STORES)
+
+// Ba TÊN STORE THẬT của hệ cũ, viết CỐ ĐỊNH chứ không đọc qua IDB_STORES — hằng số đó không còn khai
+// chúng nữa, và đây là chỗ duy nhất trong mã còn phải biết tới chúng.
+//
+// Lưu ý một cái bẫy đọc: khoá cũ trong IDB_STORES là `ecgLessons` nhưng TÊN STORE nó trỏ tới là
+// "lessons". `deleteObjectStore` nhận TÊN STORE, nên danh sách dưới đây phải là "lessons" — sửa
+// thành "ecgLessons" cho "nhất quán" sẽ xoá một store không tồn tại và bỏ sót store thật, hỏng im
+// lặng trên đúng lượt không hoàn tác được.
+const STORE_CU_CAN_XOA = ["lessons", "articles", "boards"]
 
 // Dùng LẠI một kết nối duy nhất thay vì mở mới mỗi lần đọc/ghi — trước đây mỗi thao tác gọi
 // indexedDB.open() và không bao giờ đóng, nên một phiên vẽ Sơ đồ tư duy (autosave debounce 400ms)
@@ -40,13 +55,26 @@ function openDb(): Promise<IDBDatabase> {
       return
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (ev) => {
       const db = req.result
-      // Tạo mọi store còn thiếu — chạy cho cả máy mới (chưa có DB) lẫn máy đang ở version 1
-      // (đã có "lessons", chỉ thiếu "articles").
+      // Tạo mọi store còn thiếu — chạy cho cả máy mới (chưa có DB) lẫn máy đang ở version cũ bất kỳ
+      // (ví dụ máy dừng ở v4: có "lessons"/"articles", chưa từng thấy "mucs").
       ALL_STORES.forEach((name) => {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" })
       })
+      // Giai đoạn 9: xoá ba store hệ cũ. `contains()` là bắt buộc, KHÔNG phải phòng xa thừa —
+      // `deleteObjectStore` trên một store không tồn tại ném NotFoundError, và một lần ném ở đây
+      // cắt ngang cả lượt nâng cấp (giao dịch versionchange bị huỷ) nên app không mở nổi CSDL.
+      // Máy đang ở version CŨ HƠN 6 là ca thật: nó chưa từng có "boards" (chỉ có từ v5) lẫn "mucs".
+      //
+      // `oldVersion < 7` chỉ để ghi rõ ý định: onupgradeneeded chỉ chạy khi thực sự nâng version,
+      // nên máy đã ở v7 không vào đây; điều kiện này giữ cho một lần nâng v7 → v8 sau này không
+      // chạy lại vòng xoá đã xong.
+      if (ev.oldVersion < 7) {
+        STORE_CU_CAN_XOA.forEach((name) => {
+          if (db.objectStoreNames.contains(name)) db.deleteObjectStore(name)
+        })
+      }
     }
     // Một tab khác đang mở kết nối ở version CŨ hơn thì lần open() version mới này bị treo tới khi
     // tab đó đóng — không chờ vô thời hạn, báo lỗi ngay để caller rơi về hành vi an toàn ([]/false).

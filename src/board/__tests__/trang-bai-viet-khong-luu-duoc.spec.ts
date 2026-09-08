@@ -62,7 +62,10 @@ let boc: HTMLDivElement
 let root: Root
 
 async function ghiMeta(id: string, ten: string) {
-  await idbPut<MucMeta>(IDB_STORES.boards, {
+  // Store `mucs` — kho META duy nhất còn lại sau giai đoạn 9 (`boards` đã bị deleteObjectStore,
+  // xem src/lib/idb.ts DB_VERSION 7). Bản ghi này chỉ là bối cảnh: `TrangBaiViet` không đọc META
+  // lúc mount, nó chỉ GHI lại qua `capNhatSauKhiRoiMuc` khi rời trang.
+  await idbPut<MucMeta>(IDB_STORES.mucs, {
     id,
     // File này mount thẳng TrangBaiViet — bản ghi phải khai đúng loai 'bai-viet', không phải giá
     // trị mặc định 'so-do' của bảng sơ đồ đời cũ (dù component chưa đọc trường này lúc mount).

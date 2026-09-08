@@ -15,8 +15,8 @@ import {
 } from '../mucMeta'
 
 afterEach(async () => {
-  const ds = await idbGetAll<{ id: string }>(IDB_STORES.boards)
-  for (const b of ds) await idbDelete(IDB_STORES.boards, b.id)
+  // Trước giai đoạn 9 ở đây còn một lượt dọn store `boards`; store đó đã bị `deleteObjectStore`
+  // (src/lib/idb.ts, DB_VERSION 7) nên không còn gì để dọn.
   // capNhatSauKhiRoiMuc() ghi vào store `mucs` từ Task 2 (task-2-brief.md Bước 4) — dọn luôn store
   // này, không thì bản ghi test rò rỉ sang ca sau (fake-indexeddb không tự reset giữa các `it`).
   const dsMuc = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
