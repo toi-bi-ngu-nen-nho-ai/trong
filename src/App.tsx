@@ -1298,10 +1298,11 @@ function ComingSoonScreen({ feature, onBack }: { feature: string; onBack?: () =>
 const BI_DANH_KHOA: Record<string, string> = { "Hồi sức - Cấp cứu": "Cấp cứu" }
 const khoaChuan = (ten?: string) => (ten ? BI_DANH_KHOA[ten] ?? ten : undefined)
 
-// Một kết quả tìm kiếm gộp từ nhiều nguồn khác nhau (bài viết dựng sẵn/tự nhập, bài học ECG, thẻ ghi
-// nhớ) — trước đây SearchScreen chỉ tìm trong danh sách bài viết tĩnh, nên mọi nội dung TỰ THÊM
-// (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô tìm kiếm chính. Gộp vào
-// đây thì tìm một lần là ra hết, không phải đoán.
+// Một kết quả tìm kiếm gộp từ nhiều nguồn khác nhau — trước đây SearchScreen chỉ tìm trong danh
+// sách bài viết tĩnh, nên mọi nội dung TỰ THÊM hoàn toàn vô hình với ô tìm kiếm chính. Gộp vào đây
+// thì tìm một lần là ra hết, không phải đoán. Giai đoạn 8 (Task 6/7) xoá hai trong ba nguồn ban đầu
+// (bài viết dựng sẵn/tự nhập hệ cũ, bài học ECG) — kind "muc" (kho `mucs`, hệ thay thế) đã gộp cả
+// hai vai trò đó từ giai đoạn 5-6, nên nay chỉ còn hai kind thật: "flashcard" và "muc".
 interface SearchResult {
   // "board" (đọc store IDB_STORES.boards) đã gộp vào "muc" (đọc store IDB_STORES.mucs, kho bài
   // viết + sơ đồ hợp nhất từ giai đoạn 5-6). Giai đoạn 8 Task 6 gỡ tiếp hai kind của hệ bài
@@ -1374,8 +1375,8 @@ export function SearchScreen({
           // khớp bắt buộc phải là string nên phải có giá trị thay thế, còn ở đây `specialty` là
           // trường TÙY CHỌN dùng để HIỂN THỊ (chip tên khoa) và để lọc theo bộ lọc chuyên khoa. Mục
           // cũ thiếu `chuyenKhoa` ở runtime → .find() trả undefined → `?.name` cho undefined, an
-          // toàn và trung thực (không gán bừa "Tim mạch" cho mục chưa từng chọn khoa); nó rơi vào
-          // đúng nhánh sẵn có của bài ECG không có khoa — chỉ hiện khi bộ lọc đang ở "Tất cả".
+          // toàn và trung thực (không gán bừa "Tim mạch" cho mục chưa từng chọn khoa); mục này rơi
+          // vào đúng nhánh "không xác định khoa" — chỉ hiện khi bộ lọc đang ở "Tất cả".
           specialty: SPECIALTIES.find((s) => s.id === m.chuyenKhoa)?.name,
           tags: m.tags ?? [],
           noiDung: m.noiDungTimKiem,
@@ -1577,12 +1578,16 @@ export function SearchScreen({
             </div>
             <p className="font-semibold text-slate-700">Không có kết quả cho "{query}"</p>
             <p className="text-sm text-slate-400 mt-1">Thử từ khoá khác hoặc thêm kiến thức mới</p>
-            {/* Đọc kho mucs hỏng thì "không có kết quả" chỉ đúng một phần: bài viết dựng sẵn/ECG/thẻ
-                vẫn được tìm bình thường, riêng bài viết đã lưu VÀ sơ đồ tư duy (cùng đọc từ store
-                mucs) thì KHÔNG nằm trong lượt tìm này. Nói ra, thay vì để người dùng kết luận nội
-                dung của họ đã mất. Dòng phụ, không phải role="alert": đây là chú thích phạm vi tìm
-                kiếm, không phải sự cố cần cắt ngang — tab Thư viện/Mindmap mới là nơi báo động và
-                có nút thử lại. */}
+            {/* Đọc kho mucs hỏng thì "không có kết quả" chỉ đúng một phần: thẻ ghi nhớ (customFlashcards,
+                đọc từ localStorage — độc lập với store `mucs`) vẫn được tìm bình thường; riêng bài
+                viết đã lưu VÀ sơ đồ tư duy (cùng đọc từ store mucs — giai đoạn 8 đã xoá hai nguồn
+                khác từng góp mặt ở đây, bài viết dựng sẵn/tự nhập hệ cũ và bài học ECG) thì KHÔNG
+                nằm trong lượt tìm này. Nói ra, thay vì để người dùng kết luận nội dung của họ đã
+                mất. Dòng phụ, không phải role="alert": dải báo THẬT của sự cố này (data-testid
+                "dai-loi-doc-idb", role="alert", nút "Thử lại") đã lên cấp APP từ Task 7 — nó xếp
+                CHỒNG lên chính màn Tìm kiếm này (absolute, z-40, render ở App() bất kể `screen`
+                đang là gì), nên đã có một role="alert" thật ĐANG hiện song song mỗi khi đoạn văn
+                bản này hiện. Gắn role="alert" thêm ở đây là trùng lặp, không phải thiếu. */}
             {loiDocMuc && (
               <p className="text-sm mt-3 mx-auto" style={{ color: "var(--c-warn, #92400e)", maxWidth: 320 }}>
                 Lượt tìm này chưa bao gồm bài viết đã lưu và sơ đồ tư duy — chưa mở được kho lưu trữ
@@ -3952,7 +3957,19 @@ function DataSyncScreen({
           wardRecipes.length +
           mucs.length
         if (count === 0) {
-          setStatus("Không tìm thấy dữ liệu hợp lệ trong file này.")
+          // Review Task 6/7 (Minor 7): file do CHÍNH APP NÀY xuất ra ở bản CŨ (trước giai đoạn 8) có
+          // thể chỉ mang hai khoá `articles`/`ecgLessons` — cả hai đã bị bỏ đọc ở trên (tính năng đã
+          // gỡ, xem ImportPayload) nên rơi thẳng vào `count === 0` giống hệt một file rác/hỏng. Với
+          // người dùng cầm đúng file sao lưu cũ của họ, "Không tìm thấy dữ liệu hợp lệ" đọc như "file
+          // hỏng" — sai sự thật và gây hoang mang thừa. Phân biệt bằng chính hai khoá đó còn sót lại
+          // trong file hay không, dù chúng không được đưa vào `parsedData`.
+          const coDuLieuHeCu =
+            (Array.isArray(d.articles) && d.articles.length > 0) || (Array.isArray(d.ecgLessons) && d.ecgLessons.length > 0)
+          setStatus(
+            coDuLieuHeCu
+              ? "File này xuất từ bản cũ của app — phần bài viết tự nhập và bài học ECG trong file không còn nhập lại được nữa (tính năng đã gỡ). File không có dữ liệu nào khác để nhập."
+              : "Không tìm thấy dữ liệu hợp lệ trong file này.",
+          )
           setImporting(false)
           return
         }
@@ -4260,7 +4277,7 @@ function DataSyncScreen({
       <div className="scroll-ios flex-1 px-6 pt-6 pb-8 space-y-5">
         <div className="p-4 rounded-2xl border" style={{ borderColor: "var(--c-primary-line)", background: "var(--c-primary-soft)" }}>
           <p className="text-sm text-slate-700 leading-relaxed">
-            Mục bạn tự nhập (bài viết kèm ảnh chèn trong bài, kháng sinh, các thuốc truyền trong "Dùng thuốc", công thức pha riêng đã lưu cho từng thuốc, thẻ ghi nhớ, bài học ECG) được lưu ngay trên máy này, không qua máy chủ nào. Dùng "Xuất file" để sao lưu hoặc chuyển sang thiết bị khác, rồi "Nhập file" trên thiết bị kia để khôi phục.
+            Mục bạn tự nhập (bài viết/sơ đồ kèm ảnh chèn trong, kháng sinh, các thuốc truyền trong "Dùng thuốc", công thức pha riêng đã lưu cho từng thuốc, thẻ ghi nhớ) được lưu ngay trên máy này, không qua máy chủ nào. Dùng "Xuất file" để sao lưu hoặc chuyển sang thiết bị khác, rồi "Nhập file" trên thiết bị kia để khôi phục.
           </p>
         </div>
 
@@ -4743,7 +4760,7 @@ function Disclosure({
 // 2026-08-18: "lỗi lặp đi lặp lại nhiều lần nhưng không học rút kinh nghiệm"). Nay CHỈ có hai loại,
 // khai báo cạnh nhau để không ai sửa một bên mà quên bên kia:
 //
-// 1) CONFIRM_DELETE_RESET_MS — xoá dữ liệu ĐÃ LƯU (bài viết/ECG/kháng sinh/thuốc truyền tự nhập/
+// 1) CONFIRM_DELETE_RESET_MS — xoá dữ liệu ĐÃ LƯU (bài viết/sơ đồ/kháng sinh/thuốc truyền tự nhập/
 //    công thức pha, VÀ bỏ ghim một thuốc khỏi "Đang truyền" ở RunningPanel) — hành động làm lại
 //    được (dữ liệu vẫn còn trong danh mục gốc hoặc gõ lại vài giây), không có rủi ro bị cắt ngang
 //    nghiêm trọng như xoá cả bệnh nhân. 5 giây — không ngắn (đủ để nhận ra vừa chạm nhầm) không dài

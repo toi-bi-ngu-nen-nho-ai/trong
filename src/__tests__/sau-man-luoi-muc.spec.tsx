@@ -119,10 +119,11 @@ describe('sáu màn dùng chung LuoiMuc', () => {
 
   // ─── Review Task 7 — I3: thẻ ECG không được hiện số đếm SAI ─────────────────────────────────────
   // Trước bản vá: caption thẻ ECG đọc `ecgCount` = allEcgLessons.length (ecgCol IndexedDB CŨ +
-  // ECG_LESSONS tĩnh — ECG_LESSONS nay rỗng, xem src/data/ecg.ts). Với người dùng mới (không có bài
-  // học ECG hệ cũ nào), số này luôn là 0 → in hẳn "(0)" dù lưới `mucs` thật (thứ thẻ này mở ra từ
-  // Task 7) có thể có nội dung. Gỡ bản vá (khôi phục `count: ecgCount` + nhánh `(${c.count})` trong
-  // cardCaption) thì ca này phải ĐỎ lại.
+  // ECG_LESSONS tĩnh, khi đó đã rỗng sẵn). Với người dùng mới (không có bài học ECG hệ cũ nào), số
+  // này luôn là 0 → in hẳn "(0)" dù lưới `mucs` thật (thứ thẻ này mở ra từ Task 7) có thể có nội
+  // dung. Gỡ bản vá (khôi phục `count: ecgCount` + nhánh `(${c.count})` trong cardCaption) thì ca
+  // này phải ĐỎ lại. `ecgCol`/`ECG_LESSONS`/`src/data/ecg.ts` không còn tồn tại — xoá hẳn ở giai
+  // đoạn 8 Task 7 (kho-bai-viet-giai-doan-7-9), lịch sử này không còn đọc lại được trong mã nguồn.
   it('I3: thẻ ECG ở Trang chủ không hiển thị số đếm giả "(0)"', async () => {
     const { default: App } = await import('../App')
     render(<App />)
