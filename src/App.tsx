@@ -5,7 +5,7 @@ import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
 import { useIdbCollection } from "./lib/useIdbCollection"
-import { IDB_STORES, idbPut } from "./lib/idb"
+import { IDB_STORES, idbGetAllCoKetQua, idbPut } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
 import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
 // BoardGallery (không phải EdgelessBoard) là điểm vào duy nhất cho tab Mindmap — nó tự import
@@ -3821,6 +3821,35 @@ function DataSyncScreen({
     setExporting(true)
     try {
       const pick = <T,>(key: string, items: T[]): T[] => (exportSelection[key] !== false ? items : [])
+
+      // ─── Đọc TƯƠI kho `mucs` ngay tại thời điểm xuất (Task 9b) ──────────────────────────────
+      // `customMucs` (tham số của DataSyncScreen, dựng từ `mucsCol` cấp App — xem App.tsx dòng
+      // ~11897) là MỘT trong BA instance `useIdbCollection<MucMeta>` độc lập cùng đọc store
+      // `mucs`: SearchScreen có instance riêng, App() cấp trên có `mucsCol` (nguồn của prop này),
+      // và LuoiMuc.tsx — nơi mục MỚI được TẠO — có instance thứ ba. Ba instance không đồng bộ
+      // NGANG với nhau: lượt ghi qua một instance chỉ cập nhật state của CHÍNH NÓ, hai instance
+      // kia không hay biết cho tới khi tự đọc lại IndexedDB. Khác các chỗ CHỈ ĐỌC (đếm hiển thị
+      // trước khi bấm, `loaiCua` của đường nhập, `mucTrenMay`) — vô hại vì chỉ đọc — đường XUẤT
+      // dùng bản có thể đã CŨ để tạo ra một FILE, và file đó thường ghi đè lên bản sao lưu tốt
+      // trước đó: đo được trên Chrome thật (Task 9) — tạo mục mới trong phiên rồi bấm Xuất file
+      // ngay, IndexedDB có 6 mục, file xuất ra chỉ 5, không một chữ cảnh báo.
+      //
+      // Đọc bằng `idbGetAllCoKetQua` (không phải `idbGetAll`) để PHÂN BIỆT "kho rỗng thật" với
+      // "lượt đọc hỏng" — `idbGetAll` nuốt lỗi thành `[]`, khiến hai ca đó trông y hệt nhau (đúng
+      // bẫy mà idb.ts đã ghi chú cho chính hàm này). Ràng buộc dưới đây cần biết CHẮC là hỏng để
+      // chặn cứng, không phải suy đoán từ một mảng rỗng.
+      const ketQuaMucsTuoi = await idbGetAllCoKetQua<MucMeta>(IDB_STORES.mucs)
+      if (!ketQuaMucsTuoi.ok) {
+        // CHẶN CỨNG, không im lặng rơi về `customMucs` cũ — cùng lập luận với `duLieuChuaDocDuoc`
+        // ở đầu hàm: một file trông hợp lệ nhưng dựng từ bản sao CŨ (có thể thiếu mục vừa tạo qua
+        // instance khác) thường bị ghi đè lên bản sao lưu tốt trước đó, biến một sự cố đọc tạm
+        // thời thành mất dữ liệu vĩnh viễn.
+        setStatus(
+          `Chưa xuất được: không đọc lại được kho "Bài viết & Sơ đồ" ngay lúc xuất (${ketQuaMucsTuoi.loi}). Thử lại, hoặc bỏ chọn ô "Bài viết & Sơ đồ" nếu chỉ cần sao lưu các mục còn lại.`,
+        )
+        return
+      }
+      const mucsTuoi = ketQuaMucsTuoi.items
       // ─── Nội dung doc CRDT của từng mục (Task 4) ────────────────────────────────────────────
       // Nạp CHẬM và CÓ ĐIỀU KIỆN: `./board/xuatNhapNoiDung` kéo theo cả khối BlockSuite (~4 MB),
       // nên chỉ được chạm tới đúng lúc người dùng bấm "Xuất file" VÀ còn chọn ô "Bài viết & Sơ đồ".
@@ -3831,8 +3860,8 @@ function DataSyncScreen({
       // lưu, nhưng bản sao lưu KHÔNG trọn vẹn và người dùng phải biết ngay lúc này — nếu không,
       // file thiếu ảnh sẽ được ghi đè lên bản tốt trước đó mà không ai hay.
       const mucThieuAnh: string[] = []
-      if (exportSelection["mucs"] !== false && customMucs.length > 0) {
-        setStatus(`Đang đọc nội dung ${customMucs.length} bài viết/sơ đồ…`)
+      if (exportSelection["mucs"] !== false && mucsTuoi.length > 0) {
+        setStatus(`Đang đọc nội dung ${mucsTuoi.length} bài viết/sơ đồ…`)
         // `.catch(() => null)` chứ không để lời gọi tự ném: chunk động có thể KHÔNG tải được (mất
         // mạng ở lần mở đầu tiên — tình huống thật mà board/index.tsx đã phải dựng cả một pane hồi
         // phục cho, xem ranh-gioi-nap-bang.spec.ts). Một promise bị từ chối ở đây thoát ra khỏi
@@ -3854,7 +3883,7 @@ function DataSyncScreen({
         // CSDL IndexedDB, chạy song song là mời một cuộc đua không cần thiết vào đúng đường sao lưu.
         // Mục đã xoá mềm (`daXoaLuc`) VẪN được xuất — metadata của chúng cũng đang được xuất, để
         // lại nội dung thì "Hoàn tác xoá" sau khi khôi phục sẽ trả về một mục rỗng.
-        for (const m of customMucs) {
+        for (const m of mucsTuoi) {
           try {
             const noiDung = await modNoiDung.xuatSnapshotMuc(m.id, m.loai)
             if (noiDung) {
@@ -3881,7 +3910,7 @@ function DataSyncScreen({
           ...Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.backupKey, pick(c.backupKey, customInfusions[c.id] ?? [])])),
           flashcards: pick("flashcards", customFlashcards),
           wardRecipes: pick("wardRecipes", wardRecipeList),
-          mucs: pick("mucs", customMucs),
+          mucs: pick("mucs", mucsTuoi),
           mucDocs,
         },
       }
@@ -3899,7 +3928,14 @@ function DataSyncScreen({
       URL.revokeObjectURL(url)
       markBackupDone()
       onBackupDone()
-      const exportedCount = categoryRows.reduce((n, r) => n + (exportSelection[r.key] !== false ? r.current.length : 0), 0)
+      // "mucs" dùng `mucsTuoi.length` (số THẬT vừa xuất) chứ không phải `r.current.length` (chính
+      // là `customMucs.length`, có thể lệch với số thật — xem chú thích ở đầu khối đọc tươi phía
+      // trên): nếu số mục tươi khác số hiển thị trước khi bấm, đó không phải lỗi, nhưng dòng trạng
+      // thái phải nói đúng số đã thật sự nằm trong file.
+      const exportedCount = categoryRows.reduce(
+        (n, r) => n + (exportSelection[r.key] !== false ? (r.key === "mucs" ? mucsTuoi.length : r.current.length) : 0),
+        0,
+      )
       // Mục nào không đọc được nội dung phải được GỌI TÊN, không nuốt vào một lượt xuất "thành
       // công": metadata của nó vẫn nằm trong file, nên nhập lại sẽ ra một mục trống mà người dùng
       // tưởng là đầy đủ.
