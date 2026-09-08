@@ -3,8 +3,15 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 import { registerServiceWorker } from './lib/offline'
+import { donKhoaRacHeCu } from './lib/storage'
 import { applyTheme, loadTheme, watchSystemTheme } from './lib/theme'
 import { ErrorBoundary } from './components/ErrorBoundary'
+
+// Dọn khoá localStorage của bài viết tự nhập hệ cũ — không còn ai đọc từ giai đoạn 8, và đường tự
+// dọn cũ (`legacyLocalKey` của useIdbCollection) đã chết cùng lượt đó. Đặt ở đây vì phải chạy đúng
+// một lần cho mỗi lần mở app, không gắn với màn hình nào. Đồng bằng giai đoạn 9 ở phía IndexedDB:
+// `deleteObjectStore` ba store hệ cũ trong src/lib/idb.ts.
+donKhoaRacHeCu()
 
 // Áp chủ đề TRƯỚC khi render: làm sau thì người dùng chọn nền tối vẫn thấy một nháy trắng mỗi lần
 // mở app — chói mắt đúng vào lúc muốn tránh nhất.

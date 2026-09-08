@@ -47,6 +47,37 @@ export function removeCollection(key: string): void {
   }
 }
 
+// Khoá localStorage của bài viết tự nhập hệ cũ — RÁC VĨNH VIỄN từ giai đoạn 8 (Task 6).
+//
+// Viết nguyên văn ở đây thay vì dựng qua `storageKey()`: đường sinh khoá là chuyện của những danh
+// mục còn sống, còn đây là một chuỗi CHẾT cần xoá đúng như nó đã từng được ghi. Nếu `NAMESPACE` đổi
+// một ngày nào đó, khoá cũ trên máy người dùng vẫn mang tiền tố cũ.
+const KHOA_RAC_HE_CU = ["drtrong:customArticles"]
+
+/**
+ * Xoá những khoá localStorage không còn ai đọc, chạy MỘT LẦN lúc khởi động app (main.tsx).
+ *
+ * Vì sao cần một hàm riêng thay vì để `useIdbCollection` tự dọn như trước: bài viết tự nhập từng đi
+ * qua `legacyLocalKey` — hook đó ghi dữ liệu cũ sang IndexedDB rồi mới `removeCollection`. Task 6
+ * xoá `CUSTOM_COLLECTION_KEYS.articles` cùng ba màn hình đọc nó, nên không còn chỗ nào truyền
+ * `legacyLocalKey` và đường tự dọn ấy chết theo. Máy nào chưa kịp chạy lượt di trú thì giữ khoá đó
+ * mãi mãi, chiếm chỗ trong hạn mức ~5–10MB dùng chung của cả origin.
+ *
+ * Xoá theo DANH SÁCH TÊN CHÍNH XÁC, không quét theo tiền tố `drtrong:` — quét tiền tố sẽ nuốt cả
+ * `customAntibiotics`/`customDiseases`/`customFlashcards` và mọi khoá nhóm thuốc truyền khai trong
+ * data/categories.ts, tức mất dữ liệu người dùng tự soạn mà không có đường hoàn tác.
+ */
+export function donKhoaRacHeCu(): void {
+  for (const khoa of KHOA_RAC_HE_CU) {
+    try {
+      localStorage.removeItem(khoa)
+    } catch {
+      // Trình duyệt chặn lưu trữ (chế độ riêng tư). Bỏ qua: hàm này chạy TRƯỚC lượt render đầu tiên
+      // của React, một lần ném ở đây là màn hình trắng — đắt hơn nhiều so với một khoá rác còn lại.
+    }
+  }
+}
+
 // Tên các danh mục tự nhập — dùng làm khoá lưu trữ và cho màn hình Đồng bộ dữ liệu.
 export const CUSTOM_COLLECTION_KEYS = {
   antibiotics: "customAntibiotics",
