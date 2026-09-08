@@ -21,6 +21,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../lib/idb'
+// Namespace riêng CHỈ để `vi.spyOn` (ca Important 2 dưới cùng) — App.tsx import tĩnh
+// `idbGetAllCoKetQua` từ đúng module này, cùng khuôn xuat-file-doc-tuoi.spec.tsx:202 đã dùng cho
+// `handleExport`.
+import * as idbLib from '../lib/idb'
 import { CUSTOM_COLLECTION_KEYS, loadCollection, saveCollection } from '../lib/storage'
 import type { MucMeta } from '../board/mucMeta'
 
@@ -188,5 +192,47 @@ describe('Hoàn tác không xoá mục được tạo qua instance khác sau khi
     expect(daXoaSauHoanTac, 'mục đã xoá mềm phải còn trong IndexedDB sau Hoàn tác').toBeTruthy()
     expect(daXoaSauHoanTac?.daXoaLuc).toBe(luoiXoa)
     expect(conLai.find((m) => m.id === 'm-con-song')?.ten).toBe('Mục còn sống')
+  }, HAN_GIO_MOUNT_APP_MS)
+
+  // ─── Vòng sửa 1/5 (findings Important 2) ────────────────────────────────────────────────────
+  //
+  // Nhánh "đọc tươi mucs HỎNG ngay lúc nhập" (`handleConfirmImport`: `setUndoSnapshot(null)` +
+  // `canhBaoKhongHoanTac` nối vào cả bốn `setStatus`) là nhánh AN TOÀN NHẤT của cả bản vá — và
+  // trước ca này, KHÔNG một spec nào chạm tới nó. Một hồi quy biến nó thành `setUndoSnapshot(snapshot)`
+  // (dùng dữ liệu cũ/rỗng) sẽ khiến mọi test hiện có vẫn XANH mà không ai hay.
+  it('Lượt đọc tươi mucs hỏng ngay lúc nhập: KHÔNG bật nút Hoàn tác, báo đúng lý do, nhưng lượt nhập vẫn ghi dữ liệu vào máy thật (Important 2)', async () => {
+    const mCu = taoMucGia({ id: 'm-cu-doc-hong', ten: 'Mục trước khi nhập' })
+    await idbPut(IDB_STORES.mucs, mCu)
+
+    await moManDongBo()
+    await choDemMucs(1)
+
+    // Spy SAU khi App đã mount xong — cùng khuôn xuat-file-doc-tuoi.spec.tsx:202 (mucsCol cấp App
+    // đã tự đọc lượt đầu bằng bản THẬT lúc mount, count đã hiện đúng 1 ở choDemMucs). Chỉ lượt đọc
+    // tươi bên trong handleConfirmImport (SAU khi bấm "Xác nhận nhập") mới bị spy chặn.
+    const spy = vi.spyOn(idbLib, 'idbGetAllCoKetQua').mockResolvedValue({ ok: false, loi: 'giả lập: đọc hỏng ngay lúc nhập' })
+    try {
+      await nhapFile(
+        JSON.stringify({
+          app: 'drtrong',
+          version: 2,
+          data: { mucs: [{ ...mCu, ten: 'Mục bị đè từ file' }] },
+        }),
+      )
+      // (a) Dòng trạng thái phải nói THẲNG lý do — D12, không lặng lẽ tắt lưới an toàn.
+      await waitFor(() => expect(screen.getByText(/KHÔNG hoàn tác được/)).toBeTruthy(), { timeout: HAN_GIO_DONG_BO_MS })
+
+      // (b) Nút "Hoàn tác lần nhập vừa rồi" không được hiện — undoSnapshot phải là null.
+      expect(screen.queryByRole('button', { name: /Hoàn tác lần nhập vừa rồi/ })).toBeNull()
+    } finally {
+      spy.mockRestore()
+    }
+
+    // (c) Lượt nhập vẫn phải THẬT SỰ ghi dữ liệu vào máy — mất lưới an toàn Hoàn tác không có
+    // nghĩa là chặn luôn việc nhập (brief Task 9c bước 3: nhập là hành động chủ động, Hoàn tác là
+    // lưới an toàn). Đọc lại bằng idbGetAll THẬT (spy đã được restore ở trên) để không đọc nhầm
+    // qua chính bản giả lập.
+    const conLai = await idbGetAll<MucMeta>(IDB_STORES.mucs)
+    expect(conLai.find((m) => m.id === 'm-cu-doc-hong')?.ten).toBe('Mục bị đè từ file')
   }, HAN_GIO_MOUNT_APP_MS)
 })
