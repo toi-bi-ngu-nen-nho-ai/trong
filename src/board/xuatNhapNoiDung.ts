@@ -2,7 +2,7 @@
 //
 // ─── Ranh giới (D13) ────────────────────────────────────────────────────────────────────────
 // File này import `./mo-doc` (kéo theo cả khối BlockSuite), nên `App.tsx` CHỈ được gọi nó qua
-// `import()` ĐỘNG, đúng khuôn `./diTruBangCu.ts` và `./index.tsx` đã dùng. Một dòng
+// `import()` ĐỘNG, đúng khuôn `./index.tsx` đã dùng. Một dòng
 // `import { xuatSnapshotMuc } from './board/xuatNhapNoiDung'` ở đầu App.tsx là kéo ~4 MB bảng vẽ
 // vào chunk vỏ app cho MỌI người dùng, kể cả người chưa từng mở một sơ đồ nào.
 // Cổng canh: `__tests__/ranh-gioi-nap-bang.spec.ts`, describe "App.tsx — ranh giới D13…".

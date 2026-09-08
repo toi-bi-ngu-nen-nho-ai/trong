@@ -12323,10 +12323,10 @@ export default function App() {
               kỹ thuật ẩn-không-tháo khi rời tab (kế thừa từ hack cũ, lý do ResizeObserver — xem
               docs/superpowers/specs/2026-08-19-board-gallery-design.md §1) — khác hack cũ ở chỗ
               giờ unmount THẬT khi người dùng bấm quay lại danh sách bên trong BoardGallery, vì D4
-              đã đảm bảo nội dung không mất. Component này rẻ để luôn mount: cả chunk BlockSuite
-              (React.lazy, ./index.tsx) LẪN lượt di trú bảng cũ (import động, ./diTruBangCu.ts) chỉ
-              tải khi thật sự cần — bảng khi được mở, di trú khi tab Mindmap được mở lần đầu (xem
-              BoardGallery.tsx) — nên không cần cờ "đã từng vào tab" riêng như trước. */}
+              đã đảm bảo nội dung không mất. Component này rẻ để luôn mount: chunk BlockSuite
+              (React.lazy, ./index.tsx) chỉ tải khi thật sự cần — lúc một bảng được mở — nên không
+              cần cờ "đã từng vào tab" riêng như trước. (Lượt di trú bảng cũ từng chạy ở đây qua
+              một `import()` động thứ hai; giai đoạn 8 Task 8 đã xoá hẳn.) */}
           <BoardGallery
             dangHienTab={screen === "mindmap"}
             tieuDe="Sơ đồ tư duy"

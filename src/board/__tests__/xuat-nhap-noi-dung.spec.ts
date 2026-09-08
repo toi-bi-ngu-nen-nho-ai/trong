@@ -3,8 +3,8 @@
 // metadata `MucMeta`).
 //
 // environment 'node' (mặc định) — file này không mount cây Lit nào, chỉ đọc/ghi `store`. docSources/
-// blobSources GIẢ thay cho IndexedDB, cùng kỹ thuật với mo-doc-seed.spec.ts và diTruBangCu.spec.ts
-// (đọc hai file đó để hiểu vì sao). "Xoá sạch" được mô phỏng bằng một CẶP NGUỒN MỚI TINH: không
+// blobSources GIẢ thay cho IndexedDB, cùng kỹ thuật với mo-doc-seed.spec.ts (đọc file đó để hiểu
+// vì sao). "Xoá sạch" được mô phỏng bằng một CẶP NGUỒN MỚI TINH: không
 // một byte nào của lượt trước còn lại, đúng nghĩa máy vừa cài lại app.
 import { describe, expect, it } from 'vitest'
 import * as Y from 'yjs'

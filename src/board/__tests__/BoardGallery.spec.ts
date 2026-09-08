@@ -40,10 +40,6 @@ function taoBangGia(ten: string): MucMeta {
 // mô phỏng ĐÚNG thời điểm lượt ghi metadata bắt đầu (lúc unmount, xem EdgelessBoard.tsx thật),
 // để các ca kiểm dưới đây canh được đúng cuộc đua giữa lượt ghi đó và lượt đọc-lúc-mount của
 // LuoiMuc — không cần dựng canvas/BlockSuite thật.
-// `../diTruBangCu` KHÔNG mock ở đây (vẫn đúng như trước) — giờ nó chỉ tự `import()` khi
-// `dangHienTab` true VÀ cờ localStorage "đã chạy" chưa được đặt (xem BoardGallery.tsx), nên chunk
-// nặng đó chỉ thật sự tải NHIỀU NHẤT một lần cho cả file này, không phải mỗi lượt mount như trước
-// lượt sửa D13. Không thêm mock riêng vì các ca kiểm dưới đây vẫn xanh và đủ nhanh mà không cần.
 // Chuỗi mà "bảng giả" ghi vào noiDungTimKiem lúc unmount — cố ý KHÔNG xuất hiện trong tên bảng,
 // nên tìm thấy nó nghĩa là lượt mount lại của LuoiMuc đã đọc được bản ghi MỚI.
 const NOI_DUNG_SAU_KHI_ROI = 'suy tim ef giam'

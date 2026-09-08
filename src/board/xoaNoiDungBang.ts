@@ -20,7 +20,7 @@
 // describe "xoaNoiDungBang.ts — ranh giới D13" trong ranh-gioi-nap-bang.spec.ts, soi thẳng file
 // này chứ không suy luận qua ai import nó.
 
-/** DB nội dung bảng — cùng tên với `TEN_CSDL_BANG` mà mo-doc/diTruBangCu truyền cho DocSource. */
+/** DB nội dung bảng — cùng tên với `TEN_CSDL_BANG` mà mo-doc truyền cho DocSource. */
 const TEN_CSDL_BANG = 'drtrong-board'
 
 /** Store và khoá do `IndexedDBDocSource` của thượng nguồn định nghĩa (`sync/src/doc/impl/indexeddb.ts`). */
