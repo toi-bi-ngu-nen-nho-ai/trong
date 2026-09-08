@@ -3764,6 +3764,26 @@ function DataSyncScreen({
   //    phải nói thẳng ra, thay vì báo một lượt hoàn tác "trọn vẹn" sai sự thật.
   const [undoMucKhongChup, setUndoMucKhongChup] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // ─── Khoá LỐI VÀO dùng CHUNG cho handleConfirmImport và handleExport (Task 9c, vòng sửa 2/5,
+  // findings-r2 Important 1 + "Cùng gốc") ────────────────────────────────────────────────────────
+  // Hai vòng liên tiếp trước đã vá một race bằng cách SẮP XẾP LẠI THỨ TỰ DÒNG — cả hai lần đều chỉ
+  // dời cửa sổ hở sang một chỗ khác thay vì đóng nó: vòng gốc thêm một `await` giữa hai bước vốn
+  // đồng bộ; vòng sửa 1 dời `setPendingImport(null)` lên trước `await` đó (đóng đúng MỘT cửa sổ,
+  // trên chính nút "Xác nhận nhập"), nhưng `setImporting(true)` chỉ được gọi rất muộn — và KHÔNG
+  // BAO GIỜ nếu file chỉ mang metadata — nên suốt khoảng từ lúc panel đóng tới lúc đó, `importing`
+  // vẫn `false` và cả nút "Nhập file đã sao lưu" lẫn nút "Xuất file sao lưu" (cả hai chỉ gate bằng
+  // `exporting || importing`) vẫn bấm được, mở ra một lối vào ĐỘC LẬP thứ hai.
+  //
+  // Lần này khoá bằng CƠ CHẾ, không phải thứ tự: `ref` có hiệu lực NGAY trong cùng lượt thực thi,
+  // trước bất kỳ `await` nào — khác `setState`, chỉ có hiệu lực SAU lượt render kế tiếp (đúng chỗ
+  // hai vòng trước đã thất bại). Đặt `true` là việc gần như đầu tiên mỗi hàm làm (ngay sau các
+  // early-return đồng bộ, không tốn thời gian, của riêng nó), và CHỈ nhả trong một `finally` phủ
+  // TOÀN BỘ phần thân còn lại — kể cả các nhánh `return` sớm — để không bao giờ kẹt bật.
+  const dongBoDangChayRef = useRef(false)
+  // Bản sao STATE của ref trên — CHỈ để RENDER `disabled` trên nút Xuất/Nhập + input file ẩn (ref
+  // không tự kích hoạt render). KHÔNG dùng state này để gate logic bên trong hai hàm — luôn dùng
+  // ref cho việc đó, vì state chỉ chắc chắn phản ánh đúng SAU lượt render kế tiếp.
+  const [dongBoDangChay, setDongBoDangChay] = useState(false)
 
   // Công thức pha (bảng "Cách dùng"/"Đường dùng" người dùng tự chỉnh mỗi thuốc) đọc thẳng từ
   // localStorage — KHÔNG được quên trong bản sao lưu, vì đây chính là dữ liệu tốn công nhập nhất
@@ -3808,6 +3828,17 @@ function DataSyncScreen({
       setStatus("Chọn ít nhất một mục để xuất.")
       return
     }
+    // Khoá LỐI VÀO dùng CHUNG với handleConfirmImport (vòng sửa 2/5 — findings-r2, "Cùng gốc, sửa
+    // luôn — nút Xuất file sao lưu"): xem chú thích đầy đủ tại nơi khai `dongBoDangChayRef` (đầu
+    // DataSyncScreen) về vì sao đây phải là REF đặt sớm nhất có thể, không phải chỉ dựa vào
+    // `exporting`/`importing`. Nút này CÙNG GỐC thiếu khoá với nút Nhập: trong đúng cửa sổ hở mà
+    // `handleConfirmImport` để lại (từ lúc đóng panel xem trước tới lúc `setImporting(true)`),
+    // `exporting` lẫn `importing` đều `false`, nên trước bản vá này bấm Xuất ngay lúc đó vẫn chạy
+    // — một lượt đọc `mucs` ĐỘC LẬP song song với lượt Nhập còn dở.
+    if (dongBoDangChayRef.current) return
+    dongBoDangChayRef.current = true
+    setDongBoDangChay(true)
+    try {
     // CHẶN CỨNG, không phải cảnh báo rồi vẫn cho đi tiếp: xuất lúc này tạo ra một file trông hợp lệ
     // nhưng thiếu dữ liệu, và người dùng thường ghi đè nó lên bản sao lưu trước đó — biến một sự cố
     // đọc tạm thời (tab app bản cũ đang giữ IndexedDB) thành mất dữ liệu vĩnh viễn. Đây là đúng
@@ -3967,6 +3998,12 @@ function DataSyncScreen({
     } finally {
       setExporting(false)
     }
+    } finally {
+      // Nhả khoá — phủ TOÀN BỘ hàm kể cả hai nhánh return sớm ở trên (selectedCount===0 đứng NGOÀI
+      // try này nên không cần, nhưng duLieuChuaDocDuoc thì có — cùng khối try bên trên).
+      dongBoDangChayRef.current = false
+      setDongBoDangChay(false)
+    }
   }
 
   function handleImportClick() {
@@ -4062,6 +4099,14 @@ function DataSyncScreen({
   // này (dữ liệu hiện có trên máy, chưa bị file mới đè lên).
   async function handleConfirmImport() {
     if (!pendingImport) return
+    // Khoá LỐI VÀO bằng ref (vòng sửa 2/5 — findings-r2 Important 1): xem chú thích đầy đủ tại nơi
+    // khai `dongBoDangChayRef` (đầu DataSyncScreen). Đặt `true` NGAY — trước cả khối chụp dữ liệu
+    // bên dưới, tức trước bất kỳ `await` nào — và chỉ nhả trong `finally` bọc TOÀN BỘ phần thân còn
+    // lại (kể cả nhánh return sớm khi file không mang nội dung doc, phía dưới xa).
+    if (dongBoDangChayRef.current) return
+    dongBoDangChayRef.current = true
+    setDongBoDangChay(true)
+    try {
     // ─── Chụp NGAY dữ liệu cần dùng rồi đóng panel xem trước, TRƯỚC await bên dưới (vòng sửa
     // review — findings Important 1) ─────────────────────────────────────────────────────────
     // Panel "Xem trước trước khi nhập" (và nút "Xác nhận nhập" bên trong nó, KHÔNG có `disabled`)
@@ -4267,6 +4312,14 @@ function DataSyncScreen({
       )
     } finally {
       setImporting(false)
+    }
+    } finally {
+      // Nhả khoá — phủ TOÀN BỘ hàm, kể cả nhánh `return` sớm ở trên (file không mang nội dung doc:
+      // `idNoiDung.length === 0`) và nhánh chunk `xuatNhapNoiDung` tải hỏng (cũng `return` sớm,
+      // TRƯỚC khi chạm tới `finally` phía trong bọc riêng phần ghi nội dung) — cả hai đều nằm TRONG
+      // khối `try` ngoài này nên đều kích hoạt đúng `finally` này.
+      dongBoDangChayRef.current = false
+      setDongBoDangChay(false)
     }
   }
 
@@ -4529,7 +4582,10 @@ function DataSyncScreen({
 
             <button
               onClick={handleExport}
-              disabled={exporting || importing}
+              // `dongBoDangChay` thêm vào đây (vòng sửa 2/5): đóng đúng cửa sổ hở mà `exporting ||
+              // importing` bỏ sót — khoảng giữa lúc handleConfirmImport đóng panel và lúc nó gọi
+              // setImporting(true), khi cả hai cờ cũ đều false. Xem `dongBoDangChayRef`.
+              disabled={exporting || importing || dongBoDangChay}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60"
               style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
             >
@@ -4539,14 +4595,17 @@ function DataSyncScreen({
 
             <button
               onClick={handleImportClick}
-              disabled={exporting || importing}
+              // Cùng lý do `dongBoDangChay` như nút Xuất ở trên — đây chính là nút mà findings-r2
+              // Important 1 mô tả: mở lối vào ĐỘC LẬP thứ hai cho `handleConfirmImport` (chọn file
+              // KHÁC) trong đúng cửa sổ hở đó.
+              disabled={exporting || importing || dongBoDangChay}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm border disabled:opacity-60"
               style={{ borderColor: "var(--c-primary)", color: "var(--c-primary)", background: "var(--c-surface)" }}
             >
               {icons.upload()}
               {importing ? "Đang đọc file…" : "Nhập file đã sao lưu"}
             </button>
-            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleFileChange} disabled={importing} className="hidden" />
+            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleFileChange} disabled={importing || dongBoDangChay} className="hidden" />
           </>
         )}
 
