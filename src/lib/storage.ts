@@ -49,9 +49,6 @@ export function removeCollection(key: string): void {
 
 // Tên các danh mục tự nhập — dùng làm khoá lưu trữ và cho màn hình Đồng bộ dữ liệu.
 export const CUSTOM_COLLECTION_KEYS = {
-  // Khoá cũ của bài viết tự nhập: từ khi bài viết có thể chèn ảnh, dữ liệu được chuyển sang
-  // IndexedDB (xem useIdbCollection) — khoá này chỉ còn dùng để đọc & di trú dữ liệu cũ một lần.
-  articles: "customArticles",
   antibiotics: "customAntibiotics",
   // Khoá của các nhóm THUỐC TRUYỀN (co bóp, vận mạch, giãn mạch, loạn nhịp, điện giải, an thần,
   // thần kinh, khác, giải độc) KHÔNG khai ở đây nữa: mỗi nhóm tự mang `storageKey` trong

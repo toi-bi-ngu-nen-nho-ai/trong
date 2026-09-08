@@ -1,8 +1,7 @@
 // Hàm hỗ trợ cho nội dung dạng block (xem ContentBlock trong src/data/types.ts) — tạo block mới,
-// dọn block rỗng trước khi lưu, và ĐỌC NGƯỢC dữ liệu đời cũ (bài viết chỉ có `body`, bài học ECG
-// có `content` + mảng `images` riêng) thành danh sách block để mọi màn hình chỉ cần xử lý một cấu
-// trúc duy nhất.
-import type { Article, ContentBlock, EcgLesson } from "../data/types"
+// dọn block rỗng trước khi lưu, và ĐỌC NGƯỢC dữ liệu đời cũ (bài học ECG có `content` + mảng
+// `images` riêng) thành danh sách block để mọi màn hình chỉ cần xử lý một cấu trúc duy nhất.
+import type { ContentBlock, EcgLesson } from "../data/types"
 import { stripInlineMarkers } from "./richText"
 
 export function newBlockId(): string {
@@ -41,14 +40,6 @@ export function firstImageUrl(blocks: ContentBlock[]): string | undefined {
 
 export function countImages(blocks: ContentBlock[]): number {
   return blocks.filter((b) => b.type === "image" && b.dataUrl).length
-}
-
-// Nội dung bài viết dưới dạng block — bài mới đọc thẳng `blocks`, bài cũ (chỉ có `body`) được
-// chuyển thành một block văn bản.
-export function articleBlocks(article: Article): ContentBlock[] {
-  if (article.blocks?.length) return article.blocks
-  const body = article.body?.trim()
-  return body ? [{ id: `${article.id}-body`, type: "text", text: body }] : []
 }
 
 // Nội dung bài học ECG dưới dạng block. Bài cũ: ảnh nằm gọn một cụm rồi tới phần chữ — giữ đúng

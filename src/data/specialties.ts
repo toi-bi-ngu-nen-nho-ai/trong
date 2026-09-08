@@ -1,7 +1,7 @@
 import type { Specialty } from "./types"
 
 // Lưu ý: không có field đếm số bài viết ở đây — xem ghi chú trong types.ts. Số bài viết/thẻ ghi nhớ
-// hiển thị cho mỗi chuyên khoa được tính động (ARTICLES/FLASHCARDS thật + mục tự thêm) tại nơi hiển thị.
+// hiển thị cho mỗi chuyên khoa được tính động từ dữ liệu thật (kể cả mục tự thêm) tại nơi hiển thị.
 // Không còn field `icon` (trước đây là một emoji): hình của mỗi chuyên khoa nay do
 // components/SpecialtyIcons.tsx vẽ bằng SVG, tra theo `id` — xem ghi chú ở đầu file đó.
 // `color` vẫn ở đây vì nó là màu nhận diện của khoa, dùng cho cả icon, nền thẻ và tiêu đề.

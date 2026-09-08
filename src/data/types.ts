@@ -7,8 +7,8 @@ import type { VialForm } from "../lib/mixing"
 
 // ─── Nội dung dạng "khối" (block) — kiểu soạn thảo tự do giống Notion ─────────
 // Mỗi dòng người dùng gõ là một block độc lập, nên có thể chèn ảnh xen giữa bất kỳ dòng nào
-// thay vì bị ép "văn bản một chỗ, ảnh một chỗ" như trước. Dùng chung cho bài viết tự nhập
-// (Article.blocks) và bài học ECG (EcgLesson.blocks).
+// thay vì bị ép "văn bản một chỗ, ảnh một chỗ" như trước. Dùng cho bài học ECG tự nhập
+// (EcgLesson.blocks).
 // - "text": đoạn văn thường
 // - "heading": tiêu đề mục (đồng thời là mục trong mục lục của bài)
 // - "bullet": gạch đầu dòng
@@ -18,7 +18,7 @@ import type { VialForm } from "../lib/mixing"
 // - "image": ảnh (dataUrl đã thu nhỏ + nén, xem src/lib/imageResize.ts), caption là chú thích
 //
 // Trong `text` có thể chứa dấu định dạng nội dòng: **đậm**, *nghiêng*, __gạch chân__, ==tô sáng==,
-// và liên kết tới bài khác [[article:id|chữ hiện ra]] — xem src/lib/richText.ts.
+// và liên kết tới bài khác [[ecg:id|chữ hiện ra]] — xem src/lib/richText.ts.
 export type BlockType = "text" | "heading" | "bullet" | "numbered" | "quote" | "callout" | "image"
 
 export interface ContentBlock {
@@ -31,43 +31,8 @@ export interface ContentBlock {
   caption?: string
 }
 
-export interface Article {
-  id: string
-  title: string
-  specialty: string
-  tags: string[]
-  readTime: number
-  difficulty: "Cơ bản" | "Nâng cao"
-  excerpt: string
-  lastUpdated: string
-  // `body`: nội dung dạng văn bản thuần của các bài viết tự nhập ĐỜI CŨ (trước khi có trình soạn
-  // thảo theo block). Vẫn đọc được nhờ articleBlocks() trong lib/blocks.ts; bài viết mới lưu vào
-  // `blocks`.
-  body?: string
-  blocks?: ContentBlock[]
-}
-
-// Một mục trong bài viết dài (hiển thị trong mục lục của ArticleScreen).
-export interface ArticleSection {
-  id: string
-  heading: string
-  content: string[]
-}
-
-// Nội dung đầy đủ của một bài viết, khoá theo Article.id trong ARTICLE_CONTENT.
-// Các trường hiển thị dùng chung với danh sách bài viết (title/specialty/tags/difficulty/
-// readTime/lastUpdated) đã có sẵn trong Article — ArticleScreen tra theo articleId để lấy,
-// tránh trùng lặp dữ liệu giữa ARTICLES và ARTICLE_CONTENT.
-export interface ArticleContent {
-  toc: string[]
-  sections: ArticleSection[]
-  keyPoints: string[]
-  highlightTerms: string[]
-}
-
-// Lưu ý: KHÔNG có field đếm số bài viết ở đây — số bài viết/thẻ ghi nhớ của một chuyên khoa phải
-// luôn được tính động từ ARTICLES/FLASHCARDS thật (kể cả mục tự thêm) tại nơi hiển thị, để không
-// bao giờ lệch với dữ liệu thật, tại nơi hiển thị.
+// Lưu ý: KHÔNG có field đếm số mục ở đây — số mục/thẻ ghi nhớ của một chuyên khoa phải luôn
+// được tính động từ dữ liệu thật (kể cả mục tự thêm) tại nơi hiển thị, để không bao giờ lệch.
 // `icon` đã bỏ: hình của chuyên khoa được tra theo `id` trong components/SpecialtyIcons.tsx (SVG),
 // không còn là một ký tự emoji do hệ điều hành vẽ.
 export interface Specialty {

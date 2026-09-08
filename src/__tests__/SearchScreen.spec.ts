@@ -7,8 +7,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../lib/idb'
 import { SPECIALTIES } from '../data/specialties'
+import type { FlashCard } from '../data/types'
 import { SearchScreen } from '../App'
 import { choDenKhi } from './helpers/cho-den-khi'
+
+// Một thẻ ghi nhớ tự nhập dùng làm nguồn NGOÀI store `mucs` cho các ca kiểm bên dưới. `specialty`
+// cố ý viết tên khoa kiểu cũ ("Hồi sức - Cấp cứu", đúng như data/flashcards.ts) để còn canh được
+// bí danh khoa (BI_DANH_KHOA/khoaChuan trong App.tsx).
+const THE_NKH: FlashCard = {
+  id: 'fc-nkh',
+  front: 'Nhiễm khuẩn huyết',
+  back: 'Rối loạn chức năng cơ quan đe doạ tính mạng do đáp ứng mất điều hòa với nhiễm khuẩn.',
+  specialty: 'Hồi sức - Cấp cứu',
+  due: false,
+  isCustom: true,
+}
 
 ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -67,7 +80,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onNavigate,
           onMoMuc,
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -118,7 +130,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onNavigate: vi.fn(),
           onMoMuc: vi.fn(),
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -162,7 +173,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onNavigate: vi.fn(),
           onMoMuc,
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -208,7 +218,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onNavigate: vi.fn(),
           onMoMuc: vi.fn(),
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -251,7 +260,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onNavigate: vi.fn(),
           onMoMuc,
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -318,7 +326,6 @@ describe('SearchScreen — kết quả loại "muc" (bài viết)', () => {
           onNavigate: vi.fn(),
           onMoMuc: vi.fn(),
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -354,7 +361,6 @@ describe('SearchScreen — kết quả loại "muc" (bài viết)', () => {
           onNavigate,
           onMoMuc,
           onBack: () => {},
-          customArticles: [],
           customFlashcards: [],
           ecgLessons: [],
         }),
@@ -404,15 +410,14 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
     for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
   })
 
-  async function dungMan() {
+  async function dungMan(customFlashcards: FlashCard[] = []) {
     await act(async () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate: vi.fn(),
           onMoMuc: vi.fn(),
           onBack: () => {},
-          customArticles: [],
-          customFlashcards: [],
+          customFlashcards,
           ecgLessons: [],
         }),
       )
@@ -420,10 +425,12 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
     return container.querySelector('input[type="search"]') as HTMLInputElement
   }
 
-  // Bài viết DỰNG SẴN, không phải mục lưu trong IndexedDB: đường bài viết là đường mà `toLowerCase()`
-  // cũ phục vụ, nên nếu chỉ canh bằng mục thì một lượt sửa hồi quy chỉ nửa vời vẫn xanh.
-  it('bài viết dựng sẵn: gõ "nhiem khuan huyet" (không dấu) → ra "Nhiễm khuẩn huyết"', async () => {
-    const oTim = await dungMan()
+  // Nguồn KHÔNG phải store `mucs` (ở đây là thẻ ghi nhớ tự nhập): `filtered` chạy cả hai loại nguồn
+  // qua cùng `normalizeSearch(r.title)`, nhưng chỉ canh bằng mục thì một lượt sửa hồi quy nửa vời
+  // (chỉ vá nhánh mucs) vẫn xanh. Trước giai đoạn 8 vai này do bài viết dựng sẵn (ARTICLES) đóng —
+  // nguồn đó đã bị xoá ở Task 6, thẻ ghi nhớ là nguồn ngoài-mucs còn lại.
+  it('nguồn ngoài store mucs: gõ "nhiem khuan huyet" (không dấu) → ra "Nhiễm khuẩn huyết"', async () => {
+    const oTim = await dungMan([THE_NKH])
     await goVaoOTim(oTim, 'nhiem khuan huyet')
     await choDenKhi(() => {
       expect(container.textContent).toContain('Nhiễm khuẩn huyết')
@@ -452,7 +459,7 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
 
   // Chiều ngược lại: bỏ dấu KHÔNG được làm hỏng lượt gõ có dấu đầy đủ (cách gõ của máy tính bàn).
   it('gõ đủ dấu vẫn ra đúng bài đó', async () => {
-    const oTim = await dungMan()
+    const oTim = await dungMan([THE_NKH])
     await goVaoOTim(oTim, 'nhiễm khuẩn huyết')
     await choDenKhi(() => {
       expect(container.textContent).toContain('Nhiễm khuẩn huyết')
@@ -506,15 +513,14 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
     for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
   })
 
-  async function dungMan() {
+  async function dungMan(customFlashcards: FlashCard[] = []) {
     await act(async () => {
       root.render(
         createElement(SearchScreen, {
           onNavigate: vi.fn(),
           onMoMuc: vi.fn(),
           onBack: () => {},
-          customArticles: [],
-          customFlashcards: [],
+          customFlashcards,
           ecgLessons: [],
         }),
       )
@@ -559,6 +565,19 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
       tags: [],
       noiDungTimKiem: '',
     })
+    // Một mục CÒN SỐNG để dải chip không rỗng — mốc `length > 1` bên dưới là cách chờ hook nạp
+    // xong. Trước giai đoạn 8 vai này do bài viết dựng sẵn (ARTICLES) đóng; nguồn đó đã bị xoá.
+    await idbPut(IDB_STORES.mucs, {
+      id: 'bang-tim-mach-con-song',
+      loai: 'so-do',
+      danhMuc: 'tiep-can',
+      ten: 'Bảng tim mạch',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: '',
+    })
     await dungMan()
     // Đợi hook nạp xong rồi mới khẳng định "không có", nếu không ca này xanh giả.
     await choDenKhi(() => {
@@ -567,18 +586,19 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
     expect(tenChip()).not.toContain('Huyết học')
   })
 
-  // Hai tên chỉ CÙNG một khoa: ARTICLES viết "Hồi sức - Cấp cứu", SPECIALTIES (nguồn của lưới
-  // Mindmap và của huy hiệu khoa) gọi là "Cấp cứu". Hai chip cho một khoa là dải chip nói dối.
+  // Hai tên chỉ CÙNG một khoa: dữ liệu thẻ ghi nhớ (data/flashcards.ts) viết "Hồi sức - Cấp cứu",
+  // SPECIALTIES (nguồn của lưới Mindmap và của huy hiệu khoa) gọi là "Cấp cứu". Hai chip cho một
+  // khoa là dải chip nói dối. Đây chính là lý do BI_DANH_KHOA/khoaChuan còn sống sau giai đoạn 8.
   it('gộp bí danh: có chip "Cấp cứu", KHÔNG có chip "Hồi sức - Cấp cứu"', async () => {
-    await dungMan()
+    await dungMan([THE_NKH])
     await choDenKhi(() => {
       expect(tenChip()).toContain('Cấp cứu')
     })
     expect(tenChip()).not.toContain('Hồi sức - Cấp cứu')
   })
 
-  it('chọn chip "Cấp cứu" vẫn lọc ra bài viết mang tên khoa cũ', async () => {
-    await dungMan()
+  it('chọn chip "Cấp cứu" vẫn lọc ra mục mang tên khoa cũ', async () => {
+    await dungMan([THE_NKH])
     await choDenKhi(() => {
       expect(tenChip()).toContain('Cấp cứu')
     })
@@ -618,5 +638,79 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
     const chiSo = chip.slice(1).map((t) => thuTu.indexOf(t))
     expect(chiSo, `chip lạ ngoài SPECIALTIES: ${chip.slice(1)}`).not.toContain(-1)
     expect(chiSo).toEqual([...chiSo].sort((a, b) => a - b))
+  })
+})
+
+// ─── Giai đoạn 8 (Task 6): hệ bài viết tự viết tay đã gỡ ────────────────────────
+//
+// SearchScreen từng gộp 5 nguồn vào `allResults`: ARTICLES (bài viết dựng sẵn), bài viết tự nhập,
+// bài học ECG, thẻ ghi nhớ, và kho `mucs`. Hai nguồn đầu chết theo Task 6 — kho `mucs` (kind "muc")
+// là hệ THAY THẾ và phải còn nguyên. Hai ca dưới ghim đúng ranh giới đó.
+describe('SearchScreen — nguồn bài viết của hệ cũ đã gỡ (giai đoạn 8)', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+  })
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount()
+    })
+    container.remove()
+    const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+    for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
+  })
+
+  async function dungMan() {
+    await act(async () => {
+      root.render(
+        createElement(SearchScreen, {
+          onNavigate: vi.fn(),
+          onMoMuc: vi.fn(),
+          onBack: () => {},
+          customFlashcards: [],
+          ecgLessons: [],
+        }),
+      )
+    })
+  }
+
+  // "Nhồi máu cơ tim" là tiêu đề bài viết dựng sẵn ĐẦU TIÊN của src/data/articles.ts (hệ cũ, xoá ở
+  // Task 6). Chuỗi viết CỨNG ở đây chứ không import từ data — chính file đó là thứ bị xoá.
+  it('gõ tên một bài viết dựng sẵn của hệ cũ KHÔNG còn ra kết quả', async () => {
+    await dungMan()
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'Nhồi máu cơ tim')
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Không có kết quả')
+    })
+  })
+
+  it('kho "mucs" (hệ thay thế) VẪN tìm được — không bị đợt gỡ cuốn theo', async () => {
+    const bayGio = Date.now()
+    await idbPut(IDB_STORES.mucs, {
+      id: 'muc-con-song',
+      loai: 'bai-viet',
+      danhMuc: 'tiep-can',
+      ten: 'Mục kho mới còn sống',
+      taoLuc: bayGio,
+      capNhatLuc: bayGio,
+      chuyenKhoa: 'cardiology',
+      tags: [],
+      noiDungTimKiem: '',
+    })
+
+    await dungMan()
+    const oTim = container.querySelector('input[type="search"]') as HTMLInputElement
+    await goVaoOTim(oTim, 'con song')
+
+    await choDenKhi(() => {
+      expect(container.textContent).toContain('Mục kho mới còn sống')
+    })
   })
 })

@@ -4,7 +4,6 @@
 
 export * from "./types"
 export * from "./specialties"
-export * from "./articles"
 export * from "./flashcards"
 export * from "./antibiotics"
 export * from "./diseases"

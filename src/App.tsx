@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
-import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, SourceInfo } from "./data/types"
-import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
+import type { BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, SourceInfo } from "./data/types"
+import { SPECIALTIES, PICKER_ITEMS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
@@ -110,7 +110,7 @@ import { BlockContent } from "./components/BlockContent"
 import { ScreenHeader } from "./components/ScreenHeader"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { IconChevronBack } from "./components/IconChevronBack"
-import { articleBlocks, blocksForEditing, blocksToPlainText, blocksToToc, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
+import { blocksForEditing, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
 import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, PROSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -125,16 +125,13 @@ type Screen =
   | "search"
   | "mindmap"
   | "flashcard"
-  | "article"
   | "specialty"
   // Màn lưới lọc theo MỘT danh mục — thay ba màn cũ (EcgScreen, ComingSoonScreen của Phác đồ, và
   // thẻ Tiếp cận vấn đề). Danh mục nào nằm ở `danhMucDangXem` (state của App(), xem bên dưới),
   // không mã hoá vào tên màn: bốn nhánh Screen gần giống nhau đúng là thứ đã bị gộp một lần rồi
   // (xem addInfusion) — Task 7, kho-bai-viet-giai-doan-5-6.
   | "danhMuc"
-  | "addEntry"
   | "mixing"
-  | "customEntry"
   | "addAntibiotic"
   // Trước đây mỗi nhóm thuốc truyền có một màn "thêm" riêng ("addInotrope", "addVasoactive"...).
   // Cả 5 màn đó vốn dùng CHUNG một component (AddInfusionScreen) và chỉ khác nhau ở tham số
@@ -630,20 +627,6 @@ function slugifyDiseaseName(name: string): string {
 
 // ─── Components ───────────────────────────────────────────────────────────────
 
-function DifficultyBadge({ level }: { level: "Cơ bản" | "Nâng cao" }) {
-  return (
-    <span
-      className="text-xs font-medium px-2 py-0.5 rounded-full"
-      style={{
-        background: level === "Nâng cao" ? "var(--c-primary-soft)" : "var(--c-green-soft)",
-        color: level === "Nâng cao" ? "var(--c-primary-strong)" : "var(--c-green-deep)",
-      }}
-    >
-      {level === "Nâng cao" ? "Nâng cao" : "Cơ bản"}
-    </span>
-  )
-}
-
 function TagPill({ tag }: { tag: string }) {
   return (
     <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
@@ -1086,7 +1069,7 @@ interface RecentReadItem {
   tag: string
   // CHỈ set cho mục đến từ kho `mucs` mới (kind "muc" — xem recentReadItems) — bấm vào phải mở qua
   // onMoMuc(id, loai, danhMuc) giống hệt SearchScreen (Task 1), KHÔNG qua onNavigate(screen, id)
-  // như ba kind hệ cũ (article/custom/ecg). `screen` ở trên vẫn được gán một giá trị hợp lệ cho
+  // như kind hệ cũ còn lại (ecg). `screen` ở trên vẫn được gán một giá trị hợp lệ cho
   // mục "muc" (không dùng tới) chỉ để khớp kiểu, không có nghĩa gì khi trường này có mặt.
   muc?: { loai: LoaiMuc; danhMuc: IdDanhMuc }
 }
@@ -1322,14 +1305,14 @@ const BI_DANH_KHOA: Record<string, string> = { "Hồi sức - Cấp cứu": "C�
 const khoaChuan = (ten?: string) => (ten ? BI_DANH_KHOA[ten] ?? ten : undefined)
 
 // Một kết quả tìm kiếm gộp từ nhiều nguồn khác nhau (bài viết dựng sẵn/tự nhập, bài học ECG, thẻ ghi
-// nhớ) — trước đây SearchScreen chỉ tìm trong ARTICLES tĩnh, nên mọi nội dung người dùng TỰ THÊM
+// nhớ) — trước đây SearchScreen chỉ tìm trong danh sách bài viết tĩnh, nên mọi nội dung TỰ THÊM
 // (bài viết riêng, bài ECG riêng, thẻ ghi nhớ riêng) hoàn toàn vô hình với ô tìm kiếm chính. Gộp vào
 // đây thì tìm một lần là ra hết, không phải đoán.
 interface SearchResult {
   // "board" (đọc store IDB_STORES.boards) đã gộp vào "muc" (đọc store IDB_STORES.mucs, kho bài
-  // viết + sơ đồ hợp nhất từ giai đoạn 5-6) — bốn kind kia (article/customArticle/ecg/flashcard)
-  // KHÔNG đổi, còn sống tới giai đoạn 8.
-  kind: "article" | "customArticle" | "ecg" | "flashcard" | "muc"
+  // viết + sơ đồ hợp nhất từ giai đoạn 5-6). Giai đoạn 8 Task 6 gỡ tiếp hai kind của hệ bài
+  // viết tự viết tay (article/customArticle) — kho `mucs` là hệ thay thế.
+  kind: "ecg" | "flashcard" | "muc"
   id: string
   title: string
   subtitle: string
@@ -1351,7 +1334,6 @@ export function SearchScreen({
   onNavigate,
   onMoMuc,
   onBack,
-  customArticles,
   customFlashcards,
   ecgLessons,
 }: {
@@ -1362,7 +1344,6 @@ export function SearchScreen({
   // (không gộp lại thành object) cho khớp cách onNavigate cũng chỉ nhận id rời.
   onMoMuc: (id: string, loai: LoaiMuc, danhMuc: IdDanhMuc) => void
   onBack: () => void
-  customArticles: Article[]
   customFlashcards: FlashCard[]
   ecgLessons: EcgLesson[]
 }) {
@@ -1383,8 +1364,6 @@ export function SearchScreen({
 
   const allResults = useMemo<SearchResult[]>(() => {
     return [
-      ...ARTICLES.map((a): SearchResult => ({ kind: "article", id: a.id, title: a.title, subtitle: a.excerpt, specialty: a.specialty, tags: a.tags })),
-      ...customArticles.map((a): SearchResult => ({ kind: "customArticle", id: a.id, title: a.title, subtitle: a.excerpt, specialty: a.specialty, tags: a.tags })),
       // Bài ECG không có trường chuyên khoa (chỉ có tags tự do) — không lọc được theo bộ lọc chuyên
       // khoa, chỉ hiện khi đang ở "Tất cả" (xem điều kiện activeFilter bên dưới).
       ...ecgLessons.map((l): SearchResult => ({ kind: "ecg", id: l.id, title: l.title, subtitle: l.summary ?? "", tags: l.tags })),
@@ -1415,9 +1394,9 @@ export function SearchScreen({
           danhMuc: m.danhMuc,
         })),
     ]
-  }, [customArticles, customFlashcards, ecgLessons, mucs])
+  }, [customFlashcards, ecgLessons, mucs])
 
-  // Dải chip suy từ CHÍNH kết quả đang có, không phải từ mỗi ARTICLES như trước. Bảng Mindmap gắn
+  // Dải chip suy từ CHÍNH kết quả đang có, không phải từ danh sách bài viết tĩnh như trước. Bảng Mindmap gắn
   // một trong 5 khoa mà không bài viết dựng sẵn nào dùng (Tiêu hoá, Huyết học, Nhiễm, Sinh lý bệnh,
   // Dược lâm sàng) trước đây không có chip nào để lọc — chỉ hiện dưới "Tất cả" (nợ ghi ở HANDOFF
   // mục 32). Thứ tự: theo SPECIALTIES cho khớp đúng thứ tự dải chip bên màn Sơ đồ tư duy, rồi mới
@@ -1457,14 +1436,12 @@ export function SearchScreen({
   }, [allResults, query, locHieuLuc])
 
   const RESULT_LABEL: Record<Exclude<SearchResult["kind"], "muc">, string> = {
-    article: "",
-    customArticle: "Tự nhập",
     ecg: "ECG",
     flashcard: "Thẻ ghi nhớ",
   }
 
   // Kind "muc" KHÔNG tra RESULT_LABEL: một giá trị "muc" mang theo cả hai khả năng (bài viết hoặc
-  // sơ đồ) — khác bốn kind kia, mỗi kind chỉ ứng với một nhãn cố định — nên nhãn phải suy TẠI CHỖ
+  // sơ đồ) — khác hai kind kia, mỗi kind chỉ ứng với một nhãn cố định — nên nhãn phải suy TẠI CHỖ
   // từ `loai`, không tra bảng tĩnh.
   function nhanKetQua(r: SearchResult): string {
     if (r.kind === "muc") return r.loai === "so-do" ? "Sơ đồ" : "Bài viết"
@@ -1472,9 +1449,7 @@ export function SearchScreen({
   }
 
   function openResult(r: SearchResult) {
-    if (r.kind === "article") onNavigate("article", r.id)
-    else if (r.kind === "customArticle") onNavigate("customEntry", r.id)
-    else if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
+    if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
     // r.loai/r.danhMuc chỉ vắng nếu bản ghi mucs thiếu chúng ở runtime (không nên xảy ra — cả hai
     // đều bắt buộc theo MucMeta — nhưng vẫn kiểm để không gọi onMoMuc với giá trị rỗng); rơi về
     // nhánh chuyên khoa bên dưới thay vì mở nhầm.
@@ -1634,16 +1609,6 @@ export function SearchScreen({
   )
 }
 
-
-// Bôi đậm các thuật ngữ chính trong đoạn văn (danh sách `terms` lấy từ ARTICLE_CONTENT[id].highlightTerms
-// — mỗi bài tự khai báo thuật ngữ của mình thay vì regex cứng chỉ đúng cho bài Nhồi máu cơ tim).
-function highlightMedicalTerms(text: string, terms: string[]): string {
-  return terms.reduce((html, term) => {
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    return html.replace(new RegExp(`\\b(${escaped})\\b`, "gi"), '<span class="term-highlight">$1</span>')
-  }, text)
-}
-
 function AddFlashcardScreen({
   onSave,
   onBack,
@@ -1733,324 +1698,6 @@ function AddFlashcardScreen({
           style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}
         >
           Lưu thẻ ghi nhớ
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function ArticleScreen({ articleId, onBack }: { articleId: string; onBack: () => void }) {
-  const [activeSection, setActiveSection] = useState(0)
-  const [tocOpen, setTocOpen] = useState(false)
-
-  const meta = ARTICLES.find((a) => a.id === articleId)
-  const content = ARTICLE_CONTENT[articleId]
-
-  // An toàn khi articleId không khớp bài nào (không nên xảy ra trong luồng điều hướng bình thường).
-  if (!meta || !content) {
-    return (
-      <div className="h-full flex flex-col screen-transition">
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--c-line)" }}>
-          <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-            {icons.back()}
-            Quay lại
-          </button>
-        </div>
-        <div className="flex-1 flex items-center justify-center px-6 text-sm text-slate-400 text-center">
-          Không tìm thấy nội dung bài viết này.
-        </div>
-      </div>
-    )
-  }
-
-  const { title, specialty, tags, readTime, difficulty, lastUpdated } = meta
-  const { toc, sections, keyPoints, highlightTerms } = content
-  const related = ARTICLES.filter((a) => a.id !== articleId).slice(0, 3)
-
-  return (
-    <div className="h-full flex flex-col screen-transition">
-      {/* Article header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-          {icons.back()}
-          Quay lại
-        </button>
-      </div>
-
-      <div className="scroll-ios flex-1">
-        {/* Article title area */}
-        <div className="px-6 pt-6 pb-4">
-          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--c-primary)" }}>{specialty}</span>
-          <h1 className="text-2xl font-bold text-slate-900 mt-1 leading-tight">{title}</h1>
-          <div className="flex items-center gap-3 mt-2.5">
-            <DifficultyBadge level={difficulty} />
-            <span className="text-xs text-slate-400">{readTime} phút đọc</span>
-            <span className="text-xs text-slate-400">Cập nhật {lastUpdated}</span>
-          </div>
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            {tags.map((t) => <TagPill key={t} tag={t} />)}
-          </div>
-        </div>
-
-        {/* TOC toggle */}
-        <button
-          onClick={() => setTocOpen(!tocOpen)}
-          className="mx-5 mb-4 w-[calc(100%-2.5rem)] flex items-center justify-between px-4 py-3 rounded-2xl border"
-          style={{ borderColor: "var(--c-primary-line)", background: "var(--c-primary-soft)" }}
-        >
-          <span className="text-sm font-semibold" style={{ color: "var(--c-primary)" }}>Mục lục</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" strokeWidth={2} className={`w-4 h-4 transition-transform ${tocOpen ? "rotate-180" : ""}`}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {tocOpen && (
-          <div className="mx-5 mb-4 rounded-2xl border overflow-hidden fade-in" style={{ borderColor: "var(--c-line)" }}>
-            {toc.map((item, i) => (
-              <button
-                key={item}
-                onClick={() => { setActiveSection(i); setTocOpen(false) }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left border-b last:border-0"
-                style={{ borderColor: "var(--c-line-soft)", background: i === activeSection ? "var(--c-primary-soft)" : "var(--c-surface)" }}
-              >
-                <span className="text-xs font-mono text-slate-400 w-4">{i + 1}</span>
-                <span className="text-sm font-medium" style={{ color: i === activeSection ? "var(--c-primary)" : "var(--c-text-2)" }}>{item}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Article content */}
-        <div className="px-6 pb-8 space-y-6">
-          {sections.map((sec) => (
-            <div key={sec.id}>
-              <h2 className="text-lg font-bold text-slate-900 mb-3 pb-2 border-b" style={{ borderColor: "var(--c-line)" }}>{sec.heading}</h2>
-              {sec.content.map((para, j) => (
-                <p
-                  key={j}
-                  className="text-sm text-slate-700 leading-relaxed mb-3"
-                  dangerouslySetInnerHTML={{ __html: highlightMedicalTerms(para, highlightTerms) }}
-                />
-              ))}
-            </div>
-          ))}
-
-          {/* Key points callout */}
-          <div className="p-4 rounded-2xl" style={{ background: "var(--c-primary-soft)", border: "1.5px solid var(--c-primary-line-2)" }}>
-            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--c-primary-strong)" }}>Điểm chính</p>
-            <ul className="space-y-2">
-              {keyPoints.map((pt) => (
-                <li key={pt} className="flex items-start gap-2 text-sm" style={{ color: "var(--c-text-2)" }}>
-                  <span className="mt-1 flex-none w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "var(--c-primary)" }}>
-                    <svg viewBox="0 0 10 10" fill="white" className="w-2.5 h-2.5">
-                      <path d="M2 5l2.5 2.5 4-4" stroke="white" strokeWidth={1.5} fill="none" strokeLinecap="round" />
-                    </svg>
-                  </span>
-                  {pt}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Related articles */}
-          <div>
-            <h3 className="text-base font-bold text-slate-900 mb-3">Bài viết liên quan</h3>
-            {related.map((art) => (
-              <div key={art.id} className="flex items-center gap-3 py-3 border-b" style={{ borderColor: "var(--c-line-soft)" }}>
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--c-line-soft)", color: "var(--c-text-muted)" }}>
-                  {specialtyIcon(SPECIALTIES.find((s) => s.name === art.specialty)?.id, "w-[18px] h-[18px]")}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-800">{art.title}</p>
-                  <p className="text-xs text-slate-400">{art.specialty} · {art.readTime}m</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Add Entry (Create custom session) ────────────────────────────────────────
-
-// Loại nội dung của mục tự nhập, lưu như tag đầu tiên. Bỏ "Lưu đồ" khỏi danh sách: app không có màn
-// nào vẽ/hiển thị lưu đồ nên chọn nó chỉ tạo ra một tag không dẫn tới đâu (muốn dựng lưu đồ thì đã
-// có màn Sơ đồ tư duy). Mục cũ đã gắn tag "Lưu đồ" vẫn giữ nguyên tag đó, chỉ là không chọn mới được.
-const ENTRY_TYPES = ["Bài viết", "Hướng dẫn nhanh", "Thuốc", "Phác đồ", "Máy tính"] as const
-
-// Màn soạn bài viết tự nhập — dùng cho cả TẠO MỚI và SỬA (truyền `initial` là bài cần sửa).
-// Nội dung chi tiết soạn tự do theo block (chữ + ảnh xen kẽ, xem components/BlockEditor.tsx).
-function AddEntryScreen({
-  initial,
-  linkTargets,
-  onSave,
-  onBack,
-}: {
-  initial?: Article
-  linkTargets: LinkTarget[]
-  onSave: (a: Article) => void
-  onBack: () => void
-}) {
-  // Loại nội dung được lưu như tag ĐẦU TIÊN (xem handleSave) — khi sửa thì tách ngược ra để hiển
-  // thị đúng chip đang chọn và không nhân đôi tag.
-  const initialType = ENTRY_TYPES.find((t) => t === initial?.tags[0]) ?? "Bài viết"
-  const initialExtraTags = initial ? initial.tags.filter((t) => t !== initialType) : []
-
-  const [title, setTitle] = useState(initial?.title ?? "")
-  const [specialty, setSpecialty] = useState(initial?.specialty ?? SPECIALTIES[0].name)
-  const [type, setType] = useState<(typeof ENTRY_TYPES)[number]>(initialType)
-  const [difficulty, setDifficulty] = useState<"Cơ bản" | "Nâng cao">(initial?.difficulty ?? "Cơ bản")
-  const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "")
-  const [blocks, setBlocks] = useState<ContentBlock[]>(() => blocksForEditing(initial ? articleBlocks(initial) : []))
-  const [tagsText, setTagsText] = useState(initialExtraTags.join(", "))
-
-  const canSave = title.trim().length > 0
-
-  function handleSave() {
-    if (!canSave) return
-    const saved = cleanBlocks(blocks)
-    // Tóm tắt tự động & thời gian đọc chỉ tính phần chữ — bỏ chú thích ảnh để tóm tắt đọc xuôi.
-    const plain = blocksToPlainText(saved.filter((b) => b.type !== "image"))
-    const wordCount = plain.trim() ? plain.trim().split(/\s+/).length : 0
-    const newArticle: Article = {
-      id: initial?.id ?? `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title: title.trim(),
-      specialty,
-      tags: [type, ...tagsText.split(",").map((t) => t.trim()).filter(Boolean)],
-      readTime: Math.max(1, Math.round(wordCount / 200)),
-      difficulty,
-      excerpt: excerpt.trim() || plain.trim().slice(0, 140) || "(Chưa có tóm tắt)",
-      lastUpdated: initial ? "Vừa sửa" : "Vừa tạo",
-      blocks: saved,
-    }
-    onSave(newArticle)
-  }
-
-  const fieldClass = "w-full px-4 py-3 rounded-2xl text-sm border outline-none"
-  const fieldStyle = { borderColor: "var(--c-line)", background: "var(--c-surface)" }
-
-  return (
-    <div className="h-full flex flex-col screen-transition">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-          {icons.back()}
-          Quay lại
-        </button>
-        <span className="text-sm font-semibold text-slate-900">{initial ? "Sửa mục" : "Tạo mục mới"}</span>
-        <span className="w-10" />
-      </div>
-
-      <div className="scroll-ios flex-1 px-6 pt-6 pb-8 space-y-4">
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Tiêu đề</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="VD: Hạ natri máu cấp"
-            className={fieldClass}
-            style={fieldStyle}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Chuyên khoa</label>
-          <select
-            value={specialty}
-            onChange={(e) => setSpecialty(e.target.value)}
-            className={fieldClass}
-            style={fieldStyle}
-          >
-            {SPECIALTIES.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Loại nội dung</label>
-          <div className="flex flex-wrap gap-2">
-            {ENTRY_TYPES.map((t) => (
-              <button
-                key={t}
-                onClick={() => setType(t)}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold border"
-                style={
-                  type === t
-                    ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
-                    : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-                }
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Độ khó</label>
-          <div className="flex gap-2">
-            {(["Cơ bản", "Nâng cao"] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDifficulty(d)}
-                className="flex-1 py-2.5 rounded-2xl text-sm font-semibold border"
-                style={
-                  difficulty === d
-                    ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
-                    : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
-                }
-              >
-                {d === "Nâng cao" ? "Nâng cao" : "Cơ bản"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Tóm tắt ngắn</label>
-          <textarea
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            placeholder="1–2 câu tóm tắt hiển thị ở danh sách"
-            rows={2}
-            className={fieldClass}
-            style={fieldStyle}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Nội dung chi tiết</label>
-          <BlockEditor blocks={blocks} onChange={setBlocks} linkTargets={linkTargets} />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Thẻ tag (cách nhau bằng dấu phẩy)</label>
-          <input
-            value={tagsText}
-            onChange={(e) => setTagsText(e.target.value)}
-            placeholder="VD: nội môi, cấp cứu"
-            className={fieldClass}
-            style={fieldStyle}
-          />
-        </div>
-
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Mục tự nhập (kể cả ảnh chèn trong bài) được lưu trên máy (trình duyệt của bạn) nên vẫn còn sau khi tắt/mở lại app. Dùng màn "Đồng bộ dữ liệu" nếu muốn sao lưu hoặc chuyển sang thiết bị khác.
-        </p>
-      </div>
-
-      <div className="flex-none px-6 pt-3 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
-        <button
-          onClick={handleSave}
-          disabled={!canSave}
-          className="w-full py-3.5 rounded-2xl font-semibold text-sm"
-          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}
-        >
-          {initial ? "Lưu thay đổi" : "Lưu mục mới"}
         </button>
       </div>
     </div>
@@ -4032,7 +3679,6 @@ type SyncCategoryRow = {
 }
 
 type ImportPayload = {
-  articles: Article[]
   antibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
   infusions: Record<InfusionCategory, InfusionDrug[]>
@@ -4062,7 +3708,6 @@ type NoiDungMucJson = Record<string, unknown>
 // Snapshot đủ để hoàn tác một lần nhập file — CHỈ gồm các bảng gộp theo id (nơi nhập nhầm file cũ
 // thật sự làm mất nội dung vừa sửa, vì mục trùng id bị THAY THẾ toàn bộ).
 type SyncSnapshot = {
-  articles: Article[]
   antibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
   infusions: Record<InfusionCategory, InfusionDrug[]>
@@ -4073,7 +3718,6 @@ type SyncSnapshot = {
 }
 
 function DataSyncScreen({
-  customArticles,
   customAntibiotics,
   customDiseases,
   customInfusions,
@@ -4086,7 +3730,6 @@ function DataSyncScreen({
   onBackupDone,
   onBack,
 }: {
-  customArticles: Article[]
   customAntibiotics: Antibiotic[]
   customDiseases: DiseaseEntry[]
   customInfusions: Record<InfusionCategory, InfusionDrug[]>
@@ -4098,7 +3741,7 @@ function DataSyncScreen({
   // true khi một trong các danh mục lưu ở IndexedDB (bài viết, bài học ECG, mucs) KHÔNG đọc được
   // lượt này. Bắt buộc phải biết ở đây vì màn này là nơi duy nhất có thể biến một sự cố đọc tạm thời
   // thành MẤT DỮ LIỆU THẬT: payload xuất ra dựng từ chính các mảng trong bộ nhớ, mà đọc hỏng thì
-  // chúng rỗng — người dùng nhận về một file "sao lưu" chứa `articles: []` rồi ghi đè lên bản
+  // chúng rỗng — người dùng nhận về một file "sao lưu" chứa `mucs: []` rồi ghi đè lên bản
   // backup tốt trước đó. Ảo giác mất dữ liệu ở các màn khác còn cứu được; ca này thì không.
   duLieuChuaDocDuoc: boolean
   onImport: (data: ImportPayload) => void
@@ -4139,7 +3782,6 @@ function DataSyncScreen({
   const wardRecipeList = Object.values(wardRecipesByDrug).flat()
 
   const categoryRows: SyncCategoryRow[] = [
-    { key: "articles", label: "Bài viết", current: customArticles, incomingOf: (d) => d.articles },
     { key: "antibiotics", label: "Kháng sinh", current: customAntibiotics, incomingOf: (d) => d.antibiotics },
     { key: "diseases", label: "Bệnh lý tự thêm", current: customDiseases, incomingOf: (d) => d.diseases },
     // Một dòng cho mỗi nhóm thuốc truyền, đọc từ danh mục nhóm — thêm nhóm mới là bảng này tự có
@@ -4242,7 +3884,6 @@ function DataSyncScreen({
         version: 2,
         exportedAt: new Date().toISOString(),
         data: {
-          articles: pick("articles", customArticles),
           antibiotics: pick("antibiotics", customAntibiotics),
           diseases: pick("diseases", customDiseases),
           // Mỗi nhóm thuốc truyền một khoá riêng trong file, tên khoá lấy từ `backupKey` của nhóm
@@ -4297,10 +3938,9 @@ function DataSyncScreen({
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result))
-        // Hỗ trợ cả file export chuẩn ({ data: {...} }) lẫn file JSON thô { articles, antibiotics, ... }
+        // Hỗ trợ cả file export chuẩn ({ data: {...} }) lẫn file JSON thô { antibiotics, diseases, ... }
         const data = parsed && typeof parsed === "object" && "data" in parsed ? (parsed as { data: unknown }).data : parsed
         const d = (data ?? {}) as Record<string, unknown>
-        const articles: Article[] = Array.isArray(d.articles) ? (d.articles as Article[]) : []
         const antibiotics: Antibiotic[] = Array.isArray(d.antibiotics) ? (d.antibiotics as Antibiotic[]) : []
         const diseases: DiseaseEntry[] = Array.isArray(d.diseases) ? (d.diseases as DiseaseEntry[]) : []
         // Thuốc truyền: đọc theo `backupKey` của từng nhóm. File cũ (chỉ có 5 nhóm) đơn giản là
@@ -4323,9 +3963,8 @@ function DataSyncScreen({
             ? (d.mucDocs as Record<string, NoiDungMucJson>)
             : {}
 
-        const parsedData: ImportPayload = { articles, antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes, mucs, mucDocs }
+        const parsedData: ImportPayload = { antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes, mucs, mucDocs }
         const count =
-          articles.length +
           antibiotics.length +
           diseases.length +
           INFUSION_CATEGORIES.reduce((n, c) => n + infusions[c.id].length, 0) +
@@ -4368,7 +4007,6 @@ function DataSyncScreen({
   async function handleConfirmImport() {
     if (!pendingImport) return
     const snapshot: SyncSnapshot = {
-      articles: customArticles,
       antibiotics: customAntibiotics,
       diseases: customDiseases,
       infusions: customInfusions,
@@ -4779,173 +4417,6 @@ function DataSyncScreen({
           <p className="text-xs text-slate-400 leading-relaxed">
             Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — các mục id khác trên máy không bị đụng tới. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. "Hoàn tác" (còn đứng ở màn này) lùi được cả DANH SÁCH mục lẫn NỘI DUNG bài viết/sơ đồ mà file vừa đè lên — nhưng chỉ khi bạn còn ở màn này; rời màn hình là nội dung cũ mất hẳn.
           </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Màn ĐỌC bài tự nhập, dựng theo cùng khuôn với ArticleScreen (bài dựng sẵn) để bài mình viết đọc
-// lên cũng ra dáng một bài tra cứu kiểu UpToDate: đầu bài có chuyên khoa / độ khó / thời gian đọc,
-// mục lục gập mở tự sinh từ các dòng tiêu đề, nội dung chia mục có đường kẻ, và danh sách bài liên
-// quan ở cuối.
-function CustomEntryScreen({
-  article,
-  relatedArticles,
-  onEdit,
-  onDelete,
-  onOpenLink,
-  onOpenArticle,
-  onBack,
-}: {
-  article: Article | undefined
-  relatedArticles: Article[]
-  onEdit: (a: Article) => void
-  onDelete: (id: string) => void
-  onOpenLink: (target: string) => void
-  onOpenArticle: (a: Article) => void
-  onBack: () => void
-}) {
-  const [tocOpen, setTocOpen] = useState(false)
-  const headingEls = useRef(new Map<string, HTMLElement>())
-
-  const blocks = useMemo(() => (article ? articleBlocks(article) : []), [article])
-  const toc = useMemo(() => blocksToToc(blocks), [blocks])
-  const wordCount = useMemo(() => {
-    const plain = blocksToPlainText(blocks).trim()
-    return plain ? plain.split(/\s+/).length : 0
-  }, [blocks])
-
-  if (!article) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center gap-3 px-5">
-        <p className="text-sm text-slate-500">Không tìm thấy mục này.</p>
-        <button onClick={onBack} className="text-sm font-semibold" style={{ color: "var(--c-primary)" }}>
-          Quay lại
-        </button>
-      </div>
-    )
-  }
-
-  const related = relatedArticles.filter((a) => a.id !== article.id).slice(0, 3)
-
-  return (
-    <div className="h-full flex flex-col screen-transition">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-          {icons.back()}
-          Quay lại
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onEdit(article)}
-            className="w-11 h-11 rounded-full flex items-center justify-center"
-            style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
-            aria-label="Sửa mục này"
-          >
-            {icons.edit()}
-          </button>
-          <ConfirmIconButton
-            onConfirm={() => onDelete(article.id)}
-            ariaLabel="Xoá mục này"
-            className="w-11 h-11 rounded-full flex items-center justify-center"
-            style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }}
-          />
-        </div>
-      </div>
-
-      <div className="scroll-ios flex-1 pb-10">
-        <div className="px-6 pt-6">
-          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--c-primary)" }}>
-            {article.specialty}
-          </span>
-          <h1 className="text-2xl font-bold text-slate-900 mt-1 leading-tight">{article.title}</h1>
-          <div className="flex items-center gap-3 mt-2.5 flex-wrap">
-            <DifficultyBadge level={article.difficulty} />
-            <span className="text-xs text-slate-400">{Math.max(1, Math.round(wordCount / 200))} phút đọc</span>
-            <span className="text-xs text-slate-400">{article.lastUpdated}</span>
-          </div>
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            {article.tags.map((t) => (
-              <TagPill key={t} tag={t} />
-            ))}
-          </div>
-
-          <p className="text-sm text-slate-600 mt-5 leading-relaxed">{article.excerpt}</p>
-        </div>
-
-        {/* Mục lục — chỉ hiện khi bài có ít nhất một dòng tiêu đề. Bấm một mục là cuộn tới đúng chỗ. */}
-        {toc.length > 0 && (
-          <div className="px-5 mt-5">
-            <button
-              onClick={() => setTocOpen(!tocOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border"
-              style={{ borderColor: "var(--c-primary-line)", background: "var(--c-primary-soft)" }}
-            >
-              <span className="text-sm font-semibold" style={{ color: "var(--c-primary)" }}>
-                Mục lục ({toc.length})
-              </span>
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--c-primary)"
-                strokeWidth={2}
-                className={`w-4 h-4 transition-transform ${tocOpen ? "rotate-180" : ""}`}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {tocOpen && (
-              <div className="mt-2 rounded-2xl border overflow-hidden fade-in" style={{ borderColor: "var(--c-line)" }}>
-                {toc.map((item, i) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setTocOpen(false)
-                      headingEls.current.get(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left border-b last:border-0"
-                    style={{ borderColor: "var(--c-line-soft)", background: "var(--c-surface)" }}
-                  >
-                    <span className="text-xs font-mono text-slate-400 w-4 flex-none">{i + 1}</span>
-                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="px-6">
-          <BlockContent
-            blocks={blocks}
-            onOpenLink={onOpenLink}
-            headingRefs={(id, el) => {
-              if (el) headingEls.current.set(id, el)
-              else headingEls.current.delete(id)
-            }}
-          />
-        </div>
-
-        {related.length > 0 && (
-          <div className="px-6 mt-8">
-            <h3 className="text-base font-bold text-slate-900 mb-1">Bài viết liên quan</h3>
-            <p className="text-xs text-slate-400 mb-2">Cùng chuyên khoa {article.specialty}</p>
-            {related.map((a) => (
-              <button
-                key={a.id}
-                onClick={() => onOpenArticle(a)}
-                className="w-full flex items-center gap-3 py-3 border-b text-left"
-                style={{ borderColor: "var(--c-line-soft)" }}
-              >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-none" style={{ background: "var(--c-line-soft)", color: "var(--c-text-muted)" }}>
-                  {specialtyIcon(SPECIALTIES.find((s) => s.name === a.specialty)?.id, "w-[18px] h-[18px]")}
-                </div>
-                <span className="text-sm font-medium text-slate-800 flex-1 truncate">{a.title}</span>
-                <span className="flex-none text-slate-300 text-lg leading-none">›</span>
-              </button>
-            ))}
-          </div>
         )}
       </div>
     </div>
@@ -12609,7 +12080,6 @@ export default function App() {
   }
   const [screen, setScreen] = useState<Screen>(initialScreen)
   const [activeTab, setActiveTab] = useState<Screen>(initialScreen)
-  const [articleId, setArticleId] = useState<string>("mi")
   const [specialtyId, setSpecialtyId] = useState<string>("cardiology")
   // Mở thẳng một mục theo id — dùng bởi kết quả tìm kiếm loại "board" (luôn nhắm instance Mindmap,
   // đi kèm navigate("mindmap", id)) VÀ luồng "Tạo bài mới" (nhắm instance màn "danhMuc", xem
@@ -12633,7 +12103,6 @@ export default function App() {
   // `false` mỗi lần MỞ bảng chọn (xem onTaoBaiMoi của HomeScreen bên dưới) để lượt tạo TIẾP THEO
   // không bị khoá oan bởi lượt tạo TRƯỚC đã thành công.
   const dangTaoBaiVietRef = useRef(false)
-  const [viewCustomId, setViewCustomId] = useState<string | null>(null)
   const [viewEcgId, setViewEcgId] = useState<string | null>(null)
   // Tên tính năng đang xem ở màn "Sắp ra mắt" — id truyền qua navigate() khi bấm một thẻ Truy cập
   // nhanh chưa có màn thật.
@@ -12643,9 +12112,8 @@ export default function App() {
   // ở trên không mã hoá vào tên Screen: bốn nhánh Screen gần giống nhau chỉ khác danh mục đang lọc
   // đúng là thứ Task 7 gộp lại thành một.
   const [danhMucDangXem, setDanhMucDangXem] = useState<IdDanhMuc | null>(null)
-  // Bản nháp đang sửa của bài viết tự nhập / bài học ECG — null nghĩa là đang TẠO MỚI. Mang theo cả
-  // object (không chỉ id) để màn soạn thảo mở ra với nội dung sẵn có, giống cách sửa thuốc bên dưới.
-  const [editArticleDraft, setEditArticleDraft] = useState<Article | null>(null)
+  // Bản nháp đang sửa của bài học ECG — null nghĩa là đang TẠO MỚI. Mang theo cả object (không chỉ
+  // id) để màn soạn thảo mở ra với nội dung sẵn có, giống cách sửa thuốc bên dưới.
   const [editEcgDraft, setEditEcgDraft] = useState<EcgLesson | null>(null)
   // Dải xác nhận ngắn sau khi lưu/xoá — xem showToast bên dưới.
   const [toast, setToast] = useState<string | null>(null)
@@ -12669,10 +12137,6 @@ export default function App() {
   const [recentReads, setRecentReads] = useState<ReadEntry[]>(loadRecentReads)
 
   // Các mục người dùng tự nhập — lưu trên máy (localStorage) nên còn nguyên qua các lần mở app.
-  // Riêng bài viết: từ khi nội dung có thể chèn ảnh xen giữa các dòng, dữ liệu chuyển sang
-  // IndexedDB (dung lượng lớn hơn nhiều localStorage) — bài viết cũ được tự động di trú một lần,
-  // xem useIdbCollection.
-  const customArticlesCol = useIdbCollection<Article>(IDB_STORES.articles, CUSTOM_COLLECTION_KEYS.articles)
   const customAntibioticsCol = useLocalCollection<Antibiotic>(CUSTOM_COLLECTION_KEYS.antibiotics)
   // Bệnh lý tự thêm — chủ yếu được tạo tự động khi sửa "Chỉ định riêng theo bệnh lý" của một kháng
   // sinh và gõ vào tên bệnh lý chưa có trong danh mục gốc (xem EditAntibioticScreen). `allDiseases`
@@ -12719,7 +12183,6 @@ export default function App() {
 
   // Nhắc sao lưu — tính theo TẤT CẢ mục tự nhập, hiện được ở bất cứ tab nào.
   const hasCustomContent =
-    customArticlesCol.items.length > 0 ||
     customAntibioticsCol.items.length > 0 ||
     customDiseasesCol.items.length > 0 ||
     INFUSION_CATEGORIES.some((c) => infusionCols[c.id].items.length > 0) ||
@@ -12727,18 +12190,15 @@ export default function App() {
     customFlashcardsCol.items.length > 0
   const [showBackupReminder, setShowBackupReminder] = useState(false)
   useEffect(() => {
-    if (customArticlesCol.loading || ecgCol.loading) return
+    if (ecgCol.loading) return
     // Công thức pha đọc thẳng từ localStorage (không phải state React) — xem lib/wardRecipes.ts.
     const wardRecipeCount = Object.values(loadWardRecipes()).reduce((n, list) => n + list.length, 0)
     if (hasCustomContent || wardRecipeCount > 0) setShowBackupReminder(shouldRemindBackup())
-  }, [customArticlesCol.loading, ecgCol.loading, hasCustomContent])
+  }, [ecgCol.loading, hasCustomContent])
 
   const NON_TAB_SCREENS: Screen[] = [
-    "article",
     "specialty",
-    "addEntry",
     "search",
-    "customEntry",
     "addAntibiotic",
     "addInfusion",
     "editAntibiotic",
@@ -12760,26 +12220,17 @@ export default function App() {
 
   function navigate(s: Screen, id?: string) {
     // Mở một bài để đọc = ghi vào "Đã đọc gần đây". Đặt ngay tại đây (chỗ duy nhất mọi đường dẫn tới
-    // ba màn hình đọc bài đều đi qua: bấm thẻ, tìm kiếm, mở liên kết trong bài) nên không có lối vào
+    // màn hình đọc bài đều đi qua: bấm thẻ, tìm kiếm, mở liên kết trong bài) nên không có lối vào
     // nào bị bỏ sót.
-    if (s === "article" && id) {
-      setArticleId(id)
-      setRecentReads(recordRead("article", id))
-    }
     if (s === "specialty" && id) setSpecialtyId(id)
     if (s === "mindmap" && id) setMoBangYeuCau(id)
     if (s === "comingSoon" && id) setComingSoonFeature(id)
-    if (s === "customEntry" && id) {
-      setViewCustomId(id)
-      setRecentReads(recordRead("custom", id))
-    }
     if (s === "ecgDetail" && id) {
       setViewEcgId(id)
       setRecentReads(recordRead("ecg", id))
     }
     // Vào màn soạn thảo qua nút "+" luôn là TẠO MỚI — xoá bản nháp đang sửa (nếu có) để không mở
-    // nhầm nội dung của lần sửa trước. Muốn sửa thì đi qua goToEditArticle/goToEditEcg.
-    if (s === "addEntry") setEditArticleDraft(null)
+    // nhầm nội dung của lần sửa trước. Muốn sửa thì đi qua goToEditEcg.
     if (s === "addEcg") setEditEcgDraft(null)
     if (!NON_TAB_SCREENS.includes(s)) setActiveTab(s)
     setHistory((h) => [...h, screen])
@@ -12885,13 +12336,7 @@ export default function App() {
     const out: RecentReadItem[] = []
     for (const e of recentReads) {
       if (out.length >= 4) break
-      if (e.kind === "article") {
-        const a = ARTICLES.find((x) => x.id === e.id)
-        if (a) out.push({ key: `article:${a.id}`, id: a.id, title: a.title, at: e.at, screen: "article", tag: a.specialty })
-      } else if (e.kind === "custom") {
-        const a = customArticlesCol.items.find((x) => x.id === e.id)
-        if (a) out.push({ key: `custom:${a.id}`, id: a.id, title: a.title, at: e.at, screen: "customEntry", tag: "Tự nhập" })
-      } else if (e.kind === "muc") {
+      if (e.kind === "muc") {
         // Mục xoá mềm (daXoaLuc) đã biến khỏi lưới LuoiMuc/Mindmap và khỏi ô tìm kiếm chính (xem
         // SearchScreen) — phải biến khỏi "Đã đọc gần đây" cùng lý do: bấm vào không được mở một
         // mục người dùng tưởng đã xoá.
@@ -12914,18 +12359,14 @@ export default function App() {
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentReads, customArticlesCol.items, ecgCol.items, mucsCol.items])
+  }, [recentReads, ecgCol.items, mucsCol.items])
 
   // Danh sách mọi bài có thể chèn liên kết tới, dùng cho trình soạn thảo. `target` mã hoá luôn loại
-  // màn hình cần mở ("article" = bài dựng sẵn, "custom" = bài tự nhập, "ecg" = bài học ECG) nên khi
-  // bấm vào liên kết chỉ cần đọc chuỗi là biết đi đâu, không phải tra ngược nhiều danh sách.
+  // màn hình cần mở ("ecg" = bài học ECG) nên khi bấm vào liên kết chỉ cần đọc chuỗi là biết đi
+  // đâu, không phải tra ngược nhiều danh sách.
   const linkTargets = useMemo(
-    () => [
-      ...ARTICLES.map((a) => ({ target: `article:${a.id}`, label: a.title, group: a.specialty })),
-      ...customArticlesCol.items.map((a) => ({ target: `custom:${a.id}`, label: a.title, group: "Tự nhập" })),
-      ...allEcgLessons.map((l) => ({ target: `ecg:${l.id}`, label: l.title, group: "ECG" })),
-    ],
-    [customArticlesCol.items, allEcgLessons],
+    () => allEcgLessons.map((l) => ({ target: `ecg:${l.id}`, label: l.title, group: "ECG" })),
+    [allEcgLessons],
   )
 
   // Mở một liên kết trong bài. Id không còn tồn tại (bài đã bị xoá sau khi chèn liên kết) thì bỏ
@@ -12935,9 +12376,7 @@ export default function App() {
     if (sep < 0) return
     const kind = target.slice(0, sep)
     const id = target.slice(sep + 1)
-    if (kind === "article" && ARTICLES.some((a) => a.id === id)) navigate("article", id)
-    else if (kind === "custom" && customArticlesCol.items.some((a) => a.id === id)) navigate("customEntry", id)
-    else if (kind === "ecg" && allEcgLessons.some((l) => l.id === id)) navigate("ecgDetail", id)
+    if (kind === "ecg" && allEcgLessons.some((l) => l.id === id)) navigate("ecgDetail", id)
   }
 
   // Hiện một dải xác nhận ngắn ở đáy màn hình rồi tự tắt. Kèm một nhịp rung nhẹ: hai tín hiệu này
@@ -12955,40 +12394,10 @@ export default function App() {
     }
   }, [])
 
-  function goToEditArticle(a: Article) {
-    setEditArticleDraft(a)
-    setHistory((h) => [...h, screen])
-    setScreen("addEntry")
-  }
-
   function goToEditEcg(l: EcgLesson) {
     setEditEcgDraft(l)
     setHistory((h) => [...h, screen])
     setScreen("addEcg")
-  }
-
-  function handleSaveEntry(a: Article) {
-    // Sửa: ghi đè đúng mục rồi quay lại màn đang xem. Tạo mới: về Trang chủ để thấy mục vừa thêm.
-    if (editArticleDraft) {
-      customArticlesCol.update(a)
-      showToast("Đã lưu thay đổi")
-      goBack()
-      return
-    }
-    customArticlesCol.add(a)
-    showToast("Đã lưu bài mới")
-    setActiveTab("home")
-    setHistory((h) => [...h, screen])
-    setScreen("home")
-  }
-
-  function handleDeleteArticle(id: string) {
-    customArticlesCol.remove(id)
-    // Bỏ luôn khỏi "Đã đọc gần đây": bài không còn thì không được để lại một dòng bấm vào không mở
-    // được gì. (Danh sách vẫn tự lọc khi hiển thị, đây là dọn sạch ngay cả trong bộ nhớ.)
-    setRecentReads(forgetRead("custom", id))
-    showToast("Đã xoá mục")
-    goBack()
   }
 
   function handleSaveAntibiotic(a: Antibiotic, newDiseases: DiseaseEntry[] = []) {
@@ -13027,7 +12436,6 @@ export default function App() {
   }
 
   function handleImportData(data: {
-    articles: Article[]
     antibiotics: Antibiotic[]
     diseases: DiseaseEntry[]
     // Thuốc truyền tự nhập, gom theo nhóm — khoá của từng nhóm trong file sao lưu là
@@ -13041,7 +12449,6 @@ export default function App() {
     // dung doc CRDT thật (xem chú thích ImportPayload, DataSyncScreen).
     mucs: MucMeta[]
   }) {
-    if (data.articles.length) customArticlesCol.upsertMany(data.articles)
     if (data.antibiotics.length) customAntibioticsCol.upsertMany(data.antibiotics)
     if (data.diseases.length) customDiseasesCol.upsertMany(data.diseases)
     INFUSION_CATEGORIES.forEach((c) => {
@@ -13057,7 +12464,6 @@ export default function App() {
   // Hoàn tác một lần nhập file: thay HẲN từng bảng bằng đúng snapshot chụp trước lúc nhập (khác
   // `handleImportData` — gộp theo id, không xoá mục file thêm mới).
   function handleRestoreSnapshot(snapshot: {
-    articles: Article[]
     antibiotics: Antibiotic[]
     diseases: DiseaseEntry[]
     infusions: Record<InfusionCategory, InfusionDrug[]>
@@ -13066,7 +12472,6 @@ export default function App() {
     wardRecipes: WardRecipe[]
     mucs: MucMeta[]
   }) {
-    customArticlesCol.replaceAll(snapshot.articles)
     customAntibioticsCol.replaceAll(snapshot.antibiotics)
     customDiseasesCol.replaceAll(snapshot.diseases)
     INFUSION_CATEGORIES.forEach((c) => infusionCols[c.id].replaceAll(snapshot.infusions[c.id] ?? []))
@@ -13268,7 +12673,6 @@ export default function App() {
               // chế lại đường điều hướng riêng (xem chú thích dài tại chỗ khai báo hàm đó).
               onMoMuc={moMucTuNgoai}
               onBack={goBack}
-              customArticles={customArticlesCol.items}
               customFlashcards={customFlashcardsCol.items}
               ecgLessons={allEcgLessons}
             />
@@ -13308,7 +12712,6 @@ export default function App() {
               onDaDoc={ghiDaDocMuc}
             />
           )}
-          {screen === "article" && <ArticleScreen articleId={articleId} onBack={goBack} />}
           {/* Task 7: ba thẻ Truy cập nhanh "Tiếp cận vấn đề"/"ECG"/"Phác đồ" ở Trang chủ đều mở màn
               này — cùng component, chỉ khác `danhMucDangXem` (state App(), đặt bởi onMoDanhMuc).
               Trộn cả hai `loai` (bài viết + sơ đồ) khi HIỂN THỊ, phân biệt bằng icon trên thẻ
@@ -13358,9 +12761,6 @@ export default function App() {
               onDangMoBang={setBangDangMo}
               onDaDoc={ghiDaDocMuc}
             />
-          )}
-          {screen === "addEntry" && (
-            <AddEntryScreen key={editArticleDraft?.id ?? "new"} initial={editArticleDraft ?? undefined} linkTargets={linkTargets} onSave={handleSaveEntry} onBack={goBack} />
           )}
           {screen === "mixing" && (
             <DungThuocScreen
@@ -13424,7 +12824,6 @@ export default function App() {
             ))}
           {screen === "dataSync" && (
             <DataSyncScreen
-              customArticles={customArticlesCol.items}
               customAntibiotics={customAntibioticsCol.items}
               customDiseases={customDiseasesCol.items}
               customInfusions={customInfusions}
@@ -13433,23 +12832,10 @@ export default function App() {
               customMucs={mucsCol.items}
               // Chỉ ba danh mục này nằm ở IndexedDB; kháng sinh/bệnh lý/thuốc truyền/thẻ ghi nhớ
               // dùng localStorage (đọc đồng bộ, không có trạng thái "đọc hỏng" tương đương).
-              duLieuChuaDocDuoc={customArticlesCol.loiDoc !== null || ecgCol.loiDoc !== null || mucsCol.loiDoc !== null}
+              duLieuChuaDocDuoc={ecgCol.loiDoc !== null || mucsCol.loiDoc !== null}
               onImport={handleImportData}
               onRestoreSnapshot={handleRestoreSnapshot}
               onBackupDone={() => setShowBackupReminder(false)}
-              onBack={goBack}
-            />
-          )}
-          {screen === "customEntry" && (
-            <CustomEntryScreen
-              article={customArticlesCol.items.find((a) => a.id === viewCustomId)}
-              relatedArticles={customArticlesCol.items.filter(
-                (a) => a.specialty === customArticlesCol.items.find((x) => x.id === viewCustomId)?.specialty,
-              )}
-              onEdit={goToEditArticle}
-              onDelete={handleDeleteArticle}
-              onOpenLink={openLinkTarget}
-              onOpenArticle={(a) => navigate("customEntry", a.id)}
               onBack={goBack}
             />
           )}
@@ -13544,13 +12930,13 @@ export default function App() {
             thanh gạt trên iPhone toàn màn hình. */}
         <UpdateBanner offsetBottom={anThanhNav ? "var(--above-safe)" : "var(--above-nav)"} />
 
-        {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: cả bài viết lẫn bài học ECG dùng
-            CHUNG một IndexedDB, hỏng thì hỏng cùng lúc, và người dùng có thể đang ở bất kỳ tab nào.
-            Vì sao phải nói ra: mục tự soạn được TRỘN với nội dung tĩnh (ARTICLES, ECG_LESSONS) nên
-            khi đọc hỏng, màn hình vẫn đầy bài — không một dấu hiệu nào cho thấy phần của người dùng
-            đã rụng mất. Khác dải "Có bản cập nhật" và toast: dải này KHÔNG tự tắt và không đóng
-            được, vì nó chỉ biến mất khi vấn đề thật sự hết (thuLaiDoc thành công). */}
-        {(customArticlesCol.loiDoc || ecgCol.loiDoc) && (
+        {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: bài học ECG tự soạn nằm trong
+            IndexedDB, và người dùng có thể đang ở bất kỳ tab nào. Vì sao phải nói ra: mục tự soạn được
+            TRỘN với nội dung tĩnh (ECG_LESSONS) nên khi đọc hỏng, màn hình vẫn đầy bài — không một
+            dấu hiệu nào cho thấy phần của người dùng đã rụng mất. Khác dải "Có bản cập nhật" và toast:
+            dải này KHÔNG tự tắt và không đóng được, vì nó chỉ biến mất khi vấn đề thật sự hết
+            (thuLaiDoc thành công). */}
+        {ecgCol.loiDoc && (
           <div
             role="alert"
             data-testid="dai-loi-doc-idb"
@@ -13574,13 +12960,12 @@ export default function App() {
             </svg>
             <div className="flex-1 flex flex-col items-start gap-1.5">
               <span className="text-[12.5px] leading-snug">
-                Chưa đọc được bài viết và bài học ECG bạn tự soạn — danh sách đang thiếu phần của
-                bạn. Đừng xuất sao lưu cho tới khi đọc lại được.
+                Chưa đọc được bài học ECG bạn tự soạn — danh sách đang thiếu phần của bạn. Đừng
+                xuất sao lưu cho tới khi đọc lại được.
               </span>
               <button
                 type="button"
                 onClick={() => {
-                  customArticlesCol.thuLaiDoc()
                   ecgCol.thuLaiDoc()
                 }}
                 className="dose-press"
