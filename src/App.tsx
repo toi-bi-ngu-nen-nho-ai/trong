@@ -3838,18 +3838,29 @@ function DataSyncScreen({
       // "lượt đọc hỏng" — `idbGetAll` nuốt lỗi thành `[]`, khiến hai ca đó trông y hệt nhau (đúng
       // bẫy mà idb.ts đã ghi chú cho chính hàm này). Ràng buộc dưới đây cần biết CHẮC là hỏng để
       // chặn cứng, không phải suy đoán từ một mảng rỗng.
-      const ketQuaMucsTuoi = await idbGetAllCoKetQua<MucMeta>(IDB_STORES.mucs)
-      if (!ketQuaMucsTuoi.ok) {
-        // CHẶN CỨNG, không im lặng rơi về `customMucs` cũ — cùng lập luận với `duLieuChuaDocDuoc`
-        // ở đầu hàm: một file trông hợp lệ nhưng dựng từ bản sao CŨ (có thể thiếu mục vừa tạo qua
-        // instance khác) thường bị ghi đè lên bản sao lưu tốt trước đó, biến một sự cố đọc tạm
-        // thời thành mất dữ liệu vĩnh viễn.
-        setStatus(
-          `Chưa xuất được: không đọc lại được kho "Bài viết & Sơ đồ" ngay lúc xuất (${ketQuaMucsTuoi.loi}). Thử lại, hoặc bỏ chọn ô "Bài viết & Sơ đồ" nếu chỉ cần sao lưu các mục còn lại.`,
-        )
-        return
+      //
+      // RÀO theo `exportSelection["mucs"]` (vòng sửa review — findings Important 1): lượt đọc tươi
+      // chỉ chạy khi ô "Bài viết & Sơ đồ" đang được CHỌN. Trước bản vá này, lượt đọc chạy VÔ ĐIỀU
+      // KIỆN — khi store `mucs` đọc hỏng, nó chặn TOÀN BỘ lượt xuất kể cả lúc người dùng đã bỏ chọn
+      // ô đó, biến câu khuyên "bỏ chọn ô Bài viết & Sơ đồ nếu chỉ cần sao lưu các mục còn lại" ở
+      // dưới thành một lối thoát KHÔNG TỒN TẠI — làm đúng như app dặn vẫn gặp y hệt câu chặn. Rào
+      // lại đây khiến câu khuyên đó ĐÚNG SỰ THẬT: bỏ chọn ô thì lượt đọc còn không chạy tới, các
+      // nhóm khác (kháng sinh, bệnh lý, công thức pha…) xuất bình thường dù `mucs` đang hỏng.
+      let mucsTuoi: MucMeta[] = []
+      if (exportSelection["mucs"] !== false) {
+        const ketQuaMucsTuoi = await idbGetAllCoKetQua<MucMeta>(IDB_STORES.mucs)
+        if (!ketQuaMucsTuoi.ok) {
+          // CHẶN CỨNG, không im lặng rơi về `customMucs` cũ — cùng lập luận với `duLieuChuaDocDuoc`
+          // ở đầu hàm: một file trông hợp lệ nhưng dựng từ bản sao CŨ (có thể thiếu mục vừa tạo qua
+          // instance khác) thường bị ghi đè lên bản sao lưu tốt trước đó, biến một sự cố đọc tạm
+          // thời thành mất dữ liệu vĩnh viễn.
+          setStatus(
+            `Chưa xuất được: không đọc lại được kho "Bài viết & Sơ đồ" ngay lúc xuất (${ketQuaMucsTuoi.loi}). Thử lại, hoặc bỏ chọn ô "Bài viết & Sơ đồ" nếu chỉ cần sao lưu các mục còn lại.`,
+          )
+          return
+        }
+        mucsTuoi = ketQuaMucsTuoi.items
       }
-      const mucsTuoi = ketQuaMucsTuoi.items
       // ─── Nội dung doc CRDT của từng mục (Task 4) ────────────────────────────────────────────
       // Nạp CHẬM và CÓ ĐIỀU KIỆN: `./board/xuatNhapNoiDung` kéo theo cả khối BlockSuite (~4 MB),
       // nên chỉ được chạm tới đúng lúc người dùng bấm "Xuất file" VÀ còn chọn ô "Bài viết & Sơ đồ".
