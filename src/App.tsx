@@ -1054,18 +1054,20 @@ function SpecialtyPicker({
 // ─── Screens ──────────────────────────────────────────────────────────────────
 
 // Một dòng trong "Đã đọc gần đây" — đã tra xong tiêu đề và biết bấm vào thì mở màn hình nào.
+//
+// Review Task 6/7 (Minor 5): trước bản vá này có thêm trường `screen: Screen` và nhánh dự phòng
+// `onNavigate(r.screen, r.id)` — di sản từ lúc "Đã đọc gần đây" còn gộp kind hệ cũ ("article"/
+// "custom"/"ecg", mỗi kind mở qua onNavigate) với kind "muc" (mở qua onMoMuc). Giai đoạn 8 xoá ba
+// kind hệ cũ khỏi `ReadKind` (xem lib/recentReads.ts) — nay `recentReadItems` (dưới) chỉ còn SINH
+// mục kind "muc", nên `muc` luôn có giá trị và nhánh onNavigate không bao giờ tới được. Bỏ hẳn
+// `screen` + nhánh chết thay vì giữ lại "phòng khi cần" — không có kind nào khác để phòng.
 interface RecentReadItem {
   key: string
   id: string
   title: string
   at: number
-  screen: Screen
   tag: string
-  // CHỈ set cho mục đến từ kho `mucs` mới (kind "muc" — xem recentReadItems) — bấm vào phải mở qua
-  // onMoMuc(id, loai, danhMuc) giống hệt SearchScreen (Task 1), KHÔNG qua onNavigate(screen, id)
-  // như kind hệ cũ còn lại (ecg). `screen` ở trên vẫn được gán một giá trị hợp lệ cho
-  // mục "muc" (không dùng tới) chỉ để khớp kiểu, không có nghĩa gì khi trường này có mặt.
-  muc?: { loai: LoaiMuc; danhMuc: IdDanhMuc }
+  muc: { loai: LoaiMuc; danhMuc: IdDanhMuc }
 }
 
 function HomeScreen({
@@ -1230,7 +1232,7 @@ function HomeScreen({
               {recentReads.map((r) => (
                 <button
                   key={r.key}
-                  onClick={() => (r.muc ? onMoMuc(r.id, r.muc.loai, r.muc.danhMuc) : onNavigate(r.screen, r.id))}
+                  onClick={() => onMoMuc(r.id, r.muc.loai, r.muc.danhMuc)}
                   className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
                   style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
                 >
@@ -12055,8 +12057,6 @@ export default function App() {
             id: m.id,
             title: m.ten,
             at: e.at,
-            // Không dùng tới — bấm vào đi qua `muc` bên dưới (onMoMuc), không qua onNavigate.
-            screen: "danhMuc",
             tag: DANH_MUC.find((d) => d.id === m.danhMuc)?.ten ?? "",
             muc: { loai: m.loai, danhMuc: m.danhMuc },
           })

@@ -56,13 +56,6 @@ export function recordRead(kind: ReadKind, id: string, now = Date.now()): ReadEn
   return next
 }
 
-// Bỏ hẳn một bài khỏi danh sách — dùng khi người dùng xoá bài đó.
-export function forgetRead(kind: ReadKind, id: string): ReadEntry[] {
-  const next = loadRecentReads().filter((e) => !(e.kind === kind && e.id === id))
-  saveCollection(KEY, next)
-  return next
-}
-
 // Mốc thời gian đọc, viết theo cách người ta nói: "Vừa xong", "3 giờ trước", "Hôm qua", "5 ngày
 // trước", rồi tới ngày cụ thể. Tính theo NGÀY LỊCH (không phải chia cho 24 giờ) nên 23h đêm qua đọc
 // thì sáng nay thấy "Hôm qua", đúng như cảm nhận thường ngày.
