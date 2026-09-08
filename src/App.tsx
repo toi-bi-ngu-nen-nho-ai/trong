@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
-import type { BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, SourceInfo } from "./data/types"
-import { SPECIALTIES, PICKER_ITEMS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
+import type { BolusDose, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, FlashCard, SourceInfo } from "./data/types"
+import { SPECIALTIES, PICKER_ITEMS, ANTIBIOTICS, DISEASES, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
@@ -103,14 +103,11 @@ import { THEME_LABELS, loadTheme, saveTheme, type ThemeMode } from "./lib/theme"
 import { markBackupDone, shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
 import { diffImportCounts, formatDateTime, latestTimestamp } from "./lib/importPreview"
 import { tickHaptic } from "./lib/haptics"
-import { forgetRead, formatReadTime, loadRecentReads, recordRead, type ReadEntry } from "./lib/recentReads"
+import { formatReadTime, loadRecentReads, recordRead, type ReadEntry } from "./lib/recentReads"
 import { COMMON_DOSE_UNITS, doseToRate, doseUnitOptions, formatDoseNumber, massFactor, massOfConcUnit, parseDoseUnit, rateToDose } from "./lib/infusion"
-import { BlockEditor, type LinkTarget } from "./components/BlockEditor"
-import { BlockContent } from "./components/BlockContent"
 import { ScreenHeader } from "./components/ScreenHeader"
 import { specialtyIcon } from "./components/SpecialtyIcons"
 import { IconChevronBack } from "./components/IconChevronBack"
-import { blocksForEditing, cleanBlocks, countImages, ecgBlocks, firstImageUrl } from "./lib/blocks"
 import { AdminRoute, BTN_BLOCK, BTN_SM, BTN_TALL, C, CHIP, FIELD, FIELD_STYLE, NUM, NUM_DOSE, PROSE, R, T, TAP, adminRouteLabel, highlightDoseNumbers, inferAdminRoutes, normalizeSearch, scrollElementIntoView, shortDrugName, shortRoute, trim, useDialogFocus } from "./lib/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -126,7 +123,7 @@ type Screen =
   | "mindmap"
   | "flashcard"
   | "specialty"
-  // Màn lưới lọc theo MỘT danh mục — thay ba màn cũ (EcgScreen, ComingSoonScreen của Phác đồ, và
+  // Màn lưới lọc theo MỘT danh mục — thay ba màn cũ (EcgScreen đã xoá ở giai đoạn 8, ComingSoonScreen của Phác đồ, và
   // thẻ Tiếp cận vấn đề). Danh mục nào nằm ở `danhMucDangXem` (state của App(), xem bên dưới),
   // không mã hoá vào tên màn: bốn nhánh Screen gần giống nhau đúng là thứ đã bị gộp một lần rồi
   // (xem addInfusion) — Task 7, kho-bai-viet-giai-doan-5-6.
@@ -141,9 +138,6 @@ type Screen =
   | "editAntibiotic"
   | "editInfusion"
   | "dataSync"
-  | "ecg"
-  | "ecgDetail"
-  | "addEcg"
   | "addFlashcard"
   | "comingSoon"
 
@@ -1094,7 +1088,7 @@ function HomeScreen({
   // "Sử dụng thuốc"/"Công cụ" vẫn trỏ một Screen thật (mixing/comingSoon) — không thuộc kho bài
   // viết nên không có danh mục để lọc theo. Ba thẻ còn lại trỏ THẲNG một `IdDanhMuc`: từ Task 7,
   // "Tiếp cận vấn đề"/"Phác đồ" không còn là lời hứa "Sắp ra mắt" nữa, và "ECG" không còn mở
-  // EcgScreen (danh sách bài học ECG cũ) mà mở lưới `mucs` lọc theo danhMuc 'ecg'.
+  // EcgScreen (danh sách bài học ECG cũ, đã xoá ở giai đoạn 8) mà mở lưới `mucs` lọc theo danhMuc 'ecg'.
   const resourceCards: {
     label: string
     icon: ReactElement
@@ -1107,7 +1101,7 @@ function HomeScreen({
     { label: "ECG", icon: icons.ecg(), target: { danhMuc: "ecg" } },
   ]
   // Task 7 review (I3): thẻ "ECG" TỪNG in caption `(${ecgCount})` — ecgCount tính từ hệ ECG CŨ
-  // (ecgCol IndexedDB + ECG_LESSONS tĩnh, nay ECG_LESSONS rỗng — xem src/data/ecg.ts), không còn
+  // (hệ ECG tự viết tay, đã xoá ở giai đoạn 8 Task 7), không còn
   // liên quan gì tới nội dung lưới `mucs` lọc theo danhMuc 'ecg' mà thẻ này mở ra từ Task 7. Người
   // dùng mới thấy hẳn "(0)" dù lưới thật có thể có nội dung — đúng anti-pattern mà chú thích dưới
   // đây từng chốt bỏ. Tính số ĐÚNG từ store `mucs` cần một lượt đọc async trong HomeScreen (ngoài
@@ -1312,7 +1306,7 @@ interface SearchResult {
   // "board" (đọc store IDB_STORES.boards) đã gộp vào "muc" (đọc store IDB_STORES.mucs, kho bài
   // viết + sơ đồ hợp nhất từ giai đoạn 5-6). Giai đoạn 8 Task 6 gỡ tiếp hai kind của hệ bài
   // viết tự viết tay (article/customArticle) — kho `mucs` là hệ thay thế.
-  kind: "ecg" | "flashcard" | "muc"
+  kind: "flashcard" | "muc"
   id: string
   title: string
   subtitle: string
@@ -1335,7 +1329,6 @@ export function SearchScreen({
   onMoMuc,
   onBack,
   customFlashcards,
-  ecgLessons,
 }: {
   onNavigate: (s: Screen, id?: string) => void
   // Kết quả kind "muc" KHÔNG đi qua onNavigate — SearchScreen không tự biết instance BoardGallery
@@ -1345,7 +1338,6 @@ export function SearchScreen({
   onMoMuc: (id: string, loai: LoaiMuc, danhMuc: IdDanhMuc) => void
   onBack: () => void
   customFlashcards: FlashCard[]
-  ecgLessons: EcgLesson[]
 }) {
   const [query, setQuery] = useState("")
   const [activeFilter, setActiveFilter] = useState("Tất cả")
@@ -1364,9 +1356,6 @@ export function SearchScreen({
 
   const allResults = useMemo<SearchResult[]>(() => {
     return [
-      // Bài ECG không có trường chuyên khoa (chỉ có tags tự do) — không lọc được theo bộ lọc chuyên
-      // khoa, chỉ hiện khi đang ở "Tất cả" (xem điều kiện activeFilter bên dưới).
-      ...ecgLessons.map((l): SearchResult => ({ kind: "ecg", id: l.id, title: l.title, subtitle: l.summary ?? "", tags: l.tags })),
       ...customFlashcards.map((c): SearchResult => ({ kind: "flashcard", id: c.id, title: c.front, subtitle: c.back, specialty: c.specialty, tags: [] })),
       // Mục xoá MỀM (daXoaLuc) đã biến khỏi lưới LuoiMuc/Mindmap — phải biến khỏi cả ô tìm kiếm
       // chính, nếu không bấm vào kết quả sẽ mở một mục người dùng tưởng đã xoá.
@@ -1394,7 +1383,7 @@ export function SearchScreen({
           danhMuc: m.danhMuc,
         })),
     ]
-  }, [customFlashcards, ecgLessons, mucs])
+  }, [customFlashcards, mucs])
 
   // Dải chip suy từ CHÍNH kết quả đang có, không phải từ danh sách bài viết tĩnh như trước. Bảng Mindmap gắn
   // một trong 5 khoa mà không bài viết dựng sẵn nào dùng (Tiêu hoá, Huyết học, Nhiễm, Sinh lý bệnh,
@@ -1421,9 +1410,9 @@ export function SearchScreen({
     // gõ nhanh mặc định lúc trực, nên chuẩn chung là bỏ dấu.
     const q = normalizeSearch(query)
     return allResults.filter((r) => {
-      // Bài ECG không có `specialty` khi chưa gắn khoa (r.specialty == null) — locHieuLuc khác
-      // "Tất cả" thì khoaChuan(r.specialty) !== locHieuLuc đã đúng (undefined luôn khác một chuỗi
-      // cụ thể) nên tự động bị loại, không cần kiểm tra riêng.
+      // Mục chưa gắn khoa có r.specialty == null — locHieuLuc khác "Tất cả" thì
+      // khoaChuan(r.specialty) !== locHieuLuc đã đúng (undefined luôn khác một chuỗi cụ thể) nên tự
+      // động bị loại, không cần kiểm tra riêng.
       if (locHieuLuc !== "Tất cả" && khoaChuan(r.specialty) !== locHieuLuc) return false
       return (
         normalizeSearch(r.title).includes(q) ||
@@ -1436,12 +1425,11 @@ export function SearchScreen({
   }, [allResults, query, locHieuLuc])
 
   const RESULT_LABEL: Record<Exclude<SearchResult["kind"], "muc">, string> = {
-    ecg: "ECG",
     flashcard: "Thẻ ghi nhớ",
   }
 
   // Kind "muc" KHÔNG tra RESULT_LABEL: một giá trị "muc" mang theo cả hai khả năng (bài viết hoặc
-  // sơ đồ) — khác hai kind kia, mỗi kind chỉ ứng với một nhãn cố định — nên nhãn phải suy TẠI CHỖ
+  // sơ đồ) — khác kind "flashcard", chỉ ứng với một nhãn cố định — nên nhãn phải suy TẠI CHỖ
   // từ `loai`, không tra bảng tĩnh.
   function nhanKetQua(r: SearchResult): string {
     if (r.kind === "muc") return r.loai === "so-do" ? "Sơ đồ" : "Bài viết"
@@ -1449,11 +1437,10 @@ export function SearchScreen({
   }
 
   function openResult(r: SearchResult) {
-    if (r.kind === "ecg") onNavigate("ecgDetail", r.id)
     // r.loai/r.danhMuc chỉ vắng nếu bản ghi mucs thiếu chúng ở runtime (không nên xảy ra — cả hai
     // đều bắt buộc theo MucMeta — nhưng vẫn kiểm để không gọi onMoMuc với giá trị rỗng); rơi về
     // nhánh chuyên khoa bên dưới thay vì mở nhầm.
-    else if (r.kind === "muc" && r.loai && r.danhMuc) onMoMuc(r.id, r.loai, r.danhMuc)
+    if (r.kind === "muc" && r.loai && r.danhMuc) onMoMuc(r.id, r.loai, r.danhMuc)
     else onNavigate("specialty", SPECIALTIES.find((s) => s.name === r.specialty)?.id)
   }
 
@@ -3682,7 +3669,6 @@ type ImportPayload = {
   antibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
   infusions: Record<InfusionCategory, InfusionDrug[]>
-  ecgLessons: EcgLesson[]
   flashcards: FlashCard[]
   wardRecipes: WardRecipe[]
   // Task 3 (giai đoạn 7-9): metadata của kho bài viết/sơ đồ hợp nhất (store `mucs`, xem
@@ -3711,7 +3697,6 @@ type SyncSnapshot = {
   antibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
   infusions: Record<InfusionCategory, InfusionDrug[]>
-  ecgLessons: EcgLesson[]
   flashcards: FlashCard[]
   wardRecipes: WardRecipe[]
   mucs: MucMeta[]
@@ -3721,7 +3706,6 @@ function DataSyncScreen({
   customAntibiotics,
   customDiseases,
   customInfusions,
-  customEcgLessons,
   customFlashcards,
   customMucs,
   duLieuChuaDocDuoc,
@@ -3733,12 +3717,11 @@ function DataSyncScreen({
   customAntibiotics: Antibiotic[]
   customDiseases: DiseaseEntry[]
   customInfusions: Record<InfusionCategory, InfusionDrug[]>
-  customEcgLessons: EcgLesson[]
   customFlashcards: FlashCard[]
   // Task 3 (giai đoạn 7-9): metadata store `mucs` (kho bài viết/sơ đồ hợp nhất) — xem chú thích ở
   // `ImportPayload` phía trên về ranh giới với nội dung doc CRDT thật (Task 4).
   customMucs: MucMeta[]
-  // true khi một trong các danh mục lưu ở IndexedDB (bài viết, bài học ECG, mucs) KHÔNG đọc được
+  // true khi danh mục lưu ở IndexedDB (kho `mucs`) KHÔNG đọc được
   // lượt này. Bắt buộc phải biết ở đây vì màn này là nơi duy nhất có thể biến một sự cố đọc tạm thời
   // thành MẤT DỮ LIỆU THẬT: payload xuất ra dựng từ chính các mảng trong bộ nhớ, mà đọc hỏng thì
   // chúng rỗng — người dùng nhận về một file "sao lưu" chứa `mucs: []` rồi ghi đè lên bản
@@ -3793,7 +3776,6 @@ function DataSyncScreen({
       incomingOf: (d: ImportPayload) => d.infusions[c.id] ?? [],
     })),
     { key: "wardRecipes", label: "Công thức pha đã lưu", current: wardRecipeList, incomingOf: (d) => d.wardRecipes },
-    { key: "ecgLessons", label: "Bài học ECG", current: customEcgLessons, incomingOf: (d) => d.ecgLessons },
     { key: "flashcards", label: "Thẻ ghi nhớ tự nhập", current: customFlashcards, incomingOf: (d) => d.flashcards },
     // Task 3: metadata mucs (kho bài viết/sơ đồ hợp nhất) — chỉ tên/danh mục/tag/chuyên khoa, không
     // phải nội dung doc CRDT thật (xem chú thích ImportPayload).
@@ -3890,7 +3872,6 @@ function DataSyncScreen({
           // (data/categories.ts) — 5 nhóm cũ giữ nguyên tên cũ nên file xuất từ bản trước và file
           // xuất từ bản này đọc lẫn nhau được.
           ...Object.fromEntries(INFUSION_CATEGORIES.map((c) => [c.backupKey, pick(c.backupKey, customInfusions[c.id] ?? [])])),
-          ecgLessons: pick("ecgLessons", customEcgLessons),
           flashcards: pick("flashcards", customFlashcards),
           wardRecipes: pick("wardRecipes", wardRecipeList),
           mucs: pick("mucs", customMucs),
@@ -3948,7 +3929,6 @@ function DataSyncScreen({
         const infusions = Object.fromEntries(
           INFUSION_CATEGORIES.map((c) => [c.id, Array.isArray(d[c.backupKey]) ? (d[c.backupKey] as InfusionDrug[]) : []]),
         ) as Record<InfusionCategory, InfusionDrug[]>
-        const ecgLessons: EcgLesson[] = Array.isArray(d.ecgLessons) ? (d.ecgLessons as EcgLesson[]) : []
         const flashcards: FlashCard[] = Array.isArray(d.flashcards) ? (d.flashcards as FlashCard[]) : []
         const wardRecipes: WardRecipe[] = Array.isArray(d.wardRecipes) ? (d.wardRecipes as WardRecipe[]) : []
         // Task 3 (giai đoạn 7-9): metadata mucs. File cũ (xuất từ trước Task 3) đơn giản là thiếu
@@ -3963,12 +3943,11 @@ function DataSyncScreen({
             ? (d.mucDocs as Record<string, NoiDungMucJson>)
             : {}
 
-        const parsedData: ImportPayload = { antibiotics, diseases, infusions, ecgLessons, flashcards, wardRecipes, mucs, mucDocs }
+        const parsedData: ImportPayload = { antibiotics, diseases, infusions, flashcards, wardRecipes, mucs, mucDocs }
         const count =
           antibiotics.length +
           diseases.length +
           INFUSION_CATEGORIES.reduce((n, c) => n + infusions[c.id].length, 0) +
-          ecgLessons.length +
           flashcards.length +
           wardRecipes.length +
           mucs.length
@@ -4010,7 +3989,6 @@ function DataSyncScreen({
       antibiotics: customAntibiotics,
       diseases: customDiseases,
       infusions: customInfusions,
-      ecgLessons: customEcgLessons,
       flashcards: customFlashcards,
       wardRecipes: wardRecipeList,
       mucs: customMucs,
@@ -4418,281 +4396,6 @@ function DataSyncScreen({
             Nhập file sẽ gộp theo id: mục đã có cùng id được cập nhật theo file mới, mục id chưa có sẽ được thêm vào — các mục id khác trên máy không bị đụng tới. Sơ đồ tư duy được gộp theo node/cạnh, không thay thế toàn bộ. "Hoàn tác" (còn đứng ở màn này) lùi được cả DANH SÁCH mục lẫn NỘI DUNG bài viết/sơ đồ mà file vừa đè lên — nhưng chỉ khi bạn còn ở màn này; rời màn hình là nội dung cũ mất hẳn.
           </p>
         )}
-      </div>
-    </div>
-  )
-}
-
-// ─── ECG ──────────────────────────────────────────────────────────────────────
-// Truy cập từ mục "ECG" trong "Truy cập nhanh" ở Trang chủ (không nằm trong thanh tab dưới cùng).
-// Chưa có bài học dựng sẵn (ECG_LESSONS luôn rỗng) — toàn bộ nội dung do người dùng tự nhập, lưu
-// bằng IndexedDB (useEcgLessons/ecgStorage.ts) vì có thể kèm ảnh.
-
-function EcgScreen({
-  lessons,
-  onNavigate,
-  onBack,
-}: {
-  lessons: EcgLesson[]
-  onNavigate: (s: Screen, id?: string) => void
-  onBack: () => void
-}) {
-  return (
-    <div className="h-full flex flex-col screen-transition">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-          {icons.back()}
-          Quay lại
-        </button>
-        <span className="text-sm font-semibold text-slate-900">ECG</span>
-        <button
-          onClick={() => onNavigate("addEcg")}
-          className="w-11 h-11 rounded-full flex items-center justify-center"
-          style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
-          aria-label="Thêm bài học ECG"
-        >
-          {icons.plus()}
-        </button>
-      </div>
-
-      <div className="scroll-ios flex-1 px-5 pt-5 pb-8">
-        {lessons.length === 0 ? (
-          <div className="flex flex-col items-center text-center gap-3 pt-16 px-6">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}>
-              {icons.ecg()}
-            </div>
-            <p className="font-bold text-slate-900 text-[15px]">Chưa có bài học ECG nào</p>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Nhấn nút "+" ở trên để tạo bài học đầu tiên — có thể kèm ảnh chụp bản ghi ECG.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2.5">
-            {lessons.map((l) => {
-              // Ảnh đại diện & số ảnh lấy từ nội dung dạng block (ảnh có thể nằm xen giữa các dòng
-              // chữ), ecgBlocks() lo luôn phần bài cũ vốn để ảnh trong mảng `images` riêng.
-              const lessonBlocks = ecgBlocks(l)
-              const thumb = firstImageUrl(lessonBlocks)
-              const imageCount = countImages(lessonBlocks)
-              return (
-              <button
-                key={l.id}
-                onClick={() => onNavigate("ecgDetail", l.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl border card-press text-left"
-                style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
-              >
-                <div
-                  className="flex-none w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center"
-                  style={{ background: "var(--c-line-soft)", color: "var(--c-muted)" }}
-                >
-                  {thumb ? <img src={thumb} alt="" className="w-full h-full object-cover" /> : icons.ecg()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <p className="font-bold text-slate-900 text-[14px] truncate">{l.title}</p>
-                    {l.isCustom && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-none" style={{ background: "var(--c-green-soft)", color: "var(--c-green)" }}>
-                        Tự nhập
-                      </span>
-                    )}
-                  </div>
-                  {l.summary && <p className="text-xs text-slate-400 truncate mt-0.5">{l.summary}</p>}
-                  {l.tags.length > 0 && (
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {l.tags.slice(0, 3).map((t) => (
-                        <TagPill key={t} tag={t} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {imageCount > 0 && (
-                  <span className="flex-none text-[10px] font-semibold text-slate-400">{imageCount} ảnh</span>
-                )}
-              </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function EcgDetailScreen({
-  lesson,
-  onEdit,
-  onDelete,
-  onOpenLink,
-  onBack,
-}: {
-  lesson: EcgLesson | undefined
-  onEdit: (l: EcgLesson) => void
-  onDelete: (id: string) => void
-  onOpenLink: (target: string) => void
-  onBack: () => void
-}) {
-  if (!lesson) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center gap-3 px-5">
-        <p className="text-sm text-slate-500">Không tìm thấy bài học này.</p>
-        <button onClick={onBack} className="text-sm font-semibold" style={{ color: "var(--c-primary)" }}>
-          Quay lại
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="h-full flex flex-col screen-transition">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-          {icons.back()}
-          Quay lại
-        </button>
-        {lesson.isCustom ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(lesson)}
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
-              aria-label="Sửa bài học"
-            >
-              {icons.edit()}
-            </button>
-            <ConfirmIconButton
-              onConfirm={() => onDelete(lesson.id)}
-              ariaLabel="Xoá bài học"
-              className="w-11 h-11 rounded-full flex items-center justify-center"
-              style={{ background: "var(--c-danger-soft)", color: "var(--c-danger-icon)" }}
-            />
-          </div>
-        ) : (
-          <span className="w-8" />
-        )}
-      </div>
-
-      <div className="scroll-ios flex-1 px-6 pt-6 pb-10">
-        <h1 className="text-2xl font-bold text-slate-900 leading-tight">{lesson.title}</h1>
-        {lesson.tags.length > 0 && (
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            {lesson.tags.map((t) => (
-              <TagPill key={t} tag={t} />
-            ))}
-          </div>
-        )}
-        {lesson.summary && <p className="text-sm text-slate-600 mt-4 leading-relaxed">{lesson.summary}</p>}
-
-        <BlockContent blocks={ecgBlocks(lesson)} onOpenLink={onOpenLink} />
-      </div>
-    </div>
-  )
-}
-
-// Màn soạn bài học ECG — dùng cho cả TẠO MỚI và SỬA (truyền `initial`). Nội dung chi tiết soạn tự
-// do theo block: chữ và ảnh bản ghi ECG xen kẽ nhau tuỳ ý (xem components/BlockEditor.tsx).
-function AddEcgScreen({
-  initial,
-  linkTargets,
-  onSave,
-  onBack,
-}: {
-  initial?: EcgLesson
-  linkTargets: LinkTarget[]
-  onSave: (l: EcgLesson) => void
-  onBack: () => void
-}) {
-  const [title, setTitle] = useState(initial?.title ?? "")
-  const [tagsText, setTagsText] = useState(initial?.tags.join(", ") ?? "")
-  const [summary, setSummary] = useState(initial?.summary ?? "")
-  const [blocks, setBlocks] = useState<ContentBlock[]>(() => blocksForEditing(initial ? ecgBlocks(initial) : []))
-
-  const canSave = title.trim().length > 0
-
-  function handleSave() {
-    if (!canSave) return
-    const lesson: EcgLesson = {
-      id: initial?.id ?? `custom-ecg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title: title.trim(),
-      tags: tagsText
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
-      summary: summary.trim() || undefined,
-      blocks: cleanBlocks(blocks),
-      createdAt: initial?.createdAt ?? new Date().toISOString(),
-      isCustom: true,
-    }
-    onSave(lesson)
-  }
-
-  const fieldClass = "w-full px-4 py-3 rounded-2xl text-sm border outline-none"
-  const fieldStyle = { borderColor: "var(--c-line)", background: "var(--c-surface)" }
-
-  return (
-    <div className="h-full flex flex-col screen-transition">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
-          {icons.back()}
-          Quay lại
-        </button>
-        <span className="text-sm font-semibold text-slate-900">{initial ? "Sửa bài học ECG" : "Bài học ECG mới"}</span>
-        <span className="w-10" />
-      </div>
-
-      <div className="scroll-ios flex-1 px-6 pt-6 pb-8 space-y-4">
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Tiêu đề</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="VD: Rung nhĩ đáp ứng thất nhanh"
-            className={fieldClass}
-            style={fieldStyle}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Thẻ tag (cách nhau bằng dấu phẩy)</label>
-          <input
-            value={tagsText}
-            onChange={(e) => setTagsText(e.target.value)}
-            placeholder="VD: rối loạn nhịp, cấp cứu"
-            className={fieldClass}
-            style={fieldStyle}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Tóm tắt ngắn</label>
-          <textarea
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="1–2 câu tóm tắt hiển thị ở danh sách"
-            rows={2}
-            className={fieldClass}
-            style={fieldStyle}
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Nội dung chi tiết</label>
-          <BlockEditor blocks={blocks} onChange={setBlocks} linkTargets={linkTargets} />
-        </div>
-
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Bài học ECG được lưu trên máy (trình duyệt của bạn), kể cả ảnh, nên vẫn còn sau khi tắt/mở lại app. Dùng mục "Đồng bộ dữ liệu" ở Trang chủ nếu muốn sao lưu hoặc chuyển sang thiết bị khác.
-        </p>
-      </div>
-
-      <div className="flex-none px-6 pt-3 border-t" style={{ borderColor: "var(--c-line)", paddingBottom: "var(--nav-pad-bottom)" }}>
-        <button
-          onClick={handleSave}
-          disabled={!canSave}
-          className="w-full py-3.5 rounded-2xl font-semibold text-sm"
-          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}
-        >
-          {initial ? "Lưu thay đổi" : "Lưu bài học"}
-        </button>
       </div>
     </div>
   )
@@ -12103,7 +11806,6 @@ export default function App() {
   // `false` mỗi lần MỞ bảng chọn (xem onTaoBaiMoi của HomeScreen bên dưới) để lượt tạo TIẾP THEO
   // không bị khoá oan bởi lượt tạo TRƯỚC đã thành công.
   const dangTaoBaiVietRef = useRef(false)
-  const [viewEcgId, setViewEcgId] = useState<string | null>(null)
   // Tên tính năng đang xem ở màn "Sắp ra mắt" — id truyền qua navigate() khi bấm một thẻ Truy cập
   // nhanh chưa có màn thật.
   const [comingSoonFeature, setComingSoonFeature] = useState<string>("")
@@ -12112,9 +11814,6 @@ export default function App() {
   // ở trên không mã hoá vào tên Screen: bốn nhánh Screen gần giống nhau chỉ khác danh mục đang lọc
   // đúng là thứ Task 7 gộp lại thành một.
   const [danhMucDangXem, setDanhMucDangXem] = useState<IdDanhMuc | null>(null)
-  // Bản nháp đang sửa của bài học ECG — null nghĩa là đang TẠO MỚI. Mang theo cả object (không chỉ
-  // id) để màn soạn thảo mở ra với nội dung sẵn có, giống cách sửa thuốc bên dưới.
-  const [editEcgDraft, setEditEcgDraft] = useState<EcgLesson | null>(null)
   // Dải xác nhận ngắn sau khi lưu/xoá — xem showToast bên dưới.
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -12172,9 +11871,6 @@ export default function App() {
     InfusionDrug[]
   >
   const customFlashcardsCol = useLocalCollection<FlashCard>(CUSTOM_COLLECTION_KEYS.flashcards)
-  // Bài học ECG — lưu bằng IndexedDB (không phải localStorage) vì kèm ảnh, xem useIdbCollection.
-  const ecgCol = useIdbCollection<EcgLesson>(IDB_STORES.ecgLessons)
-  const allEcgLessons = [...ecgCol.items, ...ECG_LESSONS]
   // Kho bài viết/sơ đồ hợp nhất (giai đoạn 5-6) — cần ở App() để "Đã đọc gần đây" (recentReadItems,
   // dưới) tra được tiêu đề/danh mục của mục kind "muc". SearchScreen tự đọc collection RIÊNG của nó
   // (cùng store, một effect nạp khác) — hai chỗ đọc không đụng nhau, useIdbCollection không chia sẻ
@@ -12186,15 +11882,14 @@ export default function App() {
     customAntibioticsCol.items.length > 0 ||
     customDiseasesCol.items.length > 0 ||
     INFUSION_CATEGORIES.some((c) => infusionCols[c.id].items.length > 0) ||
-    ecgCol.items.length > 0 ||
     customFlashcardsCol.items.length > 0
   const [showBackupReminder, setShowBackupReminder] = useState(false)
   useEffect(() => {
-    if (ecgCol.loading) return
+    if (mucsCol.loading) return
     // Công thức pha đọc thẳng từ localStorage (không phải state React) — xem lib/wardRecipes.ts.
     const wardRecipeCount = Object.values(loadWardRecipes()).reduce((n, list) => n + list.length, 0)
     if (hasCustomContent || wardRecipeCount > 0) setShowBackupReminder(shouldRemindBackup())
-  }, [ecgCol.loading, hasCustomContent])
+  }, [mucsCol.loading, hasCustomContent])
 
   const NON_TAB_SCREENS: Screen[] = [
     "specialty",
@@ -12204,9 +11899,6 @@ export default function App() {
     "editAntibiotic",
     "editInfusion",
     "dataSync",
-    "ecg",
-    "ecgDetail",
-    "addEcg",
     "addFlashcard",
     "comingSoon",
     // Task 7 review (I1): "danhMuc" (màn lưới lọc theo MỘT danh mục — mở từ ba thẻ Truy cập nhanh
@@ -12225,13 +11917,6 @@ export default function App() {
     if (s === "specialty" && id) setSpecialtyId(id)
     if (s === "mindmap" && id) setMoBangYeuCau(id)
     if (s === "comingSoon" && id) setComingSoonFeature(id)
-    if (s === "ecgDetail" && id) {
-      setViewEcgId(id)
-      setRecentReads(recordRead("ecg", id))
-    }
-    // Vào màn soạn thảo qua nút "+" luôn là TẠO MỚI — xoá bản nháp đang sửa (nếu có) để không mở
-    // nhầm nội dung của lần sửa trước. Muốn sửa thì đi qua goToEditEcg.
-    if (s === "addEcg") setEditEcgDraft(null)
     if (!NON_TAB_SCREENS.includes(s)) setActiveTab(s)
     setHistory((h) => [...h, screen])
     setScreen(s)
@@ -12352,32 +12037,11 @@ export default function App() {
             tag: DANH_MUC.find((d) => d.id === m.danhMuc)?.ten ?? "",
             muc: { loai: m.loai, danhMuc: m.danhMuc },
           })
-      } else {
-        const l = allEcgLessons.find((x) => x.id === e.id)
-        if (l) out.push({ key: `ecg:${l.id}`, id: l.id, title: l.title, at: e.at, screen: "ecgDetail", tag: "ECG" })
       }
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentReads, ecgCol.items, mucsCol.items])
-
-  // Danh sách mọi bài có thể chèn liên kết tới, dùng cho trình soạn thảo. `target` mã hoá luôn loại
-  // màn hình cần mở ("ecg" = bài học ECG) nên khi bấm vào liên kết chỉ cần đọc chuỗi là biết đi
-  // đâu, không phải tra ngược nhiều danh sách.
-  const linkTargets = useMemo(
-    () => allEcgLessons.map((l) => ({ target: `ecg:${l.id}`, label: l.title, group: "ECG" })),
-    [allEcgLessons],
-  )
-
-  // Mở một liên kết trong bài. Id không còn tồn tại (bài đã bị xoá sau khi chèn liên kết) thì bỏ
-  // qua, không điều hướng tới màn trống.
-  function openLinkTarget(target: string) {
-    const sep = target.indexOf(":")
-    if (sep < 0) return
-    const kind = target.slice(0, sep)
-    const id = target.slice(sep + 1)
-    if (kind === "ecg" && allEcgLessons.some((l) => l.id === id)) navigate("ecgDetail", id)
-  }
+  }, [recentReads, mucsCol.items])
 
   // Hiện một dải xác nhận ngắn ở đáy màn hình rồi tự tắt. Kèm một nhịp rung nhẹ: hai tín hiệu này
   // cho biết việc vừa làm đã xong thật, thay vì chỉ thấy màn hình đổi rồi tự hỏi "đã lưu chưa".
@@ -12394,12 +12058,6 @@ export default function App() {
     }
   }, [])
 
-  function goToEditEcg(l: EcgLesson) {
-    setEditEcgDraft(l)
-    setHistory((h) => [...h, screen])
-    setScreen("addEcg")
-  }
-
   function handleSaveAntibiotic(a: Antibiotic, newDiseases: DiseaseEntry[] = []) {
     newDiseases.forEach((d) => customDiseasesCol.add(d))
     customAntibioticsCol.update(a)
@@ -12412,20 +12070,6 @@ export default function App() {
   // nhớ sửa đúng cả hai chỗ).
   function handleSaveInfusion(category: InfusionCategory, d: InfusionDrug) {
     infusionCols[category].update(d)
-    goBack()
-  }
-
-  function handleSaveEcg(l: EcgLesson) {
-    if (editEcgDraft) ecgCol.update(l)
-    else ecgCol.add(l)
-    showToast(editEcgDraft ? "Đã lưu thay đổi" : "Đã lưu bài học ECG")
-    goBack()
-  }
-
-  function handleDeleteEcg(id: string) {
-    ecgCol.remove(id)
-    setRecentReads(forgetRead("ecg", id))
-    showToast("Đã xoá bài học")
     goBack()
   }
 
@@ -12442,7 +12086,6 @@ export default function App() {
     // `backupKey` khai trong data/categories.ts (giữ nguyên tên cũ để file xuất từ bản trước vẫn
     // nhập lại được).
     infusions: Record<InfusionCategory, InfusionDrug[]>
-    ecgLessons: EcgLesson[]
     flashcards: FlashCard[]
     wardRecipes: WardRecipe[]
     // Task 3 (giai đoạn 7-9): metadata mucs — chỉ tên/danh mục/tag/chuyên khoa, không phải nội
@@ -12455,7 +12098,6 @@ export default function App() {
       const list = data.infusions[c.id]
       if (list?.length) infusionCols[c.id].upsertMany(list)
     })
-    if (data.ecgLessons.length) ecgCol.upsertMany(data.ecgLessons)
     if (data.flashcards.length) customFlashcardsCol.upsertMany(data.flashcards)
     if (data.wardRecipes.length) importWardRecipes(data.wardRecipes)
     if (data.mucs.length) mucsCol.upsertMany(data.mucs)
@@ -12467,7 +12109,6 @@ export default function App() {
     antibiotics: Antibiotic[]
     diseases: DiseaseEntry[]
     infusions: Record<InfusionCategory, InfusionDrug[]>
-    ecgLessons: EcgLesson[]
     flashcards: FlashCard[]
     wardRecipes: WardRecipe[]
     mucs: MucMeta[]
@@ -12475,7 +12116,6 @@ export default function App() {
     customAntibioticsCol.replaceAll(snapshot.antibiotics)
     customDiseasesCol.replaceAll(snapshot.diseases)
     INFUSION_CATEGORIES.forEach((c) => infusionCols[c.id].replaceAll(snapshot.infusions[c.id] ?? []))
-    ecgCol.replaceAll(snapshot.ecgLessons)
     customFlashcardsCol.replaceAll(snapshot.flashcards)
     mucsCol.replaceAll(snapshot.mucs)
     // Chỉ có state cục bộ của DungThuocScreen đọc danh sách này — màn đó đã unmount lúc "Đồng bộ dữ
@@ -12674,7 +12314,6 @@ export default function App() {
               onMoMuc={moMucTuNgoai}
               onBack={goBack}
               customFlashcards={customFlashcardsCol.items}
-              ecgLessons={allEcgLessons}
             />
           )}
           {/* FlashcardScreen vẫn hoãn lại — đưa "sắp ra mắt" thay vì để người dùng thấy một tab lỗi
@@ -12716,8 +12355,7 @@ export default function App() {
               này — cùng component, chỉ khác `danhMucDangXem` (state App(), đặt bởi onMoDanhMuc).
               Trộn cả hai `loai` (bài viết + sơ đồ) khi HIỂN THỊ, phân biệt bằng icon trên thẻ
               (LuoiMuc.tsx). Thay EcgScreen (mở qua thẻ "ECG" trước Task 7) và ComingSoonScreen của
-              "Tiếp cận vấn đề"/"Phác đồ" — cả ba định nghĩa cũ vẫn còn, chỉ không còn đường nào trỏ
-              tới EcgScreen nữa (giai đoạn 8 mới xoá).
+              "Tiếp cận vấn đề"/"Phác đồ" — EcgScreen đã bị xoá hẳn ở giai đoạn 8 Task 7.
               Đợt vá cuối trước hợp nhất — I1: loaiTaoDuoc CHỈ còn 'bai-viet' (trước là cả hai loại) —
               LuoiMuc.tsx chỉ từng đọc loaiTaoDuoc[0] khi dựng nút "+" (loaiTaoDuoc[1] không được đọc
               ở đâu cả, xác nhận bằng grep), nên khai cả hai loại ở đây là NÓI DỐI về khả năng thật:
@@ -12827,30 +12465,16 @@ export default function App() {
               customAntibiotics={customAntibioticsCol.items}
               customDiseases={customDiseasesCol.items}
               customInfusions={customInfusions}
-              customEcgLessons={ecgCol.items}
               customFlashcards={customFlashcardsCol.items}
               customMucs={mucsCol.items}
-              // Chỉ ba danh mục này nằm ở IndexedDB; kháng sinh/bệnh lý/thuốc truyền/thẻ ghi nhớ
-              // dùng localStorage (đọc đồng bộ, không có trạng thái "đọc hỏng" tương đương).
-              duLieuChuaDocDuoc={ecgCol.loiDoc !== null || mucsCol.loiDoc !== null}
+              // Chỉ kho `mucs` nằm ở IndexedDB; kháng sinh/bệnh lý/thuốc truyền/thẻ ghi nhớ dùng
+              // localStorage (đọc đồng bộ, không có trạng thái "đọc hỏng" tương đương).
+              duLieuChuaDocDuoc={mucsCol.loiDoc !== null}
               onImport={handleImportData}
               onRestoreSnapshot={handleRestoreSnapshot}
               onBackupDone={() => setShowBackupReminder(false)}
               onBack={goBack}
             />
-          )}
-          {screen === "ecg" && <EcgScreen lessons={allEcgLessons} onNavigate={navigate} onBack={goBack} />}
-          {screen === "ecgDetail" && (
-            <EcgDetailScreen
-              lesson={allEcgLessons.find((l) => l.id === viewEcgId)}
-              onEdit={goToEditEcg}
-              onDelete={handleDeleteEcg}
-              onOpenLink={openLinkTarget}
-              onBack={goBack}
-            />
-          )}
-          {screen === "addEcg" && (
-            <AddEcgScreen key={editEcgDraft?.id ?? "new"} initial={editEcgDraft ?? undefined} linkTargets={linkTargets} onSave={handleSaveEcg} onBack={goBack} />
           )}
           {screen === "addFlashcard" && <AddFlashcardScreen onSave={handleSaveFlashcard} onBack={goBack} />}
           {screen === "comingSoon" && <ComingSoonScreen feature={comingSoonFeature} onBack={goBack} />}
@@ -12930,13 +12554,15 @@ export default function App() {
             thanh gạt trên iPhone toàn màn hình. */}
         <UpdateBanner offsetBottom={anThanhNav ? "var(--above-safe)" : "var(--above-nav)"} />
 
-        {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: bài học ECG tự soạn nằm trong
-            IndexedDB, và người dùng có thể đang ở bất kỳ tab nào. Vì sao phải nói ra: mục tự soạn được
-            TRỘN với nội dung tĩnh (ECG_LESSONS) nên khi đọc hỏng, màn hình vẫn đầy bài — không một
-            dấu hiệu nào cho thấy phần của người dùng đã rụng mất. Khác dải "Có bản cập nhật" và toast:
-            dải này KHÔNG tự tắt và không đóng được, vì nó chỉ biến mất khi vấn đề thật sự hết
-            (thuLaiDoc thành công). */}
-        {ecgCol.loiDoc && (
+        {/* Dải báo ĐỌC HỎNG — cấp app, vì sự cố cũng ở cấp app: kho bài viết/sơ đồ (store `mucs`)
+            nằm trong IndexedDB, và người dùng có thể đang ở bất kỳ tab nào. Giai đoạn 8 Task 7 gỡ
+            hệ ECG cũ — nguồn IndexedDB duy nhất còn lại là `mucs`, nên dải này trỏ vào đó thay vì
+            biến mất hẳn (`duLieuChuaDocDuoc` của màn Đồng bộ đã tin cùng một cờ). Vì sao phải nói ra:
+            đọc hỏng thì lưới/ô tìm chỉ đơn giản là rỗng — không một dấu hiệu nào cho thấy phần của
+            người dùng đã rụng mất, và một bản "sao lưu" xuất lúc đó sẽ trống. Khác dải "Có bản cập
+            nhật" và toast: dải này KHÔNG tự tắt và không đóng được, vì nó chỉ biến mất khi vấn đề
+            thật sự hết (thuLaiDoc thành công). */}
+        {mucsCol.loiDoc && (
           <div
             role="alert"
             data-testid="dai-loi-doc-idb"
@@ -12960,13 +12586,13 @@ export default function App() {
             </svg>
             <div className="flex-1 flex flex-col items-start gap-1.5">
               <span className="text-[12.5px] leading-snug">
-                Chưa đọc được bài học ECG bạn tự soạn — danh sách đang thiếu phần của bạn. Đừng
-                xuất sao lưu cho tới khi đọc lại được.
+                Chưa đọc được bài viết và sơ đồ bạn tự soạn — danh sách đang thiếu phần của bạn.
+                Đừng xuất sao lưu cho tới khi đọc lại được.
               </span>
               <button
                 type="button"
                 onClick={() => {
-                  ecgCol.thuLaiDoc()
+                  mucsCol.thuLaiDoc()
                 }}
                 className="dose-press"
                 style={{

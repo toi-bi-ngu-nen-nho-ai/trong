@@ -2,11 +2,10 @@
 //
 // Bản trước không có gì để ghi lại việc đọc: màn hình Trang chủ chỉ lấy `[...bài tự nhập, ...bài
 // dựng sẵn].slice(0, 3)`, nghĩa là luôn hiện đúng ba bài đầu danh sách dù người dùng chưa mở bài nào
-// hoặc vừa đọc bài khác. Nay mỗi lần mở một mục (bài học ECG, hay một mục trong kho `mucs`) sẽ được
-// ghi lại kèm mốc thời gian.
+// hoặc vừa đọc bài khác. Nay mỗi lần mở một mục trong kho `mucs` sẽ được ghi lại kèm mốc thời gian.
 //
-// Giai đoạn 8 Task 6 đã gỡ hai kind "article" (bài dựng sẵn) và "custom" (bài tự nhập) khỏi
-// `ReadKind`. Bản ghi cũ mang hai kind đó vẫn nằm trong localStorage của máy người dùng —
+// Giai đoạn 8 đã gỡ ba kind "article" (bài dựng sẵn), "custom" (bài tự nhập) và "ecg" (bài học
+// ECG) khỏi `ReadKind`. Bản ghi cũ mang ba kind đó vẫn nằm trong localStorage của máy người dùng —
 // `isEntry()` bên dưới lọc chúng ra khi đọc, để panel "Đã đọc gần đây" không hiện những dòng
 // bấm vào không mở được gì (spec §3.6). Xem src/lib/__tests__/recentReads-loc-cu.spec.ts.
 //
@@ -15,7 +14,7 @@
 
 import { loadCollection, saveCollection } from "./storage"
 
-export type ReadKind = "ecg" | "muc"
+export type ReadKind = "muc"
 
 export interface ReadEntry {
   kind: ReadKind
@@ -34,7 +33,7 @@ function isEntry(v: unknown): v is ReadEntry {
   if (!v || typeof v !== "object") return false
   const e = v as Partial<ReadEntry>
   return (
-    (e.kind === "ecg" || e.kind === "muc") &&
+    e.kind === "muc" &&
     typeof e.id === "string" &&
     typeof e.at === "number"
   )

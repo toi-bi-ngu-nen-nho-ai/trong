@@ -5,32 +5,6 @@
 import type { WeightBasis } from "../lib/bodyWeight"
 import type { VialForm } from "../lib/mixing"
 
-// ─── Nội dung dạng "khối" (block) — kiểu soạn thảo tự do giống Notion ─────────
-// Mỗi dòng người dùng gõ là một block độc lập, nên có thể chèn ảnh xen giữa bất kỳ dòng nào
-// thay vì bị ép "văn bản một chỗ, ảnh một chỗ" như trước. Dùng cho bài học ECG tự nhập
-// (EcgLesson.blocks).
-// - "text": đoạn văn thường
-// - "heading": tiêu đề mục (đồng thời là mục trong mục lục của bài)
-// - "bullet": gạch đầu dòng
-// - "numbered": mục đánh số (số thứ tự tính tự động theo các dòng đánh số liền nhau)
-// - "quote": trích dẫn / lưu ý
-// - "callout": khối "Điểm chính" nổi bật, kiểu hộp nhấn mạnh của UpToDate
-// - "image": ảnh (dataUrl đã thu nhỏ + nén, xem src/lib/imageResize.ts), caption là chú thích
-//
-// Trong `text` có thể chứa dấu định dạng nội dòng: **đậm**, *nghiêng*, __gạch chân__, ==tô sáng==,
-// và liên kết tới bài khác [[ecg:id|chữ hiện ra]] — xem src/lib/richText.ts.
-export type BlockType = "text" | "heading" | "bullet" | "numbered" | "quote" | "callout" | "image"
-
-export interface ContentBlock {
-  id: string
-  type: BlockType
-  // Chỉ dùng cho block chữ (text/heading/bullet/quote).
-  text?: string
-  // Chỉ dùng cho block ảnh.
-  dataUrl?: string
-  caption?: string
-}
-
 // Lưu ý: KHÔNG có field đếm số mục ở đây — số mục/thẻ ghi nhớ của một chuyên khoa phải luôn
 // được tính động từ dữ liệu thật (kể cả mục tự thêm) tại nơi hiển thị, để không bao giờ lệch.
 // `icon` đã bỏ: hình của chuyên khoa được tra theo `id` trong components/SpecialtyIcons.tsx (SVG),
@@ -343,30 +317,4 @@ export interface InfusionDrug extends SourceInfo {
   // Bệnh lý áp dụng — có thì AddInfusionScreen/InfusionCategoryScreen hiện bước "Chỉ định" giống
   // hệt kháng sinh; không khai báo thì thuốc dùng chung một liều/preparation như trước nay.
   indications?: InfusionIndicationDose[]
-}
-
-// Một ảnh trong bài học ECG (bản ghi ECG chụp/scan, ảnh minh hoạ...). `dataUrl` là ảnh đã được
-// thu nhỏ và nén (xem src/lib/imageResize.ts) trước khi lưu, để không chiếm quá nhiều dung lượng.
-export interface EcgImage {
-  id: string
-  dataUrl: string
-  caption?: string
-}
-
-// Bài học ECG do người dùng tự nhập — tiêu đề, tóm tắt, nội dung chi tiết, kèm một hoặc nhiều ảnh.
-// Lưu riêng bằng IndexedDB (không phải localStorage như các mục tự nhập khác) vì ảnh có thể khá
-// nặng — xem src/lib/ecgStorage.ts. `isCustom` luôn true vì hiện chưa có bài học dựng sẵn.
-export interface EcgLesson {
-  id: string
-  title: string
-  tags: string[]
-  summary?: string
-  // `content` + `images`: cấu trúc ĐỜI CŨ (toàn bộ ảnh gom một chỗ, văn bản một chỗ). Giữ lại để
-  // các bài đã lưu trước đây vẫn đọc được — ecgBlocks() trong lib/blocks.ts tự chuyển sang block.
-  // Bài mới lưu vào `blocks` (chữ và ảnh xen kẽ tự do).
-  content?: string
-  images?: EcgImage[]
-  blocks?: ContentBlock[]
-  createdAt: string
-  isCustom?: boolean
 }

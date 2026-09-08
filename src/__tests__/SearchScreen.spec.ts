@@ -81,7 +81,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onMoMuc,
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -131,7 +130,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onMoMuc: vi.fn(),
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -174,7 +172,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onMoMuc,
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -219,7 +216,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onMoMuc: vi.fn(),
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -261,7 +257,6 @@ describe('SearchScreen — kết quả loại "muc" (sơ đồ)', () => {
           onMoMuc,
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -327,7 +322,6 @@ describe('SearchScreen — kết quả loại "muc" (bài viết)', () => {
           onMoMuc: vi.fn(),
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -362,7 +356,6 @@ describe('SearchScreen — kết quả loại "muc" (bài viết)', () => {
           onMoMuc,
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })
@@ -418,7 +411,6 @@ describe('SearchScreen — gõ không dấu vẫn ra kết quả', () => {
           onMoMuc: vi.fn(),
           onBack: () => {},
           customFlashcards,
-          ecgLessons: [],
         }),
       )
     })
@@ -521,7 +513,6 @@ describe('SearchScreen — dải chip chuyên khoa', () => {
           onMoMuc: vi.fn(),
           onBack: () => {},
           customFlashcards,
-          ecgLessons: [],
         }),
       )
     })
@@ -673,7 +664,6 @@ describe('SearchScreen — nguồn bài viết của hệ cũ đã gỡ (giai đ
           onMoMuc: vi.fn(),
           onBack: () => {},
           customFlashcards: [],
-          ecgLessons: [],
         }),
       )
     })

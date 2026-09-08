@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // Giai đoạn 8 (Task 6/7) gỡ hẳn ba hệ đọc bài cũ — bài viết dựng sẵn (kind "article"), bài viết tự
-// nhập (kind "custom") và bài học ECG (kind "ecg"). Bản ghi "Đã đọc gần đây" của ba kind đó VẪN
+// nhập (kind "custom") và bài học ECG (kind "ecg" — Task 7). Bản ghi "Đã đọc gần đây" của ba kind đó VẪN
 // NẰM trong localStorage của mọi máy đã dùng app trước đợt xoá; nếu `loadRecentReads()` trả chúng
 // về thì panel Trang chủ hiện ra những dòng bấm vào KHÔNG mở được gì (spec §3.6 — "không hiện ra
 // dưới dạng mục chết"). Ca kiểm này ghim đúng hành vi LỌC đó, đi qua đường thật (localStorage →
@@ -23,12 +23,13 @@ describe('recentReads — lọc bỏ bản ghi của hệ cũ (giai đoạn 8)',
     localStorage.clear()
   })
 
-  it('bản ghi kind "article"/"custom" của hệ cũ bị LỌC khi đọc, chỉ còn "muc"', () => {
+  it('bản ghi kind "article"/"custom"/"ecg" của hệ cũ bị LỌC khi đọc, chỉ còn "muc"', () => {
     localStorage.setItem(
       KHOA,
       JSON.stringify([
         { kind: 'article', id: 'mi', at: 1 },
         { kind: 'custom', id: 'bai-tu-nhap', at: 3 },
+        { kind: 'ecg', id: 'bai-hoc-ecg', at: 4 },
         { kind: 'muc', id: 'm1', at: 2 },
       ]),
     )
@@ -43,6 +44,7 @@ describe('recentReads — lọc bỏ bản ghi của hệ cũ (giai đoạn 8)',
       JSON.stringify([
         { kind: 'article', id: 'mi', at: 10 },
         { kind: 'custom', id: 'bai-tu-nhap', at: 9 },
+        { kind: 'ecg', id: 'bai-hoc-ecg', at: 8 },
       ]),
     )
 
