@@ -4051,17 +4051,28 @@ function DataSyncScreen({
   // này (dữ liệu hiện có trên máy, chưa bị file mới đè lên).
   async function handleConfirmImport() {
     if (!pendingImport) return
-    const snapshot: SyncSnapshot = {
-      antibiotics: customAntibiotics,
-      diseases: customDiseases,
-      infusions: customInfusions,
-      flashcards: customFlashcards,
-      wardRecipes: wardRecipeList,
-      mucs: customMucs,
-    }
+    // ─── Đọc mucs TƯƠI trực tiếp từ IndexedDB (Task 9c) ──────────────────────────────────────
+    // `customMucs` (tham số của DataSyncScreen, dựng từ `mucsCol` cấp App) là MỘT trong BA instance
+    // `useIdbCollection<MucMeta>` độc lập cùng đọc store `mucs`: SearchScreen có instance riêng, App()
+    // cấp trên có `mucsCol`, và LuoiMuc.tsx — nơi mục MỚI được TẠO — có instance thứ ba. Ba instance
+    // không đồng bộ NGANG với nhau — cùng cơ chế lệch pha mà Task 9b đã vá cho đường XUẤT (xem chú
+    // thích dài ở handleExport). Ở ĐÂY hậu quả nặng hơn hẳn đường xuất: snapshot này không chỉ đọc để
+    // hiển thị — nó là thứ "Hoàn tác" dùng để GHI ĐÈ (`mucsCol.replaceAll` → `idbReplaceAll` XOÁ SẠCH
+    // store rồi ghi lại). Chụp bản CŨ (thiếu mục vừa tạo qua instance khác) rồi cho phép Hoàn tác dùng
+    // nó nghĩa là: tạo mục mới trong phiên → nhập file → bấm Hoàn tác → mục vừa tạo BIẾN MẤT khỏi
+    // IndexedDB.
+    //
+    // Đọc BẮT BUỘC đứng TRƯỚC `onImport(duLieu)` bên dưới: đọc SAU sẽ dính luôn lượt ghi mà chính
+    // `onImport` vừa tạo, biến "trạng thái TRƯỚC khi nhập" (thứ Hoàn tác phải trả về) thành "trạng
+    // thái SAU khi nhập" — hỏng theo hướng ngược lại nhưng vẫn là hỏng.
+    //
+    // Dùng `idbGetAllCoKetQua`, KHÔNG dùng `idbGetAll`: `idbGetAll` (src/lib/idb.ts) là vỏ mỏng NUỐT
+    // LỖI thành `[]`. Một snapshot RỖNG bị Hoàn tác dùng để `replaceAll` sẽ xoá SẠCH kho `mucs` — biến
+    // một lượt đọc hỏng tạm thời thành mất trắng, đúng bẫy Task 9b đã vấp ở đường xuất.
+    const ketQuaMucsTuoi = await idbGetAllCoKetQua<MucMeta>(IDB_STORES.mucs)
+
     const duLieu = pendingImport.data
     onImport(duLieu)
-    setUndoSnapshot(snapshot)
     // Ba danh sách nội dung của LƯỢT NÀY bắt đầu lại từ con số không. Lượt nhập trước có thể đã để
     // lại giá trị, và trả nội dung của lượt TRƯỚC về khi hoàn tác lượt NÀY là làm hỏng dữ liệu.
     setUndoMucDocs({})
@@ -4069,8 +4080,30 @@ function DataSyncScreen({
     setUndoMucKhongChup([])
     const totalAdded = pendingImport.rows.reduce((n, r) => n + r.added, 0)
     const totalUpdated = pendingImport.rows.reduce((n, r) => n + r.updated, 0)
-    setStatus(`Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật.`)
     setPendingImport(null)
+
+    // Lượt đọc tươi HỎNG: KHÔNG BAO GIỜ được dựng một snapshot mà Hoàn tác sẽ dùng để xoá dữ liệu
+    // (yêu cầu bắt buộc, brief Task 9c bước 3). Lượt nhập vẫn đã CHẠY ở trên — đó là việc người dùng
+    // chủ động muốn — chỉ riêng lưới an toàn "Hoàn tác" tắt (không gọi `setUndoSnapshot` với dữ liệu
+    // cũ/rỗng), và phải nói thẳng lý do thay vì lặng lẽ chụp một bản không đáng tin. `canhBaoKhongHoanTac`
+    // được NỐI vào mọi `setStatus` còn lại của hàm này bên dưới (kể cả các dòng trạng thái của phần
+    // nội dung doc CRDT), để cảnh báo không bị một dòng trạng thái ra sau đè mất.
+    let canhBaoKhongHoanTac = ""
+    if (ketQuaMucsTuoi.ok) {
+      const snapshot: SyncSnapshot = {
+        antibiotics: customAntibiotics,
+        diseases: customDiseases,
+        infusions: customInfusions,
+        flashcards: customFlashcards,
+        wardRecipes: wardRecipeList,
+        mucs: ketQuaMucsTuoi.items,
+      }
+      setUndoSnapshot(snapshot)
+    } else {
+      setUndoSnapshot(null)
+      canhBaoKhongHoanTac = ` KHÔNG hoàn tác được lượt nhập này: không đọc lại được kho "Bài viết & Sơ đồ" ngay lúc nhập (${ketQuaMucsTuoi.loi}).`
+    }
+    setStatus(`Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật.${canhBaoKhongHoanTac}`)
 
     // ─── Nội dung doc CRDT (Task 4) ───────────────────────────────────────────────────────────
     // Chạy SAU khi metadata đã ghi: nếu lượt này hỏng giữa chừng, mục vẫn hiện ra ở lưới (có tên,
@@ -4088,7 +4121,7 @@ function DataSyncScreen({
       })
       if (!modNoiDung) {
         setStatus(
-          `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật — nhưng CHƯA ghi được nội dung bài viết/sơ đồ (lần đầu cần mạng để tải phần soạn thảo). Kết nối mạng rồi nhập lại chính file này.`,
+          `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật — nhưng CHƯA ghi được nội dung bài viết/sơ đồ (lần đầu cần mạng để tải phần soạn thảo). Kết nối mạng rồi nhập lại chính file này.${canhBaoKhongHoanTac}`,
         )
         return
       }
@@ -4168,7 +4201,8 @@ function DataSyncScreen({
             : "") +
           (thieuAnh.length > 0
             ? ` Thiếu ảnh: ${thieuAnh.join(", ")} — file sao lưu không mang byte của những ảnh đó, phần chữ vẫn về đủ.`
-            : ""),
+            : "") +
+          canhBaoKhongHoanTac,
       )
     } finally {
       setImporting(false)
