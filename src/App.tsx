@@ -11877,12 +11877,18 @@ export default function App() {
   // state giữa hai lời gọi.
   const mucsCol = useIdbCollection<MucMeta>(IDB_STORES.mucs)
 
-  // Nhắc sao lưu — tính theo TẤT CẢ mục tự nhập, hiện được ở bất cứ tab nào.
+  // Nhắc sao lưu — tính theo TẤT CẢ mục tự nhập, hiện được ở bất cứ tab nào. Kho `mucs` (bài
+  // viết/sơ đồ, hệ THAY THẾ ArticleScreen/EcgScreen đã xoá ở giai đoạn 8) PHẢI có mặt ở đây —
+  // review Task 6/7 vòng 1 (Important 1) bắt sơ suất: hai vế cũ mất đi mà không ai thêm `mucsCol`
+  // vào thay, khiến người dùng chỉ có bài viết/sơ đồ tự tạo (đúng nhóm plan này phục vụ) không bao
+  // giờ được nhắc sao lưu. Đếm mục CÒN SỐNG (`!m.daXoaLuc`) — mục đã xoá mềm không phải "nội dung
+  // đang có" cần sao lưu.
   const hasCustomContent =
     customAntibioticsCol.items.length > 0 ||
     customDiseasesCol.items.length > 0 ||
     INFUSION_CATEGORIES.some((c) => infusionCols[c.id].items.length > 0) ||
-    customFlashcardsCol.items.length > 0
+    customFlashcardsCol.items.length > 0 ||
+    mucsCol.items.some((m) => !m.daXoaLuc)
   const [showBackupReminder, setShowBackupReminder] = useState(false)
   useEffect(() => {
     if (mucsCol.loading) return
