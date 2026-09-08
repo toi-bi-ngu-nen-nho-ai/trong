@@ -4058,6 +4058,29 @@ function DataSyncScreen({
   // này (dữ liệu hiện có trên máy, chưa bị file mới đè lên).
   async function handleConfirmImport() {
     if (!pendingImport) return
+    // ─── Chụp NGAY dữ liệu cần dùng rồi đóng panel xem trước, TRƯỚC await bên dưới (vòng sửa
+    // review — findings Important 1) ─────────────────────────────────────────────────────────
+    // Panel "Xem trước trước khi nhập" (và nút "Xác nhận nhập" bên trong nó, KHÔNG có `disabled`)
+    // được gate thuần bằng `pendingImport`. Trước bản vá này, `duLieu`/`setPendingImport(null)`
+    // đứng SAU lượt `await idbGetAllCoKetQua` bên dưới — mở ra một cửa sổ bấm-chồng CHƯA TỪNG CÓ:
+    // trước Task 9c cả hàm chạy đồng bộ (không `await` nào chắn giữa if-return-sớm và
+    // setPendingImport(null)) nên React flush xong là nút biến mất trước khi cú click thứ hai kịp
+    // tới; nay có một `await` đọc IndexedDB đứng giữa, trong lúc đó nút vẫn hiện y nguyên — không
+    // đổi hình, không status. Đúng lúc IndexedDB bị tab khác giữ (chính kịch bản cả tệp này lo)
+    // người dùng gặp nút "chết" và bấm lại: `onImport` chạy HAI LẦN trên CÙNG một payload, và cả
+    // hai lượt cùng vào `nhapSnapshotMuc` (xoá con rồi mới dựng lại — KHÔNG nguyên tử) mà không có
+    // gì chặn hai lượt ghi đua nhau; nặng hơn, lượt B còn chụp `xuatSnapshotMuc` SAU khi lượt A đã
+    // ghi nội dung mới, nên "Hoàn tác" sẽ "khôi phục" đúng bản vừa nhập — lưới an toàn hỏng im
+    // lặng, đúng lớp lỗi Task 9c sinh ra để diệt.
+    //
+    // Dời `duLieu`/`rows` (chụp trước khi `pendingImport` biến mất) + `setPendingImport(null)` lên
+    // ĐÂY: panel đóng NGAY khi bấm — cùng cảm giác bản đồng bộ trước Task 9c, không còn cửa sổ nào
+    // để bấm chồng. KHÔNG dùng `setImporting(true)` sớm được: `finally` phía dưới chỉ bọc nửa sau
+    // (nội dung doc) và có `return` sớm ở nhánh chunk tải hỏng.
+    const duLieu = pendingImport.data
+    const rows = pendingImport.rows
+    setPendingImport(null)
+
     // ─── Đọc mucs TƯƠI trực tiếp từ IndexedDB (Task 9c) ──────────────────────────────────────
     // `customMucs` (tham số của DataSyncScreen, dựng từ `mucsCol` cấp App) là MỘT trong BA instance
     // `useIdbCollection<MucMeta>` độc lập cùng đọc store `mucs`: SearchScreen có instance riêng, App()
@@ -4078,16 +4101,14 @@ function DataSyncScreen({
     // một lượt đọc hỏng tạm thời thành mất trắng, đúng bẫy Task 9b đã vấp ở đường xuất.
     const ketQuaMucsTuoi = await idbGetAllCoKetQua<MucMeta>(IDB_STORES.mucs)
 
-    const duLieu = pendingImport.data
     onImport(duLieu)
     // Ba danh sách nội dung của LƯỢT NÀY bắt đầu lại từ con số không. Lượt nhập trước có thể đã để
     // lại giá trị, và trả nội dung của lượt TRƯỚC về khi hoàn tác lượt NÀY là làm hỏng dữ liệu.
     setUndoMucDocs({})
     setUndoMucMoi([])
     setUndoMucKhongChup([])
-    const totalAdded = pendingImport.rows.reduce((n, r) => n + r.added, 0)
-    const totalUpdated = pendingImport.rows.reduce((n, r) => n + r.updated, 0)
-    setPendingImport(null)
+    const totalAdded = rows.reduce((n, r) => n + r.added, 0)
+    const totalUpdated = rows.reduce((n, r) => n + r.updated, 0)
 
     // Lượt đọc tươi HỎNG: KHÔNG BAO GIỜ được dựng một snapshot mà Hoàn tác sẽ dùng để xoá dữ liệu
     // (yêu cầu bắt buộc, brief Task 9c bước 3). Lượt nhập vẫn đã CHẠY ở trên — đó là việc người dùng
