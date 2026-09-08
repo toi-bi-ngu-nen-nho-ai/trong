@@ -67,7 +67,7 @@ export interface ArticleContent {
 
 // Lưu ý: KHÔNG có field đếm số bài viết ở đây — số bài viết/thẻ ghi nhớ của một chuyên khoa phải
 // luôn được tính động từ ARTICLES/FLASHCARDS thật (kể cả mục tự thêm) tại nơi hiển thị, để không
-// bao giờ lệch với dữ liệu thật (xem countArticlesFor/countFlashcardsFor trong lib/specialtyStats.ts).
+// bao giờ lệch với dữ liệu thật, tại nơi hiển thị.
 // `icon` đã bỏ: hình của chuyên khoa được tra theo `id` trong components/SpecialtyIcons.tsx (SVG),
 // không còn là một ký tự emoji do hệ điều hành vẽ.
 export interface Specialty {

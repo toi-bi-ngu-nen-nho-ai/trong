@@ -2,7 +2,7 @@ import type { FlashCard } from "./types"
 
 // `specialty` phải khớp đúng Specialty.name (tiếng Việt, xem specialties.ts) — trước đây các thẻ này
 // dùng tên chuyên khoa tiếng Anh ("Cardiology", "Pulmonology"...) nên không bao giờ khớp được khi lọc
-// theo chuyên khoa ở SpecialtyScreen.
+// theo chuyên khoa.
 export const FLASHCARDS: FlashCard[] = [
   {
     id: "fc1",

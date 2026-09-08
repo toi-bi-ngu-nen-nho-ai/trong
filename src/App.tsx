@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState, useRef, useEffect, useMemo, useId, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ChangeEvent, type ReactElement } from "react"
 import type { Article, BolusDose, ContentBlock, DoseTier, Antibiotic, AntibioticMix, AntibioticWarning, DiseaseEntry, DoseCap, IndicationDose, InfusionCalcConfig, InfusionDrug, InfusionIndicationDose, EcgLesson, FlashCard, SourceInfo } from "./data/types"
-import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, FLASHCARDS, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
+import { SPECIALTIES, PICKER_ITEMS, ARTICLES, ARTICLE_CONTENT, ANTIBIOTICS, DISEASES, ECG_LESSONS, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
 import { COMPAT_DISCLAIMER, findInteractionRule, findYsiteRule, type CompatRule, type InteractionRule } from "./data/compatibility"
 import { useLocalCollection } from "./lib/useLocalCollection"
@@ -102,7 +102,6 @@ import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
 import { THEME_LABELS, loadTheme, saveTheme, type ThemeMode } from "./lib/theme"
 import { markBackupDone, shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
 import { diffImportCounts, formatDateTime, latestTimestamp } from "./lib/importPreview"
-import { countArticlesFor, countFlashcardsFor } from "./lib/specialtyStats"
 import { tickHaptic } from "./lib/haptics"
 import { forgetRead, formatReadTime, loadRecentReads, recordRead, type ReadEntry } from "./lib/recentReads"
 import { COMMON_DOSE_UNITS, doseToRate, doseUnitOptions, formatDoseNumber, massFactor, massOfConcUnit, parseDoseUnit, rateToDose } from "./lib/infusion"
@@ -1316,84 +1315,6 @@ function ComingSoonScreen({ feature, onBack }: { feature: string; onBack?: () =>
   )
 }
 
-function LibraryScreen({
-  onNavigate,
-  customArticles,
-}: {
-  onNavigate: (s: Screen, id?: string) => void
-  customArticles: Article[]
-}) {
-  const [selected, setSelected] = useState<string | null>(null)
-
-  return (
-    // Trước đây tiêu đề nằm CHUNG một vùng cuộn với danh sách (`scroll-ios h-full` bọc cả tiêu đề
-    // lẫn nội dung) — cuộn xuống vài trăm pixel là chữ "Thư viện" biến mất hẳn khỏi màn hình, khác
-    // hẳn Mindmap/Dùng thuốc/Ôn tập (tiêu đề luôn đứng yên phía trên). Nay tách header ra ngoài
-    // vùng cuộn (flex-col + ScreenHeader flex-none + nội dung scroll-ios flex-1) như ba màn kia.
-    <div className="h-full flex flex-col screen-transition">
-      <ScreenHeader title="Thư viện" />
-      <div className="scroll-ios flex-1">
-        {customArticles.length > 0 && (
-          <div className="px-6 pb-6">
-            <h2 className="text-base font-semibold text-slate-900 mb-3">Mục vừa tạo</h2>
-            <div className="space-y-2">
-              {customArticles.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => onNavigate("customEntry", a.id)}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
-                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
-                >
-                  <span className="flex-none text-slate-400">{icons.doc()}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-slate-900 truncate">{a.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{a.specialty}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Specialty list */}
-        <div className="px-6 pb-6">
-          <h2 className="text-base font-semibold text-slate-900 mb-3">Tất cả chuyên khoa</h2>
-          <div className="space-y-2">
-            {SPECIALTIES.map((spec) => {
-              const articleCount = countArticlesFor(spec.name, ARTICLES, customArticles)
-              return (
-                <button
-                  key={spec.id}
-                  onClick={() => {
-                    setSelected(selected === spec.id ? null : spec.id)
-                    onNavigate("specialty", spec.id)
-                  }}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl border card-press text-left"
-                  style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-none"
-                    style={{ background: `${spec.color}15`, color: spec.color }}>
-                    {specialtyIcon(spec.id, "w-[22px] h-[22px]")}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm text-slate-900">{spec.name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {articleCount > 0 ? `${articleCount} bài viết` : "Chưa có bài viết"}
-                    </p>
-                  </div>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-muted)" strokeWidth={1.8} className="w-4 h-4 flex-none">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Hai tên chỉ CÙNG MỘT khoa: dữ liệu bài viết dựng sẵn viết "Hồi sức - Cấp cứu", còn SPECIALTIES
 // (nguồn thật của lưới Mindmap và của huy hiệu chuyên khoa) gọi là "Cấp cứu". Không đổi tên trong
 // dữ liệu bài viết — nhãn đó còn hiện ở chỗ khác — chỉ gom hai tên về một chip khi LỌC.
@@ -1946,82 +1867,6 @@ function ArticleScreen({ articleId, onBack }: { articleId: string; onBack: () =>
               </div>
             ))}
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SpecialtyScreen({ specialtyId, pulseKey, customArticles, customFlashcards, onBack, onNavigate }: {
-  specialtyId: string
-  pulseKey: number
-  customArticles: Article[]
-  customFlashcards: FlashCard[]
-  onBack: () => void
-  onNavigate: (s: Screen, id?: string) => void
-}) {
-  const spec = SPECIALTIES.find((s) => s.id === specialtyId) || SPECIALTIES[0]
-  const customForSpec = customArticles.filter((a) => a.specialty === spec.name)
-  const builtInForSpec = ARTICLES.filter((a) => a.specialty === spec.name)
-  // Bài tự thêm hiển thị trước (giống LibraryScreen), sau đó tới bài dựng sẵn. Không còn fallback
-  // hiển thị bài của chuyên khoa khác khi chuyên khoa này chưa có bài — trước đây làm vậy khiến
-  // người dùng tưởng nhầm đây là nội dung của chuyên khoa đang xem.
-  const all = [...customForSpec, ...builtInForSpec]
-  const articleCount = all.length
-  const flashcardCount = countFlashcardsFor(spec.name, FLASHCARDS, customFlashcards)
-
-  return (
-    <div className="relative h-full flex flex-col screen-transition" style={{ background: `${spec.color}0c` }}>
-      <div className="flex items-center gap-3 px-4 pb-4 border-b" style={{ paddingTop: 21, borderColor: `${spec.color}30`, background: "var(--c-surface)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: spec.color }}>
-          {icons.back()}
-          Quay lại trang chủ
-        </button>
-      </div>
-      <div key={specialtyId} className="scroll-ios flex-1 pb-6 screen-transition">
-        <div className="px-6 pt-6 pb-6" style={{ background: `linear-gradient(160deg, ${spec.color}40, ${spec.color}00 75%)` }}>
-          <div
-            key={pulseKey}
-            className="w-16 h-16 rounded-2xl flex items-center justify-center pulse-scale"
-            style={{ background: spec.color, color: "#fff", boxShadow: `0 10px 24px ${spec.color}55` }}
-          >
-            {specialtyIcon(spec.id, "w-9 h-9")}
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 mt-3">{spec.name}</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {articleCount} bài viết · {flashcardCount} thẻ ghi nhớ
-          </p>
-        </div>
-        <div className="px-6 pt-4 space-y-3">
-          {all.length === 0 && (
-            <div className="text-center py-10 px-4 rounded-2xl border" style={{ borderColor: `${spec.color}25`, background: "var(--c-surface)" }}>
-              <p className="text-sm text-slate-500">Chuyên khoa này chưa có bài viết nào.</p>
-              <p className="text-xs text-slate-400 mt-1">Dùng "Tạo mục mới" ở Trang chủ để thêm bài viết đầu tiên.</p>
-            </div>
-          )}
-          {all.map((art) => {
-            const isCustom = customForSpec.some((a) => a.id === art.id)
-            return (
-              <button key={art.id} onClick={() => onNavigate(isCustom ? "customEntry" : "article", art.id)}
-                className="w-full text-left p-4 rounded-2xl border card-press"
-                style={{ borderColor: `${spec.color}25`, background: "var(--c-surface)" }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <DifficultyBadge level={art.difficulty} />
-                  <span className="text-xs text-slate-400">{art.readTime} phút</span>
-                  {isCustom && (
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                      style={{ background: "var(--c-green-soft)", color: "var(--c-green-deep)" }}
-                    >
-                      Mới
-                    </span>
-                  )}
-                </div>
-                <p className="font-semibold text-sm text-slate-900">{art.title}</p>
-                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{art.excerpt}</p>
-              </button>
-            )
-          })}
         </div>
       </div>
     </div>
@@ -12820,7 +12665,6 @@ export default function App() {
   // màn hình ("addInotrope", "addVasoactive"...), nên mỗi nhóm mới lại phải thêm một nhánh Screen.
   const [addInfusionCategory, setAddInfusionCategory] = useState<InfusionCategory>("inotrope")
   const [history, setHistory] = useState<Screen[]>([])
-  const [pulseKey, setPulseKey] = useState(0)
   // Những bài đã mở đọc, mới nhất trước (lưu trên máy — xem lib/recentReads.ts).
   const [recentReads, setRecentReads] = useState<ReadEntry[]>(loadRecentReads)
 
@@ -13235,14 +13079,13 @@ export default function App() {
     replaceAllWardRecipes(snapshot.wardRecipes)
   }
 
-  function jumpTo(id: string, isFinal: boolean) {
+  function jumpTo(id: string) {
     if (id === "home") {
       if (screen !== "home") {
         setHistory((h) => [...h, screen])
         setScreen("home")
       }
       setActiveTab("home")
-      if (isFinal) setPulseKey((k) => k + 1)
       return
     }
     setSpecialtyId(id)
@@ -13250,7 +13093,6 @@ export default function App() {
       setHistory((h) => [...h, screen])
       setScreen("specialty")
     }
-    if (isFinal) setPulseKey((k) => k + 1)
   }
 
   function goBack() {
@@ -13271,17 +13113,6 @@ export default function App() {
   // main, và hai dải nổi (UpdateBanner + dải báo đọc hỏng) vốn tự đẩy mình lên trên thanh nav. Bỏ
   // sót một chỗ là dải nổi lơ lửng giữa không trung ở đúng chiều cao của một thanh nav không còn.
   const anThanhNav = isDetailScreen || bangDangMo
-
-  // Ba tên dưới đây không còn được ĐỌC ở đâu sau Task 7 (kho-bai-viet-giai-doan-5-6): LibraryScreen/
-  // SpecialtyScreen thôi được render (thay bằng BoardGallery, xem các nhánh `screen === "library"`/
-  // `screen === "specialty"` bên dưới); `pulseKey` chỉ từng được đọc khi truyền vào SpecialtyScreen,
-  // nay không còn nơi tiêu thụ (vẫn tăng qua setPulseKey trong jumpTo(), chỉ là không ai đọc nữa).
-  // KHÔNG xoá các định nghĩa/component đó — spec §4: việc xoá mã hệ cũ là giai đoạn 8, có checklist
-  // chuỗi riêng ở §6.4. `void` chỉ để `noUnusedLocals` (tsconfig.json) không báo lỗi biên dịch,
-  // không có ý nghĩa runtime nào khác.
-  void LibraryScreen
-  void SpecialtyScreen
-  void pulseKey
 
   return (
     <div
@@ -13339,7 +13170,8 @@ export default function App() {
             //
             // Vì sao tách riêng theo màn: logo "Bs Trọng" CHỈ có ở HomeScreen. Màn "specialty" dùng
             // header khác hẳn nên mốc căn khác, mà cụm nút này nổi chung cho cả hai màn.
-            // TÂM HÀNG Ở MÀN CHUYÊN KHOA = 31px, cộng từ header của SpecialtyScreen:
+            // TÂM HÀNG Ở MÀN CHUYÊN KHOA = 31px, cộng từ header của SpecialtyScreen (hệ cũ, đã
+            // xoá ở giai đoạn 8):
             //     paddingTop 21 + nửa chiều cao hàng nút "Quay lại trang chủ" (20/2 = 10) = 31.
             // Đo thật bằng getBoundingClientRect(): nút back top=21 cao=20 tâm=31.
             // Trước đây màn này ăn chung số 24 của màn home nên lệch 7px — ít lộ hơn bên home (14px)
@@ -13356,7 +13188,8 @@ export default function App() {
             // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
             //
             // Task 7 review (I4) — chú thích "31px" ở trên giờ mô tả một header ĐÃ NGỪNG RENDER
-            // (SpecialtyScreen hệ cũ, thay bằng ScreenHeader dùng chung từ Task 7). Con số 31 tình
+            // (SpecialtyScreen hệ cũ — đã xoá ở giai đoạn 8 — thay bằng ScreenHeader dùng chung từ
+            // Task 7). Con số 31 tình
             // cờ vẫn khớp gần đúng hàng tiêu đề MỚI (đo thật: hàng ScreenHeader cao 12→48px, tâm
             // 30px) nên KHÔNG cần đổi trục dọc. Trục NGANG thì có: đo thật bằng
             // getBoundingClientRect() ở 375px, màn chuyên khoa có ≥1 mục (nút "Chọn" thật sự hiện)
@@ -13415,8 +13248,8 @@ export default function App() {
             />
           )}
           {/* Task 7: Thư viện dùng chung LuoiMuc qua BoardGallery — chỉ bài viết, loại trừ danh mục
-              "Hướng dẫn" (đứng riêng, tab của chính nó ngay dưới). LibraryScreen (hệ cũ) không còn
-              được render ở đây nhưng vẫn giữ nguyên định nghĩa — xoá là việc của giai đoạn 8. */}
+              "Hướng dẫn" (đứng riêng, tab của chính nó ngay dưới). LibraryScreen (hệ cũ) đã bị xoá
+              ở giai đoạn 8. */}
           {screen === "library" && (
             <BoardGallery
               dangHienTab
@@ -13515,7 +13348,7 @@ export default function App() {
           )}
           {/* Task 7: màn chuyên khoa (mở từ dải chọn khoa cong, SpecialtyPicker) dùng chung
               LuoiMuc — lọc theo `chuyenKhoa`, không có nút tạo (loaiTaoDuoc: []) như Thư viện.
-              SpecialtyScreen (hệ cũ) không còn render ở đây, giữ nguyên định nghĩa. */}
+              SpecialtyScreen (hệ cũ) đã bị xoá ở giai đoạn 8. */}
           {screen === "specialty" && (
             <BoardGallery
               dangHienTab
