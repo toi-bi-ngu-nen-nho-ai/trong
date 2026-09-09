@@ -3711,6 +3711,24 @@ type SyncSnapshot = {
   mucs: MucMeta[]
 }
 
+// I3 (BAN-GIAO-PHIEN-SAU.md mục 3 — quyết định chủ dự án qua AskUserQuestion 2026-09-09): ngưỡng
+// CẢNH BÁO MỀM cho "Xuất file", không phải ngưỡng chặn. Đo thật: ảnh base64 luôn ≈ 4/3 dung lượng
+// ảnh gốc, và 20-30 ảnh ECG chụp điện thoại (2-4MB/ảnh, phổ biến trong ổ đĩa của bác sĩ) đã cho ra
+// file 100-160MB — đủ để nhiều điện thoại tầm trung chậm/treo khi giữ cùng lúc chuỗi JSON + Blob +
+// bản gốc trong IndexedDB (có thể cộng dồn ~3x dung lượng ảnh).
+const NGUONG_CANH_BAO_XUAT_BYTE = 80 * 1024 * 1024
+
+// Kết quả `handleExport` đã dựng XONG (payload, blob, mọi câu trạng thái) nhưng CHƯA tải — chờ
+// người dùng xác nhận vì file vượt `NGUONG_CANH_BAO_XUAT_BYTE`. Giữ nguyên `blob` đã dựng (không
+// dựng lại): không phụ thuộc dữ liệu có đổi trong lúc chờ, nên tái dùng an toàn — khác `pendingImport`
+// (phải giữ đúng snapshot đọc lúc mở panel để "Hoàn tác" không lệch nguồn).
+type PendingLargeExport = {
+  blob: Blob
+  tenFile: string
+  câuThanhCong: string
+  danhDauDaSaoLuu: boolean
+}
+
 function DataSyncScreen({
   customAntibiotics,
   customDiseases,
@@ -3746,6 +3764,8 @@ function DataSyncScreen({
   const [importing, setImporting] = useState(false)
   // File đã đọc/phân tích xong, đang CHỜ người dùng xác nhận — chưa động gì tới dữ liệu trên máy.
   const [pendingImport, setPendingImport] = useState<{ data: ImportPayload; rows: { label: string; added: number; updated: number }[] } | null>(null)
+  // I3: file XUẤT đã dựng xong nhưng CHƯA tải — chờ xác nhận vì vượt ngưỡng cảnh báo kích thước.
+  const [pendingLargeExport, setPendingLargeExport] = useState<PendingLargeExport | null>(null)
   // Snapshot của lần nhập GẦN NHẤT trong phiên xem màn này — còn giữ thì còn hoàn tác được. Mất khi
   // rời màn hình (đổi tab/đóng app) vì dữ liệu đã lưu xuống máy ngay khi nhập, không có ý nghĩa "chưa
   // lưu" để giữ lại lâu hơn; đây là lưới an toàn cho đúng cái vừa bấm nhập, không phải một lịch sử.
@@ -3979,33 +3999,19 @@ function DataSyncScreen({
         },
       }
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
       const now = new Date()
       const two = (n: number) => String(n).padStart(2, "0")
       const stamp = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}`
-      a.href = url
-      a.download = `drtrong-du-lieu-${stamp}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const tenFile = `drtrong-du-lieu-${stamp}.json`
       // I1 (review toàn nhánh, final-review-findings.md) — lỗi LIÊN-TASK: `hasCustomContent`
       // (khai báo cạnh `mucsCol`, đầu App()) tính lời nhắc sao lưu THEO CẢ kho `mucs` (Task 5-8),
       // nhưng hai lối thoát Task 9b/9c thêm ở trên ("bỏ chọn ô Bài viết & Sơ đồ nếu chỉ cần sao lưu
       // các mục còn lại") cho phép một lượt xuất THÀNH CÔNG mà không mang theo mucs — hoặc mang
-      // theo nhưng một số mục chỉ đọc được TÊN (mucLoi, không phải nội dung thật). Trước bản vá
-      // này, markBackupDone()/onBackupDone() chạy VÔ ĐIỀU KIỆN ngay dưới đây sau MỌI lượt xuất
-      // thành công — tắt lời nhắc dù đúng thứ đã kích hoạt nó (mucs) không hề nằm trong file, hoặc
-      // chỉ nằm một phần. Người dùng làm ĐÚNG như app khuyên (bỏ chọn ô đó) vẫn bị lời nhắc tắt oan
-      // 14 ngày. Chỉ đánh dấu "đã sao lưu" khi ô "Bài viết & Sơ đồ" còn được CHỌN và MỌI mục đều đọc
-      // được nội dung — ngược lại GIỮ lời nhắc sống, không im lặng bỏ qua (D12: đừng hứa "đã sao
-      // lưu" khi lượt này thực ra chưa đủ).
+      // theo nhưng một số mục chỉ đọc được TÊN (mucLoi, không phải nội dung thật). Chỉ đánh dấu "đã
+      // sao lưu" khi ô "Bài viết & Sơ đồ" còn được CHỌN và MỌI mục đều đọc được nội dung — ngược lại
+      // GIỮ lời nhắc sống, không im lặng bỏ qua (D12: đừng hứa "đã sao lưu" khi lượt này thực ra
+      // chưa đủ).
       const mucsDaSaoLuuDuTron = exportSelection["mucs"] !== false && mucLoi.length === 0
-      if (mucsDaSaoLuuDuTron) {
-        markBackupDone()
-        onBackupDone()
-      }
       // "mucs" dùng `mucsTuoi.length` (số THẬT vừa xuất) chứ không phải `r.current.length` (chính
       // là `customMucs.length`, có thể lệch với số thật — xem chú thích ở đầu khối đọc tươi phía
       // trên): nếu số mục tươi khác số hiển thị trước khi bấm, đó không phải lỗi, nhưng dòng trạng
@@ -4023,9 +4029,43 @@ function DataSyncScreen({
       const canhBaoChuaDanhDauSaoLuu = mucsDaSaoLuuDuTron
         ? ""
         : " Lượt xuất này CHƯA được tính là đã sao lưu (thiếu hoặc lỗi nội dung Bài viết & Sơ đồ) — lời nhắc sao lưu vẫn còn cho tới khi bạn xuất đủ."
-      setStatus(
-        `Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}${canhBaoAnh}${canhBaoChuaDanhDauSaoLuu}`,
-      )
+      const câuThanhCong = `Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}${canhBaoAnh}${canhBaoChuaDanhDauSaoLuu}`
+
+      // I3 (BAN-GIAO-PHIEN-SAU.md mục 3 — quyết định chủ dự án qua AskUserQuestion 2026-09-09):
+      // cảnh báo MỀM khi file ước tính lớn, không chặn. Ngưỡng ~80MB đo được từ dữ liệu thật: ảnh
+      // base64 luôn ≈ 4/3 dung lượng ảnh gốc, và 20-30 ảnh ECG chụp điện thoại (2-4MB/ảnh, phổ
+      // biến) đã cho ra 100-160MB — đủ để nhiều điện thoại tầm trung chậm/treo khi giữ cùng lúc
+      // chuỗi JSON + Blob + bản gốc trong IndexedDB (có thể cộng dồn ~3x dung lượng ảnh). Đặt SAU
+      // khi `blob` đã dựng xong (rẻ — JSON.stringify 200MB chỉ ~300ms đo được trên máy phát triển)
+      // để dùng ĐÚNG kích thước thật, không phải ước lượng trước.
+      //
+      // KHÔNG giữ khoá `dongBoDangChayRef` xuyên suốt lúc chờ xác nhận: coi lượt bấm NÀY là đã
+      // "xong" (như mọi nhánh chặn cứng khác ở trên) — khoá nhả ở `finally` như thường, và
+      // `xacNhanXuatFileLon`/`huyXuatFileLon` là hai hành động MỚI do người dùng tự bấm, tự xin lại
+      // khoá khi cần. An toàn vì phần chờ xác nhận không đọc/ghi gì thêm — `blob` đã dựng xong và
+      // không phụ thuộc dữ liệu có đổi hay không trong lúc chờ, khác hẳn `pendingImport` (phải giữ
+      // đúng snapshot đọc lúc mở panel để "Hoàn tác" không lệch nguồn).
+      if (blob.size > NGUONG_CANH_BAO_XUAT_BYTE) {
+        setPendingLargeExport({ blob, tenFile, câuThanhCong, danhDauDaSaoLuu: mucsDaSaoLuuDuTron })
+        setStatus(
+          `File ước tính ~${Math.round(blob.size / 1024 / 1024)}MB — file lớn có thể làm máy chậm hoặc treo khi tải/lưu, nhất là trên điện thoại cấu hình thấp. Bấm "Vẫn xuất" bên dưới nếu muốn tiếp tục, hoặc bỏ chọn bớt mục rồi thử lại.`,
+        )
+        return
+      }
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = tenFile
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      if (mucsDaSaoLuuDuTron) {
+        markBackupDone()
+        onBackupDone()
+      }
+      setStatus(câuThanhCong)
     } catch (loi) {
       // Lưới CẤP HÀM cho phần đuôi dựng file (`JSON.stringify` → `new Blob` → `URL.createObjectURL`
       // → thẻ `<a>` ngay trên). Trước bản vá này CẢ HAI tầng `try` của hàm chỉ có `finally`, không
@@ -4063,6 +4103,35 @@ function DataSyncScreen({
       dongBoDangChayRef.current = false
       setDongBoDangChay(false)
     }
+  }
+
+  // I3: người dùng xác nhận vẫn muốn tải file lớn — `blob` đã dựng xong từ lượt `handleExport` gọi
+  // trước đó, chỉ còn phần tải + hạch toán (đánh dấu đã sao lưu, câu trạng thái thành công) vốn bị
+  // hoãn lại khi vượt `NGUONG_CANH_BAO_XUAT_BYTE`.
+  function xacNhanXuatFileLon() {
+    if (!pendingLargeExport) return
+    const { blob, tenFile, câuThanhCong, danhDauDaSaoLuu } = pendingLargeExport
+    setPendingLargeExport(null)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = tenFile
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    if (danhDauDaSaoLuu) {
+      markBackupDone()
+      onBackupDone()
+    }
+    setStatus(câuThanhCong)
+  }
+
+  // I3: người dùng chọn KHÔNG tải file lớn — không đụng gì tới dữ liệu trên máy (payload/blob đã
+  // dựng chỉ nằm trong bộ nhớ tạm, chưa từng ghi đâu), chỉ dọn state chờ và nói rõ chưa xuất.
+  function huyXuatFileLon() {
+    setPendingLargeExport(null)
+    setStatus("Đã huỷ — chưa xuất file. Dữ liệu trên máy không đổi.")
   }
 
   function handleImportClick() {
@@ -4679,7 +4748,10 @@ function DataSyncScreen({
               // `dongBoDangChay` thêm vào đây (vòng sửa 2/5): đóng đúng cửa sổ hở mà `exporting ||
               // importing` bỏ sót — khoảng giữa lúc handleConfirmImport đóng panel và lúc nó gọi
               // setImporting(true), khi cả hai cờ cũ đều false. Xem `dongBoDangChayRef`.
-              disabled={exporting || importing || dongBoDangChay}
+              // I3: `pendingLargeExport` thêm vào — chờ xác nhận "Vẫn xuất"/"Huỷ" cũng phải chặn hai
+              // nút này, cùng lý do `dongBoDangChay`: tránh một lượt Xuất/Nhập KHÁC chồng lên trong
+              // lúc màn hình đang hỏi về file lớn còn dang dở.
+              disabled={exporting || importing || dongBoDangChay || !!pendingLargeExport}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60"
               style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
             >
@@ -4692,20 +4764,35 @@ function DataSyncScreen({
               // Cùng lý do `dongBoDangChay` như nút Xuất ở trên — đây chính là nút mà findings-r2
               // Important 1 mô tả: mở lối vào ĐỘC LẬP thứ hai cho `handleConfirmImport` (chọn file
               // KHÁC) trong đúng cửa sổ hở đó.
-              disabled={exporting || importing || dongBoDangChay}
+              // I3: `pendingLargeExport` thêm vào — chờ xác nhận "Vẫn xuất"/"Huỷ" cũng phải chặn hai
+              // nút này, cùng lý do `dongBoDangChay`: tránh một lượt Xuất/Nhập KHÁC chồng lên trong
+              // lúc màn hình đang hỏi về file lớn còn dang dở.
+              disabled={exporting || importing || dongBoDangChay || !!pendingLargeExport}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm border disabled:opacity-60"
               style={{ borderColor: "var(--c-primary)", color: "var(--c-primary)", background: "var(--c-surface)" }}
             >
               {icons.upload()}
               {importing ? "Đang đọc file…" : "Nhập file đã sao lưu"}
             </button>
-            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleFileChange} disabled={importing || dongBoDangChay} className="hidden" />
+            <input ref={fileInputRef} type="file" accept="application/json,.json" onChange={handleFileChange} disabled={importing || dongBoDangChay || !!pendingLargeExport} className="hidden" />
           </>
         )}
 
         {status && (
           <div className="text-center space-y-2">
             <p className="text-xs leading-relaxed" style={{ color: "var(--c-accent)" }}>{status}</p>
+            {/* I3: file xuất đã dựng xong, chờ xác nhận vì vượt ngưỡng cảnh báo kích thước — câu
+                trạng thái phía trên đã nói rõ số MB ước tính. */}
+            {pendingLargeExport && (
+              <div className="flex items-center justify-center gap-4">
+                <button onClick={xacNhanXuatFileLon} className="text-xs font-bold" style={{ color: "var(--c-primary)" }}>
+                  Vẫn xuất file lớn
+                </button>
+                <button onClick={huyXuatFileLon} className="text-xs font-bold" style={{ color: "var(--c-text-muted)" }}>
+                  Huỷ
+                </button>
+              </div>
+            )}
             {/* `disabled` khi đang bận: lượt hoàn tác nay ghi cả NỘI DUNG doc (mở/đóng workspace
                 cho từng mục), bấm chồng lên nhau là hai lượt ghi đua nhau trên cùng một doc. */}
             {undoSnapshot && (
