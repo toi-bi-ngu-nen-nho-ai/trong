@@ -3,6 +3,8 @@ import React, { act } from 'react'
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { gsap } from 'gsap'
+
 import { IntroOverlay } from '../IntroOverlay'
 
 const killMock = vi.fn()
@@ -42,6 +44,7 @@ function ganFonts(ready: Promise<unknown> | undefined) {
 }
 
 beforeEach(() => {
+  vi.mocked(gsap.set).mockClear()
   killMock.mockClear()
   timelineMock.mockClear()
   ganMatchMedia(false)
@@ -58,6 +61,43 @@ describe('IntroOverlay', () => {
     expect(container.querySelector('#letterT')).not.toBeNull()
     expect(container.querySelector('#textBacSi')).not.toBeNull()
     expect(container.querySelector('#textRong')).not.toBeNull()
+  })
+
+  // Điểm 1 chủ dự án bác ở bản Task 3: cụm logo dựng HAI chữ T (một chữ T to riêng một dòng, một
+  // chữ T nữa nằm cứng trong "Trọng"), nên chữ T to không bao giờ "chui vào" chữ Trọng. Bản mới
+  // chỉ được có ĐÚNG MỘT chữ T, và nó phải là #letterT — cái mà timeline dời đi rồi thả về chỗ.
+  it('cụm logo chỉ có ĐÚNG MỘT chữ T, và đó là #letterT', () => {
+    const { container } = render(<IntroOverlay onFinished={() => {}} />)
+    const logo = container.querySelector('#introLogo')!
+    expect(logo).not.toBeNull()
+
+    // Toàn bộ chữ trong cụm logo, bỏ khoảng trắng/xuống dòng do JSX chèn.
+    expect(logo.textContent!.replace(/\s+/g, '')).toBe('BácsĩTrọng')
+    // Đúng một chữ T viết hoa trong cả cụm.
+    expect((logo.textContent!.match(/T/g) ?? []).length).toBe(1)
+    // Và chữ T đó nằm trong #letterT, không phải trong #textRong.
+    expect(container.querySelector('#letterT')!.textContent).toBe('T')
+    expect(container.querySelector('#textRong')!.textContent).toBe('rọng')
+    // Chỉ một phần tử trong cụm mang màu xanh intro — chữ T thứ hai kiểu cũ cũng mang màu này.
+    expect(logo.querySelectorAll('[style*="c-intro-blue"]')).toHaveLength(1)
+  })
+
+  // Khung vẽ ĐẦU TIÊN: React sơn xong từ trước khi cổng chờ font giải quyết, nên nếu cụm logo hiện
+  // sẵn thì người dùng thấy nguyên cái kết ("Bác sĩ Trọng" đủ nét, chữ T cỡ 1x) tới 500ms rồi mới
+  // giật về pha 1. gsap bị mock ở đây nên `gsap.set` là no-op — đúng chỗ để đo trạng thái SƠN THẬT.
+  it('khung vẽ đầu tiên: cụm logo ẩn (visibility hidden) trước khi timeline chạy', () => {
+    const { container } = render(<IntroOverlay onFinished={() => {}} />)
+    const logo = container.querySelector('#introLogo') as HTMLElement
+    expect(logo.style.visibility).toBe('hidden')
+  })
+
+  // Cụm logo chỉ được bật lên trong CÙNG lượt gsap.set đặt x/y/scale mở màn — không sớm hơn.
+  it('gsap.set bật cụm logo thành visible cùng lượt đặt transform mở màn', async () => {
+    render(<IntroOverlay onFinished={() => {}} />)
+    await act(async () => {})
+    const setCalls = vi.mocked(gsap.set).mock.calls
+    expect(setCalls.length).toBeGreaterThan(0)
+    expect(setCalls.some(([, vars]) => (vars as { visibility?: string }).visibility === 'visible')).toBe(true)
   })
 
   it('prefers-reduced-motion: reduce → gọi onFinished ngay, không tạo timeline', async () => {

@@ -7,8 +7,9 @@ const SAFETY_TIMEOUT_MS = 6000
 
 // Baloo 2 khai `font-display: swap` (nguyên văn từ Google Fonts CSS2 API — xem src/index.css). Ở
 // lần mở đầu tiên, chưa có cache, chữ logo sẽ vẽ bằng font dự phòng `system-ui` rồi mới nhảy sang
-// Baloo 2 giữa chừng — đúng vào pha "chữ T thu về" nên rất dễ thấy. Chờ `document.fonts.ready`
-// trước khi khởi động timeline sẽ dập tắt cú nhảy đó.
+// Baloo 2 giữa chừng. Ngoài cú nhảy thị giác, cổng này còn giữ ĐỘ ĐÚNG của phép đo: offset và hệ
+// số phóng bên dưới đều lấy từ `getBoundingClientRect` của chữ T, mà hộp đó phụ thuộc font — đo
+// lúc còn `system-ui` là chữ T hạ cánh lệch chỗ.
 //
 // Nhưng chờ KHÔNG được vô hạn: mạng chậm hoặc file font hỏng thì cú chờ này sẽ chồng thêm một
 // khoảng treo NỮA lên trên SAFETY_TIMEOUT_MS. Vì vậy đua nó với một hạn giờ ngắn — hết 500ms là
@@ -16,13 +17,24 @@ const SAFETY_TIMEOUT_MS = 6000
 // tĩnh (tình huống tệ hơn).
 const FONT_READY_TIMEOUT_MS = 500
 
+// Chữ T lúc đứng một mình (pha 1) nên chiếm khoảng chừng này của khung nhìn. Hệ số phóng được
+// TÍNH NGƯỢC từ hai mốc đó chứ không cứng hoá: cỡ chữ giờ co theo màn hình (xem `CO_CHU` bên
+// dưới), nên một hằng số phóng duy nhất sẽ cho chữ T bé tí trên PC và tràn trên máy nhỏ.
+const T_CAO_MUC_TIEU = 0.42
+const T_RONG_TOI_DA = 0.55
+
+// Cỡ chữ của cụm logo. Kẹp theo CẢ hai chiều: `vw` cho máy dọc, `vh` cho điện thoại nằm ngang
+// (844×390 — cao chỉ 390px, ca dễ vỡ nhất, cụm hai dòng sẽ tràn dọc nếu chỉ bám `vw`).
+// Đo thật (Chrome, xem báo cáo Task 5): 1920×1080 → 104px (yêu cầu 90–110px); 844×390 → 66,3px;
+// 820×1180 → 98,4px; 390×844 → 46,8px; 320 ngang → 44px (chạm sàn), vẫn còn lề mỗi bên.
+const CO_CHU = "clamp(2.75rem, min(12vw, 17vh), 6.5rem)"
+
 export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
   const coverRef = useRef<HTMLDivElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
   const letterTRef = useRef<HTMLSpanElement>(null)
   const bacSiRef = useRef<HTMLSpanElement>(null)
-  const trongRef = useRef<HTMLSpanElement>(null)
-  const dropRef = useRef<HTMLDivElement>(null)
-  const ringsRef = useRef<HTMLDivElement>(null)
+  const rongRef = useRef<HTMLSpanElement>(null)
   const rimRef = useRef<HTMLDivElement>(null)
   // React 19 StrictMode (dev — src/main.tsx bọc cả app) chạy effect theo nhịp setup → cleanup →
   // setup. Chốt này chặn hoạt cảnh khởi động HAI lần cùng lúc; nó được MỞ LẠI trong cleanup (xem
@@ -50,7 +62,9 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       onFinishedRef.current()
     }
 
-    // Lối tắt trợ năng phải chạy NGAY, đồng bộ — không nấp sau cổng chờ font ở dưới.
+    // Lối tắt trợ năng phải chạy NGAY, đồng bộ — không nấp sau cổng chờ font ở dưới. Nhánh này
+    // không bao giờ bật cụm logo thành `visible`, nên nó để lại một khung nền phẳng; đo trên
+    // Chrome thật (Task 5) thì cha gỡ overlay ngay trong cùng lượt commit, không ai kịp thấy.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       finish()
       return
@@ -79,27 +93,69 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
 
       const cover = coverRef.current!
       const rim = rimRef.current!
-      const maxRadius = Math.hypot(window.innerWidth, window.innerHeight) / 2 + 40
+      const letterT = letterTRef.current!
 
-      gsap.set(letterTRef.current, { scale: 3.6 })
-      gsap.set([bacSiRef.current, trongRef.current], { opacity: 0, y: 12 })
-      gsap.set(dropRef.current, { opacity: 0, y: -80 })
-      gsap.set(ringsRef.current!.children, { opacity: 0, scale: 0.3 })
-      gsap.set(rim, { width: 0, height: 0, opacity: 0 })
+      // Đo lúc chữ T còn NGUYÊN vị trí ghép chữ (chưa gsap.set transform nào). `visibility: hidden`
+      // vẫn chiếm chỗ trong layout nên hộp này đúng thật.
+      const oT = letterT.getBoundingClientRect()
+      const tamTX = oT.left + oT.width / 2
+      const tamTY = oT.top + oT.height / 2
+
+      // Dời chữ T ra tâm khung nhìn rồi cho nó chạy về 0/0/1 — hạ cánh CHÍNH XÁC vào ô của nó
+      // trong "Trọng" mà không phải khớp thủ công toạ độ nào.
+      const offsetX = window.innerWidth / 2 - tamTX
+      const offsetY = window.innerHeight / 2 - tamTY
+      const heSoPhong = Math.max(
+        1,
+        Math.min(
+          (window.innerHeight * T_CAO_MUC_TIEU) / oT.height,
+          (window.innerWidth * T_RONG_TOI_DA) / oT.width,
+        ),
+      )
+
+      // Lỗ tròn mở ra từ TÂM CHỮ T (lệch trái và dưới tâm màn hình), nên bán kính phải đo tới góc
+      // XA NHẤT của khung nhìn — `hypot(w, h) / 2` chỉ đúng khi tâm nằm giữa màn hình, dùng lại sẽ
+      // hở một góc.
+      const W = window.innerWidth
+      const H = window.innerHeight
+      const maxRadius =
+        Math.max(
+          Math.hypot(tamTX, tamTY),
+          Math.hypot(W - tamTX, tamTY),
+          Math.hypot(tamTX, H - tamTY),
+          Math.hypot(W - tamTX, H - tamTY),
+        ) + 40
+
+      // Khung vẽ đầu tiên phải sạch: JSX để cụm logo `visibility: hidden`, và nó chỉ được bật lên
+      // TẠI ĐÂY, cùng lượt với các transform mở màn. Nếu bật sớm hơn, người dùng thấy nguyên cái
+      // kết (chữ "Bác sĩ Trọng" đủ nét, chữ T cỡ 1x) suốt thời gian chờ font rồi mới giật về pha 1.
+      // Dùng `visibility` chứ không `opacity`: gsap đang chỉnh `opacity` của từng chữ, hai bên sẽ
+      // giẫm chân nhau.
+      gsap.set(logoRef.current, { visibility: "visible" })
+      gsap.set(letterT, { x: offsetX, y: offsetY, scale: heSoPhong })
+      gsap.set(bacSiRef.current, { opacity: 0, y: -25, scale: 0.95 })
+      gsap.set(rongRef.current, { opacity: 0, x: 25, scale: 0.95 })
+      gsap.set(rim, { width: 0, height: 0, opacity: 0, left: tamTX, top: tamTY })
 
       tl = gsap.timeline({ onComplete: finish })
 
-      tl.to(letterTRef.current, { scale: 1, duration: 1.2, ease: "power3.inOut" })
-        .to(bacSiRef.current, { opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.2)" }, "-=0.5")
-        .to(trongRef.current, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, "-=0.5")
-        .to({}, { duration: 0.3 }) // giữ logo một nhịp trước khi giọt nước rơi
-        .to(dropRef.current, { opacity: 1, y: 0, duration: 0.35, ease: "bounce.out" })
-        .to(dropRef.current, { opacity: 0, duration: 0.1 })
+      // Pha 1–2: chữ T bay về chỗ, hai vế ghép vào khi nó còn đang hạ cánh (chồng lấn -=0.5).
+      tl.to(letterT, { x: 0, y: 0, scale: 1, duration: 1.2, ease: "power3.inOut" })
         .to(
-          ringsRef.current!.children,
-          { opacity: 0, scale: 1.6, duration: 0.25, stagger: 0.06, ease: "power1.out" },
-          "<",
+          bacSiRef.current,
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.2)" },
+          "-=0.5",
         )
+        .to(
+          rongRef.current,
+          { opacity: 1, x: 0, scale: 1, duration: 0.6, ease: "power2.out" },
+          "-=0.5",
+        )
+        // Pha 3: giữ nhịp cho người xem kịp đọc "Bác sĩ Trọng".
+        .to({}, { duration: 0.35 })
+        // Pha 4: hai vế mờ đi, chỉ còn chữ T xanh lao thẳng vào mặt người xem rồi mở ra app.
+        .to([bacSiRef.current, rongRef.current], { opacity: 0, duration: 0.2, ease: "power1.in" })
+        .to(letterT, { scale: 18, duration: 0.5, ease: "power2.in" })
         .to(
           { r: 0 },
           {
@@ -109,7 +165,7 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
             onUpdate: function (this: { targets: () => unknown[] }) {
               const r = (this.targets()[0] as { r: number }).r
               const inner = Math.max(r - 4, 0)
-              const mask = `radial-gradient(circle at 50% 50%, transparent 0, transparent ${inner}px, black ${r}px, black 100%)`
+              const mask = `radial-gradient(circle at ${tamTX}px ${tamTY}px, transparent 0, transparent ${inner}px, black ${r}px, black 100%)`
               cover.style.maskImage = mask
               cover.style.webkitMaskImage = mask
               rim.style.width = `${r * 2}px`
@@ -117,6 +173,8 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
               rim.style.opacity = r > 4 ? "1" : "0"
             },
           },
+          // Chồng lấn vào cuối cú phóng: lỗ bắt đầu mở khi chữ T còn đang lớn dần.
+          "-=0.18",
         )
     })
 
@@ -139,48 +197,47 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         className="absolute inset-0 flex items-center justify-center"
         style={{ background: "var(--c-intro-bg, #f6f6f6)" }}
       >
-        <div className="flex flex-col items-center gap-1" style={{ fontFamily: "var(--font-baloo)" }}>
-          <span
-            id="letterT"
-            ref={letterTRef}
-            className="block text-[64px] leading-none font-extrabold"
-            style={{ color: "var(--c-intro-blue)" }}
-          >
-            T
-          </span>
-          <span className="flex flex-col items-center leading-tight text-[28px] font-extrabold">
-            <span id="textBacSi" ref={bacSiRef} style={{ color: "var(--c-intro-ink)" }}>
-              Bác sĩ
-            </span>
-            <span id="textRong" ref={trongRef}>
-              <span style={{ color: "var(--c-intro-blue)" }}>T</span>
-              <span style={{ color: "var(--c-intro-ink)" }}>rọng</span>
-            </span>
-          </span>
-        </div>
         <div
-          ref={dropRef}
-          className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{ background: "var(--c-intro-blue)" }}
-        />
-        <div ref={ringsRef} className="absolute left-1/2 top-1/2">
-          {[0, 1, 2].map((i) => (
+          id="introLogo"
+          ref={logoRef}
+          className="flex flex-col items-center leading-tight font-extrabold"
+          style={{ fontFamily: "var(--font-baloo)", fontSize: CO_CHU, visibility: "hidden" }}
+        >
+          <span id="textBacSi" ref={bacSiRef} style={{ color: "var(--c-intro-ink)" }}>
+            Bác sĩ
+          </span>
+          {/* CHỈ MỘT chữ T trong toàn cụm — chính chữ T này bay về từ giữa màn hình. Đừng thêm chữ
+              T thứ hai vào #textRong: đó đúng là lỗi chủ dự án bác ở bản trước. */}
+          <span className="flex items-baseline">
             <span
-              key={i}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
-              style={{
-                borderColor: "var(--c-intro-blue)",
-                width: `${40 + i * 28}px`,
-                height: `${40 + i * 28}px`,
-              }}
-            />
-          ))}
+              id="letterT"
+              ref={letterTRef}
+              className="inline-block"
+              style={{ color: "var(--c-intro-blue)", transformOrigin: "center" }}
+            >
+              T
+            </span>
+            <span id="textRong" ref={rongRef} className="inline-block" style={{ color: "var(--c-intro-ink)" }}>
+              rọng
+            </span>
+          </span>
         </div>
       </div>
+      {/* Tâm vòng sáng do gsap đặt (theo tâm chữ T, không phải tâm màn hình). Trước lúc đó phải tắt
+          hẳn bằng opacity 0 + cỡ 0, nếu không viền + quầng sáng sẽ hiện thành một chấm xanh ở góc
+          trên trái suốt cả hoạt cảnh. */}
       <div
         ref={rimRef}
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{ boxShadow: "0 0 24px 6px var(--c-intro-blue)", border: "2px solid var(--c-intro-blue)" }}
+        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          boxShadow: "0 0 24px 6px var(--c-intro-blue)",
+          border: "2px solid var(--c-intro-blue)",
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          opacity: 0,
+        }}
       />
     </div>
   )
