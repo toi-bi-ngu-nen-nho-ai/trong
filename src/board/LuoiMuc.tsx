@@ -1496,7 +1496,7 @@ export function LuoiMuc({
                   borderRadius: 9999,
                   border: 0,
                   background: 'var(--c-primary, #2d3a94)',
-                  color: 'var(--c-on-bright, #ffffff)',
+                  color: 'var(--c-on-primary, #121212)',
                   fontSize: 14,
                   fontWeight: 700,
                 }}
@@ -1828,7 +1828,7 @@ export function LuoiMuc({
                       borderRadius: 9999,
                       border: '1px solid var(--c-line, #d9ddf4)',
                       background: dangChonNhieu ? 'var(--c-primary, #2d3a94)' : 'none',
-                      color: dangChonNhieu ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                      color: dangChonNhieu ? 'var(--c-on-primary, #121212)' : 'var(--c-text-muted, #6b6e96)',
                       fontSize: 13,
                       fontWeight: 700,
                       whiteSpace: 'nowrap',
@@ -2070,7 +2070,7 @@ export function LuoiMuc({
                   ...khuonChip,
                   background: chuyenKhoaLoc === null ? 'var(--c-primary, #2d3a94)' : 'none',
                   // Cùng vá với chip chuyên khoa (veChip ở trên): var(--c-on-bright) thay '#fff' cứng.
-                  color: chuyenKhoaLoc === null ? 'var(--c-on-bright, #fff)' : 'var(--c-text-muted, #6b6e96)',
+                  color: chuyenKhoaLoc === null ? 'var(--c-on-primary, #121212)' : 'var(--c-text-muted, #6b6e96)',
                 }}
               >
                 Tất cả

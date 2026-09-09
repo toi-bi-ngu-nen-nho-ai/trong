@@ -128,7 +128,7 @@ export class VoMuc extends Component<PropsBang, State> {
             type="button"
             onClick={this.thuLai}
             className="h-11 px-5 rounded-2xl font-bold text-[13.5px]"
-            style={{ background: 'var(--c-primary)', color: 'var(--c-on-bright)' }}
+            style={{ background: 'var(--c-primary)', color: 'var(--c-on-primary)' }}
           >
             Thử lại
           </button>

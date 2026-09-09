@@ -55,7 +55,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             window.location.replace(duongDanPhucHoi(window.location.href))
           }}
           className="h-11 px-5 rounded-2xl font-bold text-[13.5px]"
-          style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+          style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
         >
           Tải lại trang
         </button>

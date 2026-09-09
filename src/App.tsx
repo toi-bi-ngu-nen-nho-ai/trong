@@ -1150,7 +1150,7 @@ function HomeScreen({
             >
               <div
                 className="flex-none w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+                style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
               >
                 {c.icon}
               </div>
@@ -1173,7 +1173,7 @@ function HomeScreen({
         >
           <div
             className="flex-none w-9 h-9 rounded-full flex items-center justify-center"
-            style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }}
+            style={{ background: "var(--c-primary-soft)", color: "var(--c-primary-deep)" }}
           >
             {icons.docCross()}
           </div>
@@ -1207,7 +1207,7 @@ function HomeScreen({
           <button
             onClick={() => onNavigate("library")}
             className="flex items-center gap-0.5 text-sm font-semibold px-2 py-2 -mr-2 rounded-lg"
-            style={{ color: "var(--c-primary)" }}
+            style={{ color: "var(--c-primary-deep)" }}
           >
             Tất cả
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -1269,7 +1269,7 @@ function ComingSoonScreen({ feature, onBack }: { feature: string; onBack?: () =>
     <div className="h-full flex flex-col screen-transition">
       {onBack ? (
         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-          <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
+          <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary-deep)" }}>
             {icons.back()}
             Quay lại
           </button>
@@ -1453,7 +1453,7 @@ export function SearchScreen({
     <div className="h-full flex flex-col">
       {/* Search bar */}
       <div className="px-5 pt-2 pb-3">
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium mb-2" style={{ color: "var(--c-primary)" }}>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium mb-2" style={{ color: "var(--c-primary-deep)" }}>
           {icons.back()}
           Quay lại
         </button>
@@ -1552,10 +1552,10 @@ export function SearchScreen({
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   {r.specialty && (
-                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--c-primary)" }}>{r.specialty}</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--c-primary-strong)" }}>{r.specialty}</span>
                   )}
                   {nhanKetQua(r) && (
-                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--c-accent-soft)", color: "var(--c-accent)" }}>
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "var(--c-accent-soft)", color: "var(--c-primary-deep)" }}>
                       {nhanKetQua(r)}
                     </span>
                   )}
@@ -1635,7 +1635,7 @@ function AddFlashcardScreen({
   return (
     <div className="h-full flex flex-col screen-transition">
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary-deep)" }}>
           {icons.back()}
           Quay lại
         </button>
@@ -1689,7 +1689,7 @@ function AddFlashcardScreen({
           onClick={handleSave}
           disabled={!canSave}
           className="w-full py-3.5 rounded-2xl font-semibold text-sm"
-          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}
+          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: canSave ? "var(--c-on-primary)" : "var(--c-on-bright)" }}
         >
           Lưu thẻ ghi nhớ
         </button>
@@ -1827,13 +1827,13 @@ function AddAntibioticScreen({
   const fieldStyle = { borderColor: "var(--c-line)", background: "var(--c-surface)" }
   const chipStyle = (active: boolean) =>
     active
-      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
 
   return (
     <div className="h-full flex flex-col screen-transition">
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary-deep)" }}>
           {icons.back()}
           Quay lại
         </button>
@@ -1882,7 +1882,7 @@ function AddAntibioticScreen({
                 className="px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors"
                 style={
                   diseaseIds.includes(d.id)
-                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary-deep)" }
                     : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                 }
               >
@@ -2031,7 +2031,7 @@ function AddAntibioticScreen({
           onClick={handleSave}
           disabled={!canSave}
           className="w-full py-3.5 rounded-2xl font-semibold text-sm"
-          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}
+          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: canSave ? "var(--c-on-primary)" : "var(--c-on-bright)" }}
         >
           Lưu kháng sinh
         </button>
@@ -2259,13 +2259,13 @@ function EditAntibioticScreen({
   const fieldStyle = { borderColor: "var(--c-line)", background: "var(--c-surface)" }
   const chipStyle = (active: boolean) =>
     active
-      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
 
   return (
     <div className="h-full flex flex-col screen-transition">
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary-deep)" }}>
           {icons.back()}
           Quay lại
         </button>
@@ -2315,7 +2315,7 @@ function EditAntibioticScreen({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-slate-500">Mức liều theo CrCl</label>
-            <button onClick={addTier} className="text-xs font-semibold" style={{ color: "var(--c-primary)" }}>
+            <button onClick={addTier} className="text-xs font-semibold" style={{ color: "var(--c-primary-deep)" }}>
               + Thêm mức
             </button>
           </div>
@@ -2384,7 +2384,7 @@ function EditAntibioticScreen({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-slate-500">Cảnh báo / tương tác (tuỳ chọn)</label>
-            <button onClick={addWarning} className="text-xs font-semibold" style={{ color: "var(--c-primary)" }}>
+            <button onClick={addWarning} className="text-xs font-semibold" style={{ color: "var(--c-primary-deep)" }}>
               + Thêm cảnh báo
             </button>
           </div>
@@ -2426,7 +2426,7 @@ function EditAntibioticScreen({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-slate-500">Chỉ định riêng theo bệnh lý (tuỳ chọn)</label>
-            <button onClick={addIndication} className="text-xs font-semibold" style={{ color: "var(--c-primary)" }}>
+            <button onClick={addIndication} className="text-xs font-semibold" style={{ color: "var(--c-primary-deep)" }}>
               + Thêm chỉ định
             </button>
           </div>
@@ -2475,7 +2475,7 @@ function EditAntibioticScreen({
                           className="px-2.5 py-1 rounded-full text-[12px] font-semibold border transition-colors"
                           style={
                             matched?.id === d.id
-                              ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+                              ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-primary)" }
                               : { background: "var(--c-surface)", borderColor: "var(--c-warn-line)", color: "var(--c-warn)" }
                           }
                         >
@@ -2502,7 +2502,7 @@ function EditAntibioticScreen({
 
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-[12px] text-slate-400">Mức liều theo CrCl riêng (tuỳ chọn — bỏ trống để dùng mức liều chung ở trên)</label>
-                    <button onClick={() => addIndicationTier(row.key)} className="text-[12px] font-semibold" style={{ color: "var(--c-primary)" }}>
+                    <button onClick={() => addIndicationTier(row.key)} className="text-[12px] font-semibold" style={{ color: "var(--c-primary-deep)" }}>
                       + Thêm mức
                     </button>
                   </div>
@@ -2640,7 +2640,7 @@ function EditAntibioticScreen({
             Cần điền thêm: {missingSaveReasons.join(" · ")}
           </p>
         )}
-        <button onClick={handleSave} disabled={!canSave} className="w-full py-3.5 rounded-2xl font-semibold text-sm" style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}>
+        <button onClick={handleSave} disabled={!canSave} className="w-full py-3.5 rounded-2xl font-semibold text-sm" style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: canSave ? "var(--c-on-primary)" : "var(--c-on-bright)" }}>
           Lưu thay đổi
         </button>
       </div>
@@ -2715,7 +2715,7 @@ function BolusEditorField({ boluses, setBoluses }: { boluses: BolusDraft[]; setB
     <div className="pt-2 border-t" style={{ borderColor: "var(--c-line-soft)" }}>
       <div className="flex items-center justify-between mb-1.5 mt-3">
         <label className="text-xs font-semibold text-slate-500">Liều nạp / bolus (tuỳ chọn)</label>
-        <button onClick={() => setBoluses((prev) => [...prev, emptyBolusDraft()])} className="text-xs font-semibold" style={{ color: "var(--c-primary)" }}>
+        <button onClick={() => setBoluses((prev) => [...prev, emptyBolusDraft()])} className="text-xs font-semibold" style={{ color: "var(--c-primary-deep)" }}>
           + Thêm liều nạp
         </button>
       </div>
@@ -2752,7 +2752,7 @@ function BolusEditorField({ boluses, setBoluses }: { boluses: BolusDraft[]; setB
                     className="flex-1 py-2 rounded-xl text-xs font-semibold border"
                     style={
                       b.mode === opt.v
-                        ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                        ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
                         : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                     }
                   >
@@ -3011,7 +3011,7 @@ function AntibioticAdvancedFields({
   const smallFieldClass = "w-full px-3 py-2 rounded-xl text-sm border outline-none"
   const chipStyle = (active: boolean) =>
     active
-      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
   function updateMix(field: keyof MixDraft, value: string) {
     setMix((prev) => ({ ...prev, [field]: value }))
@@ -3338,7 +3338,7 @@ function AddInfusionScreen({
   return (
     <div className="h-full flex flex-col screen-transition">
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary-deep)" }}>
           {icons.back()}
           Quay lại
         </button>
@@ -3375,7 +3375,7 @@ function AddInfusionScreen({
                 className="px-3.5 py-2 rounded-full text-xs font-semibold border transition-colors"
                 style={
                   diseaseIds.includes(d.id)
-                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary)" }
+                    ? { background: "var(--c-primary-soft)", borderColor: "var(--c-primary)", color: "var(--c-primary-deep)" }
                     : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                 }
               >
@@ -3413,7 +3413,7 @@ function AddInfusionScreen({
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-semibold text-slate-500">Cảnh báo (tuỳ chọn)</label>
-            <button onClick={addWarning} className="text-xs font-semibold" style={{ color: "var(--c-primary)" }}>
+            <button onClick={addWarning} className="text-xs font-semibold" style={{ color: "var(--c-primary-deep)" }}>
               + Thêm cảnh báo
             </button>
           </div>
@@ -3489,7 +3489,7 @@ function AddInfusionScreen({
                     className="flex-1 py-2 rounded-xl text-xs font-semibold border"
                     style={
                       weightBased === opt.v
-                        ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                        ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
                         : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                     }
                   >
@@ -3514,7 +3514,7 @@ function AddInfusionScreen({
                       className="px-2.5 py-1.5 rounded-full text-[12px] font-semibold border whitespace-nowrap"
                       style={
                         doseUnit === u
-                          ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+                          ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-primary)" }
                           : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                       }
                     >
@@ -3559,7 +3559,7 @@ function AddInfusionScreen({
                     className="flex-1 py-2 rounded-xl text-xs font-semibold border"
                     style={
                       mixForm === opt.v
-                        ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                        ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
                         : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                     }
                   >
@@ -3652,7 +3652,7 @@ function AddInfusionScreen({
           onClick={handleSave}
           disabled={!canSave}
           className="w-full py-3.5 rounded-2xl font-semibold text-sm"
-          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: "var(--c-on-bright)" }}
+          style={{ background: canSave ? "var(--c-primary)" : "var(--c-muted)", color: canSave ? "var(--c-on-primary)" : "var(--c-on-bright)" }}
         >
           {isEdit ? "Lưu thay đổi" : "Lưu thuốc"}
         </button>
@@ -4638,7 +4638,7 @@ function DataSyncScreen({
   return (
     <div className="h-full flex flex-col screen-transition">
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--c-line)" }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary)" }}>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-medium" style={{ color: "var(--c-primary-deep)" }}>
           {icons.back()}
           Quay lại
         </button>
@@ -4680,7 +4680,7 @@ function DataSyncScreen({
                     <span className="text-sm text-slate-700">{r.label}</span>
                     <span className="text-xs font-semibold flex items-center gap-2">
                       {r.added > 0 && <span style={{ color: "var(--c-green)" }}>+{r.added} mới</span>}
-                      {r.updated > 0 && <span style={{ color: "var(--c-accent)" }}>{r.updated} cập nhật</span>}
+                      {r.updated > 0 && <span style={{ color: "var(--c-primary-deep)" }}>{r.updated} cập nhật</span>}
                     </span>
                   </div>
                 ))}
@@ -4697,7 +4697,7 @@ function DataSyncScreen({
               <button
                 onClick={handleConfirmImport}
                 className="flex-1 py-3 rounded-2xl font-semibold text-sm"
-                style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+                style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
               >
                 Xác nhận nhập
               </button>
@@ -4711,7 +4711,7 @@ function DataSyncScreen({
                 <button
                   onClick={() => selectAllExport(selectedCount < categoryRows.length)}
                   className="text-xs font-semibold"
-                  style={{ color: "var(--c-primary)" }}
+                  style={{ color: "var(--c-primary-deep)" }}
                 >
                   {selectedCount < categoryRows.length ? "Chọn tất cả" : "Bỏ chọn tất cả"}
                 </button>
@@ -4730,7 +4730,7 @@ function DataSyncScreen({
                     >
                       <span
                         className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full flex items-center justify-center"
-                        style={{ background: selected ? "var(--c-primary)" : "var(--c-line-soft)", color: "var(--c-on-bright)" }}
+                        style={{ background: selected ? "var(--c-primary)" : "var(--c-line-soft)", color: "var(--c-on-primary)" }}
                       >
                         {selected && icons.check()}
                       </span>
@@ -4753,7 +4753,7 @@ function DataSyncScreen({
               // lúc màn hình đang hỏi về file lớn còn dang dở.
               disabled={exporting || importing || dongBoDangChay || !!pendingLargeExport}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm disabled:opacity-60"
-              style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+              style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
             >
               {icons.download()}
               {exporting ? "Đang xuất…" : "Xuất file sao lưu (.json)"}
@@ -4769,7 +4769,7 @@ function DataSyncScreen({
               // lúc màn hình đang hỏi về file lớn còn dang dở.
               disabled={exporting || importing || dongBoDangChay || !!pendingLargeExport}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold text-sm border disabled:opacity-60"
-              style={{ borderColor: "var(--c-primary)", color: "var(--c-primary)", background: "var(--c-surface)" }}
+              style={{ borderColor: "var(--c-primary)", color: "var(--c-primary-strong)", background: "var(--c-surface)" }}
             >
               {icons.upload()}
               {importing ? "Đang đọc file…" : "Nhập file đã sao lưu"}
@@ -4780,12 +4780,12 @@ function DataSyncScreen({
 
         {status && (
           <div className="text-center space-y-2">
-            <p className="text-xs leading-relaxed" style={{ color: "var(--c-accent)" }}>{status}</p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--c-primary-deep)" }}>{status}</p>
             {/* I3: file xuất đã dựng xong, chờ xác nhận vì vượt ngưỡng cảnh báo kích thước — câu
                 trạng thái phía trên đã nói rõ số MB ước tính. */}
             {pendingLargeExport && (
               <div className="flex items-center justify-center gap-4">
-                <button onClick={xacNhanXuatFileLon} className="text-xs font-bold" style={{ color: "var(--c-primary)" }}>
+                <button onClick={xacNhanXuatFileLon} className="text-xs font-bold" style={{ color: "var(--c-primary-deep)" }}>
                   Vẫn xuất file lớn
                 </button>
                 <button onClick={huyXuatFileLon} className="text-xs font-bold" style={{ color: "var(--c-text-muted)" }}>
@@ -4948,7 +4948,7 @@ function useCountUp(target: number | null, decimals: number, finalText: string, 
 function SectionLabel({ children, tone = "muted" }: { children: React.ReactNode; tone?: "muted" | "accent" | "danger" }) {
   // C.muted (~3,1:1) chỉ đủ cho icon/placeholder, KHÔNG đủ cho chữ đọc được (dưới ngưỡng AA
   // 4,5:1) — đây là NHÃN MỤC thật, phải đọc được, nên dùng C.textSoft (~4,x:1) cho tone mặc định.
-  const color = tone === "accent" ? C.accent : tone === "danger" ? C.danger : C.textSoft
+  const color = tone === "accent" ? "var(--c-primary-deep)" : tone === "danger" ? C.danger : C.textSoft
   return (
     <p className={`${T.label} mb-2`} style={{ color }}>
       {children}
@@ -5035,7 +5035,7 @@ function Chip({
       }}
       className={`${CHIP}${index != null ? " rise-in" : ""}`}
       style={{
-        ...(active ? { background: on, borderColor: on, color: "var(--c-on-bright)" } : { background: C.surface, borderColor: C.line, color: C.textSoft }),
+        ...(active ? { background: on, borderColor: on, color: "var(--c-on-primary)" } : { background: C.surface, borderColor: C.line, color: C.textSoft }),
         ...(index != null ? ({ "--i": index } as React.CSSProperties) : {}),
       }}
       aria-pressed={active}
@@ -5239,10 +5239,10 @@ function ConfirmIconButton({
 // Hộp thông báo một kiểu duy nhất cho cả màn — trước đây mỗi chỗ tự chọn nền/viền/cỡ chữ riêng.
 function Note({ tone, children }: { tone: "info" | "warn" | "danger" | "ok"; children: React.ReactNode }) {
   const map = {
-    info: { bg: C.primarySoft, fg: C.primary, line: C.primaryLine },
+    info: { bg: C.primarySoft, fg: "var(--c-primary-deep)", line: C.primaryLine },
     warn: { bg: C.warnSoft, fg: C.warn, line: C.warnLine },
     danger: { bg: C.dangerSoft, fg: C.danger, line: C.dangerLine },
-    ok: { bg: C.accentSoft, fg: C.accent, line: C.accentLine },
+    ok: { bg: C.accentSoft, fg: "var(--c-primary-deep)", line: C.accentLine },
   }[tone]
   return (
     <p className={`${T.meta} px-2.5 py-2 ${R.box} mb-2`} style={{ background: map.bg, color: map.fg, border: `1px solid ${map.line}` }}>
@@ -5358,7 +5358,7 @@ function DisclaimerGate({ ack, onAcknowledge }: { ack: boolean; onAcknowledge: (
         <button
           onClick={onAcknowledge}
           className="w-full py-3.5 rounded-[20px] font-semibold text-[13px] mb-2"
-          style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+          style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
         >
           Tôi đã hiểu
         </button>
@@ -5515,7 +5515,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
     <div className="mx-5 mb-3 rounded-[20px]" style={{ background: "var(--c-surface)" }}>
       <div className="flex items-center gap-2 px-4 py-3">
         <button onClick={onToggle} className="flex-1 min-w-0 min-h-[44px] flex flex-col justify-center text-left" aria-expanded={open} aria-controls={panelBodyId}>
-          <p className="text-[12px] font-bold" style={{ color: "var(--c-primary)" }}>
+          <p className="text-[12px] font-bold" style={{ color: "var(--c-primary-strong)" }}>
             Bệnh nhân hiện tại
           </p>
           {/* Trước đây `truncate` một dòng: lượt vá 2026-09-01 tách CrCl ra khỏi vùng cắt vì đó là
@@ -5604,7 +5604,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
           </span>
           </>
         )}
-        <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }} aria-label={open ? "Thu gọn" : "Mở rộng"} aria-expanded={open} aria-controls={panelBodyId}>
+        <button onClick={onToggle} className="flex-none w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-surface)", color: "var(--c-primary-strong)" }} aria-label={open ? "Thu gọn" : "Mở rộng"} aria-expanded={open} aria-controls={panelBodyId}>
           <span style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}>{icons.chevronDown()}</span>
         </button>
       </div>
@@ -5719,7 +5719,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
                     className={`flex-1 h-11 ${R.input} ${T.chip} border dose-press`}
                     style={
                       patient.sex === sVal
-                        ? { background: C.primary, borderColor: C.primary, color: "var(--c-on-bright)" }
+                        ? { background: C.primary, borderColor: C.primary, color: "var(--c-on-primary)" }
                         : { background: C.surface, borderColor: C.primaryLine, color: C.textSoft }
                     }
                   >
@@ -5787,7 +5787,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
                         tickHaptic()
                       }}
                       className={`px-3 h-full ${T.chip} leading-none dose-press`}
-                      style={patient.scrUnit === u ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.surface, color: "var(--c-text-muted)" }}
+                      style={patient.scrUnit === u ? { background: C.primary, color: "var(--c-on-primary)" } : { background: C.surface, color: "var(--c-text-muted)" }}
                     >
                       {u === "mgdl" ? "mg/dL" : "µmol/L"}
                     </button>
@@ -5894,7 +5894,7 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
               className={`${CHIP} dose-press`}
               style={
                 patient.rrt === "none"
-                  ? { background: C.primary, borderColor: "transparent", color: "var(--c-on-bright)" }
+                  ? { background: C.primary, borderColor: "transparent", color: "var(--c-on-primary)" }
                   : { background: "transparent", borderColor: "transparent", color: C.textSoft }
               }
             >
@@ -6097,7 +6097,7 @@ function RunningPanel() {
 
   return (
     <div className="mx-5 mb-3 rounded-[20px] border p-4" style={{ borderColor: "var(--c-line)", background: "var(--c-surface)" }}>
-      <p className={`${T.label} mb-2`} style={{ color: "var(--c-accent)" }}>
+      <p className={`${T.label} mb-2`} style={{ color: "var(--c-primary-strong)" }}>
         {/* Trước đây tên là "Đang truyền", nhưng kháng sinh mỗi 8 giờ cũng nằm trong bảng này —
             gọi một liều ngắt quãng là "đang truyền" là mô tả sai thứ đang xảy ra trên người bệnh.
             Số đếm nảy một nhịp mỗi khi đổi — ghim/bỏ ghim là hành động "thành công" chính của
@@ -6135,7 +6135,7 @@ function RunningPanel() {
                   <div className="flex items-center gap-1.5 min-w-0">
                     <p className={`${T.critical} truncate`} style={{ color: C.text }}>{r.name}</p>
                     {r.kind === "intermittent" && (
-                      <span className={`${T.meta} font-bold px-1.5 rounded-full flex-none`} style={{ background: C.primarySoft, color: C.primary }}>
+                      <span className={`${T.meta} font-bold px-1.5 rounded-full flex-none`} style={{ background: C.primarySoft, color: "var(--c-primary-deep)" }}>
                         ngắt quãng
                       </span>
                     )}
@@ -6183,7 +6183,7 @@ function RunningPanel() {
                           className="w-11 h-11 rounded-full text-[12px] font-bold border"
                           style={
                             r.line === l
-                              ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+                              ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
                               : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
                           }
                           aria-label={`Chuyển sang ${lineLabel(l)}`}
@@ -6196,7 +6196,7 @@ function RunningPanel() {
                     <button
                       onClick={() => setExpandedLineId(r.id)}
                       className="w-11 h-11 rounded-full text-[12px] font-bold border"
-                      style={{ background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }}
+                      style={{ background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }}
                       aria-label={`Đang ở ${lineLabel(r.line)} — chạm để đổi Đường truyền`}
                     >
                       {r.line === 0 ? "NB" : r.line}
@@ -6211,7 +6211,7 @@ function RunningPanel() {
                     <button
                       onClick={() => cancelUnpin(r.id)}
                       className="h-11 px-3 rounded-full flex items-center justify-center flex-none text-[12px] font-bold relative overflow-hidden"
-                      style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+                      style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
                       aria-label={`Hoàn tác bỏ khỏi bảng — tự xoá hẳn sau ${(CONFIRM_DELETE_RESET_MS / 1000).toFixed(0)} giây nếu không chạm`}
                     >
                       <span
@@ -6250,7 +6250,7 @@ function RunningPanel() {
               duy nhất một tín hiệu trấn an có thể bị đọc nhầm thành đã-kiểm (critique /impeccable
               2026-08-17T22-03, P2). */}
           {running.length >= 2 ? (
-            <p className={`${T.meta} flex items-center gap-1.5 mt-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.accentSoft, color: C.accent }}>
+            <p className={`${T.meta} flex items-center gap-1.5 mt-2 px-2.5 py-1.5 ${R.box}`} style={{ background: C.accentSoft, color: "var(--c-primary-deep)" }}>
               <span className="flex-none scale-90">{icons.check()}</span>
               Chưa thấy xung đột nào trong bảng dữ liệu của app
             </p>
@@ -6395,7 +6395,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
                 tickHaptic()
               }}
               className={`${BTN_SM} flex-none`}
-              style={{ borderColor: C.line, color: C.primary }}
+              style={{ borderColor: C.line, color: "var(--c-primary-strong)" }}
             >
               {allSelected ? "Bỏ chọn" : "Chọn tất cả"}
             </button>
@@ -6419,7 +6419,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
                       thêm một ô bấm được nữa bên trong chỉ tạo ra hai đích chạm chồng nhau. */}
                   <span
                     className="flex-none w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center"
-                    style={on ? { background: C.primary, borderColor: C.primary, color: "var(--c-on-bright)" } : { borderColor: C.line }}
+                    style={on ? { background: C.primary, borderColor: C.primary, color: "var(--c-on-primary)" } : { borderColor: C.line }}
                   >
                     {on && <span className="scale-[0.6]">{icons.check()}</span>}
                   </span>
@@ -6438,7 +6438,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
                         {line}
                       </span>
                     ))}
-                    <span className={`${T.meta} font-bold block mt-0.5`} style={{ color: C.primary }}>
+                    <span className={`${T.meta} font-bold block mt-0.5`} style={{ color: "var(--c-primary-strong)" }}>
                       → {e.output}
                     </span>
                     {e.flag && (
@@ -6465,7 +6465,7 @@ function CalcLogSheet({ entries, onClear, onRemove, onClose }: { entries: CalcLo
             }}
             disabled={target.length === 0}
             className="flex-1 py-3 rounded-[20px] font-semibold text-[13px] border"
-            style={{ borderColor: C.line, color: target.length === 0 ? C.muted : C.primary }}
+            style={{ borderColor: C.line, color: target.length === 0 ? C.muted : "var(--c-primary-strong)" }}
           >
             {copied ? "Đã sao chép" : hasSelection ? `Sao chép ${selected.size} mục` : "Sao chép tất cả"}
           </button>
@@ -6647,7 +6647,7 @@ function WardRecipeChips({
   const showFilter = wardList.length > 3
   const pill = (on: boolean) =>
     on
-      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
 
   return (
@@ -6686,7 +6686,7 @@ function WardRecipeChips({
             <button
               onClick={() => onSelectWard(w)}
               className="h-full pl-3 pr-1.5 text-[12px] font-semibold max-w-[140px] truncate"
-              style={activeId === w.id ? { color: "var(--c-on-bright)", background: "var(--c-accent)" } : { color: "var(--c-accent-deep)", background: "var(--c-surface)" }}
+              style={activeId === w.id ? { color: "var(--c-on-primary)", background: "var(--c-accent)" } : { color: "var(--c-accent-deep)", background: "var(--c-surface)" }}
             >
               {w.title || "Công thức đã lưu"}
             </button>
@@ -7184,7 +7184,7 @@ function AntibioticMixPanel({
 
   const pill = (on: boolean) =>
     on
-      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
 
   function outcome(): MixOutcome {
@@ -7701,7 +7701,7 @@ function AntibioticMixPanel({
                     key={f}
                     onClick={() => setDropFactor(f)}
                     className="flex-1 text-[12px] font-semibold"
-                    style={dropFactor === f ? { background: "var(--c-accent)", color: "var(--c-on-bright)" } : { background: "var(--c-surface)", color: "var(--c-text-soft)" }}
+                    style={dropFactor === f ? { background: "var(--c-accent)", color: "var(--c-on-primary)" } : { background: "var(--c-surface)", color: "var(--c-text-soft)" }}
                   >
                     {f}
                   </button>
@@ -7795,7 +7795,7 @@ function AntibioticMixPanel({
             ) : (
               <>
                 <div className="flex flex-wrap gap-1.5 mt-2">
-                  <button onClick={saveLog} className="h-9 px-3 rounded-full text-[12px] font-bold dose-press" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
+                  <button onClick={saveLog} className="h-9 px-3 rounded-full text-[12px] font-bold dose-press" style={{ background: "var(--c-accent)", color: "var(--c-on-primary)" }}>
                     Lưu vào nhật ký
                   </button>
                 </div>
@@ -7950,7 +7950,7 @@ function AntibioticDoseCard({
   )
   const pill = (on: boolean) =>
     on
-      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
   // Chỉ có gì để "pha" khi câu chữ route thật sự là một trong bốn đường tiêm/truyền — uống, nhỏ
   // mắt... không có bảng pha kiểu này, hiện ra sẽ sai vì áp công thức pha lên đường dùng không liên quan.
@@ -8230,7 +8230,7 @@ function AntibioticDoseCard({
           {drug.isCustom && (
             <span
               className="text-[12px] font-bold px-1.5 py-0.5 rounded-full flex-none"
-              style={isOverride ? { background: "var(--c-primary-soft)", color: "var(--c-primary)" } : { background: "var(--c-green-soft)", color: "var(--c-green)" }}
+              style={isOverride ? { background: "var(--c-primary-soft)", color: "var(--c-primary-deep)" } : { background: "var(--c-green-soft)", color: "var(--c-green)" }}
             >
               {isOverride ? "Đã chỉnh sửa" : "Tự nhập"}
             </span>
@@ -8244,7 +8244,7 @@ function AntibioticDoseCard({
               className={`${T.meta} font-semibold px-2 py-0.5 ${R.pill}`}
               style={
                 effectiveCrcl != null
-                  ? { background: C.primarySoft, color: C.primary }
+                  ? { background: C.primarySoft, color: "var(--c-primary-deep)" }
                   : { background: C.warnSoft, color: C.warn }
               }
             >
@@ -8252,7 +8252,7 @@ function AntibioticDoseCard({
             </span>
           )}
           {onEdit && (
-            <button onClick={() => onEdit(drug)} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-primary-soft)", color: "var(--c-primary)" }} aria-label="Sửa">
+            <button onClick={() => onEdit(drug)} className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: "var(--c-primary-soft)", color: "var(--c-primary-deep)" }} aria-label="Sửa">
               {icons.edit()}
             </button>
           )}
@@ -8622,7 +8622,7 @@ function AntibioticDoseCard({
           tickHaptic()
         }}
         className={`${BTN_BLOCK} mt-3`}
-        style={{ borderColor: C.accentLine, background: C.accentSoft, color: C.accent }}
+        style={{ borderColor: C.accentLine, background: C.accentSoft, color: "var(--c-primary-deep)" }}
       >
         {/* "Ghim liều này", không phải "Thêm vào danh sách đang dùng" (chữ dùng cho nút ghim TỐC ĐỘ
             TRUYỀN liên tục ở InfusionCalculator) — hai hành động khác bản chất (một liều ngắt quãng
@@ -8680,7 +8680,7 @@ function AntibioticDoseCard({
           )}
           {ward ? (
             <div className="flex items-start gap-2">
-              <span className="mt-0.5 flex-none" style={{ color: "var(--c-accent)" }}>{icons.edit()}</span>
+              <span className="mt-0.5 flex-none" style={{ color: "var(--c-primary-strong)" }}>{icons.edit()}</span>
               <div className="flex-1 min-w-0">
                 <p className={`${T.meta} font-bold`} style={{ color: "var(--c-accent-deep)" }}>
                   {ward.title || "Công thức của bạn"} (lưu {formatSavedAt(ward.savedAt)}) — khác công thức hệ thống
@@ -8728,7 +8728,7 @@ function AntibioticDoseCard({
               <button
                 onClick={() => setShowMix((v) => !v)}
                 className={`${BTN_BLOCK} mt-3`}
-                style={{ borderColor: C.accentLine, background: C.accentSoft, color: C.accent }}
+                style={{ borderColor: C.accentLine, background: C.accentSoft, color: "var(--c-primary-deep)" }}
               >
                 {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
               </button>
@@ -9186,7 +9186,7 @@ function AntibioticsScreen({
       <button
         onClick={onAddNew}
         className={`w-full flex items-center justify-center gap-2 h-11 ${R.box} border border-dashed mt-3 ${T.bodyStrong}`}
-        style={{ borderColor: C.primaryLine, color: C.primary }}
+        style={{ borderColor: C.primaryLine, color: "var(--c-primary-deep)" }}
       >
         <span className="scale-90">{icons.plus()}</span>
         Thêm kháng sinh tự nhập
@@ -9524,7 +9524,7 @@ function MixResultCard({
         </button>
       ) : (
         <div className="flex flex-wrap gap-1.5 mt-2">
-          <button onClick={onUse} className="h-9 px-3 rounded-full text-[12px] font-bold dose-press" style={{ background: "var(--c-accent)", color: "var(--c-on-bright)" }}>
+          <button onClick={onUse} className="h-9 px-3 rounded-full text-[12px] font-bold dose-press" style={{ background: "var(--c-accent)", color: "var(--c-on-primary)" }}>
             Dùng nồng độ này
           </button>
           <button
@@ -9681,7 +9681,7 @@ function MixPanel({
 
   const pill = (on: boolean) =>
     on
-      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-bright)" }
+      ? { background: "var(--c-accent)", borderColor: "var(--c-accent)", color: "var(--c-on-primary)" }
       : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
 
   return (
@@ -10205,7 +10205,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
               // luật Floating-Layer-Only trong DESIGN.md chỉ cho shadow ở lớp nổi thật sự — màu nền
               // trắng + chữ primary đã đủ phân biệt trạng thái chọn (/impeccable critique 2026-08-18).
               mode === m.id
-                ? { background: "var(--c-surface)", color: "var(--c-primary)" }
+                ? { background: "var(--c-surface)", color: "var(--c-primary-strong)" }
                 : { background: "transparent", color: "var(--c-text-soft)" }
             }
           >
@@ -10226,7 +10226,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             className={CHIP}
             style={
               unitId === u
-                ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-bright)" }
+                ? { background: "var(--c-primary)", borderColor: "var(--c-primary)", color: "var(--c-on-primary)" }
                 : { background: "var(--c-surface)", borderColor: "var(--c-line)", color: "var(--c-text-soft)" }
             }
           >
@@ -10544,7 +10544,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
             style={
               confirmPin
                 ? { background: "var(--c-danger-icon)", color: "var(--c-on-bright)" }
-                : { background: C.accent, color: "var(--c-on-bright)" }
+                : { background: C.accent, color: "var(--c-on-primary)" }
             }
           >
             <span className="flex-none scale-90">{confirmPin ? icons.alert() : icons.plus()}</span>
@@ -10641,7 +10641,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         )}
         {ward ? (
           <div className="flex items-start gap-2">
-            <span className="mt-0.5 flex-none" style={{ color: "var(--c-accent)" }}>{icons.edit()}</span>
+            <span className="mt-0.5 flex-none" style={{ color: "var(--c-primary-strong)" }}>{icons.edit()}</span>
             <div className="flex-1 min-w-0">
               <p className={`${T.meta} font-bold`} style={{ color: "var(--c-accent-deep)" }}>
                 {ward.title || "Công thức của bạn"} (lưu {formatSavedAt(ward.savedAt)}) — khác công thức hệ thống
@@ -10690,7 +10690,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         <button
           onClick={() => setShowMix((v) => !v)}
           className={`${BTN_BLOCK} mt-3`}
-          style={{ borderColor: C.accentLine, background: C.accentSoft, color: C.accent }}
+          style={{ borderColor: C.accentLine, background: C.accentSoft, color: "var(--c-primary-deep)" }}
         >
           {showMix ? "Đóng bảng pha thuốc" : "Bảng pha thuốc"}
         </button>
@@ -10732,7 +10732,7 @@ function InfusionCalculator({ drug, calc }: { drug: InfusionDrug; calc: Infusion
         <p
           key={`${savedNote}-${savedTick}`}
           className={`${T.meta} flex items-center gap-1.5 mt-1.5 px-2.5 py-1.5 ${R.box} flash-ok`}
-          style={{ background: C.accentSoft, color: C.accent }}
+          style={{ background: C.accentSoft, color: "var(--c-primary-deep)" }}
         >
           <span className="flex-none scale-90">{icons.check()}</span>
           {savedNote}
@@ -10809,7 +10809,7 @@ function InfusionDrugCard({
             {drug.isCustom && (
               <span
                 className={`${T.label} px-1.5 py-0.5 ${R.pill} flex-none`}
-                style={isOverride ? { background: C.primarySoft, color: C.primary } : { background: "var(--c-green-soft)", color: "var(--c-green)" }}
+                style={isOverride ? { background: C.primarySoft, color: "var(--c-primary-deep)" } : { background: "var(--c-green-soft)", color: "var(--c-green)" }}
               >
                 {isOverride ? "Đã sửa" : "Tự nhập"}
               </span>
@@ -10824,7 +10824,7 @@ function InfusionDrugCard({
         </div>
         <div className="flex items-center gap-1.5 flex-none">
           {onEdit && (
-            <button onClick={() => onEdit(drug)} className={`w-11 h-11 ${R.pill} flex items-center justify-center`} style={{ background: C.primarySoft, color: C.primary }} aria-label="Sửa thuốc">
+            <button onClick={() => onEdit(drug)} className={`w-11 h-11 ${R.pill} flex items-center justify-center`} style={{ background: C.primarySoft, color: "var(--c-primary-deep)" }} aria-label="Sửa thuốc">
               {icons.edit()}
             </button>
           )}
@@ -10875,7 +10875,7 @@ function InfusionDrugCard({
             tickHaptic()
           }}
           className={`w-full h-11 ${R.box} ${T.bodyStrong} border mt-3`}
-          style={{ borderColor: C.accentLine, background: C.accentSoft, color: C.accent }}
+          style={{ borderColor: C.accentLine, background: C.accentSoft, color: "var(--c-primary-deep)" }}
         >
           {/* Cùng lý do "Ghim liều này" thay vì "Thêm vào danh sách đang dùng" ở AntibioticDoseCard:
               đây cũng là một liều ngắt quãng/bolus, không phải tốc độ truyền liên tục. */}
@@ -11129,7 +11129,7 @@ function InfusionCategoryScreen({
       <button
         onClick={onAddNew}
         className={`w-full flex items-center justify-center gap-2 h-11 ${R.box} border border-dashed mt-3 ${T.bodyStrong}`}
-        style={{ borderColor: C.accentLine, color: C.accent }}
+        style={{ borderColor: C.accentLine, color: "var(--c-primary-deep)" }}
       >
         <span className="scale-90">{icons.plus()}</span>
         Thêm thuốc tự nhập
@@ -11753,7 +11753,7 @@ export function DungThuocScreen({
             >
               <span
                 className={`h-9 w-9 ${R.pill} border flex items-center justify-center`}
-                style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: C.primary } : { borderColor: C.line, color: C.textSoft }}
+                style={searchOpen ? { borderColor: C.primary, background: C.primarySoft, color: "var(--c-primary-deep)" } : { borderColor: C.line, color: C.textSoft }}
               >
                 {/* icons.search() cố định 24px — thu nhỏ bằng scale ở đây, không sửa icon dùng chung
                     (chỗ khác gọi icons.search() vẫn cần đúng cỡ gốc). Giữ active=false: tô đặc làm
@@ -11773,7 +11773,7 @@ export function DungThuocScreen({
                 {recentLogCount > 0 && (
                   <span
                     className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
-                    style={{ background: C.primary, color: "var(--c-on-bright)" }}
+                    style={{ background: C.primary, color: "var(--c-on-primary)" }}
                     aria-hidden="true"
                   >
                     {recentLogCount > 9 ? "9+" : recentLogCount}
@@ -11839,7 +11839,7 @@ export function DungThuocScreen({
                         <p className={`${T.bodyStrong} truncate flex-1`} style={{ color: C.text }}>
                           {r.name}
                         </p>
-                        <span className={`${T.meta} font-semibold px-2 py-0.5 ${R.pill} flex-none`} style={{ background: C.primarySoft, color: C.primary }}>
+                        <span className={`${T.meta} font-semibold px-2 py-0.5 ${R.pill} flex-none`} style={{ background: C.primarySoft, color: "var(--c-primary-deep)" }}>
                           {r.tabLabel}
                         </span>
                       </div>
@@ -11961,7 +11961,7 @@ export function DungThuocScreen({
                 // trần đặt đè lên mép phải, chữ không đụng sao.
                 className={`${CHIP} border-transparent${tab === t.id ? " pulse-scale pr-10" : ""}`}
                 // C.textSoft cho tab chưa chọn, không phải text-muted — text-muted dưới ngưỡng AA ở cỡ này.
-                style={tab === t.id ? { background: C.primary, color: "var(--c-on-bright)" } : { background: C.lineSoft, color: C.textSoft }}
+                style={tab === t.id ? { background: C.primary, color: "var(--c-on-primary)" } : { background: C.lineSoft, color: C.textSoft }}
                 role="tab"
                 aria-selected={tab === t.id}
                 aria-controls="mixing-tabpanel"
@@ -11988,7 +11988,7 @@ export function DungThuocScreen({
                   }}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full"
                   style={{
-                    color: pinnedTabIds.includes(t.id) ? C.favBright : "var(--c-on-bright)",
+                    color: pinnedTabIds.includes(t.id) ? C.favBright : "var(--c-on-primary)",
                     opacity: pinnedTabIds.includes(t.id) ? 1 : 0.5,
                   }}
                   aria-label={pinnedTabIds.includes(t.id) ? `Bỏ ghim nhóm ${t.label}` : `Ghim nhóm ${t.label} lên đầu hàng`}
@@ -12016,13 +12016,13 @@ export function DungThuocScreen({
           className="fade-in flex-none mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-[14px]"
           style={{ background: C.primarySoft, border: `1px solid ${C.primaryLine}` }}
         >
-          <p className={`${T.meta} flex-1`} style={{ color: C.primary }}>
+          <p className={`${T.meta} flex-1`} style={{ color: "var(--c-primary-deep)" }}>
             Thứ tự nhóm thuốc vừa đổi theo tần suất bạn dùng gần đây.
           </p>
           <button
             onClick={() => setTabReorderNotice(false)}
             className={`flex-none h-11 px-3 ${R.pill} dose-press text-[12px] font-bold`}
-            style={{ background: C.primary, color: "var(--c-on-bright)" }}
+            style={{ background: C.primary, color: "var(--c-on-primary)" }}
           >
             Đã hiểu
           </button>
@@ -12112,7 +12112,7 @@ export function DungThuocScreen({
           <button
             onClick={() => dosingCtx.undoResetPatient()}
             className="flex-none h-8 px-3 rounded-full text-[12px] font-bold"
-            style={{ background: "var(--c-primary)", color: "var(--c-on-bright)" }}
+            style={{ background: "var(--c-primary)", color: "var(--c-on-primary)" }}
           >
             Hoàn tác
           </button>
@@ -12167,7 +12167,7 @@ function UpdateBanner({ offsetBottom }: { offsetBottom: number | string }) {
       }}
     >
       <span className="text-[13px] font-semibold text-white">Có bản cập nhật dữ liệu</span>
-      <button onClick={applyUpdate} className="text-[13px] font-bold px-3 py-1 rounded-full" style={{ background: "var(--c-surface)", color: "var(--c-primary)" }}>
+      <button onClick={applyUpdate} className="text-[13px] font-bold px-3 py-1 rounded-full" style={{ background: "var(--c-surface)", color: "var(--c-primary-strong)" }}>
         Tải lại
       </button>
     </div>
@@ -12846,7 +12846,7 @@ export default function App() {
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 px-5">
                 <p className="text-sm text-slate-500">Không tìm thấy thuốc cần sửa.</p>
-                <button onClick={goBack} className="text-sm font-semibold" style={{ color: "var(--c-primary)" }}>
+                <button onClick={goBack} className="text-sm font-semibold" style={{ color: "var(--c-primary-deep)" }}>
                   Quay lại
                 </button>
               </div>
@@ -12863,7 +12863,7 @@ export default function App() {
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 px-5">
                 <p className="text-sm text-slate-500">Không tìm thấy thuốc cần sửa.</p>
-                <button onClick={goBack} className="text-sm font-semibold" style={{ color: "var(--c-primary)" }}>
+                <button onClick={goBack} className="text-sm font-semibold" style={{ color: "var(--c-primary-deep)" }}>
                   Quay lại
                 </button>
               </div>
@@ -12924,7 +12924,7 @@ export default function App() {
                     // Mục chưa chọn dùng --c-text-muted chứ không phải --c-muted: nhãn nav chỉ cao
                     // 11px nên phải đạt ngưỡng tương phản 4.5:1 của chữ nhỏ. Đo trên nền thanh nav
                     // bản tối, --c-muted chỉ được 4.33:1 (trượt), --c-text-muted đạt 5.8:1.
-                    style={{ color: isActive ? "var(--c-primary)" : "var(--c-text-muted)", transition: "color .2s ease" }}
+                    style={{ color: isActive ? "var(--c-primary-deep)" : "var(--c-text-muted)", transition: "color .2s ease" }}
                   >
                     <span className="relative flex items-center justify-center h-8" style={{ width: 58 }}>
                       {/* Viên nền tô riêng ở một lớp TUYỆT ĐỐI, phóng to bằng transform (không phải
@@ -13085,7 +13085,7 @@ export default function App() {
             <button
               onClick={() => navigate("dataSync")}
               className="flex-none text-[12.5px] font-bold px-3 py-1.5 rounded-full"
-              style={{ background: "var(--c-surface)", color: "var(--c-primary)" }}
+              style={{ background: "var(--c-surface)", color: "var(--c-primary-strong)" }}
             >
               Sao lưu
             </button>
