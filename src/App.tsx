@@ -4369,9 +4369,44 @@ function DataSyncScreen({
             : "") +
           canhBaoKhongHoanTac,
       )
+    } catch (loi) {
+      // I1 (review toàn nhánh 2026-09-09): lưới CẤP KHỐI cho toàn bộ phần nội dung doc CRDT — trước
+      // bản vá này, khối `try` phía trên chỉ có `finally`, không `catch`. Từng lệnh gọi vendor
+      // (`xuatSnapshotMuc`/`nhapSnapshotMuc`) đã có try/catch riêng TỪNG MỤC bọc quanh nó rồi (xem
+      // hai vòng lặp phía trên) — lưới này KHÔNG bắt các lỗi đó (chúng chưa từng lọt tới đây). Nó
+      // tồn tại cho phần mã KHÔNG lặp theo mục, đứng GIỮA hai vòng lặp hoặc trước/sau chúng — ví dụ
+      // bước dựng `mucTrenMay` (`new Map(ketQuaMucsTuoi.items.map(...))`) ngay phía trên: ca đỏ viết
+      // TRƯỚC bản vá này ép đúng điểm đó ném (mô phỏng dependency cấp thấp vi phạm hợp đồng, xem
+      // src/__tests__/nhap-file-catch-cap-ham.spec.tsx) và xác nhận `Unhandled Rejection` trỏ thẳng
+      // dòng này khi chưa có `catch`.
+      //
+      // TẠI ĐIỂM NÀY, metadata (bảng `mucs`/kháng sinh/…) ĐÃ ghi xong — `onImport(duLieu)` đứng ở
+      // tầng try NGOÀI, chạy TRƯỚC khi vào đây. Câu bên dưới vì vậy phải nói rõ metadata đã vào,
+      // riêng nội dung bài viết/sơ đồ thì CHƯA — cùng giọng với nhánh `!modNoiDung` phía trên (chunk
+      // tải hỏng), không phải một câu lỗi kỹ thuật chung chung.
+      console.warn("handleConfirmImport: lỗi không lường trước khi ghi nội dung bài viết/sơ đồ", loi)
+      setStatus(
+        `Đã nhập: ${totalAdded} mục mới, ${totalUpdated} mục cập nhật — nhưng CHƯA ghi được nội dung bài viết/sơ đồ (lỗi không lường trước). Mở lại chính file này và nhập lại để hoàn tất.${canhBaoKhongHoanTac}`,
+      )
     } finally {
       setImporting(false)
     }
+    } catch (loi) {
+      // I1 (review toàn nhánh 2026-09-09): lưới CẤP HÀM cho tầng try NGOÀI — trước bản vá này, khối
+      // `try` bọc TOÀN BỘ thân hàm chỉ có `finally`, không `catch`. Phần bên trong khối try trong
+      // (nội dung doc CRDT) đã có catch riêng ở trên; lưới NÀY chỉ còn phải lo phần METADATA phía
+      // trước nó — đọc `mucs` tươi (`idbGetAllCoKetQua`) và `onImport(duLieu)` — nơi KHÔNG có mã nào
+      // đã đọc/ghi doc CRDT nào, nên KHÔNG có `totalAdded`/`totalUpdated`/`canhBaoKhongHoanTac` nào
+      // đáng tin để nhắc tới ở đây (chúng khai bằng `const` bên TRONG khối try này — `catch` không
+      // nhìn thấy được, và nếu ném xảy ra sớm như ca đỏ dưới đây thì chúng cũng chưa từng tồn tại).
+      // Ca đỏ viết TRƯỚC bản vá này ép `idbGetAllCoKetQua` ném thay vì trả `{ok:false}` (mô phỏng
+      // dependency cấp thấp vi phạm hợp đồng, xem nhap-file-catch-cap-ham.spec.tsx) — trước bản vá,
+      // panel xem trước đã đóng (`setPendingImport(null)` chạy trước điểm ném) nhưng KHÔNG một chữ
+      // nào xuất hiện: lời từ chối thoát khỏi handler `onClick` async mà React không bắt.
+      console.warn("handleConfirmImport: lỗi không lường trước khi nhập file", loi)
+      setStatus(
+        "Chưa nhập được: có lỗi không lường trước khi đọc dữ liệu hiện có trên máy. Thử lại; nếu vẫn vậy, đóng các tab khác đang mở app rồi tải lại trang.",
+      )
     } finally {
       // Nhả khoá — phủ TOÀN BỘ hàm, kể cả nhánh `return` sớm ở trên (file không mang nội dung doc:
       // `idNoiDung.length === 0`) và nhánh chunk `xuatNhapNoiDung` tải hỏng (cũng `return` sớm,
