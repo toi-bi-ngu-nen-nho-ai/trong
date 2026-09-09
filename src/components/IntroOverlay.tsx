@@ -113,18 +113,16 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         ),
       )
 
-      // Lỗ tròn mở ra từ TÂM CHỮ T (lệch trái và dưới tâm màn hình), nên bán kính phải đo tới góc
-      // XA NHẤT của khung nhìn — `hypot(w, h) / 2` chỉ đúng khi tâm nằm giữa màn hình, dùng lại sẽ
-      // hở một góc.
+      // Pha kết neo vào GIỮA MÀN HÌNH, không vào chỗ chữ T đậu. Chỗ đậu của chữ T lệch hẳn khỏi tâm
+      // (đo trên 1280×632: T ở (528, 381) trong khi tâm là (640, 316) — lệch trái 112px, xuống 65px)
+      // vì cả cụm "Bác sĩ / Trọng" mới là thứ được căn giữa, còn chữ T chỉ là ký tự đầu của dòng
+      // dưới. Phóng chữ và mở lỗ từ điểm lệch đó làm cả đoạn cuối đổ về góc dưới-trái — chủ dự án
+      // bác đúng cái này. Nên pha 4 kéo chữ T trở lại tâm trong lúc phóng to, và lỗ mở từ tâm.
       const W = window.innerWidth
       const H = window.innerHeight
-      const maxRadius =
-        Math.max(
-          Math.hypot(tamTX, tamTY),
-          Math.hypot(W - tamTX, tamTY),
-          Math.hypot(tamTX, H - tamTY),
-          Math.hypot(W - tamTX, H - tamTY),
-        ) + 40
+      const tamManX = W / 2
+      const tamManY = H / 2
+      const maxRadius = Math.hypot(W, H) / 2 + 40
 
       // Khung vẽ đầu tiên phải sạch: JSX để cụm logo `visibility: hidden`, và nó chỉ được bật lên
       // TẠI ĐÂY, cùng lượt với các transform mở màn. Nếu bật sớm hơn, người dùng thấy nguyên cái
@@ -135,7 +133,7 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       gsap.set(letterT, { x: offsetX, y: offsetY, scale: heSoPhong })
       gsap.set(bacSiRef.current, { opacity: 0, y: -25, scale: 0.95 })
       gsap.set(rongRef.current, { opacity: 0, x: 25, scale: 0.95 })
-      gsap.set(rim, { width: 0, height: 0, opacity: 0, left: tamTX, top: tamTY })
+      gsap.set(rim, { width: 0, height: 0, opacity: 0, left: tamManX, top: tamManY })
 
       tl = gsap.timeline({ onComplete: finish })
 
@@ -155,7 +153,10 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         .to({}, { duration: 0.35 })
         // Pha 4: hai vế mờ đi, chỉ còn chữ T xanh lao thẳng vào mặt người xem rồi mở ra app.
         .to([bacSiRef.current, rongRef.current], { opacity: 0, duration: 0.2, ease: "power1.in" })
-        .to(letterT, { scale: 18, duration: 0.5, ease: "power2.in" })
+        // Kéo chữ T về đúng tâm khung nhìn TRONG LÚC phóng to: cùng một cặp `offsetX/offsetY` đã
+        // dùng để dời nó ra tâm ở pha 1, nên đích đến là chính xác tâm màn hình, không phải một
+        // hiệu chỉnh áng chừng.
+        .to(letterT, { x: offsetX, y: offsetY, scale: 18, duration: 0.5, ease: "power2.in" })
         .to(
           { r: 0 },
           {
@@ -165,7 +166,7 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
             onUpdate: function (this: { targets: () => unknown[] }) {
               const r = (this.targets()[0] as { r: number }).r
               const inner = Math.max(r - 4, 0)
-              const mask = `radial-gradient(circle at ${tamTX}px ${tamTY}px, transparent 0, transparent ${inner}px, black ${r}px, black 100%)`
+              const mask = `radial-gradient(circle at ${tamManX}px ${tamManY}px, transparent 0, transparent ${inner}px, black ${r}px, black 100%)`
               cover.style.maskImage = mask
               cover.style.webkitMaskImage = mask
               rim.style.width = `${r * 2}px`
@@ -223,7 +224,8 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           </span>
         </div>
       </div>
-      {/* Tâm vòng sáng do gsap đặt (theo tâm chữ T, không phải tâm màn hình). Trước lúc đó phải tắt
+      {/* Tâm vòng sáng do gsap đặt (tâm khung nhìn, đo lúc chạy — không dùng được `left: 50%` vì
+          cùng lượt đó gsap ghi đè `left` bằng px). Trước lúc đó phải tắt
           hẳn bằng opacity 0 + cỡ 0, nếu không viền + quầng sáng sẽ hiện thành một chấm xanh ở góc
           trên trái suốt cả hoạt cảnh. */}
       <div
