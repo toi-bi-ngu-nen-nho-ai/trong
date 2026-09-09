@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useId, useRef } from "react"
 import { gsap } from "gsap"
 
 // Overlay che toàn app trong lúc chạy — tuyệt đối không được treo vĩnh viễn nếu timeline lỗi vì lý
@@ -36,6 +36,13 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
   const bacSiRef = useRef<HTMLSpanElement>(null)
   const rongRef = useRef<HTMLSpanElement>(null)
   const rimRef = useRef<HTMLDivElement>(null)
+  // Lỗ mở giờ có HÌNH BỜ CHỮ T (không còn hình tròn) — vẽ bằng một `<mask>` SVG sống, cập nhật
+  // bằng setAttribute mỗi khung hình (KHÔNG dựng lại chuỗi data-URI mỗi khung — sẽ bắt trình duyệt
+  // giải mã lại ảnh SVG liên tục, giật máy). `useId` để mã định danh không đụng hàng nếu StrictMode
+  // lỡ dựng hai bản cùng lúc trong khoảnh khắc setup → cleanup → setup.
+  const maskId = useId()
+  const maskPolyRef = useRef<SVGPolygonElement>(null)
+  const maskCircleRef = useRef<SVGCircleElement>(null)
   // React 19 StrictMode (dev — src/main.tsx bọc cả app) chạy effect theo nhịp setup → cleanup →
   // setup. Chốt này chặn hoạt cảnh khởi động HAI lần cùng lúc; nó được MỞ LẠI trong cleanup (xem
   // cuối effect) để lần setup thứ hai — lần thật sự sống — vẫn dựng được timeline và hạn giờ dự
@@ -94,12 +101,37 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       const cover = coverRef.current!
       const rim = rimRef.current!
       const letterT = letterTRef.current!
+      const maskPoly = maskPolyRef.current!
+      const maskCircle = maskCircleRef.current!
 
       // Đo lúc chữ T còn NGUYÊN vị trí ghép chữ (chưa gsap.set transform nào). `visibility: hidden`
       // vẫn chiếm chỗ trong layout nên hộp này đúng thật.
       const oT = letterT.getBoundingClientRect()
       const tamTX = oT.left + oT.width / 2
       const tamTY = oT.top + oT.height / 2
+
+      // Hình bờ chữ T xấp xỉ (8 đỉnh, gốc toạ độ tại tâm), cỡ theo đúng hộp bao của #letterT lúc
+      // đứng yên — không cần khớp chính xác nét chữ, chỉ cần đủ giống để mắt nhận ra là chữ T.
+      // Toạ độ TUYỆT ĐỐI = tâm chữ T + toạ độ cục bộ * hệ số phóng (hàm dưới đây dùng mỗi khung).
+      const halfW = oT.width / 2
+      const halfH = oT.height / 2
+      const barH = oT.height * 0.26
+      const stemW = oT.width * 0.3
+      const boCuc: [number, number][] = [
+        [-halfW, -halfH],
+        [halfW, -halfH],
+        [halfW, -halfH + barH],
+        [stemW / 2, -halfH + barH],
+        [stemW / 2, halfH],
+        [-stemW / 2, halfH],
+        [-stemW / 2, -halfH + barH],
+        [-halfW, -halfH + barH],
+      ]
+      const layDiemBoChu = (heSo: number) =>
+        boCuc.map(([x, y]) => `${tamTX + x * heSo},${tamTY + y * heSo}`).join(" ")
+      // Đỉnh xa tâm nhất của hình bờ chữ T ở hệ số 1 — dùng để suy ra hệ số phóng cần thiết cho
+      // đích bên dưới, KHÔNG cứng hoá một con số phóng chung cho mọi màn hình.
+      const boChuTamXa = Math.max(...boCuc.map(([x, y]) => Math.hypot(x, y)))
 
       // Dời chữ T ra tâm khung nhìn rồi cho nó chạy về 0/0/1 — hạ cánh CHÍNH XÁC vào ô của nó
       // trong "Trọng" mà không phải khớp thủ công toạ độ nào.
@@ -113,32 +145,62 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         ),
       )
 
-      // Pha kết neo vào GIỮA MÀN HÌNH, không vào chỗ chữ T đậu. Chỗ đậu của chữ T lệch hẳn khỏi tâm
-      // (đo trên 1280×632: T ở (528, 381) trong khi tâm là (640, 316) — lệch trái 112px, xuống 65px)
-      // vì cả cụm "Bác sĩ / Trọng" mới là thứ được căn giữa, còn chữ T chỉ là ký tự đầu của dòng
-      // dưới. Phóng chữ và mở lỗ từ điểm lệch đó làm cả đoạn cuối đổ về góc dưới-trái — chủ dự án
-      // bác đúng cái này. Nên pha 4 kéo chữ T trở lại tâm trong lúc phóng to, và lỗ mở từ tâm.
+      // Pha kết neo vào ĐÚNG CHỖ CHỮ T ĐẬU (tamTX/tamTY) — chủ dự án chốt rõ: T đứng yên trong
+      // "Trọng", không bay đi đâu nữa; phép mở lỗ lấy chữ T làm tâm. Vì tâm không còn là giữa màn
+      // hình, bán kính đích phải đo tới góc XA NHẤT của khung nhìn từ điểm đó — `hypot(W, H) / 2`
+      // chỉ đúng khi tâm là tâm màn hình, dùng lại sẽ hở một góc.
       const W = window.innerWidth
       const H = window.innerHeight
-      const tamManX = W / 2
-      const tamManY = H / 2
-      const maxRadius = Math.hypot(W, H) / 2 + 40
+      const maxRadius =
+        Math.max(
+          Math.hypot(tamTX, tamTY),
+          Math.hypot(W - tamTX, tamTY),
+          Math.hypot(tamTX, H - tamTY),
+          Math.hypot(W - tamTX, H - tamTY),
+        ) + 40
+      // Hệ số phóng cần để đỉnh XA NHẤT của hình bờ chữ T vượt qua maxRadius (thêm biên 5%) — hình
+      // bờ chữ T là hình lõm (không phải hình tròn), nên riêng nó KHÔNG đảm bảo phủ hết mọi hướng
+      // (góc lõm giữa hai cánh trên có thể còn hở). Vòng tròn an toàn bên dưới lo phần đó — hình T
+      // chỉ lo phần "nhìn giống chữ T đang mở ra", vòng tròn lo phần "chắc chắn không hở góc nào".
+      const heSoBoChu = ((maxRadius * 1.05) / boChuTamXa) || 1
 
       // Khung vẽ đầu tiên phải sạch: JSX để cụm logo `visibility: hidden`, và nó chỉ được bật lên
       // TẠI ĐÂY, cùng lượt với các transform mở màn. Nếu bật sớm hơn, người dùng thấy nguyên cái
       // kết (chữ "Bác sĩ Trọng" đủ nét, chữ T cỡ 1x) suốt thời gian chờ font rồi mới giật về pha 1.
       // Dùng `visibility` chứ không `opacity`: gsap đang chỉnh `opacity` của từng chữ, hai bên sẽ
       // giẫm chân nhau.
+      // Mặt nạ gán MỘT LẦN ở đây (không phải mỗi khung hình) — trình duyệt tự vẽ lại `<mask>` sống
+      // theo dõi các thuộc tính `points`/`r` mà ta đổi bằng `setAttribute` bên dưới, rẻ hơn nhiều so
+      // với build lại chuỗi data-URI SVG mỗi khung (cách cũ dùng cho hình tròn — giật máy nếu áp
+      // dụng cho hình nhiều đỉnh như chữ T).
+      cover.style.maskImage = `url(#${maskId})`
+      cover.style.webkitMaskImage = `url(#${maskId})`
+      maskPoly.setAttribute("points", layDiemBoChu(0))
+      maskCircle.setAttribute("cx", String(tamTX))
+      maskCircle.setAttribute("cy", String(tamTY))
+      maskCircle.setAttribute("r", "0")
+
       gsap.set(logoRef.current, { visibility: "visible" })
       gsap.set(letterT, { x: offsetX, y: offsetY, scale: heSoPhong })
       gsap.set(bacSiRef.current, { opacity: 0, y: -25, scale: 0.95 })
       gsap.set(rongRef.current, { opacity: 0, x: 25, scale: 0.95 })
-      gsap.set(rim, { width: 0, height: 0, opacity: 0, left: tamManX, top: tamManY })
+      gsap.set(rim, { width: 0, height: 0, opacity: 0, left: tamTX, top: tamTY })
 
       tl = gsap.timeline({ onComplete: finish })
 
       // Pha 1–2: chữ T bay về chỗ, hai vế ghép vào khi nó còn đang hạ cánh (chồng lấn -=0.5).
-      tl.to(letterT, { x: 0, y: 0, scale: 1, duration: 1.2, ease: "power3.inOut" })
+      // `clearProps: "transform"` sau khi hạ cánh: bỏ hẳn ma trận transform còn sót lại trên iOS
+      // Safari, chữ mờ nhoè khi đang phóng — vì đang giãn một lớp bitmap đã dựng sẵn thay vì vẽ lại
+      // nét chữ (ảnh chụp thật trên iPhone cho thấy cạnh chữ T nhoè lúc đang phóng). Xoá transform
+      // trả chữ T về trạng thái tĩnh, trình duyệt vẽ lại nét chữ sắc nét đúng kích cỡ thật của nó.
+      tl.to(letterT, {
+        x: 0,
+        y: 0,
+        scale: 1,
+        duration: 1.05,
+        ease: "power3.inOut",
+        clearProps: "transform",
+      })
         .to(
           bacSiRef.current,
           { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.2)" },
@@ -150,13 +212,29 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           "-=0.5",
         )
         // Pha 3: giữ nhịp cho người xem kịp đọc "Bác sĩ Trọng".
-        .to({}, { duration: 0.35 })
-        // Pha 4: hai vế mờ đi, chỉ còn chữ T xanh lao thẳng vào mặt người xem rồi mở ra app.
+        .to({}, { duration: 0.3 })
+        // Pha 4: "Bác sĩ"/"rọng" mờ đi, chỉ còn chữ T xanh ĐỨNG YÊN tại chỗ nó đậu — KHÔNG phóng to
+        // (chủ dự án chốt rõ: bỏ hẳn cú lao vào mặt người xem). Lỗ mở lấy HÌNH BỜ CHỮ T làm tâm và
+        // hình dạng, lan ra lộ dần HomeScreen — chữ T như đang "mở ra" thành cửa sổ vào app, không
+        // phải một hình tròn vô hồn. Chậm hơn bản trước theo đúng yêu cầu (0,2 + 0,65 + 0,55, chồng
+        // lấn hai đoạn cuối "-=0.35" ≈ tổng pha 4 dài gần gấp rưỡi bản chỉ dùng vòng tròn).
         .to([bacSiRef.current, rongRef.current], { opacity: 0, duration: 0.2, ease: "power1.in" })
-        // Kéo chữ T về đúng tâm khung nhìn TRONG LÚC phóng to: cùng một cặp `offsetX/offsetY` đã
-        // dùng để dời nó ra tâm ở pha 1, nên đích đến là chính xác tâm màn hình, không phải một
-        // hiệu chỉnh áng chừng.
-        .to(letterT, { x: offsetX, y: offsetY, scale: 18, duration: 0.5, ease: "power2.in" })
+        .to(
+          { heSo: 0 },
+          {
+            heSo: heSoBoChu,
+            duration: 0.65,
+            ease: "power2.out",
+            onUpdate: function (this: { targets: () => unknown[] }) {
+              const heSo = (this.targets()[0] as { heSo: number }).heSo
+              maskPoly.setAttribute("points", layDiemBoChu(heSo))
+            },
+          },
+          "-=0.05",
+        )
+        // Vòng tròn AN TOÀN chạy chồng lên đoạn cuối của hình bờ chữ T — hình T lõm nên tự nó không
+        // đảm bảo phủ hết bốn góc; vòng tròn khép kín phần còn lại, không để hở góc nào khi hoạt
+        // cảnh kết thúc.
         .to(
           { r: 0 },
           {
@@ -165,17 +243,13 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
             ease: "power2.out",
             onUpdate: function (this: { targets: () => unknown[] }) {
               const r = (this.targets()[0] as { r: number }).r
-              const inner = Math.max(r - 4, 0)
-              const mask = `radial-gradient(circle at ${tamManX}px ${tamManY}px, transparent 0, transparent ${inner}px, black ${r}px, black 100%)`
-              cover.style.maskImage = mask
-              cover.style.webkitMaskImage = mask
+              maskCircle.setAttribute("r", String(r))
               rim.style.width = `${r * 2}px`
               rim.style.height = `${r * 2}px`
               rim.style.opacity = r > 4 ? "1" : "0"
             },
           },
-          // Chồng lấn vào cuối cú phóng: lỗ bắt đầu mở khi chữ T còn đang lớn dần.
-          "-=0.18",
+          "-=0.35",
         )
     })
 
@@ -214,7 +288,18 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
               id="letterT"
               ref={letterTRef}
               className="inline-block"
-              style={{ color: "var(--c-intro-blue)", transformOrigin: "center" }}
+              style={{
+                color: "var(--c-intro-blue)",
+                transformOrigin: "center",
+                // Vá nhoè chữ T trên iOS Safari lúc đang phóng (transform-scale giãn bitmap đã
+                // dựng thay vì vẽ lại nét — ảnh chụp thật từ chủ dự án xác nhận). Ép GPU dựng lớp
+                // này bằng compositing riêng và tắt xoay-lật hai mặt giúp Safari giữ nét chữ khi
+                // scale; `clearProps: "transform"` ở effect bên dưới dọn nốt phần còn sót lại sau
+                // khi hạ cánh.
+                WebkitFontSmoothing: "antialiased",
+                WebkitBackfaceVisibility: "hidden",
+                backfaceVisibility: "hidden",
+              }}
             >
               T
             </span>
@@ -224,10 +309,9 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           </span>
         </div>
       </div>
-      {/* Tâm vòng sáng do gsap đặt (tâm khung nhìn, đo lúc chạy — không dùng được `left: 50%` vì
-          cùng lượt đó gsap ghi đè `left` bằng px). Trước lúc đó phải tắt
-          hẳn bằng opacity 0 + cỡ 0, nếu không viền + quầng sáng sẽ hiện thành một chấm xanh ở góc
-          trên trái suốt cả hoạt cảnh. */}
+      {/* Tâm vòng sáng do gsap đặt (tâm chữ T, đo lúc chạy — không dùng được `left: 50%` vì cùng
+          lượt đó gsap ghi đè `left` bằng px). Trước lúc đó phải tắt hẳn bằng opacity 0 + cỡ 0, nếu
+          không viền + quầng sáng sẽ hiện thành một chấm xanh ở góc trên trái suốt cả hoạt cảnh. */}
       <div
         ref={rimRef}
         className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
@@ -241,6 +325,20 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           opacity: 0,
         }}
       />
+      {/* Định nghĩa mặt nạ SVG sống cho lỗ mở hình bờ chữ T + vòng tròn an toàn — không hiện gì lên
+          màn hình, chỉ để `cover` (ở trên) tham chiếu qua `mask-image: url(#…)`. `userSpaceOnUse`
+          để toạ độ khớp thẳng với px thật của viewport (cùng hệ toạ độ với tamTX/tamTY/maxRadius đo
+          được lúc chạy) — 200% kích thước, lệch -50% mỗi chiều, dư biên cho vòng tròn an toàn không
+          bị cắt cụt ở rìa khi bán kính vượt quá kích thước màn hình một chút. */}
+      <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
+        <defs>
+          <mask id={maskId} maskUnits="userSpaceOnUse" x="-50%" y="-50%" width="200%" height="200%">
+            <rect x="-50%" y="-50%" width="200%" height="200%" fill="white" />
+            <polygon ref={maskPolyRef} points="" fill="black" />
+            <circle ref={maskCircleRef} cx={0} cy={0} r={0} fill="black" />
+          </mask>
+        </defs>
+      </svg>
     </div>
   )
 }
