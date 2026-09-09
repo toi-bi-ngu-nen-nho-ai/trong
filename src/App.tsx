@@ -12908,7 +12908,15 @@ export default function App() {
             <div className="flex-1 flex flex-col items-start gap-1.5">
               <span className="text-[12.5px] leading-snug">
                 Chưa đọc được bài viết và sơ đồ bạn tự soạn — danh sách đang thiếu phần của bạn.
-                Đừng xuất sao lưu cho tới khi đọc lại được.
+                Đừng xuất sao lưu cho tới khi đọc lại được.{" "}
+                {/* I2 (review toàn nhánh 2026-09-09): trước bản vá, câu phía trên là TOÀN BỘ nội
+                    dung băng — `mucsCol.loiDoc` (nguyên nhân THẬT, ví dụ "một tab/cửa sổ khác đang
+                    mở app ở phiên bản cũ hơn — đóng tab đó rồi thử lại") bị vứt đi. Người dùng bấm
+                    "Thử lại" vô hạn lần vẫn hỏng vì không ai bảo họ phải đóng tab cũ trước. An toàn
+                    để in thẳng: từ bản vá idb.ts cùng đợt (I2), `loiDoc` được đảm bảo là câu tiếng
+                    Việt app tự viết — DOMException kỹ thuật của trình duyệt đã bị lọc ở nguồn, không
+                    còn lọt tới đây (xem idbGetAllCoKetQua). */}
+                {mucsCol.loiDoc}
               </span>
               <button
                 type="button"

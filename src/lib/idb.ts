@@ -126,7 +126,18 @@ export async function idbGetAllCoKetQua<T>(store: string): Promise<KetQuaDocIdb<
   } catch (loi) {
     // openDb() đã đặt sẵn câu tiếng Việt giải thích được cho hai ca hay gặp nhất (tab cũ đang giữ
     // DB, trình duyệt không có IndexedDB); ca còn lại là DOMException của chính IndexedDB.
-    return { ok: false, loi: loi instanceof Error ? loi.message : "Không đọc được dữ liệu đã lưu trên máy." }
+    //
+    // I2 (review toàn nhánh 2026-09-09, xác minh lại trước khi vá): `loi instanceof Error` KHÔNG
+    // phân biệt được hai loại đó — DOMException LÀ instanceof Error trong runtime thật (kiểm bằng
+    // `node -e "new DOMException('x') instanceof Error"` → true; xem
+    // src/lib/__tests__/idb-loi-doc-de-hieu.spec.ts), khác giả định ngầm của dòng gốc. Trước bản vá
+    // này, một DOMException thật (transaction hỏng giữa chừng khi tab khác đóng kết nối, store
+    // không tồn tại, …) đi thẳng `loi.message` — một câu tiếng Anh kỹ thuật của trình duyệt (ví dụ
+    // "No objectStore named … in this database") — ra `loiDoc`, nơi màn hình cấp app đưa nó cho
+    // người dùng là BÁC SĨ đọc. Loại trừ tường minh `DOMException` khỏi nhánh "đáng tin" để chỉ hai
+    // câu app TỰ VIẾT (openDb()) mới lọt qua; mọi DOMException rơi về câu chung dưới đây.
+    const doiDuocDoc = loi instanceof Error && !(loi instanceof DOMException)
+    return { ok: false, loi: doiDuocDoc ? loi.message : "Không đọc được dữ liệu đã lưu trên máy." }
   }
 }
 
