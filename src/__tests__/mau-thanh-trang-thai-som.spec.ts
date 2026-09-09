@@ -67,9 +67,9 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
     chay({ luu: 'dark', mayToi: false })
 
     expect(mauCacThe(), 'thẻ nào cũng phải ra màu tối — trình duyệt chỉ đọc MỘT thẻ, không biết trước thẻ nào').toEqual([
-      '#14162c',
-      '#14162c',
-      '#14162c',
+      '#252525',
+      '#252525',
+      '#252525',
     ])
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
   })
@@ -85,7 +85,7 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
   it('chưa chọn tay: đi theo máy', () => {
     dungHead()
     chay({ luu: null, mayToi: true })
-    expect(mauCacThe()).toEqual(['#14162c', '#14162c', '#14162c'])
+    expect(mauCacThe()).toEqual(['#252525', '#252525', '#252525'])
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
 
     dungHead()

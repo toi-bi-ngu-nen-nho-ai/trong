@@ -57,7 +57,7 @@
          TAY một chế độ khác hẳn cài đặt hệ thống (data-theme) — prefers-color-scheme không biết gì
          về lựa chọn thủ công đó. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141414" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#252525" />
     <meta name="theme-color" content="#1E96EB" />
     <!-- ─── Phân giải chủ đề TRƯỚC LẦN VẼ ĐẦU (bắt buộc nội tuyến, chặn phân tích cú pháp) ───
          LỖI NÓ CHỮA (chủ dự án báo 2026-09-04, "lỗi RẤT NẶNG"): ba thẻ ngay trên chọn màu theo
@@ -87,7 +87,7 @@
           var che = luu === 'light' || luu === 'dark' ? luu : 'auto'
           var toi = che === 'dark' || (che === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)
           document.documentElement.setAttribute('data-theme', toi ? 'dark' : 'light')
-          var mau = toi ? '#14162c' : '#ffffff'
+          var mau = toi ? '#252525' : '#ffffff'
           var the = document.querySelectorAll('meta[name="theme-color"]')
           for (var i = 0; i < the.length; i++) the[i].setAttribute('content', mau)
         } catch (e) {

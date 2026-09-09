@@ -26,7 +26,7 @@ export function loadTheme(): ThemeMode {
 
 // Màu dự phòng, chỉ dùng khi chưa đọc được biến CSS (biến --c-surface trong index.css mới là
 // nguồn thật). Phải khớp đúng giá trị --c-surface của từng bản.
-const SURFACE_FALLBACK = { light: "#ffffff", dark: "#14162c" }
+const SURFACE_FALLBACK = { light: "#ffffff", dark: "#252525" }
 
 // Chế độ đang áp — cần nhớ lại để chạy lại applyTheme() khi HỆ ĐIỀU HÀNH đổi sáng/tối trong lúc app
 // đang mở ở chế độ "auto" (xem watchSystemTheme bên dưới).
