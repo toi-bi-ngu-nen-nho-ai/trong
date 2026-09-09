@@ -253,3 +253,49 @@ toàn bộ trước mỗi commit của chặng này ([[feedback_check-full-statu
 9. `tsc`, `npm test`, `npm run build` xanh.
 10. Chụp ảnh trình duyệt thật cả hai theme (sáng/tối), gửi kèm khi báo hoàn thành — không kết luận
     "xong" chỉ từ đọc code.
+
+## 8. Addendum (2026-09-09, sau khi thi công xong lượt 1) — đổi hue sang Facebook
+
+Sau khi hoàn thành mọi mục ở trên (icon, token, App.tsx, DESIGN.md) và chụp ảnh trình duyệt thật, chủ
+dự án so sánh trực quan xanh AFFiNE (`#1E96EB`, hue≈205°) với các thương hiệu quen thuộc và nhận ra nó
+cùng họ hue với Facebook (hue≈214°)/X-Twitter (hue≈204°) — chỉ lệch 9°, không đủ để phân biệt bằng
+mắt thường. Quyết định: **đổi hẳn sang đúng hue Facebook** thay vì cố giữ hue AFFiNE.
+
+**Quyết định cuối (chốt qua 2 vòng hỏi):**
+1. Chỉ ĐỔI HUE (không đổi cấu trúc token, không đổi neutral/nền, không đổi bất kỳ token nào ở §2.1,
+   §2.4, §2.5, §2.6, §3).
+2. **Bản sáng** lấy đúng vai trò "màu đậm cho nền sáng" — dùng gần đúng mã Facebook thật (`#1877F2`,
+   nắn 1 điểm HSL-lightness thành `#1c79f2` để `--c-on-primary` đạt AA). Đây là sự đảo ngược của
+   §0 quyết định 1 (đổi nguồn tham chiếu từ AFFiNE sang Facebook), không phải mở rộng của nó.
+3. **Bản tối** KHÔNG dùng "gần như cùng một xanh 2 theme" (§0 quyết định 2) nữa — quay lại đúng cấu
+   trúc cổ điển "tint sáng hơn cùng hue" (như bảng indigo gốc, nhưng biên độ chênh lệch nhẹ hơn nhiều:
+   L 53%→63%, không phải 30%→73% như indigo). Lý do bắt buộc, không phải sở thích: ở hue 214° (lệch
+   xanh dương nhiều hơn AFFiNE), công thức WCAG luminance cho trọng số kênh xanh dương chỉ 0,0722 —
+   giữ nguyên độ sáng bản sáng cho bản tối sẽ khiến chữ/nút hụt AA rõ rệt (đã đo và loại bỏ hướng đó).
+
+**Giá trị cuối** (thay thế TOÀN BỘ bảng ở §2.2, đã áp vào `src/index.css`):
+
+| Token | Sáng | Tối |
+|---|---|---|
+| `--c-primary` | `#1c79f2` (≈ Facebook `#1877F2`) | `#5697eb` |
+| `--c-primary-rgb` | `28, 121, 242` | `86, 151, 235` |
+| `--c-primary-strong` | `#0e6eec` | `#84b3f1` |
+| `--c-primary-deep` | `#0b55b7` | `#a4c7f4` |
+| `--c-primary-soft` | `#edf1f8` | `#16263b` |
+| `--c-primary-line` | `#c0d5f2` | `#2d4d76` |
+| `--c-primary-line-2` | `#93b9ec` | `#335f99` |
+| `--c-nav-active-bg` | `#cedef3` | `#223a59` |
+
+`--c-on-primary` GIỮ NGUYÊN `#121212` cố định cả hai theme — trùng hợp vẫn đạt AA ở cả hai mức sáng
+mới (4,52:1 sáng, 6,26:1 tối), **không phải quy luật** — nếu sau này còn đổi hue/độ sáng lần nữa, phải
+đo lại, không copy nguyên giá trị này.
+
+**Không đổi** (đã kiểm không cần chạm): `--c-on-bright`, mọi token §2.1/§2.4/§2.5, App.tsx (không có
+chỗ nào cần sửa lại — mọi nơi đã dùng đúng biến CSS `--c-primary*`/`--c-on-primary`, tự nhận giá trị
+mới qua token, không có logic đọc hex trực tiếp).
+
+**Đã kiểm bằng trình duyệt thật** (cả hai theme, đọc `getComputedStyle` trực tiếp, không suy đoán):
+nút/chip tô đặc ra đúng `background: rgb(86, 151, 235)` (bản tối) + `color: rgb(18, 18, 18)`, khớp
+chính xác bảng trên.
+
+**Việc còn lại**: cập nhật `DESIGN.md` (đã làm, xem commit) — không cần rà lại App.tsx.
