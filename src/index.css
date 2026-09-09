@@ -370,10 +370,10 @@
   --c-mark-bg: #fdf0b8;
   --c-mark-fg: #3d2f00;
 
-  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm) — đen ngả indigo, theo đúng hue
-     --c-text mới (trước đây ngả teal, theo hue cũ). */
-  --c-scrim: rgba(18, 20, 43, 0.45);
-  --c-shadow: rgba(18, 20, 43, 0.1);
+  /* Lớp phủ sau các bảng trượt lên (nhật ký, miễn trừ trách nhiệm) — đen trung tính thật, theo đúng
+     hue --c-text mới (rebrand AFFiNE 2026-09; trước đó ngả indigo, trước nữa ngả teal). */
+  --c-scrim: rgba(18, 18, 18, 0.45);
+  --c-shadow: rgba(18, 18, 18, 0.1);
   /* Vầng sáng "Ethereal Glass" quanh các lớp nổi — CHỈ có tác dụng ở bản tối (xem khối bản tối bên
      dưới); ở bản sáng là một shadow rỗng hợp lệ (0 bán kính, alpha 0) để cú boxShadow ghép nhiều
      lớp tại nơi dùng luôn hợp cú pháp CSS dù ở theme nào. Chỉ ghép thêm vào ĐÚNG các lớp nổi đã
@@ -382,7 +382,7 @@
   --c-shadow-glow: 0 0 0 rgba(0, 0, 0, 0);
   /* Dải/pill NỔI TRÊN MẶT BẢNG vẽ (gợi ý cử chỉ, toast) — đậm hơn --c-scrim (dải chữ trắng cần nền
      đủ tối để đọc được ở mọi vị trí trên canvas, không phải một lớp phủ mờ phía sau modal). */
-  --c-pill-dark: rgba(18, 20, 43, 0.9);
+  --c-pill-dark: rgba(18, 18, 18, 0.9);
   /* Chữ đặt trên --c-pill-dark ở trên — CHỈ dùng cặp với nó. --c-on-bright không hợp: token đó đổi
      gần-đen ở bản tối (dành cho chữ trên nền sáng LÊN ở bản tối), trong khi nền --c-pill-dark luôn
      tối bất kể theme nên chữ luôn phải trắng. Khai MỘT LẦN duy nhất (không override ở khối bản tối
@@ -410,14 +410,14 @@
      2,4:1, tức là trượt xa ngưỡng AA. Đổi thành mực gần đen thì mọi nền nói trên đều đạt >= 7:1. */
   --c-on-bright: #ffffff;
 
-  --c-nav-bg: rgba(247, 248, 253, 0.94);
+  --c-nav-bg: rgba(255, 255, 255, 0.94);
   /* Bản đặc (không alpha) của --c-nav-bg — xem lý do dùng ở thanh nav trong App.tsx: tránh
      backdrop-filter trên một dải có padding-bottom động theo safe-area. */
-  --c-nav-bg-solid: #f7f8fd;
-  --c-nav-border: #d9ddf4;
-  /* Cùng họ indigo với --c-primary-soft, đậm hơn một chút để viên nền mục đang chọn còn đọc ra được
-     cạnh icon/chữ primary đứng ngay bên trong. */
-  --c-nav-active-bg: #dee2f8;
+  --c-nav-bg-solid: #ffffff;
+  --c-nav-border: #e3e2e4;
+  /* Cùng họ xanh AFFiNE với --c-primary-soft, đậm hơn một chút để viên nền mục đang chọn còn đọc ra
+     được cạnh icon/chữ primary đứng ngay bên trong (rebrand AFFiNE 2026-09; trước đó ngả indigo). */
+  --c-nav-active-bg: #d0e3f1;
   --c-float-bg: rgba(255, 255, 255, 0.94);
   --c-fog: 255, 255, 255;
 }
@@ -519,7 +519,7 @@
     --c-mark-bg: #5a4a12;
     --c-mark-fg: #f7ecc4;
 
-    --c-scrim: rgba(6, 7, 15, 0.62);
+    --c-scrim: rgba(0, 0, 0, 0.62);
     --c-shadow: rgba(0, 0, 0, 0.55);
     /* Vầng sáng indigo quanh lớp nổi — chữ ký "Ethereal Glass" của bản tối, chỉ bật ở đây. */
     --c-shadow-glow: 0 0 24px rgba(var(--c-primary-rgb), 0.18);
@@ -528,12 +528,12 @@
        nổi lên phía trước, nhưng vẫn nằm hẳn trong dải tối — không còn là mảng trắng chói. */
     --c-on-bright: #0b0c1c;
 
-    --c-nav-bg: rgba(27, 30, 61, 0.94);
-    --c-nav-bg-solid: #1b1e3d;
-    --c-nav-border: #2e3260;
-    --c-nav-active-bg: #223163;
-    --c-float-bg: rgba(27, 30, 61, 0.94);
-    --c-fog: 20, 22, 46;
+    --c-nav-bg: rgba(37, 37, 37, 0.94);
+    --c-nav-bg-solid: #252525;
+    --c-nav-border: #2e2e2e;
+    --c-nav-active-bg: #1c4154;
+    --c-float-bg: rgba(37, 37, 37, 0.94);
+    --c-fog: 20, 20, 20;
   }
 }
 
@@ -617,18 +617,18 @@
   --c-mark-bg: #5a4a12;
   --c-mark-fg: #f7ecc4;
 
-  --c-scrim: rgba(6, 7, 15, 0.62);
+  --c-scrim: rgba(0, 0, 0, 0.62);
   --c-shadow: rgba(0, 0, 0, 0.55);
   --c-shadow-glow: 0 0 24px rgba(var(--c-primary-rgb), 0.18);
 
   --c-on-bright: #0b0c1c;
 
-  --c-nav-bg: rgba(27, 30, 61, 0.94);
-  --c-nav-bg-solid: #1b1e3d;
-  --c-nav-border: #2e3260;
-  --c-nav-active-bg: #223163;
-  --c-float-bg: rgba(27, 30, 61, 0.94);
-  --c-fog: 20, 22, 46;
+  --c-nav-bg: rgba(37, 37, 37, 0.94);
+  --c-nav-bg-solid: #252525;
+  --c-nav-border: #2e2e2e;
+  --c-nav-active-bg: #1c4154;
+  --c-float-bg: rgba(37, 37, 37, 0.94);
+  --c-fog: 20, 20, 20;
 }
 
 /* Bảng slate của Tailwind được trỏ về cùng bộ biến trên. Nhờ khối này, ~280 chỗ đang viết
