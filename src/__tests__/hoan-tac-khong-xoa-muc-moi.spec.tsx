@@ -160,6 +160,41 @@ describe('Hoàn tác không xoá mục được tạo qua instance khác sau khi
     )
   }, HAN_GIO_MOUNT_APP_MS)
 
+  // ─── Nhóm A (2026-09-06), khoản A4 ───────────────────────────────────────────────────────────
+  //
+  // Câu "Đã hoàn tác — dữ liệu trở lại như trước khi nhập file." (App.tsx, nhánh `handleUndo` khi
+  // lượt nhập không đụng NỘI DUNG doc nào — `idTra.length === 0 && mucMoi.length === 0 &&
+  // khongChap.length === 0`) không còn ca nào canh nguyên văn sau các vòng sửa. Ca dưới đây tái
+  // dùng đúng kịch bản của ca đầu tiên trong describe này (file nhập CHỈ mang metadata, không
+  // `mucDocs`) — bỏ phần "m-moi" (không cần cho khoản A4) để đi thẳng vào nhánh trên.
+  it('Hoàn tác khi file nhập KHÔNG mang nội dung doc nào → dòng trạng thái đúng NGUYÊN VĂN', async () => {
+    const mCu = taoMucGia({ id: 'm-cu-nguyen-van', ten: 'Mục có sẵn trước khi nhập' })
+    await idbPut(IDB_STORES.mucs, mCu)
+
+    await moManDongBo()
+    await choDemMucs(1)
+
+    // File nhập chỉ mang metadata (không `mucDocs`) — đúng nhánh khiến `handleUndo` không có gì để
+    // trả về ở nửa NỘI DUNG, nên đi thẳng vào câu trạng thái ngắn thay vì "Đã hoàn tác danh sách…".
+    await nhapFile(
+      JSON.stringify({
+        app: 'drtrong',
+        version: 2,
+        data: { mucs: [{ ...mCu, ten: 'm-cu bị đè từ file' }] },
+      }),
+    )
+    await waitFor(() => expect(screen.getByText(/^Đã nhập/)).toBeTruthy(), { timeout: HAN_GIO_DONG_BO_MS })
+
+    await bamHoanTac()
+    // Nội dung nguyên văn: đây là câu người dùng thật đọc ngay sau khi bấm Hoàn tác thành công, nên
+    // nó là một phần của hợp đồng, không phải chi tiết vặt — khớp CHÍNH XÁC, không phải qua regex
+    // con như các ca khác trong tệp này.
+    await waitFor(
+      () => expect(screen.getByText('Đã hoàn tác — dữ liệu trở lại như trước khi nhập file.')).toBeTruthy(),
+      { timeout: HAN_GIO_DONG_BO_MS },
+    )
+  }, HAN_GIO_MOUNT_APP_MS)
+
   it('Mục đã xoá mềm (daXoaLuc) vẫn được chụp trong snapshot tươi và Hoàn tác ghi lại đúng nguyên trạng', async () => {
     const mConSong = taoMucGia({ id: 'm-con-song', ten: 'Mục còn sống' })
     const luoiXoa = Date.now()

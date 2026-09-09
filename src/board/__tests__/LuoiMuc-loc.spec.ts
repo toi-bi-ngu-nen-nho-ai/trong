@@ -15,7 +15,7 @@ const muc = (p: Pick<MucMeta, 'id' | 'loai' | 'danhMuc'> & Partial<MucMeta>): Mu
 
 const KHO: MucMeta[] = [
   muc({ id: 'sd-tiep-can', loai: 'so-do', danhMuc: 'tiep-can' }),
-  muc({ id: 'sd-ecg', loai: 'so-do', danhMuc: 'ecg', chuyenKhoa: 'tim-mach' }),
+  muc({ id: 'sd-ecg', loai: 'so-do', danhMuc: 'ecg', chuyenKhoa: 'cardiology' }),
   muc({ id: 'bv-ecg', loai: 'bai-viet', danhMuc: 'ecg' }),
   muc({ id: 'bv-huong-dan', loai: 'bai-viet', danhMuc: 'huong-dan' }),
   muc({ id: 'bv-da-xoa', loai: 'bai-viet', danhMuc: 'ecg', daXoaLuc: 5 }),
@@ -47,7 +47,7 @@ describe('locTheoProps', () => {
   })
 
   it('chuyenKhoa lọc theo khoa; chuỗi rỗng nghĩa là chưa gắn nên không khớp khoa nào', () => {
-    expect(locTheoProps(KHO, { chuyenKhoa: 'tim-mach' }).map((m) => m.id)).toEqual(['sd-ecg'])
+    expect(locTheoProps(KHO, { chuyenKhoa: 'cardiology' }).map((m) => m.id)).toEqual(['sd-ecg'])
   })
 
   it('mục xoá mềm không bao giờ lọt vào lưới', () => {

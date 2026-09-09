@@ -310,7 +310,7 @@ describe('SearchScreen — kết quả loại "muc" (bài viết)', () => {
       ten: 'Đọc ECG rung nhĩ',
       taoLuc: 1,
       capNhatLuc: 1,
-      chuyenKhoa: 'tim-mach',
+      chuyenKhoa: 'cardiology',
       tags: [],
       noiDungTimKiem: 'rung nhĩ QRS không đều',
     })

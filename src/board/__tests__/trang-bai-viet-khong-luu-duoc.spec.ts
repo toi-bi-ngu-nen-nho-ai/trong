@@ -19,7 +19,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { IDB_STORES, idbPut } from '../../lib/idb'
+import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
 import { type MucMeta } from '../mucMeta'
 import { TrangBaiViet } from '../TrangBaiViet'
 import { choDom } from '../../__tests__/helpers/cho-den-khi'
@@ -90,6 +90,12 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount())
   boc.remove()
+  // `ghiMeta` ghi bản ghi vào store SỐNG `IDB_STORES.mucs` của `fake-indexeddb` — dùng CHUNG giữa
+  // hai `it()` trong tệp này (không có kiểu tách DB theo test). Dọn ở đây, cùng khuôn các spec anh
+  // em (BoardGallery-ghi-nhan-doc.spec.tsx, nhac-sao-luu-mucs.spec.tsx, …), để một ca không lặng lẽ
+  // đọc phải bản ghi còn sót lại từ ca chạy trước nó trong cùng tệp.
+  const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
+  for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
 })
 
 describe('TrangBaiViet — băng cảnh báo không lưu được', () => {

@@ -19,7 +19,7 @@ import { BoardGallery } from '../BoardGallery'
 //
 // VÒNG SỬA 1: từ bản vá lỗi Critical (panel "Đã đọc gần đây" không cập nhật trong phiên — xem
 // chú thích dài tại `ghiDaDocMuc`, App.tsx), BoardGallery.tsx KHÔNG còn tự gọi `recordRead` vào
-// localStorage nữa — nó chỉ gọi ngược `onDaDoc?.(id)`, một prop do App() truyền xuống. File này CHỈ
+// localStorage nữa — nó chỉ gọi ngược `onDaDoc(id)`, một prop BẮT BUỘC do App() truyền xuống. File này CHỈ
 // canh "BoardGallery gọi ĐÚNG onDaDoc, ĐÚNG lúc, ĐÚNG id" ở TẦNG COMPONENT (không đi qua App()) —
 // truyền tay một `onDaDoc` gọi thẳng `recordRead` để vẫn kiểm được lớp lưu trữ THẬT, giữ nguyên giá
 // trị hai ca kiểm dương tính vốn có. Ca này KHÔNG chứng minh panel "Đã đọc gần đây" ở Trang chủ cập

@@ -40,12 +40,18 @@ vi.mock('../board/index', () => ({
 // Phải mock ở tầng module chứ không `vi.spyOn`: App.tsx nạp module này bằng `import()` ĐỘNG (D13),
 // và namespace ESM sau lượt nạp đó không gán đè được.
 let idChupHong: string | null = null
+// Nhóm A (2026-09-06), khoản A5: id mà lượt CHỤP nội dung cũ phải trả về `undefined` (KHÔNG ném) —
+// đúng đường "transformer của vendor NUỐT LỖI" mà App.tsx:4292-4299 (`handleConfirmImport`) đã có
+// nhánh `console.warn` riêng để phòng, khác hẳn nhánh `catch` (ném) mà `idChupHong` ở trên đã canh.
+// `null` (mặc định) = không ảnh hưởng các ca khác.
+let idChupRong: string | null = null
 vi.mock('../board/xuatNhapNoiDung', async (importOriginal) => {
   const goc = await importOriginal<typeof import('../board/xuatNhapNoiDung')>()
   return {
     ...goc,
     xuatSnapshotMuc: async (...doiSo: Parameters<typeof goc.xuatSnapshotMuc>) => {
       if (doiSo[0] === idChupHong) throw new Error('giả lập: không đọc được nội dung cũ của mục này')
+      if (doiSo[0] === idChupRong) return undefined
       return goc.xuatSnapshotMuc(...doiSo)
     },
   }
@@ -202,6 +208,7 @@ afterEach(async () => {
   await xoaNoiDungBang(MOI_ID)
   localStorage.clear()
   idChupHong = null
+  idChupRong = null
   vi.restoreAllMocks()
 })
 
@@ -347,6 +354,55 @@ describe('[CỔNG] Hoàn tác nhập file lùi được cả NỘI DUNG doc, kh�
     expect(await docNoiDung(ID_CU_2), 'mục chụp được phải trở lại nội dung cũ').toBe(vanBanCu2)
     expect(await docNoiDung(ID_CU), 'mục chụp hỏng vẫn giữ nội dung vừa nhập — câu báo phải nói đúng thế').toContain(
       'MỚI cho cả hai mục',
+    )
+  }, HAN_GIO_MOUNT_APP_MS)
+
+  // ─── Nhóm A (2026-09-06), khoản A5 ───────────────────────────────────────────────────────────
+  //
+  // App.tsx:4292-4299 (`handleConfirmImport`): transformer của vendor NUỐT LỖI và trả `undefined`
+  // thay vì ném (D11) — nhánh KHÁC với ca "chụp nội dung cũ hỏng" ngay trên (đó là `catch`, ca này
+  // là giá trị trả về rỗng không kèm exception). Ca dưới đây tái dùng đúng mock `xuatSnapshotMuc`
+  // đã có sẵn ở đầu tệp (nhánh `idChupRong`) để canh nhánh `console.warn` đó.
+  it('xuatSnapshotMuc trả về RỖNG (không ném) ở MỘT mục lúc chụp: console.warn đúng nguyên văn, vẫn xếp mục vào "chưa trả lại được"', async () => {
+    await ghiNoiDung(ID_CU, ['CŨ của mục chụp rỗng'])
+    await idbPut(IDB_STORES.mucs, mucGia(ID_CU, 'Mục chụp rỗng'))
+
+    const noiDungMoi = await noiDungChoFile(['MỚI cho mục chụp rỗng'])
+    idChupRong = ID_CU
+
+    const canhBao = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await moManDongBo()
+    await nhapFile(
+      JSON.stringify({
+        app: 'drtrong',
+        version: 2,
+        data: {
+          mucs: [mucGia(ID_CU, 'Mục chụp rỗng (file)')],
+          mucDocs: { [ID_CU]: noiDungMoi },
+        },
+      }),
+    )
+
+    // Lượt nhập vẫn phải ghi đủ — trả rỗng lúc CHỤP (trước khi ghi) không được chặn lượt GHI.
+    await waitFor(() => expect(screen.getByText(/ghi xong nội dung 1\/1/)).toBeTruthy(), {
+      timeout: 40000,
+    })
+    expect(await docNoiDung(ID_CU)).toContain('MỚI cho mục chụp rỗng')
+
+    // Nguyên văn dòng cảnh báo — App.tsx:4299.
+    expect(canhBao).toHaveBeenCalledWith(
+      `handleConfirmImport: xuatSnapshotMuc trả về rỗng cho mục ${ID_CU} — không chụp được nội dung cũ.`,
+    )
+
+    // Cùng hậu quả với nhánh `catch` (ca trên): mục không chụp được thì Hoàn tác phải GỌI TÊN nó,
+    // không lùi được nội dung — `khongChup` gộp chung cả hai nhánh, xem App.tsx:4300 và :4307.
+    await bamHoanTac()
+    await waitFor(() => expect(screen.getByText(/Chưa trả lại được nội dung cũ của: Mục chụp rỗng/)).toBeTruthy(), {
+      timeout: 40000,
+    })
+    expect(await docNoiDung(ID_CU), 'mục chụp rỗng vẫn giữ nội dung vừa nhập — câu báo phải nói đúng thế').toContain(
+      'MỚI cho mục chụp rỗng',
     )
   }, HAN_GIO_MOUNT_APP_MS)
 

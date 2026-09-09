@@ -196,4 +196,29 @@ describe('I1 (final-review-findings.md) — xuất thiếu mucs KHÔNG được 
       idDocHongLucXuat = null
     }
   }, HAN_GIO_MOUNT_APP_MS)
+
+  // ─── Nhóm A (2026-09-06), khoản A6 — chiều DƯƠNG của I1 ────────────────────────────────────────
+  //
+  // Hai ca trên chỉ canh chiều ÂM (xuất thiếu/lỗi mucs ⇒ khoá phải NULL). Chưa ca nào khẳng định
+  // TRỰC TIẾP bằng `localStorage` rằng một lượt xuất ĐẦY ĐỦ, KHÔNG lỗi, VẪN ghi
+  // `drtrong:lastBackupAt` — điểm đó mới chỉ được xác minh bằng đọc mã (App.tsx:4002-4005,
+  // `mucsDaSaoLuuDuTron = exportSelection["mucs"] !== false && mucLoi.length === 0`). Nếu sau này
+  // ai sửa lại điều kiện đó (ví dụ đảo ngược, hoặc thêm một điều kiện luôn false) thì không có lưới
+  // nào bắt được. Ca dưới đây KHÔNG bấm bỏ chọn ô "Bài viết & Sơ đồ" và KHÔNG giả lập mục đọc hỏng
+  // — đi thẳng vào nhánh `mucsDaSaoLuuDuTron === true`.
+  it('xuất ĐẦY ĐỦ, KHÔNG lỗi mucs: markBackupDone() PHẢI chạy — ghi drtrong:lastBackupAt', async () => {
+    await idbPut(IDB_STORES.mucs, taoMucGia())
+    expect(localStorage.getItem(KHOA_LAST_BACKUP)).toBeNull()
+
+    await moManDongBo()
+    await choDemMucs(1)
+
+    // Không bấm gì: ô "Bài viết & Sơ đồ" giữ nguyên trạng thái mặc định (đang chọn), và
+    // `idDocHongLucXuat` vẫn `null` (mặc định của tệp) — không mục nào đọc hỏng lúc xuất.
+    await batXuatFile()
+    // Lượt xuất phải THÀNH CÔNG — nếu không, ca này không kiểm đúng nhánh chiều DƯƠNG mô tả.
+    expect(screen.getByText(/^Đã xuất/)).toBeTruthy()
+
+    expect(localStorage.getItem(KHOA_LAST_BACKUP)).not.toBeNull()
+  }, HAN_GIO_MOUNT_APP_MS)
 })
