@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
@@ -6,6 +6,7 @@ import { registerServiceWorker } from './lib/offline'
 import { donKhoaRacHeCu } from './lib/storage'
 import { applyTheme, loadTheme, watchSystemTheme } from './lib/theme'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { IntroOverlay } from './components/IntroOverlay'
 
 // Dọn khoá localStorage của bài viết tự nhập hệ cũ — không còn ai đọc từ giai đoạn 8, và đường tự
 // dọn cũ (`legacyLocalKey` của useIdbCollection) đã chết cùng lượt đó. Đặt ở đây vì phải chạy đúng
@@ -20,10 +21,23 @@ applyTheme(loadTheme())
 // mọi màu còn lại đã tự đổi theo @media. Không cần gỡ: sống đúng bằng vòng đời trang.
 watchSystemTheme()
 
+// App mount NGAY (ngầm, dưới overlay) để kịp khởi tạo IndexedDB/context trong lúc intro đang chạy —
+// hết overlay là App đã sẵn sàng, không có khoảng trắng/loading. Không cờ localStorage: overlay chỉ
+// mount đúng một lần cho mỗi lần main.tsx thực thi, tức mỗi lần PWA khởi động thật.
+function Root() {
+  const [introDone, setIntroDone] = useState(false)
+  return (
+    <>
+      <App />
+      {!introDone && <IntroOverlay onFinished={() => setIntroDone(true)} />}
+    </>
+  )
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <Root />
     </ErrorBoundary>
   </React.StrictMode>,
 )
