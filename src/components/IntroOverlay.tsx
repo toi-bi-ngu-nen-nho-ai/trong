@@ -158,11 +158,15 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           Math.hypot(tamTX, H - tamTY),
           Math.hypot(W - tamTX, H - tamTY),
         ) + 40
-      // Hệ số phóng cần để đỉnh XA NHẤT của hình bờ chữ T vượt qua maxRadius (thêm biên 5%) — hình
-      // bờ chữ T là hình lõm (không phải hình tròn), nên riêng nó KHÔNG đảm bảo phủ hết mọi hướng
-      // (góc lõm giữa hai cánh trên có thể còn hở). Vòng tròn an toàn bên dưới lo phần đó — hình T
-      // chỉ lo phần "nhìn giống chữ T đang mở ra", vòng tròn lo phần "chắc chắn không hở góc nào".
-      const heSoBoChu = ((maxRadius * 1.05) / boChuTamXa) || 1
+      // ĐO ĐƯỢC lượt trước: nếu hình bờ chữ T tự phải phủ tới `maxRadius` (biên 105%), hệ số phóng
+      // ra tới ~13 lần — cao hơn gần 3 LẦN chiều cao màn hình, phồng lên trong 0,65s. Kết hợp với
+      // vòng tròn an toàn phóng cùng lúc (chồng lấn 0,35s), người xem thấy HAI hình khác dạng cùng
+      // lớn nhanh trong một khoảng ngắn — đúng nguyên nhân gây cảm giác "nặng nề, không hiểu chuyện
+      // gì" chủ dự án phản hồi. Sửa: hình bờ chữ T chỉ cần phóng tới 65% quãng đường đó — đủ để
+      // NHÌN RÕ nó đang mở theo hình chữ T (đúng yêu cầu "nhấn mạnh chữ T"), không cần tự nó phủ hết
+      // màn hình. Phần còn lại (và việc đảm bảo không hở góc) giao hẳn cho vòng tròn an toàn, chạy
+      // GẦN NHƯ KẾ TIẾP (xem "-=0.1" bên dưới) thay vì chồng gần hết lên nhau như trước.
+      const heSoBoChu = ((maxRadius * 0.65) / boChuTamXa) || 1
 
       // Khung vẽ đầu tiên phải sạch: JSX để cụm logo `visibility: hidden`, và nó chỉ được bật lên
       // TẠI ĐÂY, cùng lượt với các transform mở màn. Nếu bật sớm hơn, người dùng thấy nguyên cái
@@ -215,16 +219,21 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         .to({}, { duration: 0.3 })
         // Pha 4: "Bác sĩ"/"rọng" mờ đi, chỉ còn chữ T xanh ĐỨNG YÊN tại chỗ nó đậu — KHÔNG phóng to
         // (chủ dự án chốt rõ: bỏ hẳn cú lao vào mặt người xem). Lỗ mở lấy HÌNH BỜ CHỮ T làm tâm và
-        // hình dạng, lan ra lộ dần HomeScreen — chữ T như đang "mở ra" thành cửa sổ vào app, không
-        // phải một hình tròn vô hồn. Chậm hơn bản trước theo đúng yêu cầu (0,2 + 0,65 + 0,55, chồng
-        // lấn hai đoạn cuối "-=0.35" ≈ tổng pha 4 dài gần gấp rưỡi bản chỉ dùng vòng tròn).
+        // hình dạng, lan ra lộ dần HomeScreen — chữ T như đang "mở ra" thành cửa sổ vào app.
+        //
+        // Bản trước cho hình bờ chữ T tự phóng tới maxRadius (~13 lần, cao gần 3 lần màn hình) rồi
+        // CHỒNG LẤN gần hết với vòng tròn an toàn cũng đang phóng — hai hình khác dạng cùng lớn
+        // nhanh trong một khoảng ngắn, chủ dự án phản hồi "nặng nề, không hiểu chuyện gì". Giờ hình
+        // T chỉ phóng tới 65% quãng đường (dùng `power1.out` mềm hơn thay vì `power2.out`), rồi vòng
+        // tròn an toàn chạy GẦN NHƯ KẾ TIẾP ("-=0.1", không phải "-=0.35") — đọc như "chữ T mở ra,
+        // rồi một nhịp chốt nhanh gọn", không phải hai hình đua nhau.
         .to([bacSiRef.current, rongRef.current], { opacity: 0, duration: 0.2, ease: "power1.in" })
         .to(
           { heSo: 0 },
           {
             heSo: heSoBoChu,
-            duration: 0.65,
-            ease: "power2.out",
+            duration: 0.75,
+            ease: "power1.out",
             onUpdate: function (this: { targets: () => unknown[] }) {
               const heSo = (this.targets()[0] as { heSo: number }).heSo
               maskPoly.setAttribute("points", layDiemBoChu(heSo))
@@ -232,15 +241,15 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           },
           "-=0.05",
         )
-        // Vòng tròn AN TOÀN chạy chồng lên đoạn cuối của hình bờ chữ T — hình T lõm nên tự nó không
-        // đảm bảo phủ hết bốn góc; vòng tròn khép kín phần còn lại, không để hở góc nào khi hoạt
-        // cảnh kết thúc.
+        // Vòng tròn AN TOÀN — hình T lõm nên tự nó không đảm bảo phủ hết bốn góc; vòng tròn khép
+        // kín phần còn lại. Ngắn và chồng lấn tối thiểu để đọc như một nhịp CHỐT, không phải một
+        // hình thứ hai đang đua cùng hình T.
         .to(
           { r: 0 },
           {
             r: maxRadius,
-            duration: 0.55,
-            ease: "power2.out",
+            duration: 0.35,
+            ease: "power1.out",
             onUpdate: function (this: { targets: () => unknown[] }) {
               const r = (this.targets()[0] as { r: number }).r
               maskCircle.setAttribute("r", String(r))
@@ -249,7 +258,7 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
               rim.style.opacity = r > 4 ? "1" : "0"
             },
           },
-          "-=0.35",
+          "-=0.1",
         )
     })
 
