@@ -24,7 +24,12 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
   const dropRef = useRef<HTMLDivElement>(null)
   const ringsRef = useRef<HTMLDivElement>(null)
   const rimRef = useRef<HTMLDivElement>(null)
-  // React 19 StrictMode (dev) chạy effect hai lần — chặn dựng timeline lần thứ hai.
+  // React 19 StrictMode (dev — src/main.tsx bọc cả app) chạy effect theo nhịp setup → cleanup →
+  // setup. Chốt này chặn hoạt cảnh khởi động HAI lần cùng lúc; nó được MỞ LẠI trong cleanup (xem
+  // cuối effect) để lần setup thứ hai — lần thật sự sống — vẫn dựng được timeline và hạn giờ dự
+  // phòng. Riêng nhánh reduced-motion thoát sớm mà KHÔNG đăng ký cleanup, nên chốt ở đó nằm im
+  // vĩnh viễn — đúng như cần, vì đó là thứ duy nhất giữ cho onFinished chỉ nổ một lần ở nhánh này
+  // (biến `daXong` bên dưới là biến cục bộ của mỗi lượt effect, không bắc cầu qua được).
   const startedRef = useRef(false)
   // onFinished có thể đổi identity giữa các lần render cha; giữ bản mới nhất qua ref thay vì đưa
   // vào dependency array, để effect chỉ chạy đúng một lần lúc mount.
@@ -120,6 +125,10 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       tl?.kill()
       window.clearTimeout(hanGioFont)
       window.clearTimeout(safety)
+      // Dọn xong sạch sẽ thì chốt không còn giữ gì nữa — mở lại để nhịp giả setup → cleanup →
+      // setup của StrictMode kết thúc bằng một lần setup ĐẦY ĐỦ. Ở lần unmount thật, component
+      // đã bị gỡ nên không còn effect nào chạy nữa, việc mở chốt là vô hại.
+      startedRef.current = false
     }
   }, [])
 

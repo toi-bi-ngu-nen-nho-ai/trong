@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from 'react'
+import React, { act } from 'react'
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -111,5 +111,74 @@ describe('IntroOverlay', () => {
     expect(() => render(<IntroOverlay onFinished={() => {}} />)).not.toThrow()
     await act(async () => {})
     expect(timelineMock).toHaveBeenCalledTimes(1)
+  })
+
+  // src/main.tsx bọc cả app trong <React.StrictMode>, nên ở dev effect chạy setup → cleanup →
+  // setup. Nếu chốt `startedRef` không được mở lại trong cleanup, lần setup THỨ HAI (lần thật sự
+  // sống) sẽ thoát ngay: không timeline, không hạn giờ dự phòng — overlay z-[999] treo vĩnh viễn.
+  it('StrictMode (setup → cleanup → setup) → lần mount sống vẫn dựng đúng MỘT timeline', async () => {
+    render(
+      <React.StrictMode>
+        <IntroOverlay onFinished={() => {}} />
+      </React.StrictMode>,
+    )
+    await act(async () => {})
+    expect(timelineMock).toHaveBeenCalledTimes(1)
+  })
+
+  // Và hạn giờ dự phòng của lần setup sống phải còn được lên nòng — nếu cleanup lần đầu xoá nó mà
+  // lần setup sau không đặt lại thì overlay mất luôn đường thoát cuối cùng.
+  it('StrictMode → timeout dự phòng của lần mount sống vẫn gọi onFinished', async () => {
+    vi.useFakeTimers()
+    const onFinished = vi.fn()
+    render(
+      <React.StrictMode>
+        <IntroOverlay onFinished={onFinished} />
+      </React.StrictMode>,
+    )
+    await act(async () => {})
+    expect(onFinished).not.toHaveBeenCalled()
+    await act(async () => {
+      vi.advanceTimersByTime(6000)
+    })
+    expect(onFinished).toHaveBeenCalledTimes(1)
+  })
+
+  // Mặt kia của cùng một chốt: nhánh reduced-motion thoát sớm, KHÔNG đăng ký cleanup, nên chốt
+  // không bao giờ được mở lại — nhờ vậy lần setup thứ hai của StrictMode không gọi onFinished
+  // thêm lần nữa. (`daXong` không cứu được ca này: mỗi lượt effect có một biến riêng.)
+  it('StrictMode + reduced-motion → onFinished vẫn chỉ đúng MỘT lần', () => {
+    ganMatchMedia(true)
+    const onFinished = vi.fn()
+    render(
+      <React.StrictMode>
+        <IntroOverlay onFinished={onFinished} />
+      </React.StrictMode>,
+    )
+    expect(onFinished).toHaveBeenCalledTimes(1)
+    expect(timelineMock).not.toHaveBeenCalled()
+  })
+
+  // Hai đường cùng dẫn tới finish (timeline onComplete / hạn giờ dự phòng). Cha có thể giữ overlay
+  // lại thêm một nhịp sau khi hoạt cảnh xong, nên hạn giờ vẫn sống và sẽ nổ — chốt một-lần phải
+  // nuốt cú thứ hai.
+  it('timeline onComplete rồi timeout dự phòng nổ → onFinished chỉ đúng MỘT lần', async () => {
+    vi.useFakeTimers()
+    const onFinished = vi.fn()
+    render(<IntroOverlay onFinished={onFinished} />)
+    await act(async () => {})
+    expect(timelineMock).toHaveBeenCalledTimes(1)
+
+    const cauHinh = timelineMock.mock.calls[0][0] as { onComplete: () => void }
+    await act(async () => {
+      cauHinh.onComplete()
+    })
+    expect(onFinished).toHaveBeenCalledTimes(1)
+
+    // Overlay chưa unmount → hạn giờ 6000ms vẫn còn nòng.
+    await act(async () => {
+      vi.advanceTimersByTime(6000)
+    })
+    expect(onFinished).toHaveBeenCalledTimes(1)
   })
 })
