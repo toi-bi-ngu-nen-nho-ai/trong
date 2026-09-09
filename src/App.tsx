@@ -3675,6 +3675,8 @@ type SyncCategoryRow = {
 type ImportPayload = {
   antibiotics: Antibiotic[]
   diseases: DiseaseEntry[]
+  // Thuốc truyền tự nhập, gom theo nhóm — khoá của từng nhóm trong file sao lưu là `backupKey`
+  // khai trong data/categories.ts (giữ nguyên tên cũ để file xuất từ bản trước vẫn nhập lại được).
   infusions: Record<InfusionCategory, InfusionDrug[]>
   flashcards: FlashCard[]
   wardRecipes: WardRecipe[]
@@ -12344,19 +12346,11 @@ export default function App() {
     goBack()
   }
 
-  function handleImportData(data: {
-    antibiotics: Antibiotic[]
-    diseases: DiseaseEntry[]
-    // Thuốc truyền tự nhập, gom theo nhóm — khoá của từng nhóm trong file sao lưu là
-    // `backupKey` khai trong data/categories.ts (giữ nguyên tên cũ để file xuất từ bản trước vẫn
-    // nhập lại được).
-    infusions: Record<InfusionCategory, InfusionDrug[]>
-    flashcards: FlashCard[]
-    wardRecipes: WardRecipe[]
-    // Task 3 (giai đoạn 7-9): metadata mucs — chỉ tên/danh mục/tag/chuyên khoa, không phải nội
-    // dung doc CRDT thật (xem chú thích ImportPayload, DataSyncScreen).
-    mucs: MucMeta[]
-  }) {
+  // Hình dạng = ImportPayload TRỪ `mucDocs`: nội dung doc CRDT đi đường khác (xem chú thích
+  // ImportPayload phía trên) nên hàm này CỐ Ý không nhận trường đó. Tham chiếu ImportPayload qua
+  // Omit<> thay vì chép tay hình dạng — thêm/bớt khoá của ImportPayload mà quên sửa ở đây thì tsc
+  // tự nhắc, không phải nhớ tay.
+  function handleImportData(data: Omit<ImportPayload, "mucDocs">) {
     if (data.antibiotics.length) customAntibioticsCol.upsertMany(data.antibiotics)
     if (data.diseases.length) customDiseasesCol.upsertMany(data.diseases)
     INFUSION_CATEGORIES.forEach((c) => {
@@ -12370,14 +12364,9 @@ export default function App() {
 
   // Hoàn tác một lần nhập file: thay HẲN từng bảng bằng đúng snapshot chụp trước lúc nhập (khác
   // `handleImportData` — gộp theo id, không xoá mục file thêm mới).
-  function handleRestoreSnapshot(snapshot: {
-    antibiotics: Antibiotic[]
-    diseases: DiseaseEntry[]
-    infusions: Record<InfusionCategory, InfusionDrug[]>
-    flashcards: FlashCard[]
-    wardRecipes: WardRecipe[]
-    mucs: MucMeta[]
-  }) {
+  // Tham chiếu SyncSnapshot (kiểu có tên) thay vì chép tay hình dạng — thêm/bớt khoá của
+  // SyncSnapshot mà quên sửa ở đây thì tsc tự nhắc, không phải nhớ tay.
+  function handleRestoreSnapshot(snapshot: SyncSnapshot) {
     customAntibioticsCol.replaceAll(snapshot.antibiotics)
     customDiseasesCol.replaceAll(snapshot.diseases)
     INFUSION_CATEGORIES.forEach((c) => infusionCols[c.id].replaceAll(snapshot.infusions[c.id] ?? []))
