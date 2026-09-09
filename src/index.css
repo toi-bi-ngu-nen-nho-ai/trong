@@ -1301,18 +1301,6 @@ html.theme-shift * {
 
 .fade-in { animation: fadeIn 0.18s ease; }
 
-/* Bánh xe chọn chuyên khoa bung ra từ chính cái nút vừa bấm (góc trên phải của bảng) — có điểm
-   xuất phát rõ ràng thay vì hiện đột ngột giữa màn hình. */
-@keyframes pickerPop {
-  from { opacity: 0; transform: translateY(-6px) scale(0.94); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.picker-pop {
-  animation: pickerPop 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
-  transform-origin: top right;
-}
-
 /* Dải xác nhận ngắn hiện lên sau khi lưu/xoá/nhập dữ liệu. Trước đây bấm "Lưu" là màn hình đổi
    luôn, không có gì cho biết việc lưu đã xong — vừa thiếu chắc chắn vừa mất cảm giác "xong việc". */
 @keyframes toastIn {

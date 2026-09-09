@@ -155,12 +155,12 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       })
         .to(
           bacSiRef.current,
-          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.2)" },
+          { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.2)" },
           "-=0.5",
         )
         .to(
           rongRef.current,
-          { opacity: 1, x: 0, scale: 1, duration: 0.6, ease: "power2.out" },
+          { opacity: 1, x: 0, scale: 1, duration: 0.5, ease: "power2.out" },
           "-=0.5",
         )
         // Pha 3: giữ nhịp cho người xem kịp đọc "Bác sĩ Trọng".
@@ -181,7 +181,7 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           { r: 0 },
           {
             r: maxRadius,
-            duration: 0.65,
+            duration: 0.55,
             ease: "power2.out",
             onUpdate: function (this: { targets: () => unknown[] }) {
               const r = (this.targets()[0] as { r: number }).r

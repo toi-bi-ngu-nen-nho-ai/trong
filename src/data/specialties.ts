@@ -36,10 +36,3 @@ export const SPECIALTIES: Specialty[] = [
   { id: "pathophysiology", name: "Sinh lý (bệnh)", color: "#5b6470" },
   { id: "pharmacology", name: "Dược lâm sàng", color: "#7a6300" },
 ]
-
-export const PICKER_ITEMS: Specialty[] = [
-  // Trước đây #0050B3 — màu chủ đạo CŨ từ trước khi app đổi sang teal, mảnh sót lại của lần đổi
-  // thương hiệu chưa dọn. Đổi sang đúng giá trị --c-primary hiện tại (bản sáng).
-  { id: "home", name: "Trang chủ", color: "#00766e" },
-  ...SPECIALTIES,
-]
