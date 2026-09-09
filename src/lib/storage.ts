@@ -47,12 +47,20 @@ export function removeCollection(key: string): void {
   }
 }
 
-// Khoá localStorage của bài viết tự nhập hệ cũ — RÁC VĨNH VIỄN từ giai đoạn 8 (Task 6).
+// Khoá localStorage hệ cũ — RÁC VĨNH VIỄN, không ai đọc/ghi lại được nữa.
 //
 // Viết nguyên văn ở đây thay vì dựng qua `storageKey()`: đường sinh khoá là chuyện của những danh
 // mục còn sống, còn đây là một chuỗi CHẾT cần xoá đúng như nó đã từng được ghi. Nếu `NAMESPACE` đổi
 // một ngày nào đó, khoá cũ trên máy người dùng vẫn mang tiền tố cũ.
-const KHOA_RAC_HE_CU = ["drtrong:customArticles"]
+//
+// `drtrong:customArticles`: bài viết tự nhập hệ cũ — rác từ giai đoạn 8 (Task 6, xem chú thích ở
+// donKhoaRacHeCu). `drtrong:board-di-tru-da-chay`/`drtrong:board-di-tru-noi-dung-da-chay`: cờ đánh
+// dấu "đã chạy lượt di trú" của `diTruBangCu.ts` — M4 (review toàn nhánh, final-review-findings.md):
+// chính module ghi hai khoá này đã bị Task 8 xoá cùng đợt xoá hệ ArticleScreen/EcgScreen, không còn
+// ai đọc lại để biết đã "di trú" hay chưa — thành rác vĩnh viễn kể từ đó. Tên khoá xác nhận lại từ
+// board/__tests__/BoardGallery-khong-di-tru.spec.tsx (nơi chúng còn được nhắc tới trong ca kiểm
+// "không tự chạy lại đường di trú đã xoá").
+const KHOA_RAC_HE_CU = ["drtrong:customArticles", "drtrong:board-di-tru-da-chay", "drtrong:board-di-tru-noi-dung-da-chay"]
 
 /**
  * Xoá những khoá localStorage không còn ai đọc, chạy MỘT LẦN lúc khởi động app (main.tsx).

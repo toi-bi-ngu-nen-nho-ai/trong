@@ -59,7 +59,14 @@
 //      và phép lọc tab đã lưu trỏ vào nhóm vừa bị gỡ. Chính chỗ cuối là lý do PHẢI bump: máy đang
 //      mở app ở tab "An thần" khi bản mới về sẽ giữ nguyên tab đó trong sessionStorage; bundle cũ
 //      trong cache thì màn hiện nửa vời (tiêu đề rỗng, không tab nào sáng) mãi.
-const CACHE = "drtrong-v19"
+// v20: M5 (review toàn nhánh, final-review-findings.md) — giai đoạn 9 nâng DB_VERSION 6→7 CÓ PHÁ
+//      HUỶ (deleteObjectStore ×3, xem lib/idb.ts). PHẢI bump: một tab còn chạy bundle v6 sau khi tab
+//      khác đã nâng lên v7 sẽ `indexedDB.open(name, 6)` → `VersionError` → `idbGetAll` trả `[]` →
+//      tab đó hiện danh sách RỖNG cho tới khi tải lại. Điều hướng network-first và
+//      `onversionchange` đóng kết nối (idb.ts) nên đây là phiền chứ không mất dữ liệu — nhưng để nó
+//      thành việc thủ công chủ dự án phải nhớ là đúng cách mà lỗi chunk-cũ vẫn lọt qua bản phát
+//      hành.
+const CACHE = "drtrong-v20"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]

@@ -3936,6 +3936,15 @@ function DataSyncScreen({
         // CSDL IndexedDB, chạy song song là mời một cuộc đua không cần thiết vào đúng đường sao lưu.
         // Mục đã xoá mềm (`daXoaLuc`) VẪN được xuất — metadata của chúng cũng đang được xuất, để
         // lại nội dung thì "Hoàn tác xoá" sau khi khôi phục sẽ trả về một mục rỗng.
+        // M2 (review toàn nhánh, final-review-findings.md): KHÁC `handleConfirmImport` (xem chú
+        // thích "Mục file THÊM MỚI: KHÔNG gọi xuatSnapshotMuc..." tại nhánh chụp nội dung cũ của
+        // hàm đó) — ở ĐÂY gọi `xuatSnapshotMuc` cho MỌI mục trong `mucsTuoi`, kể cả mục chưa từng
+        // mở, là ĐÚNG chứ không phải sơ suất lặp lại lỗi đã né ở chỗ kia. Khác biệt: `mucsTuoi` là
+        // danh sách mục ĐANG TỒN TẠI thật trên máy (vừa đọc tươi từ store `mucs` ở trên), không
+        // phải "mục mà file nhập liệt kê nhưng máy chưa từng thấy" — nên doc CRDT `taoHoacMoDoc`
+        // dựng ra (rỗng nếu mục đó chưa từng soạn nội dung) là doc HỢP LỆ của một mục có thật, có
+        // metadata chống lưng trong chính `payload` đang xuất, không mồ côi. Không tốn công vô ích
+        // (mục nào cũng cần đọc để xuất) và không để lại rác nào cho "Hoàn tác" phải dọn.
         for (const m of mucsTuoi) {
           try {
             const noiDung = await modNoiDung.xuatSnapshotMuc(m.id, m.loai)

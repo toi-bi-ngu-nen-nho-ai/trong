@@ -106,7 +106,13 @@ describe('Cửa sổ bấm-chồng MỚI do vòng sửa 1 tạo ra: lối vào K
       expect(spy).toHaveBeenCalledTimes(1)
 
       // ── Thử lối vào KHÁC #1: bấm "Xuất file sao lưu" trong lúc lượt nhập A còn treo ────────────
+      // M1 (review toàn nhánh, final-review-findings.md): trước bản vá này nửa "Xuất" bấm THẲNG
+      // vào nút đang `disabled` — chỉ canh thuộc tính DOM, không canh `dongBoDangChayRef`. Ép về
+      // `disabled=false` ngay trước cú bấm, CÙNG cách nửa "nhập file B" bên dưới đã làm, để ca này
+      // kiểm ĐÚNG cơ chế (ref bên trong handleExport tự chặn lấy chính nó), không phải khoá bằng
+      // trang trí — đúng thứ mà chính vòng sửa 2/5 của Task 9c đã chứng minh là KHÔNG đủ.
       const nutXuat = await screen.findByRole('button', { name: /Xuất file sao lưu/ })
+      ;(nutXuat as HTMLButtonElement).disabled = false
       fireEvent.click(nutXuat)
       await Promise.resolve()
       await Promise.resolve()
