@@ -3979,8 +3979,22 @@ function DataSyncScreen({
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      markBackupDone()
-      onBackupDone()
+      // I1 (review toàn nhánh, final-review-findings.md) — lỗi LIÊN-TASK: `hasCustomContent`
+      // (khai báo cạnh `mucsCol`, đầu App()) tính lời nhắc sao lưu THEO CẢ kho `mucs` (Task 5-8),
+      // nhưng hai lối thoát Task 9b/9c thêm ở trên ("bỏ chọn ô Bài viết & Sơ đồ nếu chỉ cần sao lưu
+      // các mục còn lại") cho phép một lượt xuất THÀNH CÔNG mà không mang theo mucs — hoặc mang
+      // theo nhưng một số mục chỉ đọc được TÊN (mucLoi, không phải nội dung thật). Trước bản vá
+      // này, markBackupDone()/onBackupDone() chạy VÔ ĐIỀU KIỆN ngay dưới đây sau MỌI lượt xuất
+      // thành công — tắt lời nhắc dù đúng thứ đã kích hoạt nó (mucs) không hề nằm trong file, hoặc
+      // chỉ nằm một phần. Người dùng làm ĐÚNG như app khuyên (bỏ chọn ô đó) vẫn bị lời nhắc tắt oan
+      // 14 ngày. Chỉ đánh dấu "đã sao lưu" khi ô "Bài viết & Sơ đồ" còn được CHỌN và MỌI mục đều đọc
+      // được nội dung — ngược lại GIỮ lời nhắc sống, không im lặng bỏ qua (D12: đừng hứa "đã sao
+      // lưu" khi lượt này thực ra chưa đủ).
+      const mucsDaSaoLuuDuTron = exportSelection["mucs"] !== false && mucLoi.length === 0
+      if (mucsDaSaoLuuDuTron) {
+        markBackupDone()
+        onBackupDone()
+      }
       // "mucs" dùng `mucsTuoi.length` (số THẬT vừa xuất) chứ không phải `r.current.length` (chính
       // là `customMucs.length`, có thể lệch với số thật — xem chú thích ở đầu khối đọc tươi phía
       // trên): nếu số mục tươi khác số hiển thị trước khi bấm, đó không phải lỗi, nhưng dòng trạng
@@ -3994,7 +4008,13 @@ function DataSyncScreen({
       // tưởng là đầy đủ.
       const canhBaoNoiDung = mucLoi.length > 0 ? ` Chưa đọc được nội dung của: ${mucLoi.join(", ")} — mục đó trong file sẽ chỉ có tên, không có nội dung.` : ""
       const canhBaoAnh = mucThieuAnh.length > 0 ? ` Thiếu ảnh trong: ${mucThieuAnh.join(", ")} — ảnh đó không còn trên máy nên file sao lưu này KHÔNG có chúng; giữ lại bản sao lưu cũ nếu bản cũ còn đủ ảnh.` : ""
-      setStatus(`Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}${canhBaoAnh}`)
+      // I1: nói rõ lượt này KHÔNG được tính là đã sao lưu, để người dùng không tưởng nhầm là xong.
+      const canhBaoChuaDanhDauSaoLuu = mucsDaSaoLuuDuTron
+        ? ""
+        : " Lượt xuất này CHƯA được tính là đã sao lưu (thiếu hoặc lỗi nội dung Bài viết & Sơ đồ) — lời nhắc sao lưu vẫn còn cho tới khi bạn xuất đủ."
+      setStatus(
+        `Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}${canhBaoAnh}${canhBaoChuaDanhDauSaoLuu}`,
+      )
     } finally {
       setExporting(false)
     }
