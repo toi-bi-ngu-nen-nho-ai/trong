@@ -18,6 +18,7 @@ import { vi } from 'vitest'
 
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../lib/idb'
 import type { MucMeta } from '../board/mucMeta'
+import { xoaNoiDungBang } from '../board/xoaNoiDungBang'
 
 // Vỏ nạp chậm thật (BlockSuite) không mount được dưới happy-dom — cùng lý do các spec mount <App/>
 // khác trong dự án đã ghi (ví dụ DataSyncScreen-mucs.spec.tsx). Màn Trang chủ không đụng bảng vẽ.
@@ -72,6 +73,17 @@ function taoMucGia(overrides: Partial<MucMeta> = {}): MucMeta {
 afterEach(async () => {
   const ds = await idbGetAll<{ id: string }>(IDB_STORES.mucs)
   for (const m of ds) await idbDelete(IDB_STORES.mucs, m.id)
+  // M2 (review toàn nhánh 2026-09-09): dọn NỐT kho thứ HAI của một mục — nội dung doc CRDT trong
+  // CSDL `drtrong-board`, hoàn toàn tách khỏi store META `mucs` vừa dọn ở trên (xem chú thích đầu
+  // `board/xoaNoiDungBang.ts`). Từ ca A6 trở đi tệp này chạy `xuatSnapshotMuc` BẢN THẬT →
+  // `taoHoacMoDoc` → tạo doc THẬT trong `drtrong-board`, mà `afterEach` trước lượt này chỉ dọn META:
+  // doc ở lại giữa các ca. Vô hại đúng hôm nay (A6 gần cuối tệp) nhưng ai nối thêm ca sau nó là
+  // dính — đúng kiểu rò rỉ mà khoản A3 vừa đi vá ở tệp khác.
+  // Doc id CHÍNH LÀ id của mục (`xuatSnapshotMuc(id, …)` → `taoHoacMoDoc(id, …)`), nên `ds` đọc
+  // TRƯỚC vòng xoá META ở trên đã là đúng danh sách cần dọn. Dùng `xoaNoiDungBang` — API thật của
+  // app cho việc này — theo đúng khuôn `afterEach` của `DataSyncScreen-hoan-tac-noi-dung.spec.tsx`,
+  // không tự mở IndexedDB bằng tay (mở sai phiên bản là làm hỏng cả kho nội dung, xem `moDbThat`).
+  await xoaNoiDungBang(ds.map((m) => m.id))
   localStorage.clear()
 })
 
@@ -220,5 +232,74 @@ describe('I1 (final-review-findings.md) — xuất thiếu mucs KHÔNG được 
     expect(screen.getByText(/^Đã xuất/)).toBeTruthy()
 
     expect(localStorage.getItem(KHOA_LAST_BACKUP)).not.toBeNull()
+  }, HAN_GIO_MOUNT_APP_MS)
+})
+
+// ─── I1 (review toàn nhánh 2026-09-09) — `handleExport` không có nhánh `catch` cấp hàm ─────────
+//
+// Đuôi hàm dựng file (App.tsx: `new Blob([JSON.stringify(payload…)])` → `URL.createObjectURL(blob)`
+// → thẻ `<a>`) nằm CHÍNH GIỮA dòng tiến độ cuối ("Đang đọc nội dung N bài viết/sơ đồ…") và dòng
+// báo thành công. `JSON.stringify` ném `RangeError` khi chuỗi vượt trần V8 — chuyện thật trên máy
+// có kho ảnh base64 lớn — và `createObjectURL` cũng ném được. Trước bản vá, cả hai tầng `try` của
+// hàm chỉ có `finally`, KHÔNG có `catch` nào: hai `finally` vẫn chạy (spinner tắt, khoá nhả), lời
+// từ chối thoát ra khỏi handler `onClick` async mà React không bắt (`grep unhandledrejection src/`
+// → 0 khớp), và `status` ĐỨNG NGUYÊN ở câu "Đang đọc nội dung…". Người dùng thấy nút ngừng quay,
+// một dòng "đang chạy" không bao giờ kết thúc, và KHÔNG một chữ lỗi nào.
+//
+// Chính hàm này đã TỪ CHỐI chấp nhận đúng chế độ hỏng đó ở đường khác — xem `.catch()` quanh
+// `import("./board/xuatNhapNoiDung")` và chú thích "Một promise bị từ chối ở đây thoát ra khỏi
+// handler onClick mà không ai bắt" — nên đây là thiếu sót, không phải lựa chọn thiết kế.
+
+/**
+ * Biến thể của `batXuatFile` cho ca đuôi-ném: `URL.createObjectURL` NÉM thay vì trả blob URL, ép
+ * đúng điểm hỏng ở đuôi hàm (rẻ hơn hẳn việc dựng một payload thật đủ lớn để `JSON.stringify` ném).
+ *
+ * KHÔNG chờ dòng trạng thái như `batXuatFile`: trước bản vá KHÔNG có dòng nào xuất hiện, chờ nó chỉ
+ * cho một lượt hết giờ 30s vô nghĩa. Chờ NÚT Xuất trở lại trạng thái rảnh — tín hiệu cả hai
+ * `finally` đã chạy xong — rồi mới soi `status`, nên ca ĐỎ chỉ ra ĐÚNG triệu chứng (màn hình còn
+ * kẹt ở dòng tiến độ) thay vì một lỗi hết giờ mơ hồ.
+ */
+async function batXuatFileDuoiNem() {
+  const gocCreate = URL.createObjectURL
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: () => {
+      throw new Error('giả lập: không dựng nổi blob URL cho file xuất (dữ liệu quá lớn)')
+    },
+    configurable: true,
+    writable: true,
+  })
+  try {
+    fireEvent.click(screen.getByRole('button', { name: /Xuất file sao lưu/ }))
+    await waitFor(
+      () => {
+        const nut = screen.getByRole('button', { name: /Xuất file sao lưu/ }) as HTMLButtonElement
+        expect(nut.disabled).toBe(false)
+      },
+      { timeout: HAN_GIO_XUAT_FILE_MS },
+    )
+  } finally {
+    Object.defineProperty(URL, 'createObjectURL', { value: gocCreate, configurable: true, writable: true })
+  }
+}
+
+describe('I1 (review toàn nhánh 2026-09-09) — đuôi dựng file NÉM thì phải BÁO, không kẹt im lặng', () => {
+  it('createObjectURL ném: màn hình hiện lỗi "Chưa xuất được", không đứng ở dòng "Đang đọc nội dung…"', async () => {
+    await idbPut(IDB_STORES.mucs, taoMucGia())
+    expect(localStorage.getItem(KHOA_LAST_BACKUP)).toBeNull()
+
+    await moManDongBo()
+    await choDemMucs(1)
+
+    await batXuatFileDuoiNem()
+
+    // (1) Màn hình phải NÓI RA. Trước bản vá `status` còn nguyên câu tiến độ giữa chừng.
+    expect(screen.queryByText(/Đang đọc nội dung/)).toBeNull()
+    expect(screen.getByText(/^Chưa xuất được/)).toBeTruthy()
+
+    // (2) Điều khoản I1 của vòng sửa trước (`5fc9ced`) còn NGUYÊN: một lượt xuất KHÔNG thành công
+    // tuyệt đối không được tắt lời nhắc sao lưu 14 ngày. `markBackupDone()` đứng SAU đuôi ném, nên
+    // bản vá phải để lượt hỏng NHẢY QUA nó — nếu ai đặt `catch` sai chỗ (bọc riêng đuôi rồi chạy
+    // tiếp xuống dưới) thì khoá này sẽ có giá trị và ca đỏ ngay tại đây.
+    expect(localStorage.getItem(KHOA_LAST_BACKUP)).toBeNull()
   }, HAN_GIO_MOUNT_APP_MS)
 })

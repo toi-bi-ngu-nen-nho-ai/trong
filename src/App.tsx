@@ -4026,6 +4026,34 @@ function DataSyncScreen({
       setStatus(
         `Đã xuất ${exportedCount} mục ra file${selectedCount < categoryRows.length ? " (đã bỏ một số mục theo lựa chọn)" : ""}.${canhBaoNoiDung}${canhBaoAnh}${canhBaoChuaDanhDauSaoLuu}`,
       )
+    } catch (loi) {
+      // Lưới CẤP HÀM cho phần đuôi dựng file (`JSON.stringify` → `new Blob` → `URL.createObjectURL`
+      // → thẻ `<a>` ngay trên). Trước bản vá này CẢ HAI tầng `try` của hàm chỉ có `finally`, không
+      // `catch` nào (`catch (loi)` duy nhất bên trong là của vòng lặp `xuatSnapshotMuc` từng mục —
+      // lưới cho MỘT mục, không phải cho cả hàm). Ném ở đuôi ⇒ hai `finally` vẫn chạy (spinner tắt,
+      // khoá nhả) nhưng lời từ chối thoát ra khỏi handler `onClick` async mà React KHÔNG bắt, và
+      // `status` ĐỨNG NGUYÊN ở câu tiến độ "Đang đọc nội dung N bài viết/sơ đồ…": người dùng thấy
+      // nút ngừng quay, một dòng "đang chạy" không bao giờ kết thúc, và KHÔNG một chữ lỗi nào.
+      // `JSON.stringify` ném `RangeError` khi chuỗi vượt trần V8 — chuyện thật trên máy có kho ảnh
+      // base64 lớn — và `createObjectURL` cũng ném được. Đây đúng là chế độ hỏng mà CHÍNH hàm này đã
+      // từ chối chấp nhận ở đường khác (xem `.catch()` quanh `import("./board/xuatNhapNoiDung")` và
+      // chú thích của nó phía trên), chỉ là chưa áp cho phần đuôi.
+      //
+      // CHỖ ĐẶT là một phần của bản vá, không phải tuỳ tiện:
+      //  • Bọc CẢ khối `try` chứ không riêng đuôi, và `markBackupDone()` nằm TRONG khối đó — nên một
+      //    lượt ném ở đuôi NHẢY THẲNG xuống đây và KHÔNG bao giờ chạy `markBackupDone()`/
+      //    `onBackupDone()`. Giữ nguyên điều khoản I1 của vòng sửa trước (`5fc9ced`): một lượt xuất
+      //    KHÔNG thành công tuyệt đối không được tắt lời nhắc sao lưu 14 ngày.
+      //  • Các nhánh chặn cứng ở trên (`duLieuChuaDocDuoc`, đọc `mucs` hỏng, không nạp được module
+      //    nội dung) `return` sớm với câu `setStatus` RIÊNG của chúng — `return` không đi qua `catch`,
+      //    nên câu dưới đây không ghi đè lời giải thích cụ thể hơn của chúng.
+      //
+      // Không in thông điệp lỗi kỹ thuật ra màn hình ("RangeError: Invalid string length" không nói
+      // gì với người dùng); object lỗi đi vào `console.warn` cho người gỡ lỗi.
+      console.warn("handleExport: không dựng được file xuất", loi)
+      setStatus(
+        "Chưa xuất được: máy không dựng nổi file cho lượt chọn này — thường vì phần dữ liệu đang chọn quá lớn để gom vào MỘT file (ảnh trong bài viết/sơ đồ chiếm chỗ nhiều nhất). Bỏ chọn bớt ô rồi xuất làm nhiều lần, mỗi lần một phần.",
+      )
     } finally {
       setExporting(false)
     }
@@ -12348,8 +12376,10 @@ export default function App() {
 
   // Hình dạng = ImportPayload TRỪ `mucDocs`: nội dung doc CRDT đi đường khác (xem chú thích
   // ImportPayload phía trên) nên hàm này CỐ Ý không nhận trường đó. Tham chiếu ImportPayload qua
-  // Omit<> thay vì chép tay hình dạng — thêm/bớt khoá của ImportPayload mà quên sửa ở đây thì tsc
-  // tự nhắc, không phải nhớ tay.
+  // Omit<> thay vì chép tay hình dạng. Lưới `tsc` chỉ che MỘT chiều, đừng tin quá tay: BỚT một khoá
+  // của ImportPayload thì thân hàm dưới đây đọc một trường không còn tồn tại ⇒ `tsc` đỏ, tự nhắc
+  // thật. THÊM một khoá thì KHÔNG: `Omit<>` tự nở theo kiểu mới, thân hàm chỉ đơn giản không đọc
+  // khoá mới và `tsc` im lặng hoàn toàn — không lưới nào bắt "quên xử lý khoá mới", phải tự nhớ.
   function handleImportData(data: Omit<ImportPayload, "mucDocs">) {
     if (data.antibiotics.length) customAntibioticsCol.upsertMany(data.antibiotics)
     if (data.diseases.length) customDiseasesCol.upsertMany(data.diseases)
@@ -12364,8 +12394,10 @@ export default function App() {
 
   // Hoàn tác một lần nhập file: thay HẲN từng bảng bằng đúng snapshot chụp trước lúc nhập (khác
   // `handleImportData` — gộp theo id, không xoá mục file thêm mới).
-  // Tham chiếu SyncSnapshot (kiểu có tên) thay vì chép tay hình dạng — thêm/bớt khoá của
-  // SyncSnapshot mà quên sửa ở đây thì tsc tự nhắc, không phải nhớ tay.
+  // Tham chiếu SyncSnapshot (kiểu có tên) thay vì chép tay hình dạng. Cùng cảnh báo như
+  // `handleImportData` ở trên: BỚT một khoá của SyncSnapshot thì thân hàm đọc trường đã biến mất ⇒
+  // `tsc` đỏ; THÊM một khoá thì tên kiểu tự nở theo, thân hàm chỉ không đọc khoá mới và `tsc` im
+  // lặng — chiều đó không có lưới, phải tự nhớ khôi phục cả khoá mới.
   function handleRestoreSnapshot(snapshot: SyncSnapshot) {
     customAntibioticsCol.replaceAll(snapshot.antibiotics)
     customDiseasesCol.replaceAll(snapshot.diseases)
