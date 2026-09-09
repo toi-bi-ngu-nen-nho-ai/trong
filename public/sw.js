@@ -66,10 +66,26 @@
 //      `onversionchange` đóng kết nối (idb.ts) nên đây là phiền chứ không mất dữ liệu — nhưng để nó
 //      thành việc thủ công chủ dự án phải nhớ là đúng cách mà lỗi chunk-cũ vẫn lọt qua bản phát
 //      hành.
-const CACHE = "drtrong-v20"
+// v21: ba file font Baloo 2 vào SHELL bên dưới. Lý do tự host font (thay vì @import CDN) là để
+//      hoạt cảnh intro có đúng mặt chữ ngay lần mở ĐẦU TIÊN kể cả offline — nhưng "offline lần mở
+//      đầu" nghĩa là chưa có request nào từng chạy, nên precache lúc install là thứ DUY NHẤT kịp
+//      đặt font vào cache. Không có ba dòng này thì tự host chỉ đổi nơi tải chứ không giải quyết
+//      được gì so với CDN. Bump vì SHELL đổi nội dung: bản cài cũ mới chịu chạy lại install và lấy
+//      danh sách precache mới.
+const CACHE = "drtrong-v21"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
-const SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"]
+const SHELL = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+  "/fonts/Baloo2-vietnamese.woff2",
+  "/fonts/Baloo2-latin-ext.woff2",
+  "/fonts/Baloo2-latin.woff2",
+]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
