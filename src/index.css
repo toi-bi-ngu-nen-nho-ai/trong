@@ -171,12 +171,14 @@
 :root {
   color-scheme: light;
 
-  /* Đổi hue trung tính từ teal (196°) sang tím-chàm (indigo, ~236°) để đi cùng --c-primary mới —
-     xem lý do đổi primary ở dưới. Cùng nguyên tắc cũ: nền trang có sắc, mặt thẻ trắng tinh, chroma
-     giảm dần theo độ sáng. Màu ý nghĩa (đỏ nguy hiểm, vàng cảnh báo, xanh lá an toàn) KHÔNG đụng
-     tới — xem "Untouchable Signal Rule" trong DESIGN.md, giữ nguyên bất kể đổi bảng màu chủ đạo. */
-  --c-surface: #ffffff;
-  --c-surface-alt: #f6f7fd;
+  /* Nền trung tính: bỏ HẲN thiên hướng có sắc, chuyển sang xám THẬT (hue=0, sat=0%) lấy đúng thang
+     của AFFiNE. Lịch sử ngắn: teal (196°) → indigo (~236°) ở lần rebrand 2026-08 → xám thật ở lần
+     này (2026-09), theo yêu cầu chủ dự án lấy đúng bảng màu AFFiNE. Nguyên tắc cũ "nền trang có
+     sắc" không còn áp dụng — nền trang giờ là xám trung tính, chỉ --c-primary mang màu.
+     Màu ý nghĩa (đỏ nguy hiểm, vàng cảnh báo, xanh lá an toàn) KHÔNG đụng tới — xem "Untouchable
+     Signal Rule" trong DESIGN.md, giữ nguyên bất kể đổi bảng màu chủ đạo. */
+  --c-surface: #ffffff;                  /* = AFFiNE background-primary bản sáng, không đổi */
+  --c-surface-alt: #eeeeee;              /* = AFFiNE background-tertiary */
   /* --c-note: mặt "tờ giấy ghim" của thẻ bảng Mindmap trống (LuoiMuc.tsx, .mind-note-card) —
      GIẤY LUÔN TRẮNG bất kể theme app sáng/tối (giấy thật không đổi màu theo ánh sáng phòng — đúng
      ảnh tham chiếu lần 2, 2026-08-26, không còn tông kem ấm của ảnh lần 1). Cùng tinh thần "One
@@ -217,40 +219,65 @@
     0 12px 20px -8px rgba(15, 15, 15, 0.3),
     0 3px 6px rgba(15, 15, 15, 0.13),
     0 0 0 1px rgba(15, 15, 15, 0.06);
-  --c-page: #f1f2fb;
-  --c-line-soft: #e9ebf9;
-  --c-line: #d9ddf4;
-  --c-line-strong: #bfc5ea;
+  --c-page: #f4f4f5;                     /* = AFFiNE background-secondary */
+  /* line-soft/line-strong là phần NỘI SUY: AFFiNE chỉ cho 1 border + 1 divider mỗi bản, hệ token
+     này cần ba bậc. Cùng họ xám thật, chỉ khác độ sáng, giữ đúng thứ tự soft < line < strong. */
+  --c-line-soft: #ececee;                /* nội suy, một bậc nhạt hơn --c-line */
+  --c-line: #e3e2e4;                     /* = AFFiNE border-color */
+  --c-line-strong: #c9c8cb;              /* nội suy, một bậc đậm hơn --c-line */
 
-  --c-text: #12142b;
-  --c-text-2: #2e314f;
-  --c-text-soft: #454870;
-  --c-text-muted: #6b6e96;
+  /* Nhóm chữ trung tính — xám thật, KHÔNG còn ngả indigo. Mỗi số dưới là tỉ lệ tương phản WCAG 2.1
+     đo thật, luôn ghi kèm NỀN đã đo (cùng một mã chữ cho số khác nhau trên nền thẻ và nền pill). */
+  --c-text: #121212;      /* = AFFiNE text-primary · 18,73:1 trên --c-surface · 17,04:1 trên --c-page */
+  --c-text-2: #3a3a3d;    /* nội suy · 11,34:1 trên --c-surface */
+  --c-text-soft: #5a5a5e; /* nội suy · 6,87:1 trên --c-surface */
+  /* NẮN TỐI từ AFFiNE text-secondary: mã gốc #8e8d91 chỉ đo được 3,30:1 trên --c-surface, trượt AA
+     4,5:1 — không dùng nguyên xi được cho chữ. #757478 giữ nguyên họ xám, đạt 4,64:1. */
+  --c-text-muted: #757478;
   /* Chữ mờ trong ô tìm. KHÔNG dùng lại --c-text-muted như bản vá đầu của critique 2026-08-29 (P2):
      token đó đo 4,89:1 trên nền THẺ TRẮNG (--c-surface), nhưng ô tìm ngồi trên pill --c-line-soft
      (#e9ebf9 bản sáng) — cùng màu chữ trên nền đó chỉ còn 4,12:1, vẫn dưới sàn AA 4,5:1. Đo lại
      trên trình duyệt thật mới lộ ra, đúng cái bẫy "đo tương phản trên nền không phải nền thật".
-     Hai giá trị dưới đo TRÊN PILL: #5f628a/#e9ebf9 = 4,98:1, #939ac2/#23264a = 5,33:1. */
-  --c-text-placeholder: #5f628a;
-  /* #9497be ban đầu chỉ đạt 2,83:1 trên trắng — thấp hơn cả --c-muted CŨ (~3,32:1) mà một vài nơi
-     ngoài màn Dùng thuốc (vd HomeScreen "Sắp ra mắt") lại dùng cho chữ mô tả thật, không chỉ icon.
-     Đậm lại còn #8084ac (~3,6:1) — vẫn là bậc dưới AA có chủ đích (icon/placeholder), nhưng không
-     TỆ HƠN mức cũ. */
-  --c-muted: #8084ac;
-  --c-faint: #c7cae6;
+     Hai giá trị dưới đo TRÊN PILL (không phải trên nền thẻ trắng): #66656a/#ececee = 4,90:1,
+     #a0a0a0/#202020 = 6,23:1. */
+  --c-text-placeholder: #66656a;
+  /* Icon/placeholder — quy ước cũ cho phép nhóm này nằm dưới AA (không phải chữ nội dung). Lấy đúng
+     AFFiNE icon-color; tình cờ đạt 4,54:1 trên --c-surface, tức DƯ so với quy ước, không sao. */
+  --c-muted: #77757d;
+  /* Mờ nhất, KHÔNG cần AA (nét chia rất nhạt) — đúng AFFiNE placeholder-color, 1,83:1 trên
+     --c-surface. */
+  --c-faint: #c0bfc1;
 
-  /* Đổi từ azure đậm (#003152) sang indigo điện quang (#2d3a94) — azure cũ bị đánh giá "kém sang",
-     và nằm quá gần hue trung tính lạnh khiến bảng màu đọc phẳng. Indigo tách hẳn khỏi cả ba màu ý
-     nghĩa (đỏ/vàng/lục — xem Untouchable Signal Rule) nên không có rủi ro lẫn tín hiệu an toàn với
-     tín hiệu thương hiệu, đồng thời đủ bão hoà để đọc "cao cấp" thay vì "công sở". Chữ trắng trên
-     nền primary đạt 9,8:1, primary làm chữ trên nền sáng cũng đạt 9,8:1 — dư xa ngưỡng AA 4,5:1. */
-  --c-primary: #2d3a94;
-  --c-primary-strong: #212b70;
-  --c-primary-deep: #171e52;
-  --c-primary-soft: #eceefa;
-  --c-primary-line: #c3caf0;
-  --c-primary-line-2: #9aa6e6;
-  --c-primary-rgb: 45, 58, 148;
+  /* Lần rebrand THỨ HAI của primary: azure đậm (#003152) → indigo điện quang (#2d3a94, 2026-08) →
+     xanh AFFiNE (#1E96EB, 2026-09, yêu cầu chủ dự án). Lấy ĐÚNG mã màu AFFiNE, không dùng làm "hạt
+     giống" để bịa thang riêng — mục tiêu là khung app và mặt bảng vẽ BlockSuite dùng chung một
+     xanh. Thang phái sinh giữ cùng họ hue (~205°), chỉ đổi độ sáng.
+
+     KHÁC HẲN bảng indigo cũ: #1E96EB nguyên bản chỉ đo được 3,17:1 trên --c-surface, tức KHÔNG
+     dùng trực tiếp làm màu CHỮ/ICON kích cỡ thường trên nền sáng được (indigo cũ đạt 9,8:1 nên
+     trước đây không phải nghĩ tới). Nền tô đặc / viền / focus ring (ngưỡng non-text 3:1) vẫn dùng
+     đúng --c-primary; chữ và icon trên nền sáng phải dùng --c-primary-strong. */
+  --c-primary: #1E96EB;        /* = AFFiNE brand-color · 3,17:1 trên --c-surface (chỉ non-text) */
+  /* Tầng "an toàn làm CHỮ" của bản sáng — cùng hue/sat, chỉ hạ độ sáng. 4,65:1 trên --c-surface
+     (đạt AA). LƯU Ý cho lượt audit App.tsx: trên --c-page (#f4f4f5) chỉ còn 4,23:1 — chữ primary
+     đặt thẳng trên NỀN TRANG (không phải trong thẻ trắng) vẫn hụt AA, chỗ đó cần --c-primary-deep. */
+  --c-primary-strong: #1979be;
+  --c-primary-deep: #135c90;   /* tầng nhấn mạnh cao nhất · 7,09:1 trên --c-surface */
+  --c-primary-soft: #edf3f7;   /* nền phớt cho badge/icon · --c-text trên nó đạt 16,74:1 */
+  --c-primary-line: #c2ddf0;   /* viền/accent-line, một bậc dưới full-strength */
+  /* SUY DIỄN của tác nhân thi công, KHÔNG phải giá trị khoá cứng trong spec (spec 2026-09-09 quên
+     liệt kê token này) — chủ dự án soát lại giúp. Giữ nguyên CÔNG THỨC tỉ lệ của cặp cũ: cùng
+     hue/sat với --c-primary-line, đậm hơn đúng một bậc 10 điểm độ sáng HSL, y hệt cặp indigo cũ
+     (#c3caf0 L=85,3% → #9aa6e6 L=75,3%). Ở đây: #c2ddf0 L=85,1% → #9ac6e6 L=75,3%, H≈205°. */
+  --c-primary-line-2: #9ac6e6;
+  --c-primary-rgb: 30, 150, 235;
+
+  /* Chữ/icon đặt trên nền --c-primary TÔ ĐẶC (nút chính, chip tab đang chọn). Khai MỘT LẦN duy
+     nhất, KHÔNG lặp ở hai khối bản tối bên dưới — cùng lối làm với --c-pill-dark-text. Lý do: từ
+     lần rebrand này primary gần như cùng một xanh ở cả hai bản (#1E96EB / #1C9EE4), nên mực đậm
+     đạt AA ở CẢ HAI (5,90:1 trên bản sáng, 6,30:1 trên bản tối) và không cần cơ chế lật trắng/đen
+     theo theme như --c-on-bright. Không dùng chữ TRẮNG được: trắng trên #1E96EB chỉ 3,17:1. */
+  --c-on-primary: #121212;
 
   /* Ngôi sao "ghim / ưa thích" trên hàng tab Dùng thuốc — VÀNG, theo yêu cầu chủ dự án 2026-09-03.
      TÁCH KHỎI họ token cảnh báo (--c-warn*): đây là accent trang trí ở vùng chrome điều hướng, KHÔNG
@@ -402,12 +429,13 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Bản tối đổi hẳn sang OLED gần đen ngả indigo (thay vì xám-teal trước đây) — đúng tinh thần
-       "Ethereal Glass": tối sâu hơn hẳn bản sáng thay vì chỉ là bản sáng đảo màu, glow xanh điện
-       (#6ea8fe) làm primary thay vì một xanh dương nhạt đơn thuần, để sáng/tối đọc như hai bản sắc
-       khác nhau thật sự chứ không phải một cái chỉnh độ sáng của cái kia. */
-    --c-surface: #14162c;
-    --c-surface-alt: #1b1e3d;
+    /* Bản tối lấy đúng thang xám THẬT của AFFiNE, thay cho OLED gần-đen ngả indigo (#0b0c1c) của
+       lần rebrand 2026-08. Hệ quả ĐÃ ĐƯỢC CẢNH BÁO VÀ CHẤP NHẬN (quyết định chủ dự án 2026-09-09):
+       nền tối mới (#141414) SÁNG HƠN hẳn bản OLED cũ, tức đi ngược lý lẽ "Night Glass" (tối hết
+       mức cho buồng bệnh tắt đèn) — chủ dự án vẫn chọn bám sát AFFiNE. Đã đo lại: toàn bộ nhóm
+       danger/warn/green (không đổi hex) vẫn đạt AA trên nền sáng hơn này. */
+    --c-surface: #252525;                /* = AFFiNE background-primary bản tối */
+    --c-surface-alt: #303030;            /* = AFFiNE background-tertiary */
     /* Bản tối của --c-note CHỈ dịu bớt một chút (không đổi hẳn sang tối) — giấy vẫn là giấy trắng
        dưới ánh đèn ban đêm, không phải một bề mặt tối riêng như --c-surface-alt dark. Ba token
        vật liệu ngay dưới dịch CÙNG một bậc để tờ giấy giữ nguyên quan hệ sáng-tối bên trong. */
@@ -416,31 +444,41 @@
     --c-note-back: #f4f1e9;
     --c-note-back-shade: #c6c3ba;
     /* Cùng ba khe với bản sáng (xem chú thích ở :root) — chỉ khe 3 đổi vai: viền ẤM mờ thay chỉ
-       đen, vì bóng đen vô hình trên nền #0b0c1c. Bỏ vòng toả 0.05 cũ (làm rối góc cong). */
+       đen, vì bóng đen gần như vô hình trên nền tối (--c-page). Bỏ vòng toả 0.05 cũ (làm rối góc
+       cong). */
     --c-note-shadow:
       0 12px 20px -8px rgba(0, 0, 0, 0.6),
       0 3px 6px rgba(0, 0, 0, 0.45),
       0 0 0 1px rgba(255, 247, 237, 0.18);
-    --c-page: #0b0c1c;
-    --c-line-soft: #23264a;
-    --c-line: #2e3260;
-    --c-line-strong: #40447f;
+    --c-page: #141414;                   /* = AFFiNE background-primary bản tối (nền trang) */
+    --c-line-soft: #202020;              /* nội suy, một bậc nhạt hơn --c-line */
+    --c-line: #2e2e2e;                   /* = AFFiNE border-color bản tối */
+    --c-line-strong: #727272;            /* = AFFiNE divider-color (khác hẳn border ở bản tối) */
 
-    --c-text: #eceffc;
-    --c-text-2: #d2d6f0;
-    --c-text-soft: #a8aeda;
-    --c-text-muted: #888eb8;
-    --c-text-placeholder: #939ac2; /* 5,33:1 trên pill --c-line-soft #23264a — xem ghi chú bản sáng */
-    --c-muted: #7379a3; /* #5a5f86 ban đầu chỉ 2,89:1 trên nền mới — thấp hơn mức cũ (~4,08:1); nâng lại cho tương đương */
-    --c-faint: #363a5e;
+    /* Nhóm chữ trung tính bản tối — xám thật, mỗi số ghi kèm NỀN đã đo. */
+    --c-text: #eaeaea;      /* = AFFiNE text-primary · 12,74:1 trên --c-surface · 15,31:1 trên --c-page */
+    --c-text-2: #d4d4d4;    /* nội suy · 10,34:1 trên --c-surface */
+    --c-text-soft: #b8b8b8; /* nội suy · 7,73:1 trên --c-surface */
+    --c-text-muted: #9c9ca0; /* = AFFiNE text-secondary bản tối · 5,60:1 trên --c-surface */
+    --c-text-placeholder: #a0a0a0; /* 6,23:1 trên pill --c-line-soft (#202020) — xem ghi chú bản sáng */
+    --c-muted: #a8a8a0; /* = AFFiNE icon-color bản tối · 7,70:1 trên --c-page, 6,40:1 trên --c-surface */
+    --c-faint: #3e3e3f;     /* = AFFiNE placeholder-color bản tối · 1,43:1 trên --c-surface, không cần AA */
 
-    --c-primary: #6ea8fe;
-    --c-primary-strong: #8fbeff;
-    --c-primary-deep: #b3d3ff;
-    --c-primary-soft: #182140;
-    --c-primary-line: #33407a;
-    --c-primary-line-2: #445397;
-    --c-primary-rgb: 110, 168, 254;
+    /* Primary bản tối gần như CÙNG một xanh với bản sáng (#1E96EB / #1C9EE4) — cố ý không lặp lại
+       cách cũ là bơm sáng hẳn primary lên (#6ea8fe), mà bám đúng cách AFFiNE tự làm. Khác bản sáng
+       ở một điểm quan trọng: #1C9EE4 nguyên bản đã đạt 6,19:1 trên --c-page nên DÙNG THẲNG làm
+       chữ/icon ở bản tối được, không cần đổi sang -strong. Vì vậy -strong/-deep bản tối định nghĩa
+       SÁNG HƠN base — không phải để vá lỗi AA, mà giữ đúng vai trò "cấp nhấn mạnh cao hơn". */
+    --c-primary: #1C9EE4;        /* = AFFiNE brand-color bản tối · 6,19:1 trên --c-page */
+    --c-primary-strong: #36a9e7; /* 7,01:1 trên --c-page */
+    --c-primary-deep: #76c5ef;   /* 9,65:1 trên --c-page */
+    --c-primary-soft: #112d3b;   /* nền phớt · --c-text trên nó đạt 11,94:1 */
+    --c-primary-line: #225977;
+    /* SUY DIỄN của tác nhân thi công (spec 2026-09-09 không liệt kê token này) — cùng hue/sat với
+       --c-primary-line, sáng hơn đúng một bậc 9 điểm độ sáng HSL, giữ nguyên tỉ lệ của cặp indigo
+       cũ (#33407a L=33,9% → #445397 L=42,9%). Ở đây: #225977 L=30,0% → #2c749b L=39,0%, H≈201°. */
+    --c-primary-line-2: #2c749b;
+    --c-primary-rgb: 28, 158, 228;
 
     /* Sao "ghim / ưa thích" — vàng-gold tươi trên nền tối, xem chú thích bản sáng. Lệch --c-warn-icon
        bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
@@ -504,38 +542,41 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --c-surface: #14162c;
-  --c-surface-alt: #1b1e3d;
+  --c-surface: #252525;
+  --c-surface-alt: #303030;
   --c-note: #efece3;
   --c-note-edge: #dbd8cf;
   --c-note-back: #f4f1e9;
   --c-note-back-shade: #c6c3ba;
   /* Cùng ba khe với bản sáng (xem chú thích ở :root) — chỉ khe 3 đổi vai: viền ẤM mờ thay chỉ
-     đen, vì bóng đen vô hình trên nền #0b0c1c. Bỏ vòng toả 0.05 cũ (làm rối góc cong). */
+     đen, vì bóng đen gần như vô hình trên nền tối (--c-page). Bỏ vòng toả 0.05 cũ (làm rối góc
+     cong). */
   --c-note-shadow:
     0 12px 20px -8px rgba(0, 0, 0, 0.6),
     0 3px 6px rgba(0, 0, 0, 0.45),
     0 0 0 1px rgba(255, 247, 237, 0.18);
-  --c-page: #0b0c1c;
-  --c-line-soft: #23264a;
-  --c-line: #2e3260;
-  --c-line-strong: #40447f;
+  /* Sáu token nền/viền + nhóm chữ + primary dưới đây PHẢI khớp từng mã với khối @media bên trên —
+     lý do đo/nguồn AFFiNE ghi đầy đủ ở đó, không lặp lại. */
+  --c-page: #141414;
+  --c-line-soft: #202020;
+  --c-line: #2e2e2e;
+  --c-line-strong: #727272;
 
-  --c-text: #eceffc;
-  --c-text-2: #d2d6f0;
-  --c-text-soft: #a8aeda;
-  --c-text-muted: #888eb8;
-  --c-text-placeholder: #939ac2; /* 5,33:1 trên pill --c-line-soft #23264a — xem ghi chú bản sáng */
-  --c-muted: #7379a3; /* #5a5f86 ban đầu chỉ 2,89:1 trên nền mới — thấp hơn mức cũ (~4,08:1); nâng lại cho tương đương */
-  --c-faint: #363a5e;
+  --c-text: #eaeaea;
+  --c-text-2: #d4d4d4;
+  --c-text-soft: #b8b8b8;
+  --c-text-muted: #9c9ca0;
+  --c-text-placeholder: #a0a0a0; /* 6,23:1 trên pill --c-line-soft (#202020) — xem ghi chú bản sáng */
+  --c-muted: #a8a8a0; /* = AFFiNE icon-color bản tối · 7,70:1 trên --c-page, 6,40:1 trên --c-surface */
+  --c-faint: #3e3e3f;
 
-  --c-primary: #6ea8fe;
-  --c-primary-strong: #8fbeff;
-  --c-primary-deep: #b3d3ff;
-  --c-primary-soft: #182140;
-  --c-primary-line: #33407a;
-  --c-primary-line-2: #445397;
-  --c-primary-rgb: 110, 168, 254;
+  --c-primary: #1C9EE4;
+  --c-primary-strong: #36a9e7;
+  --c-primary-deep: #76c5ef;
+  --c-primary-soft: #112d3b;
+  --c-primary-line: #225977;
+  --c-primary-line-2: #2c749b; /* suy diễn, không có trong spec — xem chú thích ở khối @media */
+  --c-primary-rgb: 28, 158, 228;
 
   /* Sao "ghim / ưa thích" — vàng-gold tươi trên nền tối, xem chú thích bản sáng. Lệch --c-warn-icon
      bản tối (#f0b429 hổ phách cam) sang #facc15 vàng-chanh để không đọc nhầm thành cảnh báo. */
