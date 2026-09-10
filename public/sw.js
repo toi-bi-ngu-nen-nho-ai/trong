@@ -72,7 +72,13 @@
 //      đặt font vào cache. Không có ba dòng này thì tự host chỉ đổi nơi tải chứ không giải quyết
 //      được gì so với CDN. Bump vì SHELL đổi nội dung: bản cài cũ mới chịu chạy lại install và lấy
 //      danh sách precache mới.
-const CACHE = "drtrong-v21"
+// v22: gánh HAI đợt đổi bundle JS.
+//      (a) 8b2e629 — tách hai ngưỡng béo phì (CrCl theo BMI>30, liều mg/kg theo 120% IBW). Đợt đó
+//          ĐÃ QUÊN bump, nên máy đã cài PWA vẫn phát bản JS cũ: bản vá liều nằm trong repo nhưng
+//          KHÔNG tới được máy người dùng — đúng cái bẫy mà chú thích v18 bên trên đã cảnh báo.
+//      (b) bảng đo tạm "dải trắng thanh trạng thái" (components/ChanDoanThanhTrangThai.tsx) — không
+//          bump thì mở app đã cài sẽ không thấy bảng đâu, lượt chẩn đoán coi như mất trắng.
+const CACHE = "drtrong-v22"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

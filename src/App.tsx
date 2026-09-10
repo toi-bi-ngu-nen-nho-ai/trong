@@ -8,6 +8,8 @@ import { useIdbCollection } from "./lib/useIdbCollection"
 import { IDB_STORES, idbGetAllCoKetQua, idbPut } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
 import { resolveDosingWeight, resolveCrClWeight, type WeightBasis } from "./lib/bodyWeight"
+// TẠM (2026-09-10) — gỡ cùng file khi chốt xong căn nguyên "dải trắng thanh trạng thái".
+import { useMoBangChanDoan, BangChanDoanThanhTrangThai } from "./components/ChanDoanThanhTrangThai"
 // BoardGallery (không phải EdgelessBoard) là điểm vào duy nhất cho tab Mindmap — nó tự import
 // EdgelessBoard qua vỏ nạp chậm ./board/index.tsx bên trong, nên App.tsx KHÔNG được import thẳng
 // EdgelessBoard.tsx ở đây: import thẳng kéo cả khối AFFiNE vào chung bundle vỏ app, phá mất phần
@@ -668,6 +670,8 @@ function HomeScreen({
   onMoMuc: (id: string, loai: LoaiMuc, danhMuc: IdDanhMuc) => void
   recentReads: RecentReadItem[]
 }) {
+  // TẠM (2026-09-10) — lối vào bảng đo "dải trắng thanh trạng thái", chạm 5 lần vào logo.
+  const chanDoan = useMoBangChanDoan()
   // "Sử dụng thuốc"/"Công cụ" vẫn trỏ một Screen thật (mixing/comingSoon) — không thuộc kho bài
   // viết nên không có danh mục để lọc theo. Ba thẻ còn lại trỏ THẲNG một `IdDanhMuc`: từ Task 7,
   // "Tiếp cận vấn đề"/"Phác đồ" không còn là lời hứa "Sắp ra mắt" nữa, và "ECG" không còn mở
@@ -701,10 +705,15 @@ function HomeScreen({
           chừa đúng chỗ cho cụm nút nổi (chủ đề + chuyên khoa) neo ở góc trên phải là RÀNG BUỘC kích
           thước thật — xem cụm nút nổi trong App shell. Không có nó thì logo chồng lên cụm nút đó. */}
       <div className="px-8 pt-2 pb-4 flex items-center" style={{ paddingRight: 180 }}>
-        <span className="flex-none h-7 w-auto translate-y-2" style={{ color: "var(--c-primary)" }}>
+        {/* TẠM (2026-09-10): chạm 5 lần vào logo mở bảng đo thanh trạng thái. Cố ý KHÔNG phải
+            <button> và không có gợi ý nhìn thấy được — đây là lối vào chẩn đoán, không phải chức
+            năng; biến nó thành nút thật là thêm một điểm dừng tab thừa cho trình đọc màn hình.
+            Gỡ cùng lúc với components/ChanDoanThanhTrangThai.tsx. */}
+        <span onClick={chanDoan.chamLogo} className="flex-none h-7 w-auto translate-y-2" style={{ color: "var(--c-primary)" }}>
           {icons.logo("h-7 w-auto")}
         </span>
       </div>
+      {chanDoan.dangMo && <BangChanDoanThanhTrangThai onDong={chanDoan.dong} />}
 
       {/* Search */}
       <div className="px-6 pb-6 flex items-center gap-3">
