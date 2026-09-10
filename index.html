@@ -59,6 +59,33 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#252525" />
     <meta name="theme-color" content="#1E96EB" />
+    <!-- ─── iOS: thanh trạng thái của app ĐÃ CÀI ra màn hình chính ────────────────────────────
+         LỖI NÓ CHỮA (chủ dự án báo 2026-09-10, kèm ảnh chụp iPhone): dải trên cùng TRẮNG trong khi
+         cả app đang ở bản tối. Luôn trắng, cả chế độ sáng lẫn tối, và chỉ khi mở từ màn hình chính.
+
+         VÌ SAO trước đây không ai thấy: thẻ này bị gỡ hẳn hồi 2026-08 (xem chú thích ngay dưới, chỗ
+         `apple-mobile-web-app-capable`) để chữa khoảng trống 68px ở đáy iPhone, và lời giải thích
+         kèm theo khi đó ghi "thanh trạng thái ... lấy màu từ theme-color". Câu đó ĐÚNG với Android
+         nhưng SAI với iOS: ở chế độ standalone, iOS hoàn toàn KHÔNG đọc theme-color cho dải này —
+         nó chỉ đọc đúng thẻ này. Thiếu thẻ ⇒ iOS dùng mặc định `default` = nền TRẮNG, chữ đen, và
+         `default` không có biến thể tối nào cả. Toàn bộ máy móc theme-color ở trên (script nội
+         tuyến, ghi cả ba thẻ, đồng bộ --c-surface) vẫn chạy đúng — đã đo trên bản deploy thật — mà
+         không hề với tới được dải này.
+
+         VÌ SAO 'black'/'default' chứ không phải 'black-translucent': `black-translucent` mới là thứ
+         cho nội dung tràn lên dưới thanh trạng thái (kiểu app Claude), NHƯNG nó chính là nguyên
+         nhân gốc của khoảng trống ở đáy đã đo thật trên iPhone Air (912 − 844 = 68px không phần tử
+         DOM nào với tới). Đổi sang nó là mời lại đúng lỗi vừa mất công chữa. Đây là ĐÁNH ĐỔI đã
+         cân nhắc, không phải bỏ sót.
+
+         Giá trị được script nội tuyến ở trên ghi lại theo chủ đề đã phân giải; để `default` ở đây
+         làm mốc tĩnh cho lần vẽ đầu và cho trình duyệt nào không chạy được script đó.
+         LƯU Ý 'black' là #000, KHÔNG bằng --c-surface tối (#252525) — iOS chỉ cho ba giá trị cố
+         định, không nhận mã màu. Chênh một bậc đen vẫn đọc ra "cùng một mặt tối"; trắng-trên-tối
+         thì không.
+         Đổi được chủ đề mà dải cập nhật theo là nhờ saveTheme() đã tải lại trang khi chạy
+         standalone (xem src/lib/theme.ts) — iOS chỉ đọc thẻ này lúc tải trang. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <!-- ─── Phân giải chủ đề TRƯỚC LẦN VẼ ĐẦU (bắt buộc nội tuyến, chặn phân tích cú pháp) ───
          LỖI NÓ CHỮA (chủ dự án báo 2026-09-04, "lỗi RẤT NẶNG"): ba thẻ ngay trên chọn màu theo
          prefers-color-scheme, tức theo cài đặt CỦA MÁY. Nhưng app còn cho CHỌN TAY sáng/tối
@@ -90,6 +117,10 @@
           var mau = toi ? '#252525' : '#ffffff'
           var the = document.querySelectorAll('meta[name="theme-color"]')
           for (var i = 0; i < the.length; i++) the[i].setAttribute('content', mau)
+          // iOS KHÔNG đọc theme-color cho thanh trạng thái của app đã cài — nó đọc thẻ Apple riêng
+          // ngay dưới đây. Xem chú thích dài ở thẻ đó để biết vì sao 'black'/'default'.
+          var apple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+          if (apple) apple.setAttribute('content', toi ? 'black' : 'default')
         } catch (e) {
           // localStorage bị chặn (Safari riêng tư) hay thiếu matchMedia: để nguyên ba thẻ tĩnh ở trên
           // lo — chúng vẫn đúng cho người dùng chưa chọn tay, tức là đa số.

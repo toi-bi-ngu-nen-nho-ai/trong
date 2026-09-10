@@ -34,14 +34,26 @@ function scriptNoiTuyen(): string {
   return khop[0][1]
 }
 
-/** Ba thẻ theme-color tĩnh, dựng lại đúng như trình duyệt thấy lúc phân tích xong <head>. */
+/**
+ * Các thẻ meta TĨNH mà script nội tuyến đụng tới, dựng lại đúng như trình duyệt thấy lúc phân tích
+ * xong <head>: ba thẻ theme-color (Android/trình duyệt) + thẻ Apple (iOS standalone).
+ */
 function dungHead(): void {
-  document.head.innerHTML = [...HTML.matchAll(/<meta name="theme-color"[^>]*>/g)].map((m) => m[0]).join('\n')
+  const the = [
+    ...[...HTML.matchAll(/<meta name="theme-color"[^>]*>/g)].map((m) => m[0]),
+    ...[...HTML.matchAll(/<meta name="apple-mobile-web-app-status-bar-style"[^>]*>/g)].map((m) => m[0]),
+  ]
+  document.head.innerHTML = the.join('\n')
   document.documentElement.removeAttribute('data-theme')
 }
 
 function mauCacThe(): string[] {
   return [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.getAttribute('content') ?? '')
+}
+
+/** Giá trị thẻ Apple — thứ DUY NHẤT iOS đọc cho thanh trạng thái của app đã cài. */
+function kieuThanhIos(): string | null {
+  return document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.getAttribute('content') ?? null
 }
 
 /** Chạy script nội tuyến với một localStorage/matchMedia giả — đúng chỗ nó chạy thật: trong <head>. */
@@ -72,6 +84,33 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
       '#252525',
     ])
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+  })
+
+  // ─── iOS: app đã cài ra màn hình chính ─────────────────────────────────────────────────────
+  // LỖI ĐÃ SINH RA NHÓM CA KIỂM NÀY (chủ dự án báo 2026-09-10, kèm ảnh chụp iPhone): dải trên cùng
+  // TRẮNG trong khi cả app đang ở bản tối — luôn trắng, cả chế độ sáng lẫn tối, chỉ khi mở từ màn
+  // hình chính. Nguyên nhân: thẻ `apple-mobile-web-app-status-bar-style` bị gỡ hẳn hồi 2026-08, mà
+  // iOS standalone KHÔNG đọc theme-color cho dải này — thiếu thẻ thì nó dùng mặc định `default`
+  // (nền trắng chữ đen), và `default` không có biến thể tối.
+  //
+  // Ba ca dưới đây phải ĐỎ nếu ai đó gỡ lại thẻ hoặc bỏ phép ghi trong script nội tuyến.
+  it('iOS: bản TỐI ⇒ thẻ Apple thành "black" (thiếu phép ghi này là dải trên trắng vĩnh viễn)', () => {
+    dungHead()
+    chay({ luu: 'dark', mayToi: false })
+    expect(kieuThanhIos()).toBe('black')
+  })
+
+  it('iOS: bản SÁNG ⇒ thẻ Apple về "default" (nền trắng, khớp --c-surface sáng)', () => {
+    dungHead()
+    chay({ luu: 'light', mayToi: true })
+    expect(kieuThanhIos()).toBe('default')
+  })
+
+  it('index.html PHẢI còn thẻ Apple — gỡ nó đi là script nội tuyến không có gì để ghi', () => {
+    expect(
+      HTML,
+      'thiếu <meta name="apple-mobile-web-app-status-bar-style"> ⇒ iOS rơi về "default" = dải trắng ở mọi chủ đề',
+    ).toMatch(/<meta name="apple-mobile-web-app-status-bar-style"[^>]*>/)
   })
 
   it('chọn tay SÁNG trong lúc máy để TỐI: cả ba thẻ ra màu sáng', () => {

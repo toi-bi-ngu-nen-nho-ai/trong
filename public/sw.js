@@ -78,7 +78,12 @@
 //          KHÔNG tới được máy người dùng — đúng cái bẫy mà chú thích v18 bên trên đã cảnh báo.
 //      (b) bảng đo tạm "dải trắng thanh trạng thái" (components/ChanDoanThanhTrangThai.tsx) — không
 //          bump thì mở app đã cài sẽ không thấy bảng đâu, lượt chẩn đoán coi như mất trắng.
-const CACHE = "drtrong-v22"
+// v23: chữa "dải trắng thanh trạng thái trên iPhone đã cài ra màn hình chính" — thêm lại thẻ
+//      `apple-mobile-web-app-status-bar-style` (iOS standalone KHÔNG đọc theme-color cho dải đó).
+//      BẮT BUỘC bump vì đợt này đổi CẢ index.html, mà file đó nằm ngay trong SHELL bên dưới — tức
+//      thứ máy đã cài PWA phát thẳng từ cache. Không bump thì máy giữ nguyên index.html cũ, tức
+//      giữ nguyên đúng cái lỗi vừa vá.
+const CACHE = "drtrong-v23"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

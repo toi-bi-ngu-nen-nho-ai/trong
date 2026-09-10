@@ -103,6 +103,20 @@ export function applyTheme(mode: ThemeMode): void {
   const metas = document.querySelectorAll('meta[name="theme-color"]')
   for (const meta of metas) meta.setAttribute("content", surface)
 
+  // iOS standalone KHÔNG đọc theme-color cho thanh trạng thái — chỉ đọc thẻ Apple này (xem chú
+  // thích dài tại thẻ đó trong index.html). Ba giá trị cố định, không nhận mã màu: 'default' là
+  // nền TRẮNG chữ đen, 'black' là nền đen chữ trắng.
+  //
+  // Vòng ghi này KHÔNG thừa dù script nội tuyến đã ghi đúng lúc tải trang: watchSystemTheme() gọi
+  // lại applyTheme() khi hệ điều hành lật sáng/tối lúc app đang mở ở chế độ "auto", còn script nội
+  // tuyến chỉ chạy đúng một lần. Bỏ qua đây thì thẻ Apple và thẻ theme-color nói hai chuyện khác
+  // nhau — đúng loại lệch âm thầm mà cả khối chú thích ở trên đang cố ngăn.
+  //
+  // Đừng trông chờ iOS vẽ lại NGAY khi ghi: nó chỉ đọc thẻ này lúc tải trang, nên đường thật để
+  // người dùng thấy dải đổi màu là cú tải lại trong saveTheme() ở chế độ standalone.
+  const appleBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+  if (appleBar) appleBar.setAttribute("content", resolved === "dark" ? "black" : "default")
+
   // Báo cho những nơi KHÔNG đọc được biến --c-* qua CSS (bảng vẽ nhúng cần chính chuỗi
   // "light"/"dark" để ghi thành thuộc tính). Đặt ở cuối, sau khi <html> đã mang giá trị mới, để
   // người nghe nào đọc DOM cũng thấy trạng thái đã ổn định.
