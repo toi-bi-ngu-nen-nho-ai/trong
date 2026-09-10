@@ -747,6 +747,7 @@ body::after {
   bottom: 0;
   height: var(--tran-day);
   background: var(--c-nav-bg-solid);
+  /* ⚠ ĐANG DÒ TẠM (2026-09-10) — xem khối "DÒ TẠM" cuối file, gỡ cùng lúc với nó. */
   /* Không bao giờ nuốt thao tác chạm: nó chỉ là nền, và ở máy không có khe thì nó nằm ngoài màn
      hình — nhưng vẫn khai tường minh để không ai phải suy luận. */
   pointer-events: none;
@@ -1890,4 +1891,31 @@ select {
   --c-intro-bg: #f6f6f6;
   --c-intro-ink: #14161f;
   --c-intro-blue: #2f6fed;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   ⚠ DÒ TẠM — GỠ NGUYÊN KHỐI NÀY sau khi chủ dự án báo màu (2026-09-10)
+   ══════════════════════════════════════════════════════════════════════════════════════════════
+   Đã 5 lần vá dải hở dưới thanh nav trên iPhone standalone, cả 5 đều hỏng vì tôi đoán sai TẦNG NÀO
+   sở hữu vùng đó. Khối này thôi đoán: tô mỗi tầng một màu chói, chủ dự án nhìn một lần là biết.
+
+   Đọc kết quả:
+     ĐỎ    #ff0000 → nền canvas (lan từ thẻ <html>). Vùng đó NẰM TRONG vùng web ⇒ CSS chữa được,
+                     chỉ cần cho --c-nav-bg-solid đúng màu là xong.
+     XANH  #00ff00 → body::after (trong hộp body đã nới thêm --tran-day) ⇒ CSS chữa được.
+     TÍM   #ff00ff → nền của chính <body> (--c-page) tràn xuống ⇒ CSS chữa được, sửa ở tầng body.
+     KHÔNG đổi màu (vẫn sáng/trắng như trước)
+                   → iOS tô, NGOÀI vùng web. Không API web nào với tới; cần gạt duy nhất là
+                     `background_color` trong manifest.json (đã đổi sẵn sang #252525, chỉ có hiệu
+                     lực sau khi gỡ app khỏi màn hình chính rồi cài lại).
+
+   Ba màu cố ý chói và không có trong bảng màu app, để không thể nhầm với bất cứ thứ gì đang có. */
+html {
+  background: #ff0000 !important;
+}
+body {
+  background: #ff00ff !important;
+}
+body::after {
+  background: #00ff00 !important;
 }

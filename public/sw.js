@@ -104,7 +104,9 @@
 // v30: dai phu chuyen tu thanh nav sang `body::after`. Ban v29 cho nav "ri xuong" nhung nav nam
 //      trong #app-shell (overflow-hidden) nen bi cat sach — getBoundingClientRect() khong nhin thay
 //      phep cat do nen phep kiem bao xanh oan.
-const CACHE = "drtrong-v30"
+// v31: manifest background_color #ffffff -> #252525. Vung ho o day do iOS to (NGOAI vung web),
+//      khong CSS nao voi toi — 5 lan va bang CSS deu that bai vi ly do do.
+const CACHE = "drtrong-v31"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [
