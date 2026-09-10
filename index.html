@@ -72,17 +72,26 @@
          tuyến, ghi cả ba thẻ, đồng bộ --c-surface) vẫn chạy đúng — đã đo trên bản deploy thật — mà
          không hề với tới được dải này.
 
-         VÌ SAO 'black'/'default' chứ không phải 'black-translucent': `black-translucent` mới là thứ
-         cho nội dung tràn lên dưới thanh trạng thái (kiểu app Claude), NHƯNG nó chính là nguyên
-         nhân gốc của khoảng trống ở đáy đã đo thật trên iPhone Air (912 − 844 = 68px không phần tử
-         DOM nào với tới). Đổi sang nó là mời lại đúng lỗi vừa mất công chữa. Đây là ĐÁNH ĐỔI đã
-         cân nhắc, không phải bỏ sót.
+         VÌ SAO GIÁ TRỊ KHÁC NHAU THEO CHỦ ĐỀ, không phải một giá trị chung (chủ dự án chốt
+         2026-09-10, sau khi bản 'black' vẫn chưa đủ):
+           • tối  → 'black-translucent': thanh trạng thái TRONG SUỐT, nội dung trang tràn lên dưới
+             nó — đúng thứ chủ dự án muốn ("như app Claude"). Chữ đồng hồ/pin thành TRẮNG.
+           • sáng → 'default': nền trắng, chữ đen. BẮT BUỘC phải là 'default' ở bản sáng, vì
+             'black-translucent' ép chữ thanh trạng thái thành trắng KHÔNG có cách nào đổi — trắng
+             trên nền app trắng là đồng hồ/pin biến mất hẳn. Bản sáng vốn đã liền mạch sẵn (dải
+             trắng trên app trắng) nên không mất gì.
+         iOS chỉ nhận đúng ba chuỗi này, không nhận mã màu — nên không có cách nào ra đúng
+         --c-surface (#252525); 'black-translucent' để lộ chính nền app nên còn khớp hơn cả 'black'.
+
+         KHOẢNG TRỐNG 68px Ở ĐÁY — lý do thẻ này từng bị gỡ hồi 2026-08 — ĐÃ ĐƯỢC CHỮA, không phải
+         bỏ qua: 'black-translucent' làm iOS rơi vào trạng thái lai (innerHeight 844 tính như "nằm
+         dưới thanh trạng thái" nhưng khung nhìn lại đặt ở y=0, safe-area-inset-top = 68 → thừa 68px
+         ở đáy không phần tử DOM nào với tới). Cách chữa nằm ở `body` trong src/index.css:
+         `height: calc(100% + var(--safe-top))` — 844 + 68 = 912, khớp đúng đáy màn hình. Biểu thức
+         đó tự vô hiệu ở mọi nơi khác (Android/desktop/bản sáng đều có --safe-top = 0 ⇒ cộng thêm 0).
 
          Giá trị được script nội tuyến ở trên ghi lại theo chủ đề đã phân giải; để `default` ở đây
          làm mốc tĩnh cho lần vẽ đầu và cho trình duyệt nào không chạy được script đó.
-         LƯU Ý 'black' là #000, KHÔNG bằng --c-surface tối (#252525) — iOS chỉ cho ba giá trị cố
-         định, không nhận mã màu. Chênh một bậc đen vẫn đọc ra "cùng một mặt tối"; trắng-trên-tối
-         thì không.
          Đổi được chủ đề mà dải cập nhật theo là nhờ saveTheme() đã tải lại trang khi chạy
          standalone (xem src/lib/theme.ts) — iOS chỉ đọc thẻ này lúc tải trang. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -120,7 +129,7 @@
           // iOS KHÔNG đọc theme-color cho thanh trạng thái của app đã cài — nó đọc thẻ Apple riêng
           // ngay dưới đây. Xem chú thích dài ở thẻ đó để biết vì sao 'black'/'default'.
           var apple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
-          if (apple) apple.setAttribute('content', toi ? 'black' : 'default')
+          if (apple) apple.setAttribute('content', toi ? 'black-translucent' : 'default')
         } catch (e) {
           // localStorage bị chặn (Safari riêng tư) hay thiếu matchMedia: để nguyên ba thẻ tĩnh ở trên
           // lo — chúng vẫn đúng cho người dùng chưa chọn tay, tức là đa số.

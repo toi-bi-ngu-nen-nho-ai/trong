@@ -83,7 +83,10 @@
 //      BẮT BUỘC bump vì đợt này đổi CẢ index.html, mà file đó nằm ngay trong SHELL bên dưới — tức
 //      thứ máy đã cài PWA phát thẳng từ cache. Không bump thì máy giữ nguyên index.html cũ, tức
 //      giữ nguyên đúng cái lỗi vừa vá.
-const CACHE = "drtrong-v23"
+// v24: bản tối chuyển sang `black-translucent` (nội dung tràn lên dưới thanh trạng thái) + bịt
+//      khoảng trống 68px ở đáy bằng `height: calc(100% + var(--safe-top))` trên body. Bump vì đổi
+//      CẢ index.html (nằm trong SHELL) lẫn CSS/JS.
+const CACHE = "drtrong-v24"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

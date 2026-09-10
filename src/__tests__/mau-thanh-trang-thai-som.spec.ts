@@ -94,13 +94,16 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
   // (nền trắng chữ đen), và `default` không có biến thể tối.
   //
   // Ba ca dưới đây phải ĐỎ nếu ai đó gỡ lại thẻ hoặc bỏ phép ghi trong script nội tuyến.
-  it('iOS: bản TỐI ⇒ thẻ Apple thành "black" (thiếu phép ghi này là dải trên trắng vĩnh viễn)', () => {
+  it('iOS: bản TỐI ⇒ "black-translucent" (dải trong suốt, nội dung tràn lên dưới nó)', () => {
     dungHead()
     chay({ luu: 'dark', mayToi: false })
-    expect(kieuThanhIos()).toBe('black')
+    expect(kieuThanhIos()).toBe('black-translucent')
   })
 
-  it('iOS: bản SÁNG ⇒ thẻ Apple về "default" (nền trắng, khớp --c-surface sáng)', () => {
+  // Ràng buộc CỨNG, không phải sở thích: 'black-translucent' ép chữ đồng hồ/pin thành TRẮNG và iOS
+  // không cho đổi. Nền app bản sáng cũng trắng ⇒ dùng nó ở bản sáng là xoá sổ đồng hồ/pin khỏi màn
+  // hình. Ca này đứng đây để lần "cho gọn, dùng chung một giá trị" sau phải đỏ.
+  it('iOS: bản SÁNG ⇒ "default", KHÔNG được là black-translucent (chữ trắng trên nền app trắng)', () => {
     dungHead()
     chay({ luu: 'light', mayToi: true })
     expect(kieuThanhIos()).toBe('default')

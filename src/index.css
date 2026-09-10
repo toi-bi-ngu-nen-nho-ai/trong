@@ -682,6 +682,24 @@ html {
 body {
   position: fixed;
   inset: 0;
+  /* ─── Bịt khoảng trống 68px ở đáy iPhone khi thanh trạng thái TRONG SUỐT (2026-09-10) ─────────
+     Từ hôm nay bản TỐI dùng `apple-mobile-web-app-status-bar-style: black-translucent` để nội dung
+     tràn lên dưới thanh trạng thái (xem chú thích dài ở index.html). Đó cũng chính là chế độ đẩy
+     iOS vào trạng thái lai đã đo thật trên iPhone Air (iOS 18.7 / Safari 26):
+         screen.height = 912, window.innerHeight = 844, chênh đúng 68 = env(safe-area-inset-top)
+     iOS TÍNH chiều cao khung nhìn theo kiểu "nằm dưới thanh trạng thái" (912 − 68 = 844) nhưng lại
+     ĐẶT khung nhìn ở mép trên (y=0). `inset: 0` vì thế chỉ phủ 0…844, thừa 68px ở đáy mà không phần
+     tử DOM nào với tới — đúng "dải hõm dưới thanh nav" đã báo hồi 2026-08, và là lý do thẻ kia từng
+     bị gỡ hẳn thay vì chữa.
+     Cộng lại đúng phần thiếu: 844 + 68 = 912, khớp đáy màn hình vật lý. `height` thắng `bottom` khi
+     một phần tử position:fixed bị ràng buộc thừa (có cả top, bottom lẫn height), nên `inset: 0` ở
+     trên vẫn giữ nguyên vai trò neo bốn cạnh.
+     TỰ VÔ HIỆU ở mọi nơi khác: Android, desktop, iPhone không tai thỏ, và cả bản SÁNG trên iPhone
+     (bản sáng dùng 'default' nên iOS đặt khung nhìn xuống dưới thanh trạng thái và trả
+     safe-area-inset-top = 0) — tất cả đều cộng thêm 0px.
+     KHÔNG dùng 100dvh hay đo bằng visualViewport: cả hai đều ĐÃ THỬ VÀ BỎ, xem chú thích ngay
+     trên khối này. */
+  height: calc(100% + var(--safe-top));
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ. */

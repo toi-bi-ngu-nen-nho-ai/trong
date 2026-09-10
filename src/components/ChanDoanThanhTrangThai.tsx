@@ -84,6 +84,9 @@ function thuThapSoDo(): { nhom: string; dong: [string, string][] }[] {
 
   const the = [...document.querySelectorAll('meta[name="theme-color"]')]
   const appShell = document.getElementById("app-shell")
+  // Thứ DUY NHẤT iOS đọc cho thanh trạng thái app đã cài. Dòng này còn dùng để phân biệt "máy chưa
+  // nhận HTML mới" (ra "(KHÔNG CÓ THẺ)") với "iOS nhận rồi mà vẫn không đổi" — hai chuyện khác hẳn.
+  const appleBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
 
   return [
     {
@@ -91,6 +94,7 @@ function thuThapSoDo(): { nhom: string; dong: [string, string][] }[] {
       dong: [
         ["display-mode", doDisplayMode()],
         ["navigator.standalone", String((navigator as unknown as { standalone?: boolean }).standalone)],
+        ["thẻ Apple (iOS)", appleBar?.getAttribute("content") || "(KHÔNG CÓ THẺ → iOS dùng default = dải trắng)"],
         ["safe-area-inset-top", doSafeAreaTop()],
         ["screen.height", String(window.screen.height)],
         ["innerHeight", String(window.innerHeight)],
