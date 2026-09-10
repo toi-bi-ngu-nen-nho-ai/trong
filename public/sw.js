@@ -106,7 +106,10 @@
 //      phep cat do nen phep kiem bao xanh oan.
 // v31: manifest background_color #ffffff -> #252525. Vung ho o day do iOS to (NGOAI vung web),
 //      khong CSS nao voi toi — 5 lan va bang CSS deu that bai vi ly do do.
-const CACHE = "drtrong-v31"
+// v32: CHUA XONG dai ho — phep do ba mau chi ra no an nen cua chinh `body`, nen doi nen body sang
+//      --c-nav-bg-solid (truoc la --c-page): nav va vung duoi day khung app nay cung MOT mau.
+//      Go khoi do tam + go `body::after` (do chung minh no khong he duoc ve).
+const CACHE = "drtrong-v32"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

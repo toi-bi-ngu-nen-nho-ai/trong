@@ -724,8 +724,16 @@ body {
   height: calc(100% + var(--tran-day));
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
-     lộ nền trắng ở mọi khe hở giữa các thẻ. */
-  background: var(--c-page);
+     lộ nền trắng ở mọi khe hở giữa các thẻ.
+     DÙNG MÀU THANH NAV, không phải --c-page (2026-09-10): nền này là thứ DUY NHẤT tô phần màn hình
+     nằm dưới đáy khung app trên iPhone standalone — đã xác định bằng phép dò ba màu chói, dải đó ra
+     ĐÚNG màu đặt ở đây. Trước đây nó là --c-page (#141414) trong khi thanh nav ngay trên là
+     --c-nav-bg-solid (#252525): hai sắc tối khác nhau dính nhau, và đó chính là "dải hở" chủ dự án
+     báo suốt 5 lượt vá hụt — không phải khe hình học, mà là VỆT LỆCH MÀU.
+     An toàn với phần còn lại của app: #app-shell phủ kín khung nhìn bằng --c-surface (chính ảnh
+     chụp phép dò xác nhận — vùng app không hề ăn màu dò của body), nên nền body chỉ còn là lớp
+     phòng hờ cho các khe hở, và --c-nav-bg-solid cùng họ tối với --c-surface nên không lộ. */
+  background: var(--c-nav-bg-solid);
   color: var(--c-text);
   margin: 0;
   padding: 0;
@@ -734,24 +742,11 @@ body {
   touch-action: pan-x pan-y;
 }
 
-/* Dải phủ phần màn hình nằm DƯỚI khung nhìn (iOS standalone + black-translucent) — xem chú thích
-   dài ở `body`. Đặt ở đây, KHÔNG đặt trên thanh nav: nav nằm trong #app-shell (overflow-hidden) nên
-   mọi phần tràn ra đều bị cắt đúng tại đáy khung app, đã thử và vô tác dụng.
-   Khối chứa là chính `body` (position: fixed), và hộp body đã cao thêm --tran-day, nên `bottom: 0`
-   rơi đúng đáy đã nới. Màu lấy đúng --c-nav-bg-solid để đọc thành thân thanh nav kéo dài. */
-body::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--tran-day);
-  background: var(--c-nav-bg-solid);
-  /* ⚠ ĐANG DÒ TẠM (2026-09-10) — xem khối "DÒ TẠM" cuối file, gỡ cùng lúc với nó. */
-  /* Không bao giờ nuốt thao tác chạm: nó chỉ là nền, và ở máy không có khe thì nó nằm ngoài màn
-     hình — nhưng vẫn khai tường minh để không ai phải suy luận. */
-  pointer-events: none;
-}
+/* ĐÃ THỬ VÀ GỠ: `body::after` tô dải --tran-day cuối hộp body.
+   KHÔNG ĐƯỢC VẼ — phép dò ba màu chói (2026-09-10) đặt ::after màu xanh lá, body màu tím, và dải
+   đáy trên iPhone ra TÍM. Tức nền của chính `body` mới là thứ tô vùng đó, còn ::after không hề
+   xuất hiện dù hộp của nó nằm đúng chỗ. Không đoán vì sao nữa: đã có câu trả lời đúng ở tầng
+   `body` (xem chú thích tại quy tắc đó), nên bỏ hẳn lớp thừa này thay vì giữ mã chết. */
 
 #root {
   height: 100%;
@@ -1891,31 +1886,4 @@ select {
   --c-intro-bg: #f6f6f6;
   --c-intro-ink: #14161f;
   --c-intro-blue: #2f6fed;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════════════════════
-   ⚠ DÒ TẠM — GỠ NGUYÊN KHỐI NÀY sau khi chủ dự án báo màu (2026-09-10)
-   ══════════════════════════════════════════════════════════════════════════════════════════════
-   Đã 5 lần vá dải hở dưới thanh nav trên iPhone standalone, cả 5 đều hỏng vì tôi đoán sai TẦNG NÀO
-   sở hữu vùng đó. Khối này thôi đoán: tô mỗi tầng một màu chói, chủ dự án nhìn một lần là biết.
-
-   Đọc kết quả:
-     ĐỎ    #ff0000 → nền canvas (lan từ thẻ <html>). Vùng đó NẰM TRONG vùng web ⇒ CSS chữa được,
-                     chỉ cần cho --c-nav-bg-solid đúng màu là xong.
-     XANH  #00ff00 → body::after (trong hộp body đã nới thêm --tran-day) ⇒ CSS chữa được.
-     TÍM   #ff00ff → nền của chính <body> (--c-page) tràn xuống ⇒ CSS chữa được, sửa ở tầng body.
-     KHÔNG đổi màu (vẫn sáng/trắng như trước)
-                   → iOS tô, NGOÀI vùng web. Không API web nào với tới; cần gạt duy nhất là
-                     `background_color` trong manifest.json (đã đổi sẵn sang #252525, chỉ có hiệu
-                     lực sau khi gỡ app khỏi màn hình chính rồi cài lại).
-
-   Ba màu cố ý chói và không có trong bảng màu app, để không thể nhầm với bất cứ thứ gì đang có. */
-html {
-  background: #ff0000 !important;
-}
-body {
-  background: #ff00ff !important;
-}
-body::after {
-  background: #00ff00 !important;
 }

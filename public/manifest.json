@@ -7,7 +7,7 @@
   "id": "/",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#252525",
+  "background_color": "#ffffff",
   "theme_color": "#1E96EB",
   "orientation": "any",
   "icons": [

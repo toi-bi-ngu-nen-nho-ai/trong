@@ -38,6 +38,10 @@
     />
     <title>Bác sĩ Trọng — Sổ tay lâm sàng</title>
     <meta name="description" content="Thư viện kiến thức lâm sàng cá nhân: bài học chuyên khoa, tra cứu kháng sinh, flashcard ôn tập và mindmap." />
+    <!-- `background_color` GIỮ #ffffff. Có lúc đã đổi sang #252525 vì tưởng iOS dùng nó tô "dải hở"
+         dưới thanh nav; phép dò ba màu chói (2026-09-10) BÁC BỎ giả thuyết đó — dải ấy ăn nền của
+         chính `body`, tức nằm TRONG vùng web và do CSS quyết. Đã trả lại giá trị cũ; cách chữa thật
+         nằm ở quy tắc `body` trong src/index.css. -->
     <link rel="manifest" href="/manifest.json" />
     <!-- Khớp --c-primary bản sáng hiện tại (indigo, xem DESIGN.md) — trước đây để #00766e (teal đời
          đầu, đã bỏ qua hai lần đổi bảng màu: teal → azure → indigo), lệch hẳn với theme_color trong
