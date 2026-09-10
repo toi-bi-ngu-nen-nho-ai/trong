@@ -172,25 +172,27 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           (H - tamTY) / halfH,
         ) * 1.12
 
-      // Cỡ "đọc được": hệ số mà ở đó chữ T to gần hết màn nhưng VẪN CÒN NGUYÊN HÌNH CHỮ T. Cần mốc
-      // này vì `heSoDich` rất lớn (đo thật ở 1280×576: 93 lần — thân chữ chỉ rộng 17px mà phải nong
-      // ra 1500px). Nếu chạy một mạch tới đó, khoảng thời gian chữ T còn nhận ra được chỉ ~80ms,
-      // phần còn lại là một dải dọc nong ngang — không ai kịp thấy đó là chữ T. Hai ràng buộc:
-      //   • thanh ngang không tràn quá mép trái/phải (giữ được hai đầu thanh);
-      //   • mép dưới thanh ngang còn nằm trong màn (thanh chưa trôi hết lên trên).
-      // Kẹp thêm ở 0,6·heSoDich để pha bung sau luôn còn việc để làm.
-      const heSoHero = Math.max(
-        3,
-        Math.min(
-          (0.96 * W) / Math.max(oT.width, 1),
-          (tamTY - H * 0.12) / Math.max(halfH - barH, 1),
-          heSoDich * 0.6,
-        ),
-      )
+      // ─── Phóng theo HÀM MŨ, không phải tuyến tính ────────────────────────────────────────────
+      // `heSoDich` rất lớn (đo thật ở 1280×576: 93 lần — thân chữ rộng 17px phải nong ra 1500px).
+      // Cho `heSo` chạy tuyến tính tới đó thì gần như cả quãng thời gian trôi qua ở các cỡ khổng lồ,
+      // chữ T chỉ còn nhận ra được ~80ms.
+      //
+      // Bản trước chữa bằng cách CẮT LÀM HAI NHỊP (nở tới cỡ "hero" bằng `power2.out`, rồi bung bằng
+      // `power2.in`). Cách đó hỏng: `power2.out` kết thúc ở vận tốc 0, `power2.in` bắt đầu từ vận tốc
+      // 0 — nối lại thành một vùng ĐỨNG YÊN giữa hoạt cảnh. Đo được rõ ràng trên Chrome: mép thanh
+      // ngang dịch 30px trong khung này, 7px ở khung kế (chỗ khựng), rồi vọt 372px ở khung sau đó.
+      // Chủ dự án mô tả đúng cái đó: "chuyển nhanh quá rồi khựng lại mới tràn ra".
+      //
+      // Cách đúng: mắt cảm nhận phóng to theo TỈ LỆ chứ không theo hiệu, nên cho số mũ chạy đều thì
+      // tốc độ phóng NHÌN THẤY là hằng số — mượt một mạch, không có chỗ nào để khựng, mà vẫn tự
+      // động dành nhiều thời gian cho các cỡ nhỏ (đúng lúc còn đọc ra hình chữ T). Một tween duy
+      // nhất, `ease: "none"`: mọi easing đều tạo ra chỗ nhanh chỗ chậm, mà ở đây "đều" mới là đúng.
+      const heSoBatDau = 0.35
+      const tySoPhong = heSoDich / heSoBatDau
 
-      const oKhoet = { heSo: 0 }
+      const oKhoet = { p: 0 }
       const capNhatKhoet = () => {
-        const duong = layDuongKhoet(oKhoet.heSo)
+        const duong = layDuongKhoet(heSoBatDau * Math.pow(tySoPhong, oKhoet.p))
         cover.style.clipPath = duong
         // Bản có tiền tố cho Safari cũ. Gán qua setProperty vì `webkitClipPath` không có trong
         // kiểu CSSStyleDeclaration của TS (khác `webkitMaskImage`).
@@ -235,34 +237,35 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         // Pha 3: giữ nhịp cho người xem kịp đọc "Bác sĩ Trọng".
         .to({}, { duration: 0.3 })
         // Pha 4: "Bác sĩ"/"rọng" mờ đi, chỉ còn chữ T xanh ĐỨNG YÊN tại chỗ nó đậu — KHÔNG phóng to.
-        // Rồi một cửa sổ HÌNH CHỮ T mở ra ngay trong lòng chữ T đó và nở bung ra lộ HomeScreen —
-        // chính chữ T biến thành cửa vào app (xem chú thích `layDuongKhoet` phía trên).
+        // Rồi một cửa sổ HÌNH CHỮ T mở ra ngay trong lòng chữ T đó và nở MỘT MẠCH ra lộ HomeScreen —
+        // chính chữ T biến thành cửa vào app (xem chú thích `layDuongKhoet` và khối "phóng theo hàm
+        // mũ" phía trên).
         //
-        // `power2.in` (chậm ở đầu, bung nhanh ở cuối) + 0,4s: đo trên video tham chiếu, MDCalc mở
-        // hết trong ~0,3s và rõ ràng là tăng tốc dần chứ không đều. Không có viền/quầng sáng nào
-        // chạy theo mép lỗ — chủ dự án yêu cầu bỏ hẳn viền xanh lam, và video tham chiếu cũng không
-        // có.
+        // MỘT tween duy nhất, `ease: "none"`. Không tách nhịp, không easing: số mũ chạy đều đã cho
+        // tốc độ phóng nhìn thấy là hằng số. Thêm bất kỳ easing nào vào đây là lại tạo ra chỗ nhanh
+        // chỗ chậm — đúng thứ vừa phải gỡ bỏ.
+        //
+        // Không có viền/quầng sáng nào chạy theo mép lỗ: chủ dự án yêu cầu bỏ hẳn viền xanh lam, và
+        // video tham chiếu (MDCalc) cũng không có.
         .to([bacSiRef.current, rongRef.current], { opacity: 0, duration: 0.2, ease: "power1.in" })
-        // 4a — cửa sổ chữ T mở ra từ trong lòng chữ T và lớn tới cỡ đọc được. `power2.out` (vọt
-        // nhanh rồi chậm dần) cố ý: nó dành phần LỚN thời gian ở các cỡ to, đúng lúc mắt cần để
-        // nhận ra "à, cửa sổ này hình chữ T".
-        .to(oKhoet, { heSo: heSoHero, duration: 0.28, ease: "power2.out", onUpdate: capNhatKhoet }, "-=0.05")
-        // 4b — bung nốt: thân chữ nong ngang nuốt phần nền còn lại. `power2.in` cho cảm giác bật
-        // tung ra chứ không trôi đều.
-        .to(oKhoet, {
-          heSo: heSoDich,
-          duration: 0.22,
-          ease: "power2.in",
-          onUpdate: capNhatKhoet,
-          // Chốt cứng khung cuối: `power2.in` chạy cực nhanh ở đoạn chót, chỉ cần máy rớt một
-          // khung là lượt onUpdate cuối dừng non và còn sót một dải nền chưa bị nuốt (đo thật:
-          // khung áp chót mới phủ 88% bề ngang cần thiết). Cắt sạch tấm phủ ở đây để không phụ
-          // thuộc vào việc khung cuối có kịp vẽ hay không.
-          onComplete: () => {
-            cover.style.clipPath = "polygon(0px 0px, 0px 0px, 0px 0px)"
-            cover.style.setProperty("-webkit-clip-path", "polygon(0px 0px, 0px 0px, 0px 0px)")
+        .to(
+          oKhoet,
+          {
+            p: 1,
+            duration: 0.66,
+            ease: "none",
+            onUpdate: capNhatKhoet,
+            // Chốt cứng khung cuối: đoạn chót của phép phóng hàm mũ đi rất nhanh, chỉ cần máy rớt
+            // một khung là lượt onUpdate cuối dừng non và còn sót một dải nền chưa bị nuốt (đo thật
+            // ở bản trước: khung áp chót mới phủ 88% bề ngang cần thiết). Cắt sạch tấm phủ ở đây để
+            // không phụ thuộc vào việc khung cuối có kịp vẽ hay không.
+            onComplete: () => {
+              cover.style.clipPath = "polygon(0px 0px, 0px 0px, 0px 0px)"
+              cover.style.setProperty("-webkit-clip-path", "polygon(0px 0px, 0px 0px, 0px 0px)")
+            },
           },
-        })
+          "-=0.05",
+        )
     })
 
     return () => {
