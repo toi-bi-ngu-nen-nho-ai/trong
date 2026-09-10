@@ -151,32 +151,33 @@ describe('mucMeta.ts — ranh giới D13 (không kéo BlockSuite vào chunk vỏ
   })
 })
 
-describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
-  // `xuatNhapNoiDung.ts` (Task 4, giai đoạn 7-9) import `./mo-doc`, tức cả khối BlockSuite. App.tsx
-  // là CHUNK VỎ APP — mọi người dùng tải nó, kể cả người chưa từng mở một sơ đồ nào. Một dòng
-  // `import … from './board/xuatNhapNoiDung'` ở đầu file kéo ~4 MB bảng vẽ vào chunk đó, và không
-  // ca kiểm nào khác canh App.tsx (ba describe phía trên soi index.tsx, ChonDanhMuc.tsx, mucMeta.ts).
-  const nguon = readFileSync(new NodeURL('../../App.tsx', import.meta.url), 'utf8')
+describe('DataSyncScreen.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
+  // `xuatNhapNoiDung.ts` (Task 4, giai đoạn 7-9) import `./mo-doc`, tức cả khối BlockSuite.
+  // DataSyncScreen.tsx được App.tsx import TĨNH nên nằm trong CHUNK VỎ APP — mọi người dùng tải nó,
+  // kể cả người chưa từng mở một sơ đồ nào. Một dòng `import … from '../board/xuatNhapNoiDung'` ở
+  // đầu file kéo ~4 MB bảng vẽ vào chunk đó, và không ca kiểm nào khác canh file này (ba describe
+  // phía trên soi index.tsx, ChonDanhMuc.tsx, mucMeta.ts).
+  const nguon = readFileSync(new NodeURL('../../screens/DataSyncScreen.tsx', import.meta.url), 'utf8')
 
-  const GOI_DONG = /await import\(['"]\.\/board\/xuatNhapNoiDung['"]\)/
+  const GOI_DONG = /await import\(['"]\.\.\/board\/xuatNhapNoiDung['"]\)/
 
-  it('App.tsx không import tĩnh xuatNhapNoiDung', () => {
+  it('DataSyncScreen.tsx không import tĩnh xuatNhapNoiDung', () => {
     // Neo `^import` đầu dòng: các dòng chú thích và lời gọi `await import(...)` đều thụt lề nên
     // không vướng. KHÔNG có ngoại lệ cho `import type` — khác luật của index.tsx với `./mo-doc`:
-    // ở đây không có kiểu nào của module này mà App.tsx cần biết (xem `NoiDungMucJson` trong
-    // App.tsx), nên cho phép `import type` chỉ mở sẵn một cửa không ai dùng tới.
+    // ở đây không có kiểu nào của module này mà DataSyncScreen.tsx cần biết (xem `NoiDungMucJson`
+    // trong file đó), nên cho phép `import type` chỉ mở sẵn một cửa không ai dùng tới.
     //
     // `.` KHÔNG khớp xuống dòng, nên một regex một-dòng bỏ lọt đúng dạng mà prettier hay sinh ra:
     //     import {
     //       xuatSnapshotMuc,
-    //     } from './board/xuatNhapNoiDung'
+    //     } from '../board/xuatNhapNoiDung'
     // Lớp `[^'"\n]|\n` cho phép vắt qua nhiều dòng nhưng CẤM dấu nháy, nên phần khớp không thể
     // trườn qua chuỗi module của một câu import khác phía trên (nguồn false positive kinh điển).
     expect(
       /^import(?:[^'"\n]|\n)*?from\s*['"][^'"]*xuatNhapNoiDung['"]/m.test(nguon),
-      'App.tsx import tĩnh xuatNhapNoiDung (kéo cả khối BlockSuite vào chunk vỏ app)',
+      'DataSyncScreen.tsx import tĩnh xuatNhapNoiDung (kéo cả khối BlockSuite vào chunk vỏ app)',
     ).toBe(false)
-    // Dạng chỉ-lấy-tác-dụng-phụ: `import './board/xuatNhapNoiDung'` (không có mệnh đề from).
+    // Dạng chỉ-lấy-tác-dụng-phụ: `import '../board/xuatNhapNoiDung'` (không có mệnh đề from).
     expect(/^import\s+['"][^'"]*xuatNhapNoiDung['"]/m.test(nguon)).toBe(false)
   })
 
@@ -185,9 +186,9 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
   // che mất. Cắt đúng thân từng hàm rồi mới soi.
   const thanHam = (moc: string, mocSau: string): string => {
     const bd = nguon.indexOf(moc)
-    expect(bd, `không thấy mốc "${moc}" trong App.tsx — đổi tên hàm thì phải sửa cổng này`).toBeGreaterThan(-1)
+    expect(bd, `không thấy mốc "${moc}" trong DataSyncScreen.tsx — đổi tên hàm thì phải sửa cổng này`).toBeGreaterThan(-1)
     const kt = nguon.indexOf(mocSau, bd)
-    expect(kt, `không thấy mốc "${mocSau}" sau "${moc}" trong App.tsx`).toBeGreaterThan(-1)
+    expect(kt, `không thấy mốc "${mocSau}" sau "${moc}" trong DataSyncScreen.tsx`).toBeGreaterThan(-1)
     return nguon.slice(bd, kt)
   }
 
@@ -201,11 +202,12 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
 
   // Mốc riêng cho handleUndo: hai chiều XUẤT/NHẬP ở trên che mất bất cứ điều gì xảy ra bên trong
   // hàm này. Ở đây có HAI nửa khác nhau — nửa 1 ("Hoàn tác" trả nội dung cũ, `nhapSnapshotMuc`) vẫn
-  // qua `import('./board/xuatNhapNoiDung')` ĐỘNG, cùng GOI_DONG với XUẤT/NHẬP ở trên; nửa 2 (gỡ nội
+  // qua `import('../board/xuatNhapNoiDung')` ĐỘNG, cùng GOI_DONG với XUẤT/NHẬP ở trên; nửa 2 (gỡ nội
   // dung của mục file vừa thêm mới, `xoaNoiDungBang` + `donRacBlobBang`) giờ gọi THẲNG — module đó
-  // đã nhập TĨNH ở đầu App.tsx (xem describe "xoaNoiDungBang.ts — ranh giới D13" bên dưới lý do:
-  // module đã có mặt tĩnh trong chunk vỏ app từ trước qua LuoiMuc.tsx, bọc `import()` quanh nó chỉ
-  // tách một chunk riêng mà vỏ app vẫn tải tĩnh — thêm 1 request, không tiết kiệm byte nào).
+  // đã nhập TĨNH ở đầu DataSyncScreen.tsx (xem describe "xoaNoiDungBang.ts — ranh giới D13" bên
+  // dưới lý do: module đã có mặt tĩnh trong chunk vỏ app từ trước qua LuoiMuc.tsx, bọc `import()`
+  // quanh nó chỉ tách một chunk riêng mà vỏ app vẫn tải tĩnh — thêm 1 request, không tiết kiệm byte
+  // nào).
   // Mốc kết thúc là dòng JSX mở đầu phần `return (` của DataSyncScreen — chuỗi một dòng, không
   // vướng CRLF, và `indexOf` chỉ tìm từ vị trí handleUndo trở đi.
   const THAN_HOAN_TAC = '<div className="h-full flex flex-col screen-transition">'
@@ -224,8 +226,9 @@ describe('App.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
 })
 
 describe('xoaNoiDungBang.ts — ranh giới D13 (không kéo BlockSuite vào chunk vỏ app)', () => {
-  // App.tsx nhập GIÁ TRỊ (xoaNoiDungBang, donRacBlobBang) từ đây THẲNG vào chunk vỏ app (xem
-  // comment cạnh import ở đầu App.tsx) — và LuoiMuc.tsx đã làm vậy từ trước, độc lập với App.tsx.
+  // DataSyncScreen.tsx (import tĩnh vào App.tsx) nhập GIÁ TRỊ (xoaNoiDungBang, donRacBlobBang) từ
+  // đây THẲNG vào chunk vỏ app (xem comment cạnh import ở đầu DataSyncScreen.tsx) — và LuoiMuc.tsx
+  // đã làm vậy từ trước, độc lập với App.tsx.
   //
   // Cổng CŨ ở đây từng là "App.tsx không import tĩnh xoaNoiDungBang" — một ca ghim GIẢ: nó chỉ
   // chặn MỘT lối vào (App.tsx), trong khi LuoiMuc.tsx → BoardGallery.tsx → App.tsx đã là chuỗi
