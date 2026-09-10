@@ -61,13 +61,25 @@ function doDisplayMode(): string {
 
 // Đo safe-area bằng một phần tử THẬT: đọc `env()` qua getPropertyValue trên :root chỉ trả về chuỗi
 // khai báo, không phải số máy tính ra — dựng hộp rồi đo chiều cao mới ra giá trị thật.
-function doSafeAreaTop(): string {
+function doSafeArea(canh: "top" | "bottom"): number {
   const hop = document.createElement("div")
-  hop.style.cssText = "position:fixed;top:0;left:0;height:env(safe-area-inset-top,0px);width:1px;visibility:hidden"
+  hop.style.cssText = `position:fixed;top:0;left:0;height:env(safe-area-inset-${canh},0px);width:1px;visibility:hidden`
   document.body.appendChild(hop)
   const cao = hop.getBoundingClientRect().height
   hop.remove()
-  return `${cao.toFixed(1)}px`
+  return cao
+}
+
+/** Chiều cao hộp thật của một phần tử, hoặc null nếu không tìm thấy. */
+function caoCua(sel: string): number | null {
+  const el = document.querySelector(sel)
+  return el ? el.getBoundingClientRect().height : null
+}
+
+/** Mép dưới của một phần tử so với gốc khung nhìn. */
+function dayCua(sel: string): number | null {
+  const el = document.querySelector(sel)
+  return el ? el.getBoundingClientRect().bottom : null
 }
 
 function thuThapSoDo(): { nhom: string; dong: [string, string][] }[] {
@@ -95,10 +107,14 @@ function thuThapSoDo(): { nhom: string; dong: [string, string][] }[] {
         ["display-mode", doDisplayMode()],
         ["navigator.standalone", String((navigator as unknown as { standalone?: boolean }).standalone)],
         ["thẻ Apple (iOS)", appleBar?.getAttribute("content") || "(KHÔNG CÓ THẺ → iOS dùng default = dải trắng)"],
-        ["safe-area-inset-top", doSafeAreaTop()],
+        ["safe-area-inset-top", `${doSafeArea("top").toFixed(1)}px`],
+        ["safe-area-inset-bottom", `${doSafeArea("bottom").toFixed(1)}px`],
         ["screen.height", String(window.screen.height)],
         ["innerHeight", String(window.innerHeight)],
-        ["chênh (screen − inner)", String(window.screen.height - window.innerHeight)],
+        // ★ CON SỐ QUYẾT ĐỊNH: đúng bằng phần body còn thiếu so với màn hình vật lý. Lần trước tôi
+        // cộng bù bằng --safe-top và bị CẮT MẤT thanh nav, tức phần thiếu thật NHỎ HƠN --safe-top.
+        // Không được suy con số này ra trong CSS — phải đọc từ máy thật.
+        ["★ chênh (screen − inner)", String(window.screen.height - window.innerHeight)],
         ["visualViewport.height", window.visualViewport ? window.visualViewport.height.toFixed(1) : "(không có)"],
         ["devicePixelRatio", String(window.devicePixelRatio)],
       ],
@@ -123,6 +139,11 @@ function thuThapSoDo(): { nhom: string; dong: [string, string][] }[] {
         ["nền computed <html>", cs.backgroundColor],
         ["nền computed <body>", getComputedStyle(document.body).backgroundColor],
         ["nền computed #app-shell", appShell ? getComputedStyle(appShell).backgroundColor : "(không thấy)"],
+        ["--safe-top / --safe-bottom", `${bien("--safe-top")} / ${bien("--safe-bottom")}`],
+        // Ba mép dưới này cho biết khoảng hở nằm ở ĐÂU: body chưa chạm đáy khung nhìn, hay body
+        // chạm rồi mà khung nhìn chưa chạm đáy MÀN HÌNH (khi đó chỉ nền <html> lộ ra).
+        ["cao body / #app-shell", `${caoCua("body")?.toFixed(1) ?? "?"} / ${caoCua("#app-shell")?.toFixed(1) ?? "?"}`],
+        ["mép dưới body / nav", `${dayCua("body")?.toFixed(1) ?? "?"} / ${dayCua("nav")?.toFixed(1) ?? "?"}`],
       ],
     },
     {

@@ -89,7 +89,10 @@
 // v25: gỡ `height: calc(100% + var(--safe-top))` trên body — nó cắt mất nửa dưới thanh nav trên
 //      máy chủ dự án (ảnh chụp thật 2026-09-10). Thẻ Apple 'black-translucent' của v24 GIỮ NGUYÊN:
 //      phần đó đã chạy đúng, dải trên cùng đã hoà vào app ở cả hai chủ đề.
-const CACHE = "drtrong-v25"
+// v26: bảng đo tạm thêm số đo ở ĐÁY (safe-area-inset-bottom, cao/mép dưới của body, #app-shell,
+//      nav) để lấy đúng phần thiếu thật giữa khung nhìn và màn hình — lần cộng bù trước dùng
+//      --safe-top là quá tay, cắt mất thanh nav.
+const CACHE = "drtrong-v26"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [
