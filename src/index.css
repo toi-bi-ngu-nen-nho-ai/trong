@@ -72,6 +72,11 @@
      ÂM trên máy không tai thỏ (--safe-top=0). */
   --safe-top-trim: max(0px, calc(var(--safe-top) - 12px));
 
+  /* Dải "tràn xuống" phủ phần màn hình nằm DƯỚI khung nhìn (iOS standalone + black-translucent).
+     Một hằng số dùng chung cho ba nơi — xem chú thích dài ở `body`. 200px là dư thoải mái so với
+     mọi chiều cao thanh trạng thái iOS (~20–70px); dư bao nhiêu cũng vô hại vì nằm ngoài màn hình. */
+  --tran-day: 200px;
+
   /* Chiều cao phần bấm được của thanh điều hướng dưới (chưa tính vùng thanh gạt Home).
      Trước 52px, sau chỉnh còn 46px thấy hơi thấp — nhích lại lên 48px (đợt chỉnh 2026-08 thứ hai),
      rồi 51px (2026-08-28, phản hồi thật: "tiêu đề khít sát màn" — trên máy KHÔNG có thanh gạt Home
@@ -693,13 +698,20 @@ body {
      BÀI HỌC: chênh lệch screen/innerHeight là chuyện của TỪNG MÁY và TỪNG BẢN iOS, không phải hằng
      số suy ra được trong CSS. Một số đo trên một máy không đủ để viết thành công thức chung.
 
-     NAY: đo lúc chạy thay vì đoán. src/lib/buChieuCaoMan.ts tính `screen.height − innerHeight` rồi
-     ghi vào --vh-thieu; ở đây chỉ cộng đúng chừng đó. Mặc định 0px nên mọi môi trường không có
-     phần thiếu (Android, desktop, trình duyệt thường, bản sáng) đều KHÔNG đổi gì — kể cả khi JS
-     chưa chạy hoặc chạy lỗi.
-     Lớp bảo hiểm cũ vẫn giữ: `html` mang màu --c-nav-bg-solid, để phần nào còn lộ ra vẫn đọc thành
-     thân thanh nav kéo dài (xem chú thích ở quy tắc `html` phía trên). */
-  height: calc(100% + var(--vh-thieu, 0px));
+     ĐÃ THỬ VÀ GỠ lần 3: đo lúc chạy (`screen.height − innerHeight` → --vh-thieu). Cũng CẮT MẤT
+     thanh nav — trên máy chủ dự án `screen.height` kể cả phần khung nhìn đã phủ, nên con số đo được
+     vẫn lớn hơn phần thiếu thật.
+
+     NAY — BỎ HẲN VIỆC ĐO. Chủ dự án chốt: "đo không được thì tràn xuống, không muốn hở".
+     Dùng MỘT hằng số --tran-day cho cả ba chỗ, nên không chỗ nào lệch được:
+       1. `body`      cao thêm --tran-day  → hộp body luôn vượt QUÁ đáy màn hình, khe không tồn tại
+       2. `#app-shell` bottom = --tran-day → khung app co lại ĐÚNG bằng khung nhìn như cũ, nên thanh
+          nav đứng y nguyên chỗ cũ và KHÔNG THỂ bị cắt (đây là chỗ ba lần trước hỏng)
+       3. thanh nav   padding-bottom += --tran-day, margin-bottom = −--tran-day → nền ĐẶC của nav
+          rỉ xuống dưới khung nhìn phủ kín phần dôi ra, mà không đẩy bố cục đi đâu cả
+     Không có khe thì thừa ra bao nhiêu cũng nằm ngoài màn hình, vô hình. Đây là ĐÁNH ĐỔI có chủ ý:
+     vẽ thừa một dải không ai thấy, đổi lấy việc không bao giờ hở và không bao giờ cắt nav. */
+  height: calc(100% + var(--tran-day));
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ. */

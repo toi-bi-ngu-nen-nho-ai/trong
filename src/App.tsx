@@ -12170,6 +12170,11 @@ export default function App() {
       className="absolute inset-0 flex flex-col overflow-hidden"
       style={{
         background: "var(--c-surface)",
+        // `body` cố tình cao hơn khung nhìn đúng --tran-day để không bao giờ hở ở đáy (xem chú
+        // thích dài tại `body` trong index.css). Trừ lại ĐÚNG chừng đó ở đây để khung app giữ
+        // nguyên chiều cao khung nhìn — nếu không, cả cột flex tụt xuống và thanh nav bị cắt, đúng
+        // ba lần đã hỏng trước đó. Hai chỗ phải luôn dùng CHUNG một biến.
+        bottom: "var(--tran-day)",
       }}
     >
         {/* Chừa chỗ cho tai thỏ / Dynamic Island. Trước đây cộng thêm 6px đệm vì thanh trạng thái
@@ -12437,7 +12442,11 @@ export default function App() {
               background: "var(--c-nav-bg-solid)",
               borderTop: "1px solid var(--c-nav-border)",
               // Phần phủ lên vùng thanh gạt Home: chỉ là nền, không đặt nút bấm vào đây.
-              paddingBottom: "var(--nav-pad-bottom)",
+              // Cộng thêm --tran-day để nền ĐẶC của thanh nav rỉ xuống dưới đáy khung nhìn, phủ kín
+              // phần màn hình mà iOS standalone (black-translucent) để hở. marginBottom âm đúng
+              // chừng đó khử lại, nên bố cục KHÔNG dịch một pixel nào — nav vẫn đứng y chỗ cũ.
+              paddingBottom: "calc(var(--nav-pad-bottom) + var(--tran-day))",
+              marginBottom: "calc(-1 * var(--tran-day))",
             }}
           >
             <div className="flex items-stretch" style={{ height: "var(--nav-body-h)" }}>

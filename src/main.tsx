@@ -5,7 +5,6 @@ import './index.css'
 import { registerServiceWorker } from './lib/offline'
 import { donKhoaRacHeCu } from './lib/storage'
 import { applyTheme, loadTheme, watchSystemTheme } from './lib/theme'
-import { batDauBuChieuCaoMan } from './lib/buChieuCaoMan'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { IntroOverlay } from './components/IntroOverlay'
 
@@ -21,12 +20,6 @@ applyTheme(loadTheme())
 // Máy đổi sáng/tối trong lúc app đang mở — chỉ cần cập nhật lại thẻ theme-color (thanh trạng thái),
 // mọi màu còn lại đã tự đổi theo @media. Không cần gỡ: sống đúng bằng vòng đời trang.
 watchSystemTheme()
-
-// Đo phần khung nhìn còn thiếu so với màn hình vật lý rồi ghi vào --vh-thieu; `body` trong
-// index.css cộng đúng chừng đó. Chỉ khác 0 khi app đã cài ra màn hình chính VÀ máy thật sự báo
-// thiếu — xem lib/buChieuCaoMan.ts để biết vì sao phép này phải ĐO chứ không được đoán trong CSS.
-// Đặt trước render: chạy sau thì lần vẽ đầu vẫn hở một dải rồi mới co lại, mắt bắt được.
-batDauBuChieuCaoMan()
 
 // App mount NGAY (ngầm, dưới overlay) để kịp khởi tạo IndexedDB/context trong lúc intro đang chạy —
 // hết overlay là App đã sẵn sàng, không có khoảng trắng/loading. Không cờ localStorage: overlay chỉ

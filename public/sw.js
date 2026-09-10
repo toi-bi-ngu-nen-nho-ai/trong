@@ -99,7 +99,9 @@
 //      iOS coi nó y hệt 'default'), và chữa dải hở ở đáy bằng cách ĐO lúc chạy
 //      (lib/buChieuCaoMan.ts → --vh-thieu) thay cho hai lượt đoán số trong CSS đều đã hỏng.
 //      Bump vì đổi cả index.html (nằm trong SHELL) lẫn CSS/JS.
-const CACHE = "drtrong-v28"
+// v29: bỏ hẳn việc đo phần thiếu (3 lượt đều hỏng). Nay tràn xuống bằng một hằng số --tran-day
+//      dùng chung cho body / #app-shell / thanh nav — không hở, và không cắt được nav.
+const CACHE = "drtrong-v29"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [
