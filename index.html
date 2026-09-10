@@ -83,12 +83,14 @@
          iOS chỉ nhận đúng ba chuỗi này, không nhận mã màu — nên không có cách nào ra đúng
          --c-surface (#252525); 'black-translucent' để lộ chính nền app nên còn khớp hơn cả 'black'.
 
-         KHOẢNG TRỐNG 68px Ở ĐÁY — lý do thẻ này từng bị gỡ hồi 2026-08 — ĐÃ ĐƯỢC CHỮA, không phải
-         bỏ qua: 'black-translucent' làm iOS rơi vào trạng thái lai (innerHeight 844 tính như "nằm
-         dưới thanh trạng thái" nhưng khung nhìn lại đặt ở y=0, safe-area-inset-top = 68 → thừa 68px
-         ở đáy không phần tử DOM nào với tới). Cách chữa nằm ở `body` trong src/index.css:
-         `height: calc(100% + var(--safe-top))` — 844 + 68 = 912, khớp đúng đáy màn hình. Biểu thức
-         đó tự vô hiệu ở mọi nơi khác (Android/desktop/bản sáng đều có --safe-top = 0 ⇒ cộng thêm 0).
+         KHOẢNG TRỐNG 68px Ở ĐÁY — lý do thẻ này từng bị gỡ hồi 2026-08: số đo trên iPhone Air
+         (screen 912 / innerHeight 844) cho thấy khung nhìn thiếu 68px so với màn hình. ĐÃ THỬ bù
+         bằng `height: calc(100% + var(--safe-top))` trên `body` và ĐÃ GỠ NGAY trong ngày: trên máy
+         chủ dự án khung nhìn đã phủ đủ, nên phép cộng đó cắt mất nửa dưới thanh nav (ảnh chụp thật
+         2026-09-10). Chênh lệch screen/innerHeight là chuyện của TỪNG MÁY, không suy được thành
+         công thức CSS chung — xem chú thích dài ở `body` trong src/index.css.
+         Lớp bảo hiểm đang dùng cho khoảng trống đó là `html { background: var(--c-nav-bg-solid) }`:
+         không giả định chiều cao, chỉ làm phần lộ ra (nếu có) đọc thành thân thanh nav kéo dài.
 
          Giá trị được script nội tuyến ở trên ghi lại theo chủ đề đã phân giải; để `default` ở đây
          làm mốc tĩnh cho lần vẽ đầu và cho trình duyệt nào không chạy được script đó.

@@ -86,7 +86,10 @@
 // v24: bản tối chuyển sang `black-translucent` (nội dung tràn lên dưới thanh trạng thái) + bịt
 //      khoảng trống 68px ở đáy bằng `height: calc(100% + var(--safe-top))` trên body. Bump vì đổi
 //      CẢ index.html (nằm trong SHELL) lẫn CSS/JS.
-const CACHE = "drtrong-v24"
+// v25: gỡ `height: calc(100% + var(--safe-top))` trên body — nó cắt mất nửa dưới thanh nav trên
+//      máy chủ dự án (ảnh chụp thật 2026-09-10). Thẻ Apple 'black-translucent' của v24 GIỮ NGUYÊN:
+//      phần đó đã chạy đúng, dải trên cùng đã hoà vào app ở cả hai chủ đề.
+const CACHE = "drtrong-v25"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [
