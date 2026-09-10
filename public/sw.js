@@ -109,7 +109,10 @@
 // v32: CHUA XONG dai ho — phep do ba mau chi ra no an nen cua chinh `body`, nen doi nen body sang
 //      --c-nav-bg-solid (truoc la --c-page): nav va vung duoi day khung app nay cung MOT mau.
 //      Go khoi do tam + go `body::after` (do chung minh no khong he duoc ve).
-const CACHE = "drtrong-v32"
+// v33: dai day doi tu --c-nav-bg-solid sang --c-page (chu du an chot: sap xoa bottom nav, nen
+//      dai do phai khop NEN TRANG chu khong phai mau nav). Ban sang truoc do ra trang tinh canh
+//      nen trang xam nhat, sai ro.
+const CACHE = "drtrong-v33"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

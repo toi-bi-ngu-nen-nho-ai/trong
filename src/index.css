@@ -725,15 +725,23 @@ body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ.
-     DÙNG MÀU THANH NAV, không phải --c-page (2026-09-10): nền này là thứ DUY NHẤT tô phần màn hình
-     nằm dưới đáy khung app trên iPhone standalone — đã xác định bằng phép dò ba màu chói, dải đó ra
-     ĐÚNG màu đặt ở đây. Trước đây nó là --c-page (#141414) trong khi thanh nav ngay trên là
-     --c-nav-bg-solid (#252525): hai sắc tối khác nhau dính nhau, và đó chính là "dải hở" chủ dự án
-     báo suốt 5 lượt vá hụt — không phải khe hình học, mà là VỆT LỆCH MÀU.
+     NỀN NÀY CÒN MỘT VAI TRÒ THỨ HAI, quan trọng hơn hẳn (2026-09-10): nó là thứ DUY NHẤT tô phần
+     màn hình nằm dưới đáy khung app khi chạy PWA trên iPhone (standalone + black-translucent). Xác
+     định bằng phép dò ba màu chói — tô body tím, html đỏ, body::after xanh lá; dải đáy ra TÍM.
+     Đó chính là "dải hở" chủ dự án báo suốt 5 lượt vá hụt: KHÔNG phải khe hình học, mà là VỆT LỆCH
+     MÀU giữa vùng này và thứ nằm ngay trên nó.
+
+     ĐÃ THỬ --c-nav-bg-solid rồi ĐỔI LẠI: cho khớp thanh nav thì bản tối liền mạch, nhưng bản sáng
+     ra trắng tinh (#ffffff) nằm cạnh nền trang xám nhạt (#f4f4f5) — chủ dự án báo ngay là sai.
+     CHỐT --c-page vì chủ dự án sắp XOÁ THANH NAV: khi không còn nav thì thứ nằm trên dải này chính
+     là nền trang, nên khớp nền trang mới là đúng lâu dài.
+     ĐÁNH ĐỔI còn lại, đã biết và chấp nhận: CHỪNG NÀO thanh nav còn đó, bản tối vẫn lệch một bậc
+     giữa nav (#252525) và dải đáy (#141414). Xoá nav xong là hết. Ai gỡ nav thì không phải đụng gì
+     ở đây — dòng này đã đúng sẵn.
      An toàn với phần còn lại của app: #app-shell phủ kín khung nhìn bằng --c-surface (chính ảnh
      chụp phép dò xác nhận — vùng app không hề ăn màu dò của body), nên nền body chỉ còn là lớp
-     phòng hờ cho các khe hở, và --c-nav-bg-solid cùng họ tối với --c-surface nên không lộ. */
-  background: var(--c-nav-bg-solid);
+     phòng hờ cho các khe hở. */
+  background: var(--c-page);
   color: var(--c-text);
   margin: 0;
   padding: 0;
