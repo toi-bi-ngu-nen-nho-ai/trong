@@ -93,8 +93,12 @@ export interface IndicationDose extends SourceInfo {
 // để hiển thị nhãn "Tự nhập" và cho phép xoá.
 // `doseWeightBasis`: loại cân nặng cần dùng khi tính liều mg/kg cho thuốc này — "actual" (mặc định,
 // không cần khai báo) | "ideal" (luôn dùng IBW) | "adjusted" (dùng AdjBW nếu bệnh nhân béo phì,
-// ABW > 130% IBW). Chỉ khai báo cho các thuốc có khuyến cáo rõ ràng (vd. aminoglycosid) — khi có
-// giá trị này, màn hình sẽ hiện rõ cân nặng đang áp dụng để chỉnh liều.
+// ABW ≥ 120% IBW). Chỉ khai báo cho các thuốc có khuyến cáo rõ ràng — khi có giá trị này, màn hình
+// sẽ hiện rõ cân nặng đang áp dụng để chỉnh liều.
+// Theo Chợ Rẫy 2024: aminoglycosid → "adjusted"; vancomycin → để trống ("actual", dùng cân nặng
+// thực kể cả khi béo phì). Đừng thêm cờ boolean riêng cho vancomycin — "actual" ĐÃ là cờ đó, hai
+// trường cho cùng một quyết định là lỗi im lặng (xem ghi chú ở lib/bodyWeight.ts).
+// Ngưỡng này KHÔNG dùng cho CrCl — CrCl chuyển sang AdjBW theo BMI > 30 kg/m².
 // Công thức pha/hoàn nguyên kháng sinh — khác hẳn MixRecipe của thuốc truyền: kháng sinh không có
 // tốc độ để chỉnh (liều là một con số cố định mỗi lần dùng, không titrate), nên câu hỏi lúc pha
 // không phải "đặt bơm bao nhiêu" mà là "hoàn nguyên/pha loãng thế nào ra đúng nồng độ, có vượt

@@ -7,7 +7,7 @@ import { useLocalCollection } from "./lib/useLocalCollection"
 import { useIdbCollection } from "./lib/useIdbCollection"
 import { IDB_STORES, idbGetAllCoKetQua, idbPut } from "./lib/idb"
 import { CUSTOM_COLLECTION_KEYS } from "./lib/storage"
-import { resolveDosingWeight, type WeightBasis } from "./lib/bodyWeight"
+import { resolveDosingWeight, resolveCrClWeight, type WeightBasis } from "./lib/bodyWeight"
 // BoardGallery (không phải EdgelessBoard) là điểm vào duy nhất cho tab Mindmap — nó tự import
 // EdgelessBoard qua vỏ nạp chậm ./board/index.tsx bên trong, nên App.tsx KHÔNG được import thẳng
 // EdgelessBoard.tsx ở đây: import thẳng kéo cả khối AFFiNE vào chung bundle vỏ app, phá mất phần
@@ -2549,10 +2549,16 @@ function warnSeverityColor(s: WarnSeverity): string {
   return "var(--c-muted)"
 }
 
+// Nhãn phải nói THẲNG ngưỡng và tên nhóm thuốc, không chỉ tên viết tắt: người nhập là bác sĩ đang
+// gõ một thuốc mg/kg lúc trực, câu hỏi trong đầu họ là "thuốc này khi bệnh nhân béo phì thì tính
+// theo cân nào" chứ không phải "AdjBW là gì". Ba lựa chọn giữ dạng chip chọn-một (không phải công
+// tắc bật/tắt) vì "ideal" là trạng thái thứ ba dùng thật (nhũ dịch lipid) — công tắc boolean sẽ
+// nuốt mất nó, và một cờ boolean thứ hai song song trường này là hai nguồn sự thật cho cùng một
+// quyết định liều (xem ghi chú ở lib/bodyWeight.ts).
 const WEIGHT_BASIS_OPTIONS: { id: WeightBasis | ""; label: string }[] = [
-  { id: "", label: "Mặc định (cân nặng thực)" },
+  { id: "", label: "Cân nặng thực (ABW)" },
   { id: "ideal", label: "Luôn dùng IBW" },
-  { id: "adjusted", label: "AdjBW nếu béo phì" },
+  { id: "adjusted", label: "AdjBW khi ABW ≥ 120% IBW" },
 ]
 
 const VIAL_FORM_OPTIONS: { id: VialForm | ""; label: string }[] = [
@@ -2609,7 +2615,9 @@ function AntibioticAdvancedFields({
         ))}
       </div>
       <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
-        Chỉ đổi khi thuốc có khuyến cáo rõ ràng dùng cân nặng lý tưởng/hiệu chỉnh (VD aminoglycosid).
+        Chỉ đổi khi thuốc có khuyến cáo rõ ràng. Cân nặng thực dưới 120% IBW thì mọi thuốc đều tính theo cân nặng thực;
+        từ 120% IBW trở lên, aminoglycosid (amikacin, gentamicin…) chuyển sang AdjBW, còn vancomycin vẫn giữ cân nặng thực
+        — Chợ Rẫy 2024.
       </p>
 
       <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Ngưỡng liều một lần dùng (tuỳ chọn)</label>
@@ -5057,11 +5065,9 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
     scrInvalid ? `sinv:${patient.scr}` : scrWarn && scrWarn.severity !== "ok" ? `s:${scrWarn.severity}:${patient.scr}:${patient.scrUnit}` : null,
   )
 
-  // Cân nặng dùng để ước tính CrCl: ABW nếu bình thường/thiếu cân, AdjBW nếu béo phì (ABW > 130% IBW).
-  const crclWeight = useMemo(
-    () => resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted"),
-    [abwKg, heightCm, patient.sex],
-  )
+  // Cân nặng dùng để ước tính CrCl: AdjBW khi BMI > 30 kg/m², còn lại ABW (Chợ Rẫy 2024).
+  // KHÁC ngưỡng của liều mg/kg (120% IBW) — xem ghi chú hai ngưỡng ở đầu lib/bodyWeight.ts.
+  const crclWeight = useMemo(() => resolveCrClWeight(abwKg, heightCm, patient.sex), [abwKg, heightCm, patient.sex])
 
   function switchScrUnit(next: "mgdl" | "umol") {
     if (next === patient.scrUnit) return
@@ -5447,8 +5453,13 @@ function PatientPanel({ open, onToggle, renalRelevantByDefault = false }: { open
                         : "Cần nhập creatinin để tính"}
                 </p>
               )}
+              {/* Hiện BMI cùng dòng vì từ 2026-09-10 chính BMI (>30) là thứ quyết định CrCl dùng
+                  ABW hay AdjBW — không có nó thì dòng "tính theo AdjBW" là một kết luận không có
+                  căn cứ trên màn hình, bác sĩ phải tự nhẩm lại mới kiểm được.
+                  Bỏ `truncate`: đây là căn cứ tính liều, thà xuống 2 dòng còn hơn cắt mất con số. */}
               {crclWeight.ibw != null && crclWeight.used != null && (
-                <p className={`${T.meta} ${NUM} truncate`} style={{ color: C.textSoft }}>
+                <p className={`${T.meta} ${NUM}`} style={{ color: C.textSoft }}>
+                  {crclWeight.bmi != null && <>BMI {crclWeight.bmi.toFixed(1).replace(".", ",")} · </>}
                   IBW {crclWeight.ibw.toFixed(0)} kg · tính theo {crclWeight.usedLabel} {crclWeight.used.toFixed(1).replace(".", ",")} kg
                 </p>
               )}
@@ -11158,9 +11169,12 @@ export function DungThuocScreen({
     return v == null || v <= 0 ? null : v
   }, [patient.age])
 
-  // CrCl dùng cân nặng hiệu chỉnh khi béo phì, theo cùng quy tắc áp dụng cho liều thuốc.
+  // CrCl dùng cân nặng hiệu chỉnh khi BMI > 30 kg/m², còn lại dùng cân nặng thực (Chợ Rẫy 2024).
+  // KHÔNG dùng chung quy tắc với liều mg/kg (ngưỡng 120% IBW) như bản trước — hai ngưỡng khác nhau,
+  // xem ghi chú ở đầu lib/bodyWeight.ts. Phải khớp HỆT `crclWeight` của PatientPanel, nếu không
+  // panel in ra "tính theo AdjBW 78 kg" trong khi con số CrCl bên cạnh lại tính từ ABW.
   const crcl = useMemo(() => {
-    const w = resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted").used
+    const w = resolveCrClWeight(abwKg, heightCm, patient.sex).used
     const s = parseStrictNumber(patient.scr)
     if (ageYears == null || w == null || s == null || s <= 0) return null
     return estimateCrCl(ageYears, w, scrToMgDl(s, patient.scrUnit), patient.sex)

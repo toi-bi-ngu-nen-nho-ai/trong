@@ -76,7 +76,11 @@ export const ANTIBIOTICS: Antibiotic[] = [
       unit: "mg",
       note: "Ngưỡng tối đa ở người lớn - Dược thư quốc gia 2022",
     },
-    doseWeightBasis: "actual",
+    // Aminoglycosid → AdjBW khi ABW ≥ 120% IBW (Chợ Rẫy 2024). Trước 2026-09-10 mục này khai
+    // "actual" trong khi gentamicin cùng nhóm khai "adjusted" — hai thuốc cùng cơ chế độc thận/tai
+    // tính theo hai loại cân nặng khác nhau, và ở bệnh nhân béo phì amikacin ra liều CAO hơn mức
+    // khuyến cáo mà không có dấu hiệu nào.
+    doseWeightBasis: "adjusted",
     rrt: {
       ihd: "3 mg/kg mỗi 72h (sau lọc máu)",
       crrt: "LD: 10mg/kg MD 7.5mg mỗi 24-48h khi Qeff (chưa rõ) L/giờ",
@@ -262,6 +266,11 @@ export const ANTIBIOTICS: Antibiotic[] = [
     source: "Đồng thuận IDSA/ASHP/PIDS/SIDP 2020 về theo dõi điều trị vancomycin",
     reviewedOn: "2026-07",
     compatKey: COMPAT_KEYS.vancomycin,
+    // Khai TƯỜNG MINH "actual" dù đó cũng là mặc định: Chợ Rẫy 2024 gọi tên vancomycin riêng như
+    // ngoại lệ của quy tắc béo phì (aminoglycosid → AdjBW, vancomycin → vẫn ABW). Để trống thì
+    // không phân biệt được "đã quyết định dùng ABW" với "chưa ai xét tới mục này", và lượt rà dữ
+    // liệu sau rất dễ "sửa" nhầm thành "adjusted" cho đồng bộ với các kháng sinh mg/kg khác.
+    doseWeightBasis: "actual",
     preparation: "Pha loãng theo nồng độ tối đa 5 mg/mL, truyền tĩnh mạch tối thiểu trong 60 phút (không bơm tĩnh mạch trực tiếp).",
     rrt: {
       ihd: "Liều nạp 20–25 mg/kg (cân nặng thực), sau đó khoảng 10 mg/kg sau MỖI buổi lọc; chỉnh theo AUC/nồng độ đo được.",
