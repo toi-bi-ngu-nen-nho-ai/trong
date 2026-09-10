@@ -92,7 +92,10 @@
 // v26: bảng đo tạm thêm số đo ở ĐÁY (safe-area-inset-bottom, cao/mép dưới của body, #app-shell,
 //      nav) để lấy đúng phần thiếu thật giữa khung nhìn và màn hình — lần cộng bù trước dùng
 //      --safe-top là quá tay, cắt mất thanh nav.
-const CACHE = "drtrong-v26"
+// v27: bỏ 'black-translucent', về 'black' (chủ dự án chốt) — nó bật safe-area-inset ở cả hai đầu
+//      nên sinh dải hở dưới thanh nav; 'black' không bật nên đáy về nguyên trạng, mà dải trên vẫn
+//      tối (hết lỗi trắng ban đầu). Bump vì đổi cả index.html (nằm trong SHELL) lẫn JS.
+const CACHE = "drtrong-v27"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

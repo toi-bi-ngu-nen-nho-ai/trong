@@ -94,19 +94,35 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
   // (nền trắng chữ đen), và `default` không có biến thể tối.
   //
   // Ba ca dưới đây phải ĐỎ nếu ai đó gỡ lại thẻ hoặc bỏ phép ghi trong script nội tuyến.
-  it('iOS: bản TỐI ⇒ "black-translucent" (dải trong suốt, nội dung tràn lên dưới nó)', () => {
+  it('iOS: bản TỐI ⇒ "black" (thiếu phép ghi này là dải trên trắng vĩnh viễn)', () => {
     dungHead()
     chay({ luu: 'dark', mayToi: false })
-    expect(kieuThanhIos()).toBe('black-translucent')
+    expect(kieuThanhIos()).toBe('black')
   })
 
-  // Ràng buộc CỨNG, không phải sở thích: 'black-translucent' ép chữ đồng hồ/pin thành TRẮNG và iOS
-  // không cho đổi. Nền app bản sáng cũng trắng ⇒ dùng nó ở bản sáng là xoá sổ đồng hồ/pin khỏi màn
-  // hình. Ca này đứng đây để lần "cho gọn, dùng chung một giá trị" sau phải đỏ.
-  it('iOS: bản SÁNG ⇒ "default", KHÔNG được là black-translucent (chữ trắng trên nền app trắng)', () => {
+  it('iOS: bản SÁNG ⇒ "default" (nền trắng, khớp --c-surface sáng)', () => {
     dungHead()
     chay({ luu: 'light', mayToi: true })
     expect(kieuThanhIos()).toBe('default')
+  })
+
+  // ĐÃ THỬ VÀ BỎ (2026-09-10): 'black-translucent' cho nội dung tràn lên dưới thanh trạng thái —
+  // phần TRÊN chạy đẹp thật — nhưng nó bật safe-area-inset ở CẢ HAI ĐẦU, sinh một dải hở dưới thanh
+  // nav ở đáy. Hai lượt chữa đều hỏng (cộng --safe-top vào body thì cắt mất nửa dưới thanh nav; bỏ
+  // đi thì dải hở quay lại), và máy phát triển KHÔNG tái hiện được để đo.
+  // Ca này khoá quyết định đó lại: ai đổi sang 'black-translucent' phải sửa ca kiểm này, tức phải
+  // đọc lời giải thích và giải xong bài toán dải hở trước.
+  it('iOS: KHÔNG dùng black-translucent ở bất kỳ chủ đề nào (chưa giải được dải hở ở đáy)', () => {
+    for (const boi of [
+      { luu: 'dark', mayToi: false },
+      { luu: 'dark', mayToi: true },
+      { luu: 'light', mayToi: false },
+      { luu: null, mayToi: true },
+    ] as const) {
+      dungHead()
+      chay(boi)
+      expect(kieuThanhIos(), `bối cảnh ${JSON.stringify(boi)}`).not.toBe('black-translucent')
+    }
   })
 
   it('index.html PHẢI còn thẻ Apple — gỡ nó đi là script nội tuyến không có gì để ghi', () => {

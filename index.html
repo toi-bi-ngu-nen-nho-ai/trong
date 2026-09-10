@@ -72,25 +72,27 @@
          tuyến, ghi cả ba thẻ, đồng bộ --c-surface) vẫn chạy đúng — đã đo trên bản deploy thật — mà
          không hề với tới được dải này.
 
-         VÌ SAO GIÁ TRỊ KHÁC NHAU THEO CHỦ ĐỀ, không phải một giá trị chung (chủ dự án chốt
-         2026-09-10, sau khi bản 'black' vẫn chưa đủ):
-           • tối  → 'black-translucent': thanh trạng thái TRONG SUỐT, nội dung trang tràn lên dưới
-             nó — đúng thứ chủ dự án muốn ("như app Claude"). Chữ đồng hồ/pin thành TRẮNG.
-           • sáng → 'default': nền trắng, chữ đen. BẮT BUỘC phải là 'default' ở bản sáng, vì
-             'black-translucent' ép chữ thanh trạng thái thành trắng KHÔNG có cách nào đổi — trắng
-             trên nền app trắng là đồng hồ/pin biến mất hẳn. Bản sáng vốn đã liền mạch sẵn (dải
-             trắng trên app trắng) nên không mất gì.
-         iOS chỉ nhận đúng ba chuỗi này, không nhận mã màu — nên không có cách nào ra đúng
-         --c-surface (#252525); 'black-translucent' để lộ chính nền app nên còn khớp hơn cả 'black'.
+         GIÁ TRỊ KHÁC NHAU THEO CHỦ ĐỀ, không phải một giá trị chung:
+           • tối  → 'black':   nền đen, chữ trắng. Đen (#000) không bằng --c-surface tối (#252525),
+             nhưng iOS chỉ nhận đúng ba chuỗi cố định, không nhận mã màu — chênh một bậc đen vẫn
+             đọc ra "cùng một mặt tối", còn trắng-trên-tối thì không.
+           • sáng → 'default': nền trắng, chữ đen, khớp --c-surface sáng (#ffffff).
 
-         KHOẢNG TRỐNG 68px Ở ĐÁY — lý do thẻ này từng bị gỡ hồi 2026-08: số đo trên iPhone Air
-         (screen 912 / innerHeight 844) cho thấy khung nhìn thiếu 68px so với màn hình. ĐÃ THỬ bù
-         bằng `height: calc(100% + var(--safe-top))` trên `body` và ĐÃ GỠ NGAY trong ngày: trên máy
-         chủ dự án khung nhìn đã phủ đủ, nên phép cộng đó cắt mất nửa dưới thanh nav (ảnh chụp thật
-         2026-09-10). Chênh lệch screen/innerHeight là chuyện của TỪNG MÁY, không suy được thành
-         công thức CSS chung — xem chú thích dài ở `body` trong src/index.css.
-         Lớp bảo hiểm đang dùng cho khoảng trống đó là `html { background: var(--c-nav-bg-solid) }`:
-         không giả định chiều cao, chỉ làm phần lộ ra (nếu có) đọc thành thân thanh nav kéo dài.
+         ĐÃ THỬ VÀ BỎ 'black-translucent' (2026-09-10, chủ dự án chốt bỏ sau khi thử trên máy thật):
+         nó cho nội dung tràn lên dưới thanh trạng thái — đúng thứ chủ dự án muốn ("như app Claude")
+         — và phần TRÊN chạy đẹp thật. Nhưng nó bật safe-area-inset ở CẢ HAI ĐẦU (trước đó cả hai
+         đều bằng 0), nên đáy màn hình sinh một dải hở dưới thanh nav.
+         Hai lượt chữa dải hở đó đều hỏng: cộng `height: calc(100% + var(--safe-top))` vào `body`
+         thì CẮT MẤT nửa dưới thanh nav (khung nhìn trên máy chủ dự án vốn đã phủ đủ), còn bỏ phép
+         cộng thì dải hở quay lại. Phần thiếu thật nằm đâu đó giữa 0 và --safe-top, và KHÔNG suy ra
+         được trong CSS: chênh lệch screen/innerHeight là chuyện của từng máy, từng bản iOS.
+         Dựng lại trên máy phát triển thì KHÔNG tái hiện được (đo với --safe-top 59px/--safe-bottom
+         34px: mép dưới nav = mép dưới body = đáy khung nhìn = 720, nền nav và nền <html> đều là
+         rgb(37,37,37)) — tức chỉ iOS standalone mới sinh ra nó.
+         'black' không bật safe-area-inset nên dải hở không tồn tại. Đổi lại, mất hiệu ứng tràn lên.
+         AI MUỐN THỬ LẠI 'black-translucent': phải giải xong bài toán dải hở ở đáy TRƯỚC, và phải đo
+         trên iPhone thật — đừng suy từ một con số cũ. Xem thêm khối "ĐÃ THỬ VÀ GỠ" ở `body` trong
+         src/index.css.
 
          Giá trị được script nội tuyến ở trên ghi lại theo chủ đề đã phân giải; để `default` ở đây
          làm mốc tĩnh cho lần vẽ đầu và cho trình duyệt nào không chạy được script đó.
@@ -131,7 +133,7 @@
           // iOS KHÔNG đọc theme-color cho thanh trạng thái của app đã cài — nó đọc thẻ Apple riêng
           // ngay dưới đây. Xem chú thích dài ở thẻ đó để biết vì sao 'black'/'default'.
           var apple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
-          if (apple) apple.setAttribute('content', toi ? 'black-translucent' : 'default')
+          if (apple) apple.setAttribute('content', toi ? 'black' : 'default')
         } catch (e) {
           // localStorage bị chặn (Safari riêng tư) hay thiếu matchMedia: để nguyên ba thẻ tĩnh ở trên
           // lo — chúng vẫn đúng cho người dùng chưa chọn tay, tức là đa số.
