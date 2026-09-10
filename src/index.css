@@ -682,19 +682,24 @@ html {
 body {
   position: fixed;
   inset: 0;
-  /* ─── ĐÃ THỬ VÀ GỠ (2026-09-10): `height: calc(100% + var(--safe-top))` ────────────────────────
-     Ý định: bịt "khoảng trống 68px ở đáy" mà số đo 2026-08 trên iPhone Air (iOS 18.7 / Safari 26)
-     ghi lại khi thanh trạng thái trong suốt — screen.height 912 nhưng window.innerHeight chỉ 844,
-     tức `inset: 0` phủ 0…844 và thừa 68px không phần tử DOM nào với tới.
-     KẾT QUẢ THẬT: hỏng nặng hơn. Trên máy chủ dự án, khung nhìn ĐÃ phủ đủ màn hình, nên cộng thêm
-     var(--safe-top) đẩy cả body xuống 68px và CẮT MẤT nửa dưới thanh nav — nhãn "Trang chủ/Thư
-     viện/..." biến mất khỏi màn hình (ảnh chụp thật 2026-09-10).
+  /* ─── Bù phần khung nhìn còn thiếu so với màn hình vật lý (2026-09-10) ────────────────────────
+     Bản tối dùng `apple-mobile-web-app-status-bar-style: black-translucent`, và chế độ đó làm
+     `inset: 0` dừng TRƯỚC đáy màn hình trên iPhone — để hở một dải dưới thanh nav.
+
+     ĐÃ THỬ VÀ GỠ: `calc(100% + var(--safe-top))`. Số đo 2026-08 trên iPhone Air (screen 912 /
+     innerHeight 844) gợi ý phần thiếu đúng bằng --safe-top, nhưng áp lên máy chủ dự án thì CẮT MẤT
+     nửa dưới thanh nav — nhãn "Trang chủ/Thư viện/..." biến khỏi màn hình (ảnh chụp thật). Bỏ phép
+     cộng đi thì dải hở quay lại. Phần thiếu thật nằm GIỮA 0 và --safe-top.
      BÀI HỌC: chênh lệch screen/innerHeight là chuyện của TỪNG MÁY và TỪNG BẢN iOS, không phải hằng
      số suy ra được trong CSS. Một số đo trên một máy không đủ để viết thành công thức chung.
-     Khoảng trống ở đáy (nếu máy nào đó có thật) đã có lớp bảo hiểm riêng: `html` mang màu
-     --c-nav-bg-solid — xem chú thích ở quy tắc `html` phía trên. Đó là cách chữa ĐÚNG TẦNG: không
-     giả định chiều cao, chỉ làm phần lộ ra đọc thành thân thanh nav kéo dài.
-     Muốn thử lại thì phải ĐO trên máy thật trước, đừng suy từ một con số cũ. */
+
+     NAY: đo lúc chạy thay vì đoán. src/lib/buChieuCaoMan.ts tính `screen.height − innerHeight` rồi
+     ghi vào --vh-thieu; ở đây chỉ cộng đúng chừng đó. Mặc định 0px nên mọi môi trường không có
+     phần thiếu (Android, desktop, trình duyệt thường, bản sáng) đều KHÔNG đổi gì — kể cả khi JS
+     chưa chạy hoặc chạy lỗi.
+     Lớp bảo hiểm cũ vẫn giữ: `html` mang màu --c-nav-bg-solid, để phần nào còn lộ ra vẫn đọc thành
+     thân thanh nav kéo dài (xem chú thích ở quy tắc `html` phía trên). */
+  height: calc(100% + var(--vh-thieu, 0px));
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
      lộ nền trắng ở mọi khe hở giữa các thẻ. */

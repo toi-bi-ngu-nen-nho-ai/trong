@@ -95,7 +95,11 @@
 // v27: bỏ 'black-translucent', về 'black' (chủ dự án chốt) — nó bật safe-area-inset ở cả hai đầu
 //      nên sinh dải hở dưới thanh nav; 'black' không bật nên đáy về nguyên trạng, mà dải trên vẫn
 //      tối (hết lỗi trắng ban đầu). Bump vì đổi cả index.html (nằm trong SHELL) lẫn JS.
-const CACHE = "drtrong-v27"
+// v28: trả lại 'black-translucent' cho bản tối ('black' đo trên iPhone thật là KHÔNG có tác dụng —
+//      iOS coi nó y hệt 'default'), và chữa dải hở ở đáy bằng cách ĐO lúc chạy
+//      (lib/buChieuCaoMan.ts → --vh-thieu) thay cho hai lượt đoán số trong CSS đều đã hỏng.
+//      Bump vì đổi cả index.html (nằm trong SHELL) lẫn CSS/JS.
+const CACHE = "drtrong-v28"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

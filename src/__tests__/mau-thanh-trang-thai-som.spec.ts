@@ -94,35 +94,24 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
   // (nền trắng chữ đen), và `default` không có biến thể tối.
   //
   // Ba ca dưới đây phải ĐỎ nếu ai đó gỡ lại thẻ hoặc bỏ phép ghi trong script nội tuyến.
-  it('iOS: bản TỐI ⇒ "black" (thiếu phép ghi này là dải trên trắng vĩnh viễn)', () => {
+  // ĐÃ THỬ VÀ BỎ 'black' (2026-09-10, đo trên iPhone thật): nó KHÔNG có tác dụng gì — iOS đời mới
+  // đối xử với 'black' y hệt 'default', dải vẫn TRẮNG trên app tối. Chỉ 'black-translucent' mới
+  // thật sự đổi được, vì nó đổi cả CHẾ ĐỘ BỐ CỤC chứ không riêng màu.
+  // Ca này tồn tại để lần "đổi về 'black' cho an toàn / cho khỏi dải hở ở đáy" sau phải ĐỎ — đó là
+  // quay lại đúng lỗi gốc mà chủ dự án đã báo.
+  it('iOS: bản TỐI ⇒ "black-translucent" — KHÔNG được là "black" (iOS coi black y hệt default)', () => {
     dungHead()
     chay({ luu: 'dark', mayToi: false })
-    expect(kieuThanhIos()).toBe('black')
+    expect(kieuThanhIos()).toBe('black-translucent')
   })
 
-  it('iOS: bản SÁNG ⇒ "default" (nền trắng, khớp --c-surface sáng)', () => {
+  // Ràng buộc CỨNG, không phải sở thích: 'black-translucent' ép chữ đồng hồ/pin thành TRẮNG và iOS
+  // không cho đổi. Nền app bản sáng cũng trắng ⇒ dùng nó ở bản sáng là xoá sổ đồng hồ/pin khỏi màn
+  // hình. Ca này đứng đây để lần "cho gọn, dùng chung một giá trị" sau phải đỏ.
+  it('iOS: bản SÁNG ⇒ "default", KHÔNG được là black-translucent (chữ trắng trên nền app trắng)', () => {
     dungHead()
     chay({ luu: 'light', mayToi: true })
     expect(kieuThanhIos()).toBe('default')
-  })
-
-  // ĐÃ THỬ VÀ BỎ (2026-09-10): 'black-translucent' cho nội dung tràn lên dưới thanh trạng thái —
-  // phần TRÊN chạy đẹp thật — nhưng nó bật safe-area-inset ở CẢ HAI ĐẦU, sinh một dải hở dưới thanh
-  // nav ở đáy. Hai lượt chữa đều hỏng (cộng --safe-top vào body thì cắt mất nửa dưới thanh nav; bỏ
-  // đi thì dải hở quay lại), và máy phát triển KHÔNG tái hiện được để đo.
-  // Ca này khoá quyết định đó lại: ai đổi sang 'black-translucent' phải sửa ca kiểm này, tức phải
-  // đọc lời giải thích và giải xong bài toán dải hở trước.
-  it('iOS: KHÔNG dùng black-translucent ở bất kỳ chủ đề nào (chưa giải được dải hở ở đáy)', () => {
-    for (const boi of [
-      { luu: 'dark', mayToi: false },
-      { luu: 'dark', mayToi: true },
-      { luu: 'light', mayToi: false },
-      { luu: null, mayToi: true },
-    ] as const) {
-      dungHead()
-      chay(boi)
-      expect(kieuThanhIos(), `bối cảnh ${JSON.stringify(boi)}`).not.toBe('black-translucent')
-    }
   })
 
   it('index.html PHẢI còn thẻ Apple — gỡ nó đi là script nội tuyến không có gì để ghi', () => {
@@ -177,6 +166,29 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
     for (const hoan of ['defer', 'async', 'type="module"']) {
       expect(the, `${hoan} hoãn script tới sau khi phân tích xong tài liệu — mất đúng thứ nó cần`).not.toContain(hoan)
     }
+  })
+
+  // LỖI ĐÃ SINH RA CA KIỂM NÀY (2026-09-10, bắt được lúc kiểm trên trình duyệt): index.html được
+  // sửa sang 'black-translucent' nhưng applyTheme() trong lib/theme.ts còn nguyên 'black'. Vì
+  // applyTheme() chạy SAU script nội tuyến, nó âm thầm ghi đè — thẻ ra đúng giá trị vừa bị loại bỏ,
+  // và không một dấu hiệu nào báo. Cùng đúng loại lỗi "hai nguồn sự thật" mà ca kiểm --c-surface
+  // ngay dưới đang canh.
+  it('giá trị thẻ Apple trong index.html và lib/theme.ts không trôi khỏi nhau', () => {
+    const themeTs = readFileSync(join(GOC, 'src/lib/theme.ts'), 'utf8')
+
+    const lay = (nguon: string, ten: string): [string, string] => {
+      const m = nguon.match(/\?\s*["']([a-z-]+)["']\s*:\s*["']([a-z-]+)["']/)
+      expect(m, `${ten}: không tìm thấy phép chọn giá trị thẻ Apple — đổi hình dạng thì sửa regex ở đây`).not.toBeNull()
+      return [m![1], m![2]]
+    }
+
+    const trongHtml = lay(scriptNoiTuyen().slice(scriptNoiTuyen().indexOf('apple')), 'index.html')
+    const trongTs = lay(themeTs.slice(themeTs.indexOf('appleBar.setAttribute')), 'lib/theme.ts')
+
+    expect(trongHtml, 'hai nơi phải ghi CÙNG một cặp giá trị (tối, sáng)').toEqual(trongTs)
+    // Khoá luôn nội dung: 'black' đã đo trên iPhone thật là KHÔNG có tác dụng (iOS coi y hệt
+    // 'default'), còn 'black-translucent' ở bản sáng thì xoá sổ đồng hồ/pin (chữ trắng trên nền trắng).
+    expect(trongHtml).toEqual(['black-translucent', 'default'])
   })
 
   it('ba bản sao của --c-surface không trôi khỏi nhau', () => {
