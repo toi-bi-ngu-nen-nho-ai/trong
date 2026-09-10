@@ -707,8 +707,18 @@ body {
        1. `body`      cao thêm --tran-day  → hộp body luôn vượt QUÁ đáy màn hình, khe không tồn tại
        2. `#app-shell` bottom = --tran-day → khung app co lại ĐÚNG bằng khung nhìn như cũ, nên thanh
           nav đứng y nguyên chỗ cũ và KHÔNG THỂ bị cắt (đây là chỗ ba lần trước hỏng)
-       3. thanh nav   padding-bottom += --tran-day, margin-bottom = −--tran-day → nền ĐẶC của nav
-          rỉ xuống dưới khung nhìn phủ kín phần dôi ra, mà không đẩy bố cục đi đâu cả
+       3. `body::after` tô dải --tran-day cuối hộp body bằng đúng màu thanh nav
+
+     LẦN 4 ĐÃ HỎNG Ở BƯỚC 3 và đáng ghi lại: bản đầu cho chính thanh nav "rỉ xuống" bằng
+     padding-bottom += --tran-day kèm margin-bottom âm. VÔ TÁC DỤNG — nav nằm TRONG #app-shell, mà
+     phần tử đó có `overflow-hidden`, nên mọi thứ tràn khỏi đáy khung app bị cắt sạch.
+     Nguy hiểm hơn: getBoundingClientRect() KHÔNG nhìn thấy phép cắt đó (nó báo hộp bố cục, không
+     báo cái được vẽ) nên phép kiểm khi ấy báo "rỉ xuống 200px" và tôi tin là xong. Bằng chứng thật
+     phải lấy bằng elementsFromPoint: hộp nav kéo tới y=770 nhưng tại y=645 chồng phần tử chỉ có
+     DIV/BODY/HTML, không hề có nav.
+     Vì thế dải phủ phải nằm NGOÀI #app-shell. `body::after` là chỗ đúng: body chính là khối chứa
+     (position: fixed) và hộp body đã cao thêm --tran-day, nên `bottom: 0` rơi đúng đáy đã nới —
+     không phần tử nào cắt được nó.
      Không có khe thì thừa ra bao nhiêu cũng nằm ngoài màn hình, vô hình. Đây là ĐÁNH ĐỔI có chủ ý:
      vẽ thừa một dải không ai thấy, đổi lấy việc không bao giờ hở và không bao giờ cắt nav. */
   height: calc(100% + var(--tran-day));
@@ -722,6 +732,24 @@ body {
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: pan-x pan-y;
+}
+
+/* Dải phủ phần màn hình nằm DƯỚI khung nhìn (iOS standalone + black-translucent) — xem chú thích
+   dài ở `body`. Đặt ở đây, KHÔNG đặt trên thanh nav: nav nằm trong #app-shell (overflow-hidden) nên
+   mọi phần tràn ra đều bị cắt đúng tại đáy khung app, đã thử và vô tác dụng.
+   Khối chứa là chính `body` (position: fixed), và hộp body đã cao thêm --tran-day, nên `bottom: 0`
+   rơi đúng đáy đã nới. Màu lấy đúng --c-nav-bg-solid để đọc thành thân thanh nav kéo dài. */
+body::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--tran-day);
+  background: var(--c-nav-bg-solid);
+  /* Không bao giờ nuốt thao tác chạm: nó chỉ là nền, và ở máy không có khe thì nó nằm ngoài màn
+     hình — nhưng vẫn khai tường minh để không ai phải suy luận. */
+  pointer-events: none;
 }
 
 #root {

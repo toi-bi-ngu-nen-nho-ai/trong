@@ -12442,11 +12442,12 @@ export default function App() {
               background: "var(--c-nav-bg-solid)",
               borderTop: "1px solid var(--c-nav-border)",
               // Phần phủ lên vùng thanh gạt Home: chỉ là nền, không đặt nút bấm vào đây.
-              // Cộng thêm --tran-day để nền ĐẶC của thanh nav rỉ xuống dưới đáy khung nhìn, phủ kín
-              // phần màn hình mà iOS standalone (black-translucent) để hở. marginBottom âm đúng
-              // chừng đó khử lại, nên bố cục KHÔNG dịch một pixel nào — nav vẫn đứng y chỗ cũ.
-              paddingBottom: "calc(var(--nav-pad-bottom) + var(--tran-day))",
-              marginBottom: "calc(-1 * var(--tran-day))",
+              // KHÔNG cho nền nav "rỉ xuống" dưới đáy khung nhìn từ đây — đã thử và VÔ TÁC DỤNG:
+              // #app-shell có `overflow-hidden`, nav nằm bên trong nó nên mọi phần tràn ra đều bị
+              // cắt đúng tại đáy khung app. Đo bằng getBoundingClientRect() KHÔNG thấy được (hộp bố
+              // cục vẫn báo đủ 770px trong khi elementsFromPoint tại y=645 không hề có nav).
+              // Dải phủ nay nằm ở `body::after` trong index.css — ngoài tầm cắt của app-shell.
+              paddingBottom: "var(--nav-pad-bottom)",
             }}
           >
             <div className="flex items-stretch" style={{ height: "var(--nav-body-h)" }}>

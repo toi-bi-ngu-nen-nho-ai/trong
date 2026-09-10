@@ -101,7 +101,10 @@
 //      Bump vì đổi cả index.html (nằm trong SHELL) lẫn CSS/JS.
 // v29: bỏ hẳn việc đo phần thiếu (3 lượt đều hỏng). Nay tràn xuống bằng một hằng số --tran-day
 //      dùng chung cho body / #app-shell / thanh nav — không hở, và không cắt được nav.
-const CACHE = "drtrong-v29"
+// v30: dai phu chuyen tu thanh nav sang `body::after`. Ban v29 cho nav "ri xuong" nhung nav nam
+//      trong #app-shell (overflow-hidden) nen bi cat sach — getBoundingClientRect() khong nhin thay
+//      phep cat do nen phep kiem bao xanh oan.
+const CACHE = "drtrong-v30"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [
