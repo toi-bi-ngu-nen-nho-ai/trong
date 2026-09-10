@@ -112,7 +112,9 @@
 // v33: dai day doi tu --c-nav-bg-solid sang --c-page (chu du an chot: sap xoa bottom nav, nen
 //      dai do phai khop NEN TRANG chu khong phai mau nav). Ban sang truoc do ra trang tinh canh
 //      nen trang xam nhat, sai ro.
-const CACHE = "drtrong-v33"
+// v34: go bang do tam ChanDoanThanhTrangThai (da xong viec — phep do ba mau chi ra dai day an nen
+//      cua chinh body). Go luon hai moc trong App.tsx: cham 5 lan vao logo khong con tac dung gi.
+const CACHE = "drtrong-v34"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [
