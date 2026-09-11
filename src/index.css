@@ -72,6 +72,11 @@
      ÂM trên máy không tai thỏ (--safe-top=0). */
   --safe-top-trim: max(0px, calc(var(--safe-top) - 12px));
 
+  /* Dải "tràn xuống" phủ phần màn hình nằm DƯỚI khung nhìn (iOS standalone + black-translucent).
+     Một hằng số dùng chung cho ba nơi — xem chú thích dài ở `body`. 200px là dư thoải mái so với
+     mọi chiều cao thanh trạng thái iOS (~20–70px); dư bao nhiêu cũng vô hại vì nằm ngoài màn hình. */
+  --tran-day: 200px;
+
   /* Chiều cao phần bấm được của thanh điều hướng dưới (chưa tính vùng thanh gạt Home).
      Trước 52px, sau chỉnh còn 46px thấy hơi thấp — nhích lại lên 48px (đợt chỉnh 2026-08 thứ hai),
      rồi 51px (2026-08-28, phản hồi thật: "tiêu đề khít sát màn" — trên máy KHÔNG có thanh gạt Home
@@ -682,9 +687,60 @@ html {
 body {
   position: fixed;
   inset: 0;
+  /* ─── Bù phần khung nhìn còn thiếu so với màn hình vật lý (2026-09-10) ────────────────────────
+     Bản tối dùng `apple-mobile-web-app-status-bar-style: black-translucent`, và chế độ đó làm
+     `inset: 0` dừng TRƯỚC đáy màn hình trên iPhone — để hở một dải dưới thanh nav.
+
+     ĐÃ THỬ VÀ GỠ: `calc(100% + var(--safe-top))`. Số đo 2026-08 trên iPhone Air (screen 912 /
+     innerHeight 844) gợi ý phần thiếu đúng bằng --safe-top, nhưng áp lên máy chủ dự án thì CẮT MẤT
+     nửa dưới thanh nav — nhãn "Trang chủ/Thư viện/..." biến khỏi màn hình (ảnh chụp thật). Bỏ phép
+     cộng đi thì dải hở quay lại. Phần thiếu thật nằm GIỮA 0 và --safe-top.
+     BÀI HỌC: chênh lệch screen/innerHeight là chuyện của TỪNG MÁY và TỪNG BẢN iOS, không phải hằng
+     số suy ra được trong CSS. Một số đo trên một máy không đủ để viết thành công thức chung.
+
+     ĐÃ THỬ VÀ GỠ lần 3: đo lúc chạy (`screen.height − innerHeight` → --vh-thieu). Cũng CẮT MẤT
+     thanh nav — trên máy chủ dự án `screen.height` kể cả phần khung nhìn đã phủ, nên con số đo được
+     vẫn lớn hơn phần thiếu thật.
+
+     NAY — BỎ HẲN VIỆC ĐO. Chủ dự án chốt: "đo không được thì tràn xuống, không muốn hở".
+     Dùng MỘT hằng số --tran-day cho cả ba chỗ, nên không chỗ nào lệch được:
+       1. `body`      cao thêm --tran-day  → hộp body luôn vượt QUÁ đáy màn hình, khe không tồn tại
+       2. `#app-shell` bottom = --tran-day → khung app co lại ĐÚNG bằng khung nhìn như cũ, nên thanh
+          nav đứng y nguyên chỗ cũ và KHÔNG THỂ bị cắt (đây là chỗ ba lần trước hỏng)
+       3. `body::after` tô dải --tran-day cuối hộp body bằng đúng màu thanh nav
+
+     LẦN 4 ĐÃ HỎNG Ở BƯỚC 3 và đáng ghi lại: bản đầu cho chính thanh nav "rỉ xuống" bằng
+     padding-bottom += --tran-day kèm margin-bottom âm. VÔ TÁC DỤNG — nav nằm TRONG #app-shell, mà
+     phần tử đó có `overflow-hidden`, nên mọi thứ tràn khỏi đáy khung app bị cắt sạch.
+     Nguy hiểm hơn: getBoundingClientRect() KHÔNG nhìn thấy phép cắt đó (nó báo hộp bố cục, không
+     báo cái được vẽ) nên phép kiểm khi ấy báo "rỉ xuống 200px" và tôi tin là xong. Bằng chứng thật
+     phải lấy bằng elementsFromPoint: hộp nav kéo tới y=770 nhưng tại y=645 chồng phần tử chỉ có
+     DIV/BODY/HTML, không hề có nav.
+     Vì thế dải phủ phải nằm NGOÀI #app-shell. `body::after` là chỗ đúng: body chính là khối chứa
+     (position: fixed) và hộp body đã cao thêm --tran-day, nên `bottom: 0` rơi đúng đáy đã nới —
+     không phần tử nào cắt được nó.
+     Không có khe thì thừa ra bao nhiêu cũng nằm ngoài màn hình, vô hình. Đây là ĐÁNH ĐỔI có chủ ý:
+     vẽ thừa một dải không ai thấy, đổi lấy việc không bao giờ hở và không bao giờ cắt nav. */
+  height: calc(100% + var(--tran-day));
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Đọc từ biến chủ đề, không dùng --background cố định trắng như trước — nếu không, bản tối vẫn
-     lộ nền trắng ở mọi khe hở giữa các thẻ. */
+     lộ nền trắng ở mọi khe hở giữa các thẻ.
+     NỀN NÀY CÒN MỘT VAI TRÒ THỨ HAI, quan trọng hơn hẳn (2026-09-10): nó là thứ DUY NHẤT tô phần
+     màn hình nằm dưới đáy khung app khi chạy PWA trên iPhone (standalone + black-translucent). Xác
+     định bằng phép dò ba màu chói — tô body tím, html đỏ, body::after xanh lá; dải đáy ra TÍM.
+     Đó chính là "dải hở" chủ dự án báo suốt 5 lượt vá hụt: KHÔNG phải khe hình học, mà là VỆT LỆCH
+     MÀU giữa vùng này và thứ nằm ngay trên nó.
+
+     ĐÃ THỬ --c-nav-bg-solid rồi ĐỔI LẠI: cho khớp thanh nav thì bản tối liền mạch, nhưng bản sáng
+     ra trắng tinh (#ffffff) nằm cạnh nền trang xám nhạt (#f4f4f5) — chủ dự án báo ngay là sai.
+     CHỐT --c-page vì chủ dự án sắp XOÁ THANH NAV: khi không còn nav thì thứ nằm trên dải này chính
+     là nền trang, nên khớp nền trang mới là đúng lâu dài.
+     ĐÁNH ĐỔI còn lại, đã biết và chấp nhận: CHỪNG NÀO thanh nav còn đó, bản tối vẫn lệch một bậc
+     giữa nav (#252525) và dải đáy (#141414). Xoá nav xong là hết. Ai gỡ nav thì không phải đụng gì
+     ở đây — dòng này đã đúng sẵn.
+     An toàn với phần còn lại của app: #app-shell phủ kín khung nhìn bằng --c-surface (chính ảnh
+     chụp phép dò xác nhận — vùng app không hề ăn màu dò của body), nên nền body chỉ còn là lớp
+     phòng hờ cho các khe hở. */
   background: var(--c-page);
   color: var(--c-text);
   margin: 0;
@@ -693,6 +749,12 @@ body {
   overscroll-behavior: none;
   touch-action: pan-x pan-y;
 }
+
+/* ĐÃ THỬ VÀ GỠ: `body::after` tô dải --tran-day cuối hộp body.
+   KHÔNG ĐƯỢC VẼ — phép dò ba màu chói (2026-09-10) đặt ::after màu xanh lá, body màu tím, và dải
+   đáy trên iPhone ra TÍM. Tức nền của chính `body` mới là thứ tô vùng đó, còn ::after không hề
+   xuất hiện dù hộp của nó nằm đúng chỗ. Không đoán vì sao nữa: đã có câu trả lời đúng ở tầng
+   `body` (xem chú thích tại quy tắc đó), nên bỏ hẳn lớp thừa này thay vì giữ mã chết. */
 
 #root {
   height: 100%;
@@ -1300,18 +1362,6 @@ html.theme-shift * {
 }
 
 .fade-in { animation: fadeIn 0.18s ease; }
-
-/* Bánh xe chọn chuyên khoa bung ra từ chính cái nút vừa bấm (góc trên phải của bảng) — có điểm
-   xuất phát rõ ràng thay vì hiện đột ngột giữa màn hình. */
-@keyframes pickerPop {
-  from { opacity: 0; transform: translateY(-6px) scale(0.94); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.picker-pop {
-  animation: pickerPop 0.26s cubic-bezier(0.34, 1.4, 0.64, 1);
-  transform-origin: top right;
-}
 
 /* Dải xác nhận ngắn hiện lên sau khi lưu/xoá/nhập dữ liệu. Trước đây bấm "Lưu" là màn hình đổi
    luôn, không có gì cho biết việc lưu đã xong — vừa thiếu chắc chắn vừa mất cảm giác "xong việc". */

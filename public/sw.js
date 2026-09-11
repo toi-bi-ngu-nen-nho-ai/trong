@@ -72,7 +72,49 @@
 //      đặt font vào cache. Không có ba dòng này thì tự host chỉ đổi nơi tải chứ không giải quyết
 //      được gì so với CDN. Bump vì SHELL đổi nội dung: bản cài cũ mới chịu chạy lại install và lấy
 //      danh sách precache mới.
-const CACHE = "drtrong-v21"
+// v22: gánh HAI đợt đổi bundle JS.
+//      (a) 8b2e629 — tách hai ngưỡng béo phì (CrCl theo BMI>30, liều mg/kg theo 120% IBW). Đợt đó
+//          ĐÃ QUÊN bump, nên máy đã cài PWA vẫn phát bản JS cũ: bản vá liều nằm trong repo nhưng
+//          KHÔNG tới được máy người dùng — đúng cái bẫy mà chú thích v18 bên trên đã cảnh báo.
+//      (b) bảng đo tạm "dải trắng thanh trạng thái" (components/ChanDoanThanhTrangThai.tsx) — không
+//          bump thì mở app đã cài sẽ không thấy bảng đâu, lượt chẩn đoán coi như mất trắng.
+// v23: chữa "dải trắng thanh trạng thái trên iPhone đã cài ra màn hình chính" — thêm lại thẻ
+//      `apple-mobile-web-app-status-bar-style` (iOS standalone KHÔNG đọc theme-color cho dải đó).
+//      BẮT BUỘC bump vì đợt này đổi CẢ index.html, mà file đó nằm ngay trong SHELL bên dưới — tức
+//      thứ máy đã cài PWA phát thẳng từ cache. Không bump thì máy giữ nguyên index.html cũ, tức
+//      giữ nguyên đúng cái lỗi vừa vá.
+// v24: bản tối chuyển sang `black-translucent` (nội dung tràn lên dưới thanh trạng thái) + bịt
+//      khoảng trống 68px ở đáy bằng `height: calc(100% + var(--safe-top))` trên body. Bump vì đổi
+//      CẢ index.html (nằm trong SHELL) lẫn CSS/JS.
+// v25: gỡ `height: calc(100% + var(--safe-top))` trên body — nó cắt mất nửa dưới thanh nav trên
+//      máy chủ dự án (ảnh chụp thật 2026-09-10). Thẻ Apple 'black-translucent' của v24 GIỮ NGUYÊN:
+//      phần đó đã chạy đúng, dải trên cùng đã hoà vào app ở cả hai chủ đề.
+// v26: bảng đo tạm thêm số đo ở ĐÁY (safe-area-inset-bottom, cao/mép dưới của body, #app-shell,
+//      nav) để lấy đúng phần thiếu thật giữa khung nhìn và màn hình — lần cộng bù trước dùng
+//      --safe-top là quá tay, cắt mất thanh nav.
+// v27: bỏ 'black-translucent', về 'black' (chủ dự án chốt) — nó bật safe-area-inset ở cả hai đầu
+//      nên sinh dải hở dưới thanh nav; 'black' không bật nên đáy về nguyên trạng, mà dải trên vẫn
+//      tối (hết lỗi trắng ban đầu). Bump vì đổi cả index.html (nằm trong SHELL) lẫn JS.
+// v28: trả lại 'black-translucent' cho bản tối ('black' đo trên iPhone thật là KHÔNG có tác dụng —
+//      iOS coi nó y hệt 'default'), và chữa dải hở ở đáy bằng cách ĐO lúc chạy
+//      (lib/buChieuCaoMan.ts → --vh-thieu) thay cho hai lượt đoán số trong CSS đều đã hỏng.
+//      Bump vì đổi cả index.html (nằm trong SHELL) lẫn CSS/JS.
+// v29: bỏ hẳn việc đo phần thiếu (3 lượt đều hỏng). Nay tràn xuống bằng một hằng số --tran-day
+//      dùng chung cho body / #app-shell / thanh nav — không hở, và không cắt được nav.
+// v30: dai phu chuyen tu thanh nav sang `body::after`. Ban v29 cho nav "ri xuong" nhung nav nam
+//      trong #app-shell (overflow-hidden) nen bi cat sach — getBoundingClientRect() khong nhin thay
+//      phep cat do nen phep kiem bao xanh oan.
+// v31: manifest background_color #ffffff -> #252525. Vung ho o day do iOS to (NGOAI vung web),
+//      khong CSS nao voi toi — 5 lan va bang CSS deu that bai vi ly do do.
+// v32: CHUA XONG dai ho — phep do ba mau chi ra no an nen cua chinh `body`, nen doi nen body sang
+//      --c-nav-bg-solid (truoc la --c-page): nav va vung duoi day khung app nay cung MOT mau.
+//      Go khoi do tam + go `body::after` (do chung minh no khong he duoc ve).
+// v33: dai day doi tu --c-nav-bg-solid sang --c-page (chu du an chot: sap xoa bottom nav, nen
+//      dai do phai khop NEN TRANG chu khong phai mau nav). Ban sang truoc do ra trang tinh canh
+//      nen trang xam nhat, sai ro.
+// v34: go bang do tam ChanDoanThanhTrangThai (da xong viec — phep do ba mau chi ra dai day an nen
+//      cua chinh body). Go luon hai moc trong App.tsx: cham 5 lan vao logo khong con tac dung gi.
+const CACHE = "drtrong-v34"
 
 // Vỏ app — những thứ phải có mặt để mở được màn hình đầu tiên.
 const SHELL = [

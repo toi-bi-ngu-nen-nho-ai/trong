@@ -13,7 +13,7 @@ export const ANTIBIOTIC_ROUTE_OPTIONS: { id: string; label: string }[] = [
   { id: "sc", label: "Tiêm dưới da (TDD)" },
   { id: "oral", label: "Uống" },
   { id: "other", label: "Vị trí khác" },
-]
+]
 
 export function addInfusionTitle(category: InfusionCategory): string {
   return `Thêm ${infusionCategory(category).categoryLabel}`
@@ -333,10 +333,16 @@ export function warnSeverityColor(s: WarnSeverity): string {
   return C.muted
 }
 
+// Nhãn phải nói THẲNG ngưỡng và tên nhóm thuốc, không chỉ tên viết tắt: người nhập là bác sĩ đang
+// gõ một thuốc mg/kg lúc trực, câu hỏi trong đầu họ là "thuốc này khi bệnh nhân béo phì thì tính
+// theo cân nào" chứ không phải "AdjBW là gì". Ba lựa chọn giữ dạng chip chọn-một (không phải công
+// tắc bật/tắt) vì "ideal" là trạng thái thứ ba dùng thật (nhũ dịch lipid) — công tắc boolean sẽ
+// nuốt mất nó, và một cờ boolean thứ hai song song trường này là hai nguồn sự thật cho cùng một
+// quyết định liều (xem ghi chú ở lib/bodyWeight.ts).
 const WEIGHT_BASIS_OPTIONS: { id: WeightBasis | ""; label: string }[] = [
-  { id: "", label: "Mặc định (cân nặng thực)" },
+  { id: "", label: "Cân nặng thực (ABW)" },
   { id: "ideal", label: "Luôn dùng IBW" },
-  { id: "adjusted", label: "AdjBW nếu béo phì" },
+  { id: "adjusted", label: "AdjBW khi ABW ≥ 120% IBW" },
 ]
 
 const VIAL_FORM_OPTIONS: { id: VialForm | ""; label: string }[] = [
@@ -393,7 +399,9 @@ export function AntibioticAdvancedFields({
         ))}
       </div>
       <p className="text-[12px] text-slate-400 leading-relaxed mt-1.5">
-        Chỉ đổi khi thuốc có khuyến cáo rõ ràng dùng cân nặng lý tưởng/hiệu chỉnh (VD aminoglycosid).
+        Chỉ đổi khi thuốc có khuyến cáo rõ ràng. Cân nặng thực dưới 120% IBW thì mọi thuốc đều tính theo cân nặng thực;
+        từ 120% IBW trở lên, aminoglycosid (amikacin, gentamicin…) chuyển sang AdjBW, còn vancomycin vẫn giữ cân nặng thực
+        — Chợ Rẫy 2024.
       </p>
 
       <label className="text-xs font-semibold text-slate-500 mb-1.5 block mt-3">Ngưỡng liều một lần dùng (tuỳ chọn)</label>
@@ -526,4 +534,4 @@ export function AntibioticAdvancedFields({
       )}
     </div>
   )
-}
+}

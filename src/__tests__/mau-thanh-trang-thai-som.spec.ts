@@ -34,14 +34,26 @@ function scriptNoiTuyen(): string {
   return khop[0][1]
 }
 
-/** Ba thẻ theme-color tĩnh, dựng lại đúng như trình duyệt thấy lúc phân tích xong <head>. */
+/**
+ * Các thẻ meta TĨNH mà script nội tuyến đụng tới, dựng lại đúng như trình duyệt thấy lúc phân tích
+ * xong <head>: ba thẻ theme-color (Android/trình duyệt) + thẻ Apple (iOS standalone).
+ */
 function dungHead(): void {
-  document.head.innerHTML = [...HTML.matchAll(/<meta name="theme-color"[^>]*>/g)].map((m) => m[0]).join('\n')
+  const the = [
+    ...[...HTML.matchAll(/<meta name="theme-color"[^>]*>/g)].map((m) => m[0]),
+    ...[...HTML.matchAll(/<meta name="apple-mobile-web-app-status-bar-style"[^>]*>/g)].map((m) => m[0]),
+  ]
+  document.head.innerHTML = the.join('\n')
   document.documentElement.removeAttribute('data-theme')
 }
 
 function mauCacThe(): string[] {
   return [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.getAttribute('content') ?? '')
+}
+
+/** Giá trị thẻ Apple — thứ DUY NHẤT iOS đọc cho thanh trạng thái của app đã cài. */
+function kieuThanhIos(): string | null {
+  return document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.getAttribute('content') ?? null
 }
 
 /** Chạy script nội tuyến với một localStorage/matchMedia giả — đúng chỗ nó chạy thật: trong <head>. */
@@ -72,6 +84,41 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
       '#252525',
     ])
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+  })
+
+  // ─── iOS: app đã cài ra màn hình chính ─────────────────────────────────────────────────────
+  // LỖI ĐÃ SINH RA NHÓM CA KIỂM NÀY (chủ dự án báo 2026-09-10, kèm ảnh chụp iPhone): dải trên cùng
+  // TRẮNG trong khi cả app đang ở bản tối — luôn trắng, cả chế độ sáng lẫn tối, chỉ khi mở từ màn
+  // hình chính. Nguyên nhân: thẻ `apple-mobile-web-app-status-bar-style` bị gỡ hẳn hồi 2026-08, mà
+  // iOS standalone KHÔNG đọc theme-color cho dải này — thiếu thẻ thì nó dùng mặc định `default`
+  // (nền trắng chữ đen), và `default` không có biến thể tối.
+  //
+  // Ba ca dưới đây phải ĐỎ nếu ai đó gỡ lại thẻ hoặc bỏ phép ghi trong script nội tuyến.
+  // ĐÃ THỬ VÀ BỎ 'black' (2026-09-10, đo trên iPhone thật): nó KHÔNG có tác dụng gì — iOS đời mới
+  // đối xử với 'black' y hệt 'default', dải vẫn TRẮNG trên app tối. Chỉ 'black-translucent' mới
+  // thật sự đổi được, vì nó đổi cả CHẾ ĐỘ BỐ CỤC chứ không riêng màu.
+  // Ca này tồn tại để lần "đổi về 'black' cho an toàn / cho khỏi dải hở ở đáy" sau phải ĐỎ — đó là
+  // quay lại đúng lỗi gốc mà chủ dự án đã báo.
+  it('iOS: bản TỐI ⇒ "black-translucent" — KHÔNG được là "black" (iOS coi black y hệt default)', () => {
+    dungHead()
+    chay({ luu: 'dark', mayToi: false })
+    expect(kieuThanhIos()).toBe('black-translucent')
+  })
+
+  // Ràng buộc CỨNG, không phải sở thích: 'black-translucent' ép chữ đồng hồ/pin thành TRẮNG và iOS
+  // không cho đổi. Nền app bản sáng cũng trắng ⇒ dùng nó ở bản sáng là xoá sổ đồng hồ/pin khỏi màn
+  // hình. Ca này đứng đây để lần "cho gọn, dùng chung một giá trị" sau phải đỏ.
+  it('iOS: bản SÁNG ⇒ "default", KHÔNG được là black-translucent (chữ trắng trên nền app trắng)', () => {
+    dungHead()
+    chay({ luu: 'light', mayToi: true })
+    expect(kieuThanhIos()).toBe('default')
+  })
+
+  it('index.html PHẢI còn thẻ Apple — gỡ nó đi là script nội tuyến không có gì để ghi', () => {
+    expect(
+      HTML,
+      'thiếu <meta name="apple-mobile-web-app-status-bar-style"> ⇒ iOS rơi về "default" = dải trắng ở mọi chủ đề',
+    ).toMatch(/<meta name="apple-mobile-web-app-status-bar-style"[^>]*>/)
   })
 
   it('chọn tay SÁNG trong lúc máy để TỐI: cả ba thẻ ra màu sáng', () => {
@@ -119,6 +166,29 @@ describe('màu thanh trạng thái phân giải sớm (index.html)', () => {
     for (const hoan of ['defer', 'async', 'type="module"']) {
       expect(the, `${hoan} hoãn script tới sau khi phân tích xong tài liệu — mất đúng thứ nó cần`).not.toContain(hoan)
     }
+  })
+
+  // LỖI ĐÃ SINH RA CA KIỂM NÀY (2026-09-10, bắt được lúc kiểm trên trình duyệt): index.html được
+  // sửa sang 'black-translucent' nhưng applyTheme() trong lib/theme.ts còn nguyên 'black'. Vì
+  // applyTheme() chạy SAU script nội tuyến, nó âm thầm ghi đè — thẻ ra đúng giá trị vừa bị loại bỏ,
+  // và không một dấu hiệu nào báo. Cùng đúng loại lỗi "hai nguồn sự thật" mà ca kiểm --c-surface
+  // ngay dưới đang canh.
+  it('giá trị thẻ Apple trong index.html và lib/theme.ts không trôi khỏi nhau', () => {
+    const themeTs = readFileSync(join(GOC, 'src/lib/theme.ts'), 'utf8')
+
+    const lay = (nguon: string, ten: string): [string, string] => {
+      const m = nguon.match(/\?\s*["']([a-z-]+)["']\s*:\s*["']([a-z-]+)["']/)
+      expect(m, `${ten}: không tìm thấy phép chọn giá trị thẻ Apple — đổi hình dạng thì sửa regex ở đây`).not.toBeNull()
+      return [m![1], m![2]]
+    }
+
+    const trongHtml = lay(scriptNoiTuyen().slice(scriptNoiTuyen().indexOf('apple')), 'index.html')
+    const trongTs = lay(themeTs.slice(themeTs.indexOf('appleBar.setAttribute')), 'lib/theme.ts')
+
+    expect(trongHtml, 'hai nơi phải ghi CÙNG một cặp giá trị (tối, sáng)').toEqual(trongTs)
+    // Khoá luôn nội dung: 'black' đã đo trên iPhone thật là KHÔNG có tác dụng (iOS coi y hệt
+    // 'default'), còn 'black-translucent' ở bản sáng thì xoá sổ đồng hồ/pin (chữ trắng trên nền trắng).
+    expect(trongHtml).toEqual(['black-translucent', 'default'])
   })
 
   it('ba bản sao của --c-surface không trôi khỏi nhau', () => {

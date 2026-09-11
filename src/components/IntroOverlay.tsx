@@ -35,7 +35,6 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
   const letterTRef = useRef<HTMLSpanElement>(null)
   const bacSiRef = useRef<HTMLSpanElement>(null)
   const rongRef = useRef<HTMLSpanElement>(null)
-  const rimRef = useRef<HTMLDivElement>(null)
   // React 19 StrictMode (dev — src/main.tsx bọc cả app) chạy effect theo nhịp setup → cleanup →
   // setup. Chốt này chặn hoạt cảnh khởi động HAI lần cùng lúc; nó được MỞ LẠI trong cleanup (xem
   // cuối effect) để lần setup thứ hai — lần thật sự sống — vẫn dựng được timeline và hạn giờ dự
@@ -92,7 +91,6 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       if (daHuy) return
 
       const cover = coverRef.current!
-      const rim = rimRef.current!
       const letterT = letterTRef.current!
 
       // Đo lúc chữ T còn NGUYÊN vị trí ghép chữ (chưa gsap.set transform nào). `visibility: hidden`
@@ -113,16 +111,93 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
         ),
       )
 
-      // Pha kết neo vào GIỮA MÀN HÌNH, không vào chỗ chữ T đậu. Chỗ đậu của chữ T lệch hẳn khỏi tâm
-      // (đo trên 1280×632: T ở (528, 381) trong khi tâm là (640, 316) — lệch trái 112px, xuống 65px)
-      // vì cả cụm "Bác sĩ / Trọng" mới là thứ được căn giữa, còn chữ T chỉ là ký tự đầu của dòng
-      // dưới. Phóng chữ và mở lỗ từ điểm lệch đó làm cả đoạn cuối đổ về góc dưới-trái — chủ dự án
-      // bác đúng cái này. Nên pha 4 kéo chữ T trở lại tâm trong lúc phóng to, và lỗ mở từ tâm.
       const W = window.innerWidth
       const H = window.innerHeight
-      const tamManX = W / 2
-      const tamManY = H / 2
-      const maxRadius = Math.hypot(W, H) / 2 + 40
+
+      // ─── Cửa sổ hình chữ T cho pha kết ────────────────────────────────────────────────────
+      // Tham chiếu: video màn mở app MDCalc do chủ dự án gửi — cửa sổ lộ nội dung có ĐÚNG hình
+      // glyph của logo (dấu cộng), mở ra từ ngay kích cỡ của chính glyph rồi nở bung ~0,3s. Ở đây
+      // glyph là chữ T.
+      //
+      // Kỹ thuật: `clip-path: polygon()` với toạ độ px thật — KHÔNG dùng `mask-image: url(#id)`
+      // trỏ tới `<mask>` SVG sống như hai lượt trước. Chính đường đó làm màn hình kẹt xám tối trên
+      // iPhone thật (video lỗi chủ dự án gửi), trong khi `clip-path: polygon()` là tính năng phổ
+      // thông, ổn định lâu năm trên iOS Safari. Ý tưởng cũ đúng, chỉ sai cách hiện thực.
+      //
+      // Hình chữ T xấp xỉ bằng 8 đỉnh, gốc toạ độ ở tâm chữ, cỡ lấy theo hộp bao thật của #letterT.
+      // Góc nhọn (polygon không bo được) — ở tốc độ nở này mắt không kịp phân biệt với nét bo của
+      // Baloo 2.
+      const halfW = oT.width / 2
+      const halfH = oT.height / 2
+      const barH = oT.height * 0.26
+      const stemW = oT.width * 0.3
+      // Thứ tự các đỉnh đi THEO chiều kim đồng hồ trong hệ toạ độ màn hình (y hướng xuống).
+      const boCuc: [number, number][] = [
+        [-halfW, -halfH],
+        [halfW, -halfH],
+        [halfW, -halfH + barH],
+        [stemW / 2, -halfH + barH],
+        [stemW / 2, halfH],
+        [-stemW / 2, halfH],
+        [-stemW / 2, -halfH + barH],
+        [-halfW, -halfH + barH],
+      ]
+
+      // `clip-path` giữ phần BÊN TRONG đường bao, mà ta cần ngược lại: giữ nguyên tấm phủ ở ngoài,
+      // KHOÉT một lỗ hình chữ T ở trong. Cách làm chuẩn là "lỗ khoá": vẽ hình chữ nhật toàn màn
+      // theo chiều kim đồng hồ, rồi nối bằng một đường rạch (seam) sang hình chữ T vẽ NGƯỢC chiều
+      // kim đồng hồ, xong quay lại theo đúng đường rạch đó. Quy tắc nonzero mặc định cộng hai chiều
+      // ngược nhau thành 0 ở vùng chữ T → không tô → thành lỗ. Đường rạch đi rồi về nên triệt tiêu,
+      // không để lại vệt. Không cần từ khoá `evenodd` (hỗ trợ kém đồng đều hơn).
+      const layDuongKhoet = (heSo: number) => {
+        const T = boCuc
+          .slice()
+          .reverse()
+          .map(([x, y]) => `${(tamTX + x * heSo).toFixed(1)}px ${(tamTY + y * heSo).toFixed(1)}px`)
+        return `polygon(0px 0px, ${W}px 0px, ${W}px ${H}px, 0px ${H}px, 0px 0px, ${T.join(", ")}, ${T[0]}, 0px 0px)`
+      }
+
+      // Hệ số phóng đủ để chữ T phủ kín khung nhìn. Chữ T là hình LÕM nên không thể suy từ một bán
+      // kính như hình tròn — phải xét riêng ba ràng buộc, lấy cái ngặt nhất:
+      //   • ngang: thân chữ (rộng stemW*heSo) phải trùm qua mép trái/phải xa nhất;
+      //   • trên : mép dưới của thanh ngang phải trôi lên khỏi y=0 (nhờ vậy thanh ngang không còn
+      //            cắt ngang màn hình, phần trên do chính thanh ngang phủ);
+      //   • dưới : chân thân chữ phải chạm quá mép dưới.
+      // Tới hệ số đó thì trong khung nhìn chữ T thoái hoá thành một dải dọc phủ kín — đúng như
+      // video tham chiếu, đoạn cuối chỉ còn vài góc nền hở rồi biến mất.
+      const heSoDich =
+        Math.max(
+          (2 * Math.max(tamTX, W - tamTX)) / stemW,
+          tamTY / Math.max(halfH - barH, 1),
+          (H - tamTY) / halfH,
+        ) * 1.12
+
+      // ─── Phóng theo HÀM MŨ, không phải tuyến tính ────────────────────────────────────────────
+      // `heSoDich` rất lớn (đo thật ở 1280×576: 93 lần — thân chữ rộng 17px phải nong ra 1500px).
+      // Cho `heSo` chạy tuyến tính tới đó thì gần như cả quãng thời gian trôi qua ở các cỡ khổng lồ,
+      // chữ T chỉ còn nhận ra được ~80ms.
+      //
+      // Bản trước chữa bằng cách CẮT LÀM HAI NHỊP (nở tới cỡ "hero" bằng `power2.out`, rồi bung bằng
+      // `power2.in`). Cách đó hỏng: `power2.out` kết thúc ở vận tốc 0, `power2.in` bắt đầu từ vận tốc
+      // 0 — nối lại thành một vùng ĐỨNG YÊN giữa hoạt cảnh. Đo được rõ ràng trên Chrome: mép thanh
+      // ngang dịch 30px trong khung này, 7px ở khung kế (chỗ khựng), rồi vọt 372px ở khung sau đó.
+      // Chủ dự án mô tả đúng cái đó: "chuyển nhanh quá rồi khựng lại mới tràn ra".
+      //
+      // Cách đúng: mắt cảm nhận phóng to theo TỈ LỆ chứ không theo hiệu, nên cho số mũ chạy đều thì
+      // tốc độ phóng NHÌN THẤY là hằng số — mượt một mạch, không có chỗ nào để khựng, mà vẫn tự
+      // động dành nhiều thời gian cho các cỡ nhỏ (đúng lúc còn đọc ra hình chữ T). Một tween duy
+      // nhất, `ease: "none"`: mọi easing đều tạo ra chỗ nhanh chỗ chậm, mà ở đây "đều" mới là đúng.
+      const heSoBatDau = 0.35
+      const tySoPhong = heSoDich / heSoBatDau
+
+      const oKhoet = { p: 0 }
+      const capNhatKhoet = () => {
+        const duong = layDuongKhoet(heSoBatDau * Math.pow(tySoPhong, oKhoet.p))
+        cover.style.clipPath = duong
+        // Bản có tiền tố cho Safari cũ. Gán qua setProperty vì `webkitClipPath` không có trong
+        // kiểu CSSStyleDeclaration của TS (khác `webkitMaskImage`).
+        cover.style.setProperty("-webkit-clip-path", duong)
+      }
 
       // Khung vẽ đầu tiên phải sạch: JSX để cụm logo `visibility: hidden`, và nó chỉ được bật lên
       // TẠI ĐÂY, cùng lượt với các transform mở màn. Nếu bật sớm hơn, người dùng thấy nguyên cái
@@ -133,49 +208,63 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
       gsap.set(letterT, { x: offsetX, y: offsetY, scale: heSoPhong })
       gsap.set(bacSiRef.current, { opacity: 0, y: -25, scale: 0.95 })
       gsap.set(rongRef.current, { opacity: 0, x: 25, scale: 0.95 })
-      gsap.set(rim, { width: 0, height: 0, opacity: 0, left: tamManX, top: tamManY })
 
       tl = gsap.timeline({ onComplete: finish })
 
       // Pha 1–2: chữ T bay về chỗ, hai vế ghép vào khi nó còn đang hạ cánh (chồng lấn -=0.5).
-      tl.to(letterT, { x: 0, y: 0, scale: 1, duration: 1.2, ease: "power3.inOut" })
+      // `clearProps: "transform"` sau khi hạ cánh: bỏ hẳn ma trận transform còn sót lại trên iOS
+      // Safari, chữ mờ nhoè khi đang phóng — vì đang giãn một lớp bitmap đã dựng sẵn thay vì vẽ lại
+      // nét chữ (ảnh chụp thật trên iPhone cho thấy cạnh chữ T nhoè lúc đang phóng). Xoá transform
+      // trả chữ T về trạng thái tĩnh, trình duyệt vẽ lại nét chữ sắc nét đúng kích cỡ thật của nó.
+      tl.to(letterT, {
+        x: 0,
+        y: 0,
+        scale: 1,
+        duration: 1.05,
+        ease: "power3.inOut",
+        clearProps: "transform",
+      })
         .to(
           bacSiRef.current,
-          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.2)" },
+          { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.2)" },
           "-=0.5",
         )
         .to(
           rongRef.current,
-          { opacity: 1, x: 0, scale: 1, duration: 0.6, ease: "power2.out" },
+          { opacity: 1, x: 0, scale: 1, duration: 0.5, ease: "power2.out" },
           "-=0.5",
         )
         // Pha 3: giữ nhịp cho người xem kịp đọc "Bác sĩ Trọng".
-        .to({}, { duration: 0.35 })
-        // Pha 4: hai vế mờ đi, chỉ còn chữ T xanh lao thẳng vào mặt người xem rồi mở ra app.
+        .to({}, { duration: 0.3 })
+        // Pha 4: "Bác sĩ"/"rọng" mờ đi, chỉ còn chữ T xanh ĐỨNG YÊN tại chỗ nó đậu — KHÔNG phóng to.
+        // Rồi một cửa sổ HÌNH CHỮ T mở ra ngay trong lòng chữ T đó và nở MỘT MẠCH ra lộ HomeScreen —
+        // chính chữ T biến thành cửa vào app (xem chú thích `layDuongKhoet` và khối "phóng theo hàm
+        // mũ" phía trên).
+        //
+        // MỘT tween duy nhất, `ease: "none"`. Không tách nhịp, không easing: số mũ chạy đều đã cho
+        // tốc độ phóng nhìn thấy là hằng số. Thêm bất kỳ easing nào vào đây là lại tạo ra chỗ nhanh
+        // chỗ chậm — đúng thứ vừa phải gỡ bỏ.
+        //
+        // Không có viền/quầng sáng nào chạy theo mép lỗ: chủ dự án yêu cầu bỏ hẳn viền xanh lam, và
+        // video tham chiếu (MDCalc) cũng không có.
         .to([bacSiRef.current, rongRef.current], { opacity: 0, duration: 0.2, ease: "power1.in" })
-        // Kéo chữ T về đúng tâm khung nhìn TRONG LÚC phóng to: cùng một cặp `offsetX/offsetY` đã
-        // dùng để dời nó ra tâm ở pha 1, nên đích đến là chính xác tâm màn hình, không phải một
-        // hiệu chỉnh áng chừng.
-        .to(letterT, { x: offsetX, y: offsetY, scale: 18, duration: 0.5, ease: "power2.in" })
         .to(
-          { r: 0 },
+          oKhoet,
           {
-            r: maxRadius,
-            duration: 0.55,
-            ease: "power2.out",
-            onUpdate: function (this: { targets: () => unknown[] }) {
-              const r = (this.targets()[0] as { r: number }).r
-              const inner = Math.max(r - 4, 0)
-              const mask = `radial-gradient(circle at ${tamManX}px ${tamManY}px, transparent 0, transparent ${inner}px, black ${r}px, black 100%)`
-              cover.style.maskImage = mask
-              cover.style.webkitMaskImage = mask
-              rim.style.width = `${r * 2}px`
-              rim.style.height = `${r * 2}px`
-              rim.style.opacity = r > 4 ? "1" : "0"
+            p: 1,
+            duration: 0.66,
+            ease: "none",
+            onUpdate: capNhatKhoet,
+            // Chốt cứng khung cuối: đoạn chót của phép phóng hàm mũ đi rất nhanh, chỉ cần máy rớt
+            // một khung là lượt onUpdate cuối dừng non và còn sót một dải nền chưa bị nuốt (đo thật
+            // ở bản trước: khung áp chót mới phủ 88% bề ngang cần thiết). Cắt sạch tấm phủ ở đây để
+            // không phụ thuộc vào việc khung cuối có kịp vẽ hay không.
+            onComplete: () => {
+              cover.style.clipPath = "polygon(0px 0px, 0px 0px, 0px 0px)"
+              cover.style.setProperty("-webkit-clip-path", "polygon(0px 0px, 0px 0px, 0px 0px)")
             },
           },
-          // Chồng lấn vào cuối cú phóng: lỗ bắt đầu mở khi chữ T còn đang lớn dần.
-          "-=0.18",
+          "-=0.05",
         )
     })
 
@@ -214,7 +303,18 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
               id="letterT"
               ref={letterTRef}
               className="inline-block"
-              style={{ color: "var(--c-intro-blue)", transformOrigin: "center" }}
+              style={{
+                color: "var(--c-intro-blue)",
+                transformOrigin: "center",
+                // Vá nhoè chữ T trên iOS Safari lúc đang phóng (transform-scale giãn bitmap đã
+                // dựng thay vì vẽ lại nét — ảnh chụp thật từ chủ dự án xác nhận). Ép GPU dựng lớp
+                // này bằng compositing riêng và tắt xoay-lật hai mặt giúp Safari giữ nét chữ khi
+                // scale; `clearProps: "transform"` ở effect bên dưới dọn nốt phần còn sót lại sau
+                // khi hạ cánh.
+                WebkitFontSmoothing: "antialiased",
+                WebkitBackfaceVisibility: "hidden",
+                backfaceVisibility: "hidden",
+              }}
             >
               T
             </span>
@@ -224,23 +324,6 @@ export function IntroOverlay({ onFinished }: { onFinished: () => void }) {
           </span>
         </div>
       </div>
-      {/* Tâm vòng sáng do gsap đặt (tâm khung nhìn, đo lúc chạy — không dùng được `left: 50%` vì
-          cùng lượt đó gsap ghi đè `left` bằng px). Trước lúc đó phải tắt
-          hẳn bằng opacity 0 + cỡ 0, nếu không viền + quầng sáng sẽ hiện thành một chấm xanh ở góc
-          trên trái suốt cả hoạt cảnh. */}
-      <div
-        ref={rimRef}
-        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          boxShadow: "0 0 24px 6px var(--c-intro-blue)",
-          border: "2px solid var(--c-intro-blue)",
-          left: 0,
-          top: 0,
-          width: 0,
-          height: 0,
-          opacity: 0,
-        }}
-      />
     </div>
   )
 }

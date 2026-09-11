@@ -1,7 +1,7 @@
 import { useCallback, useState, useRef, useEffect, useMemo } from "react"
 import type { Antibiotic, DiseaseEntry, InfusionDrug } from "../data/types"
 import { ANTIBIOTICS, INFUSION_CATEGORIES, infusionCategory, InfusionCategory } from "../data"
-import { resolveDosingWeight } from "../lib/bodyWeight"
+import { resolveCrClWeight } from "../lib/bodyWeight"
 import { crclReliability, estimateCrCl, patientHasData, scrToMgDl, usePatientVitals, type PatientVitals } from "../lib/patient"
 import { checkAge, checkHeight, checkScr, checkWeight } from "../lib/doseSafety"
 import { loadWardRecipes, removeWardRecipe, saveWardRecipe, setPinnedWardRecipe, type WardRecipe } from "../lib/wardRecipes"
@@ -414,9 +414,12 @@ export function DungThuocScreen({
     return v == null || v <= 0 ? null : v
   }, [patient.age])
 
-  // CrCl dùng cân nặng hiệu chỉnh khi béo phì, theo cùng quy tắc áp dụng cho liều thuốc.
+  // CrCl dùng cân nặng hiệu chỉnh khi BMI > 30 kg/m², còn lại dùng cân nặng thực (Chợ Rẫy 2024).
+  // KHÔNG dùng chung quy tắc với liều mg/kg (ngưỡng 120% IBW) như bản trước — hai ngưỡng khác nhau,
+  // xem ghi chú ở đầu lib/bodyWeight.ts. Phải khớp HỆT `crclWeight` của PatientPanel, nếu không
+  // panel in ra "tính theo AdjBW 78 kg" trong khi con số CrCl bên cạnh lại tính từ ABW.
   const crcl = useMemo(() => {
-    const w = resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted").used
+    const w = resolveCrClWeight(abwKg, heightCm, patient.sex).used
     const s = parseStrictNumber(patient.scr)
     if (ageYears == null || w == null || s == null || s <= 0) return null
     return estimateCrCl(ageYears, w, scrToMgDl(s, patient.scrUnit), patient.sex)

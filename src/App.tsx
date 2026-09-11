@@ -1,6 +1,6 @@
-import { useCallback, useState, useRef, useEffect, useMemo, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent, type ReactElement } from "react"
+import { useCallback, useState, useRef, useEffect, useMemo, type ReactElement } from "react"
 import type { Antibiotic, DiseaseEntry, InfusionDrug, FlashCard } from "./data/types"
-import { SPECIALTIES, PICKER_ITEMS, DISEASES, INFUSION_CATEGORIES, infusionCategory } from "./data"
+import { SPECIALTIES, DISEASES, INFUSION_CATEGORIES, infusionCategory } from "./data"
 import type { InfusionCategory } from "./data"
 import { useLocalCollection } from "./lib/useLocalCollection"
 import { useIdbCollection } from "./lib/useIdbCollection"
@@ -29,7 +29,6 @@ import { SW_UPDATE_EVENT, applyUpdate, useOnlineStatus } from "./lib/offline"
 import { shouldRemindBackup, snoozeBackupReminder } from "./lib/backupReminder"
 import { tickHaptic } from "./lib/haptics"
 import { loadRecentReads, recordRead, type ReadEntry } from "./lib/recentReads"
-import { specialtyIcon } from "./components/SpecialtyIcons"
 import { icons } from "./components/icons"
 import { ComingSoonScreen } from "./screens/ComingSoonScreen"
 import { AddFlashcardScreen } from "./screens/AddFlashcardScreen"
@@ -85,424 +84,6 @@ export type Screen =
 
 // ─── Components ───────────────────────────────────────────────────────────────
 
-// ─── Bộ chọn chuyên khoa — dải cung cong ngang ────────────────────────────────
-// Nút nhỏ ở góc trên phải mở ra một danh sách nằm trên MỘT CUNG TRÒN cong ngang sang trái: dòng
-// đang chọn ở sát mép phải, càng xa dòng giữa thì càng dạt sang trái, nghiêng theo tiếp tuyến, nhỏ
-// và mờ dần. Không có khung/hộp bao quanh — danh sách trôi tự do trên nền trang.
-//
-// Vì không có hộp nền, chữ phải tự đứng vững trên mọi nội dung phía sau: dùng chữ đậm màu tối +
-// quầng sáng trắng quanh chữ, cộng một lớp mờ nền rất nhẹ được che biên bằng mask (mask làm lớp mờ
-// tan dần ra rìa nên không tạo ra đường viền hộp nào).
-//
-// Trong lúc cuộn, mỗi lần dòng giữa đổi sẽ gọi onSelect(id, false) để màn hình phía sau đổi theo
-// ngay (xem trước nội dung khoa đó); khi dừng hẳn mới gọi onSelect(id, true) và đóng lại.
-
-// Bán kính cung — tâm cung nằm bên PHẢI danh sách, nên cung ưỡn về phía trái: dòng đang chọn thụt
-// vào trong nhất, càng xa dòng giữa càng dạt ra mép phải. (Ngược chiều với bản trước.)
-const ARC_RADIUS = 195
-// Góc giữa hai dòng liền nhau trên cung. Đặt 11° để trong tầm nhìn (±MAX_ROW_ANGLE) luôn hiện được
-// khoảng 11 chuyên khoa — đủ để lướt mắt chọn, thay vì chỉ thấy 3 dòng quanh dòng đang chọn.
-const ROW_ANGLE = 11
-// Khoảng cách dọc giữa hai dòng ở giữa cung, cũng là số px ngón tay phải kéo để qua một dòng.
-const ITEM_H = ARC_RADIUS * Math.sin((ROW_ANGLE * Math.PI) / 180)
-// Quá góc này thì dòng đã cong ra khỏi tầm nhìn — ẩn hẳn.
-const MAX_ROW_ANGLE = 55
-// Độ dạt ngang lớn nhất của dòng ở hai đầu cung. Dùng để đẩy cả vùng chứa vào trong đúng bấy nhiêu,
-// nhờ vậy dòng ở đầu cung vừa chạm mép phải chứ không tràn ra ngoài màn hình.
-const ARC_MAX_X = ARC_RADIUS * (1 - Math.cos((MAX_ROW_ANGLE * Math.PI) / 180))
-// Kích thước vùng chứa dải cung: cao đủ trọn hai đầu cung, rộng đủ cho phần dạt ngang cộng dòng
-// chữ dài nhất ("Sinh lý - Sinh lý bệnh").
-const PICKER_H = Math.ceil(2 * ARC_RADIUS * Math.sin((MAX_ROW_ANGLE * Math.PI) / 180)) + 16
-const PICKER_W = 288
-
-function SpecialtyPicker({
-  onSelect,
-  currentId,
-  thuGon,
-}: {
-  onSelect: (id: string, isFinal: boolean) => void
-  currentId: string
-  /**
-   * Task 7 review (I4) — CHỈ truyền `true` cho màn "specialty". Ẩn tên chuyên khoa trong nút mở
-   * (chỉ còn icon + chevron), giữ nguyên `aria-label` đầy đủ cho trình đọc màn hình. Lý do: đo
-   * thật bằng getBoundingClientRect() ở 375px (xem chú thích tại cụm nút nổi, App shell) cho thấy
-   * bản đầy nhãn (rộng tới 138px khi tên dài như "Sinh lý (bệnh)") không có cách nào vừa tránh đè
-   * lên nút "Chọn" của ScreenHeader (bên phải) VỪA tránh đè lên tiêu đề màn (bên trái) cùng lúc —
-   * hai điều kiện đó triệt tiêu lẫn nhau ở MỌI giá trị `right` khi nhãn còn giữ nguyên bề rộng tối
-   * đa. Bỏ nhãn thu nút xuống còn ~55px, mở đủ khoảng trống để dịch cụm nút sang trái mà không chạm
-   * cả hai phía. Tên chuyên khoa không mất thông tin: `h1` của ScreenHeader đã hiển thị nó to và rõ
-   * ngay cạnh, nhãn nhỏ trong nút vốn chỉ lặp lại đúng chữ đó.
-   */
-  thuGon?: boolean
-}) {
-  const N = PICKER_ITEMS.length
-  const initialIndex = Math.max(0, PICKER_ITEMS.findIndex((s) => s.id === currentId))
-
-  const [isOpen, setIsOpen] = useState(false)
-  const [centerIndex, setCenterIndex] = useState(initialIndex)
-
-  const stageRef = useRef<HTMLDivElement>(null)
-  const rowRefs = useRef<(HTMLDivElement | null)[]>([])
-
-  const offsetRef = useRef(initialIndex)
-  // Vận tốc tính theo "số dòng trên mỗi khung hình 60fps" — nhân với dt thật ở mỗi khung để tốc độ
-  // trôi giống nhau trên máy 60Hz và 120Hz.
-  const velocityRef = useRef(0)
-  const draggingRef = useRef(false)
-  const dragStartYRef = useRef(0)
-  const dragStartOffsetRef = useRef(0)
-  const movedRef = useRef(0)
-  const lastYRef = useRef(0)
-  const lastTRef = useRef(0)
-  const lastVRef = useRef(0)
-  const frameTRef = useRef(0)
-  const rafRef = useRef<number | null>(null)
-  const wheelTimerRef = useRef<number | null>(null)
-  const downIndexRef = useRef<number | null>(null)
-  const lastShownIndexRef = useRef(initialIndex)
-  const isOpenRef = useRef(false)
-
-  function clampIndex(i: number) {
-    return Math.max(0, Math.min(N - 1, i))
-  }
-
-  function render(o: number) {
-    rowRefs.current.forEach((el, i) => {
-      if (!el) return
-      const angle = (i - o) * ROW_ANGLE
-      const abs = Math.abs(angle)
-      if (abs > MAX_ROW_ANGLE) {
-        el.style.opacity = "0"
-        el.style.pointerEvents = "none"
-        return
-      }
-      const rad = (angle * Math.PI) / 180
-      // Toạ độ trên cung: y chạy dọc theo cung, x dạt sang PHẢI theo độ cong (0 ở dòng giữa) — cung
-      // ưỡn về bên trái, ngược chiều bản trước.
-      const y = ARC_RADIUS * Math.sin(rad)
-      const x = ARC_RADIUS * (1 - Math.cos(rad))
-      const t = abs / MAX_ROW_ANGLE
-      const scale = 0.66 + 0.34 * Math.cos(rad)
-      el.style.transform =
-        `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotateY(${(-angle * 0.42).toFixed(2)}deg) rotate(${(-angle * 0.3).toFixed(2)}deg) scale(${scale.toFixed(3)})`
-      // Mờ dần chậm ở gần tâm rồi tắt nhanh ở rìa (1 - t²): các dòng xa vẫn đọc được lờ mờ nên
-      // biết trước mình đang cuộn tới đâu, mà rìa cung vẫn tan hẳn chứ không cắt ngang đột ngột.
-      el.style.opacity = Math.max(0, 1 - t * t).toFixed(3)
-      // Chỉ vài dòng quanh tâm mới bấm chọn được — dòng ở rìa quá nhỏ và mờ, bấm rất dễ trượt.
-      el.style.pointerEvents = abs < ROW_ANGLE * 3.5 ? "auto" : "none"
-      const near = Math.max(0, 1 - abs / (ROW_ANGLE * 1.7))
-      const label = el.querySelector<HTMLSpanElement>(".picker-row-label")
-      if (label) {
-        label.style.color = near > 0.5 ? "var(--c-text)" : "var(--c-text-soft)"
-        label.style.fontWeight = near > 0.5 ? "700" : "500"
-      }
-      // Chấm màu chuyên khoa chỉ sáng lên ở dòng đang chọn — dấu hiệu "đang chọn" thay cho dải
-      // sáng/khung của bản cũ, vì lần này danh sách không có hộp nền.
-      const dot = el.querySelector<HTMLSpanElement>(".picker-row-dot")
-      if (dot) {
-        dot.style.opacity = near.toFixed(3)
-        dot.style.transform = `scale(${(0.4 + near * 0.6).toFixed(3)})`
-      }
-    })
-    const idx = clampIndex(Math.round(o))
-    if (idx !== lastShownIndexRef.current) {
-      lastShownIndexRef.current = idx
-      setCenterIndex(idx)
-      tickHaptic()
-      if (isOpenRef.current) onSelect(PICKER_ITEMS[idx].id, false)
-    }
-  }
-
-  function clampSoft(o: number) {
-    if (o < 0) return o * 0.45
-    if (o > N - 1) return (N - 1) + (o - (N - 1)) * 0.45
-    return o
-  }
-
-  function stopAnim() {
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
-    }
-  }
-
-  // Trượt về đúng một dòng. Thời lượng co giãn theo quãng đường: đi gần thì nhanh gọn, đi xa vẫn
-  // kịp nhìn — cùng một hằng số 380ms cho mọi quãng đường trước đây làm cú chỉnh nhỏ thấy ì.
-  function snapTo(target: number, onDone?: () => void) {
-    stopAnim()
-    const start = offsetRef.current
-    const dist = target - start
-    if (Math.abs(dist) < 0.001) {
-      offsetRef.current = target
-      render(offsetRef.current)
-      onDone?.()
-      return
-    }
-    const duration = Math.min(430, Math.max(180, Math.abs(dist) * 140))
-    const t0 = performance.now()
-    function step(now: number) {
-      const t = Math.min(1, (now - t0) / duration)
-      const eased = 1 - Math.pow(1 - t, 5)
-      offsetRef.current = start + dist * eased
-      render(offsetRef.current)
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(step)
-      } else {
-        offsetRef.current = target
-        render(offsetRef.current)
-        rafRef.current = null
-        onDone?.()
-      }
-    }
-    rafRef.current = requestAnimationFrame(step)
-  }
-
-  function momentumStep(now: number) {
-    // Tính theo thời gian thật giữa 2 khung hình thay vì coi mỗi khung là một bước cố định — nếu
-    // không, cùng một cú vẩy sẽ trôi nhanh gấp đôi trên màn 120Hz và giật khi máy rớt khung hình.
-    const dt = Math.min(50, now - frameTRef.current)
-    frameTRef.current = now
-    const steps = dt / 16.7
-    offsetRef.current = clampSoft(offsetRef.current + velocityRef.current * steps)
-    velocityRef.current *= Math.pow(0.935, steps)
-    render(offsetRef.current)
-    const outOfRange = offsetRef.current < 0 || offsetRef.current > N - 1
-    if (Math.abs(velocityRef.current) > 0.015 && !outOfRange) {
-      rafRef.current = requestAnimationFrame(momentumStep)
-    } else {
-      commitSelection(clampIndex(Math.round(offsetRef.current)))
-    }
-  }
-
-  function commitSelection(idx: number) {
-    snapTo(idx, () => {
-      setIsOpen(false)
-      onSelect(PICKER_ITEMS[idx].id, true)
-    })
-  }
-
-  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    stopAnim()
-    draggingRef.current = true
-    movedRef.current = 0
-    dragStartYRef.current = e.clientY
-    dragStartOffsetRef.current = offsetRef.current
-    lastYRef.current = e.clientY
-    lastTRef.current = performance.now()
-    lastVRef.current = 0
-    const target = (e.target as HTMLElement).closest("[data-row-index]")
-    downIndexRef.current = target ? Number(target.getAttribute("data-row-index")) : null
-    try {
-      // Bắt con trỏ để ngón tay kéo ra ngoài bảng vẫn cuộn tiếp. Trình duyệt có thể từ chối nếu
-      // con trỏ đó không còn hoạt động — không bắt được thì vẫn cuộn bình thường, chỉ là kéo ra
-      // ngoài sẽ mất dấu, nên nuốt lỗi thay vì để văng ra giữa thao tác.
-      stageRef.current?.setPointerCapture(e.pointerId)
-    } catch {
-      // bỏ qua
-    }
-  }
-
-  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
-    if (!draggingRef.current) return
-    const dy = e.clientY - dragStartYRef.current
-    movedRef.current = Math.max(movedRef.current, Math.abs(dy))
-    offsetRef.current = clampSoft(dragStartOffsetRef.current - dy / ITEM_H)
-    render(offsetRef.current)
-    const now = performance.now()
-    const dt = now - lastTRef.current
-    if (dt > 0) {
-      const instant = ((lastYRef.current - e.clientY) / dt / ITEM_H) * 16.7
-      // Làm mượt vận tốc thay vì lấy nguyên giá trị của lần di chuyển cuối: ngón tay luôn rung nhẹ
-      // lúc nhấc lên, lấy thô sẽ ra những cú vẩy mạnh yếu thất thường.
-      lastVRef.current = lastVRef.current * 0.7 + instant * 0.3
-    }
-    lastYRef.current = e.clientY
-    lastTRef.current = now
-  }
-
-  function onPointerUp() {
-    if (!draggingRef.current) return
-    draggingRef.current = false
-    if (movedRef.current < 6) {
-      // Chạm (không kéo): trúng dòng nào thì chọn dòng đó; chạm vào khoảng trống trong bảng thì
-      // hiểu là xác nhận dòng đang ở giữa — trước đây chạm trượt ra ngoài dòng là không có phản
-      // hồi gì, người dùng tưởng máy đơ.
-      commitSelection(downIndexRef.current ?? clampIndex(Math.round(offsetRef.current)))
-      return
-    }
-    velocityRef.current = Math.max(-2.2, Math.min(2.2, lastVRef.current))
-    if (Math.abs(velocityRef.current) < 0.03) {
-      commitSelection(clampIndex(Math.round(offsetRef.current)))
-    } else {
-      frameTRef.current = performance.now()
-      rafRef.current = requestAnimationFrame(momentumStep)
-    }
-  }
-
-  // Lăn chuột / trackpad trên máy tính — điện thoại dùng ngón tay ở các hàm pointer bên trên.
-  function onWheel(e: ReactWheelEvent<HTMLDivElement>) {
-    stopAnim()
-    offsetRef.current = clampSoft(offsetRef.current + e.deltaY / ITEM_H)
-    render(offsetRef.current)
-    if (wheelTimerRef.current) window.clearTimeout(wheelTimerRef.current)
-    // Chốt lựa chọn sau khi ngừng lăn một nhịp ngắn — lăn chuột không có sự kiện "nhấc tay".
-    wheelTimerRef.current = window.setTimeout(() => commitSelection(clampIndex(Math.round(offsetRef.current))), 170)
-  }
-
-  useEffect(() => {
-    render(offsetRef.current)
-    return () => {
-      stopAnim()
-      if (wheelTimerRef.current) window.clearTimeout(wheelTimerRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    isOpenRef.current = isOpen
-    if (isOpen) {
-      offsetRef.current = centerIndex
-      render(offsetRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) {
-      const idx = PICKER_ITEMS.findIndex((s) => s.id === currentId)
-      if (idx >= 0) {
-        offsetRef.current = idx
-        lastShownIndexRef.current = idx
-        setCenterIndex(idx)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentId])
-
-  const current = PICKER_ITEMS[centerIndex]
-
-  return (
-    // Không còn tự neo tuyệt đối: nay nằm trong cụm nổi dùng chung với nút chủ đề ở App shell, nên
-    // hai thứ không thể chồng lên nhau nữa (xem FloatingTopBar). `relative` để dải cung thả xuống
-    // vẫn neo đúng vào nút này.
-    <div className="relative">
-      {/* Nút mở: nền đục + viền theo màu chuyên khoa để luôn tách khỏi nội dung phía sau
-          (bản cũ trong suốt hoàn toàn nên chữ chìm vào nền trang). Vùng chạm cao 36px cho dễ bấm. */}
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        aria-expanded={isOpen}
-        aria-label={`Chuyên khoa đang xem: ${current.name}. Chạm để đổi.`}
-        className="flex items-center gap-1.5 pl-2.5 pr-2 h-9 rounded-full active:scale-95"
-        style={{
-          background: isOpen ? `${current.color}14` : "var(--c-float-bg)",
-          backdropFilter: "blur(20px) saturate(1.6)",
-          WebkitBackdropFilter: "blur(20px) saturate(1.6)",
-          boxShadow: isOpen ? `0 0 0 3px ${current.color}1a` : "0 2px 10px rgba(15,23,42,.10)",
-          border: `1px solid ${isOpen ? `${current.color}59` : "var(--c-line)"}`,
-          transition: "background .25s ease, border-color .25s ease, box-shadow .25s ease, transform .12s ease",
-        }}
-      >
-        <span className="flex-none" style={{ color: current.color }}>{specialtyIcon(current.id, "w-[17px] h-[17px]")}</span>
-        {/* Task 7 review (I4): ẩn ở màn "specialty" — xem chú thích dài tại prop `thuGon` phía trên. */}
-        {!thuGon && (
-          <span className="text-xs font-bold max-w-[76px] truncate" style={{ color: "var(--c-text)" }}>{current.name}</span>
-        )}
-        <svg
-          viewBox="0 0 24 24" fill="none" stroke="var(--c-text-muted)" strokeWidth={2.5}
-          className="w-3.5 h-3.5 flex-shrink-0"
-          style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .25s cubic-bezier(.34,1.4,.64,1)" }}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
-
-      {isOpen && <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />}
-
-      {/* Dải cung thả xuống NGAY DƯỚI nút, không canh giữa theo nút như bản trước: nút nằm sát mép
-          trên màn hình nên danh sách canh giữa bị cắt mất gần 100px phía trên — mấy dòng đầu vừa
-          không nhìn thấy vừa không bấm được. */}
-      {isOpen && (
-        <div
-          className="absolute z-40 picker-pop"
-          style={{ width: PICKER_W, height: PICKER_H, right: -6, top: "calc(100% + 4px)" }}
-        >
-          {/* Lớp làm mờ nền phía sau để chữ luôn đọc được. Mask hình bầu dục làm lớp mờ tan dần ra
-              rìa nên KHÔNG để lại đường viền hộp nào — danh sách vẫn có cảm giác trôi tự do. */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              // Tâm vệt mờ đặt lệch phải (78%) — đúng chỗ khối chữ nằm sau khi cả dải cung được
-              // đẩy vào trong, chứ không dính hẳn mép phải như bản cung ưỡn phải trước đây.
-              background:
-                "radial-gradient(115% 72% at 78% 50%, rgba(var(--c-fog),.97) 0%, rgba(var(--c-fog),.88) 46%, rgba(var(--c-fog),0) 80%)",
-              backdropFilter: "blur(14px) saturate(1.15)",
-              WebkitBackdropFilter: "blur(14px) saturate(1.15)",
-              WebkitMaskImage: "radial-gradient(110% 68% at 78% 50%, #000 42%, transparent 80%)",
-              maskImage: "radial-gradient(110% 68% at 78% 50%, #000 42%, transparent 80%)",
-            }}
-          />
-
-          <div
-            ref={stageRef}
-            className="absolute inset-0"
-            style={{ perspective: "800px", touchAction: "none" }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
-            onWheel={onWheel}
-            role="listbox"
-            aria-label="Danh sách chuyên khoa"
-          >
-            {/* Đẩy cả dải cung vào trong đúng bằng độ dạt lớn nhất: dòng ở hai đầu cung (dạt ra
-                nhiều nhất) vừa chạm mép phải vùng chứa, không dòng nào tràn ra ngoài. */}
-            <div
-              className="absolute right-0 top-1/2"
-              style={{ height: 0, width: "100%", transformStyle: "preserve-3d", transform: `translateX(${-ARC_MAX_X}px)` }}
-            >
-              {PICKER_ITEMS.map((s, i) => (
-                // Neo bên PHẢI và transform-origin cũng ở bên phải: cung ưỡn về mép phải, các dòng
-                // dạt dần sang trái mà đầu phải vẫn bám theo đường cong.
-                <div
-                  key={s.id}
-                  ref={(el) => { rowRefs.current[i] = el }}
-                  data-row-index={i}
-                  role="option"
-                  aria-selected={i === centerIndex}
-                  className="absolute right-0 top-0 flex items-center justify-end gap-2 pr-3 cursor-pointer whitespace-nowrap"
-                  style={{
-                    height: ITEM_H,
-                    marginTop: -ITEM_H / 2,
-                    transformOrigin: "right center",
-                    willChange: "transform, opacity",
-                  }}
-                >
-                  <span className="flex-none" style={{ color: s.color }}>{specialtyIcon(s.id, "w-[19px] h-[19px]")}</span>
-                  <span
-                    className="picker-row-label text-[14px]"
-                    style={{
-                      color: "var(--c-text-soft)",
-                      // Quầng sáng quanh chữ — thứ duy nhất giữ chữ đọc được khi không có hộp nền.
-                      // Ở bản tối quầng phải TỐI (cùng màu lớp mờ) chứ không phải trắng, nếu không
-                      // mỗi dòng chữ sáng lại đội một vầng trắng nhoè quanh mình.
-                      textShadow: "0 0 10px rgba(var(--c-fog),.95), 0 1px 3px rgba(var(--c-fog),.9)",
-                    }}
-                  >
-                    {s.name}
-                  </span>
-                  <span
-                    className="picker-row-dot flex-none rounded-full"
-                    style={{ width: 6, height: 6, background: s.color, opacity: 0, boxShadow: `0 0 6px ${s.color}88` }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // `ScreenHeader` (tiêu đề màn hình dùng chung) đã tách ra ./components/ScreenHeader.tsx — MỘT nguồn
 // sự thật cho mọi màn cấp-tab (Thư viện / Dùng thuốc / Ôn tập / Mindmap). Xem chú thích trong file đó.
@@ -915,22 +496,6 @@ export default function App() {
     replaceAllWardRecipes(snapshot.wardRecipes)
   }
 
-  function jumpTo(id: string) {
-    if (id === "home") {
-      if (screen !== "home") {
-        setHistory((h) => [...h, screen])
-        setScreen("home")
-      }
-      setActiveTab("home")
-      return
-    }
-    setSpecialtyId(id)
-    if (screen !== "specialty") {
-      setHistory((h) => [...h, screen])
-      setScreen("specialty")
-    }
-  }
-
   function goBack() {
     const prev = history[history.length - 1]
     if (prev) {
@@ -965,6 +530,11 @@ export default function App() {
       className="absolute inset-0 flex flex-col overflow-hidden"
       style={{
         background: "var(--c-surface)",
+        // `body` cố tình cao hơn khung nhìn đúng --tran-day để không bao giờ hở ở đáy (xem chú
+        // thích dài tại `body` trong index.css). Trừ lại ĐÚNG chừng đó ở đây để khung app giữ
+        // nguyên chiều cao khung nhìn — nếu không, cả cột flex tụt xuống và thanh nav bị cắt, đúng
+        // ba lần đã hỏng trước đó. Hai chỗ phải luôn dùng CHUNG một biến.
+        bottom: "var(--tran-day)",
       }}
     >
         {/* Chừa chỗ cho tai thỏ / Dynamic Island. Trước đây cộng thêm 6px đệm vì thanh trạng thái
@@ -974,84 +544,24 @@ export default function App() {
 
         <OfflineBar />
 
-        {/* Cụm nút nổi góc trên phải. Gom nút chủ đề và nút chọn chuyên khoa vào CÙNG một hàng
-            flex thay vì để mỗi cái tự neo tuyệt đối: trước đây nút chuyên khoa neo `right: 18` và
-            phủ z-50 lên đúng chỗ nút chủ đề nằm trong header Trang chủ — đo được chồng nhau 60px,
-            tức là nút chủ đề bị che kín hoàn toàn. Nằm chung một hàng flex thì khoảng cách do
-            `gap` quyết định, không cách nào đè lên nhau, và cả hai luôn thẳng một hàng ngang. */}
-        {(screen === "home" || screen === "specialty") && (
+        {/* Nút chủ đề nổi góc trên phải — CHỈ ở HomeScreen (nút chọn chuyên khoa từng nổi cùng cụm
+            này đã bị xoá; màn "specialty" không còn nút nổi nào ở đây nữa).
+            Đo THẬT bằng getBoundingClientRect(): logo "Bs Trọng" (HomeScreen, h-7, translate-y-2)
+            có mép trên y=24, tâm HÌNH HỌC = 24+14 = 38, nhưng dùng 35 chứ không phải 38 — mắt căn
+            chữ-với-chữ theo DẢI CHỮ ĐỌC ĐƯỢC (cap→baseline), dải đó nằm cao hơn tâm hộp ~3px vì
+            đuôi chữ "g"/"ọ" kéo hộp xuống (đo thật: dải cap logo tâm ~34,8px). Dùng --safe-top-trim
+            (không phải --safe-top): dòng spacer phía trên đã đổi sang biến trim, header dịch lên
+            theo — mốc neo nút phải dịch lên CÙNG MỘT LƯỢNG mới còn thẳng hàng. */}
+        {screen === "home" && (
           <div
             className="absolute z-50 flex items-center gap-2"
-            // Đo THẬT bằng getBoundingClientRect() (không suy từ padding/line-height, quá nhiều lớp
-            // để tính tay cho đúng): logo "Bs Trọng" mới có tỉ lệ rất ngang (1106×225 ≈ 4.9:1), nên
-            // kích thước bị RÀNG BUỘC bởi paddingRight:180 chừa cho cụm nút — ở khung hẹp nhất
-            // (375px, iPhone SE) chỉ còn ~175px bề ngang.
-            //
-            // TÂM LOGO Ở MÀN TRANG CHỦ = 38px khi --safe-top=0, cộng từ chính các lớp đang có
-            // (HomeScreen, chỗ render icons.logo):
-            //     pt-2 của .scroll-ios (8) + pt-2 của div header (8) + translate-y-2 của span (8)
-            //     → mép trên logo y=24;  logo h-7 (28px) → tâm HÌNH HỌC = 24 + 14 = 38.
-            // Nhưng dùng 35, KHÔNG phải 38: 38 khớp tâm HỘP của logo, còn mắt căn chữ-với-chữ theo
-            // DẢI CHỮ ĐỌC ĐƯỢC (cap→baseline), mà dải đó của "Bs Trọng" nằm cao hơn tâm hộp ~3px vì
-            // đuôi chữ "g"/"ọ" kéo hộp xuống. Đo thật (getBBox + rect ở 375px): dải cap của logo tâm
-            // ~34,8px trong khi nhãn "Trang chủ" trong pill tâm 38px — lệch 3,2px, đúng triệu chứng
-            // "hai button lệch so với logo" (phản hồi thật 2026-08-29). 35 kéo cụm nút lên khớp dải
-            // cap. Chỉ sửa nhánh home; màn "specialty" (31) không có logo nên giữ nguyên.
-            // Con số cũ ở đây là 24, tính theo giả định logo cao h-8 (32px) và KHÔNG có
-            // translate-y-2. Cả hai giả định đó đã lỗi thời: logo hiện là h-7 và span bọc nó CÓ
-            // translate-y-2. Hậu quả đo được thật (2026-08-26, người dùng báo): cụm nút nằm CAO HƠN
-            // logo đúng 14px — nhìn như một hàng đầu trang nhưng lệch hẳn. Đã đo lại bằng
-            // getBoundingClientRect() ở cả 375px và 390px: logo top=24 cao=28 tâm=38 ở cả hai, tức
-            // hằng số này ổn định theo bề ngang (h-7 khoá chiều cao, w-auto chỉ co bề ngang).
-            //
-            // Vì sao tách riêng theo màn: logo "Bs Trọng" CHỈ có ở HomeScreen. Màn "specialty" dùng
-            // header khác hẳn nên mốc căn khác, mà cụm nút này nổi chung cho cả hai màn.
-            // TÂM HÀNG Ở MÀN CHUYÊN KHOA = 31px, cộng từ header của SpecialtyScreen (hệ cũ, đã
-            // xoá ở giai đoạn 8):
-            //     paddingTop 21 + nửa chiều cao hàng nút "Quay lại trang chủ" (20/2 = 10) = 31.
-            // Đo thật bằng getBoundingClientRect(): nút back top=21 cao=20 tâm=31.
-            // Trước đây màn này ăn chung số 24 của màn home nên lệch 7px — ít lộ hơn bên home (14px)
-            // nên lọt qua nhiều lượt kiểm, tới khi người dùng chỉ đích danh mới thấy (2026-08-26).
-            // CÁCH MỞ MÀN NÀY ĐỂ ĐO LẠI: picker chuyên khoa là bánh xe cuộn, chốt lựa chọn đi qua
-            // snapTo() chạy bằng requestAnimationFrame — môi trường kiểm nào đóng băng rAF (vd
-            // Browser pane không compositing) sẽ KHÔNG vào được màn này bằng click, phải thay tạm
-            // requestAnimationFrame bằng setTimeout rồi mới mô phỏng chạm được.
-            //
-            // Cụm nút không nằm cùng flow với header nên mốc neo này độc lập, không tự khớp theo —
-            // mỗi lần đổi bố cục header (chiều cao logo, padding, translate) PHẢI ĐO LẠI số này.
-            // Dùng --safe-top-trim (không phải --safe-top): dòng spacer phía trên đã đổi sang biến
-            // trim, header bên dưới nó dịch lên theo — mốc neo cụm nút phải dịch lên CÙNG MỘT LƯỢNG
-            // mới còn thẳng hàng, để nguyên --safe-top thì cụm nút tụt lại phía sau 8px.
-            //
-            // Task 7 review (I4) — chú thích "31px" ở trên giờ mô tả một header ĐÃ NGỪNG RENDER
-            // (SpecialtyScreen hệ cũ — đã xoá ở giai đoạn 8 — thay bằng ScreenHeader dùng chung từ
-            // Task 7). Con số 31 tình
-            // cờ vẫn khớp gần đúng hàng tiêu đề MỚI (đo thật: hàng ScreenHeader cao 12→48px, tâm
-            // 30px) nên KHÔNG cần đổi trục dọc. Trục NGANG thì có: đo thật bằng
-            // getBoundingClientRect() ở 375px, màn chuyên khoa có ≥1 mục (nút "Chọn" thật sự hiện)
-            // — với `right: 18` cũ, cụm nút (chỉ SpecialtyPicker, không có ThemeToggle ở màn này)
-            // choán x:[239.78,357.33], còn nút "Chọn" choán x:[292.04,355.33] — ĐÈ HẲN lên nhau
-            // (63/63px bề ngang nút "Chọn" nằm dưới cụm nút, y cũng trùng gần hết: 13→49 so với
-            // 12→48) — chụp màn hình xác nhận nút "Chọn" biến mất hoàn toàn phía sau cụm nút.
-            // `right: 92` (đo lại SAU khi ẩn nhãn tên qua prop `thuGon` của SpecialtyPicker — xem
-            // chú thích tại đó) đẩy cụm nút sang trái đủ để hết đè "Chọn" (buffer ~9px ở mọi bề
-            // ngang màn hình, vì cả hai mép đều lấy theo `right`/padding cố định, không phải theo
-            // % — xem chứng minh trong chú thích prop `thuGon`), mà vẫn không chạm tới tiêu đề dài
-            // nhất ("Sinh lý (bệnh)", đo thật: text thật chỉ tới x=150, cụm nút thu gọn bắt đầu ở
-            // x≈223 — dư khoảng 70px). CHỈ áp dụng cho "specialty": màn "home" không có nút "Chọn"
-            // nào để đè lên, giữ nguyên 18 để cụm nút vẫn sát cạnh logo như cũ.
             style={{
-              top: `calc(var(--safe-top-trim) + ${screen === "home" ? 35 : 31}px)`,
-              right: screen === "specialty" ? 92 : 18,
+              top: `calc(var(--safe-top-trim) + 35px)`,
+              right: 18,
               transform: "translateY(-50%)",
             }}
           >
-            {screen === "home" && <ThemeToggle />}
-            <SpecialtyPicker
-              onSelect={jumpTo}
-              currentId={screen === "home" ? "home" : specialtyId}
-              thuGon={screen === "specialty"}
-            />
+            <ThemeToggle />
           </div>
         )}
 
@@ -1178,9 +688,11 @@ export default function App() {
               onQuayLai={() => navigate("home")}
             />
           )}
-          {/* Task 7: màn chuyên khoa (mở từ dải chọn khoa cong, SpecialtyPicker) dùng chung
-              LuoiMuc — lọc theo `chuyenKhoa`, không có nút tạo (loaiTaoDuoc: []) như Thư viện.
-              SpecialtyScreen (hệ cũ) đã bị xoá ở giai đoạn 8. */}
+          {/* Task 7: màn chuyên khoa dùng chung LuoiMuc — lọc theo `chuyenKhoa`, không có nút tạo
+              (loaiTaoDuoc: []) như Thư viện. SpecialtyScreen (hệ cũ) đã bị xoá ở giai đoạn 8.
+              Nút chọn chuyên khoa (dải cung cong, SpecialtyPicker) đã bị xoá theo yêu cầu chủ dự
+              án — màn này giờ chỉ vào được gián tiếp qua kết quả tìm kiếm có gắn thẻ chuyên khoa
+              (xem nhánh `r.specialty` trong `recentReadItems`/tìm kiếm). */}
           {screen === "specialty" && (
             <BoardGallery
               dangHienTab
@@ -1290,6 +802,11 @@ export default function App() {
               background: "var(--c-nav-bg-solid)",
               borderTop: "1px solid var(--c-nav-border)",
               // Phần phủ lên vùng thanh gạt Home: chỉ là nền, không đặt nút bấm vào đây.
+              // KHÔNG cho nền nav "rỉ xuống" dưới đáy khung nhìn từ đây — đã thử và VÔ TÁC DỤNG:
+              // #app-shell có `overflow-hidden`, nav nằm bên trong nó nên mọi phần tràn ra đều bị
+              // cắt đúng tại đáy khung app. Đo bằng getBoundingClientRect() KHÔNG thấy được (hộp bố
+              // cục vẫn báo đủ 770px trong khi elementsFromPoint tại y=645 không hề có nav).
+              // Dải phủ nay nằm ở `body::after` trong index.css — ngoài tầm cắt của app-shell.
               paddingBottom: "var(--nav-pad-bottom)",
             }}
           >

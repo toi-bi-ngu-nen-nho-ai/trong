@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useId } from "react"
-import { resolveDosingWeight } from "../../lib/bodyWeight"
+import { resolveCrClWeight } from "../../lib/bodyWeight"
 import { CRCL_RELIABILITY_TEXT, RRT_LABELS, RRT_SHORT, SCR_UMOL_PER_MGDL, crclNullReason, crclReliability, isPatientStale, isRenalStatusStale, needsCrrtFlow, patientHasData, type RrtMode } from "../../lib/patient"
 import { checkAge, checkHeight, checkScr, checkWeight } from "../../lib/doseSafety"
 import { tickHaptic } from "../../lib/haptics"
@@ -97,11 +97,9 @@ export function PatientPanel({ open, onToggle, renalRelevantByDefault = false }:
     scrInvalid ? `sinv:${patient.scr}` : scrWarn && scrWarn.severity !== "ok" ? `s:${scrWarn.severity}:${patient.scr}:${patient.scrUnit}` : null,
   )
 
-  // Cân nặng dùng để ước tính CrCl: ABW nếu bình thường/thiếu cân, AdjBW nếu béo phì (ABW > 130% IBW).
-  const crclWeight = useMemo(
-    () => resolveDosingWeight(abwKg, heightCm, patient.sex, "adjusted"),
-    [abwKg, heightCm, patient.sex],
-  )
+  // Cân nặng dùng để ước tính CrCl: AdjBW khi BMI > 30 kg/m², còn lại ABW (Chợ Rẫy 2024).
+  // KHÁC ngưỡng của liều mg/kg (120% IBW) — xem ghi chú hai ngưỡng ở đầu lib/bodyWeight.ts.
+  const crclWeight = useMemo(() => resolveCrClWeight(abwKg, heightCm, patient.sex), [abwKg, heightCm, patient.sex])
 
   function switchScrUnit(next: "mgdl" | "umol") {
     if (next === patient.scrUnit) return
@@ -487,8 +485,13 @@ export function PatientPanel({ open, onToggle, renalRelevantByDefault = false }:
                         : "Cần nhập creatinin để tính"}
                 </p>
               )}
+              {/* Hiện BMI cùng dòng vì từ 2026-09-10 chính BMI (>30) là thứ quyết định CrCl dùng
+                  ABW hay AdjBW — không có nó thì dòng "tính theo AdjBW" là một kết luận không có
+                  căn cứ trên màn hình, bác sĩ phải tự nhẩm lại mới kiểm được.
+                  Bỏ `truncate`: đây là căn cứ tính liều, thà xuống 2 dòng còn hơn cắt mất con số. */}
               {crclWeight.ibw != null && crclWeight.used != null && (
-                <p className={`${T.meta} ${NUM} truncate`} style={{ color: C.textSoft }}>
+                <p className={`${T.meta} ${NUM}`} style={{ color: C.textSoft }}>
+                  {crclWeight.bmi != null && <>BMI {crclWeight.bmi.toFixed(1).replace(".", ",")} · </>}
                   IBW {crclWeight.ibw.toFixed(0)} kg · tính theo {crclWeight.usedLabel} {crclWeight.used.toFixed(1).replace(".", ",")} kg
                 </p>
               )}
