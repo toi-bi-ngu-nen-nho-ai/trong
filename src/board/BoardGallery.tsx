@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { doiGhiAnhXongNeuCo, type LoaiMuc, type MucMeta } from './mucMeta'
-import { LuoiMuc, TheTrong, type BoardOpenOrigin, type BoLocMuc } from './LuoiMuc'
+import { LuoiMuc, type BoardOpenOrigin, type BoLocMuc } from './LuoiMuc'
+import { TheTrong } from './trangThai'
 import { VoMuc, type KetQuaXuat, type XuatBangFn } from './index'
 import { IconChevronBack } from '../components/IconChevronBack'
 import { IDB_STORES, idbGetAll } from '../lib/idb'

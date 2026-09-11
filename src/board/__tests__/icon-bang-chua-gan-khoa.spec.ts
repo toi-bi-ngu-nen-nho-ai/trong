@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { iconBangSoDo, specialtyIcon } from '../../components/SpecialtyIcons'
-import { TheTrong } from '../LuoiMuc'
+import { TheTrong } from '../trangThai'
 import { VeChuyenKhoaDangTai } from '../VeChuyenKhoaDangTai'
 
 const THU_MUC = path.dirname(fileURLToPath(import.meta.url))

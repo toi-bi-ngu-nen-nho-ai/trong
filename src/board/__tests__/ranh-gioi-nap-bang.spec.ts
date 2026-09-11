@@ -151,6 +151,30 @@ describe('mucMeta.ts — ranh giới D13 (không kéo BlockSuite vào chunk vỏ
   })
 })
 
+describe.each([
+  ['LuoiMuc.tsx', '../LuoiMuc.tsx'],
+  ['TheBang.tsx', '../TheBang.tsx'],
+  ['trangThai.tsx', '../trangThai.tsx'],
+  ['mauBang.ts', '../mauBang.ts'],
+])('%s — ranh giới D13 (không kéo BlockSuite vào chunk vỏ app)', (_ten, duongDan) => {
+  // Bốn file này cùng một khối trước khi tách (LuoiMuc.tsx, đợt 2026-09-11) — App.tsx nhập LuoiMuc
+  // qua BoardGallery.tsx THẲNG vào chunk vỏ app (không qua vỏ nạp chậm ./index.tsx), dựa trên lời
+  // hứa ở đầu LuoiMuc.tsx gốc "KHÔNG phụ thuộc BlockSuite". Tách file không được làm mất lời hứa đó
+  // ở bất kỳ mảnh nào — cùng cách ChonDanhMuc.tsx/mucMeta.ts đã được canh riêng ở trên.
+  const nguon = readFileSync(new NodeURL(duongDan, import.meta.url), 'utf8')
+
+  it('không import gì từ @blocksuite/* (ranh giới D13)', () => {
+    expect(nguon).not.toContain('@blocksuite/')
+  })
+
+  it('không import từ ./mo-doc, ./EdgelessBoard hay ./TrangBaiViet — kể cả gián tiếp qua ./index (ranh giới D13)', () => {
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/mo-doc['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/EdgelessBoard['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/TrangBaiViet['"]/m)
+    expect(nguon).not.toMatch(/^import\s+[^\n]*['"]\.\/index['"]/m)
+  })
+})
+
 describe('DataSyncScreen.tsx — ranh giới D13 cho xuất/nhập nội dung doc', () => {
   // `xuatNhapNoiDung.ts` (Task 4, giai đoạn 7-9) import `./mo-doc`, tức cả khối BlockSuite.
   // DataSyncScreen.tsx được App.tsx import TĨNH nên nằm trong CHUNK VỎ APP — mọi người dùng tải nó,

@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SPECIALTIES } from '../../data'
 import { IDB_STORES, idbDelete, idbGetAll, idbPut } from '../../lib/idb'
-import { LuoiMuc, mauHueChongTrung, nghiengOnDinh } from '../LuoiMuc'
+import { LuoiMuc } from '../LuoiMuc'
+import { mauHueChongTrung, nghiengOnDinh } from '../mauBang'
 import { choDenKhi, choDom } from '../../__tests__/helpers/cho-den-khi'
 import { chonDanhMucDauTien } from './helpers/chon-danh-muc-trong-test'
 

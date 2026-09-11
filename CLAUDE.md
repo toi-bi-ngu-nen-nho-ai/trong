@@ -91,7 +91,11 @@ in `commit-thuong-nguon.txt`; the gate prints the exact fix command when that's 
   `src/board/index.tsx`**, never reach past it into `EdgelessBoard`/`TrangBaiViet` directly — it's
   the lazy-loading + error-boundary shell that keeps a failed chunk load (e.g. opening the mindmap
   PWA shortcut offline) from tearing down the whole app. This boundary is enforced by
-  `ranh-gioi-nap-bang.spec.ts`.
+  `ranh-gioi-nap-bang.spec.ts`. `LuoiMuc.tsx` (the card grid shared by Mindmap and Thư viện) is
+  itself split into siblings — `mauBang.ts` (card color/contrast math), `trangThai.tsx` (empty/
+  loading states), `TheBang.tsx` (the card component), `luoiHangSo.ts` (tuning constants) — all of
+  which, like `LuoiMuc.tsx` itself, must stay free of any BlockSuite import (checked by the same
+  spec file) since they load statically into the app shell via `BoardGallery.tsx`.
 - **`src/vendor/blocksuite/`** — a vendored, unmodified copy of BlockSuite/AFFiNE (2600+ files).
   **Never edit it.** It's compiled and post-processed into `.vendor-build/` (gitignored) by the
   pipeline in `scripts/` (`npm run dung:vendor`): TypeScript compile → copy package.json → rename
